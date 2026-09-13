@@ -97,7 +97,10 @@ async def main():
     passed = sum(1 for r in results if r["passed"])
     print(f"\n**{passed}/{len(results)} passed** "
           f"({100 * passed / max(1, len(results)):.0f}%)")
-    out = Path(__file__).parent / "results.json"
+    # Results go under results/ (gitignored) — never into the repo tree.
+    out_dir = Path(__file__).parent / "results"
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / "results.json"
     out.write_text(json.dumps(
         {"model": args.model, "results": results}, indent=2))
     print(f"details: {out}")

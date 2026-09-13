@@ -40,7 +40,12 @@ async def execute_mcp_action(
         # dependency authenticates; the per-handler gate authorizes.
         await require_critical_tool(current_user, tool_name)
         await require_workflow_trigger_tool(current_user, tool_name)
-        result = await mcp_service.execute_tool(server_id, tool_name, arguments)
+        # Authenticated identity for tools that enforce ownership from the
+        # dispatch context (operator_* runs deny context-less callers).
+        result = await mcp_service.execute_tool(
+            server_id, tool_name, arguments,
+            context={"user_id": str(current_user.id)},
+        )
         return {"status": "success", "result": result}
     except HTTPException:
         raise

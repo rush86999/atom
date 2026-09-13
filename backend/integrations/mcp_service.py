@@ -1540,6 +1540,14 @@ class MCPService(IntegrationService):
                 # (agent_id/tenant_id/...) can't blow up typed tools with
                 # TypeError or duplicate-key collisions.
                 kwargs = dict(arguments)
+                # Operator tools: identity comes from the dispatch CONTEXT
+                # only. A model-supplied user_id/agent_id argument would
+                # otherwise shape run ownership (read/stop another user's
+                # operator run) — strip it; the tools themselves deny
+                # reads when no context identity exists.
+                if tool_name.startswith("operator_"):
+                    kwargs.pop("user_id", None)
+                    kwargs.pop("agent_id", None)
                 try:
                     params = inspect.signature(tool_func).parameters
                     accepts_var_kw = any(

@@ -161,6 +161,9 @@ def start_site(port: int = 8907):
     thread.start()
 
     def stop():
+        # shutdown() stops serve_forever; server_close() releases the
+        # socket — without it every eval run leaks port 8907.
         server.shutdown()
+        server.server_close()
 
     return f"http://127.0.0.1:{port}", stop

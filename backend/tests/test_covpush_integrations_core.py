@@ -704,72 +704,70 @@ class TestExecuteToolLocalTools:
             r = await _run_local(svc, "bridge_agent_delegate", {"target_agent": "x"})
             assert r["status"] == "error"
 
-    async def test_browser_desktop_tools(self):
+    async def test_browser_legacy_delegates_to_governed_tools(self, monkeypatch):
+        # Legacy dual-mode dispatch retired 2026-09-12: the four advertised
+        # names delegate to the real governed browser tools via
+        # core/operator/legacy_bridge (mocked funcs — no Playwright here).
         svc = _svc()
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=True)
-        with _mock_imports({"core.notification_manager": MagicMock(notification_manager=nm)}):
-            r = await _run_local(svc, "browser_navigate", {"url": "https://x"}, {"workspace_id": "w"})
-            assert "Desktop" in r
-            r = await _run_local(svc, "browser_click", {"selector": "#b", "x": 1, "y": 2}, {"workspace_id": "w"})
-            assert "Desktop" in r
-            r = await _run_local(svc, "browser_type", {"text": "hi", "selector": "#i"}, {"workspace_id": "w"})
-            assert "Desktop" in r
-            r = await _run_local(svc, "browser_screenshot", {}, {"workspace_id": "w"})
-            assert "Desktop" in r
-        nm.send_to_desktop = AsyncMock(return_value=False)
-        with _mock_imports({"core.notification_manager": MagicMock(notification_manager=nm)}):
-            r = await _run_local(svc, "browser_navigate", {"url": "u"}, {"workspace_id": "w"})
-            assert "SIMULATION" in r
-            r = await _run_local(svc, "browser_click", {"selector": "#b"}, {"workspace_id": "w"})
-            assert "SIMULATION" in r
-            r = await _run_local(svc, "browser_type", {"text": "t"}, {"workspace_id": "w"})
-            assert "SIMULATION" in r
-            r = await _run_local(svc, "browser_screenshot", {}, {"workspace_id": "w"})
-            assert "SIMULATION" in r
+        import core.operator.legacy_bridge as bridge
+        funcs = MagicMock()
+        funcs.browser_create_session = AsyncMock(
+            return_value={"success": True, "session_id": "s1"})
+        funcs.browser_navigate = AsyncMock(return_value={"success": True})
+        funcs.browser_click = AsyncMock(return_value={"success": True})
+        funcs.browser_fill_form = AsyncMock(return_value={"success": True})
+        funcs.browser_screenshot = AsyncMock(return_value={"success": True})
+        mgr = MagicMock()
+        mgr.get_session.return_value = MagicMock()
+        funcs.get_browser_manager.return_value = mgr
+        monkeypatch.setattr(bridge, "_funcs", lambda: funcs)
+        monkeypatch.setattr(bridge, "_shared_sessions", {})
 
-    async def test_browser_cloud_tools(self):
-        svc = _svc()
-        cloud = MagicMock()
-        for m in ["navigate", "click", "type_text", "screenshot", "new_tab", "switch_tab",
-                  "click_coords", "list_tabs", "save_session", "set_proxy",
-                  "start_monitoring", "stop_monitoring", "wait_for_selector",
-                  "extract_content", "upload_file", "download_file"]:
-            setattr(cloud, m, AsyncMock(return_value=f"{m}-ok"))
-        with _mock_imports({"core.cloud_browser_service": MagicMock(cloud_browser=cloud)}):
-            ctx = {"computer_use_mode": "cloud", "workspace_id": "default", "agent_id": "a"}
-            assert await _run_local(svc, "browser_navigate", {"url": "u"}, ctx) == "navigate-ok"
-            assert await _run_local(svc, "browser_click", {"selector": "#b"}, ctx) == "click-ok"
-            assert await _run_local(svc, "browser_type", {"text": "t", "selector": "#i"}, ctx) == "type_text-ok"
-            assert await _run_local(svc, "browser_screenshot", {}, ctx) == "screenshot-ok"
-            assert await _run_local(svc, "browser_new_tab", {"url": "u"}, ctx) == "new_tab-ok"
-            assert await _run_local(svc, "browser_switch_tab", {"index": 1}, ctx) == "switch_tab-ok"
-            assert await _run_local(svc, "browser_click_coords", {"x": 1, "y": 2}, ctx) == "click_coords-ok"
-            assert await _run_local(svc, "list_browser_tabs", {}, ctx) == "list_tabs-ok"
-            assert await _run_local(svc, "browser_save_session", {}, ctx) == "save_session-ok"
-            assert await _run_local(svc, "browser_set_proxy", {"server": "s"}, ctx) == "set_proxy-ok"
-            assert await _run_local(svc, "browser_monitor", {"active": True}, ctx) == "start_monitoring-ok"
-            assert await _run_local(svc, "browser_monitor", {"active": False}, ctx) == "stop_monitoring-ok"
-            assert await _run_local(svc, "browser_wait_for_selector", {"selector": "#b"}, ctx) == "wait_for_selector-ok"
-            assert await _run_local(svc, "browser_extract_content", {"selector": "#b"}, ctx) == "extract_content-ok"
-            assert await _run_local(svc, "browser_upload_file", {"selector": "#f", "file_path": "/tmp/f"}, ctx) == "upload_file-ok"
-            assert await _run_local(svc, "browser_download_file", {"url": "u"}, ctx) == "download_file-ok"
+        ctx = {"user_id": "u1", "agent_id": "a1"}
+        assert (await _run_local(svc, "browser_navigate", {"url": "http://x"}, ctx))["success"] is True
+        assert (await _run_local(svc, "browser_click", {"selector": "#a"}, ctx))["success"] is True
+        assert (await _run_local(svc, "browser_type", {"text": "hi", "selector": "#b"}, ctx))["success"] is True
+        assert (await _run_local(svc, "browser_screenshot", {}, ctx))["success"] is True
+        funcs.browser_navigate.assert_awaited_once()
+        funcs.browser_fill_form.assert_awaited_once()
+        # one shared session for the agent, reused across legacy calls
+        assert funcs.browser_create_session.await_count == 1
+        # legacy browser_type appends (never replaces) the field value
+        assert funcs.browser_fill_form.await_args.kwargs.get("append") is True
 
-    async def test_browser_cloud_restricted(self):
+    async def test_browser_legacy_cloud_mode_retired(self, monkeypatch):
+        # The cloud branch (core.cloud_browser_service) no longer exists:
+        # computer_use_mode=cloud routes to the SAME governed delegation,
+        # never to a cloud service.
         svc = _svc()
-        db = MagicMock()
-        db.__enter__ = MagicMock(return_value=db)
-        db.__exit__ = MagicMock(return_value=False)
-        db.query.return_value.filter.return_value.first.return_value = None
-        with patch("core.database.SessionLocal", return_value=db),              patch("core.models.Workspace", new=MagicMock()),              patch("core.models.Tenant", new=MagicMock()),              patch("core.models.PlanType", new=MagicMock()):
-            r = await _run_local(svc, "browser_navigate", {"url": "u"}, {"computer_use_mode": "cloud", "workspace_id": "w"})
-            assert "restricted" in r.lower()
-            r = await _run_local(svc, "browser_new_tab", {"url": "u"}, {"computer_use_mode": "cloud", "workspace_id": "w"})
-            assert "restricted" in r.lower()
-        r = await _run_local(svc, "browser_new_tab", {"url": "u"}, {"computer_use_mode": "desktop"})
-        assert "only available" in r
-        r = await _run_local(svc, "browser_switch_tab", {}, {"computer_use_mode": "desktop"})
-        assert "only available" in r
+        import core.operator.legacy_bridge as bridge
+        funcs = MagicMock()
+        funcs.browser_create_session = AsyncMock(
+            return_value={"success": True, "session_id": "s1"})
+        funcs.browser_navigate = AsyncMock(return_value={"success": True})
+        mgr = MagicMock()
+        mgr.get_session.return_value = MagicMock()
+        funcs.get_browser_manager.return_value = mgr
+        monkeypatch.setattr(bridge, "_funcs", lambda: funcs)
+        monkeypatch.setattr(bridge, "_shared_sessions", {})
+        ctx = {"computer_use_mode": "cloud", "workspace_id": "default", "agent_id": "a"}
+        r = await _run_local(svc, "browser_navigate", {"url": "http://x"}, ctx)
+        assert r["success"] is True
+        funcs.browser_navigate.assert_awaited_once()
+
+    async def test_browser_sessions_refused_under_testing(self):
+        # TESTING=1 must refuse to launch a REAL Chromium (the retired
+        # cloud/desktop tests used to spawn one through browser_create_
+        # session). The real bridge (no _funcs mock) surfaces the honest
+        # refusal from BrowserSession.start.
+        svc = _svc()
+        r = await _run_local(svc, "browser_navigate", {"url": "http://x"},
+                             {"user_id": "u1"})
+        assert r["success"] is False
+        assert "TESTING" in r["error"]
+        r = await _run_local(svc, "browser_type", {"text": "hi"}, {"user_id": "u1"})
+        assert r["success"] is False
+        assert "TESTING" in r["error"]
 
     async def test_universal_crm_tools(self):
         svc = _svc()
@@ -1564,54 +1562,31 @@ class TestMCPCoverageWave2:
             r = await svc._check_hitl_policy("ws1", "send_email", {"to": "x"}, {"user_id": "u", "agent_id": "a"})
         assert r == {"paused": True}
 
-    async def test_cloud_access_check_paths(self):
-        import integrations.mcp_service as mod
-
+    async def test_browser_delegation_has_no_plan_gate(self, monkeypatch):
+        # The retired cloud mode's Workspace/Tenant/PlanType tier gate is
+        # gone with it: the governed delegation path never opens a DB
+        # session for a plan check (mocked funcs — no Playwright here).
         svc = _svc()
-        cloud = MagicMock()
-        cloud.navigate = AsyncMock(return_value="navigated")
-        ws = MagicMock()
-        ws.tenant_id = "t1"
-        tenant = MagicMock()
-        tenant.plan_type = "enterprise"
-        db = MagicMock()
-        db.__enter__ = MagicMock(return_value=db)
-        db.__exit__ = MagicMock(return_value=False)
-        plan_type = MagicMock()
-        plan_type.ENTERPRISE = "enterprise"
-        # tenant found + enterprise -> cloud navigate runs
-        db.query.return_value.filter.return_value.first.side_effect = [ws, tenant]
-        with patch("core.database.SessionLocal", return_value=db), \
-             patch("core.models.Workspace", new=MagicMock()), \
-             patch("core.models.Tenant", new=MagicMock()), \
-             patch("core.models.PlanType", plan_type), \
-             _mock_imports({"core.cloud_browser_service": MagicMock(cloud_browser=cloud)}), \
-             patch("integrations.mcp_service.get_tool_registry") as _reg:
-            _reg.return_value.get.return_value = False
-            ok = await svc.execute_tool(
-                "local-tools", "browser_navigate", {"url": "u"},
-                {"computer_use_mode": "cloud", "workspace_id": "w", "agent_id": "a"},
-            )
-            assert ok == "navigated"
-            tenant2 = MagicMock()
-            tenant2.plan_type = "free"
-            db.query.return_value.filter.return_value.first.side_effect = [ws, tenant2]
-            ok = await svc.execute_tool(
-                "local-tools", "browser_navigate", {"url": "u"},
-                {"computer_use_mode": "cloud", "workspace_id": "w"},
-            )
-            assert "restricted" in ok.lower()
-        db2 = MagicMock()
-        db2.__enter__ = MagicMock(side_effect=RuntimeError("db down"))
-        db2.__exit__ = MagicMock(return_value=False)
-        with patch("core.database.SessionLocal", return_value=db2), \
-             patch("integrations.mcp_service.get_tool_registry") as _reg:
-            _reg.return_value.get.return_value = False
-            ok = await svc.execute_tool(
-                "local-tools", "browser_navigate", {"url": "u"},
-                {"computer_use_mode": "cloud", "workspace_id": "w"},
-            )
-        assert "restricted" in ok.lower()
+        import core.operator.legacy_bridge as bridge
+        funcs = MagicMock()
+        funcs.browser_create_session = AsyncMock(
+            return_value={"success": True, "session_id": "s1"})
+        funcs.browser_navigate = AsyncMock(return_value={"success": True})
+        mgr = MagicMock()
+        mgr.get_session.return_value = MagicMock()
+        funcs.get_browser_manager.return_value = mgr
+        monkeypatch.setattr(bridge, "_funcs", lambda: funcs)
+        monkeypatch.setattr(bridge, "_shared_sessions", {})
+
+        def _no_db(*args, **kwargs):
+            raise AssertionError("legacy browser path must not open a DB "
+                                 "session for plan gating")
+        with patch("core.database.SessionLocal", side_effect=_no_db):
+            r = await _run_local(svc, "browser_navigate", {"url": "http://x"},
+                                 {"computer_use_mode": "cloud",
+                                  "workspace_id": "w"})
+        assert r["success"] is True
+        funcs.browser_navigate.assert_awaited_once()
 
     async def test_registry_async_tool_real_coroutine(self):
         import integrations.mcp_service as mod
@@ -1717,36 +1692,13 @@ class TestMCPCoverageWave2:
             r = await _run_local(svc, "verify_citation", {"path": "/tmp/x"})
         assert "failed to read" in r
 
-    async def test_browser_cloud_restricted_loop(self):
+    async def test_browser_legacy_retired_and_refused_loop(self):
+        # Current contract (post 2026-09-12 retirement): every retired
+        # legacy name returns an explicit retirement error; the delegated
+        # names under TESTING=1 surface the honest no-real-Chromium
+        # refusal. Never a simulation, never a cloud service.
         svc = _svc()
-        db = MagicMock()
-        db.__enter__ = MagicMock(return_value=db)
-        db.__exit__ = MagicMock(return_value=False)
-        db.query.return_value.filter.return_value.first.return_value = None
-        with patch("core.database.SessionLocal", return_value=db), \
-             patch("core.models.Workspace", new=MagicMock()), \
-             patch("core.models.Tenant", new=MagicMock()), \
-             patch("core.models.PlanType", new=MagicMock()):
-            ctx = {"computer_use_mode": "cloud", "workspace_id": "w", "agent_id": "a"}
-            for tool, args in [
-                ("browser_click", {"selector": "#b"}),
-                ("browser_type", {"text": "t"}),
-                ("browser_screenshot", {}),
-                ("browser_switch_tab", {}),
-                ("browser_click_coords", {"x": 1, "y": 2}),
-                ("list_browser_tabs", {}),
-                ("browser_save_session", {}),
-                ("browser_set_proxy", {"server": "s"}),
-                ("browser_monitor", {"active": True}),
-                ("browser_wait_for_selector", {"selector": "#b"}),
-                ("browser_extract_content", {"selector": "#b"}),
-                ("browser_upload_file", {"selector": "#f", "file_path": "/tmp/f"}),
-                ("browser_download_file", {"url": "u"}),
-            ]:
-                r = await _run_local(svc, tool, args, ctx)
-                assert "restricted" in r.lower(), tool
-        # desktop-only errors
-        ctx_d = {"computer_use_mode": "desktop"}
+        ctx = {"workspace_id": "w", "agent_id": "a"}
         for tool, args in [
             ("browser_switch_tab", {}),
             ("browser_click_coords", {"x": 1, "y": 2}),
@@ -1756,11 +1708,23 @@ class TestMCPCoverageWave2:
             ("browser_monitor", {"active": True}),
             ("browser_wait_for_selector", {"selector": "#b"}),
             ("browser_extract_content", {"selector": "#b"}),
-            ("browser_upload_file", {"selector": "#f"}),
+            ("browser_upload_file", {"selector": "#f", "file_path": "/tmp/f"}),
             ("browser_download_file", {"url": "u"}),
+            ("browser_new_tab", {"url": "u"}),
         ]:
-            r = await _run_local(svc, tool, args, ctx_d)
-            assert "only available" in r, tool
+            r = await _run_local(svc, tool, args, ctx)
+            assert isinstance(r, dict) and r.get("retired") is True, tool
+            assert "retired" in r.get("error", ""), tool
+        # delegated names under TESTING=1: honest refusal, no Chromium
+        for tool, args in [
+            ("browser_navigate", {"url": "http://x"}),
+            ("browser_click", {"selector": "#b"}),
+            ("browser_type", {"text": "t"}),
+            ("browser_screenshot", {}),
+        ]:
+            r = await _run_local(svc, tool, args, ctx)
+            assert r["success"] is False, tool
+            assert "TESTING" in r["error"], tool
 
     async def test_whatsapp_send_template_list_error_paths(self):
         svc = _svc()
@@ -5001,35 +4965,47 @@ class TestSecurityServiceLast:
 # mcp_service phantom-import guards (fail-closed behavior)
 # ---------------------------------------------------------------------------
 class TestPhantomImportGuards:
-    async def test_cloud_browser_guard_fails_closed(self):
+    async def test_cloud_browser_module_never_consulted(self):
+        # core.cloud_browser_service no longer exists and the cloud mode is
+        # gone with it: even with the module explicitly nulled, delegated
+        # names surface the TESTING no-real-Chromium refusal (never a
+        # "Cloud browser service not available" cloud error) and retired
+        # names retire.
         svc = _svc()
-        cloud_tools = [
-            "browser_navigate", "browser_click", "browser_type", "browser_screenshot",
-            "browser_new_tab", "browser_switch_tab", "browser_click_coords",
-            "list_browser_tabs", "browser_save_session", "browser_set_proxy",
-            "browser_monitor", "browser_wait_for_selector", "browser_extract_content",
-            "browser_upload_file", "browser_download_file",
-        ]
-        args_by_tool = {
-            "browser_navigate": {"url": "http://x"},
-            "browser_click": {"selector": "#a"},
-            "browser_type": {"text": "hi"},
-            "browser_click_coords": {"x": 1, "y": 2},
-        }
         ctx = {"computer_use_mode": "cloud", "workspace_id": "default"}
         with _mock_imports({"core.cloud_browser_service": None}):
-            for tool in cloud_tools:
-                r = await _run_local(svc, tool, args_by_tool.get(tool, {}), ctx)
-                assert "Cloud browser service not available" in r, tool
+            for tool, args in [
+                ("browser_navigate", {"url": "http://x"}),
+                ("browser_click", {"selector": "#a"}),
+                ("browser_type", {"text": "hi"}),
+                ("browser_screenshot", {}),
+            ]:
+                r = await _run_local(svc, tool, args, ctx)
+                assert r["success"] is False, tool
+                assert "TESTING" in r["error"], tool
+            for tool in ["browser_new_tab", "browser_switch_tab",
+                         "browser_click_coords", "list_browser_tabs",
+                         "browser_save_session", "browser_set_proxy",
+                         "browser_monitor", "browser_wait_for_selector",
+                         "browser_extract_content", "browser_upload_file",
+                         "browser_download_file"]:
+                r = await _run_local(svc, tool, {}, ctx)
+                assert r.get("retired") is True, tool
 
-    async def test_cloud_browser_guard_fails_closed_click_variant(self):
+    async def test_cloud_browser_module_never_consulted_click_variant(self):
         svc = _svc()
         with _mock_imports({"core.cloud_browser_service": None}):
             r = await _run_local(
                 svc, "browser_click", {"selector": "#a", "x": 1, "y": 2},
                 {"computer_use_mode": "cloud", "workspace_id": "default"},
             )
-            assert "Cloud browser service not available" in r
+            assert r["success"] is False
+            assert "TESTING" in r["error"]
+            r = await _run_local(
+                svc, "browser_click_coords", {"x": 1, "y": 2},
+                {"computer_use_mode": "cloud", "workspace_id": "default"},
+            )
+            assert r.get("retired") is True
 
     async def test_collaboration_hub_guard_fails_closed(self):
         svc = _svc()

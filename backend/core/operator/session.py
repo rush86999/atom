@@ -13,7 +13,12 @@ Safety model (mirrors ai/lux_model.py LuxModel — same contract, browser):
   treats one False as a HARD stop — it is policy, not a retryable failure.
 - RISKY_ACTION_KEYWORDS: money/checkout actions are hard-stopped here
   (carried over from browser_engine/agent.py _validate_action_safety).
-- Every action writes a BrowserAudit row (best-effort, never raises).
+- Every action writes a BrowserAudit row (best-effort, never raises) —
+  audits open their own short-lived DB session when the caller has none,
+  so the MCP dispatch path (which never forwards a db) still gets the
+  durable trail.
+- Navigations run the sandbox egress-allowlist check (the same Phase D
+  validation dispatched tool calls get) before reaching Playwright.
 - Coordinates are clamped to the viewport.
 """
 
@@ -23,6 +28,7 @@ import asyncio
 import base64
 import io
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
@@ -39,6 +45,18 @@ except ImportError:
 # Money/irreversible-action keywords — hard stop, carried over from
 # browser_engine/agent.py _validate_action_safety.
 RISKY_ACTION_KEYWORDS = ("pay", "send money", "transfer", "tax", "checkout")
+
+# Parameter keys whose values are free TEXT the model types into a page —
+# ordinary content, not the model choosing a money target. "$5 tax" or a
+# payments@ email in typed text must not abort the task; payment-shaped
+# numbers (cards) still do.
+_FREE_TEXT_KEYS = frozenset({"text"})
+
+# High-signal payment patterns applied to free-text values only.
+_RISKY_TEXT_PATTERNS = (
+    # 16-digit card numbers (4-4-4-4, spaced/dashed/flat)
+    re.compile(r"\b(?:\d[ -]?){15}\d\b"),
+)
 
 # Action vocabulary the browser backend understands. The desktop backend
 # (LuxModel's ComputerActionType) differs on purpose: navigate/press_key
@@ -100,39 +118,65 @@ def encode_screenshot_for_model(png_bytes: bytes, max_edge: int = 1568) -> str:
 def _audit(db, agent_id: Optional[str], user_id: Optional[str],
            session_id: str, action: str, status: str,
            error: Optional[str] = None) -> None:
-    """BrowserAudit row for an operator action (best-effort, never raises)."""
-    if db is None:
-        return
+    """BrowserAudit row for an operator action (best-effort, never raises).
+
+    Opens its own short-lived DB session when the caller has none (same
+    idiom as goals/goal_run_events) — the MCP dispatch path never puts a
+    db in the tool context, and audits must persist anyway.
+    """
     try:
         from core.audit_service import AuditService
         metadata: Dict[str, Any] = {"status": status, "surface": "operator"}
         if error:
             metadata["error"] = str(error)[:500]
-        AuditService().create_browser_audit(
-            db=db,
-            agent_id=agent_id,
-            agent_execution_id=None,
-            user_id=user_id or "system",
-            session_id=session_id,
-            action=f"operator_{action}",
-            metadata=metadata,
-        )
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
+
+        def _write(session) -> None:
+            AuditService().create_browser_audit(
+                db=session,
+                agent_id=agent_id,
+                agent_execution_id=None,
+                user_id=user_id or "system",
+                session_id=session_id,
+                action=f"operator_{action}",
+                metadata=metadata,
+            )
+            session.commit()
+
+        if db is not None:
+            _write(db)
+        else:
+            from core.database import get_db_session
+            with get_db_session() as own:
+                _write(own)
     except Exception as exc:
         logger.debug(f"operator audit skipped ({action}/{status}): {exc}")
 
 
 def _guardrail_hit(action_type: str, parameters: Dict[str, Any]) -> Optional[str]:
-    """Return the matched risky keyword, or None when the action is safe."""
-    haystack = " ".join(
-        str(v) for v in [action_type, *(parameters or {}).values()]
-    ).lower()
+    """Return the matched risky signal, or None when the action is safe.
+
+    Structured fields (url/selector/coordinates/...) encode the model's
+    CHOICE of target, so the full money/checkout keyword list applies to
+    them. Free-text values (typed text) are page content — "Total tax:
+    $5" or a payments@vendor.com email is ordinary work, not a money
+    action — so they are scanned for high-signal payment shapes (card
+    numbers) only. A hit from either scan is a hard stop.
+    """
+    parameters = parameters or {}
+    structured = " ".join(
+        str(v) for k, v in parameters.items() if k not in _FREE_TEXT_KEYS
+    )
+    haystack = f"{action_type} {structured}".lower()
     for keyword in RISKY_ACTION_KEYWORDS:
         if keyword in haystack:
             return keyword
+    for key in _FREE_TEXT_KEYS:
+        value = parameters.get(key)
+        if value is None:
+            continue
+        for pattern in _RISKY_TEXT_PATTERNS:
+            if pattern.search(str(value)):
+                return f"payment-shaped number in '{key}'"
     return None
 
 
@@ -157,6 +201,9 @@ class OperatorSession:
         self.governance_callback = governance_callback
         self.session_id: Optional[str] = None
         self._manager = None
+        # Sandbox egress policy for in-loop navigations (lazily issued —
+        # the same tier-floor policy the dispatch gate would issue).
+        self._egress_policy = None
 
     # ------------------------------------------------------------ lifecycle
 
@@ -172,6 +219,16 @@ class OperatorSession:
         self.session_id = session.session_id
         result: Dict[str, Any] = {"session_id": self.session_id}
         if start_url:
+            # Same egress validation the dispatch gate runs on the
+            # start_url argument — the initial navigation must not be the
+            # one unvalidated jump into the browser.
+            denial = self._egress_denial(str(start_url))
+            if denial:
+                result["navigate"] = {
+                    "success": False, "blocked_by_governance": True,
+                    "error": f"navigation blocked by egress policy: {denial}",
+                }
+                return result
             nav = await browser_navigate(
                 self.session_id, start_url, user_id=self.user_id)
             result["navigate"] = nav
@@ -190,6 +247,57 @@ class OperatorSession:
         if session is None or session.page is None:
             raise RuntimeError("operator browser session is not open")
         return session.page
+
+    # ------------------------------------------------------------ egress
+
+    def _resolve_agent_tier(self) -> Optional[str]:
+        """The operating agent's maturity tier (agent.status), or None.
+
+        Used only to issue the egress policy — same tier source the
+        capability resolver falls back to. Fault-isolated: a DB hiccup
+        yields None (the issuer then applies the student floor).
+        """
+        if not self.agent_id:
+            return None
+        try:
+            from core.database import get_db_session
+            from core.models import AgentRegistry
+            with get_db_session() as db:
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == str(self.agent_id)).first()
+                return (getattr(agent, "status", None) or None)
+        except Exception as exc:
+            logger.debug(f"operator egress tier lookup failed: {exc}")
+            return None
+
+    def _egress_denial(self, url: str) -> Optional[str]:
+        """Egress-allowlist denial detail for a URL, or None when allowed.
+
+        Reuses the sandbox Phase D check so model-decided in-loop
+        navigations get the SAME validation dispatched tool calls get.
+        No-op unless the egress allowlist is enabled (opt-in, off by
+        default). Fails CLOSED — a broken check must not become a bypass.
+        """
+        try:
+            from core import sandbox_config
+            if not sandbox_config.is_sandbox_egress_enabled():
+                return None
+            from core.sandbox_egress_proxy import check_egress
+            from core.sandbox_policy import PolicyIssuer
+            if self._egress_policy is None:
+                self._egress_policy = PolicyIssuer().issue(
+                    run_id=f"operator-{self.session_id or 'session'}",
+                    agent_id=self.agent_id or "operator",
+                    tier_at_issuance=self._resolve_agent_tier() or "student",
+                )
+            decision = check_egress(self._egress_policy, url=url,
+                                    tool_name="operator_navigate")
+            if decision.decision == "blocked":
+                return decision.violation_detail
+            return None
+        except Exception as exc:
+            logger.warning(f"operator egress check failed CLOSED: {exc}")
+            return f"egress check error: {exc}"
 
     # ------------------------------------------------------------ observation
 
@@ -281,6 +389,16 @@ class OperatorSession:
             if not url:
                 return {"success": False, "action_type": action_type,
                         "error": "navigate requires parameters.url"}
+            # Egress allowlist (when enabled): model-decided navigations
+            # get the same Phase D validation dispatched tool calls get.
+            # A denial is policy, not a retryable failure — same hard
+            # stop contract as the governance callback below.
+            denial = self._egress_denial(url)
+            if denial:
+                return {"success": False, "action_type": action_type,
+                        "blocked_by_governance": True,
+                        "error": f"navigation blocked by egress policy: "
+                                 f"{denial}"}
             # browser_navigate carries the SSRF guard (private/link-local
             # addresses blocked) — never bypass it with page.goto directly.
             nav = await browser_navigate(

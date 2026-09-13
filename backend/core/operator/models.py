@@ -1,9 +1,14 @@
 """Computer-use model pool for the BPC router (research: 2026-09).
 
 The loop itself never branches on model identity — model choice is
-capability data. Entries here get the ``computer_use`` capability so
-get_ranked_providers(required_capability="computer_use") can discover
-them as fallbacks behind the explicit ATOM_COMPUTER_USE_MODEL pin.
+capability data. Entries here carry the ``computer_use`` capability so
+capability-filtered ranking (byok_handler ``required_capability=
+"computer_use"``) CAN surface them; note the operator loop itself does
+not query that capability today — JsonVisionDecider always pins the
+explicit ATOM_COMPUTER_USE_MODEL (lux_config default gpt-6-astra), and
+the router applies its own fallbacks when that model's provider has no
+key. The capability is registration metadata for capability-aware
+callers, not an operator fallback mechanism.
 
 Evidence base (sources recorded per entry):
 - Claude 4.6 + the computer-use tool (computer_20250124) holds the top

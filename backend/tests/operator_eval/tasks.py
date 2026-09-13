@@ -17,6 +17,17 @@ def _reset_state():
     })
 
 
+def _verify_ordered_navigation(result):
+    """Docs 1, 2, 3 visited IN THAT ORDER — the goal says 'in that order',
+    so presence alone is not a pass; first-visit positions must ascend."""
+    visited = STATE.get("visited", [])
+    targets = ("/docs/1", "/docs/2", "/docs/3")
+    if not all(p in visited for p in targets):
+        return False
+    positions = [visited.index(p) for p in targets]
+    return positions == sorted(positions)
+
+
 TASKS = [
     {
         "id": "form_fill",
@@ -57,11 +68,7 @@ TASKS = [
         "id": "ordered_navigation",
         "goal": "Visit docs 1, then docs 2, then docs 3, in that order.",
         "start_url": "/",
-        "verify": lambda result: (
-            STATE.get("visited", []).count("/docs/1") >= 1
-            and STATE["visited"].count("/docs/2") >= 1
-            and STATE["visited"].count("/docs/3") >= 1
-        ),
+        "verify": _verify_ordered_navigation,
     },
     {
         "id": "extract_headline",

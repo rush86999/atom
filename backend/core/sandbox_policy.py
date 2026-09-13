@@ -97,6 +97,10 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         # gated at SUPERVISED. Without it the webhook-driven triage-and-
         # draft workflow cannot complete at STUDENT.
         "draft_response",
+        # Operator reads (status/screenshot of a run) are observations —
+        # matches the registered maturity_required="STUDENT" metadata.
+        "operator_get_status",
+        "operator_get_screenshot",
     ),
     "intern": (
         "canvas_render",
@@ -110,6 +114,8 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "extract_text",
         # Draft-only: no external side effect, stays proposal/approval-stage.
         "draft_response",
+        "operator_get_status",
+        "operator_get_screenshot",
     ),
     "supervised": (
         "canvas_render",
@@ -134,6 +140,14 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         # External side effect, still HITL-gated (risky_tools + deterministic
         # email policy) even at SUPERVISED.
         "send_email",
+        # Operator start/stop drive a live browser under the agent's name —
+        # same blast radius as browser_navigate (3/SUPERVISED, matching the
+        # registered maturity_required). Reads ride the lower floors above
+        # (floors are cumulative by listing).
+        "operator_start_task",
+        "operator_stop_task",
+        "operator_get_status",
+        "operator_get_screenshot",
     ),
     "autonomous": (
         # AUTONOMOUS gets the full tool surface; blast radius is bounded by

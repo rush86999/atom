@@ -191,12 +191,32 @@ class OperatorLoop:
         max_steps: Optional[int] = None,
         stop_event: Optional[asyncio.Event] = None,
         step_settle_seconds: float = 1.0,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         self.backend = backend
         self.decider = decider
         self.max_steps = max_steps if max_steps is not None else lux_config.get_max_steps()
         self.stop_event = stop_event
         self.step_settle_seconds = step_settle_seconds
+        # Mid-run observability hook (operator_get_status/get_screenshot
+        # while 'running'). Called synchronously after each action with a
+        # bounded snapshot: the small step log + the LATEST screenshot
+        # only (previous screenshots are not retained).
+        self.progress_callback = progress_callback
+
+    def _publish(self, executed: List[Dict[str, Any]], observation) -> None:
+        if self.progress_callback is None:
+            return
+        try:
+            self.progress_callback({
+                "steps": [dict(step) for step in executed],
+                "last_url": observation.url,
+                "last_title": observation.title,
+                "last_screenshot_b64": observation.screenshot_b64,
+            })
+        except Exception:
+            # Observability must never break the loop.
+            logger.debug("operator progress publish failed", exc_info=True)
 
     async def run(self, task: str) -> Dict[str, Any]:
         start_time = datetime.now()
@@ -208,6 +228,8 @@ class OperatorLoop:
         task_done = False
         stopped = False
         blocked_reason: Optional[str] = None
+        budget_exhausted = False
+        error: Optional[str] = None
         consecutive_failures = 0
 
         try:
@@ -231,12 +253,8 @@ class OperatorLoop:
 
                 if decision is None:
                     if not executed:
-                        return {
-                            "success": False,
-                            "error": "no action could be decided for the task",
-                            "task": task,
-                            "timestamp": start_time.isoformat(),
-                        }
+                        error = "no action could be decided for the task"
+                        break
                     logger.warning("operator step unparseable — stopping task")
                     break
 
@@ -269,6 +287,7 @@ class OperatorLoop:
                         "blocked": True,
                         "confidence": action.confidence,
                     })
+                    self._publish(executed, observation)
                     break
 
                 success = bool(result.get("success"))
@@ -286,6 +305,7 @@ class OperatorLoop:
                     f"{json.dumps(action.parameters, default=str)}) -> "
                     f"{'ok' if success else 'FAILED'}"
                 )
+                self._publish(executed, observation)
 
                 if success:
                     consecutive_failures = 0
@@ -299,34 +319,30 @@ class OperatorLoop:
                 # Let the page settle so the next observation reflects the
                 # action's effect.
                 await asyncio.sleep(self.step_settle_seconds)
-
-            return {
-                "success": (task_done or any(a.get("success")
-                                             for a in executed)),
-                "task": task,
-                "actions": executed,
-                "steps": len(executed),
-                "done": task_done,
-                "stopped": stopped,
-                "blocked": bool(blocked_reason),
-                "error": blocked_reason,
-                "summary": final_summary,
-                "final_url": last_url,
-                "final_title": last_title,
-                "execution_time": (datetime.now() - start_time).total_seconds(),
-                "timestamp": start_time.isoformat(),
-            }
-
+            else:
+                # The for-loop ran out of steps without done/stop/block —
+                # mark it so downstream can tell budget exhaustion apart
+                # from a crash.
+                budget_exhausted = True
         except Exception as exc:
             logger.error(f"operator task failed: {exc}")
-            return {
-                "success": False,
-                "task": task,
-                "actions": executed,
-                "steps": len(executed),
-                "done": False,
-                "stopped": stopped,
-                "error": str(exc),
-                "execution_time": (datetime.now() - start_time).total_seconds(),
-                "timestamp": start_time.isoformat(),
-            }
+            error = str(exc)
+
+        # ONE exit point: every terminal state carries the same keys.
+        return {
+            "success": (task_done or any(a.get("success")
+                                         for a in executed)),
+            "task": task,
+            "actions": executed,
+            "steps": len(executed),
+            "done": task_done,
+            "stopped": stopped,
+            "blocked": bool(blocked_reason),
+            "budget_exhausted": budget_exhausted,
+            "error": blocked_reason or error,
+            "summary": final_summary,
+            "final_url": last_url,
+            "final_title": last_title,
+            "execution_time": (datetime.now() - start_time).total_seconds(),
+            "timestamp": start_time.isoformat(),
+        }

@@ -19,7 +19,9 @@ This bridge routes the four advertised legacy names to the REAL governed
 Playwright path (tools/browser_tool.py: SSRF guard on navigate, locator
 match-confidence on click, BrowserAudit everywhere) using a shared
 per-agent session, and answers every other legacy name with an explicit
-retirement error — never a simulation.
+retirement error — never a simulation. Coordinate clicks are clamped to
+the viewport and audited (OperatorSession audit records); browser_type
+keeps its legacy append semantics (typed at the caret, not a replace).
 """
 
 from __future__ import annotations
@@ -28,6 +30,11 @@ import logging
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Viewport bounds for clamping coordinate clicks (matches the 1920x1080
+# context BrowserSession opens).
+from core.operator.session import (  # noqa: E402
+    VIEWPORT_HEIGHT, VIEWPORT_WIDTH, _audit as _emit_operator_audit)
 
 # Names that get real delegation.
 LEGACY_DELEGATED = frozenset({
@@ -61,8 +68,12 @@ def _shared_key(context: Dict[str, Any]) -> str:
             or "shared-legacy-browser")
 
 
-async def _shared_session_id(context: Dict[str, Any]) -> Optional[str]:
-    """Get-or-create the per-agent browser session used by legacy calls."""
+async def _shared_session_id(context: Dict[str, Any]) -> Any:
+    """Get-or-create the per-agent browser session used by legacy calls.
+
+    Returns the session id (str), or the failed create result dict so the
+    caller surfaces the honest error (e.g. the TESTING=1 no-real-browser
+    refusal) instead of a generic one."""
     funcs = _funcs()
     key = _shared_key(context)
     session_id = _shared_sessions.get(key)
@@ -73,7 +84,7 @@ async def _shared_session_id(context: Dict[str, Any]) -> Optional[str]:
     created = await funcs.browser_create_session(
         user_id=user_id, agent_id=agent_id)
     if not created.get("success"):
-        return None
+        return created
     _shared_sessions[key] = created["session_id"]
     return created["session_id"]
 
@@ -90,6 +101,16 @@ def _retired(tool_name: str) -> Dict[str, Any]:
         ),
         "retired": True,
     }
+
+
+def _clamp_int(value: Any, lo: int, hi: int, name: str) -> int:
+    """Numeric coordinates only, clamped to the viewport — a non-numeric
+    x/y is an honest error, never an uncaught ValueError."""
+    try:
+        return max(lo, min(hi, int(value)))
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a numeric viewport coordinate, "
+                         f"got {value!r}")
 
 
 async def dispatch_legacy_browser_tool(tool_name: str,
@@ -111,7 +132,11 @@ async def dispatch_legacy_browser_tool(tool_name: str,
     if tool_name not in LEGACY_DELEGATED:
         return _retired(tool_name)
 
-    session_id = await _shared_session_id(context)
+    shared = await _shared_session_id(context)
+    if isinstance(shared, dict):
+        # browser_create_session failed — propagate its honest error.
+        return shared
+    session_id = shared
     if not session_id:
         return {"success": False,
                 "error": "could not open a browser session for the legacy "
@@ -135,10 +160,26 @@ async def dispatch_legacy_browser_tool(tool_name: str,
         if coords[0] is None or coords[1] is None:
             return {"success": False,
                     "error": "selector or x/y coordinates are required"}
+        # Coordinate clicks act on the Playwright page directly, so they
+        # carry the same audit trail the governed tools write (the
+        # OperatorSession audit records; best-effort, own DB session).
+        try:
+            x = _clamp_int(coords[0], 0, VIEWPORT_WIDTH - 1, "x")
+            y = _clamp_int(coords[1], 0, VIEWPORT_HEIGHT - 1, "y")
+        except ValueError as exc:
+            return {"success": False, "error": str(exc)}
         session = funcs.get_browser_manager().get_session(session_id)
-        x = max(0, int(coords[0]))
-        y = max(0, int(coords[1]))
-        await session.page.mouse.click(x, y)
+        _emit_operator_audit(None, agent_id, user_id, session_id,
+                             "click", "started")
+        try:
+            await session.page.mouse.click(x, y)
+        except Exception as exc:
+            _emit_operator_audit(None, agent_id, user_id, session_id,
+                                 "click", "failed", error=exc)
+            return {"success": False,
+                    "error": f"coordinate click failed: {exc}"}
+        _emit_operator_audit(None, agent_id, user_id, session_id,
+                             "click", "success")
         return {"success": True, "session_id": session_id,
                 "coordinates": [x, y]}
 
@@ -147,13 +188,29 @@ async def dispatch_legacy_browser_tool(tool_name: str,
         if text is None:
             return {"success": False, "error": "text is required"}
         selector = arguments.get("selector")
-        if selector:
-            return await funcs.browser_fill_form(
-                session_id, {selector: text}, user_id=user_id,
-                agent_id=agent_id)
-        session = funcs.get_browser_manager().get_session(session_id)
-        await session.page.keyboard.type(str(text))
-        return {"success": True, "session_id": session_id}
+        # Legacy semantics: TYPE INTO the element — append at the caret,
+        # never replace the existing value (browser_fill_form append mode).
+        _emit_operator_audit(None, agent_id, user_id, session_id,
+                             "type", "started")
+        try:
+            if selector:
+                result = await funcs.browser_fill_form(
+                    session_id, {str(selector): str(text)}, user_id=user_id,
+                    agent_id=agent_id, append=True)
+            else:
+                session = funcs.get_browser_manager().get_session(session_id)
+                await session.page.keyboard.type(str(text))
+                result = {"success": True, "session_id": session_id}
+        except Exception as exc:
+            _emit_operator_audit(None, agent_id, user_id, session_id,
+                                 "type", "failed", error=exc)
+            return {"success": False,
+                    "error": f"browser_type failed: {exc}"}
+        _emit_operator_audit(None, agent_id, user_id, session_id,
+                             "type", "success" if result.get("success")
+                             else "failed",
+                             error=result.get("error"))
+        return result
 
     if tool_name == "browser_screenshot":
         return await funcs.browser_screenshot(session_id, user_id=user_id)

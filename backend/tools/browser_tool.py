@@ -376,6 +376,14 @@ class BrowserSession:
 
     async def start(self):
         """Start the browser session."""
+        # Unit tests must never launch a real Chromium (the retired covpush
+        # browser tests once did, through the legacy bridge). TESTING=1
+        # refuses with an explicit error instead of starting Playwright —
+        # tests that need a session mock BrowserSession.start/create_session.
+        if os.getenv("TESTING") == "1":
+            raise RuntimeError(
+                "browser sessions are refused under TESTING=1 — unit "
+                "tests must not launch a real browser")
         try:
             self.playwright = await async_playwright().start()
 
@@ -428,16 +436,58 @@ class BrowserSessionManager:
     Manages active browser sessions with automatic cleanup.
 
     Sessions are stored in memory and automatically cleaned up after
-    a timeout period of inactivity.
+    a timeout period of inactivity. The TTL sweep is self-managed: the
+    first ``create_session`` starts a background cleanup task (never
+    under TESTING=1) so idle sessions stop being Chromium processes
+    held until restart — no external scheduler wiring required.
     """
+
+    # Default sweep cadence for the self-managed cleanup task.
+    CLEANUP_INTERVAL_SECONDS = 300
 
     def __init__(self, session_timeout_minutes: int = 30):
         self.sessions: Dict[str, BrowserSession] = {}
         self.session_timeout_minutes = session_timeout_minutes
+        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_failure_logged = False
 
     def get_session(self, session_id: str) -> Optional[BrowserSession]:
         """Get an existing session by ID."""
         return self.sessions.get(session_id)
+
+    def start_cleanup_task(
+        self, interval_seconds: int = CLEANUP_INTERVAL_SECONDS
+    ) -> Optional[asyncio.Task]:
+        """Start (or return the existing) periodic expired-session sweep.
+
+        Fault-isolated: a failed sweep logs once and the next interval
+        retries; if the task dies anyway, the next create_session
+        restarts it. Never started under TESTING=1. Returns None when
+        there is no running event loop or tests refused it.
+        """
+        if os.getenv("TESTING") == "1":
+            return None
+        if self._cleanup_task is not None and not self._cleanup_task.done():
+            return self._cleanup_task
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return None
+        self._cleanup_task = loop.create_task(
+            self._cleanup_loop(interval_seconds))
+        return self._cleanup_task
+
+    async def _cleanup_loop(self, interval_seconds: int) -> None:
+        while True:
+            await asyncio.sleep(interval_seconds)
+            try:
+                await self.cleanup_expired_sessions()
+            except Exception as e:
+                # One log, then keep sweeping silently — cleanup must never
+                # crash the app, and log spam hides real signal.
+                if not self._cleanup_failure_logged:
+                    logger.warning(f"Browser session cleanup sweep failed: {e}")
+                    self._cleanup_failure_logged = True
 
     async def create_session(
         self,
@@ -447,6 +497,8 @@ class BrowserSessionManager:
         browser_type: str = "chromium"
     ) -> BrowserSession:
         """Create and start a new browser session."""
+        # Lazy start: the first real session brings the TTL sweep up.
+        self.start_cleanup_task()
         session_id = str(uuid.uuid4())
         session = BrowserSession(
             session_id=session_id,
@@ -794,6 +846,17 @@ async def browser_screenshot(
         }
 
 
+async def _fill_or_type(page: Page, selector: str, value: str,
+                        append: bool = False) -> None:
+    """Fill a field, or (append=True) type into it at the caret without
+    replacing the existing value — the legacy browser_type semantics."""
+    if append:
+        await page.focus(selector)
+        await page.keyboard.insert_text(value)
+    else:
+        await page.fill(selector, value)
+
+
 async def browser_fill_form(
     session_id: str,
     selectors: Dict[str, str],
@@ -802,6 +865,7 @@ async def browser_fill_form(
     agent_id: Optional[str] = None,
     db: Optional[Session] = None,
     match_confidence_override: bool = False,
+    append: bool = False,
 ) -> Dict[str, Any]:
     """
     Fill form fields using CSS selectors.
@@ -819,6 +883,8 @@ async def browser_fill_form(
         agent_id: Optional agent ID for Phase 4 proposal gating
         db: Optional DB session for Phase 4 proposal gating
         match_confidence_override: Skip gating (post-approval re-execution)
+        append: Type into each field at the caret instead of replacing
+            its value (legacy browser_type semantics)
 
     Returns:
         Dict with fill result, or {requires_approval, proposal_id} when gated
@@ -920,7 +986,8 @@ async def browser_fill_form(
                     tag = info["tag"]
                     value = info["value"]
                     if tag in ["INPUT", "TEXTAREA"]:
-                        await session.page.fill(selector, value)
+                        await _fill_or_type(session.page, selector, value,
+                                            append=append)
                         filled_count += 1
                     elif tag == "SELECT":
                         await session.page.select_option(selector, value)
@@ -954,7 +1021,8 @@ async def browser_fill_form(
                         tag_name = await element.evaluate("el => el.tagName")
 
                     if tag_name in ["INPUT", "TEXTAREA"]:
-                        await session.page.fill(selector, value)
+                        await _fill_or_type(session.page, selector, value,
+                                            append=append)
                         filled_count += 1
                     elif tag_name == "SELECT":
                         await session.page.select_option(selector, value)
