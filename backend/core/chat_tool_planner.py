@@ -33,7 +33,7 @@ import logging
 import re
 from pathlib import Path
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, field_validator
 
@@ -222,7 +222,15 @@ _GROUNDING_RULE = (
     "user asks about is not visible in this evidence, say what was found "
     "and that the source itself must be opened for the exact value — do "
     "not fill the gap from memory and do not present recalled values as "
-    "if read from the source."
+    "if read from the source. "
+    "BEFORE concluding anything is missing: mailbox/document lines are "
+    "EXCERPTS and long quoted threads run to tens of thousands of chars. "
+    "Every [ingested mailbox] line carries "
+    "'full: knowledge/conversations/<id>' — the COMPLETE line-numbered "
+    "message. Open it with documents.cat(path + '/content.lines') (skim with "
+    "documents.head / documents.tail); to search EVERY stored message use "
+    "documents.grep with path_prefix 'knowledge/conversations'. Only after "
+    "that may you say a value is not in the mailbox."
 )
 
 
@@ -920,20 +928,148 @@ def _rank_address_hits(rows: List[Dict[str, Any]], addr_l: str, limit: int = 4) 
     return [t[2] for t in scored[:limit]]
 
 
-def _ingested_line_from_row(row: Dict[str, Any], with_body: bool) -> str:
+def _canonical_with_offsets(s: Any) -> Tuple[str, List[int]]:
+    """Separator-insensitive canonical form of ``_canonical_fig_text`` plus
+    the raw-string index of every canonical character — so a canonical match
+    can be mapped back to a window of the ORIGINAL text (match regions must
+    quote the body as stored, not the canonical mush)."""
+    chars: List[str] = []
+    offs: List[int] = []
+    for idx, ch in enumerate(str(s or "").lower()):
+        if ch.isalnum():
+            chars.append(ch)
+            offs.append(idx)
+    return "".join(chars), offs
+
+
+def _sep_canonical_with_offsets(s: Any) -> Tuple[str, List[int]]:
+    """Lowercased text with every non-alphanum RUN collapsed to one '·'
+    marker, plus the raw index each canonical char came from. Separator
+    STRUCTURE survives: '5,350.00', '5.350,00' and '5 350,00' all become
+    '5·350·00' (the grouping separators land in the same slots), while a
+    longer amount '$53,500.00' becomes '53·500·00' and does NOT contain
+    '5·350·00'."""
+    chars: List[str] = []
+    offs: List[int] = []
+    run_start = -1
+    for idx, ch in enumerate(str(s or "").lower()):
+        if ch.isalnum():
+            if run_start >= 0:
+                chars.append("·")
+                offs.append(run_start)
+                run_start = -1
+            chars.append(ch)
+            offs.append(idx)
+        elif run_start < 0:
+            run_start = idx
+    return "".join(chars), offs
+
+
+def _canon_find(hay: str, tok: str) -> int:
+    """First digit-edge-anchored occurrence of canonical ``tok`` in
+    canonical ``hay`` (-1 when absent). Plain containment lets '5,350.00'
+    match inside '$53,500.00' — a longer amount for a different machine
+    (measured live 2026-09-13: the July Seguin thread's $53,500 10' shear
+    quote matched the Aug '$ 5,350.00' query and took a full-body slot).
+    Only DIGIT edges are anchored — but note the stripped form also erases
+    the gap between two adjacent numbers ('5,350.00 – 10%' → '535000010'),
+    which is why callers try the separator-preserving form FIRST."""
+    if len(tok) < 4:
+        return -1
+    m = re.search(rf"(?<![0-9]){re.escape(tok)}(?![0-9])", hay)
+    return m.start() if m else -1
+
+
+def _fig_occurrence(text: str, phrase: str) -> int:
+    """Raw index of the first convincing occurrence of a figure ``phrase``
+    in ``text``; -1 when absent. Separator-structure match first (locale
+    variants align; longer amounts don't contain the token), then the
+    digit-stripped fallback with digit-edge guards (catches ungrouped
+    renders like '5350.00' without re-admitting the '$53,500.00' prefix
+    collision)."""
+    if not phrase:
+        return -1
+    sep, sep_offs = _sep_canonical_with_offsets(text)
+    tok_sep, _ = _sep_canonical_with_offsets(phrase)
+    if tok_sep:
+        i = sep.find(tok_sep)
+        if i >= 0 and sep_offs:
+            return sep_offs[i]
+    dig, dig_offs = _canonical_with_offsets(text)
+    j = _canon_find(dig, _canonical_fig_text(phrase))
+    if j >= 0 and dig_offs:
+        return dig_offs[j]
+    return -1
+
+
+def _first_visible_anchor(text: str, anchors: List[str]) -> Optional[str]:
+    """The first anchor with a convincing occurrence in ``text`` — the check
+    that decides whether a rendered line already shows the evidence."""
+    for a in anchors or []:
+        if _fig_occurrence(text, a) >= 0:
+            return a
+    return None
+
+
+def _fig_match_window(
+    body: str, anchors: List[str], before: int = 120, after: int = 320
+) -> Optional[Tuple[str, str]]:
+    """(anchor, window) around the FIRST convincing occurrence of any anchor
+    in ``body``, quoted from the raw text. None when no anchor matches —
+    the caller then shows the line unchanged."""
+    for a in anchors or []:
+        raw = _fig_occurrence(body, a)
+        if raw < 0:
+            continue
+        window = re.sub(
+            r"\s+", " ", str(body[max(0, raw - before):raw + after]).strip()
+        )
+        return a, window
+    return None
+
+
+def _ingested_line_from_row(
+    row: Dict[str, Any],
+    with_body: bool,
+    anchors: Optional[List[str]] = None,
+    body_cap: Optional[int] = None,
+) -> str:
     """One [ingested mailbox] listing line; with_body appends the FULL
     message text. Bodies come from metadata.html_body (ingestion's store
     choke point for original markup) with the plain content column as
     fallback — the 260-char content excerpt cut mid-signature, exactly
     where quoted/forwarded originals begin (live 2026-09-09 ryershov
-    thread). Head+tail capped like the Graph hydration."""
+    thread). Head+tail capped like the Graph hydration.
+
+    ``anchors`` (figure phrases the row was matched BY) guarantee the
+    evidence stays visible: matched amounts live mid-quote in replies and
+    below signatures in forwards, so head-biased excerpts and the 60/40
+    body elision can render a line that matched '5,350.00' without showing
+    it anywhere (live 2026-09-13: the agent correctly reported 'the
+    $5,350.00 figure isn't visible in what came back' while every scan HAD
+    matched the right emails). When no anchor is visible in the rendered
+    line, a MATCH window around the canonical occurrence is appended.
+
+    Every line also carries ``full: knowledge/conversations/<id>`` — the VFS
+    path that resolves to this message's COMPLETE body as line-numbered text
+    (``documents.cat``). Threads run to 79k chars live; the excerpt here is
+    bounded on purpose (context budget), so the remainder must stay
+    reachable on demand rather than silently lost."""
+    row_id = str(row.get("id") or "")
+    cite = f" | full: knowledge/conversations/{row_id}" if row_id else ""
     line = (
         f"- [ingested mailbox] From: {row.get('sender')} | "
         f"{str(row.get('subject') or '')[:90]} | "
         f"received: {str(row.get('timestamp') or '')[:19]}"
+        f"{cite}"
     )
     if not with_body:
-        return line + f" | {str(row.get('content') or '')[:260]}"
+        snippet = str(row.get("content") or "")[:260]
+        if anchors and not _first_visible_anchor(snippet, anchors):
+            win = _fig_match_window(str(row.get("content") or ""), anchors)
+            if win:
+                snippet += f" … MATCH for '{win[0]}': …{win[1]}…"
+        return line + f" | {snippet}"
     body = ""
     try:
         import json as _json
@@ -952,13 +1088,40 @@ def _ingested_line_from_row(row: Dict[str, Any], with_body: bool) -> str:
     except Exception:
         body = ""
     body = (body or str(row.get("content") or "")).strip()
-    if len(body) > _INGESTED_BODY_CAP:
-        head = int(_INGESTED_BODY_CAP * 0.6)
+    full_body = body
+    # The attachments footer (ingestion appends '--- Attachments ---' to the
+    # plain content column only) is often the evidence that ties a quote to
+    # the exact machine — e.g. the '$ 5,350.00' email carrying the Fintek
+    # F5216 spec-sheet .doc (live 2026-09-13: the agent could name the price
+    # but 'couldn't confirm a spec sheet was attached'). The styled
+    # html_body preferred above does not include it — re-attach it.
+    content_col = str(row.get("content") or "")
+    att_i = content_col.rfind("--- Attachments ---")
+    if att_i >= 0:
+        attachments = content_col[att_i:].strip()
+        if attachments and attachments[:60] not in body:
+            body = (body + "\n\n" + attachments).strip()
+            full_body = (full_body + "\n\n" + attachments).strip()
+    if len(body) > (body_cap or _INGESTED_BODY_CAP):
+        cap = body_cap or _INGESTED_BODY_CAP
+        head = int(cap * 0.6)
         body = (
             body[:head]
             + "\n[…middle of this quoted thread elided…]\n"
-            + body[-(_INGESTED_BODY_CAP - head):]
+            + body[-(cap - head):]
         )
+    if anchors and not _first_visible_anchor(body, anchors):
+        # Window sources in order: the rendered body, the UN-elided body
+        # (the elision is what hid the figure), then the raw content column
+        # (when the styled html_body simply lacks the quoted text the plain
+        # copy carries).
+        win = (
+            _fig_match_window(body, anchors)
+            or _fig_match_window(full_body, anchors)
+            or _fig_match_window(str(row.get("content") or ""), anchors)
+        )
+        if win:
+            body += f"\n[MATCH for '{win[0]}' inside this thread: …{win[1]}…]"
     return line + " | FULL BODY:\n" + (body or "(empty message)")
 
 
@@ -1039,7 +1202,18 @@ def _search_ingested_by_address(user_id, address, limit=4):
         for i, row in enumerate(
             _rank_address_hits(_comms_store_records(), address.lower(), limit=limit)
         ):
-            out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
+            out.append(
+                _ingested_line_from_row(
+                    row,
+                    with_body=i < _INGESTED_BODY_LINES,
+                    # The single best-ranked row shows the WHOLE thread (up to
+                    # the full cap): an elided middle is where a quoted quote
+                    # hides the answer the user just asked for.
+                    body_cap=(
+                        _INGESTED_BODY_CAP_FULL if i < _INGESTED_FULL_LINES else None
+                    ),
+                )
+            )
     except Exception as e:
         logger.debug(f"ingested address search skipped: {e}")
     return out
@@ -1052,18 +1226,40 @@ def _canonical_fig_text(s: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
 
 
+# A figure match within this many chars of the subject+body start counts as
+# the message's OWN text — quote lines state the amount up front, quoters
+# bury it under signatures and tracking-URL goo (measured live 2026-09-13
+# on the Seguin '$ 5,350.00' thread: originals matched at char 14/55,
+# quoting replies/forwards at 691-5344).
+_FIGURE_OWN_TEXT_WINDOW = 240
+
+
 def _match_rows_by_figure_tokens(
     rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4
 ) -> List[Dict[str, Any]]:
     """Rank comms rows whose subject/content/html body contains EVERY figure
     token (canonical form). The amount IS the evidence in vendor-cost
-    queries, so requiring all tokens keeps the scan precise; newest first;
-    duplicate bodies collapse (same key semantics as _rank_address_hits)."""
+    queries, so requiring all tokens keeps the scan precise; duplicate bodies
+    collapse (same key semantics as _rank_address_hits).
+
+    Own-text tier FIRST (live 2026-09-13): newest-only ranking let four
+    newer replies/forwards that merely QUOTE the figure fill the whole cap
+    while the original message — the amount at the top of its body, the
+    spec-sheet attachment — fell one slot past it, so the listing rendered
+    matches that carried the figure only inside elided quote middles. A
+    match whose first canonical occurrence sits within the message's
+    opening text (≤_FIGURE_OWN_TEXT_WINDOW chars of subject + body — a
+    quote line names its amount up front) forms tier 0. Absolute position,
+    not a length ratio: tracking URLs and signatures inflate the haystack
+    so badly that deep-quote matches still score ~0.1 of total length
+    (measured live on the Seguin thread: originals at pos 14/55, quoters
+    at 691-5344). Every tier still sorts newest-first, so recency keeps
+    deciding within tiers and unrelated same-amount threads keep their
+    order."""
     import json as _json
 
-    canon = [_canonical_fig_text(t) for t in tokens]
-    canon = [t for t in canon if len(t) >= 4]
-    if not canon:
+    phrases = [t for t in tokens if len(_canonical_fig_text(t)) >= 4]
+    if not phrases:
         return []
     seen_keys = set()
     scored = []
@@ -1075,12 +1271,29 @@ def _match_rows_by_figure_tokens(
             except Exception:
                 meta = {}
         html = str((meta or {}).get("html_body") or "") if isinstance(meta, dict) else ""
-        hay = _canonical_fig_text(
-            " ".join(
-                [str(row.get("subject") or ""), str(row.get("content") or ""), html]
-            )
-        )
-        if not all(t in hay for t in canon):
+        # Fields are matched SEPARATELY, never concatenated: canonicalization
+        # erases separators, so a subject ending in a digit and a body starting
+        # in one fused into a single longer number ('Quote 52' + '5350.00 net'
+        # → '52535000'), which the digit-edge guard then read as the '$53,500'
+        # prefix case and rejected — a false negative on a genuine match.
+        # Positions are made comparable by adding each field's start offset in
+        # the (vanished) joined text, which keeps the own-text tier honest.
+        fields = [
+            str(row.get("subject") or ""),
+            str(row.get("content") or ""),
+            html,
+        ]
+        positions = []
+        for phrase in phrases:
+            cands = []
+            offset = 0
+            for field in fields:
+                at = _fig_occurrence(field, phrase)
+                if at >= 0:
+                    cands.append(offset + at)
+                offset += len(field) + 1
+            positions.append(min(cands) if cands else -1)
+        if any(p < 0 for p in positions):
             continue
         key = (
             str(row.get("sender") or ""),
@@ -1091,9 +1304,11 @@ def _match_rows_by_figure_tokens(
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        scored.append((str(row.get("timestamp") or ""), row))
-    scored.sort(key=lambda t: t[0], reverse=True)
-    return [r for _, r in scored[:limit]]
+        tier = 0 if min(positions) <= _FIGURE_OWN_TEXT_WINDOW else 1
+        scored.append((tier, str(row.get("timestamp") or ""), row))
+    scored.sort(key=lambda t: t[1], reverse=True)
+    scored.sort(key=lambda t: t[0])
+    return [r for _, _, r in scored[:limit]]
 
 
 def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> List[str]:
@@ -1102,8 +1317,9 @@ def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> Li
     quoted currency amounts unreliably and relevance-buries them, so the
     ingested store is the authoritative leg for exact-figure queries (live
     2026-09-12: the '$5,350.00 – 10% in stock' vendor-cost email sat in the
-    store while every live-API form missed it). Fault-isolated; [] on
-    anything."""
+    store while every live-API form missed it). Lines carry the tokens as
+    anchors so the matched figure is guaranteed visible (see
+    _ingested_line_from_row). Fault-isolated; [] on anything."""
     out: List[str] = []
     if not tokens:
         return out
@@ -1111,7 +1327,20 @@ def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> Li
         for i, row in enumerate(
             _match_rows_by_figure_tokens(_comms_store_records(), tokens, limit=limit)
         ):
-            out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
+            out.append(
+                _ingested_line_from_row(
+                    row,
+                    with_body=i < _INGESTED_BODY_LINES,
+                    anchors=tokens,
+                    # Figure-matched rows carry the whole thread: the amount
+                    # the user named is the evidence, and the surrounding
+                    # quote (spec sheet, terms, attachments) lives in the
+                    # middle a head+tail clip would drop.
+                    body_cap=(
+                        _INGESTED_BODY_CAP_FULL if i < _INGESTED_FULL_LINES else None
+                    ),
+                )
+            )
     except Exception as e:
         logger.debug(f"ingested figure-token search skipped: {e}")
     return out
@@ -1137,7 +1366,12 @@ async def _ingested_mailbox_lines(
     # address lines (live 2026-09-12: old Seguin thread lines filled the
     # mailbox slots while the '$5,350.00' email went unlisted) nor depend on
     # the hybrid leg running. Same off-loop rule as the address scan.
-    _fig_tokens = _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT)
+    # A figure-less retry ('try the search again') inherits the most recent
+    # user figure query, so a planner rewrite that drops the amount cannot
+    # disarm this leg (live 2026-09-13).
+    _fig_tokens = _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT) or (
+        _latest_user_figure_phrases(context)
+    )
     if _fig_tokens:
         for _line in await asyncio.to_thread(
             _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2)
@@ -1318,6 +1552,34 @@ def _distinctive_figure_phrases(
     return out[:limit]
 
 
+def _latest_user_figure_phrases(
+    context: Optional[Dict[str, Any]], limit: int = _FIGURE_PHRASE_LIMIT
+) -> List[str]:
+    """Figure phrases from the most recent USER turn that carries one — the
+    referent for 'try the search again'-style turns whose own text names no
+    amount. Assistant replies are skipped deliberately: they echo every
+    figure the conversation ever mentioned, so harvesting them would aim
+    the deterministic scan at stale amounts (live 2026-09-13: the canvas
+    history held $7,519.00 / $3,500.00 / $4,000.00 assistant echoes while
+    the user's target was the '$ 5,350.00 – 10%' quote)."""
+    for entry in reversed((context or {}).get("history") or []):
+        if not isinstance(entry, dict):
+            continue
+        role = str(entry.get("role") or "").lower()
+        if role and role != "user":
+            continue
+        if not role and "message" in entry:
+            # Session shape {message, response}: the response side is the
+            # assistant's echo of every figure ever mentioned — user side only.
+            text = str(entry.get("message") or "")
+        else:
+            text = _entry_text(entry)
+        phrases = _distinctive_figure_phrases(text, limit=limit)
+        if phrases:
+            return phrases
+    return []
+
+
 def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
     """Email addresses named in the query or the last few history turns —
     the same haystack _ingested_mailbox_lines uses, so the styled-base
@@ -1431,8 +1693,28 @@ _OUTLOOK_READ_BODY_CAP = 5000
 # Ingested-store listing lines: how many of the top ranked rows carry a
 # FULL body, and the per-body cap (head+tail). The store is the
 # deterministic source Graph's relevance ranking keeps failing to be.
+#
+# The small cap is a FLOOR for the deeper rows only: stored threads run to
+# 79k chars (3,395 of 7,009 live messages exceed 2,500) and a head+tail clip
+# of a quoted thread hides exactly the middle an agent is asked about — the
+# live 2026-09-13 Seguin turn answered "the $5,350.00 figure isn't visible in
+# what came back" from a clipped body while the full text sat in the store.
+# The TOP `_INGESTED_FULL_LINES` ranked rows therefore carry their whole body
+# up to `_INGESTED_BODY_CAP_FULL`, so one long thread cannot consume the
+# whole evidence budget while the thread that actually matched stays
+# readable. Every line also carries its `full: knowledge/conversations/<id>`
+# VFS path, so even a capped remainder is one documents.cat away.
 _INGESTED_BODY_LINES = 2
 _INGESTED_BODY_CAP = 2500
+_INGESTED_FULL_LINES = int(os.getenv("ATOM_INGESTED_FULL_BODY_LINES", "1") or 1)
+# 32k chars ≈ 8k tokens for the ONE best-ranked row — it renders **98.9% of the
+# live store's messages in full** (6,933 of 7,009; the remainder are 67k–79k
+# mega-threads) and is only ever spent when a mailbox search actually matched.
+# Anything past it still shows the match window (see _fig_match_window) plus
+# the VFS citation.
+_INGESTED_BODY_CAP_FULL = int(
+    os.getenv("ATOM_INGESTED_FULL_BODY_CAP", "32000") or 32000
+)
 # A bare Graph item id (60+ base64url chars) on a read intent is fetched
 # directly; prose queries re-run the ranked search instead.
 _GRAPH_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{60,}$")
@@ -1740,19 +2022,61 @@ def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600,
         return fallback, ingested_date
 
 
+async def _mailbox_figure_lines(
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+    limit: int = 3,
+) -> List[str]:
+    """The deterministic ingested-mailbox figure scan, available to EVERY
+    memory-shaped lane. Amounts and model codes are the evidence in a
+    vendor-cost lookup, and the hybrid/vector legs plus the address scan
+    never reliably surface them (the amount sits mid-quote in replies and
+    below signatures in forwards). The query's own figure tokens lead; a
+    figure-less follow-up inherits the most recent USER turn's, so a planner
+    rewrite ('try the search again') cannot disarm the leg. Fault-isolated:
+    [] on anything."""
+    try:
+        figs = _distinctive_figure_phrases(query) or _latest_user_figure_phrases(
+            context
+        )
+        if not figs:
+            return []
+        return await asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, limit)
+    except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
+        logger.debug(f"mailbox figure leg skipped: {e}")
+        return []
+
+
 async def _memory_search_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
     """Memory leg entry point: dataset-catalog evidence (when the query
-    carries an identifying code) PREPENDED to the hybrid memory search — so
-    the exact rows surface no matter which leg the planner picks (it
-    nondeterministically chooses memory/read/inventory for value questions).
-    None when neither matched."""
+    carries an identifying code) and the deterministic mailbox figure scan
+    PREPENDED to the hybrid memory search — so the exact rows surface no
+    matter which leg the planner picks (it nondeterministically chooses
+    memory/read/inventory for value questions). None when nothing matched.
+
+    The figure scan is guaranteed HERE, not only inside the hybrid helper:
+    the live 2026-09-13 miss was a '$ 5,350.00' query routed to
+    memory.search whose block came back full of unrelated document hits
+    with the amount nowhere in it, while the email sat in the store. It is
+    computed ONCE per call and handed to the hybrid helper (which only
+    prepends it ahead of its own 8-line cap) — the scan walks every comms
+    row, so a second walk per turn is pure waste."""
     ds_block = await _datasets_evidence(user_id, query, context)
-    mem_block = await _memory_hybrid_block(user_id, query, context)
-    if ds_block and mem_block:
-        return f"{ds_block}\n\n{mem_block}"
-    return ds_block or mem_block
+    fig_lines = await _mailbox_figure_lines(user_id, query, context)
+    mem_block = await _memory_hybrid_block(
+        user_id, query, context, figure_lines=fig_lines
+    )
+    missing = [
+        line
+        for line in fig_lines
+        if line not in (mem_block or "") and line not in (ds_block or "")
+    ]
+    fig_block = "\n".join(missing) or None
+    parts = [b for b in (ds_block, fig_block, mem_block) if b]
+    return "\n\n".join(parts) or None
 
 
 async def _datasets_evidence(
@@ -1804,12 +2128,20 @@ async def _datasets_evidence(
 
 
 async def _memory_hybrid_block(
-    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+    figure_lines: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Hybrid search over the ingested workspace (documents, mailbox copies,
     records) formatted as a LIVE TOOL RESULTS block. The `memory` service leg
     of execute_tool_plan, factored out so other legs can fall back to it when
-    their live source comes back empty. None when nothing matched."""
+    their live source comes back empty. None when nothing matched.
+
+    ``figure_lines`` (see _mailbox_figure_lines) are PREPENDED ahead of the
+    8-line cap: hybrid hits are relevance-ranked and routinely filled every
+    slot with unrelated documents while the amount the query named sat in an
+    ingested email (live 2026-09-13)."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
@@ -1881,30 +2213,64 @@ async def _memory_hybrid_block(
         # Exact-token leg runs LAST but ranks FIRST: an exact model-number
         # match is the strongest evidence for "find the row" questions, so
         # it must not be cut by the 8-line cap when the hybrid legs already
-        # filled the block.
+        # filled the block. Figure phrases get the same treatment — the
+        # deterministic amount scan is this lane's ONLY mailbox figure leg
+        # (live 2026-09-13: a '$5,350.00' query routed to memory.search saw
+        # hybrid previews and address-scan heads, never the figure, while
+        # the outlook lane had the scan all along; the planner picks lanes
+        # nondeterministically, so every search lane needs the leg). The
+        # lines arrive precomputed from _memory_search_block so the store is
+        # walked once per turn.
+        fig_lines = [
+            _l for _l in (figure_lines or []) if _l not in lines
+        ]
         exact_lines = [
             _l for _l in await asyncio.to_thread(
                 _search_ingested_by_exact_token, user_id, query, skip_ids=seen_ids)
-            if _l not in lines
+            if _l not in lines and _l not in fig_lines
         ]
-        if exact_lines:
-            lines = exact_lines + lines
+        if exact_lines or fig_lines:
+            lines = exact_lines + fig_lines + lines
         if not lines:
             return None
+        # Same weak-reader guard as the outlook lane: figure lines are
+        # verbatim deterministic matches — name them so the amount and
+        # attachment lists are quoted from them, not from truncated
+        # previews (live 2026-09-13).
+        _fig_hdr = (
+            _distinctive_figure_phrases(query) or _latest_user_figure_phrases(context)
+            if fig_lines else []
+        )
         return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}') — hybrid "
             f"search over ingested workspace data; use these to answer:\n"
             + "\n".join(lines[:8])
             + "\nEVIDENCE TYPES: [document]* lines are ingested file contents "
             "(searchable); [email/chat record]* lines are received messages; "
-            "[knowledge-node]* lines are extracted entities. Prior assistant "
+            "[knowledge-node]* lines are extracted entities."
+            + (
+                f" EXACT-FIGURE MATCHES: the leading [ingested mailbox] lines "
+                f"match '{'; '.join(_fig_hdr)}' verbatim (MATCH windows and "
+                f"'--- Attachments ---' lists included) — quote the amount "
+                f"and attachment names from them."
+                if _fig_hdr and fig_lines else ""
+            )
+            + " Prior assistant "
             "replies are NEVER in this evidence — a fact that appears only in "
             "the conversation is not something you 'found in a file'. "
             "FRESHNESS: [document: … — ingested YYYY-MM-DD] shows when the copy "
             "was taken. For prices, quotes, or stock that drive an answer, cite "
             "the figure WITH its ingested date; if the customer decision hinges "
             "on it being current, say the source file should be re-opened live "
-            "to confirm."
+            "to confirm. LONG THREADS: an [ingested mailbox] line is an EXCERPT "
+            "(quoted threads run to tens of thousands of chars and the middle "
+            "may be elided). Its 'full: knowledge/conversations/<id>' path is "
+            "the COMPLETE line-numbered message — read it with "
+            "documents.cat(path + '/content.lines') and skim with "
+            "documents.head/tail; if the thread did not surface at all, "
+            "documents.grep over 'knowledge/conversations' searches EVERY stored "
+            "message. Never tell the user a figure or a reply is 'not ingested' "
+            "from an excerpt alone — open the cited thread first."
         )
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")
@@ -3198,7 +3564,23 @@ async def execute_tool_plan(
                 # the read-intent follow-up.
                 return head + f" | preview: {str(e.get('body_preview') or '')[:200]}"
 
-            listing = "\n".join(store_lines)
+            # EXACT-FIGURE pointer: the deterministic store lines match the
+            # query's amount verbatim (with MATCH windows and '--- Attachments
+            # ---' lists), but they sit ABOVE several thousand chars of Graph
+            # full bodies whose elision markers read like truncation — a
+            # flash-tier reply model answered "the figure isn't visible in the
+            # truncated results" while the figure led the block (live
+            # 2026-09-13). Name the lines so no reader misses them.
+            _fig_note = ""
+            _fig_ph = _distinctive_figure_phrases(query)
+            if _fig_ph and store_lines:
+                _fig_note = (
+                    "EXACT-FIGURE MATCHES (deterministic, verbatim in the stored "
+                    f"copies — quote the amount and any '--- Attachments ---' "
+                    f"names from these [ingested mailbox] lines, not from "
+                    f"truncated live previews): {'; '.join(_fig_ph)}\n"
+                )
+            listing = _fig_note + "\n".join(store_lines)
             graph_listing = "\n".join(_graph_line(e) for e in emails[:6])
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing

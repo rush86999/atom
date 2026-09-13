@@ -114,7 +114,10 @@ def test_gmail_empty_and_no_mailbox_still_honest_dead_end():
             _plan("gmail", "nothing anywhere"), "u1", "default", context={}))
 
     assert "returned nothing usable" in block
-    assert "[ingested mailbox]" not in block
+    # The GROUNDING RULE boilerplate names '[ingested mailbox]' when it
+    # explains how to open full threads; the dead-end contract is that no
+    # mailbox LINE appears (live 2026-09-13 grounding-rule addition).
+    assert "- [ingested mailbox]" not in block
 
 
 def test_slack_execute_path_gets_the_same_supplement():

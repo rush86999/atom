@@ -108,9 +108,10 @@ def test_distinctive_figure_phrases_respects_limit():
 # --- canonical row matching -------------------------------------------------
 
 
-def _row(sender, subject, content, ts, html=None):
+def _row(sender, subject, content, ts, html=None, row_id="msg-1"):
     meta = {"html_body": html} if html else None
     return {
+        "id": row_id,
         "sender": sender,
         "recipient": "someone@brennan.ca",
         "subject": subject,
@@ -348,3 +349,422 @@ def test_comms_store_loaded_once_and_invalidated_on_write(monkeypatch):
     planner._comms_store_records()
     assert len(connects) == 2, "invalidation (post-ingest re-read) must reload"
     planner.invalidate_comms_store_cache()
+
+
+# --- canonical matching stays SEPARATOR-INSENSITIVE -------------------------
+#
+# `_canon_find` anchors digit edges so '$53,500.00' (canonical '5350000')
+# cannot pass for the '$5,350.00' token ('535000') — the July Seguin 10'
+# shear quote took a full-body slot that way. The first cut of that guard
+# searched the RAW token ('5,350.00') in the canonical haystack, which
+# silently re-broke the separator-insensitivity this whole leg exists for:
+# a comma-grouped token can never match a body that renders '5 350.00' /
+# '5.350,00' / an ungrouped '5350.00'. These pin both halves.
+
+
+def test_grouped_token_matches_space_grouped_body():
+    """en-CA token form must still match the fr-CA space-grouped render."""
+    row = _row(
+        "joelseguin@seguinmach.com",
+        "FW: RFQ - Foot shear",
+        "$ 5 350.00 – 10 %  in stock",
+        "2026-08-26 14:06:28",
+    )
+    assert [h["subject"] for h in _match_rows_by_figure_tokens([row], ["5,350.00"])] == [
+        "FW: RFQ - Foot shear"
+    ]
+
+
+def test_grouped_token_matches_ungrouped_body():
+    """A body that drops the grouping entirely ('5350.00') still matches."""
+    row = _row("vendor@x.example", "Quote", "net 5350.00 CAD", "2026-08-26 10:00:00")
+    assert [h["subject"] for h in _match_rows_by_figure_tokens([row], ["5,350.00"])] == [
+        "Quote"
+    ]
+
+
+def test_longer_amount_is_not_the_token():
+    """$53,500.00 canonicalizes to '5350000'. The '5,350.00' token is a
+    prefix of it, so containment alone re-admits the wrong machine."""
+    bigger = _row(
+        "joelseguin@seguinmach.com",
+        "RE: RFQ - Shear",
+        "The only one we have is a new 10' x 1/4'' on 600 V & 53,500.00 made in China",
+        "2026-07-22 13:36:00",
+    )
+    assert _match_rows_by_figure_tokens([bigger], ["5,350.00"]) == []
+
+
+def test_field_boundary_does_not_create_a_digit_run():
+    """Subject and body are separate fields. A subject ending in a digit
+    must not fuse with a body starting in one and hide a real match from
+    the digit-boundary guard."""
+    row = _row("vendor@x.example", "Quote 52", "5350.00 net", "2026-08-26 10:00:00")
+    assert _match_rows_by_figure_tokens([row], ["5,350.00"])
+
+
+def test_own_text_tier_outranks_newer_quoting_reply():
+    """The incident shape: a newer reply that merely QUOTES the amount (it
+    sits deep under signature/tracking-URL goo) must not displace the
+    original message whose body states the amount up front."""
+    original = _row(
+        "joelseguin@seguinmach.com",
+        "FW: RFQ - Foot shear",
+        "$ 5,350.00 – 10 %  in stock",
+        "2026-08-26 14:06:28",
+    )
+    quoting_reply = _row(
+        "chandrakant@brennan.ca",
+        "Re: RFQ - Foot shear",
+        "thanks, checking" + (" see our site " * 80) + " quoted was 5,350.00",
+        "2026-08-26 14:58:34",
+    )
+    hits = _match_rows_by_figure_tokens([quoting_reply, original], ["5,350.00"], limit=1)
+    assert [h["subject"] for h in hits] == ["FW: RFQ - Foot shear"]
+
+
+# --- matched figure must be VISIBLE in the rendered line --------------------
+
+
+def test_truncated_line_shows_the_matched_figure():
+    """A 260-char excerpt of a forward can cut before the quoted amount, so
+    the model reads a 'match' that never shows the figure — the agent then
+    reports the number 'isn't visible in what came back'."""
+    row = _row(
+        "chandrant@brennan.ca",
+        "Fw: RFQ - Foot shear",
+        "Please see the note below regarding the shear." + (" filler" * 60)
+        + " Original message: $ 5,350.00 – 10 %  in stock",
+        "2026-09-11 20:07:53",
+    )
+    line = planner._ingested_line_from_row(row, with_body=False, anchors=["5,350.00"])
+    assert "5,350.00" in line, line
+
+
+def test_full_body_line_shows_the_matched_figure():
+    """Same guarantee for FULL BODY lines: the head/tail elision can drop
+    the exact region the canonical scan matched."""
+    row = _row(
+        "chandrant@brennan.ca",
+        "Fw: RFQ - Foot shear",
+        "intro " + ("x" * 200) + " $ 5,350.00 – 10 %  in stock " + ("y" * 20000),
+        "2026-09-11 20:07:53",
+    )
+    line = planner._ingested_line_from_row(row, with_body=True, anchors=["5,350.00"])
+    assert "5,350.00" in line, line[:400]
+
+
+def test_anchor_window_prefers_the_plain_copy_when_html_lacks_it():
+    """The styled html_body can omit quoted text the plain content column
+    carries — the window falls back to the content column."""
+    row = _row(
+        "joelseguin@seguinmach.com",
+        "FW: RFQ - Foot shear",
+        "Proceed as follows:" + (" z" * 400) + " price $ 5,350.00 net",
+        "2026-08-26 14:06:28",
+        html="<div>Proceed as follows: " + ("z " * 400) + "</div>",
+    )
+    line = planner._ingested_line_from_row(row, with_body=True, anchors=["5,350.00"])
+    assert "5,350.00" in line, line[:400]
+
+
+# --- memory.search lane needs the SAME deterministic figure leg -------------
+#
+# The 2026-09-13 live incident: the planner routed 'search for this one:
+# $ 5,350.00 – 10 % in stock' to memory.search (not outlook), where the
+# only mailbox legs were the hybrid hit list (whose 8-line cap it shares
+# with unrelated document hits) and an address scan — no figure-token leg
+# at all — so the block came back empty and the agent said the email was
+# never ingested. It was in the store the whole time.
+
+
+def test_memory_block_surfaces_figure_from_the_query(monkeypatch):
+    monkeypatch.setattr(
+        planner, "_search_ingested_by_exact_token", lambda *a, **k: []
+    )
+    monkeypatch.setattr(planner, "_datasets_evidence", _no_datasets)
+    monkeypatch.setattr(
+        planner, "_search_ingested_by_tokens", _fake_fig_lines
+    )
+
+    block = asyncio.run(
+        planner._memory_search_block(
+            "u1",
+            "search for this one: $ 5,350.00 – 10 %  in stock",
+            {"history": []},
+        )
+    )
+    assert block, "the mailbox figure leg must be consulted on the memory lane"
+    assert "5,350.00" in block
+
+
+def test_memory_block_inherits_figure_from_last_user_turn(monkeypatch):
+    """'try the search again' carries no amount of its own — the leg must
+    inherit it from the most recent USER turn (assistant echoes name stale
+    amounts like the $7,519 selling price)."""
+    monkeypatch.setattr(
+        planner, "_search_ingested_by_exact_token", lambda *a, **k: []
+    )
+    monkeypatch.setattr(planner, "_datasets_evidence", _no_datasets)
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", _fake_fig_lines)
+
+    block = asyncio.run(
+        planner._memory_search_block(
+            "u1",
+            "try the search again",
+            {"history": [
+                {"role": "user", "content": "$ 5,350.00 – 10 % in stock"},
+                {"role": "assistant", "content": "the quote was $7,519.00"},
+            ]},
+        )
+    )
+    assert block and "5,350.00" in block
+
+
+def test_memory_block_figure_lines_are_not_crowded_out(monkeypatch):
+    """Figure evidence ranks FIRST — the hybrid leg shares the 8-line cap
+    and unrelated document hits must not push the amount out."""
+    _patch_hybrid_search(monkeypatch, results=[])
+    monkeypatch.setattr(
+        planner, "_search_ingested_by_exact_token", lambda *a, **k: []
+    )
+    monkeypatch.setattr(planner, "_datasets_evidence", _no_datasets)
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", _fake_fig_lines)
+
+    block = asyncio.run(
+        planner._memory_search_block("u1", "search: $ 5,350.00", {"history": []})
+    )
+    assert block, "the memory lane must return the figure evidence"
+    lines = [ln for ln in block.splitlines() if ln.startswith("- ")]
+    assert lines and "5,350.00" in lines[0], lines
+
+
+def test_memory_hybrid_figure_leg_beats_hybrid_document_hits(monkeypatch):
+    """The real incident had the block RETURNING, but full of unrelated
+    document hits (CPO 350 specs) with the amount nowhere in it. Figure
+    lines are prepended, so the cap can never cut them."""
+    _patch_hybrid_search(
+        monkeypatch,
+        results=[{
+            "id": "doc-1",
+            "title": "CPO 350 AutoLoader.pdf",
+            "source": "documents",
+            "preview": "unrelated spec text",
+        }],
+    )
+    monkeypatch.setattr(
+        planner, "_search_ingested_by_exact_token", lambda *a, **k: []
+    )
+    monkeypatch.setattr(planner, "_datasets_evidence", _no_datasets)
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", _fake_fig_lines)
+
+    block = asyncio.run(
+        planner._memory_search_block("u1", "search: $ 5,350.00", {"history": []})
+    )
+    assert block
+    lines = [ln for ln in block.splitlines() if ln.startswith("- ")]
+    assert "5,350.00" in lines[0] and len(lines) >= 2, lines
+
+
+def _patch_hybrid_search(monkeypatch, results):
+    """Pin the vector/lexical hybrid leg (network + embeddings free) so the
+    test exercises the figure leg's placement, not the embedder."""
+    import core.hybrid_search.documents_hybrid as _dh
+
+    class _Fake:
+        async def search(self, *a, **k):
+            return {"results": results}
+
+    monkeypatch.setattr(_dh, "DocumentsHybridSearch", _Fake)
+
+
+async def _no_datasets(*_a, **_k):
+    return None
+
+
+def _fake_fig_lines(user_id, tokens, limit=4):
+    assert tokens, "the figure leg must receive the extracted amount"
+    return ["- [ingested mailbox] From: joelseguin@seguinmach.com | FW: RFQ - Foot shear"
+            " | received: 2026-08-26 14:06:28 | $ 5,350.00 – 10 % in stock"]
+
+
+# ─── remaining coverage: helper units and pass-through wiring ─────────────
+
+
+def test_latest_user_figure_phrases_shapes():
+    """Direct unit pins for the history-referent helper: assistant echoes
+    are skipped, session-shaped entries harvest only the user side, and
+    figure-less histories yield nothing."""
+    # Assistant echo carries the stale amount; the USER turn is older but
+    # is the only side that counts.
+    assert planner._latest_user_figure_phrases({"history": [
+        {"role": "user", "content": "search for this one: $ 5,350.00 – 10 %  in stock"},
+        {"role": "assistant", "content": "our own quote was $7,519.00"},
+        {"role": "user", "content": "try the search again"},
+    ]}) == ["5,350.00"]
+    # Session shape {message, response}: the response is the assistant echo —
+    # its figures must never be harvested, only the message side's.
+    assert planner._latest_user_figure_phrases({"history": [
+        {"message": "and the invoice?", "response": "nothing matching $9,100.25 found"},
+        {"message": "try again", "response": "still nothing"},
+    ]}) == []
+    assert planner._latest_user_figure_phrases({}) == []
+    assert planner._latest_user_figure_phrases({"history": [
+        {"role": "user", "content": "no figures here"}]}) == []
+
+
+def test_match_rows_recency_keeps_deciding_within_tier():
+    """Tiering only lifts own-text matches; same-tier rows stay newest-first
+    (recency still orders unrelated same-amount threads)."""
+    a = _row("a@x.example", "Quote A", "$ 5,350.00 net", "2026-08-01 10:00:00")
+    b = _row("b@x.example", "Quote B", "$ 5,350.00 net", "2026-08-02 10:00:00")
+    assert [h["subject"] for h in _match_rows_by_figure_tokens(
+        [a, b], ["5,350.00"])] == ["Quote B", "Quote A"]
+
+
+def test_search_ingested_by_tokens_passes_anchors(monkeypatch):
+    """The figure scan must hand its tokens to the line builder as anchors
+    (the visibility guarantee), with full bodies for the top rows."""
+    captured = {}
+
+    def fake_line(row, with_body, anchors=None, body_cap=None):
+        captured["anchors"] = anchors
+        captured["with_body"] = with_body
+        captured["body_cap"] = body_cap
+        return "- [ingested mailbox] x"
+
+    monkeypatch.setattr(planner, "_comms_store_records", lambda: [FW_ROW])
+    monkeypatch.setattr(planner, "_ingested_line_from_row", fake_line)
+    planner.invalidate_comms_store_cache()
+    out = planner._search_ingested_by_tokens("u1", ["5,350.00"])
+    assert out == ["- [ingested mailbox] x"]
+    assert captured["anchors"] == ["5,350.00"]
+    assert captured["with_body"] is True
+    assert captured["body_cap"] == planner._INGESTED_BODY_CAP_FULL
+
+
+def test_mailbox_lines_query_figure_wins_over_history(monkeypatch):
+    """The current query's figure is the target; history never overrides
+    it."""
+    calls = []
+
+    def fake_tokens(user_id, tokens, limit=4):
+        calls.append(tokens)
+        return []
+
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", fake_tokens)
+    asyncio.run(_ingested_mailbox_lines(
+        "u1",
+        "now search for the $9,100.25 invoice",
+        {"history": [
+            {"role": "user", "content": "earlier we looked at $ 5,350.00"},
+        ]},
+    ))
+    assert calls == [["9,100.25"]]
+
+
+def test_full_body_line_carries_attachments_footer():
+    """The attachments footer lives only in the plain content column; the
+    full-body line prefers the styled html_body, which drops it — losing the
+    exact evidence that ties a quote to the machine (the '$ 5,350.00' email
+    carries the Fintek F5216 spec-sheet .doc; the agent could name the price
+    but 'couldn't confirm a spec sheet was attached')."""
+    content = (
+        "$ 5,350.00 – 10 %  in stock\n\nDo you prefer a used shear ?\n"
+        + "quoted thread " * 300
+        + "\n--- Attachments ---\n"
+        "- 18896-99_Fintek F5216 Foot Shear (1).doc (application/msword / 1656740 bytes)"
+    )
+    row = _row(
+        "joelseguin@seguinmach.com",
+        "FW: RFQ - Foot shear",
+        content,
+        "2026-08-26 14:06:28",
+        html="<div>$ 5,350.00 – 10 %  in stock Do you prefer a used shear ?</div>",
+    )
+    line = planner._ingested_line_from_row(row, with_body=True, anchors=["5,350.00"])
+    assert "18896-99_Fintek F5216" in line
+    assert "--- Attachments ---" in line
+    # ...and the footer must survive the body elision (it rides the tail).
+    assert "elided" in line or len(line) < planner._INGESTED_BODY_CAP + 600
+
+
+# --- long threads are VISIBLE in the evidence, not just citable -------------
+#
+# Live 2026-09-13: 3,395 of 7,009 stored messages are longer than the 2,500-char
+# excerpt cap (longest 79,017). A head+tail clip of a quoted thread hides the
+# middle the user is asking about, so the top-ranked matched row now renders
+# its WHOLE body up to _INGESTED_BODY_CAP_FULL while deeper rows stay small.
+
+
+def test_top_ranked_mailbox_hit_renders_the_whole_thread():
+    body = "intro\n" + ("quoted history\n" * 500) + "price $ 5,350.00 net"
+    row = _row("joelseguin@seguinmach.com", "FW: RFQ - Foot shear", body,
+               "2026-08-26 14:06:28")
+
+    line = planner._ingested_line_from_row(
+        row, with_body=True, anchors=["5,350.00"],
+        body_cap=planner._INGESTED_BODY_CAP_FULL,
+    )
+
+    assert "middle of this quoted thread elided" not in line
+    assert "net" in line, "the tail must survive when the body fits the cap"
+    assert "5,350.00" in line
+
+
+def test_mega_thread_keeps_the_figure_visible_and_the_path_citable():
+    """Adversarial: 75k chars with the amount buried mid-quote. The cap elides
+    the middle, but the anchor window and the VFS citation must both survive —
+    the agent must never be able to say 'the figure isn't visible'."""
+    body = ("quoted history line\n" * 3000) + "$ 5,350.00 – 10 % in stock\n" + (
+        "tail line\n" * 1500
+    )
+    row = _row("joelseguin@seguinmach.com", "FW: RFQ - Foot shear", body,
+               "2026-08-26 14:06:28")
+
+    line = planner._ingested_line_from_row(
+        row, with_body=True, anchors=["5,350.00"],
+        body_cap=planner._INGESTED_BODY_CAP_FULL,
+    )
+
+    assert len(line) < len(body), "the cap still bounds the evidence budget"
+    assert "5,350.00" in line, "the anchor window must survive the elision"
+    assert "full: knowledge/conversations/" in line, "the rest stays reachable"
+
+
+def test_deeper_rows_stay_small():
+    """Only the top row(s) get the big budget — a wall of 32k threads would
+    blow the turn's context."""
+    assert planner._INGESTED_FULL_LINES >= 1
+    assert planner._INGESTED_BODY_CAP_FULL > planner._INGESTED_BODY_CAP
+
+
+def test_figure_search_gives_the_top_row_the_full_budget(monkeypatch):
+    """The wiring, not just the renderer: _search_ingested_by_tokens must pass
+    the larger cap for the first _INGESTED_FULL_LINES rows."""
+    seen_caps = []
+    long_body = "x" * 20000
+
+    def fake_match(rows, tokens, limit=4):
+        return [
+            {"id": "m1", "sender": "joel@x.example", "recipient": "r@y.z",
+             "subject": "FW: quote", "timestamp": "2026-08-26", "content": long_body,
+             "metadata": None},
+            {"id": "m2", "sender": "joel@x.example", "recipient": "r@y.z",
+             "subject": "FW: quote 2", "timestamp": "2026-08-25", "content": long_body,
+             "metadata": None},
+        ]
+
+    real = planner._ingested_line_from_row
+
+    def spy(row, with_body, anchors=None, body_cap=None):
+        seen_caps.append(body_cap)
+        return real(row, with_body, anchors=anchors, body_cap=body_cap)
+
+    monkeypatch.setattr(planner, "_match_rows_by_figure_tokens", fake_match)
+    monkeypatch.setattr(planner, "_ingested_line_from_row", spy)
+
+    planner._search_ingested_by_tokens("u1", ["5,350.00"], 2)
+
+    assert seen_caps[0] == planner._INGESTED_BODY_CAP_FULL
+    assert seen_caps[1] is None, "deeper rows keep the small default cap"
