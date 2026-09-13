@@ -48,6 +48,30 @@ logger = logging.getLogger(__name__)
 # objective loops.
 AGENT_WORK_FLAG = "ATOM_GOAL_RUN_AGENT_WORK"
 
+# Watchdog for NON-timer waits (operator/computer-use): the wait carries a
+# deadline so a lost wake (in-memory operator registry wiped by a restart,
+# crashed spawned loop) cannot park the run in 'waiting' forever —
+# goal_run_events wakes it when the deadline passes and the router
+# re-decides with the failure event in context (2026-09-13).
+# Env-overridable, minutes, 30–60min band by default.
+OPERATOR_WATCHDOG_ENV = "ATOM_GOAL_RUN_WATCHDOG_MINUTES"
+DEFAULT_OPERATOR_WATCHDOG_MINUTES = 45
+
+
+def _operator_watchdog_minutes() -> float:
+    raw = os.environ.get(OPERATOR_WATCHDOG_ENV, "").strip()
+    if raw:
+        try:
+            value = float(raw)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+        logger.warning(
+            f"{OPERATOR_WATCHDOG_ENV}={raw!r} is not a positive number — "
+            f"using the default ({DEFAULT_OPERATOR_WATCHDOG_MINUTES} min)")
+    return DEFAULT_OPERATOR_WATCHDOG_MINUTES
+
 
 def _agent_work_enabled() -> bool:
     flag = os.environ.get(AGENT_WORK_FLAG, "").strip().lower()
@@ -295,9 +319,20 @@ class GoalRunExecutors:
             return {"error": result.get("error"), "step_id": step.get("id")}
 
         operator_run_id = result["operator_run_id"]
+        # The watchdog deadline makes this wait bounded: the operator's
+        # done-event is pushed from an IN-MEMORY registry via a spawned
+        # fire-and-forget loop — a restart or crash would otherwise park
+        # the run in 'waiting' forever (timers wake; this wait had no
+        # deadline). goal_run_events wakes the run when it passes and the
+        # router re-decides with the expiry event in context.
+        from datetime import datetime, timedelta, timezone
+        deadline = (datetime.now(timezone.utc)
+                    + timedelta(minutes=_operator_watchdog_minutes()))
         self.service.set_wait(run["id"], {
             "event": "operator_task_done",
             "match": {"operator_run_id": operator_run_id},
+            "deadline": deadline.isoformat(),
+            "watchdog": True,
         })
         self.service.append_decision(run["id"], {
             "kind": "operator_task_started",

@@ -134,9 +134,17 @@ class GoalRunService:
             return self._to_dict(run)
 
     def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Read one run — SCOPED to the service's workspace (same filter as
+        list_runs). The service is constructed workspace-bound by every
+        surface (routes bind it to the requester's workspace, events to the
+        event's workspace); a run id from another workspace reads as absent,
+        so a cross-workspace id is not a read oracle for decision logs and
+        parameters (IDOR fix 2026-09-13)."""
         from core.models import GoalRun
         with self._sessions()() as session:
-            run = session.query(GoalRun).filter(GoalRun.id == run_id).first()
+            run = session.query(GoalRun).filter(
+                GoalRun.id == run_id,
+                GoalRun.workspace_id == self.workspace_id).first()
             return self._to_dict(run) if run else None
 
     def list_runs(self, goal_id: Optional[str] = None,
@@ -164,8 +172,13 @@ class GoalRunService:
             return [self._to_dict(r) for r in rows]
 
     def _load(self, session, run_id: str):
+        """Load a run row for mutation — workspace-scoped like get_run, so
+        every write path (transition/set_wait/patch/…) through a
+        workspace-bound service can only touch this workspace's runs."""
         from core.models import GoalRun
-        return session.query(GoalRun).filter(GoalRun.id == run_id).first()
+        return session.query(GoalRun).filter(
+            GoalRun.id == run_id,
+            GoalRun.workspace_id == self.workspace_id).first()
 
     # ------------------------------------------------------------ surfaces
 
@@ -180,6 +193,31 @@ class GoalRunService:
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
             run.supervision_mode = mode
+            session.commit()
+            session.refresh(run)
+            return self._to_dict(run)
+
+    def interrupt_stalled(self, run_id: str, reason: str) -> Optional[Dict[str, Any]]:
+        """Maintenance-sweep act (2026-09-13): a run stuck ACTIVE with no
+        row progress is interrupted — ``paused_hitl`` + an honest pending
+        ASK_HUMAN decision the supervisor resolves through the normal
+        resume flow (approve → active again, reject → guidance becomes the
+        correction). Never cancels: the state is surfaced, the human
+        decides. No-op unless the run is currently active."""
+        from core.models import GoalRun
+        with self._sessions()() as session:
+            run = self._load(session, run_id)
+            if not run or run.status != "active":
+                return None
+            run.status = "paused_hitl"
+            run.pending_decision = {
+                "decision": "ASK_HUMAN",
+                "rationale": (reason or "run stalled")[:2000],
+            }
+            log = list(run.decision_log or [])
+            log.append({"ts": _iso(), "kind": "stalled_interrupted",
+                        "rationale": (reason or "run stalled")[:2000]})
+            run.decision_log = log
             session.commit()
             session.refresh(run)
             return self._to_dict(run)

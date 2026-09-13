@@ -2009,9 +2009,6 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
             return {"success": False,
                     "error": f"goal '{goal_id}' not found — create it with "
                              f"goals.create first"}
-        if (goal.workspace_id or "").strip() not in ("", workspace_id):
-            return {"success": False,
-                    "error": f"goal '{goal_id}' belongs to another workspace"}
         goal_title = goal.title
 
         # Idempotence guard the human API doesn't need: an agent must not
@@ -2030,6 +2027,29 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
 
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id).first()
+        if not agent:
+            return {"success": False,
+                    "error": f"agent '{agent_id}' not found in the registry"}
+        # Workspace binding (2026-09-13): the run lives in the AGENT'S
+        # workspace when the agent carries one (fallback: the calling
+        # context's), and the goal must live in that workspace too. Blank
+        # goal workspaces (legacy pre-workspace rows) used to be accepted
+        # from ANY workspace — the run then worked a goal it could not see
+        # from its own workspace.
+        run_workspace = ((getattr(agent, "workspace_id", None) or "").strip()
+                         or workspace_id)
+        goal_workspace = (goal.workspace_id or "").strip()
+        if goal_workspace and goal_workspace != run_workspace:
+            return {"success": False,
+                    "error": f"goal '{goal_id}' belongs to another workspace "
+                             f"(goal: '{goal_workspace}', run: "
+                             f"'{run_workspace}')"}
+        if not goal_workspace and run_workspace != "default":
+            return {"success": False,
+                    "error": f"goal '{goal_id}' has no workspace — a run in "
+                             f"workspace '{run_workspace}' can only work a "
+                             f"goal of that workspace (create it there "
+                             f"first)"}
         # Role from the business's OWN data (agent specialty/category) when
         # not given — the same derivation as the member path in the API.
         role = str(args.get("role") or "").strip() or None
@@ -2072,7 +2092,7 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     seeded = seed_plan_for_run(goal_title, role=role, agent_id=agent_id,
                                tenant_id=tenant_id)
 
-    svc = GoalRunService(workspace_id=workspace_id, tenant_id=tenant_id)
+    svc = GoalRunService(workspace_id=run_workspace, tenant_id=tenant_id)
     try:
         run = svc.create_run(goal_id, agent_id=agent_id, role=role,
                              supervision_mode=mode, plan=seeded["plan"],

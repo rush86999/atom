@@ -17,7 +17,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from core.atom_saas_client import AtomAgentOSMarketplaceClient
 from core.models import (
@@ -188,11 +188,26 @@ class AgentMarketplaceService:
                            sanitize) -> List[Dict[str, Any]]:
         """The agent's APPROVED playbooks — the process a buyer's
         goal_runs.start will seed plans from (seed_plan_for_run matches
-        them by keywords). Drafts never ship."""
+        them by keywords). Drafts never ship.
+
+        Scope (2026-09-13): the Playbook model carries no per-owner or
+        per-agent linkage (only tenant + workspace + created_by, and
+        created_by is unset for marketplace-seeded and learned rows) —
+        the workspace is the narrowest real scope. When the agent belongs
+        to a workspace, ONLY that workspace's approved playbooks (plus
+        legacy NULL-workspace rows from the pre-workspace era) ship;
+        packaging a sales agent no longer ships the finance workspace's
+        process. Workspace-less agents keep the legacy tenant-wide scope.
+        """
         query = self.db.query(Playbook).filter(
             Playbook.approval_state == "approved")
         if agent.tenant_id:
             query = query.filter(Playbook.tenant_id == agent.tenant_id)
+        agent_workspace = (getattr(agent, "workspace_id", None) or "").strip()
+        if agent_workspace:
+            query = query.filter(or_(
+                Playbook.workspace_id == agent_workspace,
+                Playbook.workspace_id.is_(None)))
         rows = query.limit(_MAX_PACKAGED_PLAYBOOKS).all()
         return [
             {
@@ -285,6 +300,7 @@ class AgentMarketplaceService:
             f"You are {agent.name}, a {role or 'specialist'} agent.")
         playbooks = self._package_playbooks(agent, sanitize)
 
+        from core.experience_marketplace.sanitizer import redact_pii
         manifest = strip_credentials({
             "system_prompt": sanitize(str(system_prompt))[:4000],
             "role": role or None,
@@ -300,7 +316,11 @@ class AgentMarketplaceService:
             tenant_id=agent.tenant_id,
             author_id=author_id or getattr(agent, "user_id", None),
             name=str(agent.name)[:100],
-            description=str(description or agent.description or "")[:500],
+            # Publisher-authored like the name, but still redacted: emails /
+            # URLs / pasted key-shaped secrets must not ship to buyers
+            # (entity tokenization stays OFF here — marketing text).
+            description=redact_pii(
+                str(description or agent.description or ""))[:500],
             category=agent.category or role or "General",
             version="1.0.0",
             price=float(price or 0.0),
@@ -331,14 +351,31 @@ class AgentMarketplaceService:
         return {"success": True, "template_id": template.id,
                 "verified_record": record}
 
+    # Reserved manifest key holding local push bookkeeping. Underscore-
+    # prefixed keys are packaging metadata — they are stripped from the
+    # listing payload sent to the SaaS and never ship to buyers.
+    _PUSH_MARKER_KEY = "_marketplace_push"
+
     def publish_listing_to_saas(self, template_id: str,
-                                source_instance_id: Optional[str] = None
-                                ) -> Dict[str, Any]:
+                                source_instance_id: Optional[str] = None,
+                                force: bool = False) -> Dict[str, Any]:
         """Push a locally packaged listing to the SaaS marketplace server
         (which lives with the atom-saas app). The listing lands in the
         SaaS admin approval queue — remote content never goes live
         directly. Requires an already-packaged template
-        (package_agent_for_sale)."""
+        (package_agent_for_sale).
+
+        Idempotent by default (2026-09-13): the local template records its
+        last successful push (timestamp + remote id) in its manifest under
+        ``_marketplace_push``; a repeat push returns the recorded state
+        without calling the SaaS unless ``force=True``. The server inserts
+        unconditionally (no upsert on (name, version) yet), so this marker
+        is what keeps a double-click from duplicating the listing.
+
+        NOTE: nothing pushes listings automatically —
+        core/marketplace_sync_worker.py only pushes usage ANALYTICS. The
+        live caller is POST /api/agent-marketplace/templates/{id}/push
+        (owner-or-admin)."""
         template = self.db.query(AgentTemplate).filter(
             AgentTemplate.id == template_id).first()
         if not template:
@@ -349,13 +386,27 @@ class AgentMarketplaceService:
                     "error": "template has no verified_record — re-package "
                              "it (package_agent_for_sale)"}
 
+        marker = ((template.configuration or {})
+                  .get(self._PUSH_MARKER_KEY) or {})
+        if marker and not force:
+            return {"success": True, "already_pushed": True,
+                    "pushed_at": marker.get("pushed_at"),
+                    "remote_id": marker.get("remote_id"),
+                    "status": marker.get("status"),
+                    "detail": "listing already pushed — pass force=true to "
+                              "push again (the server creates a new "
+                              "pending listing on every push)"}
+
+        config = template.configuration or {}
         listing = {
             "name": template.name,
             "description": template.description,
             "category": template.category,
             "version": template.version,
             "price": float(template.price or 0.0),
-            "configuration": template.configuration or {},
+            # Packaging metadata (_-prefixed keys) never leaves the instance.
+            "configuration": {k: v for k, v in config.items()
+                              if not str(k).startswith("_")},
             "capabilities": template.capabilities or [],
             "canvas_ui_schemas": template.canvas_ui_schemas or [],
             "tunable_keys": getattr(template, "tunable_keys", None) or [],
@@ -363,10 +414,34 @@ class AgentMarketplaceService:
             "anonymized_memory_bundle":
                 template.anonymized_memory_bundle or {},
             "verified_record": template.verified_record,
-            "source_instance_id": source_instance_id,
+            "source_instance_id": (
+                source_instance_id
+                or getattr(self.saas_client.config, "instance_id", None)),
         }
         result = self.saas_client.publish_listing_sync(listing)
-        return {"success": bool(result.get("id")),
+        ok = bool(result.get("id"))
+        if ok:
+            from datetime import datetime, timezone
+            # Rebuild the dict (same-identity JSON assignment is invisible
+            # to SQLAlchemy — the marketplace install path documents the
+            # same trap).
+            new_config = {k: v for k, v in config.items()
+                          if not str(k).startswith("_")}
+            new_config[self._PUSH_MARKER_KEY] = {
+                "pushed_at": datetime.now(timezone.utc).isoformat(),
+                "remote_id": result.get("id"),
+                "status": result.get("status"),
+            }
+            template.configuration = new_config
+            try:
+                self.db.commit()
+            except Exception as exc:
+                self.db.rollback()
+                logger.warning(
+                    f"listing {template_id}: push marker persist failed: "
+                    f"{exc} (remote listing {result.get('id')} exists)")
+        return {"success": ok,
+                "already_pushed": False,
                 "saas_result": result,
                 "status": result.get("status")}
 
@@ -412,7 +487,8 @@ class AgentMarketplaceService:
             logger.error(f"Failed to fetch template details for {template_id}: {e}")
             return None
 
-    def install_agent(self, template_id: str, tenant_id: str, user_id: str) -> Dict[str, Any]:
+    def install_agent(self, template_id: str, tenant_id: str, user_id: str,
+                      paid_override: bool = False) -> Dict[str, Any]:
         """
         Install an agent from the marketplace as a MANAGED agent.
 
@@ -423,6 +499,12 @@ class AgentMarketplaceService:
            reference — prompts/memory are resolved at execution time.
         4. Connects skills that exist locally (never dangling links).
         5. Records installation locally and with SaaS.
+
+        Paid-listing gate (2026-09-13, mirrors the SaaS G3 entitlement
+        gate): a listing with price > 0 installs only with an explicit
+        ``paid_override`` — the local analog of the server's "active
+        entitlement" requirement. The override asserts the purchase was
+        completed with the seller; free listings always pass.
         """
         # 1. Fetch listing from SaaS — or serve a LOCAL listing (a
         #    self-hosted sale packaged by package_agent_for_sale).
@@ -446,6 +528,21 @@ class AgentMarketplaceService:
                 "permission_profile": local_listing.permission_profile or {},
                 "verified_record": getattr(local_listing, "verified_record", None) or {},
             }
+
+        # 1b. Paid gate (SaaS parity, G3): no local entitlement store
+        #     exists on a self-hosted instance, so an explicit override
+        #     stands in for the server's "active entitlement" check. It is
+        #     checked BEFORE any local row is created.
+        try:
+            listing_price = float(template_data.get("price") or 0.0)
+        except (TypeError, ValueError):
+            listing_price = 0.0
+        if listing_price > 0 and not paid_override:
+            return {"success": False,
+                    "error": f"This agent costs {listing_price:g} and "
+                             f"requires a purchase — complete the purchase "
+                             f"with the seller, then install with "
+                             f"paid_override=true"}
 
         try:
             # 2. Local manifest (only when the payload actually carries one)

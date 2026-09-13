@@ -80,8 +80,10 @@ produced the listing's evidence — not on reviews alone.
 
 | Route | What |
 |---|---|
-| `GET /agents/{id}/sale-readiness` | advisory evidence + paid blockers (any signed-in user) |
+| `GET /agents/{id}/sale-readiness` | advisory evidence + paid blockers (owner or admin — the evidence view leaks the agent's track record) |
 | `POST /agents/{id}/publish` | package for sale (owner or admin; 409 on gate failures) |
+| `POST /templates/{template_id}/push` | push a packaged listing to the SaaS `ingest-listing` (publisher or admin; idempotent by default — the local template records its last push, `force=true` re-pushes) |
+| `POST /install-remote` | install from a central listing as a managed agent (member+; paid listings require the explicit `paid_override` assertion — local mirror of the SaaS entitlement gate) |
 | `GET /templates/{id}` | buyer-safe listing: identity, price, ratings, `verified_record`, aggregate guidance counts — **never** the manifest or memory bundle (managed-agent model: prompts/experience resolve server-side at execution time) |
 
 Installation stays on the existing `install_agent` path (SaaS + local
@@ -103,13 +105,33 @@ Server side (landed in atom-saas@`b4c2055225`):
   aggregate guidance counts; manifest/memory stay server-only.
 - `POST /api/agent-marketplace/ingest-listing` + `ingest_remote_listing`:
   a self-hosted instance pushes its packaged listing
-  (`publish_listing_to_saas` → `publish_listing_sync`). The payload must
-  carry the platform-computed `verified_record` (free-text listings by
-  hand are refused), publisher free text is **re-sanitized** server-side,
-  and the listing lands **PENDING admin approval** — the same queue as
-  local publishes, which is the trust boundary for evidence not computed
-  by the server itself. `agent_templates.source_instance_id` records
-  provenance.
+  (`POST /api/agent-marketplace/templates/{id}/push` →
+  `publish_listing_to_saas` → `publish_listing_sync`). **Federation auth
+  (required)**: the call authenticates with `X-Instance-ID` + 
+  `X-Federation-Key` headers (`backend-saas/api/dependencies/
+  federation_auth.py:validate_federation_peer` — the instance id must be a
+  registered, active `MarketplaceInstance`; the key must equal an accepted
+  `FederationConnection.shared_secret`, which for atom instances is the
+  `ATOM_SAAS_API_TOKEN`). The atom client (`core/atom_saas_client.py`)
+  sends exactly those headers; `ATOM_SAAS_INSTANCE_ID` configures the
+  registered instance id. For federation callers the server pins
+  `source_instance_id` to the authenticated peer — the body field is not
+  trusted. The payload must carry the platform-computed
+  `verified_record` (free-text listings by hand are refused), and the
+  listing lands **PENDING admin approval** — the same queue as local
+  publishes, which is the trust boundary for evidence not computed by the
+  server itself. `agent_templates.source_instance_id` records provenance.
+- **Server re-sanitization is PARTIAL (correction 2026-09-13)**:
+  `ingest_remote_listing` re-sanitizes only `description`,
+  `heuristics[].resolution` and `golden_paths[].sequence`. Everything else
+  — `configuration.system_prompt`, `configuration.playbooks`, `name`,
+  `category` — is stored and served as sent. Sanitization of those fields
+  is therefore the INSTANCE's job at packaging time
+  (`package_agent_for_sale`: entity tokenization, PII redaction, and —
+  since 2026-09-13 — key-shaped secret redaction `sk-…`/`ghp_…`/`AKIA…`/
+  `xox…`/`Bearer …` via `experience_marketplace/sanitizer.redact_secrets`).
+  The server should extend its re-sanitization to the remaining free-text
+  fields (handoff note, 2026-09-13).
 - Schema: `agent_templates.verified_record` (JSON) + `source_instance_id`
   (indexed), migration `20260912_agent_verified_record` chained on the
   `goal_runs` head of the SaaS alembic graph.
@@ -131,8 +153,17 @@ files.
 Tests: `backend/tests/test_agent_marketplace_goal_runs.py` (verified-record
 math, achieved-only golden paths, override heuristics, entity/PII leak
 checks, paid gate, re-publish block, readiness, local-install seeding +
-idempotent playbook materialization, terminal-run usage reporting).
+idempotent playbook materialization, terminal-run usage reporting; since
+2026-09-13 also idempotent-push + push/install-remote route guards).
+Companion suites (2026-09-13): `test_marketplace_packaging_redaction.py`
+(key-shaped secret redaction + playbook workspace scoping),
+`test_goal_run_access_control.py` (cross-workspace IDOR),
+`test_atom_saas_client.py` (federation headers + sync-loop safety),
+`test_goal_run_watchdog_sweep.py` (bounded operator waits + stale sweep),
+`test_sql_json.py` (dialect-portable JSON comparison).
 Pre-existing failure NOT caused by this work:
 `test_covpush_core_c.py::TestAgentMarketplaceService::test_install_agent_success`
 asserts `OperationErrorResolution` rows that the current install path does
 not create — fails at clean HEAD too (verified via stash).
+`test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_handles_template_not_found`
+also fails identically at clean HEAD (verified via worktree 2026-09-13).

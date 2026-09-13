@@ -89,8 +89,12 @@ class TestHttpClientFactory:
         ac.assert_called_once()
         kwargs = ac.call_args.kwargs
         assert kwargs["base_url"] == "https://example.com/api"
-        assert kwargs["headers"]["X-API-Token"] == "tok-123"
+        # Federation contract (2026-09-13, atom-saas
+        # validate_federation_peer): X-Instance-ID + X-Federation-Key;
+        # the legacy X-API-Token header is no longer sent.
+        assert kwargs["headers"]["X-Federation-Key"] == "tok-123"
         assert kwargs["headers"]["X-Instance-ID"] == "inst-1"
+        assert "X-API-Token" not in kwargs["headers"]
 
 
 class _HttpEnv:

@@ -233,13 +233,24 @@ class TestEvidenceHonestInstall:
 
     def test_local_install_seeds_from_the_record(self, env):
         published = _svc(env).package_agent_for_sale("agent-quota", price=19)
-        # SaaS unreachable → the LOCAL listing serves the install
+        # SaaS unreachable → the LOCAL listing serves the install. Paid
+        # (price=19): the install asserts the purchase with paid_override
+        # (the local mirror of the SaaS entitlement gate, 2026-09-13).
         saas = MagicMock()
         saas.get_agent_template_sync.return_value = None
         svc = AgentMarketplaceService(env, saas_client=saas)
 
+        # without the override the paid listing is refused — honestly
+        gated = svc.install_agent(published["template_id"],
+                                  tenant_id="t-buyer", user_id="u-buyer")
+        assert gated["success"] is False
+        assert "purchase" in gated["error"]
+        assert env.query(AgentRegistry).filter(
+            AgentRegistry.tenant_id == "t-buyer").count() == 0
+
         out = svc.install_agent(published["template_id"],
-                                tenant_id="t-buyer", user_id="u-buyer")
+                                tenant_id="t-buyer", user_id="u-buyer",
+                                paid_override=True)
         assert out["success"] is True, out
         # evidence-honest: intern tier, but confidence above the flat 0.55
         # (2 achieved × 0.03 + 8 steps × 0.001) and capped inside the band
@@ -263,7 +274,8 @@ class TestEvidenceHonestInstall:
 
         # idempotent: a second install does not duplicate playbooks
         again = svc.install_agent(published["template_id"],
-                                  tenant_id="t-buyer", user_id="u-buyer2")
+                                  tenant_id="t-buyer", user_id="u-buyer2",
+                                  paid_override=True)
         assert again["success"] is True
         assert again["playbooks_installed"] == 0
         assert env.query(Playbook).filter(
@@ -380,6 +392,7 @@ class TestPushListingToSaas:
         out = svc.publish_listing_to_saas(published["template_id"],
                                           source_instance_id="inst-42")
         assert out["success"] is True
+        assert out["already_pushed"] is False
         assert out["status"] == "pending_approval"
 
         sent = saas.publish_listing_sync.call_args[0][0]
@@ -392,3 +405,142 @@ class TestPushListingToSaas:
         out = _svc(env).publish_listing_to_saas("no-such-template")
         assert out["success"] is False
         assert "package" in out["error"]
+
+    def test_second_push_is_idempotent_by_default(self, env):
+        """The server inserts unconditionally — without a local push
+        marker, a double-click duplicated the listing (2026-09-13)."""
+        published = _svc(env).package_agent_for_sale("agent-quota", price=9)
+        saas = MagicMock()
+        saas.publish_listing_sync.return_value = {
+            "id": "saas-tmpl-1", "status": "pending_approval"}
+        svc = AgentMarketplaceService(env, saas_client=saas)
+
+        first = svc.publish_listing_to_saas(published["template_id"])
+        assert first["success"] is True
+        again = svc.publish_listing_to_saas(published["template_id"])
+        assert again["success"] is True
+        assert again["already_pushed"] is True
+        assert again["remote_id"] == "saas-tmpl-1"
+        # the server was called exactly ONCE — the marker answered the retry
+        assert saas.publish_listing_sync.call_count == 1
+
+        # force re-pushes (a deliberate new pending listing)
+        forced = svc.publish_listing_to_saas(published["template_id"],
+                                             force=True)
+        assert forced["success"] is True
+        assert forced["already_pushed"] is False
+        assert saas.publish_listing_sync.call_count == 2
+
+        # the marker itself never ships to the SaaS
+        sent = saas.publish_listing_sync.call_args[0][0]
+        assert "_marketplace_push" not in sent["configuration"]
+
+    def test_push_marker_is_recorded_on_the_template(self, env):
+        published = _svc(env).package_agent_for_sale("agent-quota", price=9)
+        saas = MagicMock()
+        saas.publish_listing_sync.return_value = {
+            "id": "saas-tmpl-9", "status": "pending_approval"}
+        svc = AgentMarketplaceService(env, saas_client=saas)
+        svc.publish_listing_to_saas(published["template_id"])
+        template = env.query(AgentTemplate).filter(
+            AgentTemplate.id == published["template_id"]).one()
+        marker = template.configuration["_marketplace_push"]
+        assert marker["remote_id"] == "saas-tmpl-9"
+        assert marker["pushed_at"]
+
+
+# ------------------------------------------------- seller/buyer routes
+
+class TestPushAndInstallRoutes:
+    """The live HTTP surface for the sell path (2026-09-13): a real
+    permission-checked push route (previously publish_listing_to_saas had
+    NO caller) and a live install-remote route."""
+
+    def _client(self, env, user_id):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from api.agent_marketplace_routes import router
+        from core.auth import get_current_user
+        from core.database import get_db as _get_db
+        from unittest.mock import Mock
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_current_user] = lambda: Mock(
+            id=user_id, tenant_id="default", workspace_id=WS)
+        app.dependency_overrides[_get_db] = lambda: env
+        return TestClient(app)
+
+    def _mock_saas(self, monkeypatch):
+        saas = MagicMock()
+        saas.publish_listing_sync.return_value = {
+            "id": "saas-tmpl-2", "status": "pending_approval"}
+        saas.get_agent_template_sync.return_value = None  # local fallback
+        saas.install_agent_sync.return_value = {"status": "installed"}
+        saas.config = MagicMock(instance_id="inst-atom-1")
+        # the service imports the class into its own namespace
+        monkeypatch.setattr(
+            "core.agent_marketplace_service.AtomAgentOSMarketplaceClient",
+            lambda: saas)
+        return saas
+
+    def test_publisher_pushes_and_non_publisher_is_denied(self, env,
+                                                          monkeypatch):
+        published = _svc(env).package_agent_for_sale("agent-quota", price=0)
+        saas = self._mock_saas(monkeypatch)
+
+        publisher = self._client(env, "u-seller")
+        resp = publisher.post(
+            f"/api/agent-marketplace/templates/{published['template_id']}"
+            f"/push")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "pending_approval"
+        assert saas.publish_listing_sync.call_count == 1
+
+        # repeat push is idempotent by default at the route too
+        again = publisher.post(
+            f"/api/agent-marketplace/templates/{published['template_id']}"
+            f"/push")
+        assert again.status_code == 200
+        assert again.json()["already_pushed"] is True
+        assert saas.publish_listing_sync.call_count == 1  # still one call
+
+        # a different member cannot push someone else's listing
+        env.add(User(
+            id="u-stranger", email="stranger@example.com", first_name="Str",
+            last_name="Nger", role=UserRole.MEMBER.value, status="active"))
+        env.commit()
+        stranger = self._client(env, "u-stranger")
+        denied = stranger.post(
+            f"/api/agent-marketplace/templates/{published['template_id']}"
+            f"/push")
+        assert denied.status_code == 403
+
+    def test_install_remote_paid_needs_the_override(self, env, monkeypatch):
+        published = _svc(env).package_agent_for_sale("agent-quota", price=19)
+        self._mock_saas(monkeypatch)
+
+        member = self._client(env, "u-seller")
+        resp = member.post("/api/agent-marketplace/install-remote",
+                           json={"template_id": published["template_id"]})
+        assert resp.status_code == 409  # paid, no override
+        assert "purchase" in resp.json()["detail"]
+        assert env.query(AgentRegistry).filter(
+            AgentRegistry.type == "marketplace").count() == 0
+
+        ok = member.post("/api/agent-marketplace/install-remote",
+                         json={"template_id": published["template_id"],
+                               "paid_override": True})
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["success"] is True
+
+    def test_install_remote_free_listing_needs_no_override(self, env,
+                                                           monkeypatch):
+        published = _svc(env).package_agent_for_sale("agent-quota", price=0)
+        self._mock_saas(monkeypatch)
+
+        member = self._client(env, "u-seller")
+        resp = member.post("/api/agent-marketplace/install-remote",
+                           json={"template_id": published["template_id"]})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["success"] is True

@@ -21,14 +21,45 @@ fail because a goal run hiccuped).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Stalled-ACTIVE sweep threshold (maintenance cycle): a run whose status is
+# 'active' but whose row shows no progress (updated_at) for longer than
+# this is interrupted for the supervisor — the fire-and-forget driver
+# (delegated agent objective loop, spawned task) died without a decision
+# boundary. Generous by default (long delegated steps are legitimate);
+# env-overridable in minutes.
+STALE_ACTIVE_ENV = "ATOM_GOAL_RUN_STALE_MINUTES"
+DEFAULT_STALE_ACTIVE_MINUTES = 360
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _stale_active_minutes() -> float:
+    raw = os.environ.get(STALE_ACTIVE_ENV, "").strip()
+    if raw:
+        try:
+            value = float(raw)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+        logger.warning(
+            f"{STALE_ACTIVE_ENV}={raw!r} is not a positive number — using "
+            f"the default ({DEFAULT_STALE_ACTIVE_MINUTES} min)")
+    return DEFAULT_STALE_ACTIVE_MINUTES
 
 
 async def ingest_event(event: Dict[str, Any],
@@ -105,6 +136,116 @@ async def check_due_waits(workspace_id: str = "default",
     return {"woke": woke}
 
 
+def due_watchdog_runs(workspace_id: str = "default", tenant_id: str = "default",
+                      session_factory=None, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    """Waiting runs whose NON-timer wait carried a deadline that has passed
+    (spec: event != 'timer' with an ISO deadline — the operator/
+    computer-use watchdog). The wake source for these waits is an
+    in-memory registry pushed from a spawned fire-and-forget task, so a
+    restart loses the wake and the run would sleep FOREVER without this
+    deadline (timer wakes only fire event=='timer')."""
+    from core.goals.goal_run_service import GoalRunService
+    svc = GoalRunService(workspace_id=workspace_id, tenant_id=tenant_id,
+                         session_factory=session_factory)
+    now = now or _now()
+    due: List[Dict[str, Any]] = []
+    for run in svc.list_runs(status="waiting", include_terminal=False):
+        spec = run.get("waiting_on") or {}
+        if str(spec.get("event") or "").lower() == "timer":
+            continue  # the timer path owns timer deadlines
+        if not spec.get("deadline"):
+            continue
+        deadline = _parse_deadline(spec.get("deadline"))
+        if deadline is not None and deadline <= now:
+            due.append(run)
+    return due
+
+
+async def check_due_watchdog_wakes(workspace_id: str = "default",
+                                   tenant_id: str = "default",
+                                   session_factory=None,
+                                   now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Wake every watchdog-expired run and advance it one loop turn. The
+    wake event carries the wait's own match keys (so consume_wake accepts
+    it) and names the expiry honestly — the router re-decides with the
+    failed step in context; the decision log records why."""
+    from core.goals.goal_run_service import GoalRunService
+    svc = GoalRunService(workspace_id=workspace_id, tenant_id=tenant_id,
+                         session_factory=session_factory)
+    woke: List[str] = []
+    for run in due_watchdog_runs(workspace_id, tenant_id, session_factory, now):
+        spec = run.get("waiting_on") or {}
+        event = {"event": str(spec.get("event") or "any"),
+                 "source": "watchdog",
+                 "summary": (f"watchdog deadline reached "
+                             f"({spec.get('deadline')}) waiting for "
+                             f"'{spec.get('event')}' — treating the step "
+                             f"as interrupted")}
+        event.update({str(k): v for k, v in (spec.get("match") or {}).items()})
+        try:
+            wake = svc.consume_wake(run["id"], event)
+            if not wake.get("consumed"):
+                continue
+            woke.append(run["id"])
+            svc.append_decision(run["id"], {
+                "kind": "wait_deadline_reached",
+                "rationale": event["summary"],
+            })
+            await svc.advance(run["id"], event=event)
+        except Exception as exc:
+            logger.warning(f"goal run {run['id']}: watchdog wake failed: {exc}")
+    return {"woke": woke}
+
+
+def interrupt_stalled_runs_all_workspaces(session_factory=None,
+                                          now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Maintenance sweep: runs stuck ACTIVE with no row progress
+    (updated_at) beyond the stale threshold are marked INTERRUPTED for
+    their supervisor — ``paused_hitl`` plus an honest pending ASK_HUMAN
+    decision resolved through the normal resume flow. NOT auto-cancelled:
+    the state is surfaced, the human decides (a long delegated step may be
+    legitimate; raise ATOM_GOAL_RUN_STALE_MINUTES if so). Covers the
+    crash-of-a-fire-and-forget-driver case (canvas-work delegation is a
+    spawned task — its death left the run 'active' with no driver)."""
+    from core.database import get_db_session
+    from core.models import GoalRun
+    from core.goals.goal_run_service import GoalRunService
+
+    now = now or _now()
+    cutoff = now - timedelta(minutes=_stale_active_minutes())
+    try:
+        sessions = session_factory or get_db_session
+        with sessions() as db:
+            rows = db.query(GoalRun).filter(
+                GoalRun.status == "active").all()
+            stalled = [r for r in rows
+                       if _as_utc(r.updated_at) is not None
+                       and _as_utc(r.updated_at) < cutoff]
+    except Exception as exc:
+        logger.warning(f"goal-run stalled scan failed: {exc}")
+        return {"interrupted": [], "error": str(exc)}
+    interrupted: List[str] = []
+    for row in stalled:
+        try:
+            svc = GoalRunService(
+                workspace_id=row.workspace_id or "default",
+                tenant_id=row.tenant_id or "default",
+                session_factory=session_factory)
+            svc.interrupt_stalled(
+                row.id,
+                reason=(f"no progress for over "
+                        f"{_stale_active_minutes():g} minutes while "
+                        f"'active' — the run's driver (delegated agent "
+                        f"work or spawned task) appears to have died; "
+                        f"review and resume or cancel"))
+            interrupted.append(row.id)
+        except Exception as exc:
+            logger.warning(f"goal run {row.id}: stall interrupt failed: {exc}")
+    if interrupted:
+        logger.info(f"goal runs interrupted as stalled: {interrupted}")
+    return {"interrupted": interrupted}
+
+
 def _parse_deadline(value: Any) -> Optional[datetime]:
     if not value:
         return None
@@ -152,9 +293,10 @@ async def notify_canvas_done(canvas_id: str, reason: Optional[str] = None,
 
 
 async def wake_due_runs_all_workspaces(session_factory=None) -> Dict[str, Any]:
-    """Timer half for the sleep-time maintenance cycle: check EVERY
-    workspace with waiting runs. One broken workspace never blocks the
-    rest."""
+    """Timer + watchdog half for the sleep-time maintenance cycle: check
+    EVERY workspace with waiting runs — timer deadlines (follow-ups) and
+    watchdog deadlines (bounded non-timer waits, e.g. operator work). One
+    broken workspace never blocks the rest."""
     from core.database import get_db_session
     from core.models import GoalRun
     pairs = set()
@@ -173,4 +315,10 @@ async def wake_due_runs_all_workspaces(session_factory=None) -> Dict[str, Any]:
             woke.extend(result.get("woke") or [])
         except Exception as exc:
             logger.warning(f"goal-run timer wake failed for {workspace}: {exc}")
+        try:
+            result = await check_due_watchdog_wakes(
+                workspace, tenant, session_factory)
+            woke.extend(result.get("woke") or [])
+        except Exception as exc:
+            logger.warning(f"goal-run watchdog wake failed for {workspace}: {exc}")
     return {"woke": woke}
