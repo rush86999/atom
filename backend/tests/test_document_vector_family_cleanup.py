@@ -106,3 +106,112 @@ async def test_cleanup_failure_is_not_fatal():
     result: Dict[str, Any] = await svc.remove_integration_documents("google_drive")
 
     assert result is not None  # returned instead of propagating the error
+
+
+# ─── DELETE /api/documents/{doc_id}: the THIRD family-aware site ─────────────
+#
+# The d94a5e6df fix (id delete + `<doc_id>::` prefix delete) landed at only
+# 2 of 3 sites (auto_document_ingestion.py:1665/:2474) — the HTTP delete
+# route orphaned chunk families exactly the same way, and its 404 guard
+# made an id that exists ONLY as chunks permanently undeletable.
+
+
+from types import SimpleNamespace
+
+import pytest
+from fastapi import HTTPException
+
+
+class RouteRecordingHandler:
+    """LanceDB handler stand-in for the delete route."""
+
+    def __init__(self, base_row=None, family_ids=None):
+        self.base_row = base_row
+        self.family_ids = family_ids or []
+        self.deleted_by_id: List[Tuple[str, str]] = []
+        self.deleted_by_prefix: List[Tuple[str, str]] = []
+
+    def get_document_by_id(self, table_name, doc_id):
+        return self.base_row
+
+    def get_document_ids_by_prefix(self, table_name, prefix):
+        assert prefix.endswith("::"), prefix
+        return list(self.family_ids)
+
+    def delete_documents_by_id(self, table_name, doc_id):
+        self.deleted_by_id.append((table_name, doc_id))
+        return True
+
+    def delete_documents_by_prefix(self, table_name, prefix):
+        self.deleted_by_prefix.append((table_name, prefix))
+        return True
+
+
+_USER = SimpleNamespace(workspaces=[SimpleNamespace(id="ws-1")])
+
+
+async def _run_delete(handler, doc_id, monkeypatch):
+    import api.document_routes as dr
+
+    monkeypatch.setattr(dr, "get_lancedb_handler", lambda ws_id=None: handler)
+    return await dr.delete_document(
+        doc_id=doc_id,
+        request=object(),  # not a starlette Request → governance pass-through
+        db=None,
+        current_user=_USER,
+        agent_id=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_route_removes_chunk_family(monkeypatch):
+    handler = RouteRecordingHandler(
+        base_row={"id": "doc_abc", "text": "x", "metadata": {}}
+    )
+    out = await _run_delete(handler, "doc_abc", monkeypatch)
+
+    assert ("documents", "doc_abc") in handler.deleted_by_id
+    assert ("documents", "doc_abc::") in handler.deleted_by_prefix, (
+        "route deleted the base row but orphaned the chunk family"
+    )
+    assert out["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_delete_route_accepts_chunk_only_id(monkeypatch):
+    """An id with no exact row but a live chunk family is DELETABLE — the
+    old 404 guard made such ids permanently undeletable."""
+    handler = RouteRecordingHandler(
+        base_row=None, family_ids=["doc_abc::c0", "doc_abc::c1"]
+    )
+    out = await _run_delete(handler, "doc_abc", monkeypatch)
+
+    assert ("documents", "doc_abc::") in handler.deleted_by_prefix
+    assert out["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_delete_route_404_when_neither_row_nor_family(monkeypatch):
+    handler = RouteRecordingHandler(base_row=None, family_ids=[])
+    with pytest.raises(HTTPException) as exc:
+        await _run_delete(handler, "ghost", monkeypatch)
+    assert exc.value.status_code == 404
+    assert handler.deleted_by_id == []
+    assert handler.deleted_by_prefix == []
+
+
+@pytest.mark.asyncio
+async def test_delete_route_family_cleanup_failure_is_not_fatal(monkeypatch):
+    """Prefix-delete failure is best-effort (same idiom as the ingestion
+    sites): the base deletion must still succeed."""
+    handler = RouteRecordingHandler(
+        base_row={"id": "doc_abc", "text": "x", "metadata": {}}
+    )
+
+    def boom(table_name, prefix):
+        raise RuntimeError("lance write lock")
+
+    handler.delete_documents_by_prefix = boom
+    out = await _run_delete(handler, "doc_abc", monkeypatch)
+    assert out["success"] is True
+    assert ("documents", "doc_abc") in handler.deleted_by_id

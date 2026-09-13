@@ -118,7 +118,7 @@ def test_mailbox_core_blocked_by_gate_never_ingests(monkeypatch):
 
 def test_mailbox_core_ingests_and_counts(monkeypatch):
     async def harness():
-        async def fake_resolve(service, user_id, query, limit=2):
+        async def fake_resolve(service, user_id, query, limit=2, **kw):
             return ["seguin-fw-rfq"]
 
         fake_pipeline = SimpleNamespace()
@@ -160,7 +160,8 @@ def test_outlook_leg_empty_search_triggers_ingest_and_research(monkeypatch):
     async def fake_store_lines(user_id, query, context=None, **kw):
         return []
 
-    async def fake_ingest_core(service, user_id, query, context):
+    async def fake_ingest_core(service, user_id, query, context, *, progress=None,
+                               skip_provider_query=False):
         return {"blocked": None, "ingested_count": 1,
                 "lines": ["- message seguin-fw-rfq… INGESTED | subject: FW: RFQ - Foot shear"]}
 
@@ -191,7 +192,8 @@ def test_outlook_leg_blocked_ingest_still_honest_dead_end(monkeypatch):
     async def empty(*a, **k):
         return []
 
-    async def fake_ingest_core(service, user_id, query, context):
+    async def fake_ingest_core(service, user_id, query, context, *, progress=None,
+                               skip_provider_query=False):
         return {"blocked": "owner pinned review", "lines": [], "ingested_count": 0}
 
     monkeypatch.setattr("integrations.outlook_service.outlook_service.search_emails",
@@ -217,7 +219,7 @@ def test_universal_leg_empty_search_ingests_and_reruns(monkeypatch):
             return {"status": "success", "data": [{"id": "rec-1", "name": "Acme lead"}]}
         return {"status": "success", "data": []}
 
-    async def fake_ing_core(service, user_id, query, context):
+    async def fake_ing_core(service, user_id, query, context, *, progress=None):
         assert service == "zoho_crm"
         return {"blocked": None, "ingested_count": 2,
                 "lines": ["- lead-1 INGESTED", "- lead-2 INGESTED"], "raw": None}
@@ -240,7 +242,7 @@ def test_universal_leg_nothing_upstream_still_dead_end(monkeypatch):
     async def fake_search(self, service, query, context=None):
         return {"status": "success", "data": []}
 
-    async def fake_ing_core(service, user_id, query, context):
+    async def fake_ing_core(service, user_id, query, context, *, progress=None):
         return {"blocked": None, "ingested_count": 0,
                 "lines": ["- nothing ingested (no matching item found)"], "raw": None}
 
@@ -256,3 +258,223 @@ def test_universal_leg_nothing_upstream_still_dead_end(monkeypatch):
 
     assert "returned nothing usable" in block
     assert "found nothing upstream" in block
+
+
+# --- P1-1: internal budget — a slow pull degrades to the miss path -------
+
+
+def test_slow_pull_times_out_to_miss_path_with_honest_note(monkeypatch):
+    """A pull slower than the fallback's INTERNAL budget must degrade to
+    the pre-fallback miss path with an honest note — never an unhandled
+    TimeoutError, never a caller-budget blowout, never a silent write."""
+    monkeypatch.setattr(ctp, "_INGEST_FALLBACK_BUDGET_SECONDS", 0.2)
+
+    async def empty(*a, **k):
+        return []
+
+    pull_calls = []
+
+    async def slow_ingest_core(service, user_id, query, context, *,
+                               progress=None, skip_provider_query=False):
+        pull_calls.append(query)
+        await asyncio.sleep(5)  # far beyond the 0.2s budget
+        raise AssertionError("must be cancelled before finishing")
+
+    async def fake_memory(user_id, query, context):
+        return None
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.outlook_service.search_emails",
+        AsyncMock(side_effect=empty))
+    monkeypatch.setattr(ctp, "_ingested_mailbox_lines", empty)
+    monkeypatch.setattr(ctp, "_mailbox_ingest_core", slow_ingest_core)
+    monkeypatch.setattr(ctp, "_memory_search_block", fake_memory)
+
+    import time
+
+    t0 = time.monotonic()
+    block = asyncio.run(execute_tool_plan(_plan(), "u-1", context={"history": []}))
+    elapsed = time.monotonic() - t0
+
+    assert block is not None
+    assert "no matching messages" in block
+    assert "internal time budget" in block, block
+    assert "do not claim the content does not exist" in block
+    assert elapsed < 3, f"lane budget blown by the slow pull ({elapsed:.1f}s)"
+    assert pull_calls, "the fallback must have FIRED before timing out"
+
+
+def test_slow_pull_that_landed_reports_it_honestly(monkeypatch):
+    """If the checkpoint proves content landed before the budget expired,
+    the note must say exactly that (never a silent write)."""
+    monkeypatch.setattr(ctp, "_INGEST_FALLBACK_BUDGET_SECONDS", 0.2)
+
+    async def empty(*a, **k):
+        return []
+
+    async def partial_ingest_core(service, user_id, query, context, *,
+                                  progress=None, skip_provider_query=False):
+        # First message landed, second one hangs.
+        progress.setdefault("landed", []).append(
+            "- message seguin-fw-rfq… in memory (ingested) | subject: FW: RFQ")
+        await asyncio.sleep(5)
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.outlook_service.search_emails",
+        AsyncMock(side_effect=empty))
+    monkeypatch.setattr(ctp, "_ingested_mailbox_lines", empty)
+    monkeypatch.setattr(ctp, "_mailbox_ingest_core", partial_ingest_core)
+    monkeypatch.setattr(ctp, "_memory_search_block", AsyncMock(return_value=None))
+
+    block = asyncio.run(execute_tool_plan(_plan(), "u-1", context={"history": []}))
+
+    assert "ON-DEMAND PULL (partial)" in block
+    assert "WAS pulled into memory" in block
+    assert "FW: RFQ" in block
+
+
+def test_universal_leg_slow_pull_degrades_the_same_way(monkeypatch):
+    monkeypatch.setattr(ctp, "_INGEST_FALLBACK_BUDGET_SECONDS", 0.2)
+
+    async def fake_search(self, service, query, context=None):
+        return {"status": "success", "data": []}
+
+    async def slow_ing_core(service, user_id, query, context, *, progress=None):
+        progress["started"] = True
+        await asyncio.sleep(5)
+
+    monkeypatch.setattr(
+        "integrations.universal_integration_service.UniversalIntegrationService.search",
+        fake_search)
+    monkeypatch.setattr(ctp, "_integration_ingest_core", slow_ing_core)
+    monkeypatch.setattr(ctp, "_memory_search_block", AsyncMock(return_value=None))
+    monkeypatch.setattr(ctp, "_ingested_mailbox_lines", AsyncMock(return_value=[]))
+
+    block = asyncio.run(execute_tool_plan(
+        _plan(service="zoho_crm", query="acme"), "u-1", context={"history": []}))
+
+    assert "returned nothing usable" in block
+    assert "internal time budget" in block, block
+
+
+# --- P3-13: one attempt per turn, enforced by STATE -----------------------
+
+
+def test_second_execute_in_same_context_does_not_repull(monkeypatch):
+    """The one-attempt bound must live on the context, not on singleflight:
+    a second execute_tool_plan with the SAME context dict must not pull."""
+    pulls = []
+
+    async def empty(*a, **k):
+        return []
+
+    async def fake_ing_core(service, user_id, query, context, *,
+                            progress=None, skip_provider_query=False):
+        pulls.append(query)
+        return {"blocked": None, "ingested_count": 0, "lines": []}
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.outlook_service.search_emails",
+        AsyncMock(side_effect=empty))
+    monkeypatch.setattr(ctp, "_ingested_mailbox_lines", empty)
+    monkeypatch.setattr(ctp, "_mailbox_ingest_core", fake_ing_core)
+    monkeypatch.setattr(ctp, "_memory_search_block", AsyncMock(return_value=None))
+
+    ctx = {"history": []}
+    first = asyncio.run(execute_tool_plan(_plan(), "u-1", context=ctx))
+    second = asyncio.run(execute_tool_plan(_plan(), "u-1", context=ctx))
+
+    assert pulls, "the first turn must pull"
+    assert len(pulls) == 1, f"second turn re-pulled: {pulls}"
+    assert ctx["_ingest_attempted"] is True
+    assert "no matching messages" in first
+    assert "no matching messages" in second
+
+
+# --- P2-7: gmail gets a search-free resolution rung ------------------------
+
+
+class _FakeGmailService:
+    """Stands in for GmailService at the resolver's import site."""
+
+    instances = []
+
+    def __init__(self):
+        self.service = object()  # truthy: no _authenticate path
+        self.calls = []
+        _FakeGmailService.instances.append(self)
+
+    def get_messages(self, query="", max_results=50, **kw):
+        self.calls.append({"q": query, "max": max_results})
+        if query:
+            return []  # the provider search that already missed
+        return [
+            {
+                "id": "gmail-seguin-1",
+                "subject": "FW: RFQ - Foot shear",
+                "snippet": "$ 5,350.00 – 10 % in stock",
+                "sender": "joelseguin@seguinmach.com",
+            },
+            {
+                "id": "gmail-unrelated",
+                "subject": "Lunch?",
+                "snippet": "werewolf movie night",
+                "sender": "friend@example.com",
+            },
+        ]
+
+
+def test_gmail_recent_window_rung_resolves_by_figure_token(monkeypatch):
+    """Rung 4 for gmail: newest-N listing + the SHARED local matcher — the
+    fallback used to dead-end at 'no candidate' after a duplicate provider
+    search."""
+    import integrations.gmail_service as gs
+
+    monkeypatch.setattr(gs, "GmailService", _FakeGmailService)
+
+    ids = asyncio.run(
+        ctp._resolve_mailbox_message_ids(
+            "gmail", "u-1", "the seguin 5,350.00 quote", skip_provider_query=True)
+    )
+
+    assert ids == ["gmail-seguin-1"]
+    svc = _FakeGmailService.instances[-1]
+    assert svc.calls, "the search-free listing must run"
+    assert all(c["q"] == "" for c in svc.calls), (
+        "the fallback must NOT re-run the provider query that just missed"
+    )
+
+
+def test_gmail_explicit_ingest_still_queries_provider_first(monkeypatch):
+    """The explicit intent=ingest path (no prior search) keeps rung 1 — the
+    provider's AND-semantics search — before the newest-N rung."""
+    import integrations.gmail_service as gs
+
+    class _QueryingGmail(_FakeGmailService):
+        def get_messages(self, query="", max_results=50, **kw):
+            self.calls.append({"q": query, "max": max_results})
+            if query == "seguin quote":
+                return [{"id": "gmail-by-search", "subject": "FW: RFQ",
+                         "snippet": "quote", "sender": "joel@example.com"}]
+            return []
+
+    monkeypatch.setattr(gs, "GmailService", _QueryingGmail)
+
+    ids = asyncio.run(
+        ctp._resolve_mailbox_message_ids("gmail", "u-1", "seguin quote")
+    )
+    assert ids == ["gmail-by-search"]
+
+
+def test_gmail_rung_4_requires_two_terms_or_a_figure(monkeypatch):
+    """Shared matcher discipline: one common word must not match unrelated
+    mail (tightened live 2026-09-12 for outlook; gmail inherits it)."""
+    import integrations.gmail_service as gs
+
+    monkeypatch.setattr(gs, "GmailService", _FakeGmailService)
+
+    ids = asyncio.run(
+        ctp._resolve_mailbox_message_ids(
+            "gmail", "u-1", "invoice", skip_provider_query=True)
+    )
+    assert ids == []

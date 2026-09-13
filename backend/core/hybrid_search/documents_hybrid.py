@@ -339,9 +339,37 @@ class DocumentsHybridSearch:
                 return parent
             return None
 
-        for rank, hit in enumerate(vector, start=1):
+        # Dedupe vector hits by RESOLVED parent BEFORE scoring (2026-09-13
+        # review): classic RRF scores each leg at most once per document.
+        # Scoring every chunk separately let a 3,400-chunk document with 10
+        # chunks in the top-30 accumulate ~10/60 from the vector leg alone
+        # and bury a one-chunk document that BOTH legs found (~2/60). Keep
+        # the best-ranked chunk per parent (context/hydration use it); one
+        # entry per unresolvable id.
+        _seen_resolved: set = set()
+        deduped_vector: List[Dict[str, Any]] = []
+        deduped_metas: List[Dict[str, Any]] = []
+        for _idx, _hit in enumerate(vector):
+            _vid = str(_hit.get("id") or "")
+            _meta = (
+                metas[_idx]
+                if _idx < len(metas)
+                else _coerce_metadata(_hit.get("metadata"))
+            )
+            _key = _resolve(_vid, _meta) or _vid
+            if _key in _seen_resolved:
+                continue
+            _seen_resolved.add(_key)
+            deduped_vector.append(_hit)
+            deduped_metas.append(_meta)
+
+        for rank, hit in enumerate(deduped_vector, start=1):
             vid = str(hit.get("id") or "")
-            meta = metas[rank - 1] if rank - 1 < len(metas) else _coerce_metadata(hit.get("metadata"))
+            meta = (
+                deduped_metas[rank - 1]
+                if rank - 1 < len(deduped_metas)
+                else _coerce_metadata(hit.get("metadata"))
+            )
             resolved_id = _resolve(vid, meta)
             doc = pg_rows.get(resolved_id) if resolved_id else None
             if doc is None:

@@ -241,3 +241,104 @@ def test_lexical_search_ors_when_and_matches_nothing():
 
     assert results, "OR fallback did not engage; partial match was lost"
     assert any(str(r.get("id")) == "1" for r in results)
+
+
+def test_bootstrap_heals_triggers_from_old_broken_migration():
+    """A DB that ran the PRE-repair 20260808_add_documents_fts migration
+    carries triggers with the SAME names but UNQUALIFIED COALESCE(col,'')
+    bodies — every INSERT into the base table raises 'no such column'.
+    CREATE TRIGGER IF NOT EXISTS alone keeps them forever; the bootstrap
+    must detect the stale body, drop and recreate it (2026-09-13 review)."""
+    eng = _engine()
+    reset_bootstrap_cache()
+    with eng.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE VIRTUAL TABLE ingested_documents_fts USING fts5("
+            "file_name, content_preview, content='ingested_documents', "
+            "content_rowid='rowid')"
+        )
+        # The old migration's exact broken body shape: bare column names.
+        conn.exec_driver_sql(
+            "CREATE TRIGGER ingested_documents_fts_ai AFTER INSERT ON "
+            "ingested_documents BEGIN INSERT INTO ingested_documents_fts"
+            "(rowid, file_name, content_preview) VALUES (new.rowid, "
+            "COALESCE(file_name,''), COALESCE(content_preview,'')); END"
+        )
+
+    # Precondition: the broken trigger really does raise on INSERT.
+    Session = sessionmaker(bind=eng)
+    with pytest.raises(Exception, match="no such column"):
+        with Session() as db:
+            db.add(
+                IngestedDocument(
+                    id="2",
+                    workspace_id="ws-1",
+                    file_name="broken.pdf",
+                    file_path="/tmp/broken.pdf",
+                    file_type="pdf",
+                    integration_id="email",
+                    external_id="ext-2",
+                    content_preview="never indexed",
+                )
+            )
+            db.commit()
+
+    assert ensure_documents_fts(eng) is True
+
+    # Trigger body is now qualified (healed, not skipped).
+    with eng.connect() as conn:
+        sql = conn.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE name='ingested_documents_fts_ai'"
+        ).first()[0]
+    assert "new.file_name" in sql and "new.content_preview" in sql, sql
+
+    # And the healed pipeline actually indexes new inserts.
+    with Session() as db:
+        db.add(
+            IngestedDocument(
+                id="3",
+                workspace_id="ws-1",
+                file_name="healed.pdf",
+                file_path="/tmp/healed.pdf",
+                file_type="pdf",
+                integration_id="email",
+                external_id="ext-3",
+                content_preview="healed row text",
+            )
+        )
+        db.commit()  # would still raise with the old trigger body
+    with eng.connect() as conn:
+        hit = conn.exec_driver_sql(
+            "SELECT rowid FROM ingested_documents_fts "
+            "WHERE ingested_documents_fts MATCH 'healed'"
+        ).fetchall()
+    assert hit, "healed AFTER INSERT trigger did not index the new row"
+
+
+def test_bootstrap_does_not_pointlessly_drop_repaired_migration_triggers():
+    """A trigger whose body already matches (e.g. created by the REPAIRED
+    migration, without IF NOT EXISTS) must be left alone — the comparison
+    normalizes IF NOT EXISTS and whitespace, not just names."""
+    eng = _engine()
+    reset_bootstrap_cache()
+    with eng.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE VIRTUAL TABLE ingested_documents_fts USING fts5("
+            "file_name, content_preview, content='ingested_documents', "
+            "content_rowid='rowid')"
+        )
+        conn.exec_driver_sql(
+            "CREATE TRIGGER ingested_documents_fts_ai AFTER INSERT ON "
+            "ingested_documents BEGIN INSERT INTO ingested_documents_fts"
+            "(rowid, file_name, content_preview) VALUES (new.rowid, "
+            "COALESCE(new.file_name,''), COALESCE(new.content_preview,'')); "
+            "END"
+        )
+
+    assert ensure_documents_fts(eng) is True
+    with eng.connect() as conn:
+        sql = conn.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE name='ingested_documents_fts_ai'"
+        ).first()[0]
+    # Body preserved byte-for-byte: no drop/recreate churn on every boot.
+    assert "COALESCE(new.file_name,'')" in sql

@@ -7,6 +7,7 @@ could not find an email that sat in the ingested mailbox all along.
 """
 
 import asyncio
+import urllib.parse
 from unittest.mock import AsyncMock
 
 import pytest
@@ -211,3 +212,115 @@ def test_search_emails_sender_scoping_prefixes_from_clause():
     assert len(forms) == 1
     assert "%22from%3Ajoelseguin%40seguinmach.com%22" in forms[0], forms[0]
     assert "%24top=25" in forms[0], forms[0]
+
+
+# ─── 2026-09-13 review hardening ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Bare operator words from prose must become literals, not KQL
+        # operators ("invoice OR password" used to silently OR the search).
+        ("invoice OR password", 'invoice "OR" password'),
+        ("terms AND conditions", 'terms "AND" conditions'),
+        ("everything NOT urgent", 'everything "NOT" urgent'),
+        # Lowercase prose words are plain terms (KQL operators are
+        # uppercase); untouched.
+        ("invoice or password", "invoice or password"),
+    ],
+)
+def test_sanitize_quotes_bare_operator_words(raw, expected):
+    assert sanitize_graph_kql(raw) == expected
+
+
+def test_decompose_quotes_bare_operator_words():
+    assert decompose_graph_kql("invoice OR password") == 'invoice "OR" password'
+
+
+def test_search_emails_rejects_injection_shaped_sender():
+    """sender= is interpolated into a quoted KQL clause; a caller-supplied
+    "address" carrying quotes/operators must never enter it (public entry
+    points: api/outlook_routes.py, universal_integration_service)."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(
+        svc.search_emails(
+            "user-1", "5,350.00 in stock", quote=False,
+            sender='x@y" OR body:password',
+        )
+    )
+
+    assert forms, "search must still run (as an unscoped query)"
+    for f in forms:
+        assert "%22from%3A" not in f, f"malformed sender reached the KQL clause: {f}"
+        assert "OR" not in urllib.parse.unquote(f), f"injected operator: {f}"
+
+
+def test_search_emails_aborts_ladder_on_auth_failure():
+    """401/403 means no rung can succeed — the ladder must stop after ONE
+    call instead of burning every form against a dead token."""
+    svc = OutlookService()
+    calls = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        calls.append(endpoint)
+        svc.last_graph_status = 401
+        return None
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    emails = asyncio.run(svc.search_emails("user-1", "jschulz@blumetric.ca"))
+
+    assert len(calls) == 1, f"auth failure must abort the ladder immediately ({len(calls)} calls)"
+    assert emails == []
+
+
+def test_search_emails_aborts_after_consecutive_failures(monkeypatch):
+    """Cross-rung budget: a persistently failing Graph must not be retried
+    indefinitely as ladders grow."""
+    import integrations.outlook_service as osvc
+
+    monkeypatch.setattr(osvc, "_SEARCH_LADDER_MAX_FAILURES", 2)
+    svc = OutlookService()
+    calls = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        calls.append(endpoint)
+        # 400-class failure (NOT auth): each rung is legitimately retryable,
+        # but only up to the budget.
+        svc.last_graph_status = 400
+        return None
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    emails = asyncio.run(svc.search_emails("user-1", "jschulz@blumetric.ca"))
+
+    assert len(calls) == 2, f"budget must cap the ladder at 2 ({len(calls)} calls)"
+    assert emails == []
+
+
+def test_list_recent_emails_uses_lowercase_orderby():
+    """OData is case-sensitive: $orderBy (the old spelling) 400s as an
+    unrecognized query option — must be $orderby like every other site."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(svc.list_recent_emails("user-1", max_results=10))
+
+    assert forms
+    assert "%24orderby=receivedDateTime+desc" in forms[0], forms[0]
+    assert "%24orderBy" not in forms[0], forms[0]

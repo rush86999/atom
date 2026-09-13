@@ -452,14 +452,45 @@ async def delete_document(
     # 404 on unknown id, then delete by the id column (to_thread: delete may
     # touch the sync LanceDB path). Previously a logged no-op that returned
     # success — the document was never removed and the user was told it was.
+    # Chunk-family semantics (2026-09-13 review, third site of the
+    # d94a5e6df fix — auto_document_ingestion already pairs both deletes):
+    #   1. An id that exists ONLY as chunks (`<doc_id>::c0..cN`, parent row
+    #      already gone) is a deletable FAMILY, not a 404.
+    #   2. Deleting a base row must also delete its chunk family or every
+    #      chunk is orphaned in LanceDB (still retrievable, still stamped
+    #      with a departed parent — 2,676 such orphans measured live
+    #      2026-09-11).
     doc = await asyncio.to_thread(lancedb_handler.get_document_by_id, "documents", doc_id)
     if not doc:
-         raise router.not_found_error("Document", doc_id)
+        family_ids = []
+        try:
+            family_ids = await asyncio.to_thread(
+                lancedb_handler.get_document_ids_by_prefix,
+                "documents", f"{doc_id}::",
+            )
+        except Exception as fam_probe_err:  # noqa: BLE001 — probe is best-effort
+            logger.warning(f"chunk-family probe failed for {doc_id}: {fam_probe_err}")
+        if not family_ids:
+             raise router.not_found_error("Document", doc_id)
+        logger.info(
+            f"Document {doc_id} exists only as a chunk family "
+            f"({len(family_ids)} rows) — deleting the family"
+        )
     deleted = await asyncio.to_thread(
         lancedb_handler.delete_documents_by_id, "documents", doc_id
     )
     if not deleted:
          raise router.internal_error(message="Failed to delete document")
+    # Best-effort chunk-family cleanup (same idiom as
+    # auto_document_ingestion.remove_integration_documents): prefix delete
+    # after the id delete; failure here must not fail the whole request.
+    try:
+        await asyncio.to_thread(
+            lancedb_handler.delete_documents_by_prefix,
+            "documents", f"{doc_id}::",
+        )
+    except Exception as fam_del_err:  # noqa: BLE001 — cleanup is best-effort
+        logger.warning(f"chunk-family cleanup failed for {doc_id}: {fam_del_err}")
 
     return router.success_response(message=f"Document '{doc_id}' deleted")
 

@@ -313,3 +313,33 @@ async def test_json_string_metadata_is_tolerated(db):
 
     assert res["results"][0]["id"] == "doc_a"
     assert res["results"][0]["bridged"] is True
+
+
+# --- chunk-count bias (2026-09-13 review): RRF scores each LEG once per doc --
+
+
+@pytest.mark.asyncio
+async def test_chunk_flood_must_not_outrank_both_legs_single_doc(db):
+    """A 3,400-chunk document with many chunks in the vector top-N used to
+    accumulate one RRF contribution PER CHUNK and bury a one-chunk document
+    that BOTH legs found. Classic RRF dedups per document per leg: the
+    chunk-heavy doc gets ONE vector contribution (its best-ranked chunk)."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    # doc_a: only reachable through the vector leg, but with a FLOOD of
+    # chunks (top 10 vector ranks). doc_b: found by BOTH legs (lexical
+    # 'picnic' + one vector row).
+    rows = [chunk_row(f"doc_a::c{i}", "doc_a", distance=0.01) for i in range(10)]
+    rows.append(bridged_row("doc_b", 0.2))
+    lancedb = FakeLanceDB(rows)
+    svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
+
+    res = await svc.search("picnic meeting")  # lexical leg: doc_b only
+
+    ids = [r["id"] for r in res["results"]]
+    assert ids[0] == "doc_b", (
+        f"both-legs single-chunk doc must outrank the chunk flood: {ids}"
+    )
+    # doc_a still surfaces (once), from its best-ranked chunk.
+    assert ids.count("doc_a") == 1
+    assert res["stats"]["vector_hits"] == 11

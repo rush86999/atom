@@ -2,7 +2,7 @@
 
 Why this module exists
 ----------------------
-`documents.search` is a *hybrid* search: an FTS5/tsvector lexical leg fused with
+``documents.search`` is a *hybrid* search: an FTS5/tsvector lexical leg fused with
 a LanceDB vector leg by RRF (see ``docs/architecture/AGENT_HYBRID_SEARCH.md``).
 The lexical leg depends on virtual tables (``ingested_documents_fts``,
 ``knowledge_documents_fts``) created by the ``20260808_add_documents_fts``
@@ -28,10 +28,18 @@ missing index must degrade search quality, never break search or boot.
 Both entry points matter: startup provisioning keeps the index warm, while the
 search-path call heals an index that appears later (new DB file, restored
 backup, a row inserted before boot finished).
+
+A DB poisoned by the PRE-repair ``20260808_add_documents_fts`` migration (same
+trigger names, UNQUALIFIED ``COALESCE(col,'')`` bodies → ``no such column:
+file_name`` on every INSERT) is healed too: an existing trigger whose body does
+not match the expected qualified form is dropped and recreated — ``CREATE
+TRIGGER IF NOT EXISTS`` alone would keep the broken body forever (2026-09-13
+review).
 """
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -88,6 +96,29 @@ def _trigger_exists(conn: Any, name: str) -> bool:
     return row is not None
 
 
+def _trigger_sql(conn: Any, name: str) -> Optional[str]:
+    """Stored CREATE TRIGGER statement for ``name`` (None when absent)."""
+    try:
+        row = conn.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?",
+            (name,),
+        ).first()
+        return row[0] if row else None
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+
+def _normalize_trigger_sql(sql: str) -> str:
+    """Comparison form: whitespace-collapsed, lowercased, ``IF NOT EXISTS``
+    removed — so a trigger created by the repaired migration (no IF NOT
+    EXISTS) equals the bootstrap's own statement and is NOT pointlessly
+    dropped, while the old bare-``COALESCE`` bodies differ and are healed."""
+    collapsed = re.sub(r"\s+", " ", str(sql or "")).strip().lower()
+    return collapsed.replace(
+        "create trigger if not exists ", "create trigger "
+    )
+
+
 def _column_names(conn: Any, table: str) -> List[str]:
     try:
         rows = conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
@@ -130,7 +161,22 @@ def _create_triggers(conn: Any, fts: str, base: str, columns: Sequence[str]) -> 
         ),
     )
     for _name, stmt in ddl:
-        conn.exec_driver_sql(stmt)
+        current = _trigger_sql(conn, _name)
+        if current is not None and _normalize_trigger_sql(
+            current
+        ) != _normalize_trigger_sql(stmt):
+            # A trigger with this name exists but its body is NOT the
+            # expected one — the pre-repair 20260808 migration created these
+            # exact names with unqualified COALESCE(col,'') references, so
+            # every INSERT into the base table raised "no such column".
+            # IF NOT EXISTS would preserve the broken body forever.
+            logger.warning(
+                "FTS bootstrap: replacing stale/broken trigger %s", _name
+            )
+            conn.exec_driver_sql(f"DROP TRIGGER IF EXISTS {_name}")
+            current = None
+        if current is None:
+            conn.exec_driver_sql(stmt)
 
 
 def _backfill(conn: Any, fts: str, base: str, columns: Sequence[str]) -> int:

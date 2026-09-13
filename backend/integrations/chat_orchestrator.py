@@ -440,13 +440,23 @@ def _tool_failure_block(planned: str) -> str:
     "no tool ran, therefore no tool exists": it told the user it had no
     Outlook search tool (live 2026-09-06, right after the same lookup had
     succeeded the turn before). An explicit failure block keeps the reply
-    truthful about what happened instead."""
+    truthful about what happened instead.
+
+    The last sentence is the write-on-search-miss safety net (2026-09-13
+    review, P1-1): a timed-out execute may have been mid on-demand ingest,
+    in which case content WAS pulled into memory even though the evidence
+    block was abandoned — the reply must point at memory, not deny the
+    data exists. The primary fix is the fallback's internal budget, which
+    returns before this lane timeout can fire; this covers every other
+    timeout shape."""
     return (
         f"LIVE TOOL RESULTS ({planned}): the live lookup FAILED (timed out or "
         "errored) — you DID attempt it. Tell the user the live lookup could not "
         "complete right now and suggest trying again in a moment. Do NOT claim "
         "you lack tools or integrations, and do NOT claim the data does not "
-        "exist — those are both false."
+        "exist — those are both false. If the lookup was fetching content into "
+        "memory when it timed out, that content may already be there: search "
+        "memory again instead of declaring the content missing."
     )
 
 

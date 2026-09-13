@@ -53,10 +53,51 @@ from core.chat_tool_planner import (
         ("$100 or best offer", []),
         ("", []),
         (None, []),
+        # ─── False-positive screens (2026-09-13 review) ───────────────────
+        # Phone numbers in every grouping style must NOT become figure
+        # tokens — a 13-char phone phrase used to outrank genuine term hits
+        # (boost=len(phrase)) and zero out the ALL-tokens store scan.
+        ("call +1 555 123 4567 today", []),
+        ("phone 555.123.4567 after lunch", []),
+        ("dial 1,555,123,4567 please", []),
+        ("fax (555) 123-4567 ok", []),
+        # Space-grouped runs WITHOUT a currency signal: quantities, plain
+        # grouped numbers, dates.
+        ("10 000 units shipped", []),
+        ("12 345", []),
+        ("meeting 10 06 2026 confirmed", []),
+        ("date 2026.09.13 review", []),
+        ("September 13, 2026 minutes", []),
+        # Document-structure contexts: version/section numbers are labels,
+        # not amounts.
+        ("version 1.234 deployed", []),
+        ("section 3.456 amended", []),
+        ("see rev 2.345 notes", []),
+        ("per clause 4.567 of the agreement", []),
+        # The SAME shapes WITH a currency signal stay figure tokens.
+        ("total 5.350,00 EUR payable", ["5.350,00"]),
     ],
 )
 def test_distinctive_figure_phrases(text, expected):
     assert _distinctive_figure_phrases(text) == expected
+
+
+def test_figure_phrase_limit_is_one_constant():
+    """P1-2: ONE figure-phrase limit across every consumer (the collect /
+    resolve ladder capped at 2 while the store scan capped at 3)."""
+    assert planner._FIGURE_PHRASE_LIMIT == 3
+    text = "5,350.00 plus 7,200.50 plus 9,100.25 plus F-5216"
+    assert _distinctive_figure_phrases(text) == ["5,350.00", "7,200.50", "9,100.25"]
+
+
+def test_phrase_boost_is_capped():
+    """P1-2: rank boost capped — a long junk capture must not outrank
+    genuine term hits via boost=len(phrase)."""
+    assert planner._PHRASE_BOOST_CAP <= 12
+    import inspect
+
+    src = inspect.getsource(planner)
+    assert "boost=min(len(phrase), _PHRASE_BOOST_CAP)" in src
 
 
 def test_distinctive_figure_phrases_respects_limit():
@@ -243,3 +284,67 @@ def test_figure_scan_runs_off_loop(monkeypatch):
     assert lines
     gaps = [b - a for a, b in zip(ticks, ticks[1:])]
     assert max(gaps) < 0.4, f"event loop stalled {max(gaps):.2f}s during figure scan"
+
+
+# --- P2-8: ONE comms-table load per turn (shared, TTL-cached, invalidable) ---
+
+
+def test_comms_store_loaded_once_and_invalidated_on_write(monkeypatch):
+    """A single outlook search used to full-table-load atom_communications
+    3-5 times per turn (~4s each at 3.5k rows). The shared loader must
+    serve repeat loads from cache within the TTL and reload after the
+    planner writes (invalidate_comms_store_cache)."""
+    import lancedb as _ldb
+    import pandas as pd
+
+    connects = []
+
+    class _FakeArrow:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def to_pandas(self):
+            return pd.DataFrame(self._rows)
+
+    class _FakeTable:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def to_arrow(self):
+            return _FakeArrow(self._rows)
+
+    class _FakeDB:
+        def open_table(self, name):
+            assert name == "atom_communications"
+            return _FakeTable(_ROWS)
+
+    _ROWS = [{
+        "sender": "a@b.c", "recipient": "d@e.f", "subject": "s",
+        "content": "body 5,350.00", "timestamp": "2026-08-26",
+        "metadata": None,
+    }]
+
+    def fake_connect(path):
+        connects.append(path)
+        return _FakeDB()
+
+    monkeypatch.setattr(_ldb, "connect", fake_connect)
+    planner.invalidate_comms_store_cache()
+
+    first = planner._comms_store_records()
+    second = planner._comms_store_records()
+    assert first is second
+    assert len(connects) == 1, "repeat loads within the TTL must not re-walk the store"
+
+    # The store path is resolved through the ONE resolver (P3-14), not a
+    # hand-rolled Path(__file__) guess.
+    import core.lancedb_handler as _lh
+
+    assert planner._comms_store_db_path() == str(
+        _lh._resolve_local_db_path("./data/atom_memory") + "/default"
+    ) or planner._comms_store_db_path().endswith("atom_memory/default")
+
+    planner.invalidate_comms_store_cache()
+    planner._comms_store_records()
+    assert len(connects) == 2, "invalidation (post-ingest re-read) must reload"
+    planner.invalidate_comms_store_cache()
