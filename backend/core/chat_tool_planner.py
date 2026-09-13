@@ -100,7 +100,7 @@ _MAILBOX_SERVICES = ("outlook", "gmail")
 # Services with no upstream integration to pull FROM: the platform web tools
 # and the local memory/dataset stores. Any other service supports `ingest`.
 _INGEST_EXCLUDED_SERVICES = frozenset(
-    {"web_search", "web_fetch", "memory", "datasets"}
+    {"web_search", "web_fetch", "memory", "datasets", "documents"}
 )
 # Distinguishes "kill switch" from "autonomy gate" in ingest-core results so
 # each block can keep its original user-facing wording.
@@ -201,6 +201,11 @@ _SERVICE_DESCRIPTIONS = {
     # value lives and returns the exact rows — the user should never have to
     # name the file.
     "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in",
+    # Knowledge VFS: the agent's file-system view over everything ingestion
+    # stored. The lane that makes the grounding rule's 'full: …' citations
+    # executable — open the COMPLETE line-numbered message behind a
+    # truncated excerpt, or regex-search every stored email/file.
+    "documents": "workspace files & FULL email threads — `cat` intent: query is the VFS path cited on evidence lines ('full: knowledge/conversations/<id>/content.lines') and returns the COMPLETE line-numbered message; `grep` intent: query is an exact string/regex ('5,350', 'F-5216'), optionally ' … in knowledge/conversations', scanning EVERY stored message and file; `head`/`tail`/`ls` skim. Use when a search excerpt is truncated or a value hides mid-thread; for open questions prefer memory/datasets",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
@@ -287,6 +292,18 @@ def _available_platform_services() -> List[str]:
     services.extend(_ALWAYS_AVAILABLE_SERVICES)
     if "datasets" not in services and _datasets_service_available():
         services.append("datasets")
+    # Knowledge VFS (documents.cat/grep over complete stored threads): the
+    # planner can only offer what the catalog lists — without this entry the
+    # grounding rule's 'open it with documents.cat' advice was a dead end
+    # (no service, no lane). Cheap env-flag check only.
+    if "documents" not in services:
+        try:
+            from core.knowledge_vfs_config import knowledge_vfs_enabled
+
+            if knowledge_vfs_enabled():
+                services.append("documents")
+        except Exception:  # noqa: BLE001 — catalog entry is best-effort
+            pass
     return services
 
 _PLANNER_SYSTEM = """You are the tool planner for an AI automation platform.
@@ -330,6 +347,11 @@ Rules:
   forwarded thread ("open that email, get the full thread below the
   signature" → outlook read — its search already carries full bodies for
   the top hits; read extends that to the rest and to longer bodies).
+  For the `documents` service, OPENING a cited thread/message is intent
+  `cat` with the cited VFS path as the whole query
+  ('knowledge/conversations/<id>/content.lines' — the 'full:' path from an
+  evidence line or a grep hit); `grep` is for FINDING messages by exact
+  string, not for opening one already cited.
   A message that only says WHERE the file lives ("it's an excel file in
   WorkDrive") after a content request is still a READ — the earlier turns
   own the what-for ("check X for the price"), this message adds the where;
@@ -2340,6 +2362,262 @@ async def _datasets_search_block(
     )
 
 
+# ─── Documents (knowledge VFS) lane ────────────────────────────────────────
+#
+# Search lanes hand the model bounded EXCERPTS; the grounding rule cites
+# 'full: knowledge/conversations/<id>' and says to open it with
+# documents.cat / search everything with documents.grep. Until this lane
+# existed the chat planner had NO 'documents' service — no catalog entry,
+# no dispatch — so the follow-up turn the grounding rule promises could
+# never actually run (live 2026-09-13: long threads were excerpts the
+# agent could not open). The actions live in core.action_registry
+# (documents.ls/cat/grep/tree/head/tail/scan) behind
+# ATOM_KNOWLEDGE_VFS_ENABLED; this lane only routes plans to them.
+
+_DOCUMENTS_VFS_INTENT_ACTIONS: Dict[str, str] = {
+    "search": "grep", "grep": "grep", "find": "grep",
+    "cat": "cat", "read": "cat", "open": "cat", "view": "cat",
+    "ls": "ls", "list": "ls",
+    "head": "head", "tail": "tail",
+    "tree": "tree", "scan": "scan",
+}
+# One cat call may inject at most this many chars of the COMPLETE message —
+# threads run to 79k chars live; the middle stays reachable via grep
+# (line + snippet) rather than dumped into the prompt.
+_DOCUMENTS_VFS_CAT_CAP = 14_000
+_VFS_LEAF_RE = re.compile(
+    r"(knowledge/(?:conversations|documents)/[A-Za-z0-9_.+=:-]+"
+    r"(?:/(?:content\.lines|meta\.json))?)"
+)
+
+
+def _normalize_vfs_path(raw: str) -> str:
+    """Clean VFS path out of a planner query: strips the evidence-line
+    'full: ' prefix, quotes/backticks and punctuation, and completes a bare
+    message/document id path with its content.lines leaf."""
+    m = _VFS_LEAF_RE.search(str(raw or ""))
+    if not m:
+        return ""
+    path = m.group(1)
+    if path.count("/") == 2:  # knowledge/<tree>/<id> — add the leaf
+        path += "/content.lines"
+    return path
+
+
+def _split_vfs_grep_query(query: str) -> Tuple[str, str]:
+    """(pattern, path_prefix) from a grep-shaped query. An optional
+    '… in knowledge/conversations' suffix scopes the scan; without one the
+    whole knowledge tree is searched (conversations + documents)."""
+    text = str(query or "").strip().strip("\"'`")
+    m = re.search(
+        r"\s+(?:in|under|within)\s+((?:knowledge|documents|conversations)"
+        r"(?:/[A-Za-z0-9_.+=:-]+)*)\s*$",
+        text, re.IGNORECASE,
+    )
+    if m:
+        prefix = m.group(1).lower()
+        if not prefix.startswith("knowledge/"):
+            prefix = f"knowledge/{prefix}"
+        return text[: m.start()].strip().strip("\"'`"), prefix
+    for lead in ("grep ", "search for ", "search ", "find "):
+        if text.lower().startswith(lead):
+            text = text[len(lead):].strip()
+            break
+    return text, "knowledge"
+
+
+async def _documents_vfs_block(
+    plan: Any, user_id: Optional[str], context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Execute a documents.* VFS action and render it as a LIVE TOOL
+    RESULTS block. Fault-tolerant: registry failure or a kill-switched VFS
+    returns an honest note, never None-with-a-claim."""
+    query = (plan.query or "").strip()
+    intent = (plan.intent or "grep").lower()
+    action = _DOCUMENTS_VFS_INTENT_ACTIONS.get(intent, "grep")
+    # A search-shaped plan whose query IS a VFS path is an open request the
+    # planner model phrased poorly (live 2026-09-13: "open that full
+    # message" → intent=search with the cited path as the query). Reroute
+    # to cat deterministically instead of grepping for the path string.
+    if action == "grep" and _normalize_vfs_path(query):
+        _path = _normalize_vfs_path(query)
+        if len(_path) >= 0.6 * max(len(query), 1):
+            action = "cat"
+    try:
+        from core.action_registry import action_registry
+        from core.knowledge_vfs_config import knowledge_vfs_enabled
+
+        if not knowledge_vfs_enabled():
+            return _with_grounding(
+                "LIVE TOOL RESULTS (documents."
+                f"{action}, query='{query}'): the knowledge VFS is disabled "
+                "(ATOM_KNOWLEDGE_VFS_ENABLED=false)."
+            )
+        args: Dict[str, Any] = {}
+        if action == "grep":
+            pattern, prefix = _split_vfs_grep_query(query)
+            if not pattern:
+                return _with_grounding(
+                    "LIVE TOOL RESULTS (documents.grep): no pattern in the "
+                    "query — plan grep with the exact string to find."
+                )
+            args = {"pattern": pattern, "path_prefix": prefix}
+        elif action in ("cat", "head", "tail"):
+            path = _normalize_vfs_path(query)
+            if not path:
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (documents.{action}, query='{query}'): "
+                    "not a VFS path — expect "
+                    "'knowledge/conversations/<id>/content.lines' (the 'full:' "
+                    "path cited on mailbox evidence lines)."
+                )
+            args = {"path": path}
+            if action in ("head", "tail"):
+                args["lines"] = 60
+        else:  # ls / tree / scan
+            args = {"path": _normalize_vfs_path(query) or "knowledge/conversations"}
+            if action == "tree":
+                args["depth"] = 2
+        result = await action_registry.execute_action(
+            f"documents.{action}",
+            args,
+            {
+                "user_id": user_id,
+                "workspace_id": (context or {}).get("workspace_id"),
+            },
+        )
+        if not (result or {}).get("success"):
+            reason = str((result or {}).get("message") or (result or {}).get("error") or "failed")
+            return _with_grounding(
+                f"LIVE TOOL RESULTS (documents.{action}, query='{query}'): "
+                f"returned nothing usable ({reason[:140]})."
+            )
+        if action == "grep":
+            matches = (result.get("matches") or [])[:40]
+            all_matches = result.get("matches") or []
+            head = (
+                f"LIVE TOOL RESULTS (documents.grep, pattern="
+                f"'{result.get('pattern') or query}', under "
+                f"'{args.get('path_prefix')}') — regex scan over the WHOLE "
+                f"stored tree ({len(all_matches)} match line(s)"
+                f"{' , showing first 40' if len(all_matches) > 40 else ''}); "
+                "open any hit's full context with documents.cat(path + "
+                "'/content.lines'):\n"
+                + "\n".join(
+                    f"- {m.get('path')}:L{m.get('line')}: {m.get('snippet')}"
+                    for m in matches
+                )
+            )
+            if not matches:
+                return _with_grounding(head.rstrip(":") + " — none.")
+            # TOP-HIT HYDRATION (same pattern as the outlook leg's full
+            # bodies): the turn is one-shot — the reply model cannot chain a
+            # cat after a grep, so a narrow result (≤3 distinct messages)
+            # carries the top hit's FULL line-numbered text in this same
+            # block. Without it the model correctly said "the rest of the
+            # body isn't in front of me yet" while the thread sat one call
+            # away (live 2026-09-13).
+            hydrate = ""
+            try:
+                uniq = list(dict.fromkeys(
+                    str(m.get("path") or "") for m in all_matches
+                ))
+                if 1 <= len(uniq) <= 3:
+                    top = uniq[0]
+                    if top.count("/") == 2:
+                        top += "/content.lines"
+                    cat_res = await action_registry.execute_action(
+                        "documents.cat", {"path": top},
+                        {
+                            "user_id": user_id,
+                            "workspace_id": (context or {}).get("workspace_id"),
+                        },
+                    )
+                    content = str((cat_res or {}).get("content") or "")
+                    if content.strip():
+                        if len(content) > _DOCUMENTS_VFS_CAT_CAP:
+                            head_c = int(_DOCUMENTS_VFS_CAT_CAP * 0.62)
+                            content = (
+                                content[:head_c]
+                                + "\n[…middle elided — documents.grep this "
+                                "path for a term to locate the middle…]\n"
+                                + content[-(_DOCUMENTS_VFS_CAT_CAP - head_c):]
+                            )
+                        hydrate = (
+                            f"\n\nFULL TEXT of the top hit ({top}), "
+                            "line-numbered — quote from it:\n" + content
+                        )
+            except Exception as hydrate_err:  # noqa: BLE001 — hydration is additive
+                logger.debug(f"grep top-hit hydration skipped: {hydrate_err}")
+            return _with_grounding(head + hydrate)
+        if action == "cat":
+            content = str(result.get("content") or "")
+            if not content.strip():
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (documents.cat, path="
+                    f"'{args.get('path')}'): no stored message at that path "
+                    "(check the id — documents.grep the thread first and cat "
+                    "the cited path)."
+                )
+            line_count = result.get("line_count")
+            meta = result.get("meta") or {}
+            stamp = (
+                f" | received: {str(meta.get('timestamp'))[:19]}"
+                if meta.get("timestamp") else ""
+            )
+            if len(content) > _DOCUMENTS_VFS_CAT_CAP:
+                head_c = int(_DOCUMENTS_VFS_CAT_CAP * 0.62)
+                content = (
+                    content[:head_c]
+                    + "\n[…middle elided — the COMPLETE message is "
+                    f"{line_count or '?'} lines; documents.grep this path "
+                    "for a term to locate the middle…]\n"
+                    + content[-(_DOCUMENTS_VFS_CAT_CAP - head_c):]
+                )
+            return _with_grounding(
+                f"LIVE TOOL RESULTS (documents.cat, path='{args.get('path')}')"
+                f"{stamp} — COMPLETE stored message, line-numbered "
+                f"({line_count or len(content.splitlines())} lines); quote "
+                f"line numbers (L#) when citing:\n{content}"
+            )
+        # ls / tree / scan / head / tail: render the returned payload.
+        payload = result.get("tree") or result.get("lines") or result.get(
+            "content") or result.get("entries")
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            # ls entries: note nodes FIRST (a truncated listing must say
+            # what it is not showing), then compact entry lines.
+            notes = [e for e in payload if str(e.get("type")) == "note"]
+            rest = [e for e in payload if str(e.get("type")) != "note"]
+            shown = [
+                "- "
+                + (f"{e.get('name')} | from: {(e.get('meta') or {}).get('sender')}"
+                   f" | {(e.get('meta') or {}).get('subject') or ''}"
+                   f" | {e.get('size')} chars | {str(e.get('modified'))[:19]}"
+                   if e.get("meta") else str(e.get("name")))
+                for e in rest[:60]
+            ]
+            count_note = (
+                f"\n({len(rest)} entries listed — entries are message ids; "
+                "documents.grep finds the right one)"
+                if len(rest) > 60 else ""
+            )
+            payload = "\n".join(
+                [str(n.get("name")) for n in notes] + shown
+            ) + count_note
+        elif isinstance(payload, list):
+            payload = "\n".join(str(x) for x in payload[:120])
+        return _with_grounding(
+            f"LIVE TOOL RESULTS (documents.{action}, path="
+            f"'{args.get('path')}'):\n{str(payload)[:8000]}"
+        )
+    except Exception as e:  # noqa: BLE001 — honest note, never a hang
+        logger.warning(f"documents VFS lane failed: {e}")
+        return _with_grounding(
+            f"LIVE TOOL RESULTS (documents.{action}, query='{query}'): "
+            f"execution failed ({str(e)[:140]})."
+        )
+
+
 async def _comm_per_term_retry(
     svc: Any, service: str, action: str, query: str,
     user_id: Optional[str], tenant_id: str, context: Optional[Dict[str, Any]],
@@ -3285,6 +3563,15 @@ async def execute_tool_plan(
             f"LIVE TOOL RESULTS (datasets.search, query='{query}'): "
             "no dataset catalog available."
         )
+
+    # Documents (knowledge VFS): open the COMPLETE stored message behind a
+    # 'full: knowledge/conversations/<id>' citation, or regex-search EVERY
+    # stored message/file. The excerpt lanes above find the thread; this
+    # lane is how the agent READS past the excerpt (long quoted threads run
+    # to 79k chars — live 2026-09-13 the grounding rule promised
+    # documents.cat with no planner lane to run it).
+    if service == "documents":
+        return await _documents_vfs_block(plan, user_id, context)
 
     # Outlook: dedicated service with per-user token handling. Graph $search
     # OR-ranks multi-word queries, so a rare surname gets buried under common
