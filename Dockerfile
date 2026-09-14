@@ -45,8 +45,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install LibreOffice for the workbook runtime (formula evaluation + rendering)
+# and Tesseract for local image OCR of ingested attachments (core.image_ocr).
+# Without tesseract, image OCR falls back to the vision-LLM path (paid).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-calc \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

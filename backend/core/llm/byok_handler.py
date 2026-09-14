@@ -3101,12 +3101,13 @@ class BYOKHandler:
                         mapping_instr = (
                             "\n[COORDINATE MAPPING]:\n"
                             "The coordinates below are on a normalized 1000x1000 grid. "
-                            "The browser viewport is 1280 pixels wide. "
-                            "To click an element at [x, y], use browser_click_coords(x*1.28, y*H) where H is approximately 0.72*1.28.\n"
+                            "Coordinate clicking (browser_click_coords) is retired: derive a CSS selector "
+                            "for the element instead and click it with browser_click(selector), or hand the "
+                            "whole browser task to operator_start_task.\n"
                         )
                         prompt = f"[VISUAL CONTEXT ANALYSIS]:\n{vision_desc}\n{mapping_instr}\n\n[USER REQUEST]:\n{prompt}"
                         # Disable image_payload for the reasoning call
-                        image_payload = None 
+                        image_payload = None
                         requires_vision = False
 
             # Filter for Vision logic if needed
@@ -4412,11 +4413,12 @@ class BYOKHandler:
                         mapping_instr = (
                             "\n[COORDINATE MAPPING]:\n"
                             "The coordinates below are on a normalized 1000x1000 grid. "
-                            "The browser viewport is 1280 pixels wide. "
-                            "To click an element at [x, y], use browser_click_coords(x*1.28, y*H) where H is approximately 0.72*1.28.\n"
+                            "Coordinate clicking (browser_click_coords) is retired: derive a CSS selector "
+                            "for the element instead and click it with browser_click(selector), or hand the "
+                            "whole browser task to operator_start_task.\n"
                         )
                         prompt = f"[VISUAL CONTEXT ANALYSIS]:\n{vision_desc}\n{mapping_instr}\n\n[USER REQUEST]:\n{prompt}"
-                        image_payload = None 
+                        image_payload = None
             
             # Filter for Vision logic if needed - Use pricing cache lookup
             if requires_vision:

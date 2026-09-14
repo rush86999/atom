@@ -361,7 +361,7 @@ class _IngestResult:
         self.results = list(results)
         self.metadata = []
 
-    def __call__(self, token, file_id, extra_metadata=None):
+    def __call__(self, token, file_id, extra_metadata=None, role=None):
         self.metadata.append((file_id, extra_metadata))
         return self.results.pop(0)
 

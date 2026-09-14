@@ -536,13 +536,24 @@ class UniversalIntegrationService:
                 pass
 
         if not await circuit_breaker.is_enabled(service):
-            stats = circuit_breaker.get_stats(service)
+            # get_stats is async (Redis-first with in-memory fallback). Without
+            # the await, `stats` was a coroutine and building the response
+            # below raised TypeError: 'coroutine' object is not subscriptable
+            # — so the circuit-open short-circuit never returned; the failure
+            # escaped into the caller's generic handler (live log: 420 such
+            # tracebacks). The lookup is also defensive: a service with no
+            # recorded stats must still produce the circuit-open envelope.
+            try:
+                stats = await circuit_breaker.get_stats(service)
+            except Exception:
+                stats = {}
+            stats = stats or {}
             await _record_tool_error(
                 "circuit_open", f"Circuit breaker OPEN for {service}"
             )
             return {
                 "status": "error",
-                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats['disabled_until']}",
+                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats.get('disabled_until', 'unknown')}",
                 "circuit_open": True
             }
 

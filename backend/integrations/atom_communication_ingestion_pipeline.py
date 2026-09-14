@@ -41,6 +41,7 @@ except ImportError:
 from pathlib import Path
 
 from core.knowledge_ingestion import get_knowledge_ingestion
+from core.lancedb_index_selfheal import ensure_fts_index
 from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,57 @@ def _format_graph_timestamp(dt: datetime) -> str:
     if dt.microsecond:
         return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+_OUTLOOK_INCREMENTAL_FETCH_PAGES = 5
+_OUTLOOK_CATCHUP_FETCH_PAGES = 40
+_OUTLOOK_CATCHUP_AFTER = timedelta(days=3)
+
+
+def _outlook_fetch_page_budget(
+    last_fetch: Any, now: Optional[datetime] = None,
+) -> int:
+    """Graph pages to walk this Outlook poll.
+
+    A cursor far behind "now" drains at the incremental budget (5 pages ≈ 250
+    messages), so a long-stopped poller or a fresh connection leaves recent
+    mail un-ingested for a long time — live 2026-09-11 the cursor was ~2.5
+    months behind, September mail (and its inline attachments) was never
+    stored, and the agent could not see the quote image. While behind, allow
+    the initial-sync budget so the backlog clears in bounded polls; the
+    resume-bound logic still guarantees no message is skipped."""
+    if last_fetch is None:
+        return _OUTLOOK_CATCHUP_FETCH_PAGES
+    try:
+        cursor = _coerce_utc_ts(last_fetch)
+        if cursor is None:
+            return _OUTLOOK_INCREMENTAL_FETCH_PAGES
+        ref = now or datetime.now(timezone.utc)
+        if (ref - cursor) > _OUTLOOK_CATCHUP_AFTER:
+            return _OUTLOOK_CATCHUP_FETCH_PAGES
+    except Exception:  # noqa: BLE001 — budget is advisory
+        pass
+    return _OUTLOOK_INCREMENTAL_FETCH_PAGES
+
+
+_OUTLOOK_HEAD_FIRST_RUN_DAYS = 2
+
+
+def _outlook_head_since(
+    head_cursor: Any, now: Optional[datetime] = None,
+) -> datetime:
+    """Lower bound for the newest-first HEAD pass.
+
+    ``head_cursor`` when present (exclusive ``gt``); on first run, a short
+    lookback so the first head pass is bounded instead of re-walking history.
+    The head pass has NO upper bound — that is the point: it always contains
+    the newest mail regardless of how far behind the backfill walk is."""
+    if head_cursor is not None:
+        coerced = _coerce_utc_ts(head_cursor)
+        if coerced is not None:
+            return coerced
+    return (now or datetime.now(timezone.utc)) - timedelta(
+        days=_OUTLOOK_HEAD_FIRST_RUN_DAYS)
 
 
 def _coerce_utc_ts(value: Any) -> Optional[datetime]:
@@ -294,6 +346,34 @@ _TEXT_ATTACHMENT_EXTENSIONS = {
 }
 _MAX_ATTACHMENT_DECODE_BYTES = 512 * 1024   # don't decode huge payloads
 _MAX_ATTACHMENT_TEXT_CHARS = 20_000         # indexed text per attachment
+
+# Inline body images are OCR'd (pasted screenshots/receipts) — everything
+# else inline is body markup (logos live in signatures and are filtered by
+# the decorative heuristic inside core.email_attachment_ingestion).
+_IMAGE_ATTACHMENT_EXTENSIONS = {
+    "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp", "gif",
+}
+_IMAGE_MIME_EXTENSIONS = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/tiff": "tif",
+    "image/bmp": "bmp",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
+
+
+def _is_image_attachment(filename: str, content_type: str = "") -> bool:
+    """True when the attachment is a raster image (by name or MIME type)."""
+    ext = os.path.splitext(filename or "")[1].lstrip(".").lower()
+    if ext in _IMAGE_ATTACHMENT_EXTENSIONS:
+        return True
+    return str(content_type or "").strip().lower().startswith("image/")
+
+
+def _image_extension_for(content_type: str) -> str:
+    return _IMAGE_MIME_EXTENSIONS.get((content_type or "").strip().lower(), "png")
 
 
 def _attachment_field(attachment: Dict[str, Any], *names: str) -> Any:
@@ -645,14 +725,16 @@ class LanceDBMemoryManager:
                 logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
             
-        # Create FTS index for hybrid search. replace=True: an index left by
-        # a prior run turned this into a per-boot WARNING (lance refuses
-        # same-name index creation) — rebuilding is idempotent and cheap.
-        try:
-            self.connections_table.create_fts_index("content", replace=True)
+        # FTS index for hybrid search. Bare `create_fts_index(replace=True)`
+        # is NOT enough: when the on-disk index was written in a format the
+        # installed reader rejects it logs "content_idx has version 2 ...
+        # ignoring it" and silently full-scans on every boot. The version-aware
+        # bootstrap drop+recreates the index only when it is missing or was
+        # built by a different lancedb version, and no-ops otherwise.
+        if ensure_fts_index(self.connections_table, column="content"):
             logger.info("FTS index enabled on 'content' column")
-        except Exception as e:
-            logger.warning(f"Could not create FTS index (non-fatal): {e}")
+        else:
+            logger.warning("Could not create FTS index (non-fatal)")
     
     def _create_metadata_table(self):
         """Create metadata table for ingestion pipeline"""
@@ -1820,6 +1902,17 @@ class CommunicationIngestionPipeline:
                     self._save_fetch_state()
             except Exception as e:
                 logger.warning(f"Seen-id reconciliation failed: {e}")
+            # Periodic ATTACHMENT self-heal: a row stored before the fetch
+            # carried attachments (or before OCR) stays incomplete forever
+            # under store-authoritative dedup. Upsert such rows from the
+            # mailbox so nobody deletes rows by hand (live 2026-09-11: the
+            # Sep 9 quote's inline spec image). Bounded per pass.
+            try:
+                for _owner in self._outlook_token_owners():
+                    await self.self_heal_missing_attachments(
+                        "outlook", _owner, limit=5)
+            except Exception as e:
+                logger.debug(f"attachment self-heal pass skipped: {e}")
             # Periodic token rectification: tokens orphaned by a wipe/re-seed
             # are deactivated and stale-expired ones reported for reconnect.
             try:
@@ -2056,8 +2149,16 @@ class CommunicationIngestionPipeline:
         }
 
     
-    async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
-        """Ingest single message from any communication app"""
+    async def ingest_message(self, app_type: str, message_data: Dict[str, Any],
+                             *, describe_images: bool = False) -> bool:
+        """Ingest single message from any communication app.
+
+        ``describe_images``: images with NO text layer get a vision DESCRIPTION
+        so they still land in memory. Set by the explicit on-demand ingest
+        (``ingest_email_on_demand``) where the user/agent asked for THIS
+        message; the bulk poll/webhook paths leave it False so one mailbox
+        sync never turns into a vision call per decorative image.
+        """
         try:
             # Initialize memory manager if needed
             if self.memory_manager.db is None:
@@ -2081,7 +2182,8 @@ class CommunicationIngestionPipeline:
             # text is already folded into the comms content above.
             if raw_attachments:
                 await self._ingest_binary_attachments(
-                    app_type, raw_attachments, normalized_data
+                    app_type, raw_attachments, normalized_data,
+                    describe_images=describe_images,
                 )
 
             # Convert to CommunicationData
@@ -3486,6 +3588,82 @@ class CommunicationIngestionPipeline:
                 owners = [cfg_user]
         return owners
 
+    async def _fetch_outlook_head_for_owner(
+        self, owner: str, head_cursor: Optional[datetime], max_pages: int = 3,
+    ) -> tuple:
+        """Newest-first HEAD pass: the recent window, independent of backfill.
+
+        The backfill walk covers ``(cursor, resume]``; while the cursor is
+        ancient, that window structurally CANNOT contain recent mail, so
+        September mail was never even fetched (live 2026-09-11) — more pages
+        in a June window is still a June window. This pass always fetches the
+        newest mail since ``head_cursor`` with NO upper bound, so recency lands
+        every poll no matter how far behind history is.
+
+        Returns (messages, newest_timestamp)."""
+        try:
+            from integrations.outlook_service import outlook_service
+
+            access_token = await outlook_service._get_access_token(user_id=owner)
+            if not access_token:
+                return [], None
+            headers = {"Authorization": f"Bearer {access_token}"}
+            graph_base = os.getenv(
+                "MICROSOFT_GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0"
+            ).rstrip("/")
+            params = {
+                "$top": 50,
+                "$orderBy": "receivedDateTime desc",
+                "$filter": (
+                    "receivedDateTime gt "
+                    + _format_graph_timestamp(_outlook_head_since(head_cursor))
+                ),
+            }
+            messages: List[Dict[str, Any]] = []
+            newest: Optional[datetime] = None
+            next_link = None
+            pages = 0
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                while pages < max_pages:
+                    response = (
+                        await client.get(next_link, headers=headers)
+                        if next_link
+                        else await client.get(
+                            f"{graph_base}/me/messages",
+                            headers=headers, params=params)
+                    )
+                    if response.status_code == 429:
+                        await asyncio.sleep(
+                            int(response.headers.get("Retry-After", 15)))
+                        continue
+                    if response.status_code != 200:
+                        logger.warning(
+                            f"Outlook head pass HTTP {response.status_code} "
+                            f"for user {owner}")
+                        break
+                    data = response.json()
+                    for raw in data.get("value", []):
+                        normalized = self._normalize_outlook_graph_message(
+                            raw, owner)
+                        if not normalized:
+                            continue
+                        messages.append(normalized)
+                        ts = normalized.get("timestamp")
+                        if isinstance(ts, datetime) and (newest is None or ts > newest):
+                            newest = ts
+                    pages += 1
+                    next_link = data.get("@odata.nextLink")
+                    if not next_link:
+                        break
+            if messages:
+                logger.info(
+                    f"Outlook head pass: {len(messages)} recent message(s) "
+                    f"for user {owner} (backfill independent)")
+            return messages, newest
+        except Exception as e:  # noqa: BLE001 — head pass is additive
+            logger.debug(f"Outlook head pass skipped for user {owner}: {e}")
+            return [], None
+
     async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Fetch new Outlook mail for EVERY connected user (per-user cursors).
 
@@ -3514,6 +3692,16 @@ class CommunicationIngestionPipeline:
             # page cap, the remaining range (cursor, resume] is walked to
             # completion BEFORE the cursor is promoted (see the fetch method).
             resume_max = self.fetch_timestamps.get(resume_key)
+            # HEAD pass FIRST: the newest mail must land every poll no matter
+            # how far behind the backfill walk is (see the method docstring).
+            head_key = f"last_fetch_outlook_head_{owner}"
+            head_messages, head_newest = await self._fetch_outlook_head_for_owner(
+                owner, self.fetch_timestamps.get(head_key)
+            )
+            if head_newest is not None:
+                self.fetch_timestamps[head_key] = head_newest
+            if head_messages:
+                all_messages.extend(head_messages)
             messages, new_cursor, new_resume = await self._fetch_outlook_for_owner(
                 owner, owner_cursor, resume_max
             )
@@ -3610,7 +3798,10 @@ class CommunicationIngestionPipeline:
                 # cursors on truncation instead (order_untrusted).
                 order_trusted = True
                 params["$orderBy"] = "receivedDateTime desc"
-                max_fetches = 5
+                # Attachments ride the row (inline images must reach OCR).
+                # Dropped automatically if this backend rejects the combo.
+                params["$expand"] = "attachments"
+                max_fetches = _outlook_fetch_page_budget(last_fetch)
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
                     # (no timezone marker) returns 400 InvalidFilter, which
@@ -3672,6 +3863,11 @@ class CommunicationIngestionPipeline:
                                     if k != "$orderBy"
                                 }
                                 order_trusted = False
+                                # $expand can also be part of the rejection
+                                # (some backends disallow $expand with
+                                # $filter) — drop it here too rather than
+                                # failing the whole walk over attachments.
+                                params.pop("$expand", None)
                                 response = await client.get(
                                     f"{graph_base}/me/messages",
                                     headers=headers,
@@ -3925,8 +4121,79 @@ class CommunicationIngestionPipeline:
             await self._expand_gmail_attachments(gmail_service, [msg])
         return self._normalize_gmail_service_message(msg)
 
+    def _drop_stored_message(self, app_type: str, message_id: str) -> int:
+        """Delete one stored row by id — the replace half of an upsert.
+
+        Best-effort and bounded (a single id); never raises."""
+        try:
+            mm = self.memory_manager
+            if mm.db is None:
+                mm.initialize()
+            table = mm.connections_table
+            if table is None:
+                return 0
+            safe_id = str(message_id).replace("'", "''")
+            table.delete(f"id = '{safe_id}'")
+            return 1
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"drop stored message skipped: {e}")
+            return 0
+
+    async def self_heal_missing_attachments(
+        self, provider: str = "outlook", owner: str = "", limit: int = 25,
+    ) -> Dict[str, Any]:
+        """Re-ingest stored messages whose attachments never landed.
+
+        A row stored before the fetch carried attachments (or before OCR
+        existed) stays incomplete forever under store-authoritative dedup —
+        there was no app path to refresh it (live 2026-09-11: the Sep 9 quote
+        stored with ``attachments: []``, so its inline spec image was invisible
+        to every local tool). This pass finds such rows and upserts them via
+        ``ingest_email_on_demand(..., refresh=True)`` — fully automated, no
+        operator deleting rows by hand.
+
+        ``owner`` must be the mailbox-owning user id (the fetch uses only that
+        user's token). Never raises; returns counts."""
+        app_type = (provider or "outlook").strip().lower()
+        healed = failed = 0
+        try:
+            mm = self.memory_manager
+            if mm.db is None:
+                mm.initialize()
+            table = mm.connections_table
+            if table is None:
+                return {"status": "no_store", "healed": 0, "failed": 0}
+            rows = (
+                table.search()
+                .select(["id", "app_type", "attachments"])
+                .limit(None)
+                .to_arrow()
+                .to_pylist()
+            )
+            empty = {"", "[]", "null", "None"}
+            candidates = [
+                r for r in rows
+                if str(r.get("app_type") or "") == app_type
+                and str(r.get("attachments") or "[]") in empty
+                and r.get("id")
+            ][: max(1, int(limit))]
+            for r in candidates:
+                res = await self.ingest_email_on_demand(
+                    app_type, owner, str(r["id"]), refresh=True)
+                if (res or {}).get("status") == "ingested":
+                    healed += 1
+                else:
+                    failed += 1
+        except Exception as e:  # noqa: BLE001 — maintenance never raises
+            logger.debug(f"attachment self-heal skipped: {e}")
+        if healed or failed:
+            logger.info(
+                f"attachment self-heal: healed={healed} failed={failed} "
+                f"app={app_type}")
+        return {"status": "ok", "healed": healed, "failed": failed}
+
     async def ingest_email_on_demand(
-        self, provider: str, owner: str, message_id: str
+        self, provider: str, owner: str, message_id: str, refresh: bool = False
     ) -> Dict[str, Any]:
         """On-demand ingest of ONE mailbox email (body + attachments) — the
         agent tool path for "ingest this email". Bypasses the poll loop, so
@@ -3935,6 +4202,15 @@ class CommunicationIngestionPipeline:
         store-level dedup guard behind that. The message dict is built by
         the SAME per-provider normalizers the poller uses, so on-demand and
         polled rows are identical (and dedupe against each other).
+
+        ``refresh=True`` turns this into an UPSERT: an already-stored message
+        is re-fetched and its row REPLACED, so a row stored before a capability
+        existed heals itself instead of being refused by the seen-id
+        short-circuit. Live 2026-09-11: the Sep 9 quote row was stored with
+        ``attachments: []`` (the poll path did not ``$expand`` them) and could
+        never gain its inline spec image — repairing it needed a manual
+        delete + seen-id clear. Self-heal calls this with ``refresh=True``;
+        no operator ever deletes rows by hand.
 
         provider: "outlook" | "gmail". owner: mailbox-owning user id — the
         fetch uses ONLY that user's token (no cross-user fallback).
@@ -3959,11 +4235,17 @@ class CommunicationIngestionPipeline:
 
         try:
             if self.is_message_known(app_type, message_id, owner):
-                return {
-                    "status": "already_ingested",
-                    "app_type": app_type,
-                    "message_id": message_id,
-                }
+                if not refresh:
+                    return {
+                        "status": "already_ingested",
+                        "app_type": app_type,
+                        "message_id": message_id,
+                    }
+                # UPSERT: drop the stale row and its dedup stamp so the ingest
+                # below re-adds a complete row (attachments included).
+                self._drop_stored_message(app_type, message_id)
+                with self._seen_state_lock:
+                    self._seen_message_ids.get(app_type, {}).pop(message_id, None)
 
             if app_type == CommunicationAppType.OUTLOOK.value:
                 raw = await self._fetch_outlook_message_by_id(owner, message_id)
@@ -3992,7 +4274,9 @@ class CommunicationIngestionPipeline:
                     "message_id": message_id,
                 }
 
-            success = await self.ingest_message(app_type, normalized)
+            success = await self.ingest_message(
+                app_type, normalized, describe_images=True
+            )
             if not success:
                 # NOT marked seen — the message stays on the retry path
                 # (same contract as _ingest_and_mark).
@@ -4093,16 +4377,20 @@ class CommunicationIngestionPipeline:
         app_type: str,
         raw_attachments: List[Dict[str, Any]],
         normalized: Dict[str, Any],
+        describe_images: bool = False,
     ) -> None:
-        """Give binary attachments (pdf/docx/xlsx/…) a real text layer in the
-        documents memory index via core.email_attachment_ingestion.
+        """Give binary attachments (pdf/docx/xlsx/images…) a real text layer in
+        the documents memory index via core.email_attachment_ingestion.
 
-        Budget-capped per message; failures never fail the message ingest —
-        the attachment stays metadata-only in the comms row. Requires raw
-        bytes in the payload: the Outlook poller expands attachments inline,
-        but the Graph webhook path fetches messages without attachment
-        content, so binary files arriving on that channel are picked up by
-        on-demand (canvas/agent) ingestion instead.
+        Images are OCR'd (local engine → vision LLM), including images pasted
+        inline in the body; signature/logo/tracking images are filtered inside
+        the shared ingestion module. Budget-capped per message with real file
+        attachments served before inline images; failures never fail the
+        message ingest — the attachment stays metadata-only in the comms row.
+        Requires raw bytes in the payload: the Outlook poller expands
+        attachments inline, but the Graph webhook path fetches messages
+        without attachment content, so binary files arriving on that channel
+        are picked up by on-demand (canvas/agent) ingestion instead.
         """
         if not self._binary_memory_ingest_enabled():
             return
@@ -4115,15 +4403,29 @@ class CommunicationIngestionPipeline:
         meta = normalized.get("metadata") or {}
         user_id = meta.get("user_id") or "default_user"
         received_at = normalized.get("timestamp")
-        for att in raw_attachments:
+        # Real file attachments consume the per-message budget before inline
+        # body images — a signature strip must never crowd out the invoice.
+        # ``sorted`` is stable, so order within each group is preserved.
+        ordered = sorted(
+            raw_attachments,
+            key=lambda a: 1 if a.get("isInline", a.get("is_inline", False)) else 0,
+        )
+        for att in ordered:
             if cap <= 0:
                 return
-            filename = (
-                _attachment_field(att, "name", "filename") or ""
+            inline = bool(att.get("isInline", att.get("is_inline", False)))
+            content_type = (
+                _attachment_field(att, "contentType", "content_type", "mimetype") or ""
             )
-            if att.get("isInline", att.get("is_inline", False)):
+            filename = _attachment_field(att, "name", "filename") or ""
+            # Inline eligibility: images only. Other inline parts are body
+            # markup (or reference attachments) and stay metadata-only.
+            if inline and not _is_image_attachment(filename, content_type):
                 continue
-            if not _binary_extension(filename):
+            if not filename and inline:
+                # Some inline parts arrive nameless; the MIME type still routes.
+                filename = f"inline_image.{_image_extension_for(content_type)}"
+            if not _binary_extension(filename, content_type):
                 continue
             data = att.get("contentBytes") or att.get("data")
             if not data:
@@ -4148,10 +4450,7 @@ class CommunicationIngestionPipeline:
                 attachment_id=str(attachment_id),
                 filename=filename,
                 content=raw,
-                content_type=_attachment_field(
-                    att, "contentType", "content_type", "mimetype"
-                )
-                or "",
+                content_type=content_type,
                 size=att.get("size") or len(raw),
                 user_id=user_id,
                 email_subject=normalized.get("subject") or "",
@@ -4161,6 +4460,11 @@ class CommunicationIngestionPipeline:
                     if isinstance(received_at, datetime)
                     else str(received_at or "")
                 ),
+                inline=inline,
+                # Explicit on-demand ingest only: textless images (product
+                # photos, inlined machine pictures) become a vision description
+                # instead of dying as no_text. The poller path never sets this.
+                describe_images=bool(describe_images),
             )
             for cleaned in normalized.get("attachments") or []:
                 if not isinstance(cleaned, dict):

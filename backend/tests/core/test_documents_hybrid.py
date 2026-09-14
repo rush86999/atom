@@ -212,3 +212,134 @@ async def test_never_raises_on_garbage(db):
     assert res["hybrid"] == "no_results"
     res = await svc.search("!!")
     assert res["results"] == []
+
+
+# --- join-key bridge: chunks and ingest stamps (2026-09-11) -------------------
+#
+# Live evidence: the LanceDB `documents` table held 38,983 rows of which only
+# 981 bridged by id equality. 35,325 were CHUNK rows (`<doc_id>::cN`) whose
+# parent id had been stamped into `metadata.pg_document_id` at ingest, and 2,676
+# carried a stamp not present in PG. Because `_fuse_rrf` matched on `id` alone,
+# every one of those chunk hits was reported `bridged:false` — and, worse, a
+# chunk hit and its parent's lexical hit landed on different RRF keys, so the
+# two legs could never reinforce each other.
+
+
+def chunk_row(chunk_id: str, pg_id: str, distance: float = 0.05) -> Dict[str, Any]:
+    return {
+        "id": chunk_id,
+        "_distance": distance,
+        "metadata": {"pg_document_id": pg_id, "file_name": "chunk.pdf"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_chunk_hit_hydrates_through_ingest_stamp(db):
+    """A `::cN` chunk must hydrate to its parent document, not stay orphaned."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    lancedb = FakeLanceDB([chunk_row("doc_a::c0", "doc_a")])
+    svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
+
+    res = await svc.search("zzz_no_lexical_overlap")
+
+    assert res["stats"]["unbridged_hits"] == 0, "chunk was not bridged"
+    hit = res["results"][0]
+    assert hit["id"] == "doc_a", "must resolve to the parent document id"
+    assert hit["bridged"] is True
+
+
+@pytest.mark.asyncio
+async def test_chunk_hit_hydrates_from_suffix_without_stamp(db):
+    """Even with no ingest stamp, the `::cN` suffix identifies the parent."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    row = {"id": "doc_a::c7", "_distance": 0.05, "metadata": {"file_name": "c.pdf"}}
+    svc = DocumentsHybridSearch(db=db, lancedb=FakeLanceDB([row]))
+
+    res = await svc.search("zzz_no_lexical_overlap")
+
+    assert res["results"][0]["id"] == "doc_a"
+    assert res["results"][0]["bridged"] is True
+
+
+@pytest.mark.asyncio
+async def test_chunk_and_parent_lexical_hit_fuse_into_one_entry(db):
+    """The whole point of hybrid: both legs must reinforce ONE document."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    # Lexical leg finds doc_a via its FTS row; vector leg finds a chunk of doc_a.
+    lancedb = FakeLanceDB([chunk_row("doc_a::c0", "doc_a")])
+    svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
+
+    res = await svc.search("revenue growth")  # 'revenue' matches doc_a lexically
+
+    doc_a_entries = [r for r in res["results"] if r["id"] == "doc_a"]
+    assert len(doc_a_entries) == 1, (
+        f"parent and chunk must fuse into one entry, got {len(doc_a_entries)}"
+    )
+    assert res["stats"]["lexical_hits"] > 0, "precondition: lexical leg matched"
+
+
+@pytest.mark.asyncio
+async def test_unknown_chunk_still_surfaces_as_unbridged(db):
+    """A chunk whose parent is genuinely absent must still be returned."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    lancedb = FakeLanceDB([chunk_row("no_such_doc::c3", "no_such_doc")])
+    svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
+
+    res = await svc.search("zzz_no_lexical_overlap")
+
+    hit = res["results"][0]
+    assert hit["id"] == "no_such_doc::c3"
+    assert hit["bridged"] is False
+    assert res["stats"]["unbridged_hits"] == 1
+
+
+@pytest.mark.asyncio
+async def test_json_string_metadata_is_tolerated(db):
+    """Metadata arrives as a dict OR a JSON string depending on the writer."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    row = {
+        "id": "doc_a::c1",
+        "_distance": 0.05,
+        "metadata": '{"pg_document_id": "doc_a", "file_name": "x.pdf"}',
+    }
+    svc = DocumentsHybridSearch(db=db, lancedb=FakeLanceDB([row]))
+
+    res = await svc.search("zzz_no_lexical_overlap")
+
+    assert res["results"][0]["id"] == "doc_a"
+    assert res["results"][0]["bridged"] is True
+
+
+# --- chunk-count bias (2026-09-13 review): RRF scores each LEG once per doc --
+
+
+@pytest.mark.asyncio
+async def test_chunk_flood_must_not_outrank_both_legs_single_doc(db):
+    """A 3,400-chunk document with many chunks in the vector top-N used to
+    accumulate one RRF contribution PER CHUNK and bury a one-chunk document
+    that BOTH legs found. Classic RRF dedups per document per leg: the
+    chunk-heavy doc gets ONE vector contribution (its best-ranked chunk)."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    # doc_a: only reachable through the vector leg, but with a FLOOD of
+    # chunks (top 10 vector ranks). doc_b: found by BOTH legs (lexical
+    # 'picnic' + one vector row).
+    rows = [chunk_row(f"doc_a::c{i}", "doc_a", distance=0.01) for i in range(10)]
+    rows.append(bridged_row("doc_b", 0.2))
+    lancedb = FakeLanceDB(rows)
+    svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
+
+    res = await svc.search("picnic meeting")  # lexical leg: doc_b only
+
+    ids = [r["id"] for r in res["results"]]
+    assert ids[0] == "doc_b", (
+        f"both-legs single-chunk doc must outrank the chunk flood: {ids}"
+    )
+    # doc_a still surfaces (once), from its best-ranked chunk.
+    assert ids.count("doc_a") == 1
+    assert res["stats"]["vector_hits"] == 11

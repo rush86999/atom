@@ -1,8 +1,11 @@
 """GoalRun CRUD + lifecycle API (docs/architecture/GOAL_RUN_ORCHESTRATION.md
-§5, §7 slice 5). RBAC mirrors playbook_routes: listing/reading is any-
-signed-in-user; acts that spend resources, direct agents, or change
-supervision are supervisor-grade (team_lead and up — the shared hierarchy,
-not a hand-maintained allowlist).
+§5, §7 slice 5). RBAC mirrors playbook_routes: listing/reading is any
+signed-in user OF THE RUN'S WORKSPACE (the service is workspace-bound — a
+cross-workspace run id reads as 404, so decision logs and parameters are
+not a cross-workspace read oracle); acts that spend resources, direct
+agents, or change supervision are supervisor-grade (team_lead and up — the
+shared hierarchy, not a hand-maintained allowlist), and even supervisors
+may only act on runs inside their own workspace.
 """
 from __future__ import annotations
 
@@ -73,7 +76,18 @@ def _require_supervisor(db: Session, current_user: User) -> None:
 def _require_run_access(db: Session, current_user: User, run: dict) -> None:
     """A run is worked by its OWNER (the person who started it) or any
     supervisor — not by every member. A member must not be able to drive,
-    approve or cancel somebody else's run."""
+    approve or cancel somebody else's run.
+
+    Workspace scoping (IDOR fix 2026-09-13): the service is workspace-bound,
+    so a cross-workspace run id already reads as 404 upstream; this guard
+    additionally refuses any run dict that is NOT in the requester's own
+    workspace (a team_lead of workspace A must not advance workspace B's
+    runs even if a run dict reached this check). Cross-workspace reads
+    404 — the run's existence is not confirmed to another workspace's
+    supervisor."""
+    if str(run.get("workspace_id") or "") != str(
+            resolve_workspace_id(current_user)):
+        raise router.not_found_error("GoalRun", str(run.get("id")))
     if _is_supervisor(db, current_user):
         return
     if str(run.get("created_by") or "") == str(current_user.id):
@@ -124,6 +138,10 @@ class GoalRunCreate(BaseModel):
 class ResumeBody(BaseModel):
     approved: bool
     guidance: Optional[str] = None
+    # Scope of the guidance when it becomes a lesson: "global" (default —
+    # applies to all of this agent's work) or "goal" (true only for THIS run's
+    # goal). See core/student_learning_service lesson scope.
+    guidance_scope: Optional[str] = None
 
 
 class ModeBody(BaseModel):
@@ -334,7 +352,8 @@ async def resume_goal_run(
     try:
         return await svc.resume(run_id, approved=payload.approved,
                                 reviewer=str(current_user.id),
-                                guidance=payload.guidance)
+                                guidance=payload.guidance,
+                                guidance_scope=payload.guidance_scope)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -474,7 +493,13 @@ async def ingest_goal_run_event(
     db: Session = Depends(get_db),
 ):
     """Integration inbox for waiting runs (inbound email replies, webhook
-    events, human input). Matching runs wake and advance one loop turn."""
+    events, human input). Matching runs wake and advance one loop turn.
+
+    Supervisor-gated: an event wakes a run and drives the router (and, in
+    shadow/autonomous, the executors) — a member must not be able to inject
+    one. Consistent with every other run-mutating route here.
+    """
+    _require_supervisor(db, current_user)
     event = {"event": payload.event,
              "from": payload.from_email, "subject": payload.subject,
              "summary": payload.summary, "source": payload.source,

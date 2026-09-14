@@ -29,6 +29,46 @@ GRAPH_API_BASE = os.getenv(
 # whitespace and apostrophes (O'Brien).
 _KQL_ILLEGAL = re.compile(r"[^\w\s'\"]")
 
+# Bare KQL operator words coming from prose must not OR/AND the query:
+# "invoice OR password" used to sanitize to itself, silently widening the
+# mailbox search to either word. Quoting turns them into literal terms.
+_KQL_OPERATOR_WORDS = frozenset({"AND", "OR", "NOT"})
+
+# Hard timeout for every Graph HTTP call (a bare ClientSession rides
+# aiohttp's 300s default — see _make_graph_request).
+_GRAPH_HTTP_TIMEOUT_SECONDS = float(
+    os.getenv("OUTLOOK_GRAPH_TIMEOUT_SECONDS", "30") or 30
+)
+
+# KQL-ladder circuit breaker: consecutive rejected forms after which the
+# ladder gives up, and the status classes that abort IMMEDIATELY (an
+# expired/insufficient token fails every rung identically — retrying the
+# ladder against it burned up to ~60 Graph round-trips per search, live
+# 2026-09-13 review).
+_SEARCH_LADDER_MAX_FAILURES = 3
+_AUTH_FAILURE_STATUSES = (401, 403)
+
+# ``sender=`` is interpolated into a quoted KQL clause — only a plainly
+# shaped address may enter it (quotes, colons and control characters in a
+# caller-supplied "address" would escape the clause; public entry points
+# reach this from HTTP routes and the universal integration service).
+_SENDER_ADDRESS_RE = re.compile(r"^[\w.+-]+@[\w.-]+$")
+
+# Quoted phrases vs bare spans: phrase punctuation ($ , . – %) survives in
+# phrase position (live 2026-09-12: '"$5,350.00"' as $search matches the
+# Seguin quote email) — the old whole-string substitution gutted phrases
+# into '" 5 350 00"', which 400'd and killed the sanitized retry too.
+_KQL_SEGMENT_RE = re.compile(r'"([^"]*)"|([^"]+)')
+
+
+def _quote_mixed_alnum(match: "re.Match") -> str:
+    token = match.group(0)
+    if token in _KQL_OPERATOR_WORDS:
+        return f'"{token}"'
+    if re.search(r"[A-Za-z]", token) and re.search(r"\d", token):
+        return f'"{token}"'
+    return token
+
 
 def sanitize_graph_kql(query: str) -> str:
     """Make a free-text query safe for Graph $search KQL.
@@ -41,21 +81,55 @@ def sanitize_graph_kql(query: str) -> str:
     position 2 in 'WG350DSAV'", live 2026-09-03) but accepts them as quoted
     phrases. A query that is already legal comes back unchanged, so callers
     can cheaply up-front-sanitize every term.
+
+    Double-quoted spans are treated as exact phrases and preserved verbatim
+    (only embedded quotes/newlines stripped): '"$5,350.00"' used to become
+    '" 5 350 00"' — an equally illegal query — so the 400-retry ladder in
+    search_emails never had a working second rung (live 2026-09-12: the
+    Seguin $5,350.00 vendor-cost email was unfetchable while sitting in
+    both the mailbox and the ingested store). Bare uppercase operator words
+    (AND/OR/NOT) from prose are quoted as literals — 'invoice OR password'
+    must not silently OR the KQL.
     """
     if not query:
         return query
 
-    def _quote_mixed_alnum(match: "re.Match") -> str:
-        token = match.group(0)
-        inner = token.strip('"')
-        if inner != token:
-            return token  # already quoted — leave it alone
-        if re.search(r"[A-Za-z]", inner) and re.search(r"\d", inner):
-            return f'"{inner}"'
-        return token
+    out = []
+    for match in _KQL_SEGMENT_RE.finditer(query):
+        phrase, bare = match.group(1), match.group(2)
+        if phrase is not None:
+            inner = re.sub(r'[\r\n"]+', " ", phrase).strip()
+            if inner:
+                out.append(f'"{inner}"')
+        else:
+            cleaned = _KQL_ILLEGAL.sub(" ", bare).strip()
+            if cleaned:
+                out.append(re.sub(r"\S+", _quote_mixed_alnum, cleaned))
+    return " ".join(out).strip()
 
-    cleaned = _KQL_ILLEGAL.sub(" ", query).strip()
-    return re.sub(r"\S+", _quote_mixed_alnum, cleaned)
+
+def decompose_graph_kql(query: str) -> str:
+    """Last-resort KQL form: bare word tokens, every non-word character
+    (except the decimal point) removed rather than space-substituted; tokens
+    containing digits are individually quoted.
+
+    This is the ladder's final rung for queries whose punctuation Graph
+    rejects even quoted — '"$ 5,350.00 – 10 % in stock"' as a phrase AND its
+    sanitized form both 400 (live 2026-09-12); quoted single tokens are
+    legal where the bare run is not: bare digit-leading terms 400 on this
+    backend ("character '5' is not valid at position 0 in '5 350 00'", live
+    2026-09-12). Never emits a multi-token phrase, so it cannot re-introduce
+    phrase syntax errors. Bare operator words are quoted so prose like
+    "invoice OR password" cannot silently widen the query. Empty string when
+    nothing survives.
+    """
+    if not query:
+        return ""
+    tokens = re.sub(r"[^\w.]+", " ", query).split()
+    return " ".join(
+        f'"{t}"' if (re.search(r"\d", t) or t in _KQL_OPERATOR_WORDS) else t
+        for t in tokens
+    )
 
 
 @dataclass
@@ -187,6 +261,11 @@ class OutlookService(IntegrationService):
         # scope). Callers surface it so users see "reconnect Outlook"
         # instead of a bare Graph 403.
         self.last_send_error: Optional[Dict[str, Any]] = None
+        # Status of the LAST _handle_response'd Graph call (None while no
+        # call ran / the call failed before a response): lets retrying
+        # callers (the search_emails KQL ladder) abort immediately on
+        # auth-class failures instead of burning every rung.
+        self.last_graph_status: Optional[int] = None
 
     async def _get_connection_scope(self, user_id: str) -> Optional[str]:
         """The consent grant's scope string for this user's active Outlook
@@ -360,11 +439,18 @@ class OutlookService(IntegrationService):
         data: Optional[Dict[str, Any]] = None,
         access_token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Make authenticated request to Microsoft Graph API"""
+        """Make authenticated request to Microsoft Graph API
+
+        Every request carries an explicit ``aiohttp.ClientTimeout``: a bare
+        ``ClientSession()`` rides aiohttp's 300s default, so one hung Graph
+        call could hold a search ladder (and every budgeted lane above it)
+        for five minutes (2026-09-13 review — a slow pull converted a fast
+        empty search into a caller timeout long before its own budget).
+        """
         token = access_token
         if not token:
             token = await self._get_access_token(user_id)
-        
+
         if not token:
             logger.error(f"No access token available for user {user_id}")
             return None
@@ -375,9 +461,11 @@ class OutlookService(IntegrationService):
         }
 
         url = f"{self.base_url}{endpoint}"
+        self.last_graph_status = None
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=_GRAPH_HTTP_TIMEOUT_SECONDS)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 if method.upper() == "GET":
                     async with session.get(url, headers=headers) as response:
                         return await self._handle_response(response)
@@ -402,8 +490,16 @@ class OutlookService(IntegrationService):
             return None
 
     async def _handle_response(self, response) -> Optional[Dict[str, Any]]:
-        """Handle API response"""
+        """Handle API response.
+
+        The response's status class is exposed on ``self.last_graph_status``
+        (reset per request) so callers that retry — the KQL ladder in
+        ``search_emails`` — can distinguish an expired token (401/403: no
+        rung can succeed, abort immediately) from a malformed query (400:
+        next rung) instead of burning every rung against a dead token.
+        """
         try:
+            self.last_graph_status = response.status
             if response.status in (200, 201, 202):
                 # 202 Accepted is the documented success response for
                 # POST /me/sendMail (no body is returned).
@@ -1652,39 +1748,105 @@ class OutlookService(IntegrationService):
 
     async def search_emails(
         self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None,
-        quote: bool = True
+        quote: bool = True, sender: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Search emails across all folders.
 
         ``quote=True`` wraps the query as an exact phrase; ``quote=False``
         passes it through as raw KQL (space-separated terms) — what the chat
         path wants for "find this email … Name : Mark, Kellam", where the
-        phrase form would never match the body's punctuation.
+        phrase form would never match the body's punctuation. ``sender``
+        (an email address) prepends a ``from:`` property-scoped clause —
+        live 2026-09-12: 'from:joelseguin@seguinmach.com' returns the whole
+        thread that relevance-ranked free-text buried under newer mail.
 
-        When Graph rejects the query with a 400 (its KQL syntax errors on
-        characters like ``@`` — live 2026-09-02: "jschulz@blumetric.ca" was
-        the only term that could match the lead email, and the 400 silently
-        emptied the search), the query is retried once in sanitized form.
+        A 400 no longer silently empties the search. Queries mixing
+        addresses, quoted amounts and KQL operators 400 in several forms
+        (live 2026-09-12: 'joelseguin@seguinmach.com "$5,350.00"' failed
+        raw AND failed its sanitized retry because the sanitizer gutted the
+        quoted phrase). The query now climbs a ladder — raw → sanitized
+        (phrases preserved) → decomposed bare tokens — and the first form
+        Graph accepts wins; only ladder exhaustion returns []. The ladder
+        is budgeted (2026-09-13 review): after a few consecutive rejected
+        forms it gives up, and an auth-class failure (401/403 — expired or
+        insufficient token) aborts IMMEDIATELY, because no rung can fix
+        credentials; previously an expired token burned the whole ladder.
+        ``sender`` is validated against a plain address shape before it
+        enters the quoted clause (it is caller-supplied and reaches here
+        from HTTP routes and the universal integration service too).
         """
         try:
-            # Graph rejects $orderby combined with $search on /me/messages —
-            # results come back relevance-ranked, so ordering is simply omitted.
-            params = {
-                "$top": max_results,
-                "$search": f'"{query}"' if quote else query,
-            }
-            query_string = urllib.parse.urlencode(params)
-            endpoint = f"/me/messages?{query_string}"
-
-            result = await self._make_graph_request(user_id, endpoint, access_token=token)
-            if result is None:
+            if sender and not _SENDER_ADDRESS_RE.match(str(sender).strip()):
+                logger.warning(
+                    "search_emails: ignoring malformed sender filter %r",
+                    str(sender)[:80],
+                )
+                sender = None
+            attempts: List[str] = []
+            if sender:
+                # from:-scoping must be QUOTED on this Graph backend: the
+                # bare clause 400s ("character ':' is not valid at position
+                # 4", live 2026-09-12) while '"from:user@host"' matches the
+                # sender reliably — Graph phrase-matches the rendered From
+                # header. Quoted bare address is the final fallback.
+                rest = sanitize_graph_kql(query) if query else ""
+                scoped = f'"from:{sender}"'
+                attempts.append(f"{scoped} {rest}".strip() if rest else scoped)
+                attempts.append(scoped)
+                attempts.append(f'"{sender}"')
+            else:
+                # Embedded quotes must not be double-wrapped — the outer
+                # pair creates nested phrase syntax that always 400s.
+                attempts.append(f'"{query}"' if quote and '"' not in query else query)
                 sanitized = sanitize_graph_kql(query)
-                if sanitized and sanitized != query:
-                    params["$search"] = f'"{sanitized}"' if quote else sanitized
-                    endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
-                    result = await self._make_graph_request(
-                        user_id, endpoint, access_token=token
+                if sanitized and sanitized != attempts[0]:
+                    wrapped = f'"{sanitized}"' if quote and '"' not in sanitized else sanitized
+                    if wrapped != attempts[0]:
+                        attempts.append(wrapped)
+                decomposed = decompose_graph_kql(query)
+                if decomposed and decomposed not in attempts:
+                    attempts.append(decomposed)
+
+            result = None
+            used = None
+            consecutive_failures = 0
+            for attempt in attempts:
+                # Graph rejects $orderby combined with $search on
+                # /me/messages — results come back relevance-ranked, so
+                # ordering is simply omitted.
+                params = {
+                    "$top": max_results,
+                    "$search": attempt,
+                }
+                query_string = urllib.parse.urlencode(params)
+                endpoint = f"/me/messages?{query_string}"
+                result = await self._make_graph_request(user_id, endpoint, access_token=token)
+                if result is not None:
+                    used = attempt
+                    break
+                status = getattr(self, "last_graph_status", None)
+                if status in _AUTH_FAILURE_STATUSES:
+                    logger.warning(
+                        "search_emails: Graph auth failure (%s) — aborting "
+                        "the KQL ladder (no rung can fix credentials; "
+                        "reconnect Outlook)",
+                        status,
                     )
+                    break
+                consecutive_failures += 1
+                if consecutive_failures >= _SEARCH_LADDER_MAX_FAILURES:
+                    logger.warning(
+                        "search_emails: %d consecutive KQL forms rejected — "
+                        "aborting the ladder early",
+                        consecutive_failures,
+                    )
+                    break
+            if result is None and attempts:
+                logger.warning(
+                    "search_emails: every KQL form rejected by Graph for "
+                    "query=%r (tried %r) — returning []",
+                    query, attempts,
+                )
 
             if result and "value" in result:
                 emails = []
@@ -1714,6 +1876,50 @@ class OutlookService(IntegrationService):
             return []
         except Exception as e:
             logger.error(f"Error searching emails: {e}")
+            return []
+
+    async def list_recent_emails(
+        self, user_id: str, max_results: int = 50, token: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Newest-first mailbox listing with NO ``$search`` clause.
+
+        The on-demand ingest fallback needs a target even when every search
+        form misses — $search is the thing that fails (400s, relevance
+        flooding), so this path avoids it entirely: plain
+        ``$orderby=receivedDateTime desc`` paging over the whole mailbox
+        (lowercase $orderby — OData is case-sensitive and Graph rejects
+        ``$orderBy`` with an unrecognized-query-option 400, like every
+        other call site here). Callers filter locally (figure tokens,
+        sender). Same dict shape as search_emails; [] on failure.
+        """
+        try:
+            params = {"$top": max_results, "$orderby": "receivedDateTime desc"}
+            endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
+            emails = []
+            for email_data in (result or {}).get("value", []):
+                emails.append(asdict(OutlookEmail(
+                    id=email_data.get("id"),
+                    subject=email_data.get("subject", "No Subject"),
+                    body_preview=email_data.get("bodyPreview", ""),
+                    body=email_data.get("body"),
+                    sender=email_data.get("sender"),
+                    from_field=email_data.get("from"),
+                    to_recipients=email_data.get("toRecipients", []),
+                    cc_recipients=email_data.get("ccRecipients", []),
+                    bcc_recipients=email_data.get("bccRecipients", []),
+                    received_date_time=email_data.get("receivedDateTime"),
+                    sent_date_time=email_data.get("sentDateTime"),
+                    has_attachments=email_data.get("hasAttachments", False),
+                    importance=email_data.get("importance", "normal"),
+                    is_read=email_data.get("isRead", False),
+                    web_link=email_data.get("webLink"),
+                    conversation_id=email_data.get("conversationId"),
+                    parent_folder_id=email_data.get("parentFolderId"),
+                )))
+            return emails
+        except Exception as e:
+            logger.error(f"Error listing recent emails: {e}")
             return []
 
     def get_capabilities(self) -> Dict[str, Any]:

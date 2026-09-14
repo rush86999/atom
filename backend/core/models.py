@@ -4809,6 +4809,12 @@ class AgentTemplate(Base):
     #  "max_session_minutes": int | None}
     permission_profile = Column(JSONColumn, default={})
 
+    # Platform-computed goal-run track record at publish time (2026-09-12,
+    # docs/architecture/AGENT_MARKETPLACE_GOAL_RUNS.md): runs/steps/
+    # interventions counted from GoalRun rows by the packaging service —
+    # verified credibility, never publisher-authored claims.
+    verified_record = Column(JSONColumn, nullable=True)
+
     # Marketplace metadata
     is_public = Column(Boolean, default=False)
     is_approved = Column(Boolean, default=False)

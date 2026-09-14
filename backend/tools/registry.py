@@ -401,6 +401,12 @@ class ToolRegistry:
         # Manually register key tools with detailed metadata
         self._register_canvas_tools()
         self._register_browser_tools()
+        # Computer-use operator: a governed browser session driven by the
+        # observe→decide→act loop (core/operator/). SUPERVISED+ — same blast
+        # radius reasoning as device_screen_record: the operator acts on the
+        # live web under the agent's name, so an INTERN that reaches it
+        # proposes; a human confirms.
+        self._register_operator_tools()
         self._register_device_tools()
         self._register_productivity_tools()
         self._register_memory_tools()
@@ -935,7 +941,7 @@ class ToolRegistry:
             "browser_extract_text",
             "browser_execute_script",
             "browser_close_session",
-            "browser_get_info"
+            "browser_get_page_info"
         ]
 
         for func_name in browser_functions:
@@ -960,6 +966,21 @@ class ToolRegistry:
                     )
             except Exception as e:
                 logger.warning(f"Could not register browser tool {func_name}: {e}")
+
+    def _register_operator_tools(self):
+        """Register computer-use operator tools.
+
+        Maturity ladder mirrors blast radius: start/stop drive a live
+        browser under the agent's name (3/SUPERVISED); status/screenshot
+        are reads (1/STUDENT). The loop's own guardrails (risky-action
+        hard stops), BrowserAudit rows, and the entry governance gate in
+        core/operator/tools.py apply regardless of tier.
+        """
+        try:
+            from core.operator.tools import register_operator_tools
+            register_operator_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register operator tools: {e}")
 
     def _register_device_tools(self):
         """Register device capability tools with metadata."""

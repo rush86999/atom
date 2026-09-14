@@ -14,6 +14,7 @@ from tools.registry import get_tool_registry
 from core.database import SessionLocal
 from core.byok_endpoints import get_byok_manager
 from core.integration_service import IntegrationService
+from core.operator.legacy_bridge import LEGACY_BROWSER_TOOL_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -362,11 +363,12 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "ingest_message_attachment",
-                    "description": "Extract and ingest an attachment from a message into memory",
+                    "description": "Ingest an email's attachment(s) into memory: fetch them from the connected mailbox and add their text or extracted content (PDF/DOCX/XLSX; images via OCR, textless photos described) so it is recallable. Idempotent — content already in memory is skipped. Pass attachment_id to target one attachment; omit it to ingest every attachment on the message.",
                     "parameters": {
-                        "message_id": "string", 
-                        "attachment_id": "string",
-                        "file_name": "string (optional)"
+                        "message_id": "string",
+                        "attachment_id": "string (optional — omit to ingest every attachment on the message)",
+                        "platform": "string (outlook or gmail; optional — inferred from the connected mailbox)",
+                        "file_name": "string (optional label used when the provider omits the filename)"
                     }
                 },
                 {
@@ -848,25 +850,35 @@ class MCPService(IntegrationService):
                     "parameters": {}
                 },
                 # --- Computer Use (Phase 28) ---
+                # Legacy browser_* advertising removed 2026-09-12: the real
+                # governed browser tools (session-based, from the
+                # ToolRegistry) are already surfaced via get_all_tools, and
+                # these legacy entries duplicated them with a weaker
+                # contract. The legacy NAMES still dispatch (backward
+                # compat) via core/operator/legacy_bridge.py.
                 {
-                    "name": "browser_navigate",
-                    "description": "Navigate a virtual browser to a specific URL",
-                    "parameters": {"url": "string"}
+                    "name": "operator_start_task",
+                    "description": "Start a computer-use operator task: a governed browser session runs the observe-decide-act loop in the background; returns an operator_run_id handle",
+                    "parameters": {
+                        "task": "string (what to accomplish on the web)",
+                        "start_url": "string (optional, opening page)",
+                        "max_steps": "number (optional, step budget)"
+                    }
                 },
                 {
-                    "name": "browser_click",
-                    "description": "Click an element in the virtual browser",
-                    "parameters": {"selector": "string", "x": "number (optional)", "y": "number (optional)"}
+                    "name": "operator_get_status",
+                    "description": "Get status, step log, and result of an operator task run",
+                    "parameters": {"run_id": "string"}
                 },
                 {
-                    "name": "browser_type",
-                    "description": "Type text into a focused element in the virtual browser",
-                    "parameters": {"text": "string", "selector": "string (optional)"}
+                    "name": "operator_get_screenshot",
+                    "description": "Get the last screenshot captured by an operator task run",
+                    "parameters": {"run_id": "string"}
                 },
                 {
-                    "name": "browser_screenshot",
-                    "description": "Capture a screenshot of the current virtual browser state",
-                    "parameters": {}
+                    "name": "operator_stop_task",
+                    "description": "Stop an operator task run and close its browser session",
+                    "parameters": {"run_id": "string"}
                 }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
@@ -1127,27 +1139,45 @@ class MCPService(IntegrationService):
         agent lazy-loads these results as callable tools, so dropping the
         parameter schema here left discovered tools uncallable without
         guesswork (Aug 2026 awareness gap).
+
+        Matching is TOKEN-scored, not whole-query substring: the agent asks in
+        natural language ("ingest an email attachment into memory") and the old
+        ``query in name or query in desc`` matched nothing at all for any
+        multi-word ask — so capabilities the platform had stayed invisible to
+        the very search meant to surface them. Name hits outrank description
+        hits; a whole-query substring still dominates.
         """
         all_tools = await self.get_all_tools()
-        query = query.lower()
+        q = (query or "").lower().strip()
+        if not q:
+            return []
+        tokens = [t for t in re.split(r"[^a-z0-9_.]+", q) if len(t) > 2] or [q]
 
-        matches = []
+        scored: List[tuple] = []
         for tool in all_tools:
-            name = tool.get("name", "").lower()
-            desc = tool.get("description", "").lower()
+            name = str(tool.get("name", "")).lower()
+            desc = str(tool.get("description", "")).lower()
+            score = 0
+            if q in name:
+                score += 100
+            elif q in desc:
+                score += 5
+            score += 10 * sum(1 for t in tokens if t in name)
+            score += sum(1 for t in tokens if t in desc)
+            if score <= 0:
+                continue
+            scored.append((score, tool))
 
-            # Simple keyword matching for now
-            if query in name or query in desc:
-                matches.append({
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "parameters": tool.get("parameters", {}),
-                })
-
-        # Sort by relevance (exact match first)
-        matches.sort(key=lambda x: 0 if query in x["name"].lower() else 1)
-
-        return matches[:limit]
+        # Stable sort: equal scores keep catalog order.
+        scored.sort(key=lambda pair: -pair[0])
+        return [
+            {
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool.get("parameters", {}),
+            }
+            for _, tool in scored[:limit]
+        ]
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -1260,6 +1290,61 @@ class MCPService(IntegrationService):
             logger.debug("external MCP tool lookup failed: %s", ext_err)
 
         return {"error": f"Tool '{tool_name}' not found on any active server."}
+
+    async def _ingest_message_attachment(
+        self, arguments: Dict[str, Any], context: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Fetch a mailbox message's attachment(s) and index their text into
+        memory — the real implementation behind the local-tools
+        ``ingest_message_attachment`` action.
+
+        The action used to be a placeholder that returned "Successfully
+        ingested … 0 knowledge edges" without touching the attachment. That
+        fabricated success is what let an agent report an attachment as
+        accessible while memory still had nothing: the Graph webhook path
+        fetches messages WITHOUT attachment bytes, so binary attachments that
+        arrived on that channel are absent until something pulls them.
+
+        Governance: the per-user ``email_attachment`` autonomy topic gates it
+        (same knob as the ``email_attachment_*`` / ``email_ingest_message``
+        tools), so an owner who pinned that topic to human approval still gets
+        a proposal. Gate lookup failures fail OPEN — this is a reversible
+        memory write, not a send, and a DB hiccup must not stop the agent from
+        reading mail the user pointed it at.
+        """
+        user_id = (
+            (context or {}).get("user_id")
+            or arguments.get("user_id")
+            or "default_user"
+        )
+        agent_id = (context or {}).get("agent_id")
+        try:
+            from core.database import get_db_session
+            from tools.email_attachment_tool import _gate
+
+            with get_db_session() as db:
+                gated = _gate(db, user_id, agent_id)
+            if gated:
+                return gated
+        except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+            logger.debug(
+                "ingest_message_attachment autonomy gate skipped: %s", gate_err
+            )
+
+        from core.email_attachment_ingestion import (
+            ingest_message_attachments_on_demand,
+        )
+
+        return await ingest_message_attachments_on_demand(
+            user_id=user_id,
+            message_id=arguments.get("message_id") or arguments.get("id") or "",
+            attachment_id=arguments.get("attachment_id") or "",
+            platform=arguments.get("platform") or arguments.get("provider") or "",
+            filename_hint=arguments.get("file_name") or "",
+            workspace_id=(context or {}).get("workspace_id")
+            or arguments.get("workspace_id"),
+            agent_id=agent_id,
+        )
 
     async def _check_hitl_policy(self, workspace_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
@@ -1441,22 +1526,6 @@ class MCPService(IntegrationService):
 
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
-        # Phase 41: Helper to check cloud access
-        async def _check_cloud_access(workspace_id: str) -> bool:
-            if workspace_id == "default": return True # Allow for easier testing
-            try:
-                from core.database import SessionLocal
-                from core.models import Tenant, Workspace, PlanType
-                with SessionLocal() as db:
-                    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-                    if not workspace: return False
-                    tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
-                    if not tenant: return False
-                    return tenant.plan_type == PlanType.ENTERPRISE
-            except Exception as e:
-                logger.warning(f"Cloud access check failed: {e}")
-                return False
-
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
         context = context or {}
 
@@ -1471,6 +1540,14 @@ class MCPService(IntegrationService):
                 # (agent_id/tenant_id/...) can't blow up typed tools with
                 # TypeError or duplicate-key collisions.
                 kwargs = dict(arguments)
+                # Operator tools: identity comes from the dispatch CONTEXT
+                # only. A model-supplied user_id/agent_id argument would
+                # otherwise shape run ownership (read/stop another user's
+                # operator run) — strip it; the tools themselves deny
+                # reads when no context identity exists.
+                if tool_name.startswith("operator_"):
+                    kwargs.pop("user_id", None)
+                    kwargs.pop("agent_id", None)
                 try:
                     params = inspect.signature(tool_func).parameters
                     accepts_var_kw = any(
@@ -1676,12 +1753,7 @@ class MCPService(IntegrationService):
                     )
 
             elif tool_name == "ingest_message_attachment":
-                # TODO: Actual ingestion logic is not implemented; returning
-                # a placeholder result with safe defaults.
-                file_name = arguments.get("file_name", "attachment")
-                edges = 0
-                graphrag = {}
-                return f"Successfully ingested attachment '{file_name}'. Extracted {edges} knowledge edges. GraphRAG: {graphrag.get('entities', 0)} entities, {graphrag.get('relationships', 0)} relationships."
+                return await self._ingest_message_attachment(arguments, context)
 
             elif tool_name.startswith("shopify_"):
                 from integrations.shopify_service import ShopifyService
@@ -1847,315 +1919,21 @@ class MCPService(IntegrationService):
 
                 return result
 
-            # --- Computer Use Execution (Dual Mode: Desktop Bridge vs Cloud Headless) ---
-            elif tool_name == "browser_navigate":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                
-                # Phase 41: Enforce Tier Restriction
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers. Defaulting to local Desktop Bridge. Please connect your Desktop App."
-                
-                url = arguments.get("url")
-                
-                if mode == "cloud":
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    # Use session_id from context or agent_id
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.navigate(session_id, url, context)
-                else:
-                    # Default: Desktop Bridge
-                    from core.notification_manager import notification_manager
-                    workspace_id = context.get("workspace_id", "default")
-                    
-                    payload = {
-                        "type": "computer_use",
-                        "action": "navigate",
-                        "url": url
-                    }
-                    
-                    sent = await notification_manager.send_to_desktop(payload, workspace_id)
-                    if sent:
-                        return f"Command sent to Desktop App: Navigate to {url}"
-                    else:
-                        logger.warning(f"No desktop client connected for {workspace_id}. Using simulation.")
-                        return f"[SIMULATION] Navigated to {url}. (Connect Desktop App for real execution)"
-                
-            elif tool_name == "browser_click":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                
-                # Phase 41: Enforce Tier Restriction
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers. Defaulting to local Desktop Bridge."
-                
-                selector = arguments.get("selector")
-                
-                if mode == "cloud":
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.click(session_id, selector, context)
-                else:
-                    from core.notification_manager import notification_manager
-                    workspace_id = context.get("workspace_id", "default")
-                    
-                    payload = {
-                        "type": "computer_use",
-                        "action": "click",
-                        "selector": selector,
-                        "x": arguments.get("x"),
-                        "y": arguments.get("y")
-                    }
-                    
-                    sent = await notification_manager.send_to_desktop(payload, workspace_id)
-                    if sent:
-                        return f"Command sent to Desktop App: Click {selector}"
-                    else:
-                        return f"[SIMULATION] Clicked {selector}. (Connect Desktop App for real execution)"
-                
-            elif tool_name == "browser_type":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                
-                # Phase 41: Enforce Tier Restriction
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers. Defaulting to local Desktop Bridge."
-                
-                text = arguments.get("text")
-                selector = arguments.get("selector")
-                
-                if mode == "cloud":
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.type_text(session_id, selector, text, context)
-                else:
-                    from core.notification_manager import notification_manager
-                    workspace_id = context.get("workspace_id", "default")
-                    
-                    payload = {
-                        "type": "computer_use",
-                        "action": "type",
-                        "text": text,
-                        "selector": selector
-                    }
-                    
-                    sent = await notification_manager.send_to_desktop(payload, workspace_id)
-                    if sent:
-                         return f"Command sent to Desktop App: Type '{text}'"
-                    else:
-                         return f"[SIMULATION] Typed '{text}'. (Connect Desktop App for real execution)"
-                
-            elif tool_name == "browser_screenshot":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Cloud screenshot is restricted to Enterprise tiers."
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.screenshot(session_id, context)
-                else:
-                    from core.notification_manager import notification_manager
-                    workspace_id = context.get("workspace_id", "default")
-                    
-                    payload = {
-                        "type": "computer_use",
-                        "action": "screenshot"
-                    }
-                    
-                    sent = await notification_manager.send_to_desktop(payload, workspace_id)
-                    if sent:
-                         return "Screenshot requested from Desktop App. Check 'My Files' shortly."
-                    else:
-                         return "[SIMULATION] Screenshot captured (mock). (Connect Desktop App for real execution)"
-
-            elif tool_name == "browser_new_tab":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                url = arguments.get("url")
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.new_tab(session_id, url, context)
-                return "Error: browser_new_tab is only available in cloud mode."
-
-            elif tool_name == "browser_switch_tab":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                index = arguments.get("index", 0)
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.switch_tab(session_id, index)
-                return "Error: browser_switch_tab is only available in cloud mode."
-
-            elif tool_name == "browser_click_coords":
-                mode = context.get("computer_use_mode", "desktop")
-                workspace_id = context.get("workspace_id", "default")
-                x, y = arguments.get("x"), arguments.get("y")
-                
-                # Phase 41: Enforce Tier Restriction
-                if mode == "cloud":
-                    if not await _check_cloud_access(workspace_id):
-                        return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    try:
-                        from core.cloud_browser_service import cloud_browser
-                    except ImportError:
-                        return "Error: Cloud browser service not available."
-                    session_id = context.get("agent_id", "default_session")
-                    return await cloud_browser.click_coords(session_id, int(x), int(y), context)
-                return "Error: browser_click_coords is only available in cloud mode."
-
-            elif tool_name == "list_browser_tabs":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.list_tabs(session_id)
-                 return "Error: list_browser_tabs is only available in cloud mode."
-
-            elif tool_name == "browser_save_session":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.save_session(session_id)
-                 return "Error: browser_save_session is only available in cloud mode."
-
-            elif tool_name == "browser_set_proxy":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 server = arguments.get("server")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.set_proxy(session_id, server, arguments.get("username"), arguments.get("password"))
-                 return "Error: browser_set_proxy is only available in cloud mode."
-
-            elif tool_name == "browser_monitor":
-                 mode = context.get("computer_use_mode", "desktop")
-                 active = arguments.get("active", True)
-                 workspace_id = context.get("workspace_id", "default")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     if active:
-                         return await cloud_browser.start_monitoring(session_id, workspace_id)
-                     else:
-                         return await cloud_browser.stop_monitoring(session_id)
-                 return "Error: browser_monitor is only available in cloud mode."
-
-            elif tool_name == "browser_wait_for_selector":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 selector = arguments.get("selector")
-                 timeout = arguments.get("timeout", 5000)
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.wait_for_selector(session_id, selector, timeout, context)
-                 return "Error: browser_wait_for_selector is only available in cloud mode."
-
-            elif tool_name == "browser_extract_content":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 selector = arguments.get("selector")
-                 extract_mode = arguments.get("mode", "text")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.extract_content(session_id, selector, extract_mode, context)
-                 return "Error: browser_extract_content is only available in cloud mode."
-
-            elif tool_name == "browser_upload_file":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 selector = arguments.get("selector")
-                 file_path = arguments.get("file_path")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.upload_file(session_id, selector, file_path, context)
-                 return "Error: browser_upload_file is only available in cloud mode."
-
-            elif tool_name == "browser_download_file":
-                 mode = context.get("computer_use_mode", "desktop")
-                 workspace_id = context.get("workspace_id", "default")
-                 url = arguments.get("url")
-                 filename = arguments.get("filename")
-                 if mode == "cloud":
-                     if not await _check_cloud_access(workspace_id):
-                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     try:
-                        from core.cloud_browser_service import cloud_browser
-                     except ImportError:
-                        return "Error: Cloud browser service not available."
-                     session_id = context.get("agent_id", "default_session")
-                     return await cloud_browser.download_file(session_id, url, filename, context)
-                 return "Error: browser_download_file is only available in cloud mode."
+            # --- Legacy browser tools → governed Playwright delegation ---
+            # (2026-09-12) The old dual-mode dispatch was retired: the cloud
+            # branch imported core.cloud_browser_service (module no longer
+            # exists) and the desktop branch called a notification_manager
+            # method that isn't implemented — with a "[SIMULATION] ..." fake-
+            # success fallback that let agents record navigations that never
+            # happened. Legacy names now execute on the REAL governed path
+            # (SSRF guard, BrowserAudit, selector-confidence) through
+            # core/operator/legacy_bridge.py, or return an explicit
+            # retirement error. Never simulation.
+            elif tool_name in LEGACY_BROWSER_TOOL_NAMES:
+                from core.operator.legacy_bridge import (
+                    dispatch_legacy_browser_tool)
+                return await dispatch_legacy_browser_tool(
+                    tool_name, arguments, context)
 
             # --- CRM & Sales ---
             elif tool_name == "search_contacts":

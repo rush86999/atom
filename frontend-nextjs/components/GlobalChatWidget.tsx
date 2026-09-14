@@ -344,6 +344,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         model: data.model,
                         provider: data.provider,
                         reasoning: data.reasoning || undefined,
+                        // Train-from-chat: `/teach` confirmation or a detected
+                        // directive awaiting one click (backend metadata.teaching).
+                        ...(data.metadata?.teaching
+                            ? { teaching: data.metadata.teaching }
+                            : {}),
                         ...(reasoningTrace.length ? { reasoningTrace } : {}),
                     };
                     setMessages(prev => [...prev, assistantMessage]);

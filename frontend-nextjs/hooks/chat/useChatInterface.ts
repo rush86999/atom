@@ -12,10 +12,13 @@ import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 interface UseChatInterfaceProps {
     sessionId: string | null;
     initialAgentId?: string | null;
+    /** Goal run this chat was opened from (?goal_run_id=…) — carried into
+     * the request context so /teach scopes to the goal being worked. */
+    initialGoalRunId?: string | null;
     onSessionCreated?: (sessionId: string) => void;
 }
 
-export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }: UseChatInterfaceProps) => {
+export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, onSessionCreated }: UseChatInterfaceProps) => {
     const [input, setInput] = useState("");
     // Pending user-submitted images (data URLs) for the next send — routed
     // to vision-capable models via the chat request images field.
@@ -251,6 +254,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 context: {
                     current_page: "/chat",
                     agent_id: initialAgentId,
+                    // Opened from a goal run: carry it so a /teach in this chat
+                    // scopes the lesson to the goal the agent is working
+                    // (deterministic — no inference needed).
+                    ...(initialGoalRunId ? { goal_run_id: initialGoalRunId } : {}),
                     // An open canvas (any canvas app that registers into the
                     // window.atom.canvas registry) rides along so the chat
                     // can co-edit it — same contract the /canvas/{id} panel
@@ -301,6 +308,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             // UI renders a budget-halted alert (not a normal assistant bubble).
             // Mirrors the no_llm_provider structured-error pattern above.
             if (data && data.error_code === "budget_exceeded") {
+                if (processingTimeoutRef.current) {
+                    clearTimeout(processingTimeoutRef.current);
+                    processingTimeoutRef.current = null;
+                }
                 if (data.session_id && data.session_id !== "unknown") {
                     onSessionCreated?.(data.session_id);
                 }
@@ -308,6 +319,29 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     id: "budget-exceeded",
                     type: "error",
                     content: data.message || "Budget limit reached — execution halted.",
+                    timestamp: new Date(),
+                }]);
+                return false;
+            }
+
+            // Turn-budget exhausted: the backend bounded this turn's reply
+            // generation and answered with a structured failure instead of
+            // letting the request run past this client's 120s timeout. Render
+            // it as a retryable error bubble — do NOT fall through to the
+            // success path, which would show an empty reply.
+            if (data && data.error_code === "turn_budget_exceeded") {
+                if (processingTimeoutRef.current) {
+                    clearTimeout(processingTimeoutRef.current);
+                    processingTimeoutRef.current = null;
+                }
+                if (data.session_id && data.session_id !== "unknown") {
+                    onSessionCreated?.(data.session_id);
+                }
+                setMessages(prev => [...prev, {
+                    id: `turn-budget-${Date.now()}`,
+                    type: "error",
+                    content: data.message
+                        || "This turn ran past its time budget before a reply could be generated. Please try again.",
                     timestamp: new Date(),
                 }]);
                 return false;
@@ -346,6 +380,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     provider: data.provider,
                     memoryContext: data.memory_context || undefined,
                     reasoning: data.reasoning || undefined,
+                    // Train-from-chat: the backend attaches `teaching` to the
+                    // turn (a /teach confirmation, or a detected directive
+                    // awaiting one-click confirmation). Rendered inline by
+                    // ChatMessage so both chat surfaces stay identical.
+                    ...(data.metadata?.teaching
+                        ? { teaching: data.metadata.teaching }
+                        : {}),
                     ...(reasoningTrace.length ? { reasoningTrace } : {}),
                 };
                 setMessages(prev => [...prev, agentMsg]);

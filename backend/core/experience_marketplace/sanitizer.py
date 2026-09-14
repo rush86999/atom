@@ -6,7 +6,9 @@ Layers (fail-closed, applied in order):
    packs keep the same token. Unknown identity strings never export verbatim —
    they fall back to a saltless content-hash token.
 2. Credential stripping — reuses P5 ``core.blueprint_sanitizer`` (fail-closed).
-3. PII redaction        — email / phone / URL regex → ``<email>`` / ``<phone>`` / ``<url>``.
+3. PII redaction        — email / phone / URL regex → ``<email>`` / ``<phone>`` / ``<url>``,
+                          plus key-shaped secrets pasted into free text
+                          (sk-…, ghp_…, AKIA…, xoxb-…, Bearer …) → ``<secret>``.
 4. Attribute bucketing  — exact values → envelopes (amount, count, duration, date, ratio).
 5. Leak scan            — post-assembly re-check of every exported string against
    the original identity set (len >= 3, case-insensitive); any hit aborts.
@@ -27,6 +29,35 @@ from core.models import ExperienceRoleRegistry
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"(?:\+?\d{1,3}[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}")
 URL_RE = re.compile(r"https?://[^\s<>\"']+|www\.[^\s<>\"']+")
+
+# ---------------------------------------------------------------------------
+# Key-shaped secret regexes (2026-09-13). strip_credentials removes
+# credential-NAMED dict keys, but a key PASTED into free text (a
+# system_prompt, an override rationale, a playbook step) shipped verbatim
+# — packaging must redact the token shapes themselves. Deliberately
+# conservative: every pattern requires a well-known prefix (sk-, ghp_,
+# AKIA…, xox…) or an explicit secret-word cue followed by a LONG
+# base64-ish run (≥32 chars), so ordinary prose ("the secret of the
+# trade", "token economies") never matches.
+# ---------------------------------------------------------------------------
+SECRET_TOKEN_RES: tuple = (
+    # OpenAI-style keys (incl. sk-proj-/sk-ant-/sk-svc- variants)
+    re.compile(r"\bsk-(?:proj|ant|svc|none)?-[A-Za-z0-9_\-]{16,}"),
+    # GitHub tokens (classic PAT prefixes + fine-grained github_pat_)
+    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"),
+    # AWS access key ids (AKIA/ASIA/ABIA/ACCA + 16 upper alnum)
+    re.compile(r"\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b"),
+    # Slack tokens (xoxb-/xoxp-/xoxa-/xoxo-/xoxr-/xoxs-)
+    re.compile(r"\bxox[a-z]-[A-Za-z0-9\-]{10,}"),
+    # Bearer headers with a substantial credential (JWTs, opaque tokens)
+    re.compile(r"\bBearer\s+[A-Za-z0-9._+\-/=]{20,}"),
+    # Generic "api key:" / "secret=" / "token:" followed by a long
+    # base64ish run — the shape humans paste after the cue word.
+    re.compile(r"\b(?:api[_\-]?key|access[_\-]?key|secret|token|password)"
+               r"\b['\"\s:=]{0,3}[A-Za-z0-9+/_\-]{32,}"),
+)
+SECRET_PLACEHOLDER = "<secret>"
 
 # Keys that always identify a *thing*, never a lesson — dropped outright.
 _IDENTITY_KEYS = {
@@ -168,6 +199,15 @@ def redact_pii(text: str) -> str:
     text = EMAIL_RE.sub("<email>", text)
     text = URL_RE.sub("<url>", text)
     text = PHONE_RE.sub("<phone>", text)
+    return redact_secrets(text)
+
+
+def redact_secrets(text: str) -> str:
+    """Redact key-shaped secrets pasted into free text (sk-…/ghp_…/AKIA…/
+    xoxb-…/Bearer …, and long base64ish runs after key/token/secret cue
+    words). Conservative by design — see SECRET_TOKEN_RES."""
+    for pattern in SECRET_TOKEN_RES:
+        text = pattern.sub(SECRET_PLACEHOLDER, text)
     return text
 
 

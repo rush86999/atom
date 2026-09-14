@@ -19,6 +19,8 @@ const mockApi = {
   fetchSelfDirectedProgress: jest.fn(),
   teachAgent: jest.fn(),
   updateTrainingGuidance: jest.fn(),
+  updateTeachingPoint: jest.fn(),
+  deleteTeachingPoint: jest.fn(),
   completeTrainingSession: jest.fn(),
   approveTrainingProposal: jest.fn(),
   rejectTrainingProposal: jest.fn(),
@@ -187,6 +189,46 @@ describe('TrainingPanel', () => {
     );
   });
 
+  // Regression: the notice alone is not the journey — Journey A step 3 says
+  // the draft APPEARS in the Playbooks ▸ Drafts queue below. PlaybookSection
+  // self-fetches on mount only, so the teach handler must explicitly tell it
+  // to reload; otherwise the UI keeps showing the stale empty queue (the
+  // "Save as playbook did nothing" report).
+  test('teach-as-playbook reloads the Playbooks queue and shows the new draft', async () => {
+    const draft = {
+      id: 'pb-9',
+      name: 'Always ask for the ROI table',
+      description: 'Captured from /teach (agent=agent-1)',
+      trigger_canvas_type: 'email',
+      trigger_keywords: [],
+      steps: ['Always ask for the ROI table'],
+      template_questions: [],
+      source: 'taught' as const,
+      approval_state: 'draft' as const,
+      version: 1,
+    };
+    mockApi.teachAgent.mockResolvedValue({ status: 'ok', playbook_id: 'pb-9' });
+    // Call 1: mount → empty queue. Call 2: post-teach reload → the draft.
+    mockPlaybookApi.listPlaybooks
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([draft]);
+
+    render(<TrainingPanel canvasId="cv-1" canvasType="email" />);
+    await waitFor(() => screen.getByTestId('teach-lesson-input'));
+    await waitFor(() => expect(screen.getByTestId('playbook-empty')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId('teach-lesson-input'), {
+      target: { value: 'Always ask for the ROI table' },
+    });
+    fireEvent.click(screen.getByLabelText('Save as playbook draft'));
+    fireEvent.click(screen.getByTestId('teach-submit'));
+
+    await waitFor(() => expect(mockPlaybookApi.listPlaybooks).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId('playbook-name')).toHaveTextContent('Always ask for the ROI table')
+    );
+  });
+
   test('suggested task goes to the training chat and lands in the lesson plan', async () => {
     mockApi.updateTrainingGuidance.mockResolvedValue({ success: true });
     render(<TrainingPanel canvasId="cv-1" />);
@@ -340,8 +382,8 @@ describe('TrainingPanel teaching points', () => {
   test('renders the journal: count, taught/observed badges, newest first', async () => {
     mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext({
       teaching_points: [
-        { source: 'observation', topic: 'human_correction', text: 'Supervisor fixed the greeting.', learned_at: '2026-08-31T09:00:00+00:00' },
-        { source: 'teacher', topic: 'email tone', text: 'Keep refund emails short.', learned_at: '2026-08-30T10:00:00+00:00' },
+        { id: 'log:1', source: 'observation', topic: 'human_correction', text: 'Supervisor fixed the greeting.', learned_at: '2026-08-31T09:00:00+00:00' },
+        { id: 'log:0', source: 'teacher', topic: 'email tone', text: 'Keep refund emails short.', learned_at: '2026-08-30T10:00:00+00:00' },
       ],
     }));
     render(<TrainingPanel canvasId="cv-1" />);
@@ -362,13 +404,14 @@ describe('TrainingPanel teaching points', () => {
     mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext({
       teaching_points: [
         {
+          id: 'log:0',
           source: 'teacher',
           topic: 'budget',
           text: 'Costs always go in row 3.',
           learned_at: '2026-09-01T10:00:00+00:00',
           canvas: { canvas_id: 'cv-9', name: 'Q3 Budget', canvas_type: 'sheet', label: 'Sheet' },
         },
-        { source: 'observation', topic: 'human_correction', text: 'No canvas on this one.', learned_at: '2026-08-31T09:00:00+00:00' },
+        { id: 'log:1', source: 'observation', topic: 'human_correction', text: 'No canvas on this one.', learned_at: '2026-08-31T09:00:00+00:00' },
       ],
     }));
     render(<TrainingPanel canvasId="cv-1" />);
@@ -383,7 +426,7 @@ describe('TrainingPanel teaching points', () => {
       .mockResolvedValueOnce(makeContext())            // initial: no points yet
       .mockResolvedValue(makeContext({                 // after teach: point landed
         teaching_points: [
-          { source: 'teacher', topic: 'general', text: 'Always cc the team lead on replies', learned_at: '2026-08-31T12:00:00+00:00' },
+          { id: 'log:0', source: 'teacher', topic: 'general', text: 'Always cc the team lead on replies', learned_at: '2026-08-31T12:00:00+00:00' },
         ],
       }));
     mockApi.teachAgent.mockResolvedValue({ status: 'ok' });
@@ -421,6 +464,99 @@ describe('TrainingPanel teaching points', () => {
       expect(mockApi.getCanvasTrainingContext).toHaveBeenCalledTimes(2)
     );
     expect(screen.getByTestId('lesson-objective-input')).toHaveValue('Rewritten objective (unsaved)');
+  });
+});
+
+
+describe('TrainingPanel teaching point editing', () => {
+  const POINTS = {
+    teaching_points: [
+      { id: 'log:1', source: 'observation', topic: 'human_correction', text: 'Supervisor fixed the greeting.', learned_at: '2026-08-31T09:00:00+00:00' },
+      { id: 'log:0', source: 'teacher', topic: 'email tone', text: 'Keep refund emails short.', learned_at: '2026-08-30T10:00:00+00:00' },
+    ],
+  };
+
+  async function renderWithPoints(overrides: Record<string, unknown> = {}) {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(
+      makeContext({ ...POINTS, ...overrides })
+    );
+    render(<TrainingPanel canvasId="cv-1" />);
+    await waitFor(() => expect(screen.getAllByTestId('teaching-point')).toHaveLength(2));
+  }
+
+  it('corrects a taught lesson in place and refreshes the journal', async () => {
+    await renderWithPoints();
+
+    // Newest first: index 1 is the teacher lesson.
+    fireEvent.click(screen.getAllByTestId('teaching-point-edit')[1]);
+    fireEvent.change(screen.getByTestId('teaching-point-text-input'), {
+      target: { value: 'Always CC the team lead on refund emails.' },
+    });
+    fireEvent.change(screen.getByTestId('teaching-point-topic-input'), {
+      target: { value: 'refund policy' },
+    });
+    fireEvent.click(screen.getByTestId('teaching-point-save'));
+
+    await waitFor(() =>
+      expect(mockApi.updateTeachingPoint).toHaveBeenCalledWith('agent-1', 'log:0', {
+        text: 'Always CC the team lead on refund emails.',
+        topic: 'refund policy',
+      })
+    );
+    // The journal re-reads so the card shows the corrected rule.
+    await waitFor(() => expect(mockApi.getCanvasTrainingContext).toHaveBeenCalledTimes(2));
+  });
+
+  it('observed points edit text only — their type is the classification', async () => {
+    await renderWithPoints();
+
+    fireEvent.click(screen.getAllByTestId('teaching-point-edit')[0]);
+    expect(screen.getByTestId('teaching-point-text-input')).toHaveValue('Supervisor fixed the greeting.');
+    expect(screen.queryByTestId('teaching-point-topic-input')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('teaching-point-text-input'), {
+      target: { value: 'Corrected: greet the customer by name.' },
+    });
+    fireEvent.click(screen.getByTestId('teaching-point-save'));
+
+    await waitFor(() =>
+      expect(mockApi.updateTeachingPoint).toHaveBeenCalledWith('agent-1', 'log:1', {
+        text: 'Corrected: greet the customer by name.',
+      })
+    );
+  });
+
+  it('cancel discards the draft without calling the API', async () => {
+    await renderWithPoints();
+
+    fireEvent.click(screen.getAllByTestId('teaching-point-edit')[1]);
+    fireEvent.change(screen.getByTestId('teaching-point-text-input'), {
+      target: { value: 'throw this away' },
+    });
+    fireEvent.click(screen.getByTestId('teaching-point-cancel'));
+
+    expect(screen.queryByTestId('teaching-point-text-input')).not.toBeInTheDocument();
+    expect(mockApi.updateTeachingPoint).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId('teaching-point')[0]).toHaveTextContent('Supervisor fixed the greeting.');
+  });
+
+  it('a supervisor deletes a point after confirming', async () => {
+    window.confirm = jest.fn(() => true);
+    await renderWithPoints();
+
+    fireEvent.click(screen.getAllByTestId('teaching-point-delete')[1]);
+
+    await waitFor(() =>
+      expect(mockApi.deleteTeachingPoint).toHaveBeenCalledWith('agent-1', 'log:0')
+    );
+    expect(mockApi.getCanvasTrainingContext).toHaveBeenCalledTimes(2);
+  });
+
+  it('an employee may edit but never sees the delete control', async () => {
+    await renderWithPoints({ viewer_is_supervisor: false });
+
+    expect(screen.getAllByTestId('teaching-point-edit')).toHaveLength(2);
+    expect(screen.queryAllByTestId('teaching-point-delete')).toHaveLength(0);
   });
 });
 

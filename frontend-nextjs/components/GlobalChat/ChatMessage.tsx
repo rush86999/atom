@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ChatMarkdown from "@/components/canvas/ChatMarkdown";
+import { TeachingNotice, type TeachingNoticeData } from "@/components/chat/TeachingNotice";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 import {
     User,
@@ -68,6 +69,9 @@ export interface ChatMessageData {
     /** The auto-retrieved memory context injected before this answer
      * (memory-transparency drawer, UI gap #5). */
     memoryContext?: string;
+    /** Train-from-chat state for this turn — a `/teach` confirmation or a
+     * detected directive awaiting confirmation (backend metadata.teaching). */
+    teaching?: TeachingNoticeData;
 }
 
 export interface ReasoningStep {
@@ -217,6 +221,14 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                         {/* Reasoning Trace */}
                         {message.reasoningTrace && message.reasoningTrace.length > 0 && (
                             <ReasoningChain steps={message.reasoningTrace as any} />
+                        )}
+
+                        {/* Train-from-chat: a `/teach` confirmation, or a
+                            detected directive awaiting one-click confirmation.
+                            Rendered inside the bubble it belongs to so the
+                            lesson is anchored to the turn that taught it. */}
+                        {!isUser && message.teaching && (
+                            <TeachingNotice notice={message.teaching} />
                         )}
                     </CardContent>
 

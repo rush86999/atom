@@ -7,12 +7,14 @@ could not find an email that sat in the ingested mailbox all along.
 """
 
 import asyncio
+import urllib.parse
 from unittest.mock import AsyncMock
 
 import pytest
 
 from integrations.outlook_service import (
     OutlookService,
+    decompose_graph_kql,
     sanitize_graph_kql,
 )
 
@@ -26,11 +28,28 @@ from integrations.outlook_service import (
         # Lead-form search from the earlier Kellam incident: ':' and ','
         # are KQL operators / noise, stripped; the words survive.
         ("Name : Mark, Kellam", "Name   Mark  Kellam"),
-        # Already-legal queries must pass through untouched.
-        ("Hydmech DM10 bandsaw", "Hydmech DM10 bandsaw"),
+        # Mixed letter+digit tokens (model numbers/SKUs) are quoted — Graph
+        # rejects them bare (live 2026-09-03 WG350DSAV); the old parametrize
+        # expected them unquoted, which pinned the pre-heuristic behavior.
+        ("Hydmech DM10 bandsaw", 'Hydmech "DM10" bandsaw'),
         ("blumetric ca", "blumetric ca"),
         ("O'Brien bandsaw", "O'Brien bandsaw"),
         ("", ""),
+        # Quoted phrases survive VERBATIM (2026-09-12 incident: the quoted
+        # amount was gutted to '" 5 350 00"', which 400'd like the raw form
+        # — the sanitized retry rung never worked for phrase queries).
+        ('"$5,350.00"', '"$5,350.00"'),
+        ('"$ 5,350.00 – 10 %  in stock"', '"$ 5,350.00 – 10 %  in stock"'),
+        # Mixed: address fragments tokenized, the quoted amount preserved.
+        (
+            'joelseguin@seguinmach.com "$5,350.00"',
+            'joelseguin seguinmach com "$5,350.00"',
+        ),
+        # Embedded quotes inside a phrase are stripped; escaped/doubled
+        # quotes degrade to per-word phrases, never crash.
+        ('"say ""hi"" soon"', '"say" "hi" "soon"'),
+        # Unbalanced quotes degrade to bare-token handling, never crash.
+        ('oops "unbalanced', 'oops unbalanced'),
     ],
 )
 def test_sanitize_graph_kql(raw, expected):
@@ -39,6 +58,24 @@ def test_sanitize_graph_kql(raw, expected):
 
 def test_sanitize_never_returns_none():
     assert sanitize_graph_kql("@@") == ""
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Amount punctuation collapses to tokens; digit-bearing tokens are
+        # individually quoted (bare digit-leading terms 400, live 2026-09-12).
+        ("$ 5,350.00 – 10 %  in stock", '"5" "350.00" "10" in stock'),
+        ("$5,350.00", '"5" "350.00"'),
+        # Words come through bare; digit tokens quoted.
+        ("Hydmech DM10 bandsaw", 'Hydmech "DM10" bandsaw'),
+        ("used shear in stock", "used shear in stock"),
+        ("", ""),
+        ("###", ""),
+    ],
+)
+def test_decompose_graph_kql(raw, expected):
+    assert decompose_graph_kql(raw) == expected
 
 
 def test_search_emails_retries_with_sanitized_kql_on_graph_400():
@@ -95,5 +132,195 @@ def test_search_emails_returns_empty_when_both_attempts_fail():
 
     emails = asyncio.run(svc.search_emails("user-1", "jschulz@blumetric.ca"))
 
-    assert svc._make_graph_request.await_count == 2
+    # Raw → sanitized → decomposed: every rung tried before giving up.
+    assert svc._make_graph_request.await_count == 3
     assert emails == []
+
+
+def test_search_emails_ladder_climbs_to_decomposed_phrase_query():
+    """The 2026-09-12 incident shape: an address plus a quoted amount 400s
+    raw; the sanitized form PRESERVES the phrase and must be tried as-is
+    (the old sanitizer gutted it to '" 5 350 00"', also a 400, and the
+    decomposed rung did not exist)."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        if len(forms) < 3:
+            return None  # raw AND sanitized forms rejected by Graph
+        return {"value": [{"id": "fw-rfq-foot-shear", "subject": "FW: RFQ - Foot shear"}]}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    emails = asyncio.run(
+        svc.search_emails(
+            "user-1", 'joelseguin@seguinmach.com "$5,350.00"', quote=False
+        )
+    )
+
+    assert len(emails) == 1
+    assert len(forms) == 3, "decomposed rung must fire after two rejections"
+    # sanitized middle rung kept the quoted amount intact ($ included)
+    assert "%22%245%2C350.00%22" in forms[1], forms[1]
+
+
+def test_search_emails_quote_true_never_double_wraps_embedded_phrases():
+    """quote=True + a query that already contains quotes must not wrap the
+    whole thing again — nested phrase syntax always 400s (the original
+    2026-09-12 repro: '""$5,350.00" joelseguin seguinmach"' hard-failed)."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(svc.search_emails("user-1", '"$5,350.00" joelseguin seguinmach'))
+
+    assert forms, "at least one attempt"
+    for f in forms:
+        assert "%22%22" not in f, f"nested quoting in {f}"
+
+
+def test_search_emails_sender_scoping_prefixes_from_clause():
+    """sender= builds a quoted from:-scoped KQL clause — the form that
+    reliably returns a whole thread where relevance-ranked free-text buries
+    it (live 2026-09-12 Seguin). The clause MUST be quoted: the bare form
+    400s on the ':' (same live check)."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(
+        svc.search_emails(
+            "user-1",
+            "5,350.00 in stock",
+            quote=False,
+            sender="joelseguin@seguinmach.com",
+            max_results=25,
+        )
+    )
+
+    assert len(forms) == 1
+    assert "%22from%3Ajoelseguin%40seguinmach.com%22" in forms[0], forms[0]
+    assert "%24top=25" in forms[0], forms[0]
+
+
+# ─── 2026-09-13 review hardening ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Bare operator words from prose must become literals, not KQL
+        # operators ("invoice OR password" used to silently OR the search).
+        ("invoice OR password", 'invoice "OR" password'),
+        ("terms AND conditions", 'terms "AND" conditions'),
+        ("everything NOT urgent", 'everything "NOT" urgent'),
+        # Lowercase prose words are plain terms (KQL operators are
+        # uppercase); untouched.
+        ("invoice or password", "invoice or password"),
+    ],
+)
+def test_sanitize_quotes_bare_operator_words(raw, expected):
+    assert sanitize_graph_kql(raw) == expected
+
+
+def test_decompose_quotes_bare_operator_words():
+    assert decompose_graph_kql("invoice OR password") == 'invoice "OR" password'
+
+
+def test_search_emails_rejects_injection_shaped_sender():
+    """sender= is interpolated into a quoted KQL clause; a caller-supplied
+    "address" carrying quotes/operators must never enter it (public entry
+    points: api/outlook_routes.py, universal_integration_service)."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(
+        svc.search_emails(
+            "user-1", "5,350.00 in stock", quote=False,
+            sender='x@y" OR body:password',
+        )
+    )
+
+    assert forms, "search must still run (as an unscoped query)"
+    for f in forms:
+        assert "%22from%3A" not in f, f"malformed sender reached the KQL clause: {f}"
+        assert "OR" not in urllib.parse.unquote(f), f"injected operator: {f}"
+
+
+def test_search_emails_aborts_ladder_on_auth_failure():
+    """401/403 means no rung can succeed — the ladder must stop after ONE
+    call instead of burning every form against a dead token."""
+    svc = OutlookService()
+    calls = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        calls.append(endpoint)
+        svc.last_graph_status = 401
+        return None
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    emails = asyncio.run(svc.search_emails("user-1", "jschulz@blumetric.ca"))
+
+    assert len(calls) == 1, f"auth failure must abort the ladder immediately ({len(calls)} calls)"
+    assert emails == []
+
+
+def test_search_emails_aborts_after_consecutive_failures(monkeypatch):
+    """Cross-rung budget: a persistently failing Graph must not be retried
+    indefinitely as ladders grow."""
+    import integrations.outlook_service as osvc
+
+    monkeypatch.setattr(osvc, "_SEARCH_LADDER_MAX_FAILURES", 2)
+    svc = OutlookService()
+    calls = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        calls.append(endpoint)
+        # 400-class failure (NOT auth): each rung is legitimately retryable,
+        # but only up to the budget.
+        svc.last_graph_status = 400
+        return None
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    emails = asyncio.run(svc.search_emails("user-1", "jschulz@blumetric.ca"))
+
+    assert len(calls) == 2, f"budget must cap the ladder at 2 ({len(calls)} calls)"
+    assert emails == []
+
+
+def test_list_recent_emails_uses_lowercase_orderby():
+    """OData is case-sensitive: $orderBy (the old spelling) 400s as an
+    unrecognized query option — must be $orderby like every other site."""
+    svc = OutlookService()
+    forms = []
+
+    async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
+        forms.append(endpoint)
+        return {"value": []}
+
+    svc._make_graph_request = AsyncMock(side_effect=fake_request)
+
+    asyncio.run(svc.list_recent_emails("user-1", max_results=10))
+
+    assert forms
+    assert "%24orderby=receivedDateTime+desc" in forms[0], forms[0]
+    assert "%24orderBy" not in forms[0], forms[0]

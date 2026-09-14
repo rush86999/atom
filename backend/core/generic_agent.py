@@ -273,7 +273,14 @@ class GenericAgent:
 
             _db = _lessons_session()
             try:
-                _lessons = _get_agent_lessons(_db, str(self.id), query=task_input)
+                # goal_id (when this run IS a goal-run step) scopes recall:
+                # lessons taught against that goal apply here, other goals'
+                # deal-specific lessons do not. Ordinary runs pass None and
+                # see the agent's global guidance only.
+                _lessons = _get_agent_lessons(
+                    _db, str(self.id), query=task_input,
+                    goal_id=(context or {}).get("goal_id"),
+                )
             finally:
                 _db.close()
             if _lessons:

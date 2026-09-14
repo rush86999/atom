@@ -17,6 +17,9 @@ interface ChatInterfaceProps {
     sessionId: string | null;
     onSessionCreated?: (sessionId: string) => void;
     initialAgentId?: string | null;
+    /** Goal run this chat was opened from (?goal_run_id=…) — lets a /teach
+     * here scope the lesson to the goal the agent is working. */
+    initialGoalRunId?: string | null;
 }
 
 // P1.4: clickable example prompts shown in the empty state so a brand-new
@@ -29,7 +32,7 @@ const EXAMPLE_PROMPTS = [
     "What can you help me automate?",
 ];
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated, initialAgentId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated, initialAgentId, initialGoalRunId }) => {
     const {
         input,
         setInput,
@@ -60,7 +63,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         uploadFile,
         toast,
         providerError,
-    } = useChatInterface({ sessionId, initialAgentId, onSessionCreated });
+    } = useChatInterface({ sessionId, initialAgentId, initialGoalRunId, onSessionCreated });
 
     // Suggested actions (UI gap #12, revised Aug 30): an action with a URL
     // navigates; a text suggestion PREFILLS the input instead of auto-

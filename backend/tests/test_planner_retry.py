@@ -74,38 +74,54 @@ async def test_both_passes_fail_defaults_to_memory(monkeypatch):
     assert plan.service == "memory"
 
 
-async def test_pinned_planner_failure_retries_unpinned(monkeypatch):
-    """BYOK gap: the pin collapses the handler's options to
-    (openrouter, PLANNER_MODEL) — a single attempt on the workspace's BYOK
-    OpenRouter key. A key that can't serve that model (out of credits,
-    gated, revoked) returns None with NO provider fallback, which used to
-    kill the whole routing leg. The planner must retry unpinned so the
-    handler re-ranks across the tenant's OWN configured providers."""
+async def test_planner_routes_via_bpc_not_a_hardcoded_model(monkeypatch):
+    """The planner must not name a model — routing is BPC's job.
+
+    It used to pin ``("openrouter", PLANNER_MODEL)``. A ``provider_model`` pin
+    collapses the handler's candidate list to that single tuple, so the leg had
+    NO provider fallback at all: the same single point of failure that took the
+    canvas editor down on a transient 429 (2026-09-10). The pin's original
+    justification — unpinned routing preferring an unreachable local Ollama
+    client — is now handled by BPC itself, which excludes connection-dead
+    providers via `_filter_by_health` + the provider circuit breaker.
+    """
     monkeypatch.setattr("core.chat_tool_planner.get_connected_services",
                         lambda user_id: ["outlook"])
     monkeypatch.setattr("core.chat_tool_planner._available_platform_services",
                         lambda: ["memory"])
 
-    class _Handler:
-        clients = {"openrouter": object()}
-
     calls = []
 
     async def _gen(**kwargs):
-        calls.append(kwargs.get("provider_model"))
-        if kwargs.get("provider_model"):
-            return None  # pinned BYOK attempt fails
+        calls.append(kwargs)
         return ToolPlan(use_tool=True, service="outlook", intent="search",
-                        query="jschulz blumetric")
+                        query="jschultz blumetric")
 
     llm = SimpleNamespace(
-        _get_handler=lambda *a, **k: _Handler(),
+        _get_handler=lambda *a, **k: SimpleNamespace(
+            clients={"openrouter": object(), "openai": object()}),
         generate_structured_response=_gen,
     )
-    plan = await plan_tool_use("try again", HISTORY, "user-1", llm)
+    plan = await plan_tool_use("find the blumetric email", HISTORY, "user-1", llm)
+
     assert plan is not None and plan.service == "outlook"
-    assert calls[0] == ("openrouter", "qwen/qwen3.7-flash")
-    assert calls[1] is None  # unpinned retry
+    assert len(calls) == 1, "no pin means there is nothing to retry"
+    assert "provider_model" not in calls[0], (
+        "the planner must let BPC rank models; a pin removes every fallback"
+    )
+    assert calls[0].get("disable_reasoning") is True, (
+        "the pin's real purpose — a cheap non-reasoning plan — is kept on the "
+        "request shape"
+    )
+
+
+async def test_planner_model_constant_is_gone():
+    """A module-level model constant is what made the pin look configurable."""
+    import core.chat_tool_planner as planner
+
+    assert not hasattr(planner, "PLANNER_MODEL"), (
+        "PLANNER_MODEL reintroduces a hardcoded planner model; BPC must choose"
+    )
 
 
 async def test_memory_service_always_available(monkeypatch):

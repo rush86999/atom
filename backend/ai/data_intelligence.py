@@ -147,6 +147,20 @@ class DataIntelligenceEngine:
         mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
         ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
+        # Identity precondition (R90): UniversalIntegrationService resolves a
+        # per-user OAuth token and raises "user_id required for non-system
+        # agents" without one. Callers that cannot name an owner (the
+        # background scan, a context-less dashboard read) must degrade to "no
+        # data" WITHOUT reaching the integration layer at all — otherwise
+        # every poll logs a full traceback and drives circuit-breaker churn
+        # for integrations that were never configured.
+        if not (context or {}).get("user_id") and not (context or {}).get("agent_id"):
+            logger.debug(
+                "Skipping %s fetch: no user_id/agent_id in context",
+                getattr(platform, "value", platform),
+            )
+            return []
+
         # Check if mock mode is explicitly enabled for development
         if mock_mode and ENVIRONMENT == "development":
             return self._mock_platform_connector(platform)

@@ -79,6 +79,7 @@ def repair_known_drift() -> None:
         from core.database import get_db_session
         from core.models import (
             AgentReasoningStep,
+            AgentTemplate,
             Canvas,
             ExperienceItem,
             GoalRun,
@@ -99,5 +100,8 @@ def repair_known_drift() -> None:
             # docs/architecture/GOAL_RUN_ORCHESTRATION.md.
             ensure_sqlite_columns(engine, Canvas)
             ensure_sqlite_columns(engine, GoalRun)
+            # agent_templates.verified_record (goal-run evidence on sellable
+            # listings) — see 20260912_agent_verified_record.
+            ensure_sqlite_columns(engine, AgentTemplate)
     except Exception as e:
         logger.warning(f"known-drift repair skipped: {e}")

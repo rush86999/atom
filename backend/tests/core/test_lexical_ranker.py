@@ -185,8 +185,31 @@ def test_lexical_since_filter(db):
     assert "doc_a" not in ids, "since filter must exclude older docs"
 
 
-def test_lexical_iliike_fallback_when_fts_missing(db_without_fts):
+def test_lexical_self_heals_when_fts_missing(db_without_fts):
+    """Contract change (2026-09-11): a missing FTS index is now provisioned.
+
+    Previously this fixture produced ``lexical_mode == "iliike_fallback"`` —
+    i.e. the lexical leg stayed degraded for the process lifetime. Hybrid search
+    now self-provisions the index on first miss (see
+    ``core/hybrid_search/fts_bootstrap.py``), so the same setup yields a real
+    BM25 leg. The ILIKE path is still covered below for the genuinely
+    unprovisionable case.
+    """
     from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    results = search_documents_lexical(db_without_fts, "quarterly revenue")
+    assert results, "self-healed lexical leg must return matches"
+    assert results[0]["id"] == "doc_fb"
+    assert results[0]["lexical_mode"] == "fts5_bm25"
+
+
+def test_lexical_iliike_fallback_when_fts_unavailable(db_without_fts, monkeypatch):
+    """When FTS genuinely cannot be provisioned, ILIKE must still answer."""
+    from core.hybrid_search import lexical_ranker
+    from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    # Simulate a host where provisioning is impossible (e.g. read-only DB).
+    monkeypatch.setattr(lexical_ranker, "_try_self_heal_fts", lambda db: False)
 
     results = search_documents_lexical(db_without_fts, "quarterly revenue")
     assert results, "fallback must still return matches"
@@ -201,3 +224,36 @@ def test_lexical_never_raises(db):
     assert search_documents_lexical(db, "") == []
     assert search_documents_lexical(db, "a") == []  # too short
     assert search_documents_lexical(db, "!!!") == []
+
+
+def test_iliike_fallback_ors_when_and_matches_nothing(db_without_fts, monkeypatch):
+    """P3-10 (2026-09-13): the ILIKE fallback must mirror the FTS5 path's
+    AND→OR retry. One absent token ('nonexistentterm') must not zero the
+    whole degraded leg when another token matches — ranked by token
+    coverage instead of the full-needle gate."""
+    from core.hybrid_search import lexical_ranker
+    from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    monkeypatch.setattr(lexical_ranker, "_try_self_heal_fts", lambda db: False)
+
+    results = search_documents_lexical(db_without_fts, "quarterly nonexistentterm")
+    assert results, "OR retry did not engage; partial match was lost on the fallback leg"
+    assert results[0]["id"] == "doc_fb"
+    assert results[0]["lexical_mode"] == "iliike_fallback"
+    assert 0.0 < results[0]["score"] <= 1.0
+
+
+def test_iliike_fallback_and_pass_keeps_needle_precision(db_without_fts, monkeypatch):
+    """The OR pass is a RETRY: when the AND prefilter matches, results keep
+    the exact-needle scoring (full-phrase hit scores 1.0)."""
+    from core.hybrid_search import lexical_ranker
+    from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    monkeypatch.setattr(lexical_ranker, "_try_self_heal_fts", lambda db: False)
+
+    results = search_documents_lexical(db_without_fts, "quarterly revenue")
+    assert results[0]["id"] == "doc_fb"
+    # Content-only full-needle hit: 1 content weight over the 3+1 total —
+    # AND-pass scoring. (The OR retry would have scored token coverage 2/2
+    # = 1.0, so 0.25 proves the precise pass produced the result.)
+    assert results[0]["score"] == 0.25

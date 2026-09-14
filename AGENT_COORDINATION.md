@@ -742,3 +742,580 @@ fan-out, w76c re-contracted; affected suites green except stash-verified
 pre-existing failures (22 governance, 11 covpush). Frontend detail.test
 (4) + Sidebar gating; tsc clean. Live-verified on restarted backend — see
 docs/testing/TESTED_FILES_TRACKER.md for the full evidence list.
+
+## 2026-09-10 — GoalRun review bug fixes (4)
+
+Shared files touched: `backend/core/goals/goal_run_service.py`,
+`backend/core/goals/goal_run_executors.py`, `backend/api/goal_run_routes.py`,
+`backend/tests/test_goal_run_routes.py`, `backend/tests/test_goal_run_bugfixes.py` (new).
+
+Review-found defects in the GoalRun feature (39bc24dbe), each with a failing
+test first (`test_goal_run_bugfixes.py`, 7 cases + 1 route case):
+
+1. **Checkpoint cursor double-advance**: `execute_decision` advanced the
+   cursor when a `human_checkpoint` merely CREATED its HITL wait, then
+   `complete_checkpoint` advanced again on approval — an unresolved checkpoint
+   didn't own the cursor, and any run with ≥2 steps after a checkpoint silently
+   skipped the first post-approval step. Fix: `_advance_cursor` refuses to move
+   while the cursor step is an unresolved `human_checkpoint`; the single move
+   happens in `complete_checkpoint`.
+2. **`/api/goal-runs/events` had no supervisor gate**: any authenticated member
+   could inject events that wake/advance waiting runs (router + executor
+   actions). Fix: `_require_supervisor`, consistent with every other
+   run-mutating route.
+3. **Approving a guardrail hold was a no-op**: `_apply_guardrails`
+   (replan budget / stuck detector), `_apply_wait_ceiling`, `_finish_done`
+   (criteria-failed DONE) and the major-replan gate rewrote the decision to
+   `ASK_HUMAN` and discarded the original; `execute_decision` had no
+   `ASK_HUMAN` branch, so `resume(approved=True)` executed nothing and the run
+   re-held forever. Fix: hold carries `original_decision`; `resume` stamps
+   `human_approved`; `execute_decision` replays the original with the guardrail
+   bypassed (major-replan magnitude re-check skipped, `_finish_done` treats
+   human approval as the verification).
+4. **Dead code after `return`** in `GoalRunExecutors._branch_new_canvas`: the
+   `SKIP`/`WAIT`/`ASK_HUMAN`/`DONE`/`REPLAN` block was unreachable, so
+   `execute()` returned `None` for `SKIP`. Fix: moved the branches into
+   `execute()`.
+
+**Tests**: `tests/test_goal_run_bugfixes.py` (8) + route gate case; all 8
+GoalRun suites 79 passed. Neighbor suites `chat_orchestrator`/`canvas_crud`
+162 passed with 1 pre-existing failure
+(`test_covpush_w115_chat_orchestrator.py::TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`,
+`KeyError: 'sticky_hint'` — stash-verified identical on clean main, unrelated).
+
+**Restart**: `scripts/restart_backend.sh` run — :8001 healthy on pid 82870
+with these fixes live. Another agent restarting :8001 afterwards is fine.
+
+## 2026-09-10 ~09:55 EDT — Chat-history rehydration hardening (4 defects in 01d3b0caf)
+
+Verification follow-up on `01d3b0caf` ("chat history survives backend restarts").
+The reconnect re-hydration design was sound, but the commit left a RED suite
+behind and three silent-failure paths still open. TDD throughout — every fix
+below had a failing test first (and the one non-obvious guard was
+non-vacuity-checked by temporarily restoring the old behavior).
+
+**Files (mine, committed)**: `frontend-nextjs/lib/retry.ts`,
+`lib/__tests__/retry.test.ts`, `components/GlobalChatWidget.tsx`,
+`components/__tests__/GlobalChatWidget.test.tsx`.
+
+1. **Red suite (blocking, shipped broken).** `tests/pages/canvas-detail.test.tsx`
+   was failing 1/49: the commit narrowed the hydration catch from a catch-all
+   `setChatSessionId(null)` to a **403-only** drop, but the test still mocked the
+   stale session as a bare `throw new Error("403")` — no `err.response.status`,
+   so it fell into the new transient branch and the dead id was reused. Fixed the
+   fixture to an axios-shaped 403 and added a companion test pinning the new
+   behavior: a 502 keeps the binding, renders "Couldn't load chat history"
+   instead of the fresh placeholder, and Retry re-pulls.
+2. **"Honest failure" missed the likeliest restart mode.**
+   `fetchWithRetry` RETURNS the last transient Response (it does not throw), so
+   the widget's `setHistoryError(res === null)` stayed false for 502/503/504 — a
+   restart behind a proxy still produced a silent welcome-only transcript. Now
+   any non-ok, non-403 response is a failure.
+3. **`withRetry` rethrew a STALE error.** Value and error were tracked in
+   separate channels, so attempt 1 throwing + attempts 2–3 returning 503 threw
+   attempt 1's error: the same outage rendered differently depending on whether
+   any attempt happened to throw. Now the LAST outcome wins across both channels.
+4. **Reconnect dropped mid-hydration.** The reconnect effect bailed on
+   `isLoading`, so a restart landing during the initial fetch was swallowed until
+   a manual reload. Replaced with a `reconnectPending` flag drained in
+   `loadSessionHistory`'s `finally`. Plus: canvas `resolveChatSession()` now
+   RETURNS the resolved id — the reconnect effect read `chatSessionIdRef.current`
+   immediately after awaiting it, before `setChatSessionId` had flushed (null
+   right after a restart), silently skipping the re-pull.
+
+**Verification**: `lib/__tests__/retry.test.ts` (14) + `GlobalChatWidget.test.tsx`
+(29) + `tests/pages/canvas-detail.test.tsx` (53) + 2 provider-config suites =
+**146 passed**. Broad sweep `components/__tests__` + `lib/__tests__`:
+**2256 passed / 104 suites**; sole failure is
+`components/__tests__/outlook-probe.test.tsx::probe empty-state compose` — an
+unrelated scratch probe that shares no module with this change, fails in
+isolation, and whose own commit `788740a65` documents its flakiness.
+`tsc --noEmit` clean (exit 0).
+
+⚠️ **Concurrent-session collision on `pages/canvas/[id].tsx` +
+`tests/pages/canvas-detail.test.tsx`**: another session is mid-flight adding the
+resizable canvas side panel (`hooks/useResizablePanel.ts`,
+`components/ui/ResizableDivider.tsx`). Both changesets now coexist in those two
+files and the merged result passes (53 canvas-detail tests = 49 original + 3
+resize + 1 hydration). I left those two files **uncommitted** rather than commit
+the other session's in-flight work — my canvas-side fix (item 4) rides in the
+working tree and will land with that session's commit, or on request.
+
+---
+
+## 2026-09-10 — Canvas Training tab: editable teaching points
+
+**What changed**: the "Teaching points" journal in the canvas right-panel Training
+tab is now editable in place. A lesson is PERMANENT (`get_agent_lessons` injects
+it into every chat turn / canvas edit plan / task execution), so a typo'd,
+duplicated, or superseded rule previously could only be taught around.
+
+- **Identity**: each log entry gains a stable `id` at write time (4 write paths in
+  `core/student_learning_service.py`). Legacy entries without one are addressed by
+  the positional handle `log:<index>`, which stops resolving once an edit mints a
+  real uuid (a stale index can never rewrite a different lesson after the log
+  shifts). `GET /api/maturity/training/context` → `teaching_points[].id`.
+- **API**: `PATCH /api/maturity/agents/{id}/teaching-points/{point_id}` (text, and
+  topic for teacher lessons only — an observation's type IS its classification and
+  flipping `human_correction` → non-permanent would silently change work-time
+  application). Edit is open to any signed-in human, parity with `POST /teach`.
+  `DELETE` is supervisor-gated (TEAM_LEAD+, R65) since removing standing guidance
+  is destructive. Both 404 on foreign-tenant agents via the same tenant guard the
+  context read uses.
+- **UI**: `components/canvas/TrainingPanel.tsx` — Pencil on every point, Trash2
+  only for supervisors (confirm first), a `· edited` marker, journal reload after
+  every mutation.
+
+**Verification**: `tests/test_teaching_point_editing.py` 15 new + `test_canvas_training_context.py`
+11 + `test_student_learning_service.py` 40 = 66 passed; learning-service-touching
+suites **311 passed / 0 failed**; frontend canvas suites **983 passed** (re-run after the
+concurrent "Save as playbook" session merged edits into the same `TrainingPanel.tsx` /
+`maturity-api.ts` — both feature sets coexist); `tsc --noEmit` 0.
+
+**Live E2E** (backend restarted, pid 60914 on :8001): a throwaway probe agent created in
+the dev DB, driven through the live API with a minted admin token — teach → journal read
+(uuid) → PATCH (text/topic corrected, `edited_at` stamped) → DELETE as `member` (403) →
+DELETE as admin (200, gone) → probe row deleted. Real agent rows untouched. The Next.js
+dev server (:3000) recompiled; the served chunk carries the new controls.
+
+✅ **Two pre-existing HEAD failures fixed here too** (each verified failing with my changes
+stashed, then repaired to pin the real intent — not silenced):
+`test_chat_assistant_and_teaching.py::TestTeachEndpoint::test_teaching_non_student_returns_skip_not_error`
+(now `test_teaching_non_student_records_standing_guidance`) and
+`test_installation_adaptation.py::test_playbook_states_and_retrieval` (hybrid retrieval,
+`2fafc176a`, makes canvas-type match a recall path — the assertion now pins the draft's
+absence instead of an empty result). Both suites green (31 passed). Files touched:
+`core/student_learning_service.py`, `api/agent_maturity_routes.py`, `lib/maturity-api.ts`,
+`components/canvas/TrainingPanel.tsx`, plus `tests/test_installation_adaptation.py` /
+`tests/api/test_chat_assistant_and_teaching.py` (did NOT touch `pages/canvas/[id].tsx` —
+the resizable-panel session owns it).
+
+
+---
+
+## R90 — Chat `/api/chat/message` 120s axios timeout (2026-09-10)
+
+**Symptom**: the Web GUI chat died with `AxiosError: timeout of 120000ms exceeded`
+at `frontend-nextjs/hooks/chat/useChatInterface.ts:246`. Server log
+(`backend/logs/uvicorn_8001_restart.log`) shows the turn **completed** — long
+after the browser gave up.
+
+**Evidence** (`[stage-timing] reply generation` in that log): 128.7s, 196.5s,
+245.5s, 392.4s for turns whose client budget is 120s. Preceded each time by
+`chat streaming produced no tokens — falling back` and, in one case, a
+`MODEL DRIFT: openrouter/z-ai/glm-5.3-flash now resolves to 'qwen/qwen3.7-flash'`
+warning — a reasoning-only model whose visible `delta.content` never arrives.
+
+**Root causes (3, all fixed)**:
+1. `BYOKHandler.stream_completion` treated a stream that yielded **zero visible
+   tokens** as a SUCCESS and returned, so the caller re-ran the SAME model on the
+   non-streaming path. The non-streaming path already had the correct contract
+   (`_EmptyCompletionError` on empty visible content → next ranked provider);
+   streaming did not. Now it raises `_EmptyCompletionError` and falls through.
+2. The reply leg had **no overall deadline**. The provider SDK timeout is 120s
+   (= the client timeout), and the turn can issue up to 3+ full provider calls
+   (stream → non-streaming fallback → guard regeneration), so the server could
+   never answer in time. Added `ATOM_CHAT_TURN_BUDGET_SECONDS` (default 95s,
+   `0` = unbounded) enforced on the stream loop, the non-streaming fallback, and
+   all six guard regenerations; exhaustion returns a structured
+   `turn_budget_exceeded` error the frontend renders as a retryable bubble.
+3. `IntelligenceBackgroundWorker` (300s lifespan loop) refreshed
+   salesforce/jira/asana with `context={}` when no `IntegrationToken` existed,
+   producing ~6,400 `user_id required for non-system agents` ERROR logs +
+   tracebacks over 8 days and circuit-breaker churn. It now skips unconfigured
+   platforms; `DataIntelligenceEngine._get_platform_data` also refuses to reach
+   `UniversalIntegrationService` without an identity. Related fix:
+   `universal_integration_service` missing `await` on the async
+   `circuit_breaker.get_stats()` made the circuit-open envelope raise
+   `TypeError: 'coroutine' object is not subscriptable` instead of returning.
+
+**Verified**: `tests/test_r90_stream_empty_and_turn_deadline.py` (13 new) — red
+first, then green. Regression set (`test_byok_handler`, `test_chat_orchestrator`,
+w107/w109/w115 chat-orchestrator, w92 chat-routes, r79 llm timeout) = **294
+passed / 6 failed, identical failure set to HEAD** (pre-existing: `TestRoutingStats`
+×4, `TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`,
+`TestGetChatHistory::test_db_fallback`). Frontend: 1 new Jest test in
+`useChatInterface.test.ts`; `npx tsc --noEmit` clean.
+
+**Note for the next agent**: while fixing I introduced and caught a scope bug —
+`_turn_t0` is local to `process_chat_message`, not `_get_qwen_response`; the
+budget anchor inside the reply leg is `_plan_t0`. If you add another LLM call to
+that leg, wrap it in `_guarded_regen(...)` (guards) or `_remaining_budget(_plan_t0,
+_turn_budget)` (primary calls) so the turn stays inside its budget.
+
+## 2026-09-10 — GoalRun journey: start & finish gap closure (5 defects)
+
+Full trace of "start → work → finish a long-running goal for an agent"
+(`docs/architecture/GOAL_RUN_ORCHESTRATION.md`) end to end. The GoalRun
+engine was sound; the START of the journey had three severed links and the
+finish had two dead ends. Every fix has a failing test first
+(`backend/tests/test_goal_journey_gaps.py`, 9 cases; frontend +14 RTL).
+
+1. **The WHAT had no user-facing surface (severed link #1).** `GoalObjective`
+   was creatable only by the agent action `goals.create`; nothing listed goals
+   and no HTTP route existed, so a supervisor could not name the goal that
+   `POST /api/goal-runs` requires (unknown id → 404). Fix: `api/goal_routes.py`
+   — `GET /api/goals`, `GET /api/goals/{id}` (any signed-in), `POST /api/goals`
+   (supervisor). Registered in `main_api_app.py`.
+2. **No way to start a run (severed link #2).** `lib/goal-run-api.ts` had no
+   create call; `/goal-runs` had no start affordance. Fix:
+   `components/goals/StartGoalRunDialog.tsx` (pick an existing goal or create
+   one inline, bind role/agent/supervision mode) + `createGoalRun`/`createGoal`/
+   `listGoals` client calls + a "New goal run" button on the index.
+3. **A created run did not run (severed link #3).** `POST /api/goal-runs`
+   activated the row and returned — no loop turn ever ran, so a fresh run sat
+   `active` with a cursor and produced nothing until a human found "Advance".
+   Fix: a `start: bool = True` field on create; the route now awaits the first
+   `advance()` (fault-isolated — the run row survives a kickoff failure).
+   Training mode therefore holds the VERY FIRST decision for approval, exactly
+   as §6 Journey B describes. `start:false` keeps the dormant contract.
+4. **Finish was invisible (dead end #1).** `/goal-runs/[id]` loaded once and
+   never refreshed, so a run that wakes/finishes on its own stayed stale until a
+   manual reload. Fix: quiet 10s polling while non-terminal (15s on the index),
+   paused while the tab is hidden.
+5. **Terminal runs offered no-op actions (dead end #2).** Advance on a finished
+   run returned 200 `{advanced:false}` and the UI toasted success; Cancel
+   409'd. Fix: `advance` now 409s on terminal with a clear message; the UI
+   hides Advance/Cancel/mode-switcher for terminal runs and offers Distill for
+   `achieved`/`failed`/`cancelled` (the doc's "finished run").
+
+**Also fixed (root-caused while tracing):** `_service` in `goal_run_routes.py`
+called `resolve_workspace_id(getattr(current_user, "workspace_id", None))` —
+passing the raw **string**, whose `getattr` misses and silently falls back to
+`"default"`. Goals and runs could therefore land in different workspaces. Now
+passes the user object (all 5 call sites).
+
+**Files (mine):** `backend/api/goal_routes.py` (new),
+`backend/api/goal_run_routes.py`, `backend/main_api_app.py`,
+`backend/tests/test_goal_journey_gaps.py` (new),
+`backend/tests/test_goal_run_routes.py` (3 tests re-contracted to the kickoff
+contract), `frontend-nextjs/lib/goal-run-api.ts`,
+`frontend-nextjs/pages/goal-runs/{index,[id]}.tsx`,
+`frontend-nextjs/components/goals/StartGoalRunDialog.tsx` + `__tests__/`,
+`frontend-nextjs/tests/pages/goal-runs/*`,
+`docs/architecture/GOAL_RUN_ORCHESTRATION.md`.
+
+**Verification**: backend goal suites 81 passed against **HEAD's service**
+(stashing the other session's uncommitted `goal_run_service.py`/
+`goal_run_executors.py` bugfixes) so the commit is self-consistent; 88 passed
+with them present. Frontend: 26/26 goal-run tests; `tests/pages` +
+`components/goals` + `components/layout` = 2599 passed, sole failure
+`integrations-salesforce.test.tsx` (22) is **pre-existing** — reproduced with my
+frontend changes stashed (22 failed on clean tree). `npx tsc --noEmit` exit 0.
+
+**Concurrent-session note:** the working tree already carried another session's
+uncommitted GoalRun review bugfixes (`goal_run_service.py`,
+`goal_run_executors.py`, `test_goal_run_bugfixes.py`) plus a `/events`
+supervisor gate in `goal_run_routes.py`/`test_goal_run_routes.py`. I staged my
+hunks only (`git apply --cached` with the foreign hunks filtered) and left
+theirs uncommitted, per the precedent in this file.
+
+---
+
+## R90b — Agent canvas edits died on a rate-limited PINNED planner (2026-09-10)
+
+**Symptom**: user asked the agent "add vipul and chandrakant to cc and fix table
+styling" on an open email canvas. The agent replied *"I couldn't reach the model
+I use to plan canvas edits just now, so nothing was changed."*
+
+**Root cause (evidence, `uvicorn_8001_restart.log` ~line 1514264)**:
+OpenRouter returned **429 Too Many Requests** —
+`qwen/qwen3.7-flash is temporarily rate-limited upstream`. That model is the
+canvas editor's PIN (`CANVAS_EDITOR_MODEL`, `chat_canvas_editor.py:1043`,
+`provider_model=("openrouter", …)`).
+
+A `provider_model` pin is implemented by **collapsing the candidate list to one
+tuple** (`byok_handler.generate_structured_response`: `options = [provider_model]`).
+That is deliberate recursion control for MoA samples — but for a top-level
+caller it also deletes **every provider fallback**. So one upstream 429 killed
+the entire edit leg: the structured call failed, the raw-JSON rescue re-issued
+on the *same* rate-limited model, `plan_canvas_edit` raised
+`CanvasPlanUnavailable`, and the honest-failure path answered "nothing was
+changed" for the whole rate-limit window — despite the workspace having other
+healthy providers configured.
+
+**Fix — one shared contract** (`core/llm/pinned_planning.py`):
+`build_provider_model_pin()` / `pinned_structured_call()`. Try the pin once; if
+it returns `None` **or raises**, retry ONCE unpinned so routing re-ranks across
+the workspace's own providers (OAuth → BYOK → env). Both failing returns `None`
+so each caller keeps its own failure contract. The retry is skipped when no pin
+applied, so unpinned workspaces pay a single call.
+
+**Wired into** (all previously hard-pinned with the same exposure):
+`chat_canvas_editor.py` (`plan_canvas_edit` + its replace re-ask,
+`plan_canvas_action`), `chat_tool_planner.py` (`_structured_with_fallback` — which
+additionally did NOT catch a raised provider error and retried even with no pin),
+`knowledge_extractor.py`, `sheet_dataset_service.py` (NL→SQL read leg).
+
+**Verified**: `tests/test_chat_canvas_editor_pin_fallback.py` (6, red-first) +
+`tests/test_pinned_planning_rerank.py` (2). The rerank test proves the retry
+genuinely reaches a DIFFERENT provider (fake instructor records the wrapped
+client): the pinned attempt tried only `qwen/qwen3.7-flash`, the unpinned call
+went straight to `gpt-4o` and never revisited the dead model. A simulation of the
+exact live incident (pin raises 429 → unpinned retry returns the plan) now
+produces the edit instead of giving up.
+
+**Regression sweep**: 184 passed; the 1 failure
+(`test_chat_tool_planner_web.py::test_platform_services_present_with_key`) and the
+27-failure `test_planner_storage_memory_supplement` batch-run pollution were both
+proven identical with my changes stashed.
+
+**Note for the next agent**: do NOT add a bare `provider_model=` pin to a new
+top-level caller — route it through `pinned_structured_call`. A bare pin has no
+provider fallback by construction, so any transient upstream 429/5xx takes the
+whole feature down. (Canvas `plan_canvas_edit` is also on a hard 30s
+`asyncio.wait_for` in `chat_orchestrator.py`, which a rate-limited retry can
+still exhaust — the fix makes a healthy retry cheap, it does not widen that
+budget.)
+
+## 2026-09-10 — GoalRun access is role-based, generalized to any business (commit 2d44fc125)
+
+**Follow-up to the journey commit (ece9384c0).** Owner clarification: "goal
+run should be role based — anyone who communicates with outside the org needs
+to be able to run it like quoting a lead. team lead and above can have more
+freedom while lower level can be restricted to role based runs for everyday
+work", and "what I provided was an example and it needs to be generalized to
+any business type."
+
+The first cut gated create/work at `team_lead+` — wrong for the everyday
+worker. Now a ladder (doc §3.8):
+
+- **member+**: start a run in ROLE-BASED shape only — role required or DERIVED
+  from the bound agent's `specialty`/`category` (business data, no hardcoded
+  industry), plan seeded from that role's approved playbooks (hand-authored
+  plan = supervisor-only), no `autonomous`, governance knobs stripped; and act
+  on runs **they own** (advance / resume / checkpoint / cancel). Owner
+  approves their own held decisions — a rep signs off their own quote.
+- **team_lead+**: org-shaping acts — arbitrary plans/goals, any mode, mode
+  changes, promotion evidence, distillation, `/events` inbox, any run.
+- **viewer/guest**: read-only.
+- **Goals**: member+ may create the goal for a piece of work (title/desc);
+  criteria/key_results/target_date stay supervisor-grade (they shape
+  termination for every agent).
+
+**Generalization on the frontend**: `useUserRole` now exposes `userId` (owner
+gating needs an id); the start dialog suggests roles from the workspace's own
+agents' categories and fills the role from the chosen agent; `autonomous` is
+hidden and the role required for members. No sales assumptions remain.
+
+**Files (mine):** `backend/api/goal_routes.py`, `backend/api/goal_run_routes.py`,
+`backend/tests/test_goal_journey_gaps.py` (+8 `TestRoleBasedRunAccess`),
+`backend/tests/test_goal_run_routes.py`, `frontend-nextjs/lib/user-role.ts`
+(+`fetchCurrentUser`, `userId`, `MEMBER_MIN_LEVEL`),
+`frontend-nextjs/lib/goal-run-api.ts` (`created_by`),
+`frontend-nextjs/components/goals/StartGoalRunDialog.tsx` + tests,
+`frontend-nextjs/pages/goal-runs/{index,[id]}.tsx` + tests,
+`docs/architecture/GOAL_RUN_ORCHESTRATION.md` (§3.8).
+
+**Verification**: red-first (the supervisor-only gate made the new member
+cases fail), then backend 149 passed (goal suites + role-journey batch4);
+89 passed against HEAD's service with the concurrent session's bugfixes
+stashed. Frontend goal-run 33/33; broad sweep 2606 passed, only the
+pre-existing `integrations-salesforce` (22). `tsc --noEmit` 0.
+
+**Design note for the next agent**: `_require_run_access` (owner OR
+supervisor) is the shared gate for run-mutating routes; `_require_supervisor`
+remains for the org-shaping ones (mode/distill/events/promotion). If you add a
+run route, pick deliberately between them — do not copy `_require_supervisor`
+by reflex.
+
+---
+
+## R90c — Canvas editor no longer hardcodes a model (BPC routes) — 2026-09-10
+
+**Follow-up to R90b.** R90b made a *failing pin* fall back to unpinned routing.
+That was the wrong shape: the user's correction is that **the canvas editor
+should not name a model at all — routing is BPC's job**. A pin is a single
+point of failure, and my fallback only masked it behind an extra round trip.
+
+**Removed**:
+* `CANVAS_EDITOR_MODEL` / `ATOM_CANVAS_EDITOR_MODEL` (deleted entirely).
+* The local `_structured_with_unpinned_retry` wrapper.
+* All three `provider_model=("openrouter", …)` pins — `plan_canvas_edit`, its
+  replace re-ask, and `plan_canvas_action`. The raw-JSON rescues
+  (`_raw_json_replace_plan`, `_raw_json_action_plan`) now receive `{}`.
+
+**Replaced by** `chat_canvas_editor._plan_structured`, which calls the shared
+`core.llm.pinned_planning.pinned_structured_call` with **no pin** — BPC ranks
+the candidates normally.
+
+**Why the pin existed, and why it is now safe to drop**: the pin was purely a
+*shape* fix. Its predecessor (`minimax-m3`) is a reasoning model that ignored
+`disable_reasoning` and burned 1,100–2,000 hidden tokens / 30–75s on a 60-line
+planning answer (measured 2026-09-01), blowing the stage's 30s budget. That
+shape is preserved by `disable_reasoning=True` + `temperature=0` on the request,
+and the docstring at the top of `chat_canvas_editor.py` records the reasoning so
+the constant is not reintroduced. (A model that rejects the disable flag is a
+separate handler-level concern — see the `glm-5.3-flash` 400 note below.)
+
+**Verified live** (backend restarted, pid 12843): a real agent canvas-edit turn
+ran in **11.2s** (vs 26.5s pinned) with `intent: canvas_edit`, `updated: True`,
+and NO pinned attempt in the log. BPC ranked and tried
+`glm-5.3-flash → qwen3.8-flash → gpt-5-mini → kimi-k2.5` dynamically.
+
+**Tests**: new `tests/test_canvas_editor_bpc_routing.py` (6) asserts no
+`provider_model` on either planner, that the non-reasoning shape is still
+requested, that there is exactly ONE call (nothing to retry), that
+`CanvasPlanUnavailable` still fires when BPC has nothing, and that
+`CANVAS_EDITOR_MODEL` stays deleted. The obsolete
+`test_chat_canvas_editor_pin_fallback.py` was **deleted** (it encoded the pin
+contract); its still-valid invariants moved into the new file. The one existing
+test that asserted the pin
+(`test_plan_builds_prompt_with_canvas_content_and_pins_model`) was retitled to
+`..._and_routes_via_bpc` and now asserts the opposite. Final sweep: **139 passed**.
+
+**Still pinned (deliberately)**: `chat_tool_planner` and `knowledge_extractor`
+(bulk background extraction stayed pinned because unpinned BPC sent ~800
+calls/6h to frontier models at 26–30x cost). Both now route through
+`pinned_structured_call`, so an unavailable pin degrades to BPC routing. The
+tool planner is a candidate for the same treatment — BPC now excludes
+connection-dead providers (`_filter_by_health` + provider circuit breaker),
+which was the original reason for its pin.
+
+**Separate live finding (not fixed)**: `z-ai/glm-5.3-flash` rejects
+`disable_reasoning` with a 400 ("Reasoning is mandatory for this endpoint"), and
+the handler's retry-without-`extra_body` path did NOT fire — only one HTTP 400
+appears per failure, then the stage moves to the next provider. 13 occurrences
+in the live log. Harmless but wasted; worth a learned `_REASONING_MANDATORY`
+exclusion set mirroring `_TOOLCHOICE_UNSUPPORTED`.
+
+---
+
+## R90d — remaining pin sites removed + reasoning-mandatory recovery (2026-09-10)
+
+Follow-on to R90c, applying the same principle everywhere: **routing is BPC's
+job; a hardcoded model is a single point of failure.**
+
+### 1. Tool planner pin removed (`chat_tool_planner.py`)
+`PLANNER_MODEL` and `_planner_llm_kwargs` deleted; `_structured_with_fallback`
+now calls `pinned_structured_call(call_kwargs=None)`. The pin's original
+justification (unpinned routing preferring an unreachable local Ollama client)
+is obsolete: BPC excludes connection-dead providers via `_filter_by_health`
++ the provider circuit breaker. One call now, not two — the old "unpinned retry"
+existed only to undo the pin.
+
+### 2. KG extractor pin removed (`knowledge_extractor.py`)
+`KG_EXTRACTION_MODEL` deleted. This was the ONE site with a real cost reason
+(bulk ingestion ~800 calls/6h once routed to frontier models at 26–30x). The
+cost control now lives in the REQUEST instead of a model name: the call passes
+`task_type="extraction"`, which applies BPC's own cap (`max_quality 90` +
+o-series exclusion). **Verified against the live pricing cache** that this keeps
+the ranked candidates flash-class and drops the priciest option, where the same
+query with no `task_type` topped out at glm-5.3-flash. `ATOM_KG_EXTRACTION_MODEL`
+remains as an OPTIONAL operator override (`provider:model`, or bare model paired
+with openrouter); unset = BPC routes. No in-code default.
+
+### 3. Sheet NL→SQL leg (`sheet_dataset_service.py`)
+Was pinned to `ATOM_TOOL_PLANNER_MODEL` (default `qwen/qwen3.7-flash`). Now BPC
+routed, with `ATOM_SHEET_SQL_MODEL` as the optional override.
+
+### 4. Reasoning-mandatory recovery actually works now (`byok_handler.py`)
+**Real bug, found by instrumenting the live failure.** Models like
+`z-ai/glm-5.3-flash` (OpenRouter) REQUIRE reasoning and reject the disable switch
+with `400 Reasoner is mandatory…`. `generate_structured_response` had an except
+block whose whole job was to retry without `extra_body` — but its log line
+appeared **0 times** in the live log and every attempt failed with the 400.
+
+Cause: that retry was the THIRD of three **sibling** `except` clauses, and the
+first two ended in `else: raise` on the assumption that a re-raised exception
+chains into the next sibling. It does NOT — only one clause body runs, so the
+reasoning and logprobs recoveries were dead code.
+
+Fix: replaced the sibling chain with a **sequential recovery loop**. Each
+recoverable rejection (thinking-mode `tool_choice` → reasoning-mandatory →
+logprobs) strips exactly ONE kwarg, memoizes the pair, and `continue`s; the loop
+cannot re-trigger itself. Added `_REASONING_MANDATORY` memo (mirrors
+`_TOOLCHOICE_UNSUPPORTED`) so later calls skip sending the doomed switch
+entirely, and the `extra_body` decision now consults it up front.
+
+⚠️ The logprobs arm is deliberately narrow (`"logprobs are not supported" in
+err`). An earlier, broader version (`logprobs in kwargs` → retry) made
+`tests/unit/llm/test_cascade_routing.py` fail by swallowing genuine schema
+errors — 4 tests caught it. Keep it specific.
+
+**Verified live**: after restart, a real canvas-edit turn logged
+`openrouter/z-ai/glm-5.3-flash requires reasoning and rejects the disable switch
+— retrying once without it and memoizing the pair`, then completed the edit.
+A SECOND turn produced **0** such warnings (memo working) and finished in 15.7s
+vs 31.2s for the first.
+
+### Verification
+246 passed / 1 failed across the touched suites; the failure
+(`test_chat_tool_planner_web.py::test_platform_services_present_with_key`) is
+pre-existing and confirmed failing on clean HEAD in isolation. Batch-run
+pollution in `test_planner_storage_memory_supplement` is unchanged from baseline
+(36/36 green when run alone). `main_api_app` imports clean. Live agent canvas
+edits: `intent=canvas_edit`, `updated=True`, zero pinned attempts.
+
+---
+
+## R90e — BPC now picks cheap-but-adequate models for small structured tasks (2026-09-10)
+
+**Request**: "make sure BPC picks reasonable models that are cheap like flash
+with good enough value for task."
+
+### Why it wasn't (measured, live pool)
+Small verdict workloads (tool planning, canvas-edit planning, extraction,
+spreadsheet NL→SQL) return a few hundred tokens of JSON. The default BPC score
+is `(quality² / normalized_cost) × headroom × quota × endpoint`, and because
+`calculate_effective_cost` normalizes to the cheapest candidate, the quality
+term is what separates neighbours. Measured at `estimated_tokens=3000`:
+
+| model | quality | eff.cost | score | default rank |
+|---|---|---|---|---|
+| z-ai/glm-5.3-flash | 92 | 3.25e-07 | 26043 | **1** |
+| qwen/qwen3.8-flash | 90 | 3.10e-07 | 26129 | 2 |
+| deepseek/deepseek-v4-flash-0731 | 88 | 1.225e-07 | 63216 | 3 ← cheapest |
+
+A 5% quality edge lost to a **2.65×** price advantage, so routing drifted onto
+2–6x pricier models for work that does not use the extra quality.
+
+### What changed
+`get_ranked_providers(..., cost_priority=...)` — a cost-priority mode for small
+structured workloads:
+* Pool is **filtered** to `quality >= 85` (so "cheap" cannot become "bad").
+* Remaining candidates are ordered **by price ascending**, not by value score.
+* Resolution: explicit `cost_priority` argument wins, else the `task_type`
+  opts in — `{planning, extraction, classification, routing, nl2sql,
+  structured_extract}`. User-facing generation (chat replies, drafting) keeps
+  the quality-weighted default.
+* The chosen model and the model the default would have chosen are both logged
+  (`BPC cost-priority active … cheapest capable model X … default score would
+  have picked Y`), so the behaviour is auditable.
+
+`pinned_structured_call` gained a `task_type` parameter, and the small-call
+sites now declare themselves: canvas editor + tool planner → `"planning"`,
+sheet NL→SQL → `"nl2sql"`, KG extractor already passed `"extraction"`.
+
+### Bugs found and fixed along the way
+1. **Duplicate `task_type` — every tagged leg died.** `LLMService
+   .generate_structured_response` forwards as
+   `handler.generate_structured_response(..., task_type=model, **kwargs)` with
+   `model` defaulting to `"quality"`. The moment a caller passed its own
+   `task_type`, that became `got multiple values for keyword argument
+   'task_type'`. Caught live: the canvas editor answered "I couldn't reach the
+   model I use to plan canvas edits" in **0.2s** — the call never reached a
+   provider. Fixed by popping the caller's value and letting it win over the
+   legacy default (`effective_task_type = kwargs.pop("task_type", None) or model`).
+2. **Inverted cost sort.** The first cut used `cost_rank_key = -cost` with an
+   ASCENDING sort, which selects the MOST expensive model. It picked
+   `qwen/qwen3-max` (0.78/3.90 $/M) for planning. Now ranks on raw cost ascending.
+3. **`AwaitableResult` had no `__neg__`.** `calculate_effective_cost` returns an
+   `AwaitableResult`-wrapped float; unary minus raised
+   `bad operand type for unary -: 'AwaitableResult'`. `get_ranked_providers`
+   catches broadly and falls back to the STATIC MAPPING — which returns a single
+   model. So the failure surfaced as "BPC returned one model", not as an error.
+   Added `__neg__` and switched the sort key to the raw value.
+
+### Verified
+* New `tests/test_bpc_cost_priority.py` (9) and
+  `tests/test_llm_service_task_type_forwarding.py` (2), all red-first. Proven
+  non-vacuous by re-introducing each bug (inverted sort → 4 failures; missing
+  `__neg__` → its contract test fails).
+* **342 passed / 0 failed** across BPC, routing, planner, canvas, extractor,
+  handler and cascade suites.
+* **Live** (backend restarted, pid 70237): an agent canvas edit logged
+  `BPC cost-priority active (task_type=planning): cheapest capable model
+  openrouter/qwen/qwen3.8-flash (eff.cost=3.100e-07, quality=90, default score
+  would have picked z-ai/glm-5.3-flash)` and completed in **6.7s** — down from
+  16–31s with the pricier default.

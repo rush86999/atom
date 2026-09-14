@@ -32,6 +32,7 @@ CanvasPanel.tsx / canvasType.ts; keep the two in sync.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field as dc_field
 from typing import Any, Dict, List, Optional
 
@@ -217,6 +218,56 @@ def get_app_spec(canvas_type: Optional[str]) -> CanvasAppSpec:
     return _APPS.get(canonical) or _TEXT_FALLBACK
 
 
+# Real-file office canvases are persisted with a LEGACY generic canvas_type
+# (OFFICE_COMPONENT_MAP: .xlsx→"sheets", .docx→"docs", .pptx→"presentation")
+# and identify themselves only through their content binding. Classifying by
+# canvas_type alone therefore mapped an office .xlsx onto the plain GRID app
+# ("sheets"→"sheet") — the co-editor then planned a cell edit against a
+# {office_file,…} binding, reproduced the content byte-for-byte and answered
+# "the canvas already reflects that" while the real file never moved (live
+# incident 2026-09-10, canvas 7f078cea…). The binding wins over the type.
+_OFFICE_TYPE_BY_FORMAT = {
+    "xlsx": "office_excel",
+    "xlsm": "office_excel",
+    "docx": "office_word",
+    "pptx": "office_pptx",
+}
+_OFFICE_TYPE_BY_EXT = {
+    ".xlsx": "office_excel",
+    ".xlsm": "office_excel",
+    ".docx": "office_word",
+    ".pptx": "office_pptx",
+}
+
+
+def office_app_type_for_content(content: Any) -> Optional[str]:
+    """The office app type a content payload is BOUND to, or None.
+
+    An office canvas's content is a binding dict — ``office_file`` /
+    ``file_path`` (the artifact on disk) plus ``format``. The extension (or
+    the explicit ``format``) is the reliable classifier; the DB canvas_type
+    is not (it is the legacy registry name)."""
+    if not isinstance(content, dict):
+        return None
+    bound = content.get("office_file") or content.get("file_path")
+    if not isinstance(bound, str) or not bound.strip():
+        return None
+    fmt = str(content.get("format") or "").strip().lower().lstrip(".")
+    if fmt in _OFFICE_TYPE_BY_FORMAT:
+        return _OFFICE_TYPE_BY_FORMAT[fmt]
+    return _OFFICE_TYPE_BY_EXT.get(os.path.splitext(bound.strip().lower())[1])
+
+
+def resolve_app_spec(canvas_type: Optional[str], content: Any = None) -> CanvasAppSpec:
+    """The app spec for a canvas, preferring its FILE BINDING over its
+    canvas_type when the content is an office-file binding. Plain
+    grid/text/field canvases resolve exactly like get_app_spec()."""
+    office_type = office_app_type_for_content(content)
+    if office_type:
+        return _APPS[office_type]
+    return get_app_spec(canvas_type)
+
+
 def known_field_names(spec: CanvasAppSpec) -> frozenset:
     """Field names the UI actually renders as inputs for this app."""
     return frozenset(f.name for f in spec.fields)
@@ -248,9 +299,9 @@ def app_prompt_section(canvas_type: Optional[str], content: Any) -> str:
     shape is, the exact input fields it renders, and how edits should be
     expressed. Replaces the old single hardcoded email example so every app
     gets edit guidance matching its real UI."""
-    spec = get_app_spec(canvas_type)
+    spec = resolve_app_spec(canvas_type, content)
     lines = [
-        f"CANVAS APP: {spec.label} (type \"{normalize_app_type(canvas_type)}\"). {spec.edit_hint}"
+        f"CANVAS APP: {spec.label} (type \"{spec.canvas_type}\"). {spec.edit_hint}"
     ]
     if spec.content_kind == "fields" and spec.fields:
         empty = empty_fillable_fields(spec, content)

@@ -21,7 +21,10 @@ from core.office_sync_service import OfficeSyncService
 @pytest.fixture
 def svc(tmp_path, monkeypatch):
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
-    db = Mock()
+    # MagicMock (not Mock): broadcast_file_update consults the audit trail
+    # (deleted_canvas_ids) before writing, and iterating a bare Mock's .all()
+    # raises. MagicMock's empty iterable models "no audit rows yet".
+    db = MagicMock()
     return OfficeSyncService(db), db, tmp_path
 
 

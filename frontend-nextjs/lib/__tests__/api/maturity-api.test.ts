@@ -156,6 +156,32 @@ describe('maturity-api canvas training surface', () => {
     });
   });
 
+  // Regression: the teach route answers with the standard BaseAPIRouter
+  // envelope ({success, data, message, timestamp}) — see
+  // backend/tests/api/test_chat_assistant_and_teaching.py which reads
+  // resp.json()["data"]["status"]. TrainingPanel reads `status`/`playbook_id`
+  // off the RETURN value, so the client must unwrap `data` or the teach form
+  // silently reports "confidence grew" and never refreshes the Playbooks
+  // queue (the "Save as playbook did nothing" bug).
+  test('teachAgent unwraps the {success,data} envelope (playbook_id)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        success: true,
+        data: { status: 'ok', playbook_id: 'pb-9' },
+        message: 'Lesson recorded — the student\'s confidence grew (playbook draft created)',
+        timestamp: '2026-09-01T00:00:00Z',
+      })
+    );
+
+    const out = await teachAgent('a1', 'Always ask for the ROI table', undefined, 'cv-1', {
+      asPlaybook: true,
+      playbookCanvasType: 'email',
+    });
+
+    expect(out.status).toBe('ok');
+    expect(out.playbook_id).toBe('pb-9');
+  });
+
   test('updateTrainingGuidance patches the lesson plan', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ success: true, lesson_plan: {} }));
 

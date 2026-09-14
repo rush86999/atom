@@ -62,6 +62,7 @@ C_LLM = "LLM Providers & Keys"
 C_GOV = "Governance"
 C_MON = "Monitoring"
 C_MEM = "Memory & Context"
+C_EMAIL = "Email & Attachments"
 C_HALL = "Hallucination Mitigation"
 C_SANDBOX = "Execution Sandbox"
 C_AGENT = "Agent Intelligence (W1–W5)"
@@ -136,6 +137,35 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("TURN_FACT_MAX_PER_TURN", 5, C_MEM, "Max facts extracted per turn"),
     F("TURN_FACT_EXTRACTION_SAMPLE_RATE", 1.0, C_MEM, "Fraction of turns sampled"),
     I("TURN_FACT_QUEUE_MAXSIZE", 100, C_MEM, "Extraction queue depth"),
+    # ------------------------------------------------------------------
+    # Email & attachments (image OCR for ingested mailbox attachments)
+    # ------------------------------------------------------------------
+    B("ATOM_IMAGE_OCR_ENABLED", True, C_EMAIL, "OCR image attachments during ingestion"),
+    B("ATOM_IMAGE_OCR_VISION_ENABLED", True, C_EMAIL,
+      "Vision-LLM fallback when no local OCR engine (Tesseract/Docling) is available"),
+    S("ATOM_IMAGE_OCR_TESSERACT_CMD", "", C_EMAIL,
+      "Explicit tesseract binary path (default: found on PATH)"),
+    S("ATOM_IMAGE_OCR_LANGS", "", C_EMAIL,
+      "Tesseract language list, e.g. 'eng+deu' (default: Tesseract default)"),
+    I("ATOM_IMAGE_OCR_TIMEOUT_SECONDS", 30, C_EMAIL, "Per-image Tesseract timeout"),
+    B("ATOM_IMAGE_DESCRIBE_ENABLED", True, C_EMAIL,
+      "Describe textless images (product photos) via the vision model on explicit on-demand pulls, so they become searchable"),
+    B("ATOM_EMAIL_INLINE_IMAGE_OCR", True, C_EMAIL,
+      "OCR images embedded inline in the email body (signatures/logos are filtered)"),
+    I("ATOM_EMAIL_INLINE_IMAGE_MIN_TEXT_CHARS", 16, C_EMAIL,
+      "Inline images whose OCR text is shorter are treated as decorative"),
+    B("ENABLE_EMAIL_ATTACHMENT_MEMORY_INDEX", True, C_EMAIL,
+      "Index binary email attachments into the documents memory index"),
+    I("MAX_EMAIL_ATTACHMENT_INGEST_MB", 10, C_EMAIL,
+      "Per-attachment byte cap for memory indexing (MB)"),
+    I("MAX_BINARY_ATTACHMENTS_INDEXED_PER_MESSAGE", 3, C_EMAIL,
+      "Per-message cap on binary attachments indexed in one pass"),
+    B("ATOM_PLANNER_INGEST_ENABLED", True, C_EMAIL,
+      "Let the live-evidence tool planner pull a mailbox message (body + attachments, images OCR'd) into memory on demand"),
+    I("MAX_ON_DEMAND_ATTACHMENTS_FETCHED", 5, C_EMAIL,
+      "Per-call cap on attachments fetched from the provider into memory"),
+    B("ATOM_EMAIL_REDACTION_ENABLED", True, C_EMAIL,
+      "Secrets-redact email bodies before storing"),
     # ------------------------------------------------------------------
     # Hallucination mitigation (Phase 2 + R72/R83)
     # ------------------------------------------------------------------
@@ -239,6 +269,12 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Panel auto-promotion gate: minimum fraction of runs that completed (0-1)"),
     F("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5, C_LEARN,
       "Panel auto-promotion gate: minimum mean judge agreement (0-1) for votes to count as meaningful"),
+    B("ATOM_CHAT_TEACH_GOAL_INFERENCE", True, C_LEARN,
+      "Teaching a rule from chat: when the chat has no goal context of its own, let the agent's "
+      "ACTIVE goals be matched against the rule so it can be scoped to the goal it is about "
+      "(instead of applying to all of the agent's work). Only ever narrows a lesson to a goal the "
+      "agent is currently working, the confirmation card always shows that scope with a one-click "
+      "'apply to all work', and a general rule is left general. off = every chat lesson is global"),
     # --- Installation Adaptation (docs/architecture/INSTALLATION_ADAPTATION_PLAN.md) ---
     S("ATOM_PLAYBOOKS", "shadow", C_LEARN,
       "Company playbooks (processes as data): off = never enter prompts; shadow (recommended) = "

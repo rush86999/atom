@@ -19,6 +19,7 @@ Degradation ladder: ``bm25_vector_rrf`` | ``lexical_only`` | ``semantic_only`` |
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from datetime import datetime
@@ -28,6 +29,26 @@ logger = logging.getLogger(__name__)
 
 RRF_K = 60
 _VECTOR_LIMIT_MULTIPLIER = 3
+
+
+def _coerce_metadata(raw: Any) -> Dict[str, Any]:
+    """LanceDB metadata arrives as a dict or a JSON string depending on writer."""
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return {}
+        return dict(parsed) if isinstance(parsed, dict) else {}
+    if isinstance(raw, dict):
+        return dict(raw)
+    return {}
+
+
+def _parent_doc_id(hit_id: str) -> str:
+    """``<doc_id>::cN`` chunk ids resolve to their parent document id."""
+    if "::" in hit_id:
+        return hit_id.split("::", 1)[0]
+    return ""
 
 
 def _vector_leg_enabled() -> bool:
@@ -236,7 +257,18 @@ class DocumentsHybridSearch:
         ingests, manual uploads — no PG row) are STILL RETURNED, flagged
         ``bridged:false``, with title/preview derived from LanceDB metadata —
         dropping them made every vector-only ingest invisible to search.
-        Returns ``(fused, unbridged_count)``."""
+        Returns ``(fused, unbridged_count)``.
+
+        Resolution is not a bare ``id`` equality check. The LanceDB ``documents``
+        table mostly holds CHUNK rows (``<doc_id>::cN``) and rows written before
+        the id-equality bridge, so matching on ``hit["id"]`` alone left ~35k rows
+        permanently unhydrated even though their parent document id had been
+        stamped into ``metadata.pg_document_id`` at ingest. Worse, a chunk hit and
+        its parent's lexical hit landed on DIFFERENT RRF keys, so the two legs
+        never reinforced each other — the one thing hybrid fusion exists to do.
+        We therefore resolve through ``metadata.pg_document_id`` (and the chunk
+        suffix) and key the fused entry by the resolved parent id.
+        """
         scores: Dict[tuple, Dict[str, Any]] = {}
         unbridged = 0
 
@@ -262,34 +294,96 @@ class DocumentsHybridSearch:
             with self._get_db() as db:
                 from core.models import IngestedDocument
 
-                vector_ids = [v["id"] for v in vector]
+                # Two-phase resolution. Collect every id a vector hit could
+                # resolve to, look them up once (a vector limit of 30 turns into
+                # a single IN query rather than per-hit lookups), then pick the
+                # best mapping per hit below.
+                candidates: set = set()
+                metas: List[Dict[str, Any]] = []
+                for v in vector:
+                    vid = str(v.get("id") or "")
+                    meta = _coerce_metadata(v.get("metadata"))
+                    metas.append(meta)
+                    if vid:
+                        candidates.add(vid)
+                    parent = _parent_doc_id(vid)
+                    if parent:
+                        candidates.add(parent)
+                    stamped = meta.get("pg_document_id")
+                    if stamped:
+                        candidates.add(str(stamped))
+
                 pg_rows = {}
-                if vector_ids:
+                if candidates:
                     rows = (
                         db.query(IngestedDocument)
-                        .filter(IngestedDocument.id.in_(vector_ids))
+                        .filter(IngestedDocument.id.in_(list(candidates)))
                         .all()
                     )
                     pg_rows = {d.id: d for d in rows}
         except Exception as e:
             logger.warning("DocumentsHybridSearch hydration lookup failed: %s", e)
             pg_rows = {}
+            metas = [_coerce_metadata(v.get("metadata")) for v in vector]
 
-        for rank, hit in enumerate(vector, start=1):
-            doc = pg_rows.get(hit["id"])
+        def _resolve(vid: str, meta: Dict[str, Any]) -> Optional[str]:
+            """Best PG id for a LanceDB hit: exact id, then the ingest stamp,
+            then the chunk's parent id."""
+            if vid in pg_rows:
+                return vid
+            stamped = meta.get("pg_document_id")
+            if stamped and str(stamped) in pg_rows:
+                return str(stamped)
+            parent = _parent_doc_id(vid)
+            if parent and parent in pg_rows:
+                return parent
+            return None
+
+        # Dedupe vector hits by RESOLVED parent BEFORE scoring (2026-09-13
+        # review): classic RRF scores each leg at most once per document.
+        # Scoring every chunk separately let a 3,400-chunk document with 10
+        # chunks in the top-30 accumulate ~10/60 from the vector leg alone
+        # and bury a one-chunk document that BOTH legs found (~2/60). Keep
+        # the best-ranked chunk per parent (context/hydration use it); one
+        # entry per unresolvable id.
+        _seen_resolved: set = set()
+        deduped_vector: List[Dict[str, Any]] = []
+        deduped_metas: List[Dict[str, Any]] = []
+        for _idx, _hit in enumerate(vector):
+            _vid = str(_hit.get("id") or "")
+            _meta = (
+                metas[_idx]
+                if _idx < len(metas)
+                else _coerce_metadata(_hit.get("metadata"))
+            )
+            _key = _resolve(_vid, _meta) or _vid
+            if _key in _seen_resolved:
+                continue
+            _seen_resolved.add(_key)
+            deduped_vector.append(_hit)
+            deduped_metas.append(_meta)
+
+        for rank, hit in enumerate(deduped_vector, start=1):
+            vid = str(hit.get("id") or "")
+            meta = (
+                deduped_metas[rank - 1]
+                if rank - 1 < len(deduped_metas)
+                else _coerce_metadata(hit.get("metadata"))
+            )
+            resolved_id = _resolve(vid, meta)
+            doc = pg_rows.get(resolved_id) if resolved_id else None
             if doc is None:
                 unbridged += 1
-                meta = hit.get("metadata") or {}
                 title = (
                     meta.get("file_name")
                     or meta.get("title")
                     or meta.get("filename")
-                    or str(hit["id"])
+                    or str(vid)
                 )
                 preview = str(meta.get("preview") or meta.get("content") or "")[:200]
                 entry = {
                     "source": "vector",
-                    "id": hit["id"],
+                    "id": vid,
                     "title": title,
                     "preview": preview,
                     "modified": None,
@@ -297,14 +391,16 @@ class DocumentsHybridSearch:
                     "rrf": 1.0 / (RRF_K + rank),
                     "legs": ["vector"],
                 }
-                scores.setdefault(("vector", hit["id"]), entry)
+                scores.setdefault(("vector", vid), entry)
                 continue
-            key = ("ingested", hit["id"])
+            # Key by the RESOLVED parent id so a chunk hit fuses with its
+            # parent document's lexical hit instead of competing with it.
+            key = ("ingested", resolved_id)
             entry = scores.setdefault(
                 key,
                 {
                     "source": "ingested",
-                    "id": hit["id"],
+                    "id": resolved_id,
                     "title": doc.file_name,
                     "preview": (doc.content_preview or "")[:200],
                     "modified": doc.external_modified_at.isoformat()
@@ -317,7 +413,8 @@ class DocumentsHybridSearch:
                 },
             )
             entry["rrf"] += 1.0 / (RRF_K + rank)
-            entry["legs"].append("vector")
+            if "vector" not in entry["legs"]:
+                entry["legs"].append("vector")
 
         fused = sorted(scores.values(), key=lambda e: (-e["rrf"], len(e["legs"])))
         return fused, unbridged

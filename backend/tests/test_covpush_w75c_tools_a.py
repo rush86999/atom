@@ -37,6 +37,28 @@ def _cm_db():
     return db
 
 
+def _owner_db(canvas_owner, audit_actor=None):
+    """Mock DB modelling ``_verify_canvas_owner``'s two ownership sources: the
+    ``canvases`` row's ``created_by`` and a (non-event) ``canvas_audit`` row by
+    the caller. ``canvas_owner=None`` models a canvas with no Canvas row."""
+    from core.models import Canvas, CanvasAudit
+
+    canvas_chain = MagicMock()
+    canvas_chain.filter.return_value.first.return_value = (
+        SimpleNamespace(created_by=canvas_owner) if canvas_owner else None
+    )
+    audit_chain = MagicMock()
+    audit_chain.filter.return_value.first.return_value = (
+        SimpleNamespace(user_id=audit_actor, action_type="update")
+        if audit_actor else None
+    )
+    db = _cm_db()
+    db.query.side_effect = (
+        lambda model=None: audit_chain if model is CanvasAudit else canvas_chain
+    )
+    return db
+
+
 # ============================================================================
 # tools/atom_cli_skill_wrapper.py
 # ============================================================================
@@ -464,22 +486,24 @@ class TestRegisterAgentRadioTools:
 class TestVerifyCanvasOwner:
     def test_not_found(self):
         from tools.canvas_crud_tool import _verify_canvas_owner
-        db = _cm_db()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _owner_db(canvas_owner=None)
         assert _verify_canvas_owner(db, "c-1", "u-1") is False
 
     def test_not_owner(self):
         from tools.canvas_crud_tool import _verify_canvas_owner
-        db = _cm_db()
-        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-            created_by="u-2")
+        db = _owner_db(canvas_owner="u-2")
         assert _verify_canvas_owner(db, "c-1", "u-1") is False
 
     def test_owner(self):
         from tools.canvas_crud_tool import _verify_canvas_owner
-        db = _cm_db()
-        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-            created_by="u-1")
+        db = _owner_db(canvas_owner="u-1")
+        assert _verify_canvas_owner(db, "c-1", "u-1") is True
+
+    def test_authoring_actor(self):
+        """A canvas CREATED by somebody else but EDITED by the caller belongs
+        to the caller too (co-editing) — the gallery lists it for them."""
+        from tools.canvas_crud_tool import _verify_canvas_owner
+        db = _owner_db(canvas_owner="u-2", audit_actor="u-1")
         assert _verify_canvas_owner(db, "c-1", "u-1") is True
 
 
@@ -495,9 +519,8 @@ class TestReadCanvas:
 
     async def test_not_owner(self):
         import tools.canvas_crud_tool as mod
-        db = _cm_db()
-        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-            created_by="other")
+        # Canvas row owned by "other" and no authoring audit row for "u-1".
+        db = _owner_db(canvas_owner="other")
         with _patch_db(db):
             res = await mod.read_canvas("u-1", "c-1")
         assert res["success"] is False and "not found" in res["error"]

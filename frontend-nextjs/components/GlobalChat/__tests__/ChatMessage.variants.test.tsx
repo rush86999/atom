@@ -434,3 +434,55 @@ describe('ChatMessage feedback controls', () => {
     expect(screen.queryByLabelText('Thumbs up')).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Train-from-chat (backend metadata.teaching -> ChatMessageData.teaching).
+ * The notice is rendered INSIDE the assistant bubble it belongs to, so the
+ * lesson is anchored to the turn that taught it; user echoes never show it.
+ */
+describe('ChatMessage teach-from-chat notice', () => {
+  const teaching = {
+    status: 'saved' as const,
+    lesson: 'Always CC the lead on quotes',
+    message: '✓ Learned — Learner will apply this to all of their work.',
+    agent: { id: 'a1', name: 'Learner', status: 'student' },
+  };
+
+  it('renders the learned card on the assistant message that carries it', () => {
+    render(<ChatMessage message={baseMsg({ teaching })} onActionClick={jest.fn()} />);
+
+    expect(screen.getByTestId('teaching-saved')).toHaveTextContent(
+      'Always CC the lead on quotes',
+    );
+  });
+
+  it('renders the confirm-first suggestion for a detected directive', () => {
+    render(
+      <ChatMessage
+        message={baseMsg({ teaching: { ...teaching, status: 'suggested' } })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('teaching-suggestion')).toBeInTheDocument();
+    expect(screen.queryByTestId('teaching-saved')).not.toBeInTheDocument();
+  });
+
+  it('shows nothing when the turn carries no teaching state', () => {
+    render(<ChatMessage message={baseMsg()} onActionClick={jest.fn()} />);
+
+    expect(screen.queryByTestId('teaching-saved')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('teaching-suggestion')).not.toBeInTheDocument();
+  });
+
+  it('never shows the notice on a user message', () => {
+    render(
+      <ChatMessage
+        message={baseMsg({ type: 'user', teaching })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('teaching-saved')).not.toBeInTheDocument();
+  });
+});

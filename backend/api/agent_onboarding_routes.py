@@ -374,6 +374,16 @@ class TeachRequest(BaseModel):
     # wait for supervisor approval via /api/playbooks/{id}/approve.
     as_playbook: bool = False
     playbook_canvas_type: Optional[str] = None
+    # SCOPE. "global" (default) = standing guidance for ALL of this agent's
+    # work — chat, canvas edits, every task and goal. "goal" = true only while
+    # working ``goal_id`` (a deal-specific instruction taught from the goal-run
+    # page): it rides that goal's decisions, never leaks into unrelated work.
+    # Entries written before scope existed read as global.
+    scope: Optional[str] = Field(None, description='"global" (default) or "goal"')
+    goal_id: Optional[str] = Field(
+        None, max_length=64,
+        description="Required when scope='goal' — the goal this lesson is true for",
+    )
 
 
 @router.post("/{agent_id}/teach")
@@ -429,12 +439,10 @@ async def teach_agent(
                 status_code=403,
             )
 
-    from core.student_learning_service import StudentLearningService, build_canvas_context
-    learning = StudentLearningService(db)
+    from core.student_learning_service import deliver_teacher_lesson
+
     # Best-effort capture of the canvas the lesson was taught on (right
     # panel) — None when the canvas is missing; never blocks the teach.
-    canvas_context = build_canvas_context(db, req.canvas_id)
-
     def _capture_playbook_draft():
         """Playbook Journey P2: turn the lesson into a structured playbook
         draft (source=taught). Fault-isolated — a capture failure never
@@ -451,76 +459,75 @@ async def teach_agent(
             logger.debug(f"teach playbook capture skipped: {pb_err}")
             return None
 
-    result = learning.learn_from_teacher(
-        student_agent_id=agent_id,
-        teacher_agent_id=req.acting_agent_id or "human_supervisor",
-        lesson=req.lesson,
+    # One shared composite for every teaching surface (this endpoint and the
+    # chat teaching channel in core/chat_teaching.py), so a lesson means the
+    # same thing wherever it was taught: student pedagogy + training-session
+    # filing, or the status-independent standing journal for everyone else.
+    delivery = deliver_teacher_lesson(
+        db, agent_id, req.lesson,
         topic=req.topic,
-        canvas_context=canvas_context,
+        canvas_id=req.canvas_id,
+        teacher_agent_id=req.acting_agent_id or "human_supervisor",
+        scope="goal" if req.scope == "goal" and req.goal_id else "global",
+        goal_id=req.goal_id,
     )
-    if result.get("status") != "ok":
-        # learn_from_teacher returns student_not_found for missing AND
-        # non-student targets — distinguish for a correct status code.
-        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-        if not agent:
-            raise router.error_response(
-                error_code="AGENT_NOT_FOUND", message=f"Agent {agent_id} not found", status_code=404
-            )
-        if result.get("reason") == "student_not_found" and agent.id:
-            # Human supervisor teaching their own hire at ANY tier: the
-            # lesson still lands as permanent standing guidance (same
-            # status-independent journal the canvas-correction path uses) —
-            # only the STUDENT-only confidence/pedagogy circuit is skipped.
-            from core.student_learning_service import journal_standing_lesson
+    delivery_status = delivery.get("status")
 
-            journaled = journal_standing_lesson(
-                db, str(agent.id), req.lesson,
-                source="teacher",
-                topic=req.topic,
-                teacher_agent_id=req.acting_agent_id or "human_supervisor",
-                canvas_context=canvas_context,
-            )
-            if journaled:
-                # Playbook Journey P2: the as_playbook capture rides ANY path
-                # where the lesson actually landed — standing-guidance lessons
-                # (the path most mature hires take) draft playbooks too, or
-                # the UI toggle would silently do nothing for them.
-                playbook_id = _capture_playbook_draft() if req.as_playbook else None
-                return router.success_response(
-                    data={"status": "ok", "mode": "standing_guidance",
-                          "agent_status": agent.status,
-                          **({"playbook_id": playbook_id} if playbook_id else {})},
-                    message=(f"Lesson recorded as standing guidance for {agent.name} "
-                             f"({agent.status.upper()}) — it applies to all their work")
-                            + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
-                )
+    if delivery_status == "agent_not_found":
+        raise router.error_response(
+            error_code="AGENT_NOT_FOUND", message=f"Agent {agent_id} not found", status_code=404
+        )
+
+    # The teaching-point handle lets the caller address the lesson it just
+    # created (the Training tab's journal, and the chat confirmation card's
+    # inline Undo). ``entry`` is the appended log row, whose ``id`` is the
+    # stable handle ``delete_teaching_point`` resolves.
+    _entry = delivery.get("entry")
+    _point_id = _entry.get("id") if isinstance(_entry, dict) else None
+    # Echo the scope that was actually stored so the caller can confirm
+    # "this goal only" vs "all of this agent's work" honestly.
+    _scope_payload = (
+        {"scope": (_entry.get("scope") or "global"),
+         "goal_id": _entry.get("goal_id")}
+        if isinstance(_entry, dict) else {}
+    )
+
+    if delivery_status == "ok" and delivery.get("mode") == "standing_guidance":
+        # Human supervisor teaching their own hire at ANY tier: the lesson
+        # lands as permanent standing guidance (same status-independent
+        # journal the canvas-correction path uses) — only the STUDENT-only
+        # confidence/pedagogy circuit is skipped. The playbook capture rides
+        # this path too, or the UI toggle would silently do nothing for
+        # mature hires.
+        playbook_id = _capture_playbook_draft() if req.as_playbook else None
         return router.success_response(
-            data={"status": "skipped", "reason": result.get("reason"),
-                  "agent_status": agent.status},
-            message=f"{agent.name} is a {agent.status.upper()} — teaching applies to STUDENT agents",
+            data={**delivery["data"],
+                  **({"playbook_id": playbook_id} if playbook_id else {}),
+                  **({"teaching_point_id": _point_id} if _point_id else {}),
+                  **_scope_payload},
+            message=(f"Lesson recorded as standing guidance for {delivery['agent_name']} "
+                     f"({(delivery.get('agent_status') or '').upper()}) — it applies to all their work")
+                    + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
         )
 
-    # Training circuit: a lesson taught while a training session is ACTIVE
-    # also lands in that session's guidance record, so the training history
-    # shows what was taught during the pass (best-effort — the journal and
-    # confidence above are the contract).
-    try:
-        from core.student_training_service import StudentTrainingService
-
-        StudentTrainingService(db).record_session_lesson(
-            agent_id=agent_id, lesson=req.lesson, topic=req.topic,
+    if delivery_status == "ok":
+        playbook_id = _capture_playbook_draft() if req.as_playbook else None
+        return router.success_response(
+            data={**delivery["data"],
+                  **({"playbook_id": playbook_id} if playbook_id else {}),
+                  **({"teaching_point_id": _point_id} if _point_id else {}),
+                  **_scope_payload},
+            message="Lesson recorded — the student's confidence grew"
+                    + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
         )
-    except Exception as session_lesson_err:
-        logger.debug(f"session lesson record skipped: {session_lesson_err}")
 
-    # Installation Adaptation Plan (Phase 3): opt-in structured capture —
-    # the lesson ALSO becomes a playbook draft (process steps + question
-    # templates) awaiting supervisor approval. Fault-isolated: a playbook
-    # capture failure never fails the teach itself.
-    playbook_id = _capture_playbook_draft() if req.as_playbook else None
-
+    # Empty / duplicate / journal failure on a non-student: nothing landed.
+    # Keep the legacy response shape (status=skipped) so existing callers and
+    # the Training panel's notice contract are unchanged.
     return router.success_response(
-        data={**result, **({"playbook_id": playbook_id} if playbook_id else {})},
-        message="Lesson recorded — the student's confidence grew"
-                + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
+        data={"status": "skipped", "reason": "student_not_found",
+              "agent_status": delivery.get("agent_status")},
+        message=f"{delivery.get('agent_name')} is a {(delivery.get('agent_status') or '').upper()} "
+                "— teaching applies to STUDENT agents",
     )
+

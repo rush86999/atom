@@ -901,14 +901,23 @@ class TestCanvasCrudTool:
 
     async def test_verify_canvas_owner(self):
         from tools.canvas_crud_tool import _verify_canvas_owner
-        db = Mock()
-        canvas_q = db.query.return_value.filter.return_value
-        canvas_q.first.return_value = SimpleNamespace(created_by="u-1")
-        assert _verify_canvas_owner(db, "c-1", "u-1") is True
-        canvas_q.first.return_value = SimpleNamespace(created_by="u-2")
-        assert _verify_canvas_owner(db, "c-1", "u-1") is False
-        canvas_q.first.return_value = None
-        assert _verify_canvas_owner(db, "c-1", "u-1") is False
+        # Ownership has TWO sources of record: the Canvas row's created_by and
+        # an AUTHORING audit row by the caller (see _verify_canvas_owner).
+        assert _verify_canvas_owner(
+            self._db(canvas=SimpleNamespace(created_by="u-1")), "c-1", "u-1"
+        ) is True
+        assert _verify_canvas_owner(
+            self._db(
+                canvas=SimpleNamespace(created_by="u-2"),
+                first=SimpleNamespace(user_id="u-1", action_type="update"),
+            ),
+            "c-1",
+            "u-1",
+        ) is True
+        assert _verify_canvas_owner(
+            self._db(canvas=SimpleNamespace(created_by="u-2")), "c-1", "u-1"
+        ) is False
+        assert _verify_canvas_owner(self._db(), "c-1", "u-1") is False
 
     async def test_read_canvas_success(self):
         db = self._db(canvas=SimpleNamespace(created_by="u-1"),

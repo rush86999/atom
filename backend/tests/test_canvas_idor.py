@@ -124,3 +124,113 @@ class TestDeleteCanvasOwnership:
         result = await delete_canvas("user-A", "canvas-delete-2")
 
         assert result["success"] is True
+
+
+# ============================================================================
+# Gallery visibility must agree with per-canvas authorization.
+#
+# Discovery (list_canvases) scopes by CanvasAudit.user_id; authorization
+# (_verify_canvas_owner) trusted ONLY Canvas.created_by whenever a Canvas row
+# existed. So a canvas CREATED by one user and later EDITED by another (normal
+# co-editing; the office /present flow reuses one Canvas row per file; a
+# second operator account) was listed in the editor's gallery yet 404'd on
+# every per-canvas endpoint.
+#
+# Observed live 2026-09-10: canvas_formulacheck01 — Canvas.created_by = a test
+# member, newest CanvasAudit row = the admin. GET /api/canvas/<id> 404'd with
+# "Canvas ... not found", then the gallery's DELETE returned the same 404
+# (AxiosError overlay at pages/canvas/index.tsx:146).
+# ============================================================================
+
+
+def _add_audit(db, canvas_id: str, user_id: str, action_type: str,
+               tenant_id: str = "t1", content: str = "edited"):
+    db.add(CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=tenant_id,
+        action_type=action_type,
+        user_id=user_id,
+        canvas_type="generic",
+        details_json={"content": content},
+    ))
+    db.commit()
+
+
+class TestCoEditorOwnership:
+    """A user recorded as an author on a canvas may act on it, even when the
+    Canvas row was created by somebody else."""
+
+    @pytest.mark.asyncio
+    async def test_co_editor_can_read_canvas_created_by_another_user(self, db):
+        from tools.canvas_crud_tool import read_canvas
+        _seed_canvas(db, "canvas-coedit-read", owner_id="user-A")
+        _add_audit(db, "canvas-coedit-read", "user-B", "update")
+
+        result = await read_canvas("user-B", "canvas-coedit-read")
+
+        assert result["success"] is True, (
+            "A canvas listed in the co-editor's gallery 404'd on read: "
+            f"{result.get('error')}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_co_editor_can_delete_canvas_created_by_another_user(self, db):
+        from tools.canvas_crud_tool import delete_canvas
+        _seed_canvas(db, "canvas-coedit-del", owner_id="user-A")
+        _add_audit(db, "canvas-coedit-del", "user-B", "update")
+
+        result = await delete_canvas("user-B", "canvas-coedit-del")
+
+        assert result["success"] is True, (
+            "Gallery delete of a co-edited canvas 404'd: "
+            f"{result.get('error')}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_form_submitter_does_not_gain_ownership(self, db):
+        """A ``submit`` row is an event stamp (public/shared form canvases
+        accept submissions from non-owners) — it must NOT grant read/delete on
+        the owner's canvas."""
+        from tools.canvas_crud_tool import delete_canvas, read_canvas
+        _seed_canvas(db, "canvas-submit-only", owner_id="user-A")
+        _add_audit(db, "canvas-submit-only", "user-B", "submit",
+                   content=None)
+
+        read = await read_canvas("user-B", "canvas-submit-only")
+        delete = await delete_canvas("user-B", "canvas-submit-only")
+
+        assert read["success"] is False, "a form submitter read the owner's canvas (IDOR)"
+        assert delete["success"] is False, "a form submitter deleted the owner's canvas (IDOR)"
+
+
+class TestGalleryListingMatchesAuthorization:
+    """Whatever the gallery lists for a user, that user must be able to act on."""
+
+    @pytest.mark.asyncio
+    async def test_listed_canvases_are_all_actionable(self, db):
+        from tools.canvas_crud_tool import _verify_canvas_owner, list_canvases
+
+        # user-B: co-editor of a canvas created by user-A ...
+        _seed_canvas(db, "canvas-consistency-coedit", owner_id="user-A")
+        _add_audit(db, "canvas-consistency-coedit", "user-B", "update")
+        # ... and a bare form submitter on another of user-A's canvases.
+        _seed_canvas(db, "canvas-consistency-submit", owner_id="user-A")
+        _add_audit(db, "canvas-consistency-submit", "user-B", "submit",
+                   content=None)
+
+        listed = await list_canvases("user-B")
+        assert listed["success"] is True
+        ids = [c["canvas_id"] for c in listed["canvases"]]
+
+        assert "canvas-consistency-coedit" in ids, (
+            "co-edited canvas missing from the gallery the user must act on it from"
+        )
+        assert "canvas-consistency-submit" not in ids, (
+            "a form submission must not surface somebody else's canvas in the "
+            "submitter's gallery"
+        )
+        for canvas_id in ids:
+            assert _verify_canvas_owner(db, canvas_id, "user-B") is True, (
+                f"gallery listed {canvas_id} but the owner guard denies it — "
+                "the card is a dead end (404 on open/delete)"
+            )

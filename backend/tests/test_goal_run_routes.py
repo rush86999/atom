@@ -159,7 +159,10 @@ def test_checkpoint_resolution(supervisor_env):
     def _sess():
         yield svc_env
 
-    svc = GoalRunService(workspace_id="default", tenant_id="default",
+    # Workspace-bound like every surface (the route created the run in the
+    # requester's workspace "ws-test"; the service is scoped to it since
+    # the 2026-09-13 cross-workspace IDOR fix).
+    svc = GoalRunService(workspace_id="ws-test", tenant_id="default",
                          session_factory=_sess)
     svc.set_plan(run_id, [{"id": "seed-3", "kind": "human_checkpoint",
                            "title": "Quote approval"}])
@@ -190,7 +193,7 @@ def test_event_ingestion_endpoint(supervisor_env):
     def _sess():
         yield svc_env
 
-    svc = GoalRunService(workspace_id="default", tenant_id="default",
+    svc = GoalRunService(workspace_id="ws-test", tenant_id="default",
                          session_factory=_sess)
     svc.set_wait(run_id, {"event": "email_reply",
                           "match": {"from": "acme@x.com"}})
@@ -198,6 +201,15 @@ def test_event_ingestion_endpoint(supervisor_env):
         "event": "email_reply", "from": "acme@x.com",
         "subject": "Re: quote"}).json()
     assert out["woke"] == [run_id]
+
+
+def test_event_ingestion_requires_supervisor(supervisor_env):
+    """Inbound events wake runs and drive router decisions/executor actions —
+    a member must not be able to inject them."""
+    member = _make_client(supervisor_env, "gr-emp")
+    resp = member.post("/api/goal-runs/events",
+                       json={"event": "email_reply", "from": "acme@x.com"})
+    assert resp.status_code == 403
 
 
 def test_mode_change_requires_supervisor(supervisor_env):

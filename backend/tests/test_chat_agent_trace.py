@@ -191,6 +191,51 @@ class TestSessionTraceEndpoint:
         resp = client.get(f"/api/chat/trace/{SESSION_ID}")
         assert resp.status_code == 401
 
+    def test_malformed_metadata_row_does_not_break_the_endpoint(
+        self, client, worker_database
+    ):
+        """Regression (live 2026-09-11): three rows in agent_executions held
+        NON-JSON in metadata_json — workflow_template rows that a one-off
+        recovery INSERT had shifted one column into the executions table
+        (started_at=1 was the template's is_public; metadata_json held
+        created_at "2026-08-31 03:26:01").
+
+        SQLite's json_extract() raises `malformed JSON` for the WHOLE
+        statement when it evaluates any malformed row, so this endpoint 500'd
+        for EVERY session and the canvas Agent Workspace history restore died
+        with it. The endpoint's contract is 'the runs for THIS session' — one
+        unrelated bad row must not defeat it. PostgreSQL cannot hit this
+        (JSONColumn is JSONB there, validated on write); SQLite is the
+        Personal-Edition default and does not validate.
+        """
+        from sqlalchemy import text as _text
+
+        # A session id of its own: _seed_run shares the module SESSION_ID, and
+        # the worker DB is session-scoped, so other tests' runs would otherwise
+        # show up here too.
+        session_id = "sess-trace-malformed"
+        bad_row_id = "recovered-template-row"
+        db = worker_database()
+        exec_id = _seed_run(db, session_id=session_id)
+        # Raw SQL on purpose: exactly how the bad rows got in (the ORM would
+        # never serialize this).
+        db.execute(_text(
+            "INSERT INTO agent_executions (id, status, started_at, metadata_json) "
+            "VALUES (:i, 'personal', 1, '2026-08-31 03:26:01')"
+        ), {"i": bad_row_id})
+        db.commit()
+        try:
+            resp = client.get(f"/api/chat/trace/{session_id}")
+            assert resp.status_code == 200, resp.text
+            # The session's real run is still served, in full.
+            assert [r["execution_id"] for r in resp.json()["runs"]] == [exec_id]
+        finally:
+            # Leave the session-scoped worker DB clean for other tests.
+            db.execute(_text("DELETE FROM agent_executions WHERE id = :i"),
+                       {"i": bad_row_id})
+            db.commit()
+            db.close()
+
 
 # ============================================================================
 # POST /api/reasoning/feedback — write-through onto AgentReasoningStep

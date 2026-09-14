@@ -485,6 +485,26 @@ async def lifespan(app: FastAPI):
                     logger.warning(
                         f"✓ Memory store reconciled from legacy location: "
                         f"{[m['workspace'] for m in _store_recon['migrated']]}")
+
+                # Provision the BM25/FTS index behind documents.search. This is
+                # normally a migration's job, but local SQLite deployments can
+                # have a blocked alembic CLI, in which case hybrid search
+                # silently degrades to semantic-only (lexical_hits=0 on every
+                # query). Idempotent and never raises.
+                try:
+                    from core.hybrid_search.fts_bootstrap import (
+                        ensure_documents_fts,
+                    )
+
+                    if ensure_documents_fts(engine):
+                        logger.info("✓ documents.search FTS index ready")
+                    else:
+                        logger.warning(
+                            "⚠️ documents.search FTS index unavailable; "
+                            "lexical search will degrade to ILIKE")
+                except Exception as _fts_err:
+                    logger.warning(
+                        f"⚠️ documents.search FTS bootstrap skipped: {_fts_err}")
             elif is_test_mode:
                 logger.info("⊘ Skipping table creation in test mode (fixture managed)")
             else:
@@ -3793,6 +3813,15 @@ try:
         logger.info("✓ Experience Marketplace Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Experience Marketplace routes not found: {e}")
+
+    # 11d. Agent Marketplace (selling agents on verified goal-run evidence)
+    try:
+        from api.agent_marketplace_routes import router as agent_marketplace_router
+
+        app.include_router(agent_marketplace_router)  # Prefix defined in router
+        logger.info("✓ Agent Marketplace Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Agent Marketplace routes not found: {e}")
 
     # 12. Formula Routes
     # Formulas loaded via ESSENTIAL_INTEGRATIONS

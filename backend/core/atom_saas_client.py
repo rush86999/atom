@@ -6,12 +6,27 @@ Provides centralized interface for:
 - Submitting skill ratings
 - Installing skills with dependency resolution
 - Uninstalling skills
-- Authentication via API tokens
+- Pushing packaged agent listings (verified goal-run evidence) to the SaaS
+- Authentication via federation headers (X-Instance-ID + X-Federation-Key)
 
 Environment Variables:
 - ATOM_SAAS_URL: WebSocket URL (default: wss://atomagentos.com/api/ws/satellite/connect)
 - ATOM_SAAS_API_URL: HTTP API URL (default: https://atomagentos.com/api/v1/marketplace)
-- ATOM_SAAS_API_TOKEN: Authentication token (required)
+- ATOM_SAAS_API_TOKEN: Authentication token (required). Doubles as the
+  federation key for peer-authenticated calls (the server registers the
+  instance's API token as the federation shared secret).
+- ATOM_SAAS_INSTANCE_ID: This instance's identity for federation auth —
+  MUST be the id of the MarketplaceInstance row registered on the SaaS
+  (a UUID). Falls back to the legacy ATOM_INSTANCE_ID name, then to a
+  token-derived id (which the SaaS will REJECT for federation auth until
+  the instance is registered — configure ATOM_SAAS_INSTANCE_ID).
+
+Federation contract (atom-saas backend-saas/api/dependencies/
+federation_auth.py validate_federation_peer): machine calls authenticate
+with X-Instance-ID (registered, active MarketplaceInstance id) +
+X-Federation-Key (the accepted FederationConnection shared_secret — for
+atom instances that is the ATOM_SAAS_API_TOKEN). Human platform users use
+JWT; this client is always the machine caller.
 
 Reference: scripts/satellite/atom_satellite.py for WebSocket pattern
 """
@@ -43,8 +58,12 @@ class AtomSaaSConfig:
 class AtomAgentOSMarketplaceClient:
     """Client for Atom Agent OS Marketplace API communication."""
 
-    def __init__(self, config: Optional[AtomSaaSConfig] = None):
+    def __init__(self, config: Optional[AtomSaaSConfig] = None,
+                 transport: Optional[httpx.BaseTransport] = None):
+        """``transport``: optional httpx transport override (test hook —
+        lets tests mount a MockTransport instead of the real network)."""
         self.config = config or self._load_config()
+        self._transport = transport
         self._http_client: Optional[httpx.AsyncClient] = None
         self._ws_connection = None  # websockets.WebSocketClientProtocol
         self._connected = False
@@ -62,12 +81,23 @@ class AtomAgentOSMarketplaceClient:
             "https://atomagentos.com/api/v1/marketplace"
         )
         api_token = os.getenv("ATOM_SAAS_API_TOKEN", "")
-        instance_id = os.getenv("ATOM_INSTANCE_ID")
+        # Federation identity: ATOM_SAAS_INSTANCE_ID is canonical (it must
+        # equal the MarketplaceInstance.id registered on the SaaS);
+        # ATOM_INSTANCE_ID is the legacy name kept for compatibility.
+        instance_id = (os.getenv("ATOM_SAAS_INSTANCE_ID")
+                       or os.getenv("ATOM_INSTANCE_ID"))
 
         if not instance_id and api_token:
-            # Generate a stable instance ID from the token if not provided
+            # Fallback identity derived from the token. NOTE: this can never
+            # match a registered MarketplaceInstance on the SaaS, so
+            # federation-authenticated calls (ingest-listing) will 401 until
+            # ATOM_SAAS_INSTANCE_ID is configured with the registered id.
             import hashlib
             instance_id = hashlib.sha256(api_token.encode()).hexdigest()[:32]
+            logger.warning(
+                "ATOM_SAAS_INSTANCE_ID not set - derived a placeholder "
+                "instance id; federation-authenticated SaaS calls will be "
+                "rejected until the registered instance id is configured")
 
         if not api_token:
             logger.warning("ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail")
@@ -80,19 +110,28 @@ class AtomAgentOSMarketplaceClient:
         )
 
     async def _get_http_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client with authentication headers."""
+        """Get or create HTTP client with authentication headers.
+
+        Federation contract (atom-saas validate_federation_peer): the SaaS
+        authenticates self-hosted instances with X-Instance-ID (registered
+        MarketplaceInstance id) + X-Federation-Key (the accepted
+        FederationConnection shared_secret — atom reuses its API token).
+        The legacy X-API-Token header is deliberately NOT sent: no server
+        route reads it."""
         if not self._http_client:
             headers = {
-                "X-API-Token": self.config.api_token,
-                "X-Federation-Key": self.config.api_token, # Reuse token as federation key context
                 "X-Instance-ID": self.config.instance_id or "",
+                "X-Federation-Key": self.config.api_token,
                 "Content-Type": "application/json"
             }
-            self._http_client = httpx.AsyncClient(
-                base_url=self.config.api_url,
-                headers=headers,
-                timeout=self.config.timeout
-            )
+            kwargs: Dict[str, Any] = {
+                "base_url": self.config.api_url,
+                "headers": headers,
+                "timeout": self.config.timeout,
+            }
+            if self._transport is not None:
+                kwargs["transport"] = self._transport
+            self._http_client = httpx.AsyncClient(**kwargs)
         return self._http_client
 
     async def fetch_skills(
@@ -245,17 +284,26 @@ class AtomAgentOSMarketplaceClient:
         page: int = 1,
         page_size: int = 20
     ) -> Dict[str, Any]:
-        """Fetch agents from Atom SaaS marketplace."""
+        """Browse agents on the SaaS marketplace.
+
+        Parameter contract (committed SaaS router GET /browse): the server
+        accepts limit/offset/category — page/page_size/query are NOT read
+        (query-based search is a SaaS-side gap until the server supports
+        it). Map the pagination locally; the keyword is logged and dropped.
+        """
         client = await self._get_http_client()
 
         params = {
-            "query": query,
-            "page": page,
-            "page_size": page_size
+            "limit": max(1, int(page_size)),
+            "offset": max(0, (int(page) - 1) * int(page_size))
         }
 
         if category:
             params["category"] = category
+        if query:
+            logger.debug(
+                "agent browse 'query' parameter is not supported by the "
+                "SaaS browse endpoint - dropped (server-side search gap)")
 
         try:
             response = await client.get("/agents/api/agent-marketplace/browse", params=params)
@@ -263,14 +311,21 @@ class AtomAgentOSMarketplaceClient:
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to fetch agents: {e}")
-            return {"agents": [], "total": 0, "page": page, "page_size": page_size}
+            return {"agents": [], "total": 0, "page": page,
+                    "page_size": page_size, "source": "error"}
 
     async def get_agent_template(self, template_id: str) -> Optional[Dict[str, Any]]:
-        """Get agent template details from Atom SaaS."""
+        """Get an agent listing's details from the SaaS marketplace.
+
+        Route contract (committed SaaS router): GET /{template_id} — there
+        is no /details/{id} route. The response is the MANIFEST-FREE
+        listing view (identity, price, ratings, verified_record, guidance
+        counts, tunable_keys); configuration / anonymized_memory_bundle
+        stay server-side under the managed-agent model."""
         client = await self._get_http_client()
 
         try:
-            response = await client.get(f"/agents/api/agent-marketplace/details/{template_id}")
+            response = await client.get(f"/agents/api/agent-marketplace/{template_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -292,6 +347,29 @@ class AtomAgentOSMarketplaceClient:
         except httpx.HTTPError as e:
             logger.error(f"Failed to install agent {template_id}: {e}")
             return {"success": False, "error": str(e)}
+
+    async def publish_listing(self, listing: Dict[str, Any]) -> Dict[str, Any]:
+        """Push a locally packaged listing (package_agent_for_sale output,
+        verified_record included) to the SaaS marketplace. The SaaS lands
+        it PENDING admin approval — remote content never goes live
+        directly."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.post(
+                "/agents/api/agent-marketplace/ingest-listing", json=listing)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            detail = ""
+            resp = getattr(e, "response", None)
+            if resp is not None:
+                try:
+                    detail = str(resp.json().get("detail") or "")
+                except Exception:
+                    detail = resp.text[:200]
+            logger.error(f"Failed to publish listing to SaaS: {e} {detail}")
+            return {"success": False, "error": str(e), "detail": detail}
 
     async def fetch_workflows(
         self,
@@ -609,89 +687,128 @@ class AtomAgentOSMarketplaceClient:
             self._http_client = None
 
     # Synchronous wrappers for non-async contexts
+    #
+    # Cross-loop safety (2026-09-13): each wrapper runs its coroutine on a
+    # PRIVATE event loop (asyncio.run) and CLOSES + drops the cached
+    # AsyncClient before that loop goes away. Previously the client was
+    # cached across loops, so the SECOND sequential sync call (e.g.
+    # get_template_details then install_agent_sync inside
+    # AgentMarketplaceService.install_agent) raised RuntimeError("Event
+    # loop is closed") — not an httpx.HTTPError, so install's except-path
+    # rolled back the local rows it had already created.
+    def _run_sync(self, method, /, *args, **kwargs):
+        """Run one async API call to completion on a private event loop,
+        then close and drop the cached AsyncClient (it is bound to the loop
+        asyncio.run just destroyed and cannot be reused)."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass  # no loop — safe to asyncio.run
+        else:
+            raise RuntimeError(
+                "AtomSaaSClient sync wrappers must not be called from a "
+                "running event loop — use the async methods directly")
+
+        async def _runner():
+            try:
+                return await method(*args, **kwargs)
+            finally:
+                client, self._http_client = self._http_client, None
+                if client is not None:
+                    try:
+                        await client.aclose()
+                    except Exception:  # noqa: BLE001 — teardown must not mask
+                        pass
+
+        return asyncio.run(_runner())
+
     def fetch_skills_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_skills."""
-        return asyncio.run(self.fetch_skills(*args, **kwargs))
+        return self._run_sync(self.fetch_skills, *args, **kwargs)
 
     def get_skill_by_id_sync(self, skill_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_skill_by_id."""
-        return asyncio.run(self.get_skill_by_id(skill_id))
+        return self._run_sync(self.get_skill_by_id, skill_id)
 
     def get_categories_sync(self) -> List[Dict[str, Any]]:
         """Synchronous wrapper for get_categories."""
-        return asyncio.run(self.get_categories())
+        return self._run_sync(self.get_categories)
 
     def rate_skill_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for rate_skill."""
-        return asyncio.run(self.rate_skill(*args, **kwargs))
+        return self._run_sync(self.rate_skill, *args, **kwargs)
 
     def install_skill_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_skill."""
-        return asyncio.run(self.install_skill(*args, **kwargs))
+        return self._run_sync(self.install_skill, *args, **kwargs)
 
     def uninstall_skill_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for uninstall_skill."""
-        return asyncio.run(self.uninstall_skill(*args, **kwargs))
+        return self._run_sync(self.uninstall_skill, *args, **kwargs)
 
     def search_skills_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for search_skills."""
-        return asyncio.run(self.search_skills(*args, **kwargs))
+        return self._run_sync(self.search_skills, *args, **kwargs)
 
     def fetch_agents_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_agents."""
-        return asyncio.run(self.fetch_agents(*args, **kwargs))
+        return self._run_sync(self.fetch_agents, *args, **kwargs)
 
     def get_agent_template_sync(self, template_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_agent_template."""
-        return asyncio.run(self.get_agent_template(template_id))
+        return self._run_sync(self.get_agent_template, template_id)
 
     def install_agent_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_agent."""
-        return asyncio.run(self.install_agent(*args, **kwargs))
+        return self._run_sync(self.install_agent, *args, **kwargs)
+
+    def publish_listing_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for publish_listing."""
+        return self._run_sync(self.publish_listing, *args, **kwargs)
 
     def fetch_workflows_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_workflows."""
-        return asyncio.run(self.fetch_workflows(*args, **kwargs))
+        return self._run_sync(self.fetch_workflows, *args, **kwargs)
 
     def get_workflow_template_sync(self, template_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_workflow_template."""
-        return asyncio.run(self.get_workflow_template(template_id))
+        return self._run_sync(self.get_workflow_template, template_id)
 
     def fetch_domains_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_domains."""
-        return asyncio.run(self.fetch_domains(*args, **kwargs))
+        return self._run_sync(self.fetch_domains, *args, **kwargs)
 
     def get_domain_template_sync(self, domain_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_domain_template."""
-        return asyncio.run(self.get_domain_template(domain_id))
+        return self._run_sync(self.get_domain_template, domain_id)
 
     def install_domain_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_domain."""
-        return asyncio.run(self.install_domain(*args, **kwargs))
+        return self._run_sync(self.install_domain, *args, **kwargs)
 
     def fetch_components_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_components."""
-        return asyncio.run(self.fetch_components(*args, **kwargs))
+        return self._run_sync(self.fetch_components, *args, **kwargs)
 
     def get_component_details_sync(self, component_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_component_details."""
-        return asyncio.run(self.get_component_details(component_id))
+        return self._run_sync(self.get_component_details, component_id)
 
     def install_component_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_component."""
-        return asyncio.run(self.install_component(*args, **kwargs))
+        return self._run_sync(self.install_component, *args, **kwargs)
 
     def register_instance_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for register_instance."""
-        return asyncio.run(self.register_instance(*args, **kwargs))
+        return self._run_sync(self.register_instance, *args, **kwargs)
 
     def push_analytics_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for push_analytics."""
-        return asyncio.run(self.push_analytics(*args, **kwargs))
+        return self._run_sync(self.push_analytics, *args, **kwargs)
 
     def health_check_sync(self) -> bool:
         """Synchronous wrapper for health_check."""
-        return asyncio.run(self.health_check())
+        return self._run_sync(self.health_check)
 
 
 # Alias for backward compatibility

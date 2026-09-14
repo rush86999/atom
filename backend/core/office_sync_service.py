@@ -52,6 +52,26 @@ OFFICE_COMPONENT_MAP: Dict[str, Tuple[str, str]] = {
 }
 
 
+def _office_path_key(path: Any) -> str:
+    """Canonical comparison key for an ``office_file`` binding.
+
+    Legacy rows (chat-draft seeding before the absolute-path fix) stored a
+    CWD-relative path ("data/office/quote.xlsx") while every office API
+    validates to an ABSOLUTE path. Raw ``==`` comparisons therefore missed
+    the binding: ``ensure_canvas_for_file`` created a DUPLICATE canvas row
+    for the same file, and ``notify_file_canvases`` skipped the original —
+    agent file edits never reached the canvas the user had open (live
+    incident 2026-09-10, canvas 7f078cea…). Resolve both sides to absolute
+    (no existence requirement) before comparing.
+    """
+    if not isinstance(path, str) or not path.strip():
+        return ""
+    try:
+        return str(Path(path.strip()).resolve())
+    except Exception:
+        return path.strip()
+
+
 class OfficeSyncService:
     """Service coordinates bi-directional sync between files and canvas UI."""
 
@@ -329,9 +349,17 @@ class OfficeSyncService:
                 .limit(100)
                 .all()
             )
+            # A tombstoned binding is NOT reusable: re-presenting the file must
+            # start a fresh canvas, never reopen one the user deleted (which
+            # would silently un-delete it via broadcast_file_update).
+            from tools.canvas_crud_tool import deleted_canvas_ids
+
+            finished = deleted_canvas_ids(self.db, [c.id for c in candidates])
             for cand in candidates:
+                if cand.id in finished:
+                    continue
                 meta = cand.content if isinstance(cand.content, dict) else {}
-                if meta.get("office_file") == contained:
+                if _office_path_key(meta.get("office_file")) == _office_path_key(contained):
                     row = cand
                     break
 
@@ -419,8 +447,19 @@ class OfficeSyncService:
             )
             targets = [
                 c for c in candidates
-                if isinstance(c.content, dict) and c.content.get("office_file") == contained
+                if isinstance(c.content, dict)
+                and _office_path_key(c.content.get("office_file")) == _office_path_key(contained)
             ][: max(0, limit)]
+
+            # Never revive a canvas the user deleted: the tombstone lives in the
+            # audit trail, not in Canvas.status, so an agent file edit used to
+            # append an "update" row over it and the card came back (live
+            # 2026-09-10: canvas_c7b3491aebf8, deleted 13:46, updated 14:04).
+            from tools.canvas_crud_tool import deleted_canvas_ids
+
+            finished = deleted_canvas_ids(db, [c.id for c in targets])
+            targets = [c for c in targets if c.id not in finished]
+
             for canvas in targets:
                 self.broadcast_file_update(canvas.id, contained, user_id)
             return [c.id for c in targets]
@@ -445,7 +484,22 @@ class OfficeSyncService:
         except ValueError:
             return
 
+        # A deleted canvas stays deleted. This is the single writer that appends
+        # the "update" row the rest of the system reads as the canvas' state, so
+        # writing one over a delete tombstone un-deletes the canvas (the gallery
+        # card returns and /canvas/{id} serves it again). The tombstone lives in
+        # the audit trail — Canvas.status stays "active" — so ask the trail.
+        # restore_deleted_canvas appends past the tombstone: that is the only
+        # way back. Inside the try: a lookup failure must degrade like every
+        # other broadcast failure (logged, no audit row) instead of 500-ing the
+        # caller.
         try:
+            from tools.canvas_crud_tool import deleted_canvas_ids
+
+            if deleted_canvas_ids(self.db, [canvas_id]):
+                logger.debug("Office update skipped for deleted canvas %s", canvas_id)
+                return
+
             render_res = self.office.renderer.render_to_html(file_path)
             # A failed HTML render (e.g. mammoth missing for docx) must NOT
             # abort the broadcast — the structured snapshot is independent of

@@ -202,10 +202,13 @@ class TestSurface:
             "pubsub_publish",
             "call_integration",
             "list_integrations",
-            "browser_navigate",
-            "browser_click",
-            "browser_type",
-            "browser_screenshot",
+            # computer-use operator surface (legacy browser_* advertising
+            # removed 2026-09-12; the registry browser tools remain in
+            # get_all_tools)
+            "operator_start_task",
+            "operator_get_status",
+            "operator_get_screenshot",
+            "operator_stop_task",
         ]:
             assert expected in names, f"local-tools missing {expected}"
 
@@ -922,10 +925,13 @@ class TestExecuteToolLocalTools:
 
     @pytest.mark.asyncio
     async def test_ingest_message_attachment(self, svc):
+        # Real ingestion now — a call without message_id is an honest failure
+        # rather than the old fabricated "Successfully ingested" placeholder.
         result = await svc.execute_tool(
             "local-tools", "ingest_message_attachment", {"file_name": "f.txt"}, {}
         )
-        assert "ingested" in result
+        assert result["success"] is False
+        assert "message_id" in result["error"]
 
     @pytest.mark.asyncio
     async def test_shopify_no_store(self, svc, monkeypatch):
@@ -1198,100 +1204,85 @@ class TestExecuteToolLocalTools:
 
 
 class TestExecuteToolBrowser:
+    """Legacy dual-mode browser dispatch retired 2026-09-12: the four
+    advertised legacy names delegate to the real governed browser tools
+    via core/operator/legacy_bridge (shared per-agent session); every
+    other legacy name returns an explicit retirement error. The old
+    cloud/desktop modes and their tier gate no longer exist."""
+
     @pytest.fixture(autouse=True)
     def _neutralize_registry(self, monkeypatch):
         _no_registry(monkeypatch)
 
+    @pytest.fixture
+    def bridge_funcs(self, monkeypatch):
+        import core.operator.legacy_bridge as bridge
+        funcs = MagicMock()
+        funcs.browser_create_session = AsyncMock(
+            return_value={"success": True, "session_id": "s1"})
+        funcs.browser_navigate = AsyncMock(
+            return_value={"success": True, "url": "u"})
+        funcs.browser_click = AsyncMock(return_value={"success": True})
+        funcs.browser_fill_form = AsyncMock(return_value={"success": True})
+        funcs.browser_screenshot = AsyncMock(return_value={"success": True})
+        mgr = MagicMock()
+        mgr.get_session.return_value = MagicMock()
+        funcs.get_browser_manager.return_value = mgr
+        monkeypatch.setattr(bridge, "_funcs", lambda: funcs)
+        monkeypatch.setattr(bridge, "_shared_sessions", {})
+        return funcs
+
     @pytest.mark.asyncio
-    async def test_browser_navigate_desktop_sent(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=True)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
+    async def test_browser_navigate_delegates(self, svc, bridge_funcs):
         result = await svc.execute_tool(
-            "local-tools", "browser_navigate", {"url": "http://x"}, {}
-        )
-        assert "Command sent to Desktop App: Navigate to http://x" in result
+            "local-tools", "browser_navigate", {"url": "http://x"},
+            {"user_id": "u1"})
+        assert result["success"] is True
+        bridge_funcs.browser_navigate.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_browser_navigate_desktop_unsent_simulation(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=False)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
+    async def test_browser_click_delegates(self, svc, bridge_funcs):
         result = await svc.execute_tool(
-            "local-tools", "browser_navigate", {"url": "http://x"}, {}
-        )
-        assert "[SIMULATION]" in result
+            "local-tools", "browser_click", {"selector": "#a", "x": 1, "y": 2},
+            {"user_id": "u1"})
+        assert result["success"] is True
+        bridge_funcs.browser_click.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_browser_navigate_cloud_restricted(self, svc, monkeypatch):
-        ws = MagicMock()
-        ws.tenant_id = "t"
-        tenant = MagicMock()
-        tenant.plan_type = "PRO"
-        db = MagicMock()
-        db.query.side_effect = [
-            _query_first(value=ws),
-            _query_first(value=tenant),
-        ]
-        monkeypatch.setattr("core.database.SessionLocal", _session_factory(db))
+    async def test_browser_type_with_selector_uses_fill(self, svc, bridge_funcs):
         result = await svc.execute_tool(
-            "local-tools",
-            "browser_navigate",
-            {"url": "http://x"},
-            {"computer_use_mode": "cloud", "workspace_id": "ws-1"},
-        )
-        assert "Enterprise" in result
+            "local-tools", "browser_type", {"text": "hi", "selector": "#b"},
+            {"user_id": "u1"})
+        assert result["success"] is True
+        bridge_funcs.browser_fill_form.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_browser_cloud_import_error(self, svc, monkeypatch):
-        monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
+    async def test_browser_screenshot_delegates(self, svc, bridge_funcs):
         result = await svc.execute_tool(
-            "local-tools",
-            "browser_navigate",
-            {"url": "http://x"},
-            {"computer_use_mode": "cloud", "workspace_id": "default"},
-        )
-        assert "Cloud browser service not available" in result
+            "local-tools", "browser_screenshot", {}, {"user_id": "u1"})
+        assert result["success"] is True
+        bridge_funcs.browser_screenshot.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_browser_click_desktop(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=True)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
+    async def test_browser_legacy_shared_session_reused(self, svc, bridge_funcs):
+        for tool, args in [("browser_navigate", {"url": "http://x"}),
+                           ("browser_click", {"selector": "#a"}),
+                           ("browser_screenshot", {})]:
+            await svc.execute_tool("local-tools", tool, args,
+                                   {"user_id": "u1", "agent_id": "a1"})
+        assert bridge_funcs.browser_create_session.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_browser_legacy_mode_flag_ignored(self, svc, bridge_funcs):
+        # computer_use_mode no longer selects any behavior — same governed
+        # path regardless.
         result = await svc.execute_tool(
-            "local-tools", "browser_click", {"selector": "#a", "x": 1, "y": 2}, {}
-        )
-        assert "Click #a" in result
+            "local-tools", "browser_navigate", {"url": "http://x"},
+            {"computer_use_mode": "cloud", "workspace_id": "ws-1"})
+        assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_browser_type_desktop_unsent(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=False)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
-        result = await svc.execute_tool(
-            "local-tools", "browser_type", {"text": "hi", "selector": "#b"}, {}
-        )
-        assert "[SIMULATION] Typed 'hi'" in result
-
-    @pytest.mark.asyncio
-    async def test_browser_screenshot_desktop_sent(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=True)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
-        result = await svc.execute_tool("local-tools", "browser_screenshot", {}, {})
-        assert "Screenshot requested" in result
-
-    @pytest.mark.asyncio
-    async def test_browser_screenshot_desktop_unsent(self, svc, monkeypatch):
-        nm = MagicMock()
-        nm.send_to_desktop = AsyncMock(return_value=False)
-        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
-        result = await svc.execute_tool("local-tools", "browser_screenshot", {}, {})
-        assert "[SIMULATION] Screenshot captured" in result
-
-    @pytest.mark.asyncio
-    async def test_browser_cloud_only_tools_desktop_error(self, svc):
-        ctx = {"computer_use_mode": "desktop"}
+    async def test_browser_legacy_retired_names(self, svc):
         tools = [
             "browser_new_tab",
             "browser_switch_tab",
@@ -1306,62 +1297,22 @@ class TestExecuteToolBrowser:
             "browser_download_file",
         ]
         for tool in tools:
-            result = await svc.execute_tool("local-tools", tool, {}, ctx)
-            assert "only available in cloud mode" in result or "Error:" in result
+            result = await svc.execute_tool("local-tools", tool, {}, {})
+            assert isinstance(result, dict), tool
+            assert result.get("retired") is True, tool
+            assert "retired" in result.get("error", ""), tool
 
     @pytest.mark.asyncio
-    async def test_browser_cloud_only_tools_cloud_import_error(self, svc, monkeypatch):
-        monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        ctx = {"computer_use_mode": "cloud", "workspace_id": "default"}
-        tools = [
-            "browser_new_tab",
-            "browser_switch_tab",
-            "browser_click_coords",
-            "list_browser_tabs",
-            "browser_save_session",
-            "browser_set_proxy",
-            "browser_monitor",
-            "browser_wait_for_selector",
-            "browser_extract_content",
-            "browser_upload_file",
-            "browser_download_file",
-        ]
-        for tool in tools:
-            result = await svc.execute_tool("local-tools", tool, {}, ctx)
-            assert "Cloud browser service not available" in result
+    async def test_browser_legacy_playwright_unavailable(self, svc, monkeypatch):
+        import core.operator.legacy_bridge as bridge
 
-    @pytest.mark.asyncio
-    async def test_browser_click_cloud_import_error(self, svc, monkeypatch):
-        monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
+        def _boom():
+            raise ImportError("no playwright")
+        monkeypatch.setattr(bridge, "_funcs", _boom)
         result = await svc.execute_tool(
-            "local-tools",
-            "browser_click",
-            {"selector": "#a"},
-            {"computer_use_mode": "cloud", "workspace_id": "default"},
-        )
-        assert "Cloud browser service not available" in result
-
-    @pytest.mark.asyncio
-    async def test_browser_type_cloud_import_error(self, svc, monkeypatch):
-        monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        result = await svc.execute_tool(
-            "local-tools",
-            "browser_type",
-            {"text": "hi"},
-            {"computer_use_mode": "cloud", "workspace_id": "default"},
-        )
-        assert "Cloud browser service not available" in result
-
-    @pytest.mark.asyncio
-    async def test_browser_screenshot_cloud_import_error(self, svc, monkeypatch):
-        monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        result = await svc.execute_tool(
-            "local-tools",
-            "browser_screenshot",
-            {},
-            {"computer_use_mode": "cloud", "workspace_id": "default"},
-        )
-        assert "Cloud browser service not available" in result
+            "local-tools", "browser_navigate", {"url": "http://x"}, {})
+        assert result["success"] is False
+        assert "browser automation unavailable" in result["error"]
 
 
 # ============================================================================
@@ -2896,17 +2847,6 @@ class TestRemainingEdges:
         monkeypatch.setattr(svc, "execute_tool", AsyncMock(return_value="local"))
         result = await svc.call_tool("scrape_tool", {})
         assert "not found" in result["error"]
-
-    @pytest.mark.asyncio
-    async def test_cloud_access_check_exception_fails_closed(self, svc, monkeypatch):
-        _no_registry(monkeypatch)
-
-        def _boom(*a, **k):
-            raise RuntimeError("db down")
-
-        monkeypatch.setattr("core.database.SessionLocal", _boom)
-        result = await svc.call_tool("browser_navigate", {"url": "http://x"}, {"computer_use_mode": "cloud", "workspace_id": "ws-9"})
-        assert "Enterprise" in result
 
     @pytest.mark.asyncio
     async def test_list_workflows_parses_json(self, svc, monkeypatch, tmp_path):

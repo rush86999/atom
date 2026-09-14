@@ -6,6 +6,154 @@
 
 ---
 
+## Session 2026-09-11f (infer the goal for chat teaching)
+
+**Context**: "infer a goal for better UX maybe use LLM" — a `/teach` in chat
+should land on the goal the agent is working, not always on all of its work.
+
+Two-step resolution, cheapest first:
+
+1. **EXPLICIT (deterministic, no model call)** — the run page's "Chat with this
+   agent" link carries `goal_run_id`; `/chat` → `useChatInterface` puts it in
+   the request `context`; the backend resolves run → goal + title and scopes the
+   lesson.
+2. **INFERRED (one small structured call)** — plain chat with an agent that has
+   LIVE goals: `infer_lesson_goal` picks the goal the rule is clearly about, or
+   none. No live goals → the call is skipped entirely.
+
+Safety rails: prompt biased to `null`; confidence floor 0.7; unoffered goal ids
+discarded; `goal_inferred` surfaced in the notice; the saved card shows the
+scope with a one-click **Apply to all work** (widening is allowed, narrowing is
+not); kill switch `ATOM_CHAT_TEACH_GOAL_INFERENCE` (default ON).
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/chat_teaching.py` | `goal_context_for_run`, `goal_title`, `active_goals_for_agent`, `LessonGoalMatch` + `infer_lesson_goal`; `teach_from_chat` takes `goal_id`/`goal_title`/`goal_inferred` | `tests/test_lesson_scope.py`, `tests/test_chat_teaching.py` |
+| `backend/integrations/chat_routes.py` | `_teach_command_response` is async: explicit run context first, inference second, `_goal_inference_enabled` kill switch | same |
+| `backend/core/settings_catalog.py` | `ATOM_CHAT_TEACH_GOAL_INFERENCE` (Learning & Verification) | `tests/test_runtime_settings*.py` (35) |
+| `frontend-nextjs/pages/goal-runs/[id].tsx` | chat link carries `&goal_run_id=` | `tests/pages/goal-runs/detail.test.tsx` |
+| `frontend-nextjs/pages/chat/index.tsx`, `components/chat/ChatInterface.tsx`, `hooks/chat/useChatInterface.ts` | read `?goal_run_id=` → request `context.goal_run_id` | `hooks/chat/__tests__/useChatInterface.test.ts` (+2) |
+| `frontend-nextjs/components/chat/TeachingNotice.tsx` | scope chip (`this goal: <title>`, "(inferred)") + one-click **Apply to all work** | `components/chat/__tests__/TeachingNotice.test.tsx` (+5) |
+
+**Verification**: backend **240 passed**; frontend **387 passed**, `tsc` clean.
+Live on `:8001` (throwaway agent + goal + run, removed after): explicit context →
+`scope=goal, goal_inferred=False` with no model call; goal-specific wording with
+no context → `scope=goal, goal_inferred=True` naming the right goal; general
+wording → stayed `scope=global`; goal view = global + 2 scoped, ordinary view =
+global only; widening a scoped rule succeeded.
+
+---
+
+## Session 2026-09-11e (lesson SCOPE + goal-run coaching panel)
+
+**Context**: follow-up ask — "what about long running goals?" and then, on the
+gap list, "some teaching points are goal specific and other can be
+generalized". Goal runs already had a closed teaching loop (supervisor
+override → `journal_standing_lesson`; lessons injected at decision time via
+`GoalRunRouter._role_context` and via `GenericAgent` for agent steps), and the
+chat channel writes the same store. Two gaps were real: **every lesson applied
+to ALL of the agent's work** (a deal-specific correction leaked everywhere),
+and the run page had **no** teach box, no chat link, and no visibility into
+what the agent had learned.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/student_learning_service.py` | lesson `scope` (`global`\|`goal` + `goal_id`) on both write pathways; `get_agent_lessons(..., goal_id=)` scope filter; new `_permanent_lessons` (raw journal) + `list_agent_lessons` (display); `_has_covering_lesson` scope-aware dedup | `tests/test_lesson_scope.py` (10) |
+| `backend/core/goals/goal_run_router.py` | `_role_context` passes `goal_id` → this goal's scoped lessons reach the decision prompt, other goals' do not | `tests/test_lesson_scope.py` |
+| `backend/core/generic_agent.py` | ReAct lesson recall passes `context["goal_id"]` (goal-run steps) | lesson-scope + worktime suites |
+| `backend/core/goals/goal_run_learning.py` | `record_decision_override(..., scope=)` — override lessons can be goal-scoped | `tests/test_goal_run_learning.py` |
+| `backend/core/goals/goal_run_service.py`, `backend/api/goal_run_routes.py` | `ResumeBody.guidance_scope` threaded through `resume` | `tests/test_goal_run_routes.py` |
+| `backend/api/agent_onboarding_routes.py` | `TeachRequest.scope`/`goal_id`; response echoes the stored scope | `tests/api/test_chat_assistant_and_teaching.py` |
+| `backend/api/agent_maturity_routes.py` | `_teaching_points` carries scope; NEW `GET /api/maturity/agents/{id}/lessons?goal_id=` | `tests/test_lesson_scope.py` |
+| `frontend-nextjs/lib/goal-run-api.ts` | `listAgentLessons`, `teachAgentFromRun`, `resumeGoalRun(..., guidanceScope)` | `tests/pages/goal-runs/detail.test.tsx` |
+| `frontend-nextjs/pages/goal-runs/[id].tsx` | Coaching card (teach box + scope select + learned list with scope badges + "Chat with this agent" link); override scope selector | `tests/pages/goal-runs/detail.test.tsx` (+6) |
+
+**Verification**: backend **241 passed** (goals + teaching + trace); frontend
+**367 passed** on re-run (one TrainingPanel flake in the first parallel pass —
+the known one, passes isolated and on re-run), `tsc --noEmit` clean. Live on
+`:8001`: `/teach` default → `scope=global`; `/teach` with
+`scope=goal,goal_id=g-123` → `scope=goal`; `/lessons?goal_id=g-123` → both;
+`/lessons?goal_id=g-999` → global only (no leak); `/lessons` (no goal) → global
+only. Throwaway agent removed afterwards (agent count back to 4).
+
+**Behaviour note**: a lesson scoped to goal A is invisible to ordinary work
+(chat, canvas edits, tasks) and to goal B — that is the point. Pre-scope rows
+have no scope field and read as global, so nothing historical changed.
+
+---
+
+## Session 2026-09-11d (fix: /api/chat/trace 500 — one corrupt row killed every session)
+
+**Context**: found while verifying the teach-from-chat restart. The canvas page
+logged `[API Error] 500 /api/chat/trace/<sid>` on every load, killing the
+Agent Workspace history restore.
+
+**Root cause (not a live code path)**: 3 rows in `agent_executions` held
+NON-JSON in `metadata_json` — `workflow_templates` rows that a one-off Aug-30
+recovery INSERT had shifted one column into the executions table (`started_at`
+= 1 was the template's `is_public`; `metadata_json` held `created_at`
+`"2026-08-31 03:26:01"`; `duration_seconds` held `'1.0.0'`). Searched for a
+seeder: `recover_atom_db.py` handles only chat_messages / agent_reasoning_steps
+/ agents, and a repo-wide grep found NO `INSERT INTO agent_executions`
+anywhere — the ORM is the only writer. So there was no live seeder to fix; the
+durable fix is data repair + a corruption-tolerant read. SQLite's
+`json_extract()` raises `malformed JSON` for the WHOLE statement when it
+evaluates any such row, so one bad row 500'd the endpoint for every session.
+PostgreSQL cannot hit this (`JSONColumn` is JSONB there, validated on write);
+SQLite is the Personal-Edition default and does not validate.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/sql_json.py` (new) | `json_field_equals(db, column, path, value)` — dialect-portable `json_extract` comparison; on SQLite wraps it in `CASE WHEN json_valid(col)=1 THEN … END` (CASE guarantees evaluation order; AND in a WHERE clause does not) | `tests/test_chat_agent_trace.py` |
+| `backend/integrations/chat_routes.py` | `get_session_agent_trace` uses `json_field_equals` instead of a bare `func.json_extract` | `tests/test_chat_agent_trace.py` (11 green, run twice) |
+
+**Live data repair**: backed up to `backend/data/backups/atom-pre-trace-repair-20260911-082709.db`, verified 0 references in any table carrying an execution id, then deleted the 3 rows. Malformed rows now 0; real executions 2253; the 3 `workflow_templates` intact.
+
+**Verification**: live on `:8001` — `GET /api/chat/trace/gap-closed-1789126720` (the session that 500'd) now returns 200 with its real runs; a foreign user's session correctly returns 403. All 674 `Failed to retrieve agent trace` log lines PREDATE the restart; zero since. Pre-existing, untouched failures in the regression set: the 5 known `test_covpush_w92_chat_routes.py` RBAC-fixture ones (`SimpleNamespace` has no `role`).
+
+**⚠️ For other sessions**: the same SQLite landmine exists for every `JSONColumn` compared with `json_extract` — `agent_world_model.py` (ChatMessage, AgentEpisode), `agent_social_layer.py` (SocialPost), `api/financial_routes.py` (FinancialAccount). No bad rows in those today; use `core/sql_json.json_field_equals` there when touching them.
+
+---
+
+## Session 2026-09-11c (train an agent from chat — canvas co-editor + regular chat)
+
+**Context**: user ask — "i want to be able to train agent via chat on canvas UI
+or regular chat." Gap: `/api/agents/{id}/teach` existed and lessons were
+already injected at work time, but chat had no teaching channel at all (no
+`ChatIntent` member, no detector) — teaching was reachable only from the canvas
+Training tab's form and thumbs-down comments.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/chat_teaching.py` (new) | `/teach` parser, conservative anchored cue detector, workspace-scoped agent picker, `teach_from_chat` / `suggest_lesson` notices | `tests/test_chat_teaching.py` (43) |
+| `backend/core/student_learning_service.py` | NEW `deliver_teacher_lesson` (the one composite all teaching surfaces share) + `journal_standing_lesson_entry`; `journal_standing_lesson` = bool face (unchanged contract); NEW cross-pathway dedup | `tests/core/test_student_learning_service.py`, `tests/test_teach_thread_reply.py` |
+| `backend/api/agent_onboarding_routes.py` | `/teach` delegates to the shared composite; response contract unchanged + returns `teaching_point_id` (the handle inline Undo resolves) | `tests/api/test_chat_assistant_and_teaching.py` (25 green) |
+| `backend/integrations/chat_routes.py` | `send_chat_message` gained `db` dep; `/teach` short-circuits before the reply model; detected cue attaches `data.teaching` after the orchestrator | `tests/test_chat_teaching.py`, chat-route contract suites |
+| `frontend-nextjs/components/chat/TeachingNotice.tsx` (new) | Shared inline card: saved / duplicate / confirm-first suggestion / agent picker + supervisor-only inline Undo | `components/chat/__tests__/TeachingNotice.test.tsx` (12) |
+| `frontend-nextjs/components/GlobalChat/ChatMessage.tsx` | `ChatMessageData.teaching` + inline render | `ChatMessage.variants.test.tsx` (+4) |
+| `frontend-nextjs/hooks/chat/useChatInterface.ts` | maps `metadata.teaching` onto the assistant message | `useChatInterface.test.ts` (+2) |
+| `frontend-nextjs/components/GlobalChatWidget.tsx` | same mapping for the app-wide widget | widget suite |
+| `frontend-nextjs/pages/canvas/[id].tsx` | `CanvasMessage.teaching` + inline render in the co-editor chat | `tests/pages/canvas-detail.test.tsx` (+2) |
+
+**Verification**: backend teaching regression **141 passed**; frontend chat/
+training regression **373 passed**; `tsc --noEmit` clean. Live end-to-end on
+`:8001` (backend restarted, throwaway agent created then removed): `/teach` →
+`metadata.teaching.status=saved` + recallable by `get_agent_lessons`; repeat →
+`duplicate` (live-found bug: the STUDENT pedagogy path stacked duplicates —
+fixed + regression test); bare `/teach` → usage; no agent → `needs_agent` +
+pick list; detected cue → normal reply + `suggested` notice and NOTHING
+written. Pre-existing, untouched failures: 11 in
+`test_covpush_w92_chat_routes.py` / `test_covpush_w95_services_batch5.py`
+(`SimpleNamespace` user has no `role`; stash-verified identical on a clean tree).
+
+---
+
 ## Session 2026-09-11b (BYOK/BPC routing hardening — P0+P1 from web research)
 
 **Context**: after the Foot Shear routing incident (reasoning model streamed empty at the token cap, provider fallback 404'd, turn died), the operator asked for research into how mature gateways make BYOK/cost-quality routing robust across all scenarios. Research + gap analysis: `docs/architecture/BYOK_BPC_ROUTING_ROBUSTNESS.md` (cited: LiteLLM, OpenRouter, Qwen Code).
@@ -24,7 +172,7 @@
 
 **Verification**: all four new suites red→green; provider/orchestrator regression **351 passed, 1 pre-existing failure** (`TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`, stash-verified on clean main). Backend restarted healthy (`scripts/restart_backend.sh`, `:8001` pid 40519).
 
-**P2 + grounding (also landed)**: `_is_context_length_error`/`_is_content_policy_error` → skip same-model providers and jump to model fallback (`test_llm_p2_fallbacks.py` 3); `ATOM_BPC_MAX_PRICE_PER_MTOK` hard ceiling (default off); empty outcomes record `cost=0.0`; canvas-context head-only cut at 4000 chars → `_elide_middle(text, 12000)` keeps head+tail (the agent had claimed the draft had no alternative machine). Final sweep **267 passed**; restarted (`:8001` pid 48059); live smoke turn HTTP 200 in 13s.
+**P2 + grounding (also landed)**: `_is_context_length_error`/`_is_content_policy_error` → skip same-model providers and jump to model fallback (`test_llm_p2_fallbacks.py` 3); `ATOM_BPC_MAX_PRICE_PER_MTOK` hard ceiling (default off); empty outcomes record `cost=0.0`; canvas-context head-only cut at 4000 chars → `_elide_middle(text, 12000)` keeps head+tail; `_resolve_canvas_ctx` loads the draft from the store when a client sends `canvas_id` without `canvas_content` (`test_canvas_ctx_store_fallback.py` 4) — verified live: a content-less request answered "F-52"x16G Foot Shear (F-5216) at $7,519.00 … 2–3 week delivery". Final sweep **267 passed**; restarted (`:8001`); live smoke turn HTTP 200 with no empty-stream/fallback/budget events.
 
 ---
 
@@ -7834,3 +7982,327 @@ here). mypy baseline unchanged — HEAD and post-change both report the same 27
 errors in `auto_document_ingestion.py`; `image_ocr.py` and
 `email_attachment_ingestion.py` are clean.
 
+
+---
+
+## Session 2026-09-11g (agent can ingest from the integration into memory on demand)
+
+**Context**: a canvas co-editor turn needed the image attached to "Chandrakant's
+original quote email" and answered *"the image itself isn't in any data I can
+access"*. Verified against the live store (`data/atom_memory/default`):
+`ingest_message_attachment` was advertised to agents but was a PLACEHOLDER that
+returned `"Successfully ingested … 0 knowledge edges"` without fetching
+anything; the live-evidence tool planner (chat lane AND canvas co-editor) had no
+way to pull a mailbox message into memory; and images with no text layer were
+dropped as `no_text` (only 6 image docs existed, three of them literal
+vision-LLM error strings).
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/email_attachment_ingestion.py` | NEW `ingest_message_attachments_on_demand(...)`: provider-resolved (outlook/gmail, explicit or inferred from connected mailbox) fetch of a message's attachment(s) → shared `ingest_email_attachment_bytes`. Idempotent: documented doc-id probe short-circuits `already_ingested` without a download; truthful per-attachment statuses (indexed/already_ingested/unsupported/error); spotlight-wrapped `text` preview. `ingest_email_attachment_bytes` gained `describe_images=` + `text_preview` passthrough | `tests/test_on_demand_attachment_ingest.py` (13, new) |
+| `backend/integrations/mcp_service.py` | `ingest_message_attachment` dispatch: placeholder → real `_ingest_message_attachment()` (autonomy-topic gate, fail-open on lookup error); catalog entry now names `platform`, optional `attachment_id` (omit = all attachments), idempotency and OCR | `tests/test_on_demand_attachment_ingest.py` dispatch cases; 4 stale covpush tests re-contracted (they locked the fabricated success) |
+| `backend/core/chat_tool_planner.py` | NEW mailbox `ingest` intent for `outlook`/`gmail`: resolves a message id (Graph id direct, else per-term fan-out) → `ingest_email_on_demand` → memory read-back. Gated by the `email_attachment` topic + `ATOM_PLANNER_INGEST_ENABLED`; planner prompt now forbids reporting email content inaccessible without trying `ingest` | `tests/test_tool_planner_mailbox_ingest.py` (8, new) |
+| `backend/core/image_ocr.py` | Vision failure/refusal text ("I'm sorry, I couldn't generate a response…", "insufficient balance") is never accepted as document text; NEW textless-image DESCRIPTION fallback (`describe_when_textless=`), master switch `ATOM_IMAGE_DESCRIBE_ENABLED` | `tests/test_image_ocr.py` (40) |
+| `backend/core/auto_document_ingestion.py` | `image_describe=` plumbed `process_file_bytes` → `parse_document` → `_parse_image` → `ocr_image_bytes`; `text_preview` added to the `process_file_bytes` success return | `tests/test_image_ocr.py` parser case; `tests/test_email_attachment_memory_index.py` |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | `ingest_message(..., describe_images=)` → `_ingest_binary_attachments`; `ingest_email_on_demand` passes `True` (explicit pull describes textless images; poller/webhook default False) | `tests/test_on_demand_attachment_ingest.py` pipeline case |
+| `backend/core/settings_catalog.py` | `ATOM_PLANNER_INGEST_ENABLED`, `MAX_ON_DEMAND_ATTACHMENTS_FETCHED`, `ATOM_IMAGE_DESCRIBE_ENABLED` (Email & Attachments) | `tests/test_runtime_settings*.py` green |
+
+**Verification**: 543 passed across the 11 affected suites
+(on-demand/MCP/planner/image-OCR/attachment/pipeline); 3 pre-existing failures
+in `test_chat_tool_planner_web.py` + `test_context_window_adaptation.py` and 1
+in `test_covpush_w34_auto_document.py` fail identically on the unmodified
+baseline (confirmed by stash). Discovery checked at the boundary: the tool is
+exposed by `get_server_tools("local-tools")` with params
+`[message_id, attachment_id, platform, file_name]`.
+
+---
+
+## Session 2026-09-11h (single memory store + documents.search lexical leg was dead)
+
+**Context**: after removing the duplicate root store (`data/atom_memory`,
+`data/lancedb`), end-to-end verification of the canonical store surfaced a
+second, independent defect. `documents.search` reported `lexical_hits: 0` on
+**every** query and `hybrid: semantic_only` — the BM25 leg was not running at
+all. The vector leg masked it, so retrieval still "worked"; only the fused
+ranking was silently degraded.
+
+**Root causes (two, both found by live reproduction, not inspection)**:
+
+1. **The FTS index was never provisioned.** `ingested_documents_fts` /
+   `knowledge_documents_fts` did not exist in `backend/data/atom.db`, because
+   the `20260808_add_documents_fts` migration cannot run here — the alembic CLI
+   is blocked on this DB (batch-mode FK crash + broken revision chain, round 71).
+   `search_documents_lexical` treats "FTS missing" as "fall back to ILIKE",
+   which cannot match document text: `ingested_documents` has no full-content
+   column, only `content_preview`. Result: the lexical leg returned nothing for
+   the life of every process, with no error and no log line.
+2. **The migration's sync triggers were invalid SQL.** Inside a trigger body
+   SQLite does not resolve bare column names, so the migration's
+   `COALESCE(file_name,'')` raises `no such column: file_name` on **every**
+   INSERT into the base table. Had that migration ever run, it would have
+   broken document ingestion outright; it stayed latent only because the
+   migration never ran at all. Verified directly against `sqlite3`:
+   `new.`/`old.`-qualified SQL indexes inserts, refreshes updates, and clears
+   deletes.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/hybrid_search/fts_bootstrap.py` | NEW. Self-provisioning, dialect-aware BM25 index: creates the FTS5 tables + backfill + new./old.-qualified sync triggers (SQLite) or the generated `tsvector` column + GIN index (PG). Idempotent (re-checks existence), process-level cache so the search hot path stays cheap, **never raises**. Follows the house self-provisioning convention (trust-calibration gateway `_ensure_table`, CLAUDE.md #81p) so local SQLite deploys no longer depend on a migration that cannot run | `tests/test_documents_fts_bootstrap.py` (8, new) |
+| `backend/core/hybrid_search/lexical_ranker.py` | `search_documents_lexical` self-heals on first miss instead of degrading for the process lifetime; NEW `_try_self_heal_fts`. Also fixes AND-only brittleness: FTS5 ANDs space-separated terms, so a natural-language query died entirely if **any** token was absent — retry once with OR (AND tried first, so fully-matching queries keep their precision). Also fixed my own first-cut repair heuristic: `SELECT COUNT(*)` on an external-content FTS5 table is proxied to the content table and reports the base row count even when the index is empty — the `_docsize` shadow table is the real signal | `tests/test_documents_fts_bootstrap.py` (+2); `tests/core/test_lexical_ranker.py` re-contracted (below) |
+| `backend/main_api_app.py` | Startup provisioning of the document FTS index next to the memory-store reconciliation (idempotent, never raises, logs `✓ documents.search FTS index ready`) | verified live in `logs/uvicorn_8001_restart.log` |
+| `backend/alembic/versions/20260808_add_documents_fts.py` | Trigger bodies now `new.`/`old.`-qualified (latent ingestion-breaking bug for any DB where the migration ran) | `tests/test_documents_fts_bootstrap.py::test_bootstrap_creates_sync_triggers` |
+| `backend/tests/core/test_lexical_ranker.py` | `test_lexical_iliike_fallback_when_fts_missing` → `test_lexical_self_heals_when_fts_missing` (contract change: the leg now recovers rather than staying degraded); NEW `test_lexical_iliike_fallback_when_fts_unavailable` keeps the genuine-degradation path covered via monkeypatch | 24 passed across the 3 suites |
+
+**Verification (live, at the boundary the user touches)**:
+- Before: `stats={'lexical_hits': 0, 'vector_hits': 30, ...}`, `hybrid: semantic_only`.
+- After provisioning: `ingested_documents_fts` + `knowledge_documents_fts`,
+  **1749/1749** rows indexed, 6 triggers; lexical leg returns `fts5_bm25`.
+- `search_documents_lexical("1320mm")` → F-5216 doc
+  (`ext_4e0d6eb0e266f46a082a32b0`) ranked **first**;
+  `("1320mm 16GA 430kg")` → same doc, sole hit;
+  the natural-language `"1320mm 16GA foot shear 430kg packing size"` → 5 hits,
+  F-5216 first (OR fallback).
+- Post-restart live agent turn returned *"Per the F-5216 spec sheet (ingested
+  2026-09-08), the shear cuts 1.6 mm (16 gauge) mild steel / 20 gauge stainless
+  over a 1320 mm (52") length, and the machine weighs 430 kg (946 lb)"* — the
+  agent attributes the fact to the ingested document store, not the canvas.
+
+**Known-remaining**: `unbridged_hits` is high (~28/30) — the PG↔LanceDB join-key
+bridge (`pg_document_id`, CLAUDE.md #51) is largely unstamped in this DB, so the
+lexical and vector legs fuse on fewer rows than possible.
+`scripts/backfill_lancedb_join_keys.py` exists for it. Separately, an
+`Index content_idx has version 2, which is not supported (<=0), ignoring it`
+warning comes from the communications table's own LanceDB index (a prebuilt
+IVF index written by a newer LanceDB than the reader); retrieval is unaffected
+because the query falls back to a full scan.
+
+
+---
+
+## Session 2026-09-11h (generalize on-demand ingest to ALL integrations)
+
+**Context**: the on-demand ingest shipped for mailbox attachments; the ask was
+to generalize it. Two findings drove the design:
+
+1. `integration_ingest_item` (the existing JIT-ingest tool) only covered
+   integrations in `STRUCTURE_ADAPTERS` with a `FILE_FETCHERS` entry — 4 drives
+   — and EXPLICITLY refused record apps ("no file-fetch adapter"), so CRM /
+   Books / Inventory / support / PM services had no on-demand path at all.
+2. `IntegrationMemoryIndexer.index_structure` did `await handler.add_document(…)`
+   on a **sync** `LanceDBHandler.add_document` — TypeError on every row,
+   swallowed by the per-row guard, so the structure index wrote ZERO rows in
+   production (the async mock in its test hid it). `integration_search_index`
+   therefore searched an index nothing wrote.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/drive_tree_ingestion.py` | NEW `ingest_integration_content()` — one entry point for EVERY connected integration: mailbox → pipeline full-message ingest; storage → the shared find→open→read leg (which already ingests); everything else → live `UniversalIntegrationService.search` → `render_integration_record()` → documents store under `ext_sha1(service:external_id)` (same id the file path uses, so ONE `ingested_external_ids` probe covers both). Selective-ingestion gate applied once, for every family. NEW `_write_document()` handles sync (production) and async (test) handlers; `index_structure` uses it (bug fix above) | `tests/test_integration_general_ingest.py` (12, new); `tests/test_integration_memory_index.py::test_index_structure_writes_with_the_real_sync_handler` |
+| `backend/tools/drive_tool.py` | `integration_ingest_item` generalized: `query` param + optional `external_id`; no-fetcher / no-exact-id integrations delegate to the general function instead of erroring. Registry description/params updated to cover all integrations | `tests/test_integration_memory_index.py` (record-app case rewritten to the new capability) |
+| `backend/core/chat_tool_planner.py` | `ingest` intent allowed for every connected integration (`_INGEST_EXCLUDED_SERVICES` = web_search/web_fetch/memory/datasets); NEW `_integration_ingest_block()` (governance + evidence framing) alongside the mailbox leg; planner prompt generalized ("never report content inaccessible without planning ingest") | `tests/test_integration_general_ingest.py` planner cases; `tests/test_tool_planner_mailbox_ingest.py` |
+| `backend/core/autonomy_policy.py` | NEW `integration_ingest` topic (label/description/gate: `integration_ingest_write`, INTERN floor, own trust domain) | `tests/test_autonomy_policy_gate.py` (green) |
+| `backend/core/agent_governance_service.py` | `integration_ingest_write: 2` (moderate, INTERN+) — exact key so it cannot fall to the generic default | `tests/test_agent_governance_service.py` |
+
+**Verification**: 12 new general-ingest tests + the rewritten record-app case,
+`test_index_structure_writes_with_the_real_sync_handler` (fails against the old
+`await`), 33 passed in the integration/planner batch, 81 passed across the
+autonomy/governance/planner suites. Pre-existing failures confirmed unchanged
+by baseline stash: `test_jit_office_file_opens_in_app_canvas`,
+`test_jit_non_office_file_ignores_canvas_request` (they stub
+`process_file_bytes` with `{"status": "ok"}`, which `ee310abf6`'s
+`interpret_ingest_result` no longer treats as success),
+`test_drive_multi_folder_ingestion.py::{test_gdrive,test_onedrive}_service_ingest_folder_scopes_walk`
+(stub `ingest_file_to_memory` lacks the newer `role=` kwarg),
+`test_chat_tool_planner_web.py::test_platform_services_present_with_key`.
+
+---
+
+## Session 2026-09-11i (self-healing, version-aware LanceDB FTS index bootstrap)
+
+**Context**: every boot logged
+`[WARN lance::index] Index content_idx has version 2, which is not supported
+(<=0), ignoring it` for `atom_communications` (`lancedb==0.24.3`, store
+`backend/data/atom_memory/default`, 6912 rows). Root cause: the on-disk FTS
+index was written in a format version the installed reader rejects, so LanceDB
+silently ignores it and falls back to a full scan (correct results, lost
+performance). The pipeline's existing
+`create_fts_index("content", replace=True)` did **not** heal it —
+`replace=True` reuses the incompatible index instead of rewriting it. Only an
+explicit `drop_index` + fresh `create_fts_index` clears the warning, which
+would be wasteful to run on every boot, hence the version marker.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/lancedb_index_selfheal.py` | NEW `ensure_fts_index(table, column, index_name, marker_key)` — reads `lancedb.__version__` lazily/defensively; persists a per-table marker (beside the LanceDB data via the table's connection URI, local fallback for remote stores, explicit `marker_key` override) recording the version that last (re)built the index; fast no-op when marker matches + index present; otherwise drops the existing FTS index (swallowing not-found; resolves the real listed name defensively) then `create_fts_index(column, replace=True)` and rewrites the marker; never raises (failure → `False` + warning). Marker-write failure alone still returns `True` (index is usable) | `tests/test_lancedb_index_selfheal.py` (11, new) |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | `_create_connections_table` FTS step now calls `ensure_fts_index(self.connections_table, column="content")`; INFO on ready, WARNING when unavailable, non-fatal semantics preserved | same suite + `tests/test_covpush_w86_gmail_ingestion_ai.py::test_mm_create_tables` (green) |
+
+**Verification**: `cd backend && PYTHONPATH=. venv/bin/python -m pytest tests/test_lancedb_index_selfheal.py tests/test_covpush_w86_gmail_ingestion_ai.py::test_mm_create_tables -q`
+→ **12 passed**. `mypy core/lancedb_index_selfheal.py` → 0 errors.
+Live against the real store: `ensure_fts_index` rebuilt once (2.57s) and
+no-op'd on the next call (0.065s); marker written at
+`backend/data/atom_memory/default/.lancedb_fts_index/atom_communications.content.json`;
+a fresh process afterwards shows **no** `lance::index ... version 2` warning and
+FTS queries return hits. Unrelated pre-existing failures in the gmail suite
+(`test_mm_ingest_communication`, `test_mm_ingest_batch`,
+`test_mm_generate_embedding`, `test_mm_update_metadata`,
+`test_fetch_gmail_messages`) do not touch the changed code path.
+
+---
+
+## Session 2026-09-11j (join-key bridge ignored; chunk families orphaned)
+
+**Context**: following up the two "known-remaining" items flagged in 2026-09-11h.
+Both turned out to be real, but not the ones originally named.
+
+### 1. `documents.search` never read `metadata.pg_document_id`
+
+Measured on the live store: the LanceDB `documents` table held **38,983** rows,
+of which only **981** bridged to an `IngestedDocument` by id equality.
+**35,325** were CHUNK rows (`<doc_id>::cN`) whose parent id was sitting in
+`metadata.pg_document_id` — stamped at ingest, and re-stamped by
+`scripts/backfill_lancedb_join_keys.py` (which reports 38,982/38,983 already
+bridged, so the backfill was never the gap). The **reader** was: `_fuse_rrf`
+matched on `hit["id"]` alone, so every chunk hit reported `bridged:false` and —
+worse — landed on a different RRF key than its parent's lexical hit, meaning the
+two legs could never reinforce each other. That is the one thing hybrid fusion
+exists to do.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/hybrid_search/documents_hybrid.py` | `_fuse_rrf` resolves each vector hit through three legs (exact id → `metadata.pg_document_id` → `::cN` parent suffix) in ONE `IN (...)` query, and keys the fused entry by the RESOLVED parent id. Metadata normalized via `_coerce_metadata` (writers emit dict OR JSON string); `_parent_doc_id` helper | `tests/core/test_documents_hybrid.py` (+5: chunk hydration by stamp, by suffix, parent+chunk fusion into one entry, unknown chunk still surfaced, JSON-string metadata) |
+
+**Verified live** (same query, before → after):
+`semantic_only`, `lexical_hits=0`, `unbridged=28` → `bm25_vector_rrf`,
+`lexical_hits=30`, `unbridged=3`, every top hit hydrated with its real PG
+`file_name` instead of the metadata fallback.
+
+### 2. Deleting a document orphaned its chunk family
+
+The 2,676 rows whose stamp pointed at a nonexistent parent had a cause: both
+cleanup sites in `auto_document_ingestion.py` called only
+`delete_documents_by_id("documents", doc.id)` — an exact `id = '<doc>'` match —
+while chunks are stored as `<doc_id>::c0..cN`. Every chunk survived its
+parent's deletion: still retrievable, still stamped with a departed parent.
+`LanceDBHandler.delete_documents_by_prefix` already existed for exactly this
+(its docstring names the `{doc}::c0..c3400` family) and was never called from
+these sites.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/auto_document_ingestion.py` | `remove_integration_documents` and the modified-file re-ingest path now delete the base row AND the `{doc_id}::` chunk family | `tests/test_document_vector_family_cleanup.py` (3, new) |
+
+**Fresh installs are covered by construction**: both ingest paths stamp
+`pg_document_id` from day one, chunks inherit it, and the reader now honours it —
+no backfill or startup pass needed. The existing 2,676 historical orphans are
+left alone deliberately (cleaning them is a data decision, not an automatic one).
+
+### 3. Environment correction — which lancedb actually serves requests
+
+`scripts/restart_backend.sh` prefers **`backend/venv314` (Python 3.14.7, lancedb
+0.38.0)**, while `backend/venv` is Python 3.11 / lancedb **0.24.3**. Ad-hoc store
+scripts run with `./venv` therefore write an index format the server cannot read,
+and vice-versa — which is the actual source of the `content_idx has version 2`
+mismatch. The server log confirms it was real server-side, not a script artifact:
+**3,400** `not supported` hits in `logs/uvicorn_8001_restart.log`. Use
+`venv314` for anything touching the live store. The version-marker in
+`ensure_fts_index` makes this self-correcting: a boot after a wrong-venv write
+logs `Dropped stale FTS index` and rebuilds once, then no-ops on subsequent
+boots.
+
+**Verification**:
+- 34 passed under **venv314** (the server's env) across
+  `tests/test_documents_fts_bootstrap.py`, `tests/test_lancedb_index_selfheal.py`,
+  `tests/test_document_vector_family_cleanup.py`, `tests/core/test_documents_hybrid.py`.
+- 131 passed across the ingestion suites
+  (`test_document_vector_family_cleanup`, `test_drive_multi_folder_ingestion`,
+  `test_integration_general_ingest`, `test_integration_memory_index`,
+  `test_auto_document_ingestion`, `test_on_demand_attachment_ingest`).
+- Steady-state boot verified: first boot logged `Dropped stale FTS index
+  'content_idx'` → `(re)built ... for lancedb 0.38.0`; the **next** boot logged
+  neither, with **0** `not supported` warnings — marker fast path confirmed.
+- Live agent turn still returns the F-5216 specs, attributed to "the F-5216 spec
+  sheet (ingested 2026-09-08)", i.e. from the document store.
+- `tests/test_covpush_w86_gmail_ingestion_ai.py`: 5 failures confirmed
+  **pre-existing** by targeted `git stash` of the one changed file — baseline and
+  current FAILED sets are byte-identical (94 passed both ways).
+
+---
+
+## Session 2026-09-11i (fix all outstanding issues from the ingestion work)
+
+**Scope**: every failure and gap reported after the generalization — four
+pre-existing test failures, the record-by-id gap, the `search_tools`
+discoverability gap, and two stale suites found while sweeping.
+
+| Area | Root cause | Fix |
+|---|---|---|
+| `tests/integrations/test_mcp_service.py` (CROSS-FILE POISON) | Module-level `sys.modules['integrations.universal_integration_service'] = MagicMock()` ran at IMPORT time — and pytest imports every test module during COLLECTION. Running this file in the same session as `test_covpush_integrations_core.py` handed it a MagicMock UIS: **30 failed / 12 errors**. Each file passed alone, which hid it | Stubs moved into a module-scoped autouse fixture that installs them for this file's tests and restores after (mcp_service imports UIS lazily, so nothing needed them at import). Batch now **318 passed / 0 failed** |
+| `tests/integrations/test_mcp_service.py::TestWebSearch` (2) | Called `web_search(..., user_id=)` — the signature is `tenant_id` — and patched `core.byok_endpoints.get_byok_manager` while `mcp_service` bound the name at import; asserted the old `get_api_key` accessor | Call with `tenant_id=`, patch `integrations.mcp_service.get_byok_manager`, assert `get_tenant_api_key(tenant, "tavily")` |
+| `tests/test_integration_memory_index.py` JIT canvas tests (2) | Stubbed `process_file_bytes` with `{"status": "ok"}`; `interpret_ingest_result` only accepts `ingested` | Stubs return `{"status": "ingested", ...}` |
+| `tests/test_drive_multi_folder_ingestion.py` folder tests (2) | `_IngestResult.__call__` lacked the newer `role=` kwarg the service passes | Stub accepts `role=None` |
+| `tests/test_covpush_w34_auto_document.py::test_persist_existing_row` | Fixture built `SimpleNamespace()` with no `id`, but the join-key realignment path reads `existing.id` | Fixture carries `id="doc-1"` |
+| `tests/test_chat_tool_planner_web.py::test_platform_services_present_with_key` | Asserted the exact platform list, but `datasets` is appended from HOST catalog state | Pin `_datasets_service_available` off (the test is about the Tavily key gate) |
+| `core/drive_tree_ingestion.py` — record by id | Gap: a record `external_id` alone could not be fetched (no query to search with) | New `_resolve_record_by_external_id()`: structure-index point lookup (`idx_<service>_<external_id>`) then a live search matched EXACTLY on the id; a named id now ingests THAT record only, never the search's incidental neighbours |
+| `integrations/mcp_service.py::search_tools` | Whole-query substring matching returned `[]` for any natural-language ask ("ingest an email attachment into memory"), so capabilities stayed invisible to the very search meant to surface them | Token-scored ranking (name hits ≫ description hits; whole-query substring still dominates; stable order for ties). `ingest_message_attachment`'s description now leads with "Ingest" so it matches on name and description |
+
+**Verification**: 479 passed / 0 failed across the combined affected suites;
+the once-poisoned batch is 318 passed / 0 failed; the ingestion sweep is 214
+passed / 0 failed. Every "pre-existing" claim above was confirmed by stashing
+the working changes and re-running before fixing.
+
+## Session 2026-09-13a (fix-all wave: operator governance, goal-run IDOR, marketplace sell path, search/ingest hardening)
+
+**Scope**: every finding from a three-way read-only quality pass over the
+2026-09-11→13 arcs (operator a2f7d6f6e, goals/marketplace 24abc9a70→93bc53d4c,
+search/ingest 2926e381a→03fb2bd7c) — 8 P1s, ~20 P2/P3s — fixed and pinned.
+
+| Area | Root cause | Fix |
+|---|---|---|
+| Operator audit/governance dead code | `OperatorSession` was built with no `db`/`governance_callback`; `_audit` no-oped on `db=None`; the MCP dispatch path never forwards a db | `_browser_governance_permits` opens its own short-lived session (goal_run_events idiom); entry gate AND per-action `governance_callback` share it; `_audit` self-opens. BrowserAudit rows + governance hard-stop now real in both production paths |
+| Operator identity spoofing | `execute_tool` let model-supplied `user_id`/`agent_id` arguments shape run ownership; context-less callers read anything | `operator_*` args stripped at dispatch; `_owned_run_or_denial` denies no-identity callers; `mcp_routes.py` forwards `current_user.id` |
+| Tier floors vs documented ladder | No `operator_*` names in `TIER_FLOOR_TOOL_WHITELISTS` → operator was autonomous-only | reads at student/intern/supervised floors; start/stop at supervised |
+| test_covpush_integrations_core (7 tests) | Still pinned the retired dual-mode browser contract — and launched REAL Chromium in unit tests (no TESTING gate) | Rewritten to the delegation/retirement contract; `BrowserSession.start` refuses under TESTING=1. 189 passed, no browser spawn |
+| Goal-run IDOR | `get_run`/`_load` id-only; GET routes had no access check; writes unchecked across workspaces | Service reads/writes workspace-scoped; route `_require_run_access` 404s cross-workspace. New suite `test_goal_run_access_control.py` (10) |
+| Marketplace sell path dead end-to-end | Client sent `X-API-Token` (server wants `X-Instance-ID`+`X-Federation-Key` federation auth); GET `/details/{id}` route never existed; `publish_listing_to_saas`/`install_agent` had no live caller | Client aligned to `validate_federation_peer` contract (`ATOM_SAAS_INSTANCE_ID` env, documented); GET fixed to the real `/{template_id}`; new permission-checked routes `POST /templates/{id}/push` and `POST /install-remote` |
+| atom_saas_client cross-loop httpx | Cached `AsyncClient` reused across `asyncio.run` loops — 2nd sync call raised RuntimeError → install rollback | `_run_sync` closes/drops the client per call; refuses live-loop reuse; `transport=` test hook. MockTransport test pins two sequential sync calls |
+| Stranded goal runs | `computer_use_work` waits had no deadline; in-memory operator registry + fire-and-forget delegation died silently on restart | Waits carry `deadline`+`watchdog` (45 min default); `due_watchdog_runs` wakes with honest decision; maintenance sweep `interrupt_stalled_runs` (6 h) → `paused_hitl`, never auto-cancel. Suite `test_goal_run_watchdog_sweep.py` (7) |
+| Packaging secret leakage | Only credential-named KEYS stripped; `sk-…`/`ghp_…`/`AKIA…` in free text shipped verbatim | `SECRET_TOKEN_RES` patterns in `redact_pii`; listing description redacted too. Suite `test_marketplace_packaging_redaction.py` (17) |
+| Search-miss ingest unbounded | Fallback (4-rung resolve + ≤2 vision pulls) ran inline with no deadline vs 45s/25s lane budgets; bare aiohttp 300s default; silent write on timeout | Internal 10s budget (`ATOM_PLANNER_INGEST_BUDGET_SECONDS`) around both cores; Graph calls capped 30s; landed-progress checkpoint → honest "pulled into memory" note on timeout |
+| Figure-phrase false positives | Space-grouped regex branch captured phones/versions/quantities; `boost=len(phrase)` let junk outrank real hits; limit 2 vs 3 across paths | Space form requires currency signal; `_is_phone_shaped`/`_FIG_CONTEXT_RE` screens; boost capped at 12; one `_FIGURE_PHRASE_LIMIT=3`. 16 new FP cases, 28 pinned positives green |
+| FTS self-heal blind spot | `CREATE TRIGGER IF NOT EXISTS` collided with the old broken migration's same-named triggers | Trigger bodies read from `sqlite_master` and compared normalized; mismatch → DROP+recreate. Poisoned-DB test |
+| DELETE /documents chunk orphans | The d94a5e6df family-delete fix landed at 2 of 3 sites; chunk-only ids 404'd forever | Prefix delete paired at the route; chunk-only ids now deletable (4 route tests) |
+| RRF chunk-count bias | Every chunk of a parent added 1/(K+rank) — doc size dominated ranking | Vector hits deduped per resolved parent before scoring; regression test (10-chunk flood vs both-legs single-chunk) |
+| sender= KQL injection (latent) | Unvalidated interpolation into `"from:{sender}"` | `^[\w.+-]+@[\w.-]+$` gate at `search_emails`; malformed dropped+logged; injection payload test |
+| Gmail fallback dead-end | Re-ran the exact provider query that just missed; newest-N rung was outlook-only | `skip_provider_query` on fallback paths; gmail newest-N rung via shared `_match_recent_ids` |
+| Per-turn LanceDB reloads | 3–5 full-table loads of atom_communications per search turn (~4s each) | Single `_comms_store_records()` short-TTL cache, invalidated by both ingest cores after a pull |
+| KQL ladder runaway | ~60 Graph calls when failing; 400/401/429 indistinguishable | `last_graph_status` exposed; 401/403 short-circuit; abort after 3 consecutive failures; `$orderBy`→`$orderby` |
+| Lexical fallback gaps | ILIKE path lacked the FTS path's OR-retry; PG had no after-boot self-heal | OR-retry mirrored (coverage-ranked); `_try_self_heal_fts` wired into the PG branch too |
+
+Also fixed: operator run registry bounded (max 20, screenshot TTL 900s),
+`BrowserSessionManager` self-managed TTL cleanup task (was: Chromium until
+restart), mid-run observability (progress callback → live status/screenshot),
+egress allowlist enforced on in-loop operator navigations (was: start_url
+only), `budget_exhausted` marker (status "stopped", not "failed"), single
+loop result shape, legacy-bridge coordinate clamp/validation + audited
+coordinate/type paths + `browser_type` append semantics restored via
+`browser_fill_form(append=True)`, guardrail scoped (money words in typed
+text no longer abort; card numbers still do), stale `browser_click_coords`
+prompts in byok_handler updated, eval harness (order actually verified,
+results gitignored, port released), `_ingest_attempted` explicit per-turn
+flag, comms store path via `LanceDBHandler._resolve_local_db_path`,
+`sql_json` PG dialect branch (was: broken `json_extract` on PG), local paid
+install gate (`paid_override`), playbooks packaged workspace-scoped,
+`goal_runs.start` workspace discipline, browse params mapped to the SaaS
+contract, `sanitize_graph_kql` quotes bare operator words.
+
+**Verification** (each suite its own pytest invocation, TESTING=1):
+operator_loop 41, covpush_integrations_core 189 (was 4+3 failing/Chromium),
+goal_run_access_control 10, goal_run_watchdog_sweep 7, agent_marketplace_goal_runs 18,
+marketplace_packaging_redaction 17, sql_json 14, atom_saas_client 44,
+figure_tokens 45, search_miss_ingest_fallback 15, documents_hybrid 13,
+outlook_search_sanitization 33, planner_storage_memory_supplement 36+1skip,
+lexical_ranker 11, documents_fts_bootstrap 10, document_vector_family_cleanup 7,
+covpush_mcp_svc 194, covpush_w85 71, computer_use_gpt6_astra 30, plus 20+
+neighbor suites in the agents' runs. Pre-existing at clean HEAD (verified via
+throwaway worktree, NOT this wave): test_covpush_bigfour 5 (workflow/governance
+class), test_agent_marketplace_service::test_install_agent_handles_template_not_found
+(int(Mock) wiring), test_covpush_w90_core_services::TestW90AddDocument.

@@ -12,8 +12,11 @@ const AUTO_HIDE_DELAY_MS = 8000;
 
 const ChatPage = () => {
     const router = useRouter();
-    const { agent_id } = router.query;
+    const { agent_id, goal_run_id } = router.query;
     const initialAgentId = Array.isArray(agent_id) ? agent_id[0] : agent_id || null;
+    // Opened from a goal run ("Chat with this agent"): carry the run so a
+    // /teach in this chat lands on the goal being worked.
+    const initialGoalRunId = Array.isArray(goal_run_id) ? goal_run_id[0] : goal_run_id || null;
 
     // Restore the last active session after a page reload so the conversation
     // isn't lost (the chat sidebar lists sessions, but the middle pane should
@@ -162,6 +165,7 @@ const ChatPage = () => {
                         sessionId={selectedSessionId}
                         onSessionCreated={handleSessionCreated}
                         initialAgentId={initialAgentId}
+                        initialGoalRunId={initialGoalRunId}
                     />
                 </div>
 

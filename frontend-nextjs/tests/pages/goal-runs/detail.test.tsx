@@ -12,7 +12,7 @@
  * fetch failing (unknown role) stays fail-open — the backend enforces.
  */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const mockUseUserRole = jest.fn();
@@ -45,6 +45,8 @@ jest.mock("@/lib/goal-run-api", () => ({
   distillGoalRun: jest.fn(),
   setSupervisionMode: jest.fn(),
   getPromotionEvidence: jest.fn(),
+  listAgentLessons: jest.fn(),
+  teachAgentFromRun: jest.fn(),
 }));
 
 import GoalRunDetailPage from "@/pages/goal-runs/[id]";
@@ -55,6 +57,9 @@ const getGoalRun = api.getGoalRun as jest.Mock;
 const getGoalRunCanvases = api.getGoalRunCanvases as jest.Mock;
 const getGoal = api.getGoal as jest.Mock;
 const getPromotionEvidence = api.getPromotionEvidence as jest.Mock;
+const listAgentLessons = api.listAgentLessons as jest.Mock;
+const teachAgentFromRun = api.teachAgentFromRun as jest.Mock;
+const resumeGoalRun = api.resumeGoalRun as jest.Mock;
 
 const run = (overrides: Partial<GoalRun> = {}): GoalRun => ({
   id: "run-1",
@@ -95,6 +100,9 @@ beforeEach(() => {
   });
   getPromotionEvidence.mockReset();
   getGoalRun.mockResolvedValue(run());
+  listAgentLessons.mockReset().mockResolvedValue([]);
+  teachAgentFromRun.mockReset().mockResolvedValue({ status: "ok" });
+  resumeGoalRun.mockReset().mockResolvedValue(undefined);
   getPromotionEvidence.mockResolvedValue({
     agent_id: "agent-1",
     recommendation: "shadow",
@@ -251,5 +259,127 @@ describe("GoalRunDetailPage role-based access (any business)", () => {
     await waitFor(() => screen.getByTestId("mode-switcher"));
     expect(screen.getByRole("button", { name: /advance/i })).toBeInTheDocument();
     expect(screen.queryByTestId("read-only-banner")).toBeNull();
+  });
+});
+
+/**
+ * Coaching a long-running run (2026-09-11). A goal run is where a supervisor
+ * most needs to teach AND to see that the teaching stuck — and "some teaching
+ * points are goal specific and others can be generalized", so scope is an
+ * explicit, per-lesson choice rather than a global default.
+ */
+describe("GoalRun detail — coaching", () => {
+  beforeEach(() => {
+    mockUseUserRole.mockReturnValue({
+      role: "team_lead", userId: "owner-1", level: 4,
+      isSupervisor: true, isAdmin: false, loading: false,
+    });
+    getGoalRun.mockResolvedValue(run({ status: "active" }));
+    listAgentLessons.mockReset().mockResolvedValue([]);
+    teachAgentFromRun.mockReset().mockResolvedValue({ status: "ok" });
+    resumeGoalRun.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("links to the run agent's chat", async () => {
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("run-coaching"));
+
+    const link = screen.getByTestId("chat-with-run-agent");
+    // The run id rides along so a /teach in that chat scopes to this run's
+    // goal deterministically (no inference needed).
+    expect(link).toHaveAttribute(
+      "href", "/chat?agent_id=agent-1&goal_run_id=run-1");
+  });
+
+  it("teaches THIS goal by default and confirms where it landed", async () => {
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("run-teach-input"));
+
+    fireEvent.change(screen.getByTestId("run-teach-input"), {
+      target: { value: "Always confirm the price with the lead" },
+    });
+    fireEvent.click(screen.getByTestId("run-teach-submit"));
+
+    await waitFor(() => expect(teachAgentFromRun).toHaveBeenCalledWith(
+      "agent-1",
+      "Always confirm the price with the lead",
+      { scope: "goal", goalId: "goal-abcdef12-0000" },
+    ));
+    expect(await screen.findByTestId("run-teach-notice")).toHaveTextContent(
+      "this goal",
+    );
+  });
+
+  it("teaches all of the agent's work when the scope is switched", async () => {
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("run-teach-scope"));
+
+    fireEvent.change(screen.getByTestId("run-teach-scope"), {
+      target: { value: "global" },
+    });
+    fireEvent.change(screen.getByTestId("run-teach-input"), {
+      target: { value: "Always CC the lead on quotes" },
+    });
+    fireEvent.click(screen.getByTestId("run-teach-submit"));
+
+    await waitFor(() => expect(teachAgentFromRun).toHaveBeenCalledWith(
+      "agent-1",
+      "Always CC the lead on quotes",
+      { scope: "global", goalId: "goal-abcdef12-0000" },
+    ));
+    expect(await screen.findByTestId("run-teach-notice")).toHaveTextContent(
+      "all of this agent's work",
+    );
+  });
+
+  it("surfaces a failed teach instead of claiming success", async () => {
+    teachAgentFromRun.mockRejectedValue(new Error("Not permitted"));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("run-teach-input"));
+
+    fireEvent.change(screen.getByTestId("run-teach-input"), {
+      target: { value: "Some rule" },
+    });
+    fireEvent.click(screen.getByTestId("run-teach-submit"));
+
+    expect(await screen.findByTestId("run-teach-notice")).toHaveTextContent(
+      "Not permitted",
+    );
+  });
+
+  it("shows what the agent learned, badged by scope", async () => {
+    listAgentLessons.mockResolvedValue([
+      { id: "l1", text: "Always log the discount reason", scope: "global" },
+      { id: "l2", text: "Use the Q3 price book", scope: "goal", goal_id: "goal-abcdef12-0000" },
+    ]);
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("run-lessons"));
+
+    await waitFor(() => expect(screen.getAllByTestId("run-lesson")).toHaveLength(2));
+    expect(screen.getByText("Always log the discount reason")).toBeInTheDocument();
+    expect(screen.getByText("Use the Q3 price book")).toBeInTheDocument();
+    expect(screen.getByTestId("run-lesson-scope-global")).toHaveTextContent("all work");
+    expect(screen.getByTestId("run-lesson-scope-goal")).toHaveTextContent("this goal");
+  });
+
+  it("sends the override's lesson scope with the resume call", async () => {
+    getGoalRun.mockResolvedValue(run({
+      status: "active",
+      pending_decision: { decision: "ASK_HUMAN", rationale: "unclear pricing" } as any,
+    }));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("guidance-input"));
+
+    fireEvent.change(screen.getByTestId("guidance-input"), {
+      target: { value: "check the FX rate first" },
+    });
+    fireEvent.change(screen.getByTestId("guidance-scope"), {
+      target: { value: "goal" },
+    });
+    fireEvent.click(screen.getByTestId("override-with-guidance"));
+
+    await waitFor(() => expect(resumeGoalRun).toHaveBeenCalledWith(
+      "run-1", false, "check the FX rate first", "goal",
+    ));
   });
 });

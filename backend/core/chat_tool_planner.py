@@ -94,6 +94,17 @@ _COMMUNICATION_SERVICES = (
     "gmail", "slack", "teams", "discord", "google_chat", "telegram",
     "whatsapp", "zoho_mail",
 )
+# Mailbox providers that support the on-demand `ingest` intent (pull a
+# message's body + attachments from the integration INTO memory).
+_MAILBOX_SERVICES = ("outlook", "gmail")
+# Services with no upstream integration to pull FROM: the platform web tools
+# and the local memory/dataset stores. Any other service supports `ingest`.
+_INGEST_EXCLUDED_SERVICES = frozenset(
+    {"web_search", "web_fetch", "memory", "datasets"}
+)
+# Distinguishes "kill switch" from "autonomy gate" in ingest-core results so
+# each block can keep its original user-facing wording.
+_INGEST_DISABLED_REASON = "__ingest_disabled__"
 
 
 def _haystack_has_address(query: str, context: Optional[Dict[str, Any]]) -> bool:
@@ -145,8 +156,8 @@ for _storage_svc in _STORAGE_SERVICES:
 # Short human descriptions the planner reads (kept compact — this prompt
 # rides on every chat turn).
 _SERVICE_DESCRIPTIONS = {
-    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off",
-    "gmail": "email mailbox — search messages",
+    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off; `ingest` intent pulls a named message's body AND attachments into memory when they are not there yet (PDF/DOCX text; images OCR'd, textless photos described)",
+    "gmail": "email mailbox — search messages; `ingest` intent pulls a message's body + attachments into memory on demand",
     "slack": "team chat — search messages and channels",
     "teams": "team chat — search messages",
     "discord": "community chat — search messages",
@@ -301,7 +312,8 @@ Rules:
   "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
   the site's homepage cannot enumerate a site, and inventing a URL from a
   pattern (adding "/products/…" to the model number) is fabrication.
-- Read-only: search/list intents for lookups; `read` intent ONLY for the
+- Read-only EXCEPT the `ingest` intent: search/list intents for
+  lookups; `read` intent ONLY for the
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
   ABC-1234 row" → read; "what files do I have about X" → search — search
@@ -314,7 +326,18 @@ Rules:
   WorkDrive") after a content request is still a READ — the earlier turns
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
-  Never plan sends, writes, or deletes.
+- NEVER plan sends, deletes, or edits. The ONE exception is the `ingest`
+  intent, valid for ANY connected integration: it pulls content that is NOT
+  already in memory from the integration INTO the workspace's own memory and
+  is idempotent (a repeat ask is a no-op). Use it before ever telling the user
+  that content is inaccessible. What it pulls depends on the service: mailbox
+  (outlook/gmail) → the message body AND attachments (images OCR'd); file
+  storage → the file's contents; record apps (CRM, Books, Inventory, support,
+  tickets, project trackers, …) → the matching record's fields rendered to
+  searchable text. Query = the identifying terms (sender/subject, file name,
+  model code, person/company) or the exact provider id when one is known.
+  Never plan `ingest` for web_search/web_fetch/memory/datasets — they have no
+  upstream to pull from.
 - ALSO classify the turn for routing: suggested_intent is ONE of
   search_request | message_send | task_management | workflow_creation |
   scheduling | data_analysis | automation_trigger | integration_setup |
@@ -346,11 +369,17 @@ Rules:
 - If the needed integration is NOT in the available list, use_tool=false and
   say which integration is missing in `reason`."""
 
-# Pin the planner to a known-reachable vetted model: unpinned "auto" routing
-# prefers the free local Ollama client by value, which is frequently
-# unreachable — the structured path retries then fails, and the whole plan
-# is lost. Planner prompts are tiny; the cheap vetted workhorse is ideal.
-PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash")
+# The planner does NOT pin a model — routing is BPC's job. Planning prompts are
+# tiny, so the call is SHAPED cheaply (``disable_reasoning=True``,
+# temperature 0) instead of naming a model.
+#
+# The pin was removed because a ``provider_model`` pin collapses the handler's
+# candidate list to one tuple, which deletes every provider fallback: the same
+# single point of failure that took the canvas editor down on a transient 429
+# (2026-09-10). Its original justification — unpinned routing preferring an
+# unreachable local Ollama client — is handled by BPC itself, which excludes
+# connection-dead providers (`_filter_by_health` +
+# provider circuit breaker). Do not reintroduce a PLANNER_MODEL constant.
 
 
 # Explicit web-research phrasings. DETECTOR ONLY — it never chooses the
@@ -561,53 +590,31 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     return "\n".join(lines)
 
 
-def _planner_llm_kwargs(llm_service: Any) -> Dict[str, Any]:
-    """Pin (provider, model): `model=` on generate_structured maps to
-    task_type, NOT model selection — unpinned routing preferred the free
-    local Ollama client by value, which is frequently unreachable; the
-    connection-error retries ate ~6s and often lost the plan entirely.
-    generate_structured_response forwards provider_model into the handler,
-    pinning the option list to one reachable (provider, model)."""
-    kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            kwargs["provider_model"] = ("openrouter", PLANNER_MODEL)
-    except Exception:
-        pass
-    return kwargs
-
-
 async def _structured_with_fallback(
     llm_service: Any, *, prompt: str, response_model: Any,
     system_instruction: str,
 ) -> Any:
-    """Pinned planner call with one UNPINNED retry.
+    """Planner structured call routed by BPC (no model pin).
 
-    The pin collapses the handler's option list to (openrouter,
-    PLANNER_MODEL) — a single attempt with no provider fallback. That
-    client is frequently built from the workspace's BYOK credential, so a
-    key that can't serve the pinned model (out of credits, model gated,
-    revoked) silently returns None and the whole routing leg vanishes.
-    The unpinned retry re-ranks across the tenant's OWN configured
-    providers only (OAuth -> BYOK -> env), so a BYOK workspace still
-    routes within its own keys."""
-    result = await llm_service.generate_structured_response(
-        disable_reasoning=True,
+    Delegates to :mod:`core.llm.pinned_planning` with NO pin, so BPC ranks the
+    candidates and the call keeps the provider fallback that a pin would remove.
+    The prompt is still SHAPED as a small non-reasoning plan via
+    ``pinned_structured_call``'s ``disable_reasoning=True`` default.
+
+    Historically this pinned ``("openrouter", PLANNER_MODEL)`` with one unpinned
+    retry. That retry existed only to undo the pin; with no pin there is nothing
+    to undo, so exactly one call is issued.
+    """
+    from core.llm.pinned_planning import pinned_structured_call
+
+    return await pinned_structured_call(
+        llm_service,
         prompt=prompt,
         response_model=response_model,
         system_instruction=system_instruction,
-        temperature=0.0,
-        **_planner_llm_kwargs(llm_service),
-    )
-    if result is not None:
-        return result
-    logger.info("planner pinned call returned None — retrying unpinned")
-    return await llm_service.generate_structured_response(
-        disable_reasoning=True,
-        prompt=prompt,
-        response_model=response_model,
-        system_instruction=system_instruction,
-        temperature=0.0,
+        call_kwargs=None,  # no pin — BPC ranks the candidates
+        log_label="tool planner",
+        task_type="planning",
     )
 
 
@@ -766,6 +773,11 @@ async def plan_tool_use(
         allowed_intents = {"search", "list"}
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
+        # `ingest` (pull content that is NOT in memory yet from the
+        # integration) is valid for EVERY connected integration — the platform
+        # web tools and the local memory/dataset stores have no upstream.
+        if plan.service not in _INGEST_EXCLUDED_SERVICES:
+            allowed_intents.add("ingest")
         if plan.intent not in allowed_intents:
             plan.intent = "search"
         if not (plan.query or "").strip():
@@ -950,6 +962,64 @@ def _ingested_line_from_row(row: Dict[str, Any], with_body: bool) -> str:
     return line + " | FULL BODY:\n" + (body or "(empty message)")
 
 
+# (2026-09-13 review, P2-8/P3-14) ONE shared load of the ingested comms
+# table per turn. A single outlook search used to full-table-load
+# atom_communications 3-5 times (address scan, figure-token scan, styled
+# lookup, the ingest fallback's re-read — ~4s per walk at 3.5k rows). The
+# cache is deliberately SHORT-TTL (default 5s — comfortably one turn, never
+# a cross-turn staleness window) and is invalidated explicitly whenever the
+# planner itself writes to the store (the ingest fallback must re-read its
+# own pull). Path resolution goes through the ONE resolver
+# (core.lancedb_handler._resolve_local_db_path) instead of a second
+# hand-rolled Path(__file__)-relative source of truth, so legacy-store
+# adoption and LANCEDB_URI overrides behave like every other reader.
+_COMMS_CACHE_TTL_SECONDS = float(
+    os.getenv("ATOM_PLANNER_COMMS_CACHE_TTL_SECONDS", "5") or 5
+)
+_comms_store_cache: Dict[str, tuple] = {}
+
+
+def invalidate_comms_store_cache() -> None:
+    """Drop the cached comms snapshot (called after this planner WRITES to
+    the store so the re-search sees its own pull; also tests)."""
+    _comms_store_cache.clear()
+
+
+def _comms_store_db_path() -> str:
+    """Directory of the `default` workspace memory store, resolved the same
+    way every other reader resolves it (never a CWD-relative guess)."""
+    try:
+        from core.lancedb_handler import _resolve_local_db_path
+
+        base = _resolve_local_db_path(
+            os.getenv("LANCEDB_URI", "./data/atom_memory")
+        )
+        return str(Path(base) / "default")
+    except Exception:  # noqa: BLE001 — same anchor as before, never raises
+        return str(
+            Path(__file__).resolve().parent.parent / "data" / "atom_memory" / "default"
+        )
+
+
+def _comms_store_records() -> List[Dict[str, Any]]:
+    """All atom_communications rows as dicts — the ONE cached load shared by
+    the address scan, the figure-token scan and the styled-body lookup."""
+    import time as _time
+
+    path = _comms_store_db_path()
+    now = _time.monotonic()
+    hit = _comms_store_cache.get(path)
+    if hit and now - hit[0] < _COMMS_CACHE_TTL_SECONDS:
+        return hit[1]
+    import lancedb
+
+    db = lancedb.connect(path)
+    table = db.open_table("atom_communications")
+    records = table.to_arrow().to_pandas().to_dict("records")
+    _comms_store_cache[path] = (now, records)
+    return records
+
+
 def _search_ingested_by_address(user_id, address, limit=4):
     """Deterministic LanceDB lookup of ingested messages tied to an email
     address (sender/recipient/content containment, participant rows ranked
@@ -966,14 +1036,8 @@ def _search_ingested_by_address(user_id, address, limit=4):
     if not address or "@" not in address:
         return out
     try:
-        import lancedb
-
-        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-        db = lancedb.connect(str(base / "default"))
-        table = db.open_table("atom_communications")
-        df = table.to_arrow().to_pandas()
         for i, row in enumerate(
-            _rank_address_hits(df.to_dict("records"), address.lower(), limit=limit)
+            _rank_address_hits(_comms_store_records(), address.lower(), limit=limit)
         ):
             out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
     except Exception as e:
@@ -981,20 +1045,107 @@ def _search_ingested_by_address(user_id, address, limit=4):
     return out
 
 
+def _canonical_fig_text(s: Any) -> str:
+    """Separator-insensitive comparison form: '5,350.00', '$5,350.00' and
+    '5 350.00' all canonicalize to '535000' — email bodies render amounts
+    in every one of these shapes."""
+    return re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
+
+
+def _match_rows_by_figure_tokens(
+    rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4
+) -> List[Dict[str, Any]]:
+    """Rank comms rows whose subject/content/html body contains EVERY figure
+    token (canonical form). The amount IS the evidence in vendor-cost
+    queries, so requiring all tokens keeps the scan precise; newest first;
+    duplicate bodies collapse (same key semantics as _rank_address_hits)."""
+    import json as _json
+
+    canon = [_canonical_fig_text(t) for t in tokens]
+    canon = [t for t in canon if len(t) >= 4]
+    if not canon:
+        return []
+    seen_keys = set()
+    scored = []
+    for row in rows:
+        meta = row.get("metadata")
+        if isinstance(meta, str):
+            try:
+                meta = _json.loads(meta)
+            except Exception:
+                meta = {}
+        html = str((meta or {}).get("html_body") or "") if isinstance(meta, dict) else ""
+        hay = _canonical_fig_text(
+            " ".join(
+                [str(row.get("subject") or ""), str(row.get("content") or ""), html]
+            )
+        )
+        if not all(t in hay for t in canon):
+            continue
+        key = (
+            str(row.get("sender") or ""),
+            str(row.get("recipient") or ""),
+            str(row.get("subject") or ""),
+            str(row.get("content") or "")[:120],
+        )
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        scored.append((str(row.get("timestamp") or ""), row))
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [r for _, r in scored[:limit]]
+
+
+def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> List[str]:
+    """Deterministic LanceDB lookup of ingested messages containing the
+    query's figure tokens (amounts, model codes). Graph $search handles
+    quoted currency amounts unreliably and relevance-buries them, so the
+    ingested store is the authoritative leg for exact-figure queries (live
+    2026-09-12: the '$5,350.00 – 10% in stock' vendor-cost email sat in the
+    store while every live-API form missed it). Fault-isolated; [] on
+    anything."""
+    out: List[str] = []
+    if not tokens:
+        return out
+    try:
+        for i, row in enumerate(
+            _match_rows_by_figure_tokens(_comms_store_records(), tokens, limit=limit)
+        ):
+            out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
+    except Exception as e:
+        logger.debug(f"ingested figure-token search skipped: {e}")
+    return out
+
+
 async def _ingested_mailbox_lines(
     user_id, query, context=None, cap: int = 6, hybrid_min: int = 4
 ) -> List[str]:
     """Ranked ingested-mailbox lines for a communication lookup — the second
-    source every mailbox-shaped search gets. Address fragments (query AND
-    recent history) drive the deterministic scan — ONE full-table load per
-    distinct address (the same address in query and history used to trigger
-    two); the hybrid/semantic search only fills slots below ``hybrid_min``
-    (embedding init + vector search was a real contributor to exec timeouts
-    under load, live 2026-09-06, and free-text live APIs — Graph included —
-    do not reliably match sender addresses or nicknames). Fault-isolated:
-    [] on anything."""
+    source every mailbox-shaped search gets. Figure tokens (amounts, model
+    codes) lead, then address fragments (query AND recent history) drive the
+    deterministic scan — ONE full-table load per distinct address (the same
+    address in query and history used to trigger two); the hybrid/semantic
+    search only fills slots below ``hybrid_min`` (embedding init + vector
+    search was a real contributor to exec timeouts under load, live
+    2026-09-06, and free-text live APIs — Graph included — do not reliably
+    match sender addresses or nicknames). Fault-isolated: [] on anything."""
     store_lines: List[str] = []
     import re as _re_addr
+
+    # FIGURE TOKENS LEAD: an amount or model code in the query is the most
+    # specific evidence there is — it must not be crowded out of the cap by
+    # address lines (live 2026-09-12: old Seguin thread lines filled the
+    # mailbox slots while the '$5,350.00' email went unlisted) nor depend on
+    # the hybrid leg running. Same off-loop rule as the address scan.
+    _fig_tokens = _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT)
+    if _fig_tokens:
+        for _line in await asyncio.to_thread(
+            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2)
+        ):
+            if _line not in store_lines:
+                store_lines.append(_line)
+                if len(store_lines) >= cap:
+                    break
 
     _addr_haystack = query + " " + " ".join(
         _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
@@ -1004,6 +1155,8 @@ async def _ingested_mailbox_lines(
         if _addr.lower() in _seen_addrs:
             continue
         _seen_addrs.add(_addr.lower())
+        if len(store_lines) >= cap:
+            break  # figure lines filled the cap — skip the table walk
         # SYNC-OFF-LOOP: the scan loads and walks the whole comms table
         # (~4s at 3.5k rows, live 2026-09-06) — on the loop it froze every
         # concurrent request for that long, per address.
@@ -1044,9 +1197,125 @@ async def _ingested_mailbox_lines(
 
 
 _PRODUCT_TOKEN_RE = re.compile(
-    r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
+    r"\b(?=[A-Za-z_/-]*\d)(?=[A-Za-z0-9_/-]*[A-Za-z])"
+    r"[A-Za-z0-9][A-Za-z0-9_/-]{4,}\b"
 )
 _STYLED_BODY_BLOCK_CAP = 6000
+
+# Currency amounts across locales and business types: any major-economy
+# symbol, ISO code before or after ("CAD 5,350", "5.350,00 EUR"), both
+# decimal conventions (1,234.56 en / 1.234,56 de), space-grouped
+# thousands (10 000, fr-CA), and Indian lakh grouping (1,00,000). These
+# are the tokens a mailbox search must match EXACTLY — per-term
+# shredding turns them into noise ("5" "350" "00") and Graph relevance
+# buries them.
+_CURRENCY_SYMBOLS = "$€£¥₹₩₽₺"
+_CURRENCY_CODE_RE = (
+    r"(?:USD|CAD|EUR|GBP|INR|JPY|AUD|NZD|CHF|CNY|HKD|SGD|MXN|BRL|ZAR"
+    r"|SEK|NOK|DKK|PLN|AED|SAR|TRY|RUB|KRW|ILS|TWD|THB|IDR|VND|PHP|MYR)"
+)
+# Separator-class-aware amount matching (2026-09-13 review): the space-
+# grouped form is also how phone numbers, dates and plain quantities render
+# ("+1 555 123 4567", "10 000 units", "12 345"), so it requires an ADJACENT
+# currency signal (symbol or ISO code); comma/dot-grouped amounts stay
+# allowed without one but are screened for phone-shaped digit runs and
+# version/section contexts below (the phrase feeds a quoted Graph search
+# with boost=len(phrase) AND an ALL-tokens-required store scan — one junk
+# token crowds out or zeroes the true email).
+_AMOUNT_PHRASE_RE = re.compile(
+    # 1) Indian lakh/crore grouping first — the bare-symbol branch below
+    #    would otherwise eat its leading group as a decimal ("₹1,00" of
+    #    "₹1,00,000").
+    rf"(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"\d{{1,2}}(?:,\d{{2}})+,\d{{3}}(?:\.\d{{1,2}})?\b"
+    # 2) Space-grouped thousands WITH a leading currency signal.
+    rf"|(?:{_CURRENCY_CODE_RE}\s*|[{_CURRENCY_SYMBOLS}]\s*)"
+    rf"\d{{1,3}}(?:\s\d{{3}})+(?:[.,]\d{{1,2}})?(?:\s*{_CURRENCY_CODE_RE})?\b"
+    # 3) Space-grouped thousands with a TRAILING ISO code ("10 000 CAD").
+    rf"|\d{{1,3}}(?:\s\d{{3}})+(?:[.,]\d{{1,2}})?\s*{_CURRENCY_CODE_RE}\b"
+    # 4) Comma-grouped (en-US/CA amounts).
+    rf"|(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"\d{{1,3}}(?:,\d{{3}})+(?:[.,]\d{{1,2}})?(?:\s*{_CURRENCY_CODE_RE})?\b"
+    # 5) Dot-grouped (EU thousands, "5.350,00").
+    rf"|(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"\d{{1,3}}(?:\.\d{{3}})+(?:,\d{{1,2}})?(?:\s*{_CURRENCY_CODE_RE})?\b"
+    # 6) Bare currency symbol.
+    rf"|[{_CURRENCY_SYMBOLS}]\s*\d+(?:[.,]\d{{1,2}})?"
+)
+_AMOUNT_TRIM_RE = re.compile(
+    rf"^(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"|\s*(?:{_CURRENCY_CODE_RE})?$"
+)
+# Document-structure words that commonly precede NON-amount digit groups
+# ("version 1.234", "section 3.456") — cheap preceding-word screen.
+_FIG_CONTEXT_RE = re.compile(
+    r"\b(?:version|ver|rev|v|section|sect|sec|paragraph|para|page|fig"
+    r"|figure|step|phase|clause|chapter|appendix|serial)\s*[.:#]?\s*$",
+    re.IGNORECASE,
+)
+# Digits/separators of one contiguous number-ish run (no spaces — two
+# genuine amounts separated by a space must not merge into one "run").
+_DIGIT_RUN_CHARS = ".,+-()"
+_ADDR_IN_QUERY_RE = re.compile(r"[\w.+-]+@[\w.-]+")
+# ONE figure-phrase limit for every consumer (the _collect/resolve ladder
+# used to cap at 2 while the store scan capped at 3 — one deterministic
+# rule, parametrized once).
+_FIGURE_PHRASE_LIMIT = 3
+# Phrase-search rank boost cap: junk 13-char phone-shaped phrases used to
+# outrank genuine term hits via boost=len(phrase).
+_PHRASE_BOOST_CAP = 12
+
+
+def _run_digits(text: str, start: int, end: int) -> str:
+    """Digits of the contiguous number-ish run AROUND text[start:end]
+    (digits joined by .,+-() — never spaces, so two genuine amounts
+    separated by a space never merge). '1,555,123' inside '1,555,123,4567'
+    yields 11 digits, exposing the phone shape the regex's \\b backtrack
+    would otherwise hide."""
+    l, r = start, end
+    while l > 0 and (text[l - 1].isdigit() or text[l - 1] in _DIGIT_RUN_CHARS):
+        l -= 1
+    while r < len(text) and (text[r].isdigit() or text[r] in _DIGIT_RUN_CHARS):
+        r += 1
+    return re.sub(r"\D", "", text[l:r])
+
+
+def _is_phone_shaped(text: str, start: int, end: int) -> bool:
+    """NANP phone shape: 10 digits, or 11 starting with '1'."""
+    digits = _run_digits(text, start, end)
+    return len(digits) == 10 or (len(digits) == 11 and digits.startswith("1"))
+
+
+def _distinctive_figure_phrases(
+    text: str, limit: int = _FIGURE_PHRASE_LIMIT
+) -> List[str]:
+    """Exact-form search phrases for the query's distinctive evidence:
+    currency amounts and product/model codes, across locales and
+    industries. 'CAD 5,350.00', '€ 5.350,00', '₹1,00,000' and '$ 5,350'
+    all reduce to the bare amount ('5,350.00', '5.350,00', '1,00,000') —
+    bodies render symbols and codes inconsistently, and the store-side
+    comparison is separator-insensitive. Small bare numbers are NOT
+    distinctive and are skipped. False-positive screens (2026-09-13):
+    space-grouped runs need a currency signal; phone-shaped digit runs and
+    version/section contexts never become figure tokens."""
+    out: List[str] = []
+    text = text or ""
+    for m in _AMOUNT_PHRASE_RE.finditer(text):
+        raw = m.group(0)
+        phrase = _AMOUNT_TRIM_RE.sub("", raw).strip()
+        has_currency = phrase != raw.strip()
+        if not has_currency:
+            if _is_phone_shaped(text, m.start(), m.end()):
+                continue
+            if _FIG_CONTEXT_RE.search(text[max(0, m.start() - 20):m.start()]):
+                continue
+        if len(phrase) >= 4 and phrase not in out:
+            out.append(phrase)
+    for m in _PRODUCT_TOKEN_RE.finditer(text):
+        tok = m.group(0)
+        if tok not in out:
+            out.append(tok)
+    return out[:limit]
 
 
 def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
@@ -1079,16 +1348,12 @@ def _latest_styled_ingested(user_id, addresses: List[str]) -> Optional[Dict[str,
     try:
         import json as _json
 
-        import lancedb
-
-        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-        table = lancedb.connect(str(base / "default")).open_table(
-            "atom_communications"
+        rows = sorted(
+            _comms_store_records(),
+            key=lambda r: str(r.get("timestamp") or ""),
+            reverse=True,
         )
-        rows = table.to_arrow().to_pandas().sort_values(
-            "timestamp", ascending=False
-        )
-        for _, row in rows.iterrows():
+        for row in rows:
             blob = (str(row.get("sender") or "") + " " + str(row.get("recipient") or "")).lower()
             if not any(a in blob for a in addresses):
                 continue
@@ -1823,6 +2088,531 @@ async def _site_search_evidence(
         return None
 
 
+def _planner_ingest_enabled() -> bool:
+    """Kill switch for the planner's mailbox ``ingest`` leg (env > UI > on)."""
+    try:
+        from core.runtime_settings import get_bool_setting
+
+        return bool(get_bool_setting("ATOM_PLANNER_INGEST_ENABLED", True))
+    except Exception:  # noqa: BLE001 — a settings lookup must never block
+        return True
+
+
+# (2026-09-13 review, P1-1) Internal budget for the automatic search-miss →
+# ingest fallback. The fallback's cost is unbounded on its own (resolution
+# climbs 4 rungs of Graph forms, each pull can run a vision-LLM describe
+# pass per textless image, then the whole evidence collection re-runs) —
+# while the lanes around it are hard-budgeted (chat: 45s around
+# execute_tool_plan, canvas: 25s around the whole edit lookup). A slow pull
+# therefore converted a fast empty search into a caller TIMEOUT that
+# discarded the whole evidence block AFTER the memory write had landed.
+# The internal budget is strictly smaller than both lane budgets so the
+# fallback degrades to the pre-fallback miss path (with an honest note)
+# instead of blowing the caller's budget. Env-overridable.
+_INGEST_FALLBACK_BUDGET_SECONDS = float(
+    os.getenv("ATOM_PLANNER_INGEST_BUDGET_SECONDS", "10") or 10
+)
+
+
+def _ingest_already_attempted(context: Optional[Dict[str, Any]]) -> bool:
+    """One governed pull per turn, enforced by STATE, not just by the
+    singleflight wrappers around the planner (2026-09-13 review, P3-13):
+    a second search-miss in the SAME context (fallback re-runs, sibling
+    legs) must not re-pull."""
+    return bool((context or {}).get("_ingest_attempted"))
+
+
+def _mark_ingest_attempted(context: Optional[Dict[str, Any]]) -> None:
+    if isinstance(context, dict):
+        context["_ingest_attempted"] = True
+
+
+def _ingest_timeout_note(progress: Optional[Dict[str, Any]]) -> str:
+    """Honest evidence-block note when the fallback's internal budget
+    expired mid-pull. NEVER silent-write: if the checkpoint dict proves
+    content landed, say so and that a re-search will find it; otherwise
+    say the outcome is unknown and a re-search will confirm."""
+    landed = list((progress or {}).get("landed") or [])
+    if landed:
+        return (
+            "\n\nON-DEMAND PULL (partial): the pull exceeded its internal "
+            "time budget mid-run, but the content below WAS pulled into "
+            "memory — a re-search (or asking again) will find it:\n"
+            + "\n".join(landed)
+        )
+    return (
+        "\n(on-demand pull exceeded its internal time budget and was "
+        "abandoned mid-run; if any part of it completed, that content is "
+        "now in memory and a re-search will find it — do not claim the "
+        "content does not exist)"
+    )
+
+
+def _recent_message_fields(e: Dict[str, Any]) -> tuple:
+    """(id, subject, preview, from) for a newest-N message listing row —
+    outlook's list_recent_emails and gmail's get_messages shapes folded
+    into one, so the rung-4 local matcher below cannot fork per provider."""
+    frm = (
+        ((e.get("from_field") or {}).get("emailAddress") or {}).get("address")
+        or str(e.get("sender") or "")
+        or ""
+    )
+    return (
+        str(e.get("id") or ""),
+        str(e.get("subject") or ""),
+        str(e.get("body_preview") or e.get("snippet") or ""),
+        str(frm),
+    )
+
+
+def _match_recent_ids(
+    entries, query: str, limit: int
+) -> List[str]:
+    """Search-free newest-window matching, shared by the outlook AND gmail
+    ingest-resolution rung 4: search is the thing that failed, so list the
+    newest mail and pick targets locally — ALL figure tokens (canonical
+    form) or ≥2 alphabetic terms (the ≥2 guard tightened live 2026-09-12
+    after a single common word matched unrelated mail)."""
+    fig_canon = [
+        _canonical_fig_text(p)
+        for p in _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT)
+    ]
+    fig_canon = [c for c in fig_canon if len(c) >= 4]
+    terms = [
+        t.lower() for t in re.findall(r"[A-Za-z][A-Za-z-]{3,}", query)
+    ][:4]
+    ids: List[str] = []
+    for mid, subject, preview, frm in entries:
+        if not mid:
+            continue
+        hay = _canonical_fig_text(" ".join([subject, preview, frm]))
+        hay_raw = f"{subject} {preview} {frm}".lower()
+        term_hits = sum(1 for t in terms if t in hay_raw)
+        if (fig_canon and all(c in hay for c in fig_canon)) or (
+            not fig_canon and term_hits >= 2
+        ):
+            if mid not in ids:
+                ids.append(mid)
+        if len(ids) >= limit:
+            break
+    return ids
+
+
+async def _resolve_mailbox_message_ids(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    limit: int = 2,
+    *,
+    skip_provider_query: bool = False,
+) -> List[str]:
+    """Message ids for the ingest leg.
+
+    A bare provider id is authoritative and used directly (Graph ids are not
+    searchable text). Otherwise resolution climbs the same forms the search
+    leg uses — figure phrases as exact phrases, sender-scoped when the query
+    names an address, then the per-term fan-out — and, when EVERYTHING
+    misses, falls back to a search-free newest-first scan of the mailbox
+    matched locally on figure tokens/terms (live 2026-09-12: the ingest
+    fallback resolved targets with the same shredded terms that had already
+    missed, so "ingest if not found" could never fire for exactly the
+    queries that need it). ``skip_provider_query`` is set by the automatic
+    search-miss fallback: it has ALREADY run the provider's server-side
+    search with this exact query, so re-running it (the old gmail behavior)
+    was a dead-end duplicate — both providers go straight to their
+    search-free rungs instead. [] only when nothing matches anywhere.
+    """
+    query = (query or "").strip()
+    if not query:
+        return []
+    if service == "outlook" and _GRAPH_ID_RE.match(query):
+        return [query]
+
+    ids: List[str] = []
+
+    def _remember(candidate: Any) -> None:
+        if candidate and str(candidate) not in ids:
+            ids.append(str(candidate))
+
+    if service == "outlook":
+        from integrations.outlook_service import (
+            outlook_service,
+            sanitize_graph_kql,
+        )
+
+        async def _try(coro) -> None:
+            try:
+                for e in await coro or []:
+                    _remember(e.get("id"))
+            except Exception as e:  # noqa: BLE001 — each form is best-effort
+                logger.debug(f"ingest resolution form failed: {e}")
+
+        # 1) Figure phrases (amounts, codes) as exact phrases.
+        for phrase in _distinctive_figure_phrases(query):
+            await _try(outlook_service.search_emails(
+                user_id=user_id, query=phrase, max_results=5, quote=True))
+            if len(ids) >= limit:
+                return ids[:limit]
+        # 2) Sender-scoped when the query names an address.
+        addr_m = _ADDR_IN_QUERY_RE.search(query)
+        if addr_m:
+            _addr = addr_m.group(0)
+            _rest = " ".join(
+                t for t in query.replace(_addr, " ").split() if len(t) >= 2
+            )[:200]
+            await _try(outlook_service.search_emails(
+                user_id=user_id, query=_rest, max_results=10, quote=False,
+                sender=_addr))
+            if len(ids) >= limit:
+                return ids[:limit]
+        # 3) Per-term fan-out (legacy form).
+        for term in ([t for t in query.split() if len(t.strip('"$€£¥₹%,;:()')) >= 2][:3]
+                     or [query]):
+            kql = sanitize_graph_kql(term)
+            if not kql:
+                continue
+            await _try(outlook_service.search_emails(
+                user_id=user_id, query=kql, max_results=5, quote=False))
+            if len(ids) >= limit:
+                return ids[:limit]
+        # 4) Search-free recent-window scan, matched locally: search is the
+        # thing that failed, so list newest mail and pick targets by token
+        # (shared matcher — gmail rung 4 below uses the same function).
+        try:
+            recent = await outlook_service.list_recent_emails(
+                user_id=user_id, max_results=50)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"recent-window ingest scan failed: {e}")
+            recent = []
+        for mid in _match_recent_ids(
+            (_recent_message_fields(e) for e in recent), query, limit
+        ):
+            _remember(mid)
+        return ids[:limit]
+
+    # Gmail: the server search is AND-semantics but handles figures and
+    # addresses natively — ONE query (rung 1, explicit-ingest path; the
+    # search-miss fallback skips it — it just ran the same query and
+    # missed). Rung 4 mirrors outlook's: newest-N listing + the SHARED
+    # local matcher, so a gmail fallback no longer dead-ends at
+    # "no candidate" after a duplicate provider search (2026-09-13).
+    try:
+        from integrations.gmail_service import GmailService
+
+        def _gmail_fetch(q: str, n: int) -> List[Dict[str, Any]]:
+            svc = GmailService()
+            if not svc.service:
+                try:
+                    svc._authenticate()
+                except Exception:  # noqa: BLE001 — reported as a miss
+                    return []
+            return svc.get_messages(query=q, max_results=n) or []
+
+        if not skip_provider_query:
+            for m in await asyncio.to_thread(_gmail_fetch, query, 5):
+                _remember(m.get("id"))
+                if len(ids) >= limit:
+                    return ids[:limit]
+        try:
+            recent = await asyncio.to_thread(_gmail_fetch, "", 50)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"gmail recent-window ingest scan failed: {e}")
+            recent = []
+        for mid in _match_recent_ids(
+            (_recent_message_fields(e) for e in recent), query, limit
+        ):
+            _remember(mid)
+            if len(ids) >= limit:
+                break
+    except Exception as e:  # noqa: BLE001 — the leg reports the miss honestly
+        logger.warning(f"mailbox ingest message lookup failed ({service}): {e}")
+        return []
+    return ids[:limit]
+
+
+async def _mailbox_ingest_core(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+    *,
+    progress: Optional[Dict[str, Any]] = None,
+    skip_provider_query: bool = False,
+) -> Dict[str, Any]:
+    """Gate → resolve → ingest for a mailbox, WITHOUT evidence framing.
+
+    Shared by the explicit ``intent=ingest`` plan and the automatic
+    search-miss fallback (live 2026-09-11: the agent reported "no such
+    email" and asked the user to forward it while the mailbox held it —
+    the ingest leg existed but only fired when the planner LLM happened
+    to plan that intent). Returns
+    ``{"blocked": reason|None, "lines": [...], "ingested_count": n}``;
+    ``blocked`` short-circuits (kill switch or autonomy gate) with NO
+    write performed.
+
+    ``progress`` (optional caller-owned dict) records every message that
+    IS in memory (ingested or already there) the moment it is known — the
+    automatic fallback runs under an internal time budget, and when that
+    budget expires mid-pull the caller can still report HONESTLY what
+    landed instead of silently dropping a write that already happened.
+    ``skip_provider_query`` forwards to the resolver for the automatic
+    fallback (it already ran the provider search that just missed).
+    """
+    if not _planner_ingest_enabled():
+        return {"blocked": _INGEST_DISABLED_REASON,
+                "lines": [], "ingested_count": 0}
+
+    agent_id = (context or {}).get("agent_id")
+    try:
+        from core.database import get_db_session
+        from tools.email_attachment_tool import _gate
+
+        with get_db_session() as db:
+            gated = _gate(db, user_id, agent_id)
+        if gated:
+            return {"blocked": (
+                gated.get("reason")
+                or "the email_attachment autonomy topic is pinned to review"
+            ), "lines": [], "ingested_count": 0}
+    except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+        logger.debug(f"mailbox ingest autonomy gate skipped: {gate_err}")
+
+    message_ids = await _resolve_mailbox_message_ids(
+        service, user_id, query, skip_provider_query=skip_provider_query
+    )
+    if not message_ids:
+        return {"blocked": None, "lines": [], "ingested_count": 0}
+
+    from integrations.atom_communication_ingestion_pipeline import (
+        ingestion_pipeline,
+    )
+
+    lines: List[str] = []
+    ingested = 0
+    for message_id in message_ids:
+        try:
+            result = await ingestion_pipeline.ingest_email_on_demand(
+                service, user_id or "", message_id
+            )
+        except Exception as e:  # noqa: BLE001 — one bad message must not kill the leg
+            logger.warning(f"on-demand ingest failed for {message_id}: {e}")
+            result = {"status": "error", "reason": str(e)[:200]}
+        status = result.get("status")
+        short_id = message_id[:24]
+        if status in ("ingested", "already_ingested") and progress is not None:
+            # Checkpoint BEFORE the user-facing line is built: a budget
+            # timeout between these statements must not lose the fact that
+            # this message IS in memory now.
+            progress.setdefault("landed", []).append(
+                f"- message {short_id}… in memory ({status}) | subject: "
+                f"{str(result.get('subject') or '(no subject)')[:100]}"
+            )
+        if status == "ingested":
+            ingested += 1
+            lines.append(
+                f"- message {short_id}… INGESTED | subject: "
+                f"{str(result.get('subject') or '(no subject)')[:100]} | "
+                f"attachments indexed: {result.get('attachments') or 0}"
+            )
+        elif status == "already_ingested":
+            lines.append(f"- message {short_id}… already in memory (no-op)")
+        else:
+            lines.append(
+                f"- message {short_id}… could not be ingested: "
+                f"{result.get('reason') or status}"
+            )
+    if ingested:
+        # The store changed — the re-search must see this pull, not a
+        # cached pre-pull snapshot (P2-8 cache contract).
+        invalidate_comms_store_cache()
+    return {"blocked": None, "lines": lines, "ingested_count": ingested}
+
+
+async def _mailbox_ingest_block(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+) -> str:
+    """Pull a mailbox message's body + attachments INTO memory, then return
+    the freshly indexed evidence.
+
+    Why this leg exists: the Graph webhook path fetches messages WITHOUT
+    attachment bytes, so binary attachments (product photos, scanned quotes)
+    never reach memory, and mail predating the pipeline is absent too. An
+    agent asked to use such content could only report it inaccessible. The
+    poller is not the fix — the agent needs to be able to say "fetch it now".
+
+    Governance: the per-user ``email_attachment`` autonomy topic gates it
+    (same knob as the email_attachment_* agent tools); a pinned
+    human-approval setting returns a proposal block instead of writing.
+    """
+    label = f"mailbox ingest, {service}, query='{query}'"
+    core = await _mailbox_ingest_core(service, user_id, query, context)
+    if core["blocked"] == _INGEST_DISABLED_REASON:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): on-demand ingest is disabled by "
+            "configuration."
+        )
+    if core["blocked"]:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): needs owner approval — "
+            f"{core['blocked']}"
+        )
+    if not core["lines"]:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): no matching message found in the "
+            "mailbox to ingest."
+        )
+
+    mem_block = await _memory_search_block(user_id, query, context)
+    detail = (
+        f"\n\nNow in memory:\n{mem_block}"
+        if mem_block
+        else "\n\n(no indexed excerpt matched the query yet — search memory "
+        "again or widen the query)"
+    )
+    return _with_grounding(
+        f"LIVE TOOL RESULTS ({label}) — content pulled from the connected "
+        f"mailbox into memory just now:\n" + "\n".join(core["lines"]) + detail
+    )
+
+
+async def _integration_ingest_core(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+    *,
+    progress: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Gate → pull for ANY integration, WITHOUT evidence framing — the
+    general partner of _mailbox_ingest_core, shared by the explicit
+    ``intent=ingest`` plan and the automatic search-miss fallback. Returns
+    ``{"blocked": reason|None, "lines": [...], "ingested_count": n,
+    "raw": <ingest_integration_content result>|None}``.
+
+    ``progress`` mirrors the mailbox core's contract; the general pull
+    resolves in ONE call, so the checkpoint can only say it STARTED — a
+    budget timeout mid-call leaves the write outcome genuinely unknown and
+    the caller's note words it that way."""
+    if not _planner_ingest_enabled():
+        return {"blocked": _INGEST_DISABLED_REASON, "lines": [],
+                "ingested_count": 0, "raw": None}
+
+    agent_id = (context or {}).get("agent_id")
+    try:
+        from core.autonomy_policy import OUTCOME_PROPOSE, gate_for_topic
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            gate = gate_for_topic(db, user_id, "integration_ingest", agent_id)
+        if gate.get("outcome") == OUTCOME_PROPOSE:
+            return {"blocked": (
+                gate.get("reason")
+                or "the integration_ingest autonomy topic is pinned to review"
+            ), "lines": [], "ingested_count": 0, "raw": None}
+    except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+        logger.debug(f"integration ingest autonomy gate skipped: {gate_err}")
+
+    if progress is not None:
+        progress["started"] = True
+    try:
+        from core.drive_tree_ingestion import ingest_integration_content
+
+        result = await ingest_integration_content(
+            service,
+            user_id or "",
+            query=query,
+            workspace_id=(context or {}).get("workspace_id") or "default",
+            agent_id=agent_id or "",
+        )
+    except Exception as e:  # noqa: BLE001 — reported, never raised to the turn
+        logger.warning(f"integration ingest failed ({service}): {e}")
+        return {"blocked": None, "ingested_count": 0, "raw": None,
+                "lines": [f"- nothing ingested ({str(e)[:200]})"]}
+
+    lines: List[str] = []
+    ingested = 0
+    for item in result.get("items") or []:
+        status = str(item.get("status") or "error")
+        ident = str(item.get("external_id") or "")[:40]
+        if status == "ingested":
+            ingested += 1
+            extra = (
+                item.get("name") or item.get("subject") or item.get("file_name") or ""
+            )
+            lines.append(
+                f"- {ident} INGESTED"
+                + (f" | {str(extra)[:100]}" if extra else "")
+            )
+        elif status == "already_ingested":
+            lines.append(f"- {ident} already in memory (no-op)")
+        else:
+            lines.append(f"- {ident} {status}: {item.get('reason') or ''}".rstrip())
+    if not lines:
+        lines.append(
+            "- nothing ingested ("
+            + str(
+                result.get("error")
+                or result.get("message")
+                or "no matching item found"
+            )[:200]
+            + ")"
+        )
+    if ingested:
+        # Mailbox-strategy pulls write the comms store; record pulls write
+        # documents. Dropping the whole cache is cheap and always safe.
+        invalidate_comms_store_cache()
+    return {"blocked": None, "lines": lines, "ingested_count": ingested,
+            "raw": result}
+
+
+async def _integration_ingest_block(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+) -> str:
+    """Pull an item's content from ANY connected integration INTO memory.
+
+    The general form of the mailbox leg: drives get the file's bytes (via the
+    shared find→open→read leg), record apps (CRM/Books/Inventory/support/PM/…)
+    get the matching record(s) rendered to searchable text. Strategy dispatch
+    and the idempotency contract live in
+    ``core.drive_tree_ingestion.ingest_integration_content``; this function
+    owns only the planner's governance and evidence framing.
+
+    Governance: the ``integration_ingest`` autonomy topic (one knob for every
+    family), plus the ``ATOM_PLANNER_INGEST_ENABLED`` kill switch.
+    """
+    label = f"integration ingest, {service}, query='{query}'"
+    core = await _integration_ingest_core(service, user_id, query, context)
+    if core["blocked"] == _INGEST_DISABLED_REASON:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): on-demand ingest is disabled by "
+            "configuration."
+        )
+    if core["blocked"]:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): needs owner approval — "
+            f"{core['blocked']}"
+        )
+    lines = core["lines"]
+
+    mem_block = await _memory_search_block(user_id, query, context)
+    detail = (
+        f"\n\nNow in memory:\n{mem_block}"
+        if mem_block
+        else "\n\n(no indexed excerpt matched the query yet — search memory "
+        "again or widen the query)"
+    )
+    return _with_grounding(
+        f"LIVE TOOL RESULTS ({label}) — content pulled from the connected "
+        f"integration into memory just now:\n" + "\n".join(lines) + detail
+    )
+
+
 async def execute_tool_plan(
     plan: ToolPlan,
     user_id: Optional[str],
@@ -1842,6 +2632,16 @@ async def execute_tool_plan(
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    # On-demand INGEST: the one write this planner performs. Runs BEFORE the
+    # web-query rewrite (the query names an item/message, not a search phrase)
+    # and before the search/read legs — the user needs the content pulled from
+    # the integration into memory, not another metadata listing. Works for
+    # EVERY integration family; mailbox keeps its body+attachments leg.
+    if (plan.intent or "") == "ingest" and service not in _INGEST_EXCLUDED_SERVICES:
+        if service in _MAILBOX_SERVICES:
+            return await _mailbox_ingest_block(service, user_id, query, context)
+        return await _integration_ingest_block(service, user_id, query, context)
 
     if service in ("web_search", "web_fetch"):
         try:
@@ -2160,41 +2960,104 @@ async def execute_tool_plan(
                     + _graph_body_text(direct, body_cap)
                 )
 
-            tokens = [t for t in query.split() if len(t) >= 2][:3] or [query]
-            merged: Dict[str, Dict[str, Any]] = {}
-            for term in tokens:
-                # Sanitize before the first call: an email address term
-                # ("jschulz@blumetric.ca Jason response") 400s in Graph KQL
-                # as-is, and that 400 used to silently empty the search —
-                # the rare, selective term was exactly the one that failed.
-                kql_term = sanitize_graph_kql(term)
-                if not kql_term:
-                    continue
-                try:
-                    emails = await outlook_service.search_emails(
-                        user_id=user_id, query=kql_term, max_results=10, quote=False
-                    )
-                except Exception as term_err:
-                    logger.warning(f"outlook term search failed ({term}): {term_err}")
-                    continue
-                # Longer terms are rarer: a hit matching "Kellam" (6 chars)
-                # is far more meaningful than one matching "Mark" (4) via
-                # "Markings". Score = sum of matched-term lengths.
-                weight = len(term)
-                for e in emails or []:
-                    eid = e.get("id")
-                    if not eid:
+            tokens = [
+                t.strip('"$€£¥₹₩₽₺%,;:()') for t in query.split()
+                if len(t.strip('"$€£¥₹₩₽₺%,;:()')) >= 2
+            ][:3] or [query]
+
+            async def _collect() -> Dict[str, Dict[str, Any]]:
+                """Every live-search form, merged into one ranking pool.
+                A closure so the search-miss → on-demand-ingest fallback
+                below can re-run the whole collection after pulling new
+                mail into memory (ingested copies surface through the
+                store leg, fresh Graph state through these legs)."""
+                merged: Dict[str, Dict[str, Any]] = {}
+                for term in tokens:
+                    # Sanitize before the first call: an email address term
+                    # ("jschulz@blumetric.ca Jason response") 400s in Graph KQL
+                    # as-is, and that 400 used to silently empty the search —
+                    # the rare, selective term was exactly the one that failed.
+                    kql_term = sanitize_graph_kql(term)
+                    if not kql_term:
                         continue
-                    entry = merged.setdefault(eid, {"email": e, "score": 0, "received": ""})
-                    entry["score"] += weight
-                    received = str(e.get("received_date_time") or "")
-                    if received > entry["received"]:
-                        entry["received"] = received
+                    try:
+                        emails = await outlook_service.search_emails(
+                            user_id=user_id, query=kql_term, max_results=10, quote=False
+                        )
+                    except Exception as term_err:
+                        logger.warning(f"outlook term search failed ({term}): {term_err}")
+                        continue
+                    # Longer terms are rarer: a hit matching "Kellam" (6 chars)
+                    # is far more meaningful than one matching "Mark" (4) via
+                    # "Markings". Score = sum of matched-term lengths.
+                    weight = len(term)
+                    for e in emails or []:
+                        eid = e.get("id")
+                        if not eid:
+                            continue
+                        entry = merged.setdefault(eid, {"email": e, "score": 0, "received": ""})
+                        entry["score"] += weight
+                        received = str(e.get("received_date_time") or "")
+                        if received > entry["received"]:
+                            entry["received"] = received
+
+                # FIGURE PHRASES + SENDER SCOPE (live 2026-09-12, Seguin
+                # vendor-cost miss): per-term shredding destroys the only
+                # distinctive evidence — "$5,350.00" as one quoted phrase
+                # matches the vendor's quote email where every single-term
+                # form misses or drowns — and a named sender address scopes
+                # the mailbox to their thread ('from:' clauses work in Graph
+                # KQL even though a bare '@' term 400s). Both legs merge into
+                # the same ranking; sender-scoped hits outrank free-text noise.
+                async def _merge_hits(hit_list, boost: int) -> None:
+                    for e in hit_list or []:
+                        eid = e.get("id")
+                        if not eid:
+                            continue
+                        entry = merged.setdefault(eid, {"email": e, "score": 0, "received": ""})
+                        entry["score"] += boost
+                        received = str(e.get("received_date_time") or "")
+                        if received > entry["received"]:
+                            entry["received"] = received
+
+                for phrase in _distinctive_figure_phrases(query):
+                    try:
+                        phrase_emails = await outlook_service.search_emails(
+                            user_id=user_id, query=phrase, max_results=15, quote=True
+                        )
+                    except Exception as phrase_err:
+                        logger.warning(f"outlook phrase search failed ({phrase}): {phrase_err}")
+                        continue
+                    # Boost cap: rank by DISTINCTIVENESS, not raw length — a
+                    # junk 13-char capture used to outrank genuine term hits.
+                    await _merge_hits(
+                        phrase_emails, boost=min(len(phrase), _PHRASE_BOOST_CAP)
+                    )
+                _addr_in_query = _ADDR_IN_QUERY_RE.search(query)
+                if _addr_in_query:
+                    _addr = _addr_in_query.group(0)
+                    _rest = " ".join(
+                        t for t in query.replace(_addr, " ").split() if len(t) >= 2
+                    )[:200]
+                    try:
+                        scoped_emails = await outlook_service.search_emails(
+                            user_id=user_id,
+                            query=_rest,
+                            max_results=25,
+                            quote=False,
+                            sender=_addr,
+                        )
+                    except Exception as scoped_err:
+                        logger.warning(f"outlook sender-scoped search failed ({_addr}): {scoped_err}")
+                        scoped_emails = []
+                    await _merge_hits(scoped_emails, boost=40)
+                return merged
 
             def _rank(entry: Dict[str, Any]):
                 # Multi-term matches first, then newest — stable and cheap.
                 return (-entry["score"], entry["received"], )
 
+            merged = await _collect()
             ranked = sorted(merged.values(), key=_rank)
             emails = [x["email"] for x in ranked[:8]]
 
@@ -2219,6 +3082,78 @@ async def execute_tool_plan(
             # the universal communication path (gmail/slack/telegram/…).
             store_lines = await _ingested_mailbox_lines(user_id, query, context)
 
+            ingest_note = ""
+            if not emails and not store_lines:
+                # SEARCH-MISS → ON-DEMAND INGEST (live 2026-09-11: the agent
+                # answered "no such email — forward it to me" while the
+                # message sat in the mailbox): one governed pull of the
+                # query's targets into memory, then a single re-search.
+                # Gate-respecting (kill switch / autonomy approval return a
+                # note, never a write), bounded to ONE attempt per turn
+                # (state flag — see _ingest_already_attempted), and run
+                # under an INTERNAL time budget smaller than the lane
+                # budgets so a slow pull degrades to this miss path with an
+                # honest note instead of a caller timeout that discards the
+                # evidence block after the write landed.
+                if not _ingest_already_attempted(context):
+                    _mark_ingest_attempted(context)
+                    _progress: Dict[str, Any] = {}
+                    ing_core: Optional[Dict[str, Any]] = None
+                    try:
+                        ing_core = await asyncio.wait_for(
+                            _mailbox_ingest_core(
+                                "outlook", user_id, query, context,
+                                progress=_progress,
+                                skip_provider_query=False,
+                            ),
+                            timeout=_INGEST_FALLBACK_BUDGET_SECONDS,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "outlook ingest fallback exceeded its internal "
+                            f"budget of {_INGEST_FALLBACK_BUDGET_SECONDS}s — "
+                            "degrading to the miss path with a note"
+                        )
+                    except Exception as ing_err:  # noqa: BLE001 — fallback must not break the leg
+                        logger.warning(f"outlook ingest fallback failed: {ing_err}")
+                        ing_core = {"blocked": None, "lines": [], "ingested_count": 0}
+                    if ing_core is None:
+                        # Budget expired mid-pull: pre-fallback miss path +
+                        # the honest note about what landed (never a silent
+                        # write).
+                        ingest_note = _ingest_timeout_note(_progress)
+                    elif ing_core["blocked"] == _INGEST_DISABLED_REASON:
+                        pass
+                    elif ing_core["blocked"]:
+                        ingest_note = (
+                            f"\n(on-demand mailbox pull available but needs owner "
+                            f"approval — {ing_core['blocked']})"
+                        )
+                    elif ing_core["ingested_count"]:
+                        ingest_note = (
+                            "\n\nON-DEMAND PULL: the mailbox search missed, so "
+                            f"{ing_core['ingested_count']} message(s) were pulled "
+                            "from the connected mailbox into memory and the search "
+                            "re-ran:\n" + "\n".join(ing_core["lines"])
+                        )
+                        merged = await _collect()
+                        ranked = sorted(merged.values(), key=_rank)
+                        emails = [x["email"] for x in ranked[:8]]
+                        full_bodies = await _outlook_full_bodies(
+                            user_id, emails,
+                            _OUTLOOK_READ_HYDRATE if read_mode else _OUTLOOK_SEARCH_HYDRATE,
+                            body_cap,
+                        )
+                        store_lines = await _ingested_mailbox_lines(user_id, query, context)
+                    else:
+                        ingest_note = (
+                            "\n(on-demand mailbox pull ran but found no candidate "
+                            "message to ingest)"
+                            if not ing_core["lines"] else
+                            "\n(on-demand mailbox pull ran: its candidates are "
+                            "already in memory — no new content above)"
+                        )
+
             if not emails and not store_lines:
                 # A mailbox miss is not the whole story: the question may be
                 # about DOCUMENT content that was misrouted here (live
@@ -2233,11 +3168,12 @@ async def execute_tool_plan(
                     return (
                         f"LIVE TOOL RESULTS ({tool_label}, query='{query}'): "
                         f"no matching messages in the mailbox. "
-                        f"Ingested-workspace matches:\n{mem_block}"
+                        f"Ingested-workspace matches:\n{mem_block}{ingest_note}"
                     )
                 return _with_grounding(
                     f"LIVE TOOL RESULTS ({tool_label}, query='{query}'): "
                     "no matching messages in the mailbox or ingested memory."
+                    f"{ingest_note}"
                 )
             # Deterministic thread-member lines LEAD the block: for an
             # address query, Graph's relevance ranking fills its slots with
@@ -2271,6 +3207,7 @@ async def execute_tool_plan(
                     "\n(preview-only lines above: plan outlook again with "
                     "intent=read and the same query to pull those full bodies)"
                 )
+            listing += ingest_note
             if read_mode:
                 return _with_grounding(
                     f"LIVE TOOL RESULTS (outlook.read_emails, query='{query}') — "
@@ -2360,41 +3297,113 @@ async def execute_tool_plan(
             and action == "search"
             and service in SEARCHABLE_SERVICES
         ):
-            result = await svc.search(
-                service,
-                query,
-                context={
-                    "user_id": user_id,
-                    "workspace_id": "default",
-                    "tenant_id": tenant_id,
-                    # The acting agent — tool-error signals attach to its
-                    # running execution so episodes see them.
-                    "agent_id": (context or {}).get("agent_id"),
-                },
-            )
+            _search_ctx = {
+                "user_id": user_id,
+                "workspace_id": "default",
+                "tenant_id": tenant_id,
+                # The acting agent — tool-error signals attach to its
+                # running execution so episodes see them.
+                "agent_id": (context or {}).get("agent_id"),
+            }
+
+            async def _run_call():
+                return await svc.search(service, query, context=dict(_search_ctx))
         else:
-            result = await svc.execute(
-                service,
-                action,
-                {"query": query, "limit": 8},
-                context={
-                    "user_id": user_id,
-                    "workspace_id": "default",
-                    "tenant_id": tenant_id,
-                    "agent_id": (context or {}).get("agent_id"),
-                    # The read leg's dataset fast path probes the conversation's
-                    # own identifier codes ('WG-350DSAV' sat in earlier turns)
-                    # — harness-side, where the reply model's no-tool-calling
-                    # contract is never violated.
-                    "history_texts": [
-                        str(h.get("message") or "")[:500]
-                        for h in ((context or {}).get("history") or [])
-                        if isinstance(h, dict) and h.get("message")
-                    ][-6:],
-                    "llm_service": llm_service,
-                },
-            )
+            _search_ctx = {
+                "user_id": user_id,
+                "workspace_id": "default",
+                "tenant_id": tenant_id,
+                "agent_id": (context or {}).get("agent_id"),
+                # The read leg's dataset fast path probes the conversation's
+                # own identifier codes ('WG-350DSAV' sat in earlier turns)
+                # — harness-side, where the reply model's no-tool-calling
+                # contract is never violated.
+                "history_texts": [
+                    str(h.get("message") or "")[:500]
+                    for h in ((context or {}).get("history") or [])
+                    if isinstance(h, dict) and h.get("message")
+                ][-6:],
+                "llm_service": llm_service,
+            }
+
+            async def _run_call():
+                return await svc.execute(
+                    service, action, {"query": query, "limit": 8},
+                    context=dict(_search_ctx),
+                )
+        result = await _run_call()
         data = result.get("data") if isinstance(result, dict) else None
+
+        # SEARCH-MISS → ON-DEMAND INGEST (generalized from the outlook leg,
+        # live 2026-09-11 Seguin incident): an EMPTY live search is exactly
+        # when the content may exist upstream but not be in memory yet —
+        # pull it (governed: kill switch + autonomy gate, one attempt,
+        # idempotent) and re-run the same call once before any dead end.
+        ingest_note = ""
+        if (
+            result.get("status") == "success"
+            and not data
+            and (plan.intent or "search") == "search"
+            and service not in _INGEST_EXCLUDED_SERVICES
+        ):
+            # Same one-attempt-per-turn state flag and INTERNAL budget as
+            # the outlook leg (P1-1/P3-13): a slow pull degrades to this
+            # miss path with an honest note, never a caller timeout.
+            if not _ingest_already_attempted(context):
+                _mark_ingest_attempted(context)
+                _progress: Dict[str, Any] = {}
+                ing_core: Optional[Dict[str, Any]] = None
+                try:
+                    if service in _MAILBOX_SERVICES:
+                        ing_core = await asyncio.wait_for(
+                            _mailbox_ingest_core(
+                                service, user_id, query, context,
+                                progress=_progress,
+                                skip_provider_query=True,
+                            ),
+                            timeout=_INGEST_FALLBACK_BUDGET_SECONDS,
+                        )
+                    else:
+                        ing_core = await asyncio.wait_for(
+                            _integration_ingest_core(
+                                service, user_id, query, context,
+                                progress=_progress,
+                            ),
+                            timeout=_INGEST_FALLBACK_BUDGET_SECONDS,
+                        )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"{service} ingest fallback exceeded its internal "
+                        f"budget of {_INGEST_FALLBACK_BUDGET_SECONDS}s — "
+                        "degrading to the miss path with a note"
+                    )
+                except Exception as ing_err:  # noqa: BLE001 — fallback never breaks the leg
+                    logger.warning(f"universal ingest fallback failed ({service}): {ing_err}")
+                    ing_core = {"blocked": None, "lines": [], "ingested_count": 0}
+                if ing_core is None:
+                    ingest_note = _ingest_timeout_note(_progress)
+                elif ing_core["blocked"] == _INGEST_DISABLED_REASON:
+                    pass
+                elif ing_core["blocked"]:
+                    ingest_note = (
+                        f"\n(on-demand pull available but needs owner approval "
+                        f"— {ing_core['blocked']})"
+                    )
+                elif ing_core["ingested_count"]:
+                    ingest_note = (
+                        f"\n\nON-DEMAND PULL: the live {service} search found "
+                        f"nothing, so {ing_core['ingested_count']} item(s) were "
+                        "pulled from the integration into memory and the search "
+                        "re-ran:\n" + "\n".join(ing_core["lines"])
+                    )
+                    result = await _run_call()
+                    data = result.get("data") if isinstance(result, dict) else None
+                else:
+                    ingest_note = (
+                        "\n(on-demand pull ran but found nothing upstream to "
+                        "ingest for this query)"
+                    )
+
         if result.get("status") != "success" or not data:
             reason = str(result.get("error") or result.get("message") or "no data")
             if reason.startswith("Routed to "):
@@ -2424,6 +3433,7 @@ async def execute_tool_plan(
                         f"sender/recipient lookup over the workspace's own "
                         f"copies):\n" + "\n".join(mail_lines)
                         + styled_section
+                        + ingest_note
                     )
                 # Store has nothing either: an empty SUCCESS from an
                 # AND-semantics provider is usually one common token zeroing
@@ -2449,10 +3459,11 @@ async def execute_tool_plan(
                     f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                     f"the live {service} search returned nothing usable "
                     f"({reason}). Ingested-workspace matches:\n{mem_block}"
+                    f"{ingest_note}"
                 )
             return _with_grounding(
                 f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
-                f"returned nothing usable ({reason})."
+                f"returned nothing usable ({reason}).{ingest_note}"
             )
         if action == "read_file" and isinstance(data, dict):
             # The file was OPENED — render the excerpt as first-class
@@ -2477,6 +3488,8 @@ async def execute_tool_plan(
             f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
             f"use these to answer:\n{str(data)[:2500]}"
         )
+        if ingest_note:
+            header += ingest_note
         if service in _STORAGE_SERVICES and (
             (plan.intent or "search") == "search" or action == "read_file"
         ):

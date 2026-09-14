@@ -11,7 +11,7 @@ import os
 os.environ.setdefault("TESTING", "1")
 
 import contextlib
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -230,15 +230,15 @@ async def test_get_text_returns_provenance_wrapped_csv(session_ctx, canvas, auto
 
 @pytest.mark.asyncio
 async def test_get_text_binary_without_layer_suggests_ingest(session_ctx, canvas):
-    from core.email_attachment_store import save_staged
-
     from core.canvas_email_service import EmailCanvasService
 
-    rec = save_staged("u-1", canvas, "pic.png", b"\x89PNG-not-really", "image/png")
+    # A non-image binary: no text layer exists and OCR does not apply to it.
+    # (Image attachments are OCR'd now — see the test below.)
     svc = EmailCanvasService(session_ctx)
     svc.stage_attachments(
         canvas, "u-1",
-        [{"filename": "pic.png", "content_bytes": b"\x89PNG", "content_type": "image/png"}],
+        [{"filename": "archive.zip", "content_bytes": b"PK\x03\x04fake",
+          "content_type": "application/zip"}],
     )
     listed = svc.list_attachments(canvas, "u-1")
     result = await tool_mod.email_attachment_get_text(
@@ -247,6 +247,35 @@ async def test_get_text_binary_without_layer_suggests_ingest(session_ctx, canvas
     )
     assert result["success"] is False
     assert "email_attachment_ingest" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_get_text_ocrs_image_attachment(session_ctx, canvas):
+    """Red-first: image reads used to have no text layer at all."""
+    from core.canvas_email_service import EmailCanvasService
+
+    svc = EmailCanvasService(session_ctx)
+    svc.stage_attachments(
+        canvas, "u-1",
+        [{"filename": "receipt.png", "content_bytes": b"\x89PNG fake",
+          "content_type": "image/png"}],
+    )
+    listed = svc.list_attachments(canvas, "u-1")
+    with patch(
+        "core.image_ocr.ocr_image_bytes",
+        new=AsyncMock(return_value={
+            "success": True, "text": "RECEIPT total 42.00",
+            "engine": "tesseract", "chars": 19, "reason": None,
+        }),
+    ):
+        result = await tool_mod.email_attachment_get_text(
+            user_id="u-1", canvas_id=canvas,
+            attachment_id=listed["attachments"][-1]["attachment_id"],
+        )
+
+    assert result["success"] is True
+    assert result["filename"] == "receipt.png"
+    assert "RECEIPT total 42.00" in result["text"]
 
 
 @pytest.mark.asyncio

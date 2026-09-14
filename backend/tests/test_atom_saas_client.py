@@ -485,7 +485,15 @@ class TestSkillInstallation:
 
 
 class TestFederationHeaders:
-    """Test federation header support."""
+    """Test federation header support.
+
+    Contract (2026-09-13, aligned to atom-saas
+    backend-saas/api/dependencies/federation_auth.py:validate_federation_peer):
+    self-hosted instances authenticate with X-Instance-ID (registered,
+    active MarketplaceInstance id) + X-Federation-Key (the accepted
+    FederationConnection shared_secret — atom reuses its API token). The
+    legacy X-API-Token header is read by NO server route and is NOT sent.
+    """
 
     @pytest.mark.asyncio
     async def test_http_client_includes_federation_headers(self):
@@ -509,20 +517,42 @@ class TestFederationHeaders:
             call_args = mock_httpx.call_args
             headers = call_args[1]['headers']
 
-            assert headers["X-API-Token"] == "test-token"
             assert headers["X-Federation-Key"] == "test-token"
             assert headers["X-Instance-ID"] == "instance-123"
             assert headers["Content-Type"] == "application/json"
+            # X-API-Token is deliberately gone — no server route reads it
+            assert "X-API-Token" not in headers
+
+    def test_sync_calls_send_federation_headers_not_api_token(
+            self, monkeypatch):
+        """End-to-end over a mock transport: the wire carries exactly the
+        federation pair."""
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(200, json={"ok": True})
+
+        monkeypatch.setenv("ATOM_SAAS_INSTANCE_ID", "inst-reg-9")
+        monkeypatch.setenv("ATOM_SAAS_API_TOKEN", "tok-9")
+        client = AtomAgentOSMarketplaceClient(
+            transport=httpx.MockTransport(handler))
+        assert client.health_check_sync() is True
+        assert seen[0].headers["X-Instance-ID"] == "inst-reg-9"
+        assert seen[0].headers["X-Federation-Key"] == "tok-9"
+        assert "X-API-Token" not in seen[0].headers
 
 
 class TestSynchronousWrappers:
-    """Test synchronous wrapper methods."""
+    """Synchronous wrapper methods (2026-09-13: each runs on a PRIVATE
+    event loop via _run_sync and drops the cached AsyncClient afterwards —
+    the wrappers await the async method, so the patches are AsyncMocks)."""
 
     def test_fetch_skills_sync(self):
         """Synchronous wrapper for fetch_skills works."""
         client = AtomAgentOSMarketplaceClient()
 
-        with patch.object(client, 'fetch_skills', return_value={"skills": []}) as mock_fetch:
+        with patch.object(client, 'fetch_skills', new=AsyncMock(return_value={"skills": []})) as mock_fetch:
             result = client.fetch_skills_sync()
             mock_fetch.assert_called_once()
             assert result == {"skills": []}
@@ -531,7 +561,7 @@ class TestSynchronousWrappers:
         """Synchronous wrapper for get_skill_by_id works."""
         client = AtomAgentOSMarketplaceClient()
 
-        with patch.object(client, 'get_skill_by_id', return_value={"id": "skill-1"}) as mock_get:
+        with patch.object(client, 'get_skill_by_id', new=AsyncMock(return_value={"id": "skill-1"})) as mock_get:
             result = client.get_skill_by_id_sync("skill-1")
             mock_get.assert_called_once_with("skill-1")
             assert result["id"] == "skill-1"
@@ -540,7 +570,7 @@ class TestSynchronousWrappers:
         """Synchronous wrapper for rate_skill works."""
         client = AtomAgentOSMarketplaceClient()
 
-        with patch.object(client, 'rate_skill', return_value={"success": True}) as mock_rate:
+        with patch.object(client, 'rate_skill', new=AsyncMock(return_value={"success": True})) as mock_rate:
             result = client.rate_skill_sync("skill-1", "user-123", 5)
             mock_rate.assert_called_once()
             assert result["success"] is True
@@ -549,7 +579,7 @@ class TestSynchronousWrappers:
         """Synchronous wrapper for install_skill works."""
         client = AtomAgentOSMarketplaceClient()
 
-        with patch.object(client, 'install_skill', return_value={"success": True}) as mock_install:
+        with patch.object(client, 'install_skill', new=AsyncMock(return_value={"success": True})) as mock_install:
             result = client.install_skill_sync("skill-1", "agent-123")
             mock_install.assert_called_once()
             assert result["success"] is True
@@ -558,10 +588,112 @@ class TestSynchronousWrappers:
         """Synchronous wrapper for uninstall_skill works."""
         client = AtomAgentOSMarketplaceClient()
 
-        with patch.object(client, 'uninstall_skill', return_value={"success": True}) as mock_uninstall:
+        with patch.object(client, 'uninstall_skill', new=AsyncMock(return_value={"success": True})) as mock_uninstall:
             result = client.uninstall_skill_sync("skill-1", "agent-123")
             mock_uninstall.assert_called_once()
             assert result["success"] is True
+
+
+class TestSyncWrapperLoopSafety:
+    """The cross-loop bug (2026-09-13): install_agent makes TWO sequential
+    sync calls (get_template_details then install_agent_sync). The cached
+    AsyncClient used to survive the first asyncio.run's closed loop, so the
+    second call raised RuntimeError — NOT an httpx.HTTPError, so install's
+    except-path rolled back local rows it had already created."""
+
+    def _client(self, handler, **env):
+        for key, value in env.items():
+            os.environ[key] = value
+        return AtomAgentOSMarketplaceClient(
+            transport=httpx.MockTransport(handler))
+
+    def test_two_sequential_sync_calls(self):
+        calls = []
+
+        def handler(request):
+            calls.append(str(request.url.path))
+            if request.url.path.endswith("/install/tmpl-1"):
+                return httpx.Response(200, json={"status": "installed"})
+            return httpx.Response(200, json={"id": "tmpl-1",
+                                             "verified_record": {}})
+
+        client = self._client(
+            handler, ATOM_SAAS_API_TOKEN="tok",
+            ATOM_SAAS_INSTANCE_ID="inst-1")
+        try:
+            first = client.get_agent_template_sync("tmpl-1")
+            second = client.install_agent_sync("tmpl-1", "tenant-1")
+            assert first["id"] == "tmpl-1"
+            assert second["status"] == "installed"
+            assert len(calls) == 2
+        finally:
+            os.environ.pop("ATOM_SAAS_INSTANCE_ID", None)
+
+    def test_client_is_dropped_after_each_sync_call(self):
+        def handler(request):
+            return httpx.Response(200, json={"ok": True})
+
+        client = self._client(handler, ATOM_SAAS_API_TOKEN="tok",
+                              ATOM_SAAS_INSTANCE_ID="inst-1")
+        try:
+            assert client._http_client is None
+            client.health_check_sync()
+            assert client._http_client is None  # dropped, not cached
+        finally:
+            os.environ.pop("ATOM_SAAS_INSTANCE_ID", None)
+
+    def test_sync_wrapper_refuses_a_running_loop(self):
+        import asyncio
+
+        def handler(request):
+            return httpx.Response(200, json={"ok": True})
+
+        client = self._client(handler, ATOM_SAAS_API_TOKEN="tok",
+                              ATOM_SAAS_INSTANCE_ID="inst-1")
+
+        async def _in_loop():
+            with pytest.raises(RuntimeError):
+                client.health_check_sync()
+
+        try:
+            asyncio.run(_in_loop())
+        finally:
+            os.environ.pop("ATOM_SAAS_INSTANCE_ID", None)
+
+
+class TestCommittedSaasRouteContract:
+    """Route/param alignment to the COMMITTED atom-saas router."""
+
+    def test_details_route_has_no_details_segment(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(200, json={"id": "tmpl-1"})
+
+        client = AtomAgentOSMarketplaceClient(
+            transport=httpx.MockTransport(handler))
+        out = client.get_agent_template_sync("tmpl-1")
+        assert out["id"] == "tmpl-1"
+        assert str(seen[0].url).endswith(
+            "/agents/api/agent-marketplace/tmpl-1")
+        assert "/details/" not in str(seen[0].url)
+
+    def test_browse_maps_page_page_size_to_limit_offset(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(200, json={"agents": [], "total": 0})
+
+        client = AtomAgentOSMarketplaceClient(
+            transport=httpx.MockTransport(handler))
+        client.fetch_agents_sync(query="quota", category="Sales",
+                                 page=3, page_size=25)
+        params = dict(httpx.QueryParams(seen[0].url.params))
+        assert params == {"limit": "25", "offset": "50",
+                          "category": "Sales"}
+        # page/page_size/query are NOT sent — the server does not read them
 
 
 class TestHealthCheck:

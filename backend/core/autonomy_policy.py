@@ -91,6 +91,14 @@ TOPICS: Dict[str, Dict[str, str]] = {
         "description": "Attaching/removing files on email drafts and reading their contents",
         "default_mode": MODE_AUTO_IF_MATURE,
     },
+    "integration_ingest": {
+        "label": "Integration ingestion",
+        "description": (
+            "Pulling content from connected integrations into Atom memory "
+            "(drives, CRM, tickets, inventory, chat, …)"
+        ),
+        "default_mode": MODE_AUTO_IF_MATURE,
+    },
     "pdf_canvas": {
         "label": "PDF documents",
         "description": "Editing PDF canvases (pages/merge) and approving them for send-out",
@@ -139,6 +147,13 @@ TOPIC_GATES: Dict[str, Dict[str, Any]] = {
         "governance_action": "update_canvas",
         "min_maturity": "intern",
         "trust_domain": "pdf_canvas",
+    },
+    # Reversible memory write (idempotent, source-scoped): the same bar as
+    # email-attachment ingestion, one knob for every integration family.
+    "integration_ingest": {
+        "governance_action": "integration_ingest_write",
+        "min_maturity": "intern",
+        "trust_domain": "integration_ingest",
     },
 }
 

@@ -260,13 +260,97 @@ export async function resumeGoalRun(
   id: string,
   approved: boolean,
   guidance?: string,
+  guidanceScope?: 'global' | 'goal',
 ): Promise<void> {
   const res = await fetchJson(`/api/goal-runs/${id}/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ approved, guidance }),
+    body: JSON.stringify({
+      approved,
+      guidance,
+      // Scope of the correction when it becomes a lesson: this goal only, or
+      // all of this agent's work. Omitted = the backend default (global).
+      ...(guidanceScope ? { guidance_scope: guidanceScope } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`Failed to resume goal run (${res.status})`);
+}
+
+/**
+ * One permanent lesson for an agent, with its scope.
+ *
+ * `scope: 'goal'` means it applies only while working `goal_id` (a
+ * deal-specific instruction taught from the run page); `'global'` is standing
+ * guidance for all of that agent's work.
+ */
+export interface AgentLesson {
+  id: string | null;
+  text: string;
+  scope: 'global' | 'goal';
+  goal_id?: string | null;
+  source?: string | null;
+  topic?: string | null;
+  learned_at?: string | null;
+}
+
+/**
+ * What this agent has permanently learned (newest first).
+ *
+ * The run page's coaching panel: a supervisor needs to see whether their
+ * overrides and taught rules actually landed. Pass `goalId` to also include
+ * that goal's scoped lessons — a lesson scoped to a DIFFERENT goal stays out,
+ * and global lessons always come back.
+ */
+export async function listAgentLessons(
+  agentId: string,
+  goalId?: string,
+  limit = 20,
+): Promise<AgentLesson[]> {
+  const params = new URLSearchParams();
+  if (goalId) params.set('goal_id', goalId);
+  params.set('limit', String(limit));
+  const res = await fetchJson(
+    `/api/maturity/agents/${encodeURIComponent(agentId)}/lessons?${params.toString()}`,
+  );
+  if (!res.ok) throw new Error(`Failed to load lessons (${res.status})`);
+  const body = await res.json();
+  return body?.lessons ?? [];
+}
+
+/**
+ * Teach a permanent rule to the agent working this run.
+ *
+ * `scope: 'goal'` keeps it to this goal (deal-specific coaching); `'global'`
+ * makes it standing guidance for all of the agent's work. Goes through the
+ * same /teach channel as the canvas Training tab and chat.
+ */
+export async function teachAgentFromRun(
+  agentId: string,
+  lesson: string,
+  opts: { scope: 'global' | 'goal'; goalId?: string; topic?: string } = { scope: 'global' },
+): Promise<{ status: string; scope?: string; teaching_point_id?: string | null }> {
+  const res = await fetchJson(`/api/agents/${encodeURIComponent(agentId)}/teach`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lesson,
+      ...(opts.topic ? { topic: opts.topic } : {}),
+      scope: opts.scope,
+      ...(opts.scope === 'goal' && opts.goalId ? { goal_id: opts.goalId } : {}),
+    }),
+  });
+  if (!res.ok) {
+    let message = `Teach failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string') message = body.detail;
+    } catch {
+      // non-JSON error body — keep the generic message
+    }
+    throw new Error(message);
+  }
+  const body = await res.json();
+  return body?.data ?? body;
 }
 
 export async function resolveCheckpoint(

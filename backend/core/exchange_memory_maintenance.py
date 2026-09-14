@@ -654,6 +654,17 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
     except Exception as e:
         logger.debug("goal run timer wake step failed: %s", e)
     try:
+        # GoalRun stale-ACTIVE sweep (2026-09-13): runs whose driver died
+        # (fire-and-forget delegated agent work) show 'active' with no
+        # updated_at progress — mark them interrupted (paused_hitl + honest
+        # pending decision) for the supervisor. Never cancels. Runs on the
+        # session this cycle was given, fault-isolated like every step.
+        from core.goals.goal_run_events import interrupt_stalled_runs_all_workspaces
+
+        summary["goal_run_stale_sweep"] = interrupt_stalled_runs_all_workspaces()
+    except Exception as e:
+        logger.debug("goal run stale sweep step failed: %s", e)
+    try:
         from core.db_safety import maintenance_db_safety_step
 
         # OFF-LOOP: the sqlite snapshot copies the whole DB file; on the

@@ -134,9 +134,17 @@ class GoalRunService:
             return self._to_dict(run)
 
     def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Read one run — SCOPED to the service's workspace (same filter as
+        list_runs). The service is constructed workspace-bound by every
+        surface (routes bind it to the requester's workspace, events to the
+        event's workspace); a run id from another workspace reads as absent,
+        so a cross-workspace id is not a read oracle for decision logs and
+        parameters (IDOR fix 2026-09-13)."""
         from core.models import GoalRun
         with self._sessions()() as session:
-            run = session.query(GoalRun).filter(GoalRun.id == run_id).first()
+            run = session.query(GoalRun).filter(
+                GoalRun.id == run_id,
+                GoalRun.workspace_id == self.workspace_id).first()
             return self._to_dict(run) if run else None
 
     def list_runs(self, goal_id: Optional[str] = None,
@@ -164,8 +172,13 @@ class GoalRunService:
             return [self._to_dict(r) for r in rows]
 
     def _load(self, session, run_id: str):
+        """Load a run row for mutation — workspace-scoped like get_run, so
+        every write path (transition/set_wait/patch/…) through a
+        workspace-bound service can only touch this workspace's runs."""
         from core.models import GoalRun
-        return session.query(GoalRun).filter(GoalRun.id == run_id).first()
+        return session.query(GoalRun).filter(
+            GoalRun.id == run_id,
+            GoalRun.workspace_id == self.workspace_id).first()
 
     # ------------------------------------------------------------ surfaces
 
@@ -180,6 +193,31 @@ class GoalRunService:
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
             run.supervision_mode = mode
+            session.commit()
+            session.refresh(run)
+            return self._to_dict(run)
+
+    def interrupt_stalled(self, run_id: str, reason: str) -> Optional[Dict[str, Any]]:
+        """Maintenance-sweep act (2026-09-13): a run stuck ACTIVE with no
+        row progress is interrupted — ``paused_hitl`` + an honest pending
+        ASK_HUMAN decision the supervisor resolves through the normal
+        resume flow (approve → active again, reject → guidance becomes the
+        correction). Never cancels: the state is surfaced, the human
+        decides. No-op unless the run is currently active."""
+        from core.models import GoalRun
+        with self._sessions()() as session:
+            run = self._load(session, run_id)
+            if not run or run.status != "active":
+                return None
+            run.status = "paused_hitl"
+            run.pending_decision = {
+                "decision": "ASK_HUMAN",
+                "rationale": (reason or "run stalled")[:2000],
+            }
+            log = list(run.decision_log or [])
+            log.append({"ts": _iso(), "kind": "stalled_interrupted",
+                        "rationale": (reason or "run stalled")[:2000]})
+            run.decision_log = log
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -272,6 +310,30 @@ class GoalRunService:
             except Exception as exc:
                 logger.warning(f"goal run {run.get('id')}: outcome recording "
                                f"failed: {exc}")
+        # Marketplace feedback loop: a run worked by a MANAGED (installed)
+        # agent is usage evidence for its listing — the seller's analytics
+        # and the buyer's ratings ride on verified outcomes, not reviews
+        # alone. Fault-isolated like every terminal hook.
+        try:
+            agent_id = run.get("agent_id")
+            if agent_id:
+                from core.models import AgentRegistry
+                with self._sessions()() as session:
+                    agent = session.query(AgentRegistry).filter(
+                        AgentRegistry.id == agent_id).first()
+                    cfg = (agent.configuration or {}) if agent else {}
+                if cfg.get("marketplace_managed") and cfg.get("template_id"):
+                    from core.marketplace_usage_tracker import (
+                        MarketplaceUsageTracker,
+                    )
+                    MarketplaceUsageTracker.track_usage(
+                        item_type="agent",
+                        item_id=str(cfg["template_id"]),
+                        success=run["status"] == "achieved",
+                    )
+        except Exception as exc:
+            logger.warning(f"goal run {run.get('id')}: marketplace usage "
+                           f"report failed: {exc}")
 
     def activate(self, run_id: str) -> Dict[str, Any]:
         run = self.transition(run_id, "active")
@@ -555,6 +617,21 @@ class GoalRunService:
             return {"advanced": False, "reason": "run not found"}
         kind = decision.get("decision")
 
+        if kind == "ASK_HUMAN":
+            original = decision.get("original_decision")
+            if (isinstance(original, dict) and original.get("decision")
+                    and original.get("decision") != "ASK_HUMAN"):
+                # A guardrail forced this hold (replan budget, wait ceiling,
+                # stuck detector) or a DONE claim failed criteria. Approving
+                # the hold approves THAT decision — replay it with the
+                # human-approval flag so the guardrail doesn't re-raise.
+                return await self.execute_decision(
+                    run_id, {**original, "human_approved": True},
+                    executors=executors)
+            # A genuine router ASK_HUMAN carries no concrete action to run.
+            return {"advanced": True, "decision": "ASK_HUMAN",
+                    "result": None, "run": self.get_run(run_id)}
+
         if kind == "WAIT":
             spec = decision.get("wait_spec") or {"event": "timer"}
             updated = self.set_wait(run_id, spec)
@@ -565,11 +642,14 @@ class GoalRunService:
             if isinstance(new_plan, list) and new_plan:
                 # Magnitude guardrail (§3.5): a replan that discards more
                 # than half the remaining plan is a direction change big
-                # enough to require a human before it takes effect.
-                if self._replan_is_major(run, new_plan):
+                # enough to require a human before it takes effect. A
+                # supervisor-approved replay skips the re-check.
+                if (not decision.get("human_approved")
+                        and self._replan_is_major(run, new_plan)):
                     return self._hold_for_approval(
                         run_id,
                         {**decision, "decision": "ASK_HUMAN",
+                         "original_decision": decision,
                          "rationale": f"major replan (drops most of the "
                                       f"remaining plan) — human approval "
                                       f"required: {decision.get('rationale')}"},
@@ -655,7 +735,8 @@ class GoalRunService:
 
     async def resume(self, run_id: str, approved: bool,
                      reviewer: Optional[str] = None,
-                     guidance: Optional[str] = None) -> Dict[str, Any]:
+                     guidance: Optional[str] = None,
+                     guidance_scope: Optional[str] = None) -> Dict[str, Any]:
         """Resolve a held decision: approve → execute it; reject/override →
         the run continues from the supervisor's guidance (the override is a
         correction — goal_run_learning, fault-isolated)."""
@@ -672,7 +753,8 @@ class GoalRunService:
             try:
                 from core.goals.goal_run_learning import record_decision_override
                 record_decision_override(self, run, pending,
-                                         guidance=guidance, approved=False)
+                                         guidance=guidance, approved=False,
+                                         scope=guidance_scope or "global")
             except Exception as exc:
                 logger.warning(f"goal run {run_id}: override learning "
                                f"recording failed: {exc}")
@@ -692,7 +774,10 @@ class GoalRunService:
         if not approved:
             return {"resumed": True, "approved": False,
                     "run": self.get_run(run_id)}
-        executed = await self.execute_decision(run_id, pending)
+        # human_approved lets a guardrail-forced hold replay its original
+        # decision without the guardrail re-raising (the human approved it).
+        executed = await self.execute_decision(
+            run_id, {**pending, "human_approved": True})
         return {"resumed": True, "approved": True, **executed}
 
     # -------------------------------------------------------- guardrails
@@ -708,6 +793,9 @@ class GoalRunService:
                 and run.get("replan_count", 0) >= budget):
             return {**decision, "decision": "ASK_HUMAN",
                     "held": False,
+                    # Keep the decision the supervisor is approving: resume()
+                    # replays it instead of no-op'ing on "ASK_HUMAN".
+                    "original_decision": decision,
                     "rationale": f"replan budget ({budget}) exhausted — "
                                  f"human checkpoint required"}
         window = STUCK_DECISION_WINDOW - 1
@@ -722,6 +810,7 @@ class GoalRunService:
                         for d in recent)
                 and decision.get("decision") in ("REVISE_CURRENT", "REPLAN")):
             return {**decision, "decision": "ASK_HUMAN", "held": False,
+                    "original_decision": decision,
                     "rationale": f"stuck detector: {STUCK_DECISION_WINDOW} "
                                  f"identical decisions — human checkpoint"}
         return decision
@@ -754,6 +843,7 @@ class GoalRunService:
             return decision
         if parsed > ceiling:
             return {**decision, "decision": "ASK_HUMAN", "held": False,
+                    "original_decision": decision,
                     "rationale": f"wait deadline {deadline} exceeds the "
                                  f"{ceiling_days}-day ceiling for "
                                  f"'{run.get('supervision_mode')}' mode — "
@@ -793,12 +883,36 @@ class GoalRunService:
                         goal_state: Dict[str, Any],
                         step_digest: Optional[Dict[str, Any]],
                         event: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        return {
+        # The judgment in the loop BELONGS to the run's agent: its identity
+        # and its EARNED maturity tier ride along so ASK_HUMAN propensity
+        # scales with trust (§3.7). Without this the router saw
+        # maturity_tier "unknown" on every call and biased every run toward
+        # ASK_HUMAN regardless of the agent's tier. Fault-isolated — an
+        # agent-registry hiccup must never crash the loop turn.
+        context: Dict[str, Any] = {
             "run": run,
             "goal": goal_state,
             "step_digest": step_digest or {},
             "event": event or {},
+            "maturity_tier": "unknown",
+            "agent_name": None,
         }
+        agent_id = run.get("agent_id")
+        if not agent_id:
+            return context
+        try:
+            from core.models import AgentRegistry
+            with self._sessions()() as session:
+                agent = session.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id).first()
+            if agent:
+                context["maturity_tier"] = (getattr(agent, "status", None)
+                                            or "unknown")
+                context["agent_name"] = agent.name
+        except Exception as exc:
+            logger.warning(f"goal run {run.get('id')}: agent tier lookup "
+                           f"failed: {exc}")
+        return context
 
     def _count_step(self, run_id: str, kind: str) -> None:
         with self._sessions()() as session:
@@ -816,6 +930,17 @@ class GoalRunService:
         plan = run.get("plan") or []
         cursor = run.get("cursor")
         ids = [s.get("id") for s in plan]
+        # An UNRESOLVED human_checkpoint owns the cursor through an ADVANCE:
+        # the checkpoint step moves exactly once, when it is resolved
+        # (complete_checkpoint), never when the checkpoint is merely created.
+        # Advancing here as well made the approval a second advance and
+        # silently skipped the first plan step after the checkpoint (live:
+        # research → quote → approval → send → follow-up lost the send).
+        # SKIP/BRANCH keep their normal (single) cursor advance.
+        if decision.get("decision") == "ADVANCE" and cursor in ids:
+            current = plan[ids.index(cursor)]
+            if current.get("kind") == "human_checkpoint" and not current.get("done"):
+                return
         if cursor in ids:
             idx = ids.index(cursor)
             if idx + 1 < len(plan):
@@ -825,6 +950,16 @@ class GoalRunService:
         """DONE is claimed by the router but verified against criteria
         (§3.2) — an unsatisfied goal downgrades to a human checkpoint."""
         run = self.get_run(run_id)
+        if decision.get("human_approved"):
+            # The supervisor verified a DONE whose machine criteria did not
+            # all pass — the human override IS the verification.
+            self.append_decision(run_id, {
+                "kind": "run_done",
+                "rationale": ("human-verified DONE: "
+                              + str(decision.get("rationale") or "")).strip(),
+            })
+            return {"advanced": True, "decision": "DONE",
+                    "run": self.transition(run_id, "achieved")}
         goal_state = self._evaluate_goal(run)
         fully_satisfied = (goal_state.get("total", 0) > 0
                            and goal_state.get("satisfied", 0)
@@ -838,6 +973,7 @@ class GoalRunService:
         return self._hold_for_approval(
             run_id,
             {**decision, "decision": "ASK_HUMAN",
+             "original_decision": decision,
              "rationale": "router claimed DONE but goal criteria are not "
                           f"all satisfied ({goal_state.get('satisfied', 0)}/"
                           f"{goal_state.get('total', 0)}) — human verification"},
