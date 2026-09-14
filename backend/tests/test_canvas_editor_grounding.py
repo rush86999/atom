@@ -136,6 +136,32 @@ async def test_fetch_failure_does_not_raise():
 
 
 @pytest.mark.asyncio
+async def test_fallback_plan_gets_canvas_and_provenance():
+    """Without a shared plan task, the editor's own planner call must see
+    the SAME context the orchestrator's pre-started plan gets: the open
+    canvas and the provenance menu. The fallback routed blind before
+    (planner-blindness family, live 2026-09-14 canvas a1a13834)."""
+    captured = {}
+
+    async def fake_plan(message, history, user_id, llm_service, **kwargs):
+        captured.update(kwargs)
+        return ToolPlan(use_tool=False, reason="conversation suffices")
+
+    async def fake_menu(message, context=None, budget_s=4.0):
+        return "PROVENANCE — INGESTED MAIL contains your quoted text"
+
+    canvas = {"canvas_type": "email", "title": "FW: RFQ - Foot shear"}
+    with patch("core.chat_tool_planner.plan_tool_use", fake_plan), \
+         patch("core.chat_tool_planner._provenance_menu", fake_menu):
+        fresh = await fetch_fresh_data_section(
+            "search for this one: $ 5,350.00 - 10 % in stock", [],
+            MagicMock(), "user-1", canvas=canvas)
+    assert captured.get("canvas") == canvas
+    assert "INGESTED MAIL contains" in (captured.get("provenance") or "")
+    assert not fresh.needed
+
+
+@pytest.mark.asyncio
 async def test_fetch_bounded_by_timeout(monkeypatch):
     """Evidence gathering must never cost the edit its own turn — but a
     timeout is a FAILED lookup (decline), not license to fabricate.

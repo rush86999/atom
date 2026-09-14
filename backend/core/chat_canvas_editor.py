@@ -883,7 +883,23 @@ async def fetch_fresh_data_section(
                     # without evidence (pre-existing contract).
                     logger.debug(f"shared tool plan failed: {plan_err}")
                     return None
-            return await plan_tool_use(message, history, user_id, llm_service)
+            # Fallback (no shared task from the chat leg): the same
+            # context the orchestrator's pre-started plan gets — the open
+            # canvas and the provenance menu. Without these the editor's
+            # own plan routed blind (the planner-blindness family, live
+            # 2026-09-14 canvas a1a13834: a pasted vendor line planned into
+            # zoho_inventory). Bounded + fault-isolated: menu failure
+            # degrades to the pre-existing bare call.
+            try:
+                from core.chat_tool_planner import _provenance_menu
+
+                prov = await asyncio.wait_for(
+                    _provenance_menu(message, {"history": history}), timeout=6)
+            except Exception:  # noqa: BLE001 — menu is best-effort
+                prov = ""
+            return await plan_tool_use(
+                message, history, user_id, llm_service,
+                canvas=canvas, provenance=prov)
 
         def _resolved_plan_if_done() -> Any:
             """The shared plan's verdict when it landed just after our cap.
