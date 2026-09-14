@@ -295,11 +295,16 @@ class TestMultiStrategySearch:
         svc.client.get = AsyncMock(side_effect=_route)
         await svc.search_items("Linmac WG-350DSAV")
         # attempt1 full search_text, attempt2 full name_contains, then the
-        # identifier-shaped 'WG-350DSAV' token before the prose 'Linmac'.
-        # 'WG' and '350DSAV' both come out of tokenization; the ladder
-        # carries identifier-shaped ones first.
-        assert order[2] in ("WG", "350DSAV")
-        assert order.index("Linmac") > order.index("350DSAV")
+        # identifier-shaped tokens before the prose 'Linmac'. Since the
+        # 2026-09-13 compound-token fix the WHOLE hyphenated code
+        # ('WG-350DSAV') is the leading token rung — it matches the
+        # provider-indexed name directly; '350DSAV' remains for
+        # separator-less spellings.
+        assert order[2] == "WG-350DSAV"
+        assert "350DSAV" in order
+        # 'Linmac' never gets a rung inside the call cap: the whole-code and
+        # separator-less rungs consume the budget first — exactly the
+        # priority this test exists to pin (identifiers before prose).
 
 
 class TestDatacenterSuffix:
@@ -439,3 +444,50 @@ def test_module_cache_isolated_per_tenant():
     _ORG_CACHE["t2"] = "b"
     assert zis._ORG_CACHE["t1"] == "a"
     assert zis._ORG_CACHE["t2"] == "b"
+
+class TestSearchValueCap:
+    """Zoho rejects search_text AND name_contains values of 100+ chars with
+    HTTP 400 code 15 — a PRE-AUTH validation (live 2026-09-14 probe: even an
+    invalid bearer gets code 15 first), so a too-long value reads as an
+    integration failure while the credentials are fine. Enriched planner
+    queries (user phrase + identifier net) crossed the cap on 2026-09-13
+    (canvas a1a13834) and every rung 400'd."""
+
+    INCIDENT_QUERY = (
+        "$ 5,350.00 - 10 % in stock "
+        "ca/collections/sheet-metal-equipment/products/52-inch-16-gauge-foot-shear "
+        "F-5216"
+    )
+
+    def test_short_value_passthrough(self):
+        assert ZohoInventoryService._cap_search_value("F-5216") == "F-5216"
+        assert ZohoInventoryService._cap_search_value("  WG-350DSAV  ") == "WG-350DSAV"
+
+    def test_long_value_trimmed_at_whitespace_under_cap(self):
+        capped = ZohoInventoryService._cap_search_value(self.INCIDENT_QUERY)
+        assert len(capped) <= ZohoInventoryService._ZOHO_VALUE_CAP
+        # No truncated URL fragment: the cut happens at the last whitespace.
+        assert "/" not in capped
+        assert capped == "$ 5,350.00 - 10 % in stock"
+
+    def test_long_value_without_whitespace_hard_cut(self):
+        capped = ZohoInventoryService._cap_search_value("a" * 250)
+        assert len(capped) <= ZohoInventoryService._ZOHO_VALUE_CAP
+
+    async def test_every_outgoing_search_value_under_cap(self):
+        svc = _svc(config={"access_token": "tok", "organization_id": "org1"})
+        calls = []
+
+        async def _route(url, headers=None, params=None):
+            calls.append(params or {})
+            return _resp(200, {"items": []})
+
+        svc.client.get = _route
+        await svc.search_items(self.INCIDENT_QUERY, token="tok",
+                               organization_id="org1")
+        assert calls, "expected at least one live call"
+        for params in calls:
+            for key in ("search_text", "name_contains"):
+                if key in params:
+                    assert len(params[key]) <= ZohoInventoryService._ZOHO_VALUE_CAP, (
+                        f"{key} over cap: {params[key]!r}")

@@ -7,6 +7,7 @@ provider-search ladder that every integration family reuses instead of
 per-service copies. All mocked — zero network, zero DB.
 """
 import pytest
+from types import SimpleNamespace
 
 from core.identifier_search import (
     filter_by_terms,
@@ -47,7 +48,12 @@ class TestIdentifierShapes:
 
     def test_query_terms_identifier_first(self):
         terms = query_terms("Linmac WG-350DSAV is the bandsaw in stock")
-        assert terms[0] == "350DSAV"
+        # The hyphenated code is kept WHOLE and leads (2026-09-13: the
+        # plain tokenizer split 'F-5216' into a <3-char drop + prose-ranked
+        # '5216', so the code never got its own ladder rung); its plain
+        # remainder still tokenizes for the separator-less providers.
+        assert terms[0] == "WG-350DSAV"
+        assert "350DSAV" in terms
         assert "Linmac" in terms and "stock" in terms
         assert "is" not in terms and "WG" not in terms  # <3 chars dropped
 
@@ -105,6 +111,86 @@ class TestRankRecords:
         records = ["WG-350DSAV-1", "WG-350DSAV", "drill"]
         out = rank_records(records, "wg-350dsav", name_of=lambda r: r)
         assert out[0] == "WG-350DSAV"
+
+
+class _FakeStatusError(Exception):
+    """Minimal httpx.HTTPStatusError shape: .response.status_code."""
+
+    def __init__(self, status):
+        super().__init__(f"HTTP {status}")
+        self.response = SimpleNamespace(status_code=status)
+
+
+INCIDENT_QUERY = (
+    "$ 5,350.00 - 10 % in stock "
+    "ca/collections/sheet-metal-equipment/products/52-inch-16-gauge-foot-shear "
+    "F-5216"
+)
+
+
+class TestQueryTermsCompounds:
+    def test_hyphenated_code_kept_whole_and_ranked_first(self):
+        terms = query_terms(INCIDENT_QUERY)
+        assert terms[0] == "F-5216"
+        assert "F-5216" in terms
+
+    def test_slug_shaped_hyphen_runs_are_not_compound_tokens(self):
+        # URL slugs ('52-inch-16-gauge-foot-shear') and all-alpha hyphen
+        # runs ('sheet-metal-equipment') are not catalog codes: the compound
+        # must not appear, while its plain parts still tokenize as before.
+        terms = query_terms(INCIDENT_QUERY)
+        assert "52-inch-16-gauge-foot-shear" not in terms
+        assert "sheet-metal-equipment" not in terms
+        assert "shear" in terms and "equipment" in terms
+
+    def test_plain_spelling_behaviour_unchanged(self):
+        # The classic recovery shape still works: 'WG-350DSAV' is a
+        # compound now AND '350DSAV' remains a plain token.
+        terms = query_terms("Linmac WG-350DSAV")
+        assert "WG-350DSAV" in terms and "350DSAV" in terms
+
+
+class TestLadderValueLevelErrors:
+    async def test_first_attempt_value_level_4xx_skips_to_token_rungs(self):
+        # Live 2026-09-13 (canvas a1a13834): the full enriched query tripped
+        # Zoho's 100-char search_text cap with HTTP 400 code 15 — and the
+        # old fail-fast aborted the ladder before the F-5216 token rung.
+        calls = []
+
+        async def fetch(kind, value):
+            calls.append((kind, value))
+            if len(value) > 99:
+                raise _FakeStatusError(400)
+            if (kind, value) == ("name", "F-5216"):
+                return [{"name": "Fintek F-5216 Foot Shear", "stock": 2}]
+            return []
+
+        out = await run_search_ladder(fetch, INCIDENT_QUERY,
+                                      name_of=lambda r: r["name"])
+        assert [r["name"] for r in out] == ["Fintek F-5216 Foot Shear"]
+        assert ("name", "F-5216") in calls
+
+    async def test_provider_level_4xx_first_attempt_fails_fast(self):
+        # Auth is not value-specific: 401 on the first rung means every
+        # rung would fail — keep the fail-fast.
+        calls = []
+
+        async def fetch(kind, value):
+            calls.append((kind, value))
+            raise _FakeStatusError(401)
+
+        with pytest.raises(_FakeStatusError):
+            await run_search_ladder(fetch, "wg-350dsav",
+                                    name_of=lambda r: r["name"])
+        assert calls == [("text", "wg-350dsav")]
+
+    async def test_non_http_first_attempt_still_fails_fast(self):
+        async def fetch(kind, value):
+            raise ConnectionError("provider down")
+
+        with pytest.raises(ConnectionError):
+            await run_search_ladder(fetch, "wg-350dsav",
+                                    name_of=lambda r: r["name"])
 
 
 class TestSearchLadder:

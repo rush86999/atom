@@ -895,20 +895,26 @@ async def _rewrite_storage_query(
         return query
 
 
-def _context_identifier_net(ctx: Dict[str, Any], query: str, limit: int = 2) -> List[str]:
+def _context_identifier_net(ctx: Dict[str, Any], query: str, limit: int = 2,
+                            skip_pathlike: bool = False) -> List[str]:
     """Identifier tokens (model/SKU-shaped — _product_tokens) that the
     current message, recent history and open canvas carry but the draft
     query dropped. Shared by the storage and item-search query nets: small
     planner models drop codes that live in earlier turns (live 2026-09-04:
     the user named the exact keywords and the planner still sent
-    'bandsaw' three turns running). Order-preserving, capped."""
+    'bandsaw' three turns running). Order-preserving, capped.
+    ``skip_pathlike`` for LIVE item searches: URL-path 'identifiers' are
+    never catalog codes (see _product_tokens) and can push the query past
+    provider value caps; storage searches keep them — a URL IS searchable
+    document text."""
     hay = " ".join(
         [_current_message_text(ctx)]
         + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
         + [_entry_text(ctx.get("canvas") or {})]
     )
     return [
-        t for t in _product_tokens(hay, min_len=6, skip_hexlike=True)
+        t for t in _product_tokens(
+            hay, min_len=6, skip_hexlike=True, skip_pathlike=skip_pathlike)
         if t.lower() not in (query or "").lower()
     ][:limit]
 
@@ -1793,7 +1799,7 @@ _HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
 
 
 def _product_tokens(text: str, min_len: int = 5, skip_hexlike: bool = False,
-                    limit: int = 3) -> List[str]:
+                    limit: int = 3, skip_pathlike: bool = False) -> List[str]:
     """Identifier candidates for exact-copy lookups: tokens that MIX letters
     with digits — the one shape every industry's catalog codes share (model
     numbers 'WG350DSAV', electronics parts 'LM358', chemical catalog
@@ -1801,7 +1807,13 @@ def _product_tokens(text: str, min_len: int = 5, skip_hexlike: bool = False,
     that prose, years, prices and quantities never do. Pure-digit tokens are
     excluded by the same logic. ``skip_hexlike`` drops 6-hex-digit tokens
     (canvas HTML style attributes like #1F3864 are layout noise; a genuine
-    hex-shaped code from user-typed text still passes). Order-preserving
+    hex-shaped code from user-typed text still passes). ``skip_pathlike``
+    drops tokens containing '/' — URL paths match the code shape (letters,
+    digits, '/') but are never catalog codes, and appended to a live item
+    search they blow provider value caps and AND-queries (live 2026-09-13,
+    canvas a1a13834: a brennan.ca product-URL path became a 59-char
+    'identifier' and pushed the Zoho search_text past its 100-char cap —
+    HTTP 400 code 15 on every attempt, before auth). Order-preserving
     dedupe, capped at ``limit``."""
     out: List[str] = []
     for m in _PRODUCT_TOKEN_RE.finditer(text or ""):
@@ -1809,6 +1821,8 @@ def _product_tokens(text: str, min_len: int = 5, skip_hexlike: bool = False,
         if len(tok) < min_len or tok in out:
             continue
         if skip_hexlike and _HEX_COLOR_RE.match(tok):
+            continue
+        if skip_pathlike and "/" in tok:
             continue
         out.append(tok)
         if len(out) >= limit:
@@ -3953,7 +3967,11 @@ async def execute_tool_plan(
             # tokens, so the draft must carry the model code, not a generic
             # noun. ZohoInventoryService.search_items retries the enriched
             # query per token, so appending (not replacing) is safe here.
-            extra = _context_identifier_net(context or {}, query)
+            # skip_pathlike: a URL path is not a catalog code, and appended
+            # it pushed the Zoho search_text past its 100-char cap — the
+            # 400-aborted lookup of 2026-09-13 (canvas a1a13834).
+            extra = _context_identifier_net(
+                context or {}, query, skip_pathlike=True)
             if extra:
                 logger.info(f"item-search query identifier net: {extra!r}")
                 query = f"{query} {' '.join(extra)}".strip()

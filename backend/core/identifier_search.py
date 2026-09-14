@@ -32,6 +32,13 @@ from typing import Any, Awaitable, Callable, List, Optional, Sequence, Tuple
 # --- Identifier shapes -------------------------------------------------------
 
 _ALPHA_PREFIX_RE = re.compile(r"^[a-z]+(?=[0-9])", re.IGNORECASE)
+# Multi-part alnum-hyphen runs: catalog codes ('F-5216', 'WG-350DSAV',
+# 'INV-2024-118') keep their hyphens — providers index the hyphenated NAME,
+# and splitting the code drops the part that carries the letters.
+_HYPHEN_COMPOUND_RE = re.compile(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+")
+# A compound with more parts than this is a URL slug ('52-inch-16-gauge-
+# foot-shear'), not a catalog code — its plain parts tokenize as usual.
+_MAX_CODE_PARTS = 3
 
 
 def normalize_code(value: Any) -> str:
@@ -69,13 +76,55 @@ def identifier_rank(token: str) -> Tuple[int, int]:
 
 def query_terms(query: str, min_len: int = 3) -> List[str]:
     """Alphanumeric tokens of a query, deduped, identifier-shaped first —
-    the per-token retry order for providers whose search ANDs tokens."""
+    the per-token retry order for providers whose search ANDs tokens.
+
+    Hyphenated catalog codes ('F-5216') are kept WHOLE and rank with the
+    identifiers: the plain tokenizer splits them ('F' falls under min_len,
+    '5216' ranks as prose), so the code never got its own ladder rung and
+    a 'is the F-5216 in stock?' turn searched everything BUT the code
+    (live 2026-09-13, canvas a1a13834). Slug-shaped hyphen runs (more than
+    3 parts, or all-alpha like 'sheet-metal-equipment') are not codes —
+    their plain parts cover them."""
+    compounds = [
+        c for c in _HYPHEN_COMPOUND_RE.findall(query or "")
+        if len(c) >= min_len
+        and len(c.split("-")) <= _MAX_CODE_PARTS
+        and any(ch.isdigit() for ch in c)
+        and any(ch.isalpha() for ch in c)
+    ]
     terms = [
-        t for t in dict.fromkeys(re.findall(r"[A-Za-z0-9]+", query or ""))
+        t for t in dict.fromkeys(
+            compounds + re.findall(r"[A-Za-z0-9]+", query or ""))
         if len(t) >= min_len
     ]
     terms.sort(key=identifier_rank)
     return terms
+
+
+def _http_status_of(err: BaseException) -> Optional[int]:
+    """Status of an HTTP error, None for non-HTTP failures. Works for
+    httpx/requests HTTPStatusError alike via the shared .response shape."""
+    response = getattr(err, "response", None)
+    status = getattr(response, "status_code", None)
+    return status if isinstance(status, int) else None
+
+
+# Value-specific client rejections: the request itself is invalid for THIS
+# search value, so other rungs (different values) can still succeed. Auth,
+# rate-limit and server errors recur for every rung — those keep the
+# fail-fast behavior.
+_PROVIDER_LEVEL_STATUSES = frozenset({401, 403, 429})
+
+
+def _is_value_level_error(err: BaseException) -> bool:
+    """True when the provider rejected THIS attempt's value (4xx validation)
+    rather than the provider/credentials being unavailable."""
+    status = _http_status_of(err)
+    return (
+        status is not None
+        and 400 <= status < 500
+        and status not in _PROVIDER_LEVEL_STATUSES
+    )
 
 
 # --- Client-side ranked filtering -------------------------------------------
@@ -188,9 +237,17 @@ async def run_search_ladder(
          name 'WG-350DSAV'.
 
     Stops at the first skeleton-exact name hit, caps provider calls at
-    ``max_calls``, and FAILS FAST when the first attempt raises (provider
-    unreachable — don't hammer the remaining ladder into the same failure);
-    later attempt errors are skipped. Ranked by record_score so the exact
+    ``max_calls``, and FAILS FAST when the first attempt hits a PROVIDER-
+    LEVEL error (transport, auth 401/403, rate-limit 429, 5xx — every
+    remaining rung would fail the same way; don't hammer them). A 4xx
+    VALIDATION error is value-specific and does NOT abort the ladder —
+    not even on the first attempt: the full-query rung can be rejected for
+    shape reasons the per-token rungs don't share (live 2026-09-13, canvas
+    a1a13834: a 126-char enriched query tripped Zoho's 100-char search_text
+    cap with HTTP 400 code 15 — validated BEFORE auth — and the abort meant
+    the 'F-5216' token rung that answered the question never ran; the turn
+    reported a 'timed out' Zoho Inventory lookup that had actually 400'd).
+    Later attempt errors are skipped. Ranked by record_score so the exact
     item surfaces even when the winning attempt matched hundreds of rows.
     """
     query = (query or "").strip()
@@ -217,8 +274,8 @@ async def run_search_ladder(
             break
         try:
             hits = await fetch(kind, value)
-        except Exception:
-            if attempt_no == 0:
+        except Exception as err:
+            if attempt_no == 0 and not _is_value_level_error(err):
                 raise
             continue
         calls += 1
