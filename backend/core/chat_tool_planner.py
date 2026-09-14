@@ -82,6 +82,14 @@ _STORAGE_SERVICES = (
     "zoho_workdrive", "google_drive", "onedrive", "dropbox", "box",
 )
 # Mailbox/chat services routed through the universal path (outlook has its
+# own dedicated leg). Defined HERE, ahead of the derived sets below: a
+# ``_LOCAL_STORE_SERVICES`` built from ``_COMMUNICATION_SERVICES`` before the
+# tuple existed raised NameError at import and took the whole planner down.
+_COMMUNICATION_SERVICES = (
+    "gmail", "slack", "teams", "discord", "google_chat", "telegram",
+    "whatsapp", "zoho_mail",
+)
+# Mailbox/chat services routed through the universal path (outlook has its
 # own dedicated leg). Every one of them shares Graph's failure class: the
 # live search ranks by opaque provider relevance, misses sender ADDRESSES,
 # and fills its slots with unrelated recent traffic — while the ingested
@@ -90,13 +98,20 @@ _STORAGE_SERVICES = (
 # copy supplement (live 2026-09-06: the jschulz thread sat in the store
 # while outlook's live search returned other customers' lead forms; the
 # identical shape is one token grant away for gmail/slack/telegram).
-_COMMUNICATION_SERVICES = (
-    "gmail", "slack", "teams", "discord", "google_chat", "telegram",
-    "whatsapp", "zoho_mail",
-)
+# (Tuple defined above, before _LOCAL_STORE_SERVICES derives from it.)
 # Mailbox providers that support the on-demand `ingest` intent (pull a
 # message's body + attachments from the integration INTO memory).
 _MAILBOX_SERVICES = ("outlook", "gmail")
+
+
+# Where QUOTED content can live locally: the correspondence/file stores.
+# The provenance floor only ever diverts a live record-app plan into these.
+_LOCAL_STORE_SERVICES = frozenset(
+    {"memory", "documents", "datasets", "outlook", "gmail"}
+    | set(_STORAGE_SERVICES)
+    | set(_COMMUNICATION_SERVICES)
+)
+
 # Services with no upstream integration to pull FROM: the platform web tools
 # and the local memory/dataset stores. Any other service supports `ingest`.
 _INGEST_EXCLUDED_SERVICES = frozenset(
@@ -156,14 +171,14 @@ for _storage_svc in _STORAGE_SERVICES:
 # Short human descriptions the planner reads (kept compact — this prompt
 # rides on every chat turn).
 _SERVICE_DESCRIPTIONS = {
-    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off; `ingest` intent pulls a named message's body AND attachments into memory when they are not there yet (PDF/DOCX text; images OCR'd, textless photos described)",
+    "outlook": "email mailbox — correspondence with customers/dealers/suppliers: search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off; `ingest` intent pulls a named message's body AND attachments into memory when they are not there yet (PDF/DOCX text; images OCR'd, textless photos described)",
     "gmail": "email mailbox — search messages; `ingest` intent pulls a message's body + attachments into memory on demand",
     "slack": "team chat — search messages and channels",
     "teams": "team chat — search messages",
     "discord": "community chat — search messages",
     "telegram": "messenger — search messages",
     "zoho_crm": "CRM — search leads, contacts, deals, accounts",
-    "zoho_inventory": "stock inventory — search items by exact model code ('WG-350DSAV', one code as the whole query — Zoho matches whole words only) and check what is in stock",
+    "zoho_inventory": "YOUR OWN warehouse records — item quantities on hand in the inventory app, searched by exact model code ('WG-350DSAV', one code as the whole query — Zoho matches whole words only). A vendor's/dealer's price or availability inside THEIR email is their offer — find the message (memory/outlook), not here",
     "salesforce": "CRM — search leads, contacts, opportunities",
     "hubspot": "CRM — search contacts, companies, deals",
     "google_drive": "file storage — search documents and files; `read` intent opens a file and returns its contents (row-level)",
@@ -386,6 +401,34 @@ Rules:
   exact rows — the user should never have to say where a value lives.
   Stock/quantity questions still go to the inventory app; when the user
   DOES name a document, keep using the file-storage read.
+- PROVENANCE BEATS WORDING. When a PROVENANCE block is present it was
+  resolved from the workspace's own ingested stores BEFORE this call: if it
+  says the ingested mail contains the token, the text is a message the
+  workspace already received — plan "memory" (or "outlook" for the live
+  mailbox) for it even when the wording sounds like inventory/stock/CRM. A
+  token listed as present in the DATASET CATALOG belongs to a spreadsheet.
+  Only when the block names neither may you route on wording alone.
+- PASTED / QUOTED TEXT IS MAIL, NOT A CATALOG QUERY. When the message
+  quotes a line the user read somewhere (a price, an offer, a discount, a
+  term — often pasted verbatim and prefixed with "search for this one:",
+  "find this:", "this one:"), the artefact is an ingested MESSAGE and the
+  answer is in the mailbox, not in a stock/inventory/CRM/web index. Route
+  to "memory" (which searches every ingested message, email and record)
+  with the quoted line's distinctive terms — NOT to zoho_inventory, a CRM,
+  or the web, even when the quote contains the word "stock": "in stock"
+  inside a vendor's quoted line describes THEIR offer, not your warehouse.
+  Only plan inventory when the question is about QUANTITIES ON HAND in the
+  inventory app for an item the user named as such. Getting this wrong is
+  expensive: a live lookup against the wrong system returns nothing (or
+  times out) and the user is told their own quote cannot be found.
+- INTERNAL RECORDS vs CORRESPONDENCE — WHOSE data: the record apps
+  (inventory, books/invoices, CRM) hold YOUR OWN company's state —
+  quantities on hand of YOUR items, YOUR invoices, YOUR deals. Mailboxes
+  and memory hold messages OTHERS sent you (customers, dealers,
+  suppliers): their quotes, offers, availability claims. A price,
+  discount, "in stock" or lead time inside a message is the SENDER's
+  claim about THEIR offer — plan the message lookup (memory/outlook).
+  Plan a record app only for YOUR OWN state.
 - The query MUST carry every identifying code — model, SKU, part, order or
   invoice number — EXACTLY as written anywhere in the conversation or open
   canvas, even when the user's latest message doesn't repeat it ("check the
@@ -584,6 +627,58 @@ def get_connected_services(user_id: Optional[str]) -> List[str]:
 _connected_cache: Dict[str, Any] = {}
 
 
+#: How much of the open canvas rides along on the planner prompt. The planner
+#: only needs to recognise WHAT KIND of artefact is open and who/what it is
+#: about — not read it. Hard-capped so a 30 KB canvas body cannot bloat the
+#: cheap planning call or push the catalog out of a small model's window.
+_PLANNER_CANVAS_CHARS = int(os.getenv("ATOM_PLANNER_CANVAS_CHARS", "700") or 700)
+
+
+def _planner_canvas_block(canvas: Optional[Dict[str, Any]]) -> str:
+    """A SHORT description of the open canvas for the planner prompt.
+
+    Live 2026-09-14 (canvas ``a1a13834…``): the user pasted a line out of a
+    vendor email and the planner routed it to ``zoho_inventory`` — because the
+    quote contains the word "stock" — while the email it came from was OPEN in
+    the panel beside the chat. The reply model has always received a canvas
+    block; the PLANNER never did, so it chose a tool without knowing that the
+    thing being discussed was a mail thread. This closes that gap.
+
+    Deliberately tiny and structural: type, title, subject, participants and a
+    truncated body head — enough to answer "is this an email/mail question?",
+    never enough to answer the question from the prompt instead of the tools.
+    Empty string when there is no canvas."""
+    if not isinstance(canvas, dict):
+        return ""
+    kind = str(canvas.get("canvas_type") or canvas.get("type") or "").strip()
+    title = str(canvas.get("title") or canvas.get("name") or "").strip()
+    content = canvas.get("content")
+    bits: List[str] = []
+    if kind:
+        bits.append(f"type: {kind}")
+    if title:
+        bits.append(f"title: {title[:160]}")
+    if isinstance(content, dict):
+        for key in ("to", "from", "sender", "cc", "subject"):
+            val = str(content.get(key) or "").strip()
+            if val:
+                bits.append(f"{key}: {val[:160]}")
+        body = str(content.get("body") or content.get("content") or "")
+        body = re.sub(r"\s+", " ", re.sub(r"<[^>]{0,200}>", " ", body)).strip()
+        if body:
+            bits.append(f"body head: {body[:_PLANNER_CANVAS_CHARS]}")
+    elif isinstance(content, str) and content.strip():
+        flat = re.sub(r"\s+", " ", content).strip()
+        bits.append(f"content head: {flat[:_PLANNER_CANVAS_CHARS]}")
+    if not bits:
+        return ""
+    return (
+        "Open canvas (what the user is looking at RIGHT NOW — \"this one\", "
+        "\"the draft\", \"the email\", \"this quote\" refer to THIS):\n  "
+        + "\n  ".join(bits)
+    )
+
+
 def _catalog_line(connected: List[str]) -> str:
     lines = []
     try:
@@ -708,18 +803,28 @@ async def plan_tool_use(
     history: List[Dict[str, Any]],
     user_id: Optional[str],
     llm_service: Any,
+    canvas: Optional[Dict[str, Any]] = None,
+    provenance: str = "",
 ) -> Optional[ToolPlan]:
     """Decide (via cheap structured LLM output) whether this turn needs live
     integration data, and which connected service to query. Returns None on
-    any failure — the caller then simply runs without a tool block."""
+    any failure — the caller then simply runs without a tool block.
+
+    ``canvas`` is the open canvas (bounded — see ``_planner_canvas_block``).
+    Routing without it was the 2026-09-14 mis-route: a line pasted out of an
+    OPEN email was planned into the inventory app because nothing told the
+    planner a mail thread was on screen."""
     if llm_service is None:
         return None
     connected = get_connected_services(user_id)
     catalog = _catalog_line(connected)
+    canvas_block = _planner_canvas_block(canvas)
     prompt = (
         f"{_PLANNER_SYSTEM}\n\n"
         f"Available tools:\n{catalog}\n\n"
-        f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
+        + (f"{canvas_block}\n\n" if canvas_block else "")
+        + (f"{provenance}\n\n" if provenance else "")
+        + f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the tool plan."
     )
     plan = await _structured_with_fallback(
@@ -771,7 +876,7 @@ async def plan_tool_use(
             defect = ("no service was named" if not plan.service
                       else f"service {plan.service!r} is not in the available list")
             repaired = await _repair_plan_via_llm(
-                llm_service, defect, connected, catalog, history, message)
+                llm_service, defect, connected, catalog, history, message, canvas)
             if (repaired and repaired.use_tool
                     and repaired.service in allowed):
                 logger.info(
@@ -812,6 +917,50 @@ async def plan_tool_use(
             plan.intent = "search"
         if not (plan.query or "").strip():
             plan.query = message[:120]
+        # PROVENANCE FLOOR (the obedience rung, mirrors the explicit-
+        # web-research floor): a QUOTE-LOOKUP message whose quoted wording
+        # verifiably lives in the ingested mail must not be planned into a
+        # live record app — the artifact is a stored message. One repair
+        # pass with the provenance fact; only if the model still insists
+        # on the record app does the deterministic memory rung fire.
+        # Narrow by construction: no provenance match, or no quote-lookup
+        # shape ("is WG-350DSAV in stock?" — a genuine stock question —
+        # matches neither condition), and the plan passes untouched.
+        if (
+            provenance
+            and "INGESTED MAIL contains" in provenance
+            and _quote_lookup_shape(message)
+            and plan.service
+            and plan.service not in _LOCAL_STORE_SERVICES
+        ):
+            defect = (
+                "the user's message quotes content that verifiably lives in "
+                "the workspace's ingested mail (the PROVENANCE block names "
+                "the messages). A quoted line is a stored MESSAGE the "
+                f"workspace received — not a {plan.service} record. Re-plan "
+                "as a memory (or outlook) search whose query is the quoted "
+                "line's distinctive terms."
+            )
+            repaired = await _repair_plan_via_llm(
+                llm_service, defect, connected, catalog, history, message)
+            if repaired and repaired.use_tool and (
+                    not repaired.service
+                    or repaired.service in _LOCAL_STORE_SERVICES):
+                logger.info(
+                    f"tool planner: provenance repair -> "
+                    f"{repaired.service}.{repaired.intent}")
+                plan = repaired
+            else:
+                terms = (
+                    _quoted_content_phrases(message)
+                    or _distinctive_figure_phrases(message)
+                )
+                logger.info(
+                    "tool planner: provenance floor -> memory.search "
+                    f"(planned {plan.service!r} for a quoted-mail lookup)")
+                plan.service, plan.intent = "memory", "search"
+                plan.query = (terms[0] if terms else message[:120])
+                plan.reason = "provenance floor: quoted wording lives in ingested mail"
     return plan
 
 
@@ -954,6 +1103,323 @@ def _rank_address_hits(rows: List[Dict[str, Any]], addr_l: str, limit: int = 4) 
     scored.sort(key=lambda t: t[1], reverse=True)
     scored.sort(key=lambda t: t[0])
     return [t[2] for t in scored[:limit]]
+
+
+# ---------------------------------------------------------------------------
+# PROVENANCE MENU — which ingested store already CONTAINS the token the user
+# quoted, resolved BEFORE the planner chooses a tool.
+#
+# Live 2026-09-14 (canvas a1a13834…): the user pasted a line out of a vendor
+# email — "search for this one: $ 5,350.00 - 10 % in stock" — and the planner
+# sent it to the inventory app, because "in stock" is the only phrase in the
+# tool catalog that mentions stock. Nothing in the planner's inputs said the
+# text CAME FROM a message the workspace already held: routing was decided
+# from wording alone.
+#
+# The generalizable fix is provenance, not another keyword rule — the ingested
+# store itself is proof of where a quoted token lives.
+# ---------------------------------------------------------------------------
+
+
+def _canon_keys(phrases: List[str]) -> List[str]:
+    """Canonical digit keys for the matcher's pre-gate.
+
+    The gate MUST be broader than the canonical pass or it silently drops real
+    matches (measured: '5,350.00' vs '5.350,00' — canonicalized both are
+    '535000', but neither decorated spelling appears in the other's raw text).
+    So the gate compares CANONICALIZED text against the SAME canonical key the
+    pass searches for: ``_canonical_fig_text('5,350.00') == '535000'`` and
+    ``_canon_find`` looks for exactly that inside the canonicalized field.
+    Broader-or-equal by construction."""
+    out: List[str] = []
+    for p in phrases or []:
+        canon = _canonical_fig_text(p)
+        if len(canon) >= 4 and canon not in out:
+            out.append(canon)
+    return out
+
+
+def _probe_variants(phrases: List[str]) -> List[str]:
+    """Decorated (raw-text) spellings of each phrase for the matcher's
+    containment pre-gate: as written, dot-for-comma, comma-for-space, and
+    fully stripped.
+
+    Raw spellings only — NOT the canonical digit form, which is covered by
+    ``_canon_keys`` and is deliberately kept separate so each probe can be
+    reasoned about: these keys are what actually appears in a body."""
+    out: List[str] = []
+    for phrase in phrases or []:
+        for cand in (
+            phrase,
+            phrase.replace(".", ","),
+            phrase.replace(",", " "),
+            phrase.replace(",", "").replace(" ", ""),
+        ):
+            c = cand.strip()
+            if len(_canonical_fig_text(c)) >= 4 and c not in out:
+                out.append(c)
+    return out
+
+
+def _token_probe_keys(tokens: List[str]) -> List[str]:
+    """Keys that identify a token at any realistic rendering, WITHOUT the
+    false-positive flood of a short digit run.
+
+    A bare '350' (the longest digit group of '5,350.00') matched 462 of 7,149
+    live messages — zip codes, tracking numbers, quantities — which is useless
+    as provenance. The canonical digit string ('535000') is exact for the
+    amount's digits but misses every grouped rendering, so the keys are the
+    canonical form PLUS the token's decorated spellings:
+
+        '5,350.00' -> {'535000', '5,350.00', '5.350,00', '5 350,00'}
+
+    Measured on the live store: 6 messages in 0.03s (subject+content), versus
+    462 for the digit-run key. Callers keep the exact matcher as the
+    authority — these keys only decide where to look first."""
+    keys: List[str] = []
+    for token in tokens or []:
+        canon = _canonical_fig_text(token)
+        if len(canon) < 4:
+            continue
+        if canon not in keys:
+            keys.append(canon)
+        for decorated in (
+            token,
+            token.replace(".", ","),
+            token.replace(",", " "),
+            token.replace(",", "").replace(" ", ""),
+        ):
+            d = decorated.strip()
+            if len(_canonical_fig_text(d)) >= 4 and d not in keys:
+                keys.append(d)
+    return keys
+
+
+def _mail_contains_tokens(tokens: List[str]) -> List[Dict[str, Any]]:
+    """Ingested-mail rows that VERIFIABLY contain the tokens.
+
+    Two stages, cheapest first (measured live on 7,149 rows):
+
+    1. CANDIDATES — the canonical digit string plus the token's decorated
+       spellings against ``subject``/``content`` (0.03s). A bare digit run is
+       deliberately NOT used: '350' matched 462 messages of unrelated noise.
+    2. VERIFY — the same exact per-field matcher the evidence line uses
+       (``_match_rows_by_figure_tokens``), so a loose substring can never be
+       reported as provenance: '535000' is contained in '$53,500.00' but the
+       matcher's digit-edge guard rejects it. Only rows in the candidate set
+       are verified, so this stays in the low seconds.
+
+    [] when no token is distinctive enough to check — the common case, free."""
+    keys = _token_probe_keys(tokens)
+    if not keys:
+        return []
+    try:
+        rows = _comms_store_records()
+    except Exception:
+        return []
+    candidates = []
+    for row in rows:
+        head = f"{row.get('subject') or ''}\n{row.get('content') or ''}"
+        if any(k in head for k in keys):
+            candidates.append(row)
+    if not candidates:
+        return []
+    return _match_rows_by_figure_tokens(candidates, tokens, limit=50)
+
+
+def _mail_evidence_summary(rows: List[Dict[str, Any]], limit: int = 2) -> str:
+    """Compact who/when/what for the provenance line — identity, not content."""
+    ordered = sorted(rows, key=lambda r: str(r.get("timestamp") or ""), reverse=True)
+    bits = []
+    for row in ordered[:limit]:
+        who = str(row.get("sender") or "?")
+        subj = str(row.get("subject") or "").strip()[:60]
+        when = str(row.get("timestamp") or "")[:10]
+        bits.append(f"{who}{(' — ' + subj) if subj else ''} ({when})")
+    return "; ".join(bits)
+
+
+# Quote-lookup shape: the user is asking WHERE a quoted line came from, not
+# asking a question of a business app. Combined with verbatim provenance
+# (the line lives in stored mail) this is the strongest possible routing
+# signal — see _provenance_floor.
+_QUOTE_LOOKUP_RE = re.compile(
+    r"(?:search|look)\s+(?:for|up)\s+(?:this|that)\s+one\b"
+    r"|find\s+(?:this|that|the\s+(?:email|message|quote|line|note))\b"
+    r"|the\s+(?:email|message|quote|line|note)\s+that\s+said\b"
+    r"|where\s+did\s+(?:this|that|it)\s+come\s+from\b"
+    r"|who\s+(?:said|sent|quoted)\s+(?:this|that|it)\b"
+    r"|the\s+(?:email|message|quote|line|note)\s+(?:that\s+)?said\b"
+    r"|\bthis\s+one\b\s*[:\u2013-]",
+    re.IGNORECASE,
+)
+_QUOTED_SPAN_RE = re.compile("[\"\u201c\u2018]([^\"\u201d\u2019]{8,140})[\"\u201d\u2019]")
+_QUOTE_LEAD_RE = re.compile(
+    r"^\s*(?:(?:search|look)\s+(?:for|up)\s+(?:this|that)\s+one"
+    r"|find\s+(?:this|that|the\s+(?:email|message|quote|line|note))"
+    r"|the\s+(?:email|message|quote|line|note)\s+that\s+said"
+    r"|where\s+did\s+(?:this|that)\s+come\s+from"
+    r"|who\s+(?:said|sent|quoted)\s+(?:this|that))"
+    r"(?:\s+that\s+said)?"
+    r"\s*[:\u2013-]\s*",
+    re.IGNORECASE,
+)
+
+
+def _quote_lookup_shape(message: str) -> bool:
+    """True when the message is a find-the-source ask about quoted content."""
+    return bool(_QUOTE_LOOKUP_RE.search(message or ""))
+
+
+def _quoted_content_phrases(message: str, limit: int = 2) -> List[str]:
+    """The user's QUOTED wording — quoted spans and referent tails
+    ("search for this one: <tail>"). Distinctive multi-word phrases for
+    verbatim containment scans; single codes/amounts are the figure
+    phrases' job. Empty when the message quotes nothing."""
+    text = (message or "").strip()
+    if not text:
+        return []
+    cands: List[str] = []
+    for m in _QUOTED_SPAN_RE.finditer(text):
+        cands.append(m.group(1))
+    tail = _QUOTE_LEAD_RE.sub("", text, count=1)
+    if tail and tail != text:
+        cands.append(tail.split("\n")[0])
+    out: List[str] = []
+    for c in cands:
+        norm = re.sub(r"\s+", " ", c).strip(" \"'\u201c\u201d,.:;!?")
+        # multi-word only: one-word quotes are figures/codes territory
+        if len(norm) >= 8 and " " in norm and norm.lower() not in (
+                x.lower() for x in out):
+            out.append(norm)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _mail_contains_phrases(phrases: List[str]) -> List[Dict[str, Any]]:
+    """Ingested-mail rows whose subject+content contain a quoted phrase
+    VERBATIM (case-insensitive). Same cheap two-column scan as the figure
+    probe (0.07s over the live 7k-row store)."""
+    needles: List[str] = []
+    for phrase in phrases or []:
+        norm = re.sub(r"\s+", " ", phrase or "").strip().strip("\"'\u201c\u201d,.:;!?").lower()
+        if len(norm) >= 8 and " " in norm and norm not in needles:
+            needles.append(norm)
+    if not needles:
+        return []
+    try:
+        rows = _comms_store_records()
+    except Exception:
+        return []
+    hits: List[Dict[str, Any]] = []
+    for row in rows:
+        head = f"{row.get('subject') or ''}\n{row.get('content') or ''}".lower()
+        if any(n in head for n in needles):
+            hits.append(row)
+    return hits
+
+
+async def _provenance_menu(
+    message: str,
+    context: Optional[Dict[str, Any]] = None,
+    budget_s: float = 4.0,
+) -> str:
+    """Which local stores CONTAIN the distinctive tokens of this message.
+
+    Runs before the planner and is rendered into its prompt. Covers the two
+    stores that hold answers for pasted values: the ingested mailbox (vendors'
+    quotes, offers, terms) and the dataset catalog (spreadsheets). Bounded,
+    best-effort, fault-isolated: on timeout or error the menu omits a line, so
+    the planner behaves exactly as it did before this existed.
+
+    The wording is deliberately HEDGED — absence here means "not found by this
+    cheap check", never "not in the store"."""
+    detected: List[str] = []
+    try:
+        detected.extend(_distinctive_figure_phrases(message))
+    except Exception:
+        pass
+    if not detected:
+        # A 'try again' turn usually names the token in a user turn just back.
+        try:
+            detected.extend(_latest_user_figure_phrases(context or {}))
+        except Exception:
+            pass
+    quoted_phrases: List[str] = []
+    try:
+        quoted_phrases = _quoted_content_phrases(message)
+    except Exception:
+        quoted_phrases = []
+    if not detected and not quoted_phrases:
+        return ""
+    lines: List[str] = []
+    try:
+        mail_rows = await asyncio.to_thread(_mail_contains_tokens, detected)
+        if mail_rows:
+            lines.append(
+                f"- the workspace's INGESTED MAIL contains your quoted text "
+                f"({len(mail_rows)} message(s): {_mail_evidence_summary(mail_rows)})"
+                f" — this is a MESSAGE that was received"
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"provenance mail check skipped: {e}")
+    if quoted_phrases:
+        # Non-figure quotes ("find the email that said: put 25 percent
+        # only") — the figure probe keys on digit runs and misses them.
+        try:
+            phrase_rows = await asyncio.to_thread(
+                _mail_contains_phrases, quoted_phrases)
+            if phrase_rows:
+                lines.append(
+                    f"- the workspace's INGESTED MAIL contains your quoted "
+                    f"wording ({len(phrase_rows)} message(s): "
+                    f"{_mail_evidence_summary(phrase_rows)})"
+                    f" — this is a MESSAGE that was received"
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"provenance phrase mail check skipped: {e}")
+    try:
+        from core.sheet_dataset_service import (
+            candidate_probe_tokens,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+
+        probe_tokens = candidate_probe_tokens(detected)
+        if sheet_datasets_enabled() and probe_tokens:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    search_all_datasets_sync,
+                    " ".join(probe_tokens), None,
+                    (context or {}).get("workspace_id"), 1, 200, [],
+                ),
+                timeout=budget_s,
+            )
+            hits = (result or {}).get("hits") or []
+            matched = (result or {}).get("token")
+            if hits and matched:
+                files = {
+                    str((h or {}).get("file") or (h or {}).get("source") or "?")
+                    for h in hits
+                }
+                lines.append(
+                    f"- the DATASET CATALOG (ingested spreadsheets) contains "
+                    f"'{matched}' in {len(files)} file(s)"
+                )
+    except Exception as e:  # noqa: BLE001 — probe is best-effort
+        logger.debug(f"provenance dataset check skipped: {e}")
+    if not lines:
+        return ""
+    return (
+        "PROVENANCE — resolved from the workspace's OWN ingested stores BEFORE "
+        "you plan (tokens checked: " + ", ".join(f"'{t}'" for t in detected[:3]) + "):\n"
+        + "\n".join(lines)
+        + "\nA token found in the ingested mail is a MESSAGE the workspace "
+        "already received: plan a mailbox/memory lookup for it, NOT an "
+        "inventory/CRM/web lookup. (This check covers only the stores listed "
+        "above; no line means 'not found by this check', never 'not ingested'.)"
+    )
 
 
 def _canonical_with_offsets(s: Any) -> Tuple[str, List[int]]:
@@ -1262,6 +1728,44 @@ def _canonical_fig_text(s: Any) -> str:
 _FIGURE_OWN_TEXT_WINDOW = 240
 
 
+def _fig_occurrence_in_fields(fields: List[str], phrase: str) -> int:
+    """First position of ``phrase`` across ``fields`` (joined-offset space),
+    or -1. RAW SPELLINGS FIRST, canonical forms only as a fallback.
+
+    The canonical helpers walk a whole string character by character and keep
+    an offset for every character, so running them over the html bodies of
+    every gated row (median 48 KB, max 35 MB) cost 20s live. The decorated
+    spelling is present verbatim in the overwhelming majority of real rows, so
+    a plain ``find`` resolves those, and the canonical pass runs only for the
+    genuinely differently-rendered remainder ('5 350.00', '5.350,00',
+    '5350.00'). Extracted so both this matcher and the anchor logic use ONE
+    occurrence rule."""
+    offset = 0
+    for field in fields:
+        for probe in (phrase, phrase.replace(",", "").replace(" ", "")):
+            if probe:
+                i = field.find(probe)
+                if i >= 0:
+                    return offset + i
+        offset += len(field) + 1
+    offset = 0
+    tok_sep, _ = _sep_canonical_with_offsets(phrase)
+    tok_dig = _canonical_fig_text(phrase)
+    for field in fields:
+        dig, dig_offs = _canonical_with_offsets(field)
+        sep, sep_offs = _sep_canonical_with_offsets(field)
+        if tok_sep and sep_offs:
+            i = sep.find(tok_sep)
+            if i >= 0:
+                return offset + sep_offs[i]
+        if dig_offs:
+            j = _canon_find(dig, tok_dig)
+            if j >= 0:
+                return offset + dig_offs[j]
+        offset += len(field) + 1
+    return -1
+
+
 def _match_rows_by_figure_tokens(
     rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4
 ) -> List[Dict[str, Any]]:
@@ -1289,9 +1793,53 @@ def _match_rows_by_figure_tokens(
     phrases = [t for t in tokens if len(_canonical_fig_text(t)) >= 4]
     if not phrases:
         return []
+    # Gate spellings: the token as written, its separator-free form, and its
+    # longest digit group (a row rendering the amount any other way still
+    # contains those digits — '350' for '5,350.00').
+    canon_keys = _canon_keys(phrases)
+    variants = _probe_variants(phrases)
     seen_keys = set()
     scored = []
     for row in rows:
+        subject = str(row.get("subject") or "")
+        content = str(row.get("content") or "")
+        # Canonicalize the two CHEAP columns once per row (subject+content for
+        # all 7,149 rows: ~0.2s) — the gate then compares like with like, and
+        # the same prepared strings feed the matcher below instead of being
+        # recomputed per phrase.
+        canon_subject = _canonical_fig_text(subject)
+        canon_content = _canonical_fig_text(content)
+        # CHEAP PRE-GATE. Measured live on 7,149 rows: the ungated matcher
+        # spent 22s to find a handful of matches because it canonicalized
+        # every row's html body (median 48 KB, max 35 MB) once per phrase.
+        # Plain `in` against subject/content and then the raw metadata STRING
+        # costs no copy, no JSON parse and no canonicalization. A figure
+        # token's digit groups are ≤3 digits, so a differently-rendered amount
+        # still contains the longest group — and the canonical pass below
+        # stays the authority, so this gate can only skip work, never matches
+        # (the cross-locale and ungrouped-body tests are the proof).
+        if canon_keys or variants:
+            if not any(k in canon_subject or k in canon_content for k in canon_keys):
+                # Not in the cheap columns. Two tolerated probes, both RAW
+                # substrings (canonicalizing 340 MB of metadata cost 35-88s):
+                #   * a DECORATED variant ('5,350.00') — the common rendering,
+                #     which also catches html-only rows early; and
+                #   * a CANONICAL key ('535000'), which sits inside every
+                #     rendering that preserves those digits in order.
+                # The gate must be BROADER than the pass or it drops real
+                # matches — measured: an earlier canonical-only gate turned
+                # test_match_rows_html_body_counts red because the amount lived
+                # only in metadata.html_body. The pass below stays the
+                # authority for digit-edge precision.
+                raw_meta = row.get("metadata")
+                if not (
+                    isinstance(raw_meta, str)
+                    and (
+                        any(v in raw_meta for v in variants)
+                        or any(k in raw_meta for k in canon_keys)
+                    )
+                ):
+                    continue
         meta = row.get("metadata")
         if isinstance(meta, str):
             try:
@@ -1306,21 +1854,8 @@ def _match_rows_by_figure_tokens(
         # prefix case and rejected — a false negative on a genuine match.
         # Positions are made comparable by adding each field's start offset in
         # the (vanished) joined text, which keeps the own-text tier honest.
-        fields = [
-            str(row.get("subject") or ""),
-            str(row.get("content") or ""),
-            html,
-        ]
-        positions = []
-        for phrase in phrases:
-            cands = []
-            offset = 0
-            for field in fields:
-                at = _fig_occurrence(field, phrase)
-                if at >= 0:
-                    cands.append(offset + at)
-                offset += len(field) + 1
-            positions.append(min(cands) if cands else -1)
+        positions = [_fig_occurrence_in_fields([subject, content, html], phrase)
+                     for phrase in phrases]
         if any(p < 0 for p in positions):
             continue
         key = (

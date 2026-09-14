@@ -460,6 +460,125 @@ def _tool_failure_block(planned: str) -> str:
     )
 
 
+_NO_LOOKUP_BLOCK = (
+    "NO TOOL LOOKUP RAN THIS TURN (the planner did not produce a plan in "
+    "time). You have NOT searched anything yet — do NOT describe a search you "
+    "did not run, do NOT name a system you did not query (inventory, CRM, "
+    "mailbox), and do NOT report a timeout for a lookup that never started. "
+    "Either answer from the conversation and the workspace knowledge you "
+    "already have, or say plainly that you could not check and offer to "
+    "retry. Never invent tool activity."
+)
+
+
+async def _planner_timeout_evidence(
+    message: str,
+    user_id: Optional[str],
+    context: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """Deterministic fallback evidence when the TOOL PLANNER times out.
+
+    Live 2026-09-13 (user's own turn): the overlapped canvas-edit plan took
+    31-38s, the 25s planner wait expired with NO plan, and the reply invented
+    an activity it never performed — "I attempted the live Zoho Inventory
+    lookup … the search timed out" while ``zoho_inventory`` had in fact been
+    planned-and-ignored in an earlier turn. Nothing had run at all, and no
+    evidence block was injected, so the model filled the vacuum.
+
+    The ingested mailbox is the one store a workspace question can be answered
+    from WITHOUT a planner decision, an integration round-trip or an LLM call:
+    run the same deterministic scan the memory/outlook lanes use, and either
+    hand the model real evidence (grounded by the standard rule) or tell it
+    plainly that no lookup ran. Bounded and fault-isolated — a fallback must
+    never become the failure. Returns None only when there is nothing useful
+    to say (no user id)."""
+    if not user_id:
+        return None
+    try:
+        from core.chat_tool_planner import _ingested_mailbox_lines, _with_grounding
+
+        lines = await asyncio.wait_for(
+            _ingested_mailbox_lines(user_id, message, context),
+            timeout=8,
+        )
+    except Exception as e:  # noqa: BLE001 — the fallback must not raise
+        logger.debug(f"planner-timeout evidence scan skipped: {e}")
+        lines = []
+    if not lines:
+        return _NO_LOOKUP_BLOCK
+    return _with_grounding(
+        "LIVE TOOL RESULTS (deterministic mailbox scan — the tool planner did "
+        "not finish in time, so this scan of the workspace's OWN ingested mail "
+        "ran instead; no live integration lookup was attempted):\n"
+        + "\n".join(lines)
+    )
+
+
+async def _verbatim_mail_evidence(
+    message: str,
+    user_id: Optional[str],
+    context: Optional[Dict[str, Any]],
+) -> List[str]:
+    """Mailbox rows that contain a distinctive figure the user just quoted.
+
+    THE root cause of the 2026-09-14 recurrence (canvas ``a1a13834…``): the
+    user pasted a line from a vendor email — ``search for this one:
+    $ 5,350.00 - 10 % in stock`` — and the planner routed it to
+    ``zoho_inventory.search`` because the quote contains the word "stock".
+    The inventory lookup timed out, its failure block replaced the evidence,
+    and the reply told the user their own quote could not be found.
+
+    A distinctive amount/model code carried by the user's message is
+    DETERMINISTIC evidence: if the workspace's own ingested mail contains that
+    exact token, the quote IS a stored message and the answer is in the
+    mailbox. This runs the same figure scan the memory/outlook lanes use,
+    independently of what the planner chose, so the mailbox answer survives a
+    wrong service choice, a slow live lookup, or a plan that never
+    materialised. Bounded (8s) and fault-isolated: [] on anything, including
+    a message with no distinctive figure (the common case — the scan is
+    skipped before touching the store)."""
+    if not user_id or not message:
+        return []
+    try:
+        from core.chat_tool_planner import (
+            _distinctive_figure_phrases,
+            _latest_user_figure_phrases,
+            _search_ingested_by_tokens,
+        )
+
+        figs = _distinctive_figure_phrases(message) or _latest_user_figure_phrases(
+            context
+        )
+        if not figs:
+            return []
+        # Measured on the live 7,149-row store: ~2s with the comms cache warm
+        # (the chat surfaces load it during the turn), ~8s cold — the scan
+        # walks every row's metadata. The old 8s budget silently dropped the
+        # evidence exactly on the turns that needed it most, so it is 15s here
+        # and the matcher itself was cut from 22s to ~8s (see
+        # _match_rows_by_figure_tokens).
+        return await asyncio.wait_for(
+            asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001 — supplemental evidence, never fatal
+        logger.debug(f"verbatim mail evidence scan skipped: {e}")
+        return []
+
+
+_MAIL_EVIDENCE_NOTE = (
+    "The mailbox evidence above is the workspace's OWN ingested copy of the "
+    "message the user quoted — answer from it."
+)
+_LIVE_LOOKUP_FAILED_NOTE = (
+    "The live {service} lookup could not complete in time. That does NOT "
+    "affect the mailbox evidence above, which is already the user's own copy "
+    "of the quoted message: answer the question from it now. Mention the "
+    "unfinished live check only as a secondary note — never present it as the "
+    "reason the item could not be found."
+)
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -882,6 +1001,9 @@ class ChatOrchestrator:
             _canvas_ctx: Optional[Dict[str, Any]] = None
             if context:
                 _canvas_ctx = await self._resolve_canvas_ctx(context, user_id)
+            # Workspace scope for the pre-plan provenance probe (which ingested
+            # stores hold the token the user quoted).
+            _ctx_workspace_id = (context or {}).get("workspace_id")
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -890,12 +1012,39 @@ class ChatOrchestrator:
             # earlier leg (edit/action) already answered.
             _tool_plan_task = None
             try:
-                from core.chat_tool_planner import plan_tool_use
+                from core.chat_tool_planner import plan_tool_use, _provenance_menu
 
-                _tool_plan_task = asyncio.create_task(plan_tool_use(
-                    message, session.get("history", []) or history,
-                    user_id, self.llm_service,
-                ))
+                # PROVENANCE, resolved before the plan is decided: which
+                # ingested stores already CONTAIN the token the user quoted.
+                # Runs concurrently with the plan call whose prompt consumes it
+                # (the waiting is the planner's own LLM latency), so a pasted
+                # value cannot be routed to the wrong system on wording alone.
+                _plan_history = session.get("history", []) or history
+
+                async def _planned_with_provenance():
+                    # LAZY: started only when the planner is actually awaited
+                    # (an earlier canvas-edit/action leg answers many turns
+                    # first and cancels this task), and overlapped with the
+                    # plan call whose prompt consumes it — so the store probe
+                    # costs no wall-clock time on the turns that use it and
+                    # nothing at all on the turns that don't.
+                    _prov_task = asyncio.ensure_future(
+                        _provenance_menu(
+                            message,
+                            {"history": _plan_history,
+                             "workspace_id": _ctx_workspace_id},
+                        )
+                    )
+                    try:
+                        prov = await asyncio.wait_for(_prov_task, timeout=6)
+                    except Exception:  # noqa: BLE001 — menu is best-effort
+                        prov = ""
+                    return await plan_tool_use(
+                        message, _plan_history, user_id, self.llm_service,
+                        canvas=_canvas_ctx, provenance=prov,
+                    )
+
+                _tool_plan_task = asyncio.create_task(_planned_with_provenance())
             except Exception as plan_task_err:
                 logger.debug(f"tool plan task not started: {plan_task_err}")
             sticky_hint = None
@@ -1742,8 +1891,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if tool_plan_task is not None:
                         _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
                     else:
+                        _prov = ""
+                        try:
+                            from core.chat_tool_planner import _provenance_menu
+                            _prov = await asyncio.wait_for(
+                                _provenance_menu(
+                                    message,
+                                    {"history": planner_history or history,
+                                     "workspace_id": _ctx_workspace_id},
+                                ),
+                                timeout=6,
+                            )
+                        except Exception as _prov_err:  # noqa: BLE001
+                            logger.debug(f"provenance menu skipped: {_prov_err}")
                         _plan = await asyncio.wait_for(
-                            plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                            plan_tool_use(
+                                message, planner_history or history, user_id,
+                                self.llm_service, canvas=_canvas_ctx,
+                                provenance=_prov,
+                            ),
                             timeout=25,
                         )
                     logger.info(
@@ -1753,23 +1919,73 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                         await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
                                      f"Planned live lookup: {_planned}")
-                        _exec_t0 = time.monotonic()
-                        _tool_block = await asyncio.wait_for(
-                            execute_tool_plan(
-                                _plan, user_id, self.tenant_id,
-                                context={
-                                    "agent_id": agent_id,
-                                    "history": (planner_history or history or [])[-6:],
-                                    "canvas": {
-                                        "title": canvas_context.get("title"),
-                                        **((canvas_context.get("content") or {})
-                                           if isinstance(canvas_context, dict) else {}),
-                                    } if isinstance(canvas_context, dict) else None,
-                                },
-                                llm_service=self.llm_service,
-                            ),
-                            timeout=45,
+                        # DETERMINISTIC MAIL EVIDENCE, INDEPENDENT OF THE PLAN.
+                        # A distinctive figure/model code in the user's message
+                        # that exists verbatim in the ingested mailbox IS the
+                        # answer, whatever the planner chose (live 2026-09-14:
+                        # a pasted vendor quote containing "in stock" was routed
+                        # to zoho_inventory, the lookup timed out, and its failure
+                        # block replaced the evidence — so the user was told
+                        # their own quote could not be found).
+                        from core.chat_tool_planner import _with_grounding
+
+                        # OVERLAP: the mailbox figure scan walks the whole comms
+                        # store (measured 2s warm, ~10s cold) and is completely
+                        # independent of the live lookup, so it runs CONCURRENTLY
+                        # with it — the lookup's own latency absorbs the scan
+                        # instead of the user waiting for both in series.
+                        _mail_task = asyncio.ensure_future(
+                            _verbatim_mail_evidence(
+                                message, user_id,
+                                {"history": planner_history or history},
+                            )
                         )
+                        _exec_t0 = time.monotonic()
+                        try:
+                            _live_block = await asyncio.wait_for(
+                                execute_tool_plan(
+                                    _plan, user_id, self.tenant_id,
+                                    context={
+                                        "agent_id": agent_id,
+                                        "history": (planner_history or history or [])[-6:],
+                                        "canvas": {
+                                            "title": canvas_context.get("title"),
+                                            **((canvas_context.get("content") or {})
+                                               if isinstance(canvas_context, dict) else {}),
+                                        } if isinstance(canvas_context, dict) else None,
+                                    },
+                                    llm_service=self.llm_service,
+                                ),
+                                timeout=45,
+                            )
+                        except Exception as _live_err:
+                            # The live leg failed/timed out. Mail evidence (when
+                            # present) still answers the question, so it must LEAD
+                            # the block and the failure is demoted to a note.
+                            logger.warning(
+                                f"planned live lookup failed ({_planned}): {_live_err!r}"
+                            )
+                            _live_block = None
+                        try:
+                            _mail_lines = await _mail_task
+                        except Exception as _mail_err:  # noqa: BLE001
+                            logger.debug(f"overlapped mail evidence skipped: {_mail_err}")
+                            _mail_lines = []
+                        if _live_block is None and _mail_lines:
+                            _live_block = _LIVE_LOOKUP_FAILED_NOTE.format(
+                                service=_plan.service
+                            )
+                        if _mail_lines:
+                            _tool_block = _with_grounding(
+                                "LIVE TOOL RESULTS (ingested mailbox — the "
+                                "workspace's OWN copy of the message the user "
+                                "quoted):\n"
+                                + "\n".join(_mail_lines)
+                                + (f"\n\n{_MAIL_EVIDENCE_NOTE}")
+                                + (f"\n\n{_live_block}" if _live_block else "")
+                            )
+                        else:
+                            _tool_block = _live_block
                         _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                         await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                      _first_line or "no results")
@@ -1785,6 +2001,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.warning(f"tool planning skipped: {tool_err!r}")
                 if _planned and not _tool_block:
                     _tool_block = _tool_failure_block(_planned)
+                elif not _planned and not _tool_block:
+                    # The planner itself timed out/failed BEFORE choosing a
+                    # service (live 2026-09-13: 31-38s canvas-edit plan ate the
+                    # 25s wait). With no plan and no block the model answered
+                    # from a vacuum and invented a lookup it never ran. Hand it
+                    # deterministic ingested-mail evidence, or at minimum a
+                    # truthful "no lookup ran" note.
+                    _tool_block = await _planner_timeout_evidence(
+                        message, user_id, {"history": planner_history or history}
+                    )
 
             # Add conversation history. When fresh tool results exist for
             # this turn, include ONLY the user turns as context: measured
