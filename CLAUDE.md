@@ -353,6 +353,23 @@ ATOM_SKILL_INJECTION_ENABLED=true        # prompt-time skill auto-injection (C)
 ATOM_TOOL_CACHE_ENABLED=true             # read-only tool-result memoization (H)
 ATOM_TOOL_CACHE_TTL=30                   # cache TTL seconds (H)
 
+## Tool Planner Routing & Evidence Stack (Sep 13–15 2026)
+
+`core/chat_tool_planner.py` + `integrations/chat_orchestrator.py`: the
+per-turn tool decision is context-first, not keyword-first — the planner
+sees the open canvas (type/title/participants, `ATOM_PLANNER_CANVAS_CHARS`)
+and a PROVENANCE MENU (which ingested store already contains the quoted
+tokens) before choosing; record apps are framed as YOUR OWN state and
+mail/memory as correspondence (a vendor's "in stock" is THEIR claim).
+`_verbatim_mail_evidence` resolves figures → quoted phrases → participant
+names → inherited figures independently of the plan and LEADS the reply's
+evidence; stated dates ("sent 9/11 friday") tier matches via
+`_stated_date_window` + `ToolPlan.mentioned_date` (piggyback: no extra
+LLM call); the canvas-action planner is hard-gated on send imperatives.
+Deterministic extractors gate; the LLM decides; deterministic floors
+correct when evidence contradicts the choice. Full design, invariants and
+test batteries: `docs/architecture/TOOL_PLANNER_ROUTING.md`.
+
 # Chat turn latency budget (R90, Sep 10 2026) — MUST stay below the chat
 # surface's client timeout (frontend-nextjs hooks/chat/useChatInterface.ts
 # sends timeout: 120000). Bounds the ENTIRE reply leg (stream attempt +
@@ -360,6 +377,13 @@ ATOM_TOOL_CACHE_TTL=30                   # cache TTL seconds (H)
 # returns a structured `turn_budget_exceeded` error the UI renders as a
 # retryable bubble instead of an axios timeout. 0/negative = unbounded (legacy).
 ATOM_CHAT_TURN_BUDGET_SECONDS=95
+
+# Reply-leg fallback window (Sep 15 2026) — reasoning models that end a
+# stream with zero visible chunks (finish_reason=length) must not consume
+# the whole turn budget: the stream's slice is the remaining budget minus
+# this reserve, and the non-streaming fallback pins model= to the
+# next-ranked model (see docs/architecture/TOOL_PLANNER_ROUTING.md §5).
+ATOM_STREAM_FALLBACK_RESERVE_SECONDS=40   # dev .env uses 55
 
 # Execution Sandbox Layer (Rounds 43-47 + P9 Cloudflare OS G5: DEFAULT-ON)
 # P9 flipped the deterministic blast-radius controls ON by default for ALL
