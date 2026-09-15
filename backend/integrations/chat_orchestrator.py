@@ -759,12 +759,25 @@ def _compose_lookup_evidence(
         return live_block
     from core.chat_tool_planner import _quote_lookup_shape, _with_grounding
 
-    if _quote_lookup_shape(message):
+    # Mail-LED for every thread-referencing ask, not just quoted lines:
+    # "check the email thread chandrakant forwarded to me about how list
+    # price was calculated" has no quoted span, but the user is pointing at
+    # a MESSAGE (the same participant-referent signal that fired the mail
+    # lane). Demoting it to caveat-wrapped correspondence is what produced
+    # "I found 0 results" from the pinned fallback (live 2026-09-15): the
+    # model read the empty live block and ignored the bodies below it.
+    mail_led = _quote_lookup_shape(message) or bool(
+        _PARTICIPANT_REFERENT_RE.search(message or ""))
+    if mail_led:
         note = live_block or _LIVE_LOOKUP_FAILED_NOTE.format(
             service=getattr(plan, "service", None) or "integration")
         return _with_grounding(
-            "LIVE TOOL RESULTS (ingested mailbox — source of quoted message):\n"
-            + "\n".join(mail_lines) + f"\n\n{_MAIL_EVIDENCE_NOTE}\n\n{note}"
+            "LIVE TOOL RESULTS (ingested mailbox — the messages the user is "
+            "pointing at):\n"
+            + "\n".join(mail_lines)
+            + "\nFULL MESSAGE BODIES are included above — answer from them "
+            "directly; never report a result count or claim the bodies are "
+            f"missing.\n\n{_MAIL_EVIDENCE_NOTE}\n\n{note}"
         )
     live = live_block or (
         f"The live {getattr(plan, 'service', None) or 'integration'} lookup "
@@ -2143,6 +2156,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.debug(f"reuse-branch mail evidence skipped: {_reuse_err}")
                         _reuse_mail = []
                     if _reuse_mail:
+                        logger.info(
+                            f"reuse-branch mailbox overlay: {len(_reuse_mail)} "
+                            "evidence line(s) lead the tool block")
                         _tool_block = _compose_lookup_evidence(
                             message, None, _tool_block, _reuse_mail,
                         )
@@ -2715,16 +2731,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         self._budget_exceeded_runs.add(execution_id)
                 else:
                     try:
+                        _ns_model = forced_model  # "auto" unless overridden
                         _ns_kwargs = dict(extra_kwargs)
-                        if _stream_zero_visible and _fb_models and _s_prov:
+                        if _stream_zero_visible and _fb_models:
                             # The primary model just spent its whole output
                             # budget on invisible reasoning (zero visible
                             # chunks, finish_reason=length — live 2026-09-15:
                             # glm-5.3-flash on heavy evidence prompts, 3 of 4
                             # turns). Re-ranking would pick it again; pin the
-                            # next-ranked model for this one attempt instead.
-                            _ns_kwargs["provider_model"] = (
-                                _s_prov, _fb_models[0])
+                            # next-ranked model for this one attempt instead
+                            # (model_type "specific model" -> pinned_model).
+                            _ns_model = _fb_models[0]
                             logger.info(
                                 "non-streaming fallback pinned to next-ranked "
                                 f"model {_fb_models[0]} after a "
@@ -2732,7 +2749,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         response_data = await asyncio.wait_for(
                             self.llm_service.generate_completion(
                                 messages=messages,
-                                model=forced_model,  # "auto" unless overridden
+                                model=_ns_model,
                                 tenant_id=self.tenant_id,
                                 **_ns_kwargs,
                             ),

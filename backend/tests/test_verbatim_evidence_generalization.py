@@ -119,3 +119,33 @@ class TestVerbatimEvidenceLegs:
         lines = await co._verbatim_mail_evidence(
             "what is the capital of France", "u1", None)
         assert lines == []
+
+class TestComposerMailLed:
+    def test_participant_referent_ask_is_mail_led(self):
+        # "check the email thread chandrakant forwarded …" has no quoted
+        # span, but it points at a MESSAGE. The composer must lead with the
+        # mailbox bodies (live 2026-09-15: demoting them to caveat-wrapped
+        # "HISTORICAL CORRESPONDENCE" produced "I found 0 results" from the
+        # pinned fallback, which read only the empty live block).
+        mail = ["- [ingested mailbox] From: chandrakant@brennan.ca | Re: "
+                "Brake, Shear and Lock Former. | FULL BODY:\ncost $8,880 "
+                "plus freight and margin = list"]
+        live = "LIVE TOOL RESULTS (documents.search): returned nothing usable"
+        out = co._compose_lookup_evidence(
+            "check the email thread chandrakant forwarded to me about how "
+            "list price was calculated for the foot shear and reverse "
+            "engineer the calculation and show it to me",
+            None, live, mail)
+        assert out.startswith("LIVE TOOL RESULTS (ingested mailbox")
+        assert "FULL MESSAGE BODIES" in out
+        assert mail[0] in out
+        # the live block is retained as the trailing note, not the lead
+        assert out.index(mail[0]) < out.index(live)
+
+    def test_quote_lookup_still_mail_led(self):
+        mail = ["- [ingested mailbox] line"]
+        out = co._compose_lookup_evidence(
+            "search for this one: $ 5,350.00 - 10 % in stock",
+            None, "LIVEBLOCK", mail)
+        assert out.startswith("LIVE TOOL RESULTS (ingested mailbox")
+        assert "LIVEBLOCK" in out
