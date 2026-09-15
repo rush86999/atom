@@ -1824,8 +1824,28 @@ def _ingested_line_from_row(
     reachable on demand rather than silently lost."""
     row_id = str(row.get("id") or "")
     cite = f" | full: knowledge/conversations/{row_id}" if row_id else ""
+    # WHO IT WAS ADDRESSED TO — always shown. Live 2026-09-14: the agent read
+    # "From: chandrakant@brennan.ca | Hey, I did not find the attachment" and
+    # told the user "Chandrakant sent YOU this", when the message was actually
+    # `To: edwin@schulermachinery.com` with subject "Re: Enquiry about Lathe
+    # machine" — a note to a supplier about a missing lathe brochure. The line
+    # carried only the sender, so every message in the mailbox looked addressed
+    # to the user, and the reply built an entire (false) theory on it ("the
+    # calculation file never reached the mailbox").
+    recipient = str(row.get("recipient") or "").strip()
+    direction = str(row.get("direction") or "").strip().lower()
+    # JUST THE FACT. An earlier cut added a "NOT ADDRESSED TO YOU" verdict
+    # from a derived owner-address list, which was WRONG here: this is a shared
+    # team mailbox (three brennan.ca members send and receive as principals),
+    # so messages to a colleague are normal To: lines, not third-party traffic.
+    # Showing To: is enough — a knowledgeable reader sees that
+    # `To: edwin@schulermachinery.com` was not sent to them.
+    addressed = f" | To: {recipient[:140]}" if recipient else ""
+    if direction in ("outbound", "internal"):
+        addressed += f" | direction: {direction}"
     line = (
-        f"- [ingested mailbox] From: {row.get('sender')} | "
+        f"- [ingested mailbox] From: {row.get('sender')}"
+        f"{addressed} | "
         f"{str(row.get('subject') or '')[:90]} | "
         f"received: {str(row.get('timestamp') or '')[:19]}"
         f"{cite}"

@@ -503,6 +503,21 @@ async def _planner_timeout_evidence(
     to say (no user id)."""
     if not user_id:
         return None
+    # HANDLE-LED FIRST (live 2026-09-15): the planner timed out on exactly
+    # the turns whose message carries a strong deterministic handle
+    # ("sent to me on that day by chandrakant" — participant + anaphoric
+    # date). The verbatim-evidence legs resolve those without any LLM;
+    # the generic mailbox scan stays the fallback.
+    try:
+        handle_lines = await asyncio.wait_for(
+            _verbatim_mail_evidence(message, user_id, context),
+            timeout=8,
+        )
+    except Exception as e:  # noqa: BLE001 — the fallback must not raise
+        logger.debug(f"planner-timeout handle evidence skipped: {e}")
+        handle_lines = []
+    if handle_lines:
+        return _compose_lookup_evidence(message, None, None, handle_lines)
     try:
         from core.chat_tool_planner import _ingested_mailbox_lines, _with_grounding
 
@@ -550,8 +565,47 @@ _PARTICIPANT_RANK_STOPWORDS = frozenset({
 })
 
 
+_BY_NAME_RE = re.compile(
+    r"\bby\s+([A-Za-z][A-Za-z.\-]{2,25}(?:\s+[A-Za-z][A-Za-z.\-]{2,25})?)",
+    re.IGNORECASE,
+)
+_TO_ME_RE = re.compile(
+    r"\bto\s+(?:me|us)\b", re.IGNORECASE)
+
+
+def _resolve_user_email(user_id: Optional[str]) -> Optional[str]:
+    """The acting user's own address (cached 60s) — 'sent to me' resolves
+    against it. None on anything (directionality then fails open)."""
+    if not user_id:
+        return None
+    now = time.monotonic()
+    cached = _user_email_cache.get(user_id)
+    if cached and now - cached[0] < 60:
+        return cached[1]
+    try:
+        from core.database import get_db_session
+        from core.models import User
+
+        with get_db_session() as db:
+            email = (
+                db.query(User.email)
+                .filter(User.id == user_id).scalar()
+            )
+        if email:
+            _user_email_cache[user_id] = (now, str(email).lower())
+            return str(email).lower()
+    except Exception as e:  # noqa: BLE001 — best-effort resolution
+        logger.debug(f"user email resolve skipped: {e}")
+    return None
+
+
+_user_email_cache: Dict[str, Any] = {}
+
+
 def _participant_mail_rows(
     message: str, limit: int = 4,
+    date_window: Optional[Tuple[str, str]] = None,
+    user_email: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Comms rows whose PARTICIPANT (sender/recipient) the user just named.
 
@@ -600,24 +654,46 @@ def _participant_mail_rows(
         w for w in re.findall(r"[a-z]{4,}", msg_l)
         if w not in _PARTICIPANT_RANK_STOPWORDS
     ]
-    scored: List[Tuple[int, str, Dict[str, Any]]] = []
+    # DIRECTIONALITY (live 2026-09-15): "the email that was SENT TO ME on
+    # that day BY chandrakant" names the SENDER ("by X") and the RECIPIENT
+    # ("to me" -> the acting user's address). The lane used to match the
+    # name on EITHER side, so a chandrakant email to a SUPPLIER surfaced as
+    # "sent to you" — the reply then built a false theory on it. Signals
+    # mis-matching a row add penalty tiers; absent signals change nothing.
+    by_names: List[str] = []
+    for m in _BY_NAME_RE.finditer(message or ""):
+        first = m.group(1).split()[0].lower()
+        if first not in ("the", "a", "an", "me", "us", "him", "her", "them"):
+            by_names.append(first)
+    to_me = bool(_TO_ME_RE.search(message or "")) and bool(user_email)
+    w_start, w_end = date_window or ("", "")
+    directional = bool(by_names or to_me or date_window)
+    scored: List[Tuple[int, int, str, Dict[str, Any]]] = []
     for row in rows:
-        hay = f"{row.get('sender') or ''} {row.get('recipient') or ''}".lower()
+        sender_l = str(row.get("sender") or "").lower()
+        recip_l = str(row.get("recipient") or "").lower()
+        hay = f"{sender_l} {recip_l}"
         if not any(n in hay for n in names):
             continue
+        tier = 0
+        if by_names and not any(b in sender_l for b in by_names):
+            tier += 2  # the named sender is not this row's sender
+        if to_me and user_email not in recip_l:
+            tier += 2  # "sent to me" but addressed elsewhere
+        ts = str(row.get("timestamp") or "")[:19]
+        if date_window and not (w_start <= ts < w_end):
+            tier += 1  # outside the stated day
         blob = f"{row.get('subject') or ''} {row.get('content') or ''}".lower()
         overlap = sum(1 for w in overlap_words if w in blob)
-        scored.append((-overlap, str(row.get("timestamp") or ""), row))
-    # Two stable sorts (the _rank_address_hits pattern): newest first
-    # overall, then the overlap tier wins without disturbing it.
-    scored.sort(key=lambda t: t[1], reverse=True)
-    scored.sort(key=lambda t: t[0])
-    # Topic-anchored when any row shares the message's distinctive words;
-    # zero-overlap rows only fill a lane that found no anchor ("show me
-    # chandrakant's recent emails").
-    if any(t[0] < 0 for t in scored):
-        scored = [t for t in scored if t[0] < 0]
-    return [row for _o, _t, row in scored[:limit]]
+        scored.append((tier, -overlap, ts, row))
+    # Two stable sorts: newest first overall, then tier (directional +
+    # window + overlap folded) wins without disturbing it.
+    scored.sort(key=lambda t: t[2], reverse=True)
+    scored.sort(key=lambda t: (t[0], t[1]))
+    # Topic-anchor drop only when nothing stronger discriminated.
+    if not directional and any(t[1] < 0 for t in scored):
+        scored = [t for t in scored if t[1] < 0]
+    return [row for _t, _o, _ts, row in scored[:limit]]
 
 
 def _render_mail_rows(
@@ -692,6 +768,20 @@ async def _verbatim_mail_evidence(
         # -> plain recency.
         date_window = _stated_date_window(message) or _window_from_iso_date(
             plan_date)
+        if date_window is None and re.search(
+                r"\b(?:that|the same|this)\s+day\b", message or "",
+                re.IGNORECASE):
+            # ANAPHORIC date (live 2026-09-15: "sent to me on THAT DAY by
+            # chandrakant" — the day lives in the PREVIOUS user turn's
+            # '9/11 friday'). Inherit the most recent parseable date from
+            # recent user turns; the turn's own message has none.
+            for h in (context or {}).get("history") or []:
+                if isinstance(h, dict) and h.get("role") == "user":
+                    inherited = _stated_date_window(
+                        str(h.get("message") or h.get("content") or ""))
+                    if inherited:
+                        date_window = inherited
+                        break
     except Exception as e:  # noqa: BLE001 — supplemental evidence, never fatal
         logger.debug(f"verbatim mail evidence setup skipped: {e}")
     try:
@@ -732,7 +822,11 @@ async def _verbatim_mail_evidence(
         try:
             lines = _render_mail_rows(
                 await asyncio.wait_for(
-                    asyncio.to_thread(_participant_mail_rows, message),
+                    asyncio.to_thread(
+                        _participant_mail_rows, message,
+                        4, date_window,
+                        _resolve_user_email(user_id),
+                    ),
                     timeout=15,
                 )
             )
@@ -2308,6 +2402,56 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     elif _plan is not None:
                         await _trace("thought", {"tool": "tool_planner", "params": {}},
                                      f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
+                        # A DECLINED plan is not "no evidence needed":
+                        # follow-up turns ("find the email sent to me on
+                        # that day by chandrakant") decline precisely
+                        # because the PREVIOUS turn answered — and the
+                        # reply then narrates from ambient memory (live
+                        # 2026-09-15: the model attributed a supplier-bound
+                        # email to the user). The deterministic overlay
+                        # runs anyway when the message carries handles; a
+                        # declined mention of a figure/phrase/participant
+                        # still resolves against the store.
+                        try:
+                            _declined_mail = await asyncio.wait_for(
+                                _verbatim_mail_evidence(
+                                    message, user_id,
+                                    {"history": planner_history or history},
+                                    plan_date=getattr(
+                                        _plan, "mentioned_date", None),
+                                ),
+                                timeout=15,
+                            )
+                        except Exception as _dm_err:  # noqa: BLE001
+                            logger.debug(f"declined-plan mail evidence skipped: {_dm_err}")
+                            _declined_mail = []
+                        if _declined_mail:
+                            logger.info(
+                                f"declined-plan mailbox overlay: "
+                                f"{len(_declined_mail)} evidence line(s)")
+                            _tool_block = _compose_lookup_evidence(
+                                message, _plan, None, _declined_mail)
+                    else:
+                        # Plan is None (provider produced no decision at
+                        # all — distinct from decline and from exception):
+                        # same overlay, same gates.
+                        try:
+                            _none_mail = await asyncio.wait_for(
+                                _verbatim_mail_evidence(
+                                    message, user_id,
+                                    {"history": planner_history or history},
+                                ),
+                                timeout=15,
+                            )
+                        except Exception as _nm_err:  # noqa: BLE001
+                            logger.debug(f"none-plan mail evidence skipped: {_nm_err}")
+                            _none_mail = []
+                        if _none_mail:
+                            logger.info(
+                                f"none-plan mailbox overlay: "
+                                f"{len(_none_mail)} evidence line(s)")
+                            _tool_block = _compose_lookup_evidence(
+                                message, None, None, _none_mail)
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and

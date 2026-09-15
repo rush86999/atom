@@ -1053,3 +1053,51 @@ def test_address_ranking_prefers_subject_overlap_over_recency(monkeypatch):
     )
 
     assert [r["id"] for r in ranked] == ["m-target"]
+
+
+# --- recipient provenance: a line must say WHO it was addressed to ----------
+#
+# Live 2026-09-14: the agent read "From: chandrakant@brennan.ca | Hey, I did
+# not find the attachment" and told the user "Chandrakant sent YOU this",
+# building a theory that "the calculation file never reached the mailbox".
+# The message was `To: edwin@schulermachinery.com`, subject "Re: Enquiry about
+# Lathe machine" — a note to a supplier about a missing lathe brochure. The
+# listing line carried only the sender, so every stored message looked
+# addressed to the user.
+
+
+def test_mailbox_line_shows_the_recipient():
+    row = _row(
+        "chandrakant@brennan.ca", "Re: Enquiry about Lathe machine",
+        "Hey, I did not find the attachment", "2026-09-11 12:50:09",
+        row_id="m-edwin",
+    )
+    row["recipient"] = "edwin@schulermachinery.com"
+
+    line = planner._ingested_line_from_row(row, with_body=False)
+
+    assert "To: edwin@schulermachinery.com" in line, line
+    assert "Re: Enquiry about Lathe machine" in line
+
+
+def test_mailbox_line_marks_outbound_direction():
+    row = _row("chandrakant@brennan.ca", "RE: RFQ - Foot shear", "body",
+               "2026-09-11 19:21:04", row_id="m-out")
+    row["recipient"] = "kurt@neimanmachinery.com"
+    row["direction"] = "outbound"
+
+    line = planner._ingested_line_from_row(row, with_body=False)
+
+    assert "To: kurt@neimanmachinery.com" in line
+    assert "direction: outbound" in line
+
+
+def test_mailbox_line_without_recipient_still_renders():
+    """Legacy rows predate the recipient column — the line must not break."""
+    row = _row("v@x.example", "Quote", "body", "2026-09-11", row_id="m-norec")
+    row.pop("recipient", None)
+
+    line = planner._ingested_line_from_row(row, with_body=False)
+
+    assert line.startswith("- [ingested mailbox] From: v@x.example")
+    assert "To:" not in line
