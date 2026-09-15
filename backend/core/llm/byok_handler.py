@@ -218,23 +218,16 @@ from core.llm_credential_service import LLMCredentialService
 logger = logging.getLogger(__name__)
 
 def _learning_router_enabled() -> bool:
-    """ATOM_LEARNING_ROUTER through the runtime-settings resolver.
+    """Whether RE-RANKING by learned satisfaction is active.
 
-    Centralized so the flag has ONE source of truth: the four call sites in
-    this module used to read os.getenv directly, which bypassed the settings
-    catalog (no UI/admin control) and could disagree with the registry's own
-    gate after a UI edit."""
-    # NOTE: this must NOT call itself — the flag's single source of truth is
-    # the resolver below; the raw env read is only the last-resort fallback.
-    try:
-        from core.runtime_settings import resolve_setting
+    Delegates to the registry's tri-state gate (true/false/AUTO — auto
+    self-activates when the observation history is ready; the default).
+    This was a second resolver reading the same setting; two sources of
+    truth could disagree after a UI edit. Observation is NOT gated by
+    this — see the observe_only sites below."""
+    from core.llm.learning_router_registry import learning_router_enabled
 
-        resolved = resolve_setting("ATOM_LEARNING_ROUTER")
-        if resolved.source != "unknown":
-            return bool(resolved.value)
-    except Exception:  # noqa: BLE001
-        pass
-    return os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true"
+    return learning_router_enabled()
 
 
 
@@ -3837,15 +3830,16 @@ class BYOKHandler:
         except Exception:
             pass  # stage outcome is best-effort; never blocks generation
 
-        if _learning_router_enabled() is False:
-            return
+        # OBSERVATION IS NOT GATED: rows accrue in every mode (auto's
+        # data supply — gating observation would starve the readiness
+        # check that flips re-ranking on). Only RE-RANKING is gated.
         try:
             from core.llm.response_quality import assess_response_quality
             from core.learning_llm_router import LearningBasedRouter
             from core.llm.learning_router_registry import get_learning_router_instance
             import uuid
 
-            learning_router = get_learning_router_instance()
+            learning_router = get_learning_router_instance(observe_only=True)
             if learning_router is None:
                 return
 
@@ -4109,8 +4103,8 @@ class BYOKHandler:
         prompt (mirrors generate_response) — any failure leaves intent unset
         (all-zero intent features).
         """
-        if _learning_router_enabled() is False:
-            return None
+        # Observation-path helper (feeds feedback rows) — not gated;
+        # rows accrue in every mode. Rerank consumers gate separately.
         try:
             if intent is None:
                 try:

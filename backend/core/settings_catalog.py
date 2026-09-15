@@ -291,6 +291,21 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "AND its ORIGIN incident evals pass 3 consecutive nightly replays (a failing replay "
       "resets the streak; an ineligible crew freezes it). Default off — the supervisor "
       "approve click stays the contract. taught/authored drafts never auto-approve"),
+    B("ATOM_EMA_ROUTER_ENABLED", True, C_LEARN,
+      "Online-telemetry (EMA) term in the learning router's ranking. This is what carries routing "
+      "while per-model predictors are COLD (they need 20 observations each), so fabrications affect "
+      "candidate ordering from the FIRST observation instead of after training. Only effective when "
+      "ATOM_LEARNING_ROUTER is also on; the two together are the switch that lets observed "
+      "hallucination steer BPC away from a model."),
+    SettingSpec("ATOM_LEARNING_ROUTER", "str", "auto", C_LEARN,
+      "Re-rank BPC's candidate list by LEARNED per-model satisfaction. Signals include a FABRICATION "
+      "term (unsupported figures / ungrounded claims score 0.1-0.15, below truncation and refusal), so "
+      "a model that invents values it was never given loses to one that does not. MODES: 'auto' "
+      "(default — re-ranking self-activates once the verdict history is ready: >=30 rows in the last "
+      "7 days across >=2 models with >=8 observations each, thresholds env-tunable; falls back to "
+      "static BPC ordering while thin), 'true' (always re-rank), 'false' (never). Observations accrue "
+      "in EVERY mode, so auto flips on real history; the fabrication BENCH (hard exclusion) is "
+      "separate and always active."),
     S("ATOM_SEND_GROUNDING", "shadow", C_LEARN,
       "Grounded send gate for outbound email: every availability/spec/price claim needs a facts-registry "
       "entry or hedged wording. off = not consulted; shadow (recommended) = verdicts logged, nothing blocked; "

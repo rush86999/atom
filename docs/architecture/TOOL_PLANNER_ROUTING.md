@@ -202,3 +202,15 @@ one WARNING per bench transition. Observation (`record_fabrication_signal`,
 called by the figure-grounding guard and the verify panel, attributing to
 the PRODUCING model) is never gated — history accrues either way, so
 enabling the learning router later starts from real data.
+
+**Auto activation (2026-09-15)**: `ATOM_LEARNING_ROUTER` is tri-state —
+`auto` (default), `true`, `false`. Auto self-activates re-ranking when
+`learning_history_ready()` (≥30 verdict rows in the last 7 days across
+≥2 models with ≥8 observations each; thresholds
+`ATOM_LEARNING_ROUTER_AUTO_MIN_ROWS/_MIN_MODELS/_MIN_PER_MODEL/
+_WINDOW_DAYS`; 60s cache; fail-closed to static ordering) and falls back
+while thin — the cold-start-noise concern is answered by data sufficiency,
+not a manual flip. OBSERVATION is never gated (`get_learning_router_
+instance(observe_only=True)` on the accrual paths): rows accumulate in
+every mode, so auto has the data to flip on. Explicit `true`/`false`
+always win as operator overrides.
