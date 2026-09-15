@@ -114,6 +114,35 @@ const FLAGS: FlagDef[] = [
   },
 ];
 
+interface RouterReadiness {
+  success: boolean;
+  data: {
+    mode: string;
+    enabled: boolean;
+    ready: boolean;
+    rows_in_window: number;
+    models_with_enough_observations: number;
+    thresholds: {
+      min_rows: number;
+      min_models: number;
+      min_observations_per_model: number;
+      window_days: number;
+    };
+    reason: string;
+  };
+}
+
+async function fetchRouterReadiness(): Promise<RouterReadiness["data"]> {
+  const res = await apiClient.fetch("/api/v1/llm/learning-router/status");
+  const body = (await res.json().catch((): null => null)) as
+    | RouterReadiness
+    | null;
+  if (!res.ok || !body?.success) {
+    throw new Error("Router readiness unavailable");
+  }
+  return body.data;
+}
+
 interface LearningStatus {
   exchange: {
     mode: string;
@@ -286,6 +315,7 @@ function NumSave({
 
 const LearningVerificationPage = () => {
   const [status, setStatus] = useState<LearningStatus | null>(null);
+  const [routerReady, setRouterReady] = useState<RouterReadiness["data"] | null>(null);
   const [settings, setSettings] = useState<Record<string, SettingEntry>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -297,8 +327,16 @@ const LearningVerificationPage = () => {
     setRefreshing(true);
     setLoadError(null);
     try {
-      const [statusData, settingsData] = await Promise.all([fetchStatus(), getSettings()]);
+      // Router readiness is independent (own endpoint); a failure there
+      // must not blank the page — the card renders "unavailable".
+      const [statusData, settingsData, routerData] = await Promise.all([
+        fetchStatus(),
+        getSettings(),
+        fetchRouterReadiness().catch(
+          (): RouterReadiness["data"] | null => null),
+      ]);
       setStatus(statusData);
+      setRouterReady(routerData);
       const byKey: Record<string, SettingEntry> = {};
       for (const s of settingsData.settings ?? []) byKey[s.key] = s;
       setSettings(byKey);
@@ -467,6 +505,62 @@ const LearningVerificationPage = () => {
             </Text>
           </CardContent>
         </Card>
+
+        <Box mb={6}>
+        <Card data-testid="lv-card-router-readiness">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Learning router (auto-activation)
+            </CardTitle>
+            <ShieldCheck
+              className={
+                routerReady?.enabled ? "h-4 w-4 text-green-500" : "h-4 w-4 text-gray-400"
+              }
+            />
+          </CardHeader>
+          <CardContent>
+            {!routerReady ? (
+              <Text fontSize="sm" color="gray.500">
+                Router readiness unavailable this refresh.
+              </Text>
+            ) : (
+              <>
+                <SimpleGrid columns={{ base: 2, md: 4 }} gap={3} mb={3}>
+                  <Box>
+                    <Text fontSize="xs" color="gray.500">Mode</Text>
+                    <Text fontSize="sm" fontWeight="semibold">{routerReady.mode}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="xs" color="gray.500">Re-ranking</Text>
+                    <Badge colorScheme={routerReady.enabled ? "green" : "gray"}>
+                      {routerReady.enabled ? "active" : "static BPC ordering"}
+                    </Badge>
+                  </Box>
+                  <Box>
+                    <Text fontSize="xs" color="gray.500">Verdicts (window)</Text>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      {routerReady.rows_in_window}/{routerReady.thresholds.min_rows}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="xs" color="gray.500">Qualified models</Text>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      {routerReady.models_with_enough_observations}/
+                      {routerReady.thresholds.min_models}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+                <Text fontSize="xs" color="gray.500">{routerReady.reason}</Text>
+                <Text fontSize="xs" color="gray.400" mt={2}>
+                  Fabrication bench (hard exclusion) is separate and always
+                  active — a model with recent verdict-flagged fabrications is
+                  benched from candidates regardless of this status.
+                </Text>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        </Box>
 
         <SimpleGrid columns={{ base: 1, md: 2 }} gap={6} mb={6}>
           <Card data-testid="lv-card-exchange">
