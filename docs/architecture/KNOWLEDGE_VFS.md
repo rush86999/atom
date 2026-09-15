@@ -36,7 +36,7 @@ start_line, max_lines)` returns a self-describing window:
 
 ```
 {path, start_line, end_line, total_lines, next_start, returned_lines,
- complete, content}
+ complete, degraded, content}
 ```
 
 - `read_region` lives on the provider contract (`core/vfs_base.py`) with a
@@ -45,12 +45,21 @@ start_line, max_lines)` returns a self-describing window:
   slices; the datasets provider renders only the requested window of a sheet).
 - `complete`/`next_start` make paging a loop the agent can drive: it always
   knows whether it has seen the whole artifact and where to continue.
+- **Failures never read as end-of-file**: a read that errors partway returns
+  `degraded: true` (and `complete: false`) — the paging loop must not mistake
+  a transient store failure for EOF and silently drop the tail of the
+  evidence. Unknown dataset leaves raise `FileNotFoundError` exactly like
+  `cat`, so a wrong path is an error, not a "complete" empty sheet.
 - **grep citations carry a runnable read**: every match's snippet ends with
   `[read: documents.read(path='…', start_line=N, max_lines=20)]`, and the hint
   uses the SAME path as the citation so line numbers agree (a chunk id
   resolves to that chunk; the parent id resolves to the assembled document).
-- Default `max_lines` is 200, hard-clamped to 2000 by the action layer, so no
-  read is unbounded.
+- The main-chat planner lane dispatches it: a `read` intent plan (the grep
+  hints and the grounding rule induce these) routes to `documents.read` with
+  the echoed `start_line`/`max_lines`, lane-clamped to 400 lines — a bare
+  `read <path>` is the bounded first window, never a whole-artifact dump.
+- Default `max_lines` is 200, hard-clamped to 2000 by the action layer (400
+  in the planner lane), so no read is unbounded.
 
 **Why**: the previous read surface was `cat` (everything) or `head`/`tail` (the
 ends). Agents therefore either exhausted their context or skipped the file —

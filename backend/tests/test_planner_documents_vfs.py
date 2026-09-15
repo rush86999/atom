@@ -106,10 +106,10 @@ def test_cat_intent_routes_to_registry_with_normalized_path(monkeypatch):
     assert "received: 2026-08-26 14:06:28" in block
 
 
-def test_read_intent_is_cat_and_big_bodies_elide_the_middle(monkeypatch):
+def test_cat_of_a_huge_body_elides_the_middle(monkeypatch):
     """79k-char threads must not flood the prompt: the cat block carries a
     bounded head+tail with an honest elision marker (the middle stays
-    reachable via grep citations)."""
+    reachable via grep citations + documents.read windows)."""
     big = "\n".join(f"L{i}: filler line {i}" for i in range(1, 4000))
     fake = _FakeAction(
         {"success": True, "content": big, "line_count": 3999, "meta": {}}
@@ -119,12 +119,141 @@ def test_read_intent_is_cat_and_big_bodies_elide_the_middle(monkeypatch):
     )
     block = asyncio.run(
         _documents_vfs_block(
-            _plan("read", "knowledge/conversations/id-1"), "u1", {}
+            _plan("cat", "knowledge/conversations/id-1"), "u1", {}
         )
     )
     assert fake.calls[0][0] == "documents.cat"
     assert "middle elided" in block
     assert len(block) < planner._DOCUMENTS_VFS_CAT_CAP + 3000
+
+
+def test_read_intent_dispatches_documents_read_with_the_hints_kwargs(monkeypatch):
+    """The grounding rule and every grep citation hint advertise
+    documents.read(path, start_line, max_lines) — the lane must dispatch
+    exactly that. It used to alias "read" to whole-file cat and DROP the
+    kwargs, so the middle-elision cap could hide precisely the region a
+    citation pointed at (2026-09-15 review: the advertised paging loop
+    could never run)."""
+    fake = _FakeAction(
+        {
+            "success": True,
+            "content": "L313: R235 | F-52\"x16G | 7519.0",
+            "path": "knowledge/documents/doc-1/content.lines",
+            "start_line": 313, "end_line": 313, "total_lines": 324,
+            "next_start": 314, "returned_lines": 1, "complete": False,
+            "degraded": False,
+        }
+    )
+    monkeypatch.setattr(
+        "core.action_registry.action_registry.execute_action", fake
+    )
+    block = asyncio.run(
+        _documents_vfs_block(
+            _plan(
+                "read",
+                "documents.read(path='knowledge/documents/doc-1/content.lines',"
+                " start_line=313, max_lines=20)",
+            ),
+            "u1",
+            {},
+        )
+    )
+    name, args = fake.calls[0]
+    assert name == "documents.read"
+    assert args["path"] == "knowledge/documents/doc-1/content.lines"
+    assert args["start_line"] == 313 and args["max_lines"] == 20
+    assert "L313: R235" in block
+    # the paging loop the grounding rule promises: where to continue
+    assert "lines 313–313 of 324" in block
+    assert "start_line=314" in block
+
+
+def test_read_intent_without_kwargs_reads_a_bounded_first_window(monkeypatch):
+    """A bare 'read <path>' keeps the anti-flood intent of the old
+    read→cat+elision alias, but via the bounded primitive: first 200 lines
+    with paging metadata, never a whole 79k-char dump."""
+    fake = _FakeAction(
+        {
+            "success": True,
+            "content": "\n".join(f"L{i}: row {i}" for i in range(1, 201)),
+            "path": "knowledge/conversations/id-1/content.lines",
+            "start_line": 1, "end_line": 200, "total_lines": 3999,
+            "next_start": 201, "returned_lines": 200, "complete": False,
+            "degraded": False,
+        }
+    )
+    monkeypatch.setattr(
+        "core.action_registry.action_registry.execute_action", fake
+    )
+    block = asyncio.run(
+        _documents_vfs_block(
+            _plan("read", "knowledge/conversations/id-1"), "u1", {}
+        )
+    )
+    name, args = fake.calls[0]
+    assert name == "documents.read"
+    assert args == {
+        "path": "knowledge/conversations/id-1/content.lines",
+        "start_line": 1,
+        "max_lines": 200,
+    }
+    assert "lines 1–200 of 3999" in block
+    assert "start_line=201" in block
+
+
+def test_read_intent_clamps_an_echoed_huge_max_lines(monkeypatch):
+    """The lane clamps max_lines at _DOCUMENTS_VFS_READ_MAX_LINES — a
+    planner query echoing max_lines=50000 must not inject 50k lines."""
+    fake = _FakeAction(
+        {"success": True, "content": "L1: x", "returned_lines": 1,
+         "start_line": 1, "end_line": 1, "total_lines": 1,
+         "next_start": None, "complete": True, "degraded": False}
+    )
+    monkeypatch.setattr(
+        "core.action_registry.action_registry.execute_action", fake
+    )
+    asyncio.run(
+        _documents_vfs_block(
+            _plan(
+                "read",
+                "knowledge/documents/doc-1/content.lines start_line=5 "
+                "max_lines=50000",
+            ),
+            "u1",
+            {},
+        )
+    )
+    name, args = fake.calls[0]
+    assert name == "documents.read"
+    assert args["max_lines"] == planner._DOCUMENTS_VFS_READ_MAX_LINES
+    assert args["start_line"] == 5
+
+
+def test_degraded_read_is_an_error_not_end_of_artifact(monkeypatch):
+    """A read that failed partway must SAY so: rendering it as a normal
+    (empty/complete) window invites 'the figure isn't in the file'
+    conclusions from a transient store error."""
+    fake = _FakeAction(
+        {"success": True, "content": "", "returned_lines": 0,
+         "total_lines": 900, "start_line": 300, "degraded": True,
+         "next_start": None, "complete": False}
+    )
+    monkeypatch.setattr(
+        "core.action_registry.action_registry.execute_action", fake
+    )
+    block = asyncio.run(
+        _documents_vfs_block(
+            _plan(
+                "read",
+                "documents.read(path='knowledge/documents/doc-1/content.lines',"
+                " start_line=300, max_lines=20)",
+            ),
+            "u1",
+            {},
+        )
+    )
+    assert "DEGRADED" in block
+    assert "NOT the end of the artifact" in block
 
 
 def test_grep_intent_renders_line_citations(monkeypatch):

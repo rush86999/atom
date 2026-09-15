@@ -80,12 +80,19 @@ class VFSRegion:
 
     ``total_lines`` and ``next_start`` make the slice SELF-DESCRIBING: the
     agent always knows whether it has seen the whole artifact and where to
-    continue, so paging is a loop the model can drive without guessing."""
+    continue, so paging is a loop the model can drive without guessing.
+
+    ``degraded`` marks a read that FAILED partway (store error, unreadable
+    parquet): an empty degraded region must never read as end-of-content —
+    a paging loop that mistakes a transient error for EOF silently drops
+    the tail of the evidence, the exact failure family this type exists to
+    prevent."""
     path: str
     start_line: int                  # 1-based, inclusive
     lines: List[str] = field(default_factory=list)   # "L<n>: <text>"
     total_lines: int = 0
     next_start: Optional[int] = None  # None == end of content
+    degraded: bool = False            # True == the read failed; NOT EOF
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -96,7 +103,8 @@ class VFSRegion:
             "next_start": self.next_start,
             "content": "\n".join(self.lines),
             "returned_lines": len(self.lines),
-            "complete": self.next_start is None,
+            "complete": self.next_start is None and not self.degraded,
+            "degraded": self.degraded,
         }
 
 

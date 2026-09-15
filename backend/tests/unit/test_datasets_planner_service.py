@@ -222,6 +222,41 @@ def test_vfs_datasets_provider_ls_cat_grep():
     asyncio.run(_flow())
 
 
+def test_vfs_read_region_errors_like_cat_and_marks_degradation(monkeypatch):
+    """read_region must not report an unknown or FAILED read as a complete
+    empty region — that reads as end-of-artifact and silently truncates
+    evidence mid-paging (cat raises FileNotFoundError for the same paths;
+    a transient parquet failure must degrade visibly, never read as EOF)."""
+    from integrations.vfs.datasets_vfs import DatasetsVFSProvider
+
+    provider = DatasetsVFSProvider()
+    with pytest.raises(FileNotFoundError):
+        asyncio.run(provider.read_region("datasets/nope/nope/content.lines"))
+    with pytest.raises(FileNotFoundError):
+        asyncio.run(provider.read_region("datasets"))
+
+    monkeypatch.setattr(
+        provider,
+        "_entries",
+        lambda: [{
+            "dataset_name": "broken__sheet1",
+            "entity_name": "Sheet1",
+            "file_name": "broken.xlsx",
+            "parquet_path": "/nonexistent/broken.parquet",
+            "row_count": 3,
+            "columns": [],
+            "source_modified_at": None,
+        }],
+    )
+    region = asyncio.run(
+        provider.read_region("datasets/broken/sheet1/content.lines")
+    )
+    d = region.to_dict()
+    assert d["degraded"] is True
+    assert d["complete"] is False
+    assert d["returned_lines"] == 0
+
+
 # ── Scalability: DuckDB probe + storage GC ──────────────────────────────────
 
 

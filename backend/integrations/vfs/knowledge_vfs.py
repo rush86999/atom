@@ -213,8 +213,9 @@ class KnowledgeVFSProvider(VFSProvider):
                         vec = await self._get_vector_doc(parts[2])
                         if vec and len(str(vec.get("text") or "")) > len(text):
                             text = str(vec.get("text") or "")
-        except Exception as e:  # noqa: BLE001 — a bad read degrades to empty
+        except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
             logger.debug(f"[KnowledgeVFS] read_region failed for {path}: {e}")
+            region.degraded = True
             return region
         lines = to_line_numbered(text)
         region.total_lines = len(lines)

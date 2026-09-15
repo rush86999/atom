@@ -682,6 +682,11 @@ def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
 
     from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
 
+    _CHUNK_TEXT = "\n".join(
+        [f"R{i} | filler row {i}" for i in range(1, 8)]
+        + ['R235 | F-52"x16G | 7519.0']
+    )
+
     class _FakeCommsTable:
         def head(self, n):
             return pa.table({"id": pa.array([]), "content": pa.array([])})
@@ -690,7 +695,7 @@ def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
             return self.head(0)
 
     rows = [
-        {"id": "ext_doc::c57", "text": "R235 | F-52\"x16G | 7519.0",
+        {"id": "ext_doc::c57", "text": _CHUNK_TEXT,
          "source": "outlook:x.xlsx", "metadata": None},
     ]
 
@@ -713,7 +718,7 @@ def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
 
         def to_batches(self, batch_size=None):
             return iter([pa.record_batch({"id": ["ext_doc::c57"],
-                                          "text": ["R235 | F-52\"x16G | 7519.0"]})])
+                                          "text": [_CHUNK_TEXT]})])
 
         def to_arrow(self):
             return _Arrow()
@@ -732,6 +737,9 @@ def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
         def get_table(self, name):
             return _Table()
 
+        def get_document_by_id(self, table, doc_id):
+            return {"id": doc_id, "text": _CHUNK_TEXT}
+
         def list_document_heads(self, *a, **k):
             return []
 
@@ -749,3 +757,35 @@ def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
     # the hint must name the SAME path the citation does, or line numbers skew
     assert hits[0].path in snippet, (hits[0].path, snippet)
     assert "start_line=" in snippet
+
+    # The hint must EXECUTE and land on the cited line: run it verbatim
+    # against the same provider — grep's line numbers and read_region's must
+    # be the SAME numbering, or the hint points the agent at the wrong
+    # region (the last mile of the $8,880-fabrication guard).
+    import re as _re
+
+    start = int(_re.search(r"start_line=(\d+)", snippet).group(1))
+    span = int(_re.search(r"max_lines=(\d+)", snippet).group(1))
+    region = asyncio.run(
+        v.read_region(
+            f"{hits[0].path}/content.lines", start_line=start, max_lines=span
+        )
+    )
+    assert region.lines, "hinted read returned nothing"
+    assert any(
+        ln.startswith(f"L{hits[0].line}:") for ln in region.lines
+    ), (hits[0].line, region.lines[:3])
+    assert any("7519.0" in ln for ln in region.lines)
+
+
+def test_degraded_region_is_never_complete():
+    """A read that failed partway must not masquerade as end-of-content:
+    'complete' is only honest if degradation breaks it, or a paging loop
+    silently drops the tail of the evidence on a transient store error."""
+    from core.vfs_base import VFSRegion
+
+    r = VFSRegion(path="datasets/g/s/content.lines", start_line=300)
+    r.degraded = True
+    d = r.to_dict()
+    assert d["degraded"] is True
+    assert d["complete"] is False

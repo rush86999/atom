@@ -179,7 +179,12 @@ class DatasetsVFSProvider(VFSProvider):
         Line 1 is the sheet header; row N of the sheet is line N+1, so a
         citation and its window agree. ``total_lines`` is the sheet's real
         line count, which is what makes ``next_start`` trustworthy for paging
-        to the end."""
+        to the end.
+
+        Unresolvable paths raise ``FileNotFoundError`` exactly like ``cat``
+        (a wrong path must be an ERROR, not an empty "complete" region that
+        reads as a real empty sheet), and a render failure returns a
+        ``degraded`` region — never a silent end-of-content."""
         import asyncio
 
         from core.sheet_dataset_service import SHEET_ROW_COL
@@ -190,7 +195,7 @@ class DatasetsVFSProvider(VFSProvider):
             cleaned = cleaned[: -len(f"/{_LEAF}")]
         parts = [p for p in cleaned.split("/") if p and p != "datasets"]
         if len(parts) < 2:
-            return region
+            raise FileNotFoundError(f"'{path}' is not a dataset leaf")
         group, entity_slug = parts[0], parts[1]
         entry = next(
             (e for e in self._entities_of(group, self._entries())
@@ -198,7 +203,7 @@ class DatasetsVFSProvider(VFSProvider):
             None,
         )
         if entry is None:
-            return region
+            raise FileNotFoundError(f"No dataset '{entity_slug}' under '{group}'")
 
         def _render() -> List[str]:
             import pandas as pd
@@ -222,8 +227,9 @@ class DatasetsVFSProvider(VFSProvider):
 
         try:
             lines = await asyncio.to_thread(_render)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
             logger.debug(f"[DatasetsVFS] read_region failed for {path}: {e}")
+            region.degraded = True
             return region
         region.total_lines = len(lines)
         span = max(int(max_lines or 1), 1)

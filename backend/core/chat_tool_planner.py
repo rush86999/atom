@@ -221,7 +221,7 @@ _SERVICE_DESCRIPTIONS = {
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
     # truncated excerpt, or regex-search every stored email/file.
-    "documents": "workspace files & FULL email threads — `cat` intent: query is the VFS path cited on evidence lines ('full: knowledge/conversations/<id>/content.lines') and returns the COMPLETE line-numbered message; `grep` intent: query is an exact string/regex ('5,350', 'F-5216'), optionally ' … in knowledge/conversations', scanning EVERY stored message and file; `head`/`tail`/`ls` skim. Use when a search excerpt is truncated or a value hides mid-thread; for open questions prefer memory/datasets",
+    "documents": "workspace files & FULL email threads — `cat` intent: query is the VFS path cited on evidence lines ('full: knowledge/conversations/<id>/content.lines') and returns the COMPLETE line-numbered message; `grep` intent: query is an exact string/regex ('5,350', 'F-5216'), optionally ' … in knowledge/conversations', scanning EVERY stored message and file; `read` intent: query is a VFS path, optionally with start_line=/max_lines= (every grep citation hint carries them), for a BOUNDED line window with paging metadata — prefer it when the artifact may be huge; `head`/`tail`/`ls` skim. Use when a search excerpt is truncated or a value hides mid-thread; for open questions prefer memory/datasets",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
@@ -3807,11 +3807,15 @@ async def _datasets_search_block(
 
 _DOCUMENTS_VFS_INTENT_ACTIONS: Dict[str, str] = {
     "search": "grep", "grep": "grep", "find": "grep",
-    "cat": "cat", "read": "cat", "open": "cat", "view": "cat",
+    "cat": "cat", "read": "read", "open": "cat", "view": "cat",
     "ls": "ls", "list": "ls",
     "head": "head", "tail": "tail",
     "tree": "tree", "scan": "scan",
 }
+# documents.read windows stay prompt-safe at the LANE level too: the action
+# layer clamps max_lines to 2000, but a planner-echoed hint should never ask
+# for (and inject) more than this many lines in one turn.
+_DOCUMENTS_VFS_READ_MAX_LINES = 400
 # One cat call may inject at most this many chars of the COMPLETE message —
 # threads run to 79k chars live; the middle stays reachable via grep
 # (line + snippet) rather than dumped into the prompt.
@@ -3893,7 +3897,7 @@ async def _documents_vfs_block(
                     "query — plan grep with the exact string to find."
                 )
             args = {"pattern": pattern, "path_prefix": prefix}
-        elif action in ("cat", "head", "tail"):
+        elif action in ("cat", "read", "head", "tail"):
             path = _normalize_vfs_path(query)
             if not path:
                 return _with_grounding(
@@ -3905,6 +3909,21 @@ async def _documents_vfs_block(
             args = {"path": path}
             if action in ("head", "tail"):
                 args["lines"] = 60
+            if action == "read":
+                # Grep citations ship ready-to-run hints ("documents.read(
+                # path='…', start_line=313, max_lines=20)") and the planner
+                # query echoes them. The kwargs ARE the point of the bounded
+                # read: dropped, a "read" collapses back to whole-file cat,
+                # whose middle-elision cap can hide exactly the region the
+                # citation pointed at (live 2026-09-15 review finding).
+                for _key in ("start_line", "max_lines"):
+                    _m = re.search(rf"{_key}\s*=\s*(\d+)", query, re.IGNORECASE)
+                    if _m:
+                        args[_key] = int(_m.group(1))
+                args["start_line"] = max(int(args.get("start_line", 1)), 1)
+                args["max_lines"] = max(
+                    min(int(args.get("max_lines", 200)), _DOCUMENTS_VFS_READ_MAX_LINES), 1
+                )
         else:  # ls / tree / scan
             args = {"path": _normalize_vfs_path(query) or "knowledge/conversations"}
             if action == "tree":
@@ -3932,8 +3951,9 @@ async def _documents_vfs_block(
                 f"'{args.get('path_prefix')}') — regex scan over the WHOLE "
                 f"stored tree ({len(all_matches)} match line(s)"
                 f"{' , showing first 40' if len(all_matches) > 40 else ''}); "
-                "open any hit's full context with documents.cat(path + "
-                "'/content.lines'):\n"
+                "open a hit's region with its [read: documents.read(...)] "
+                "hint (bounded window at the cited line), or the whole "
+                "artifact with documents.cat(path + '/content.lines'):\n"
                 + "\n".join(
                     f"- {m.get('path')}:L{m.get('line')}: {m.get('snippet')}"
                     for m in matches
@@ -3971,7 +3991,8 @@ async def _documents_vfs_block(
                             content = (
                                 content[:head_c]
                                 + "\n[…middle elided — documents.grep this "
-                                "path for a term to locate the middle…]\n"
+                                "path for the term, then documents.read the "
+                                "hit's start_line to open the middle…]\n"
                                 + content[-(_DOCUMENTS_VFS_CAT_CAP - head_c):]
                             )
                         hydrate = (
@@ -3981,6 +4002,42 @@ async def _documents_vfs_block(
             except Exception as hydrate_err:  # noqa: BLE001 — hydration is additive
                 logger.debug(f"grep top-hit hydration skipped: {hydrate_err}")
             return _with_grounding(head + hydrate)
+        if action == "read":
+            content = str(result.get("content") or "")
+            if result.get("degraded"):
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (documents.read, path="
+                    f"'{args.get('path')}'): DEGRADED — the read failed "
+                    "partway; this is NOT the end of the artifact. Do not "
+                    "conclude a figure or row is absent from it; retry the "
+                    "read."
+                )
+            if not int(result.get("returned_lines") or 0):
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (documents.read, path="
+                    f"'{args.get('path')}'): empty window (start_line="
+                    f"{args.get('start_line')} vs total_lines="
+                    f"{result.get('total_lines')}) — page from a lower "
+                    "start_line, or documents.grep the path for the term "
+                    "and follow its citation hint."
+                )
+            nxt = result.get("next_start")
+            paging = (
+                f"lines {result.get('start_line')}–{result.get('end_line')} "
+                f"of {result.get('total_lines')}"
+            )
+            paging += (
+                f"; more remain — continue with documents.read(path="
+                f"'{args.get('path')}', start_line={nxt}, max_lines="
+                f"{args.get('max_lines')})"
+                if nxt else
+                "; complete — this window ends at the END of the artifact"
+            )
+            return _with_grounding(
+                f"LIVE TOOL RESULTS (documents.read, path="
+                f"'{args.get('path')}') — BOUNDED window, {paging}; quote "
+                f"line numbers (L#) when citing:\n{content}"
+            )
         if action == "cat":
             content = str(result.get("content") or "")
             if not content.strip():
@@ -4002,7 +4059,8 @@ async def _documents_vfs_block(
                     content[:head_c]
                     + "\n[…middle elided — the COMPLETE message is "
                     f"{line_count or '?'} lines; documents.grep this path "
-                    "for a term to locate the middle…]\n"
+                    "for the term, then documents.read the hit's start_line "
+                    "to open the middle…]\n"
                     + content[-(_DOCUMENTS_VFS_CAT_CAP - head_c):]
                 )
             return _with_grounding(
