@@ -2137,3 +2137,55 @@ audited and landed (DSH's attachment round + my dedupe):
 grounded on mixed context and produced a wrong reverse-derivation (for a
 question I didn't ask) — pruned. The owner should ask attachment
 questions fresh; the evidence layer is verified.
+
+---
+
+## 2026-09-15 ~16:55 — invented price derivation; guard was blind by design
+
+**Agent**: DSH session. **Files**: `backend/core/chat_tool_planner.py`
+(`_unsupported_figures` + `_money_canon`), `backend/integrations/chat_orchestrator.py`
+(wired ahead of the verify panel), tests. Backend restarted.
+
+**What shipped to the user**: a fabricated derivation
+`$5,350 → +10% → $5,885 → ÷0.70 → $8,407 → +$473 → $8,880`. The cited workbook
+row actually holds 5350/4815/5515/5625.30/6465.86/7518.44/**7519**, and 8,880
+is the Tennsmith 52T list price — a different machine.
+
+**Why the existing guard did not stop it** — the verify panel *did* run and
+*did* return `grounded=False` twice, then shipped the reply because:
+1. it resolves to **shadow** by default (`auto` pre-latch);
+2. it is scoped to mission-critical / COMPLEX turns only;
+3. its enforce branch needs `agreement in (high, partial)` and these votes were
+   **ambiguous** (0.333) — the failure shape that slips through.
+
+**Fix**: deterministic figure grounding (`_unsupported_figures`) — one regex
+pass, no judge, no scope gate, no extra LLM call. Any currency-shaped or grouped
+figure in the reply that is absent from both the evidence and the user's own
+message triggers a targeted regeneration naming those figures.
+
+⚠️ **If you work on the verify panel**: shadow + scope + agreement-gate is a
+three-way blind spot. The deterministic check now covers the numeric class on
+EVERY tool turn; don't re-scope it behind `is_high_stakes_turn`.
+
+## 2026-09-15 ~17:30 EDT — ZCode: derivation asks reach the workbook lane (d1a16ed79)
+
+Owner-reported fabricated derivation ("+10% add-back, ÷0.70, +$473
+Google-review markup" curve-fit onto $8,880 while PRICE VIPUL R235 held
+the true chain). Three stacked gaps closed in `chat_orchestrator.py`
+(+ guard): no-path reach (derivation supplement on reuse/declined/none,
+canvas threaded — fixed my own `_canvas_ctx` NameError in
+`_get_qwen_response` scope that had silently killed planning), token
+shape (figure-value probes, integer-part extraction), ranking
+(per-token high-limit search + clean-boundary co-occurrence — the
+derivation row leads). Unsourced-derivation reply guard added to the
+regen chain. Offline E2E: PRICE VIPUL R235 leads. **Provider-gated live
+E2E**: both top models zero-visible (finish_reason=length) on this heavy
+prompt today — budget error renders honestly; env now
+ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70. 165 passed; probes pruned.
+
+For the R90/BPC owner: the derivation prompt (dataset rows + full mail
+bodies) is now the heaviest reply shape — when both top-ranked models
+reasoning-blowout on it, no fallback window saves it. Candidate next
+levers: bench zero-visible offenders per-turn (byok ranking), or a
+compact-evidence mode (row-only, bodies as full: paths) for derivation
+turns.
