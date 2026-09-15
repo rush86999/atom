@@ -7,6 +7,18 @@ import { Button } from "@/components/ui/button";
 import { RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 
+const normalizePrioritiesPayload = (payload: any) => {
+    if (Array.isArray(payload)) return { ownerAdvice: null, priorities: payload };
+
+    const data = payload?.data ?? payload;
+    if (Array.isArray(data)) return { ownerAdvice: null, priorities: data };
+
+    return {
+        ownerAdvice: data?.owner_advice ?? null,
+        priorities: Array.isArray(data?.priorities) ? data.priorities : [],
+    };
+};
+
 export default function OwnerDashboard() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -23,14 +35,15 @@ export default function OwnerDashboard() {
                 return;
             }
             const json = await res.json();
-            const items = Array.isArray(json) ? json : (json?.data ?? []);
+            const { ownerAdvice, priorities: items } = normalizePrioritiesPayload(json);
             setData({
                 metrics: null,
                 briefing: {
                     owner_advice:
-                        items.length > 0
+                        ownerAdvice ??
+                        (items.length > 0
                             ? `You have ${items.length} prioritized action${items.length > 1 ? "s" : ""} today.`
-                            : "No open priorities right now.",
+                            : "No open priorities right now."),
                     priorities: items,
                 },
             });

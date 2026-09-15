@@ -2138,6 +2138,31 @@ grounded on mixed context and produced a wrong reverse-derivation (for a
 question I didn't ask) — pruned. The owner should ask attachment
 questions fresh; the evidence layer is verified.
 
+## 2026-09-15 — Codex: Owner Cockpit business-health 404 trace
+
+Touching `frontend-nextjs/next.config.js`,
+`frontend-nextjs/pages/dashboard/owner.tsx`, and
+`frontend-nextjs/tests/pages/dashboard-owner.test.tsx`.
+
+Runtime symptom from owner: `/dashboard/owner` shows "Failed to load dashboard
+data"; Next logs `GET /api/business-health/priorities 404`. Backend has
+`api.operational_routes` mounted at `/api/business-health/priorities`, so the
+current evidence points at the Next rewrite layer missing the
+`/api/business-health/*` proxy and owner page parsing not matching the live
+`{data: {priorities: [...]}}` shape. Redis `localhost:6379` refusal appears to
+be background webhook dequeue noise unless request-level evidence proves
+otherwise.
+
+Finished: added the Next rewrite and normalized owner-page parsing for both
+legacy `{data: [...]}` mocks and live `{data: {owner_advice, priorities}}`.
+Verified route-level behavior: unauthenticated
+`http://localhost:3000/api/business-health/priorities` now returns 401 (proxied
+to the auth-gated backend) instead of Next 404; direct
+`http://localhost:8000/api/business-health/priorities` also returns 401.
+Focused Jest discovery finds `tests/pages/dashboard-owner.test.tsx`, but the
+test run hung in shared MSW setup and was interrupted.
+(Follow-up at merge review: focused Jest on this branch verified 6/6 pass
+incl. the live-envelope test — the MSW hang did not reproduce.)
 ---
 
 ## 2026-09-15 ~16:55 — invented price derivation; guard was blind by design
