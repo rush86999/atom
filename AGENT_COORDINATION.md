@@ -2235,3 +2235,20 @@ restarted pid 44338.
 longer TTL out; synced sources unchanged. Stage-0 probe results don't
 attach the FORMULAS footer (only the LLM-SQL path does) — worth adding
 if you own that stage.
+
+## 2026-09-15 ~18:40 EDT — ZCode: fabrication bench closes the signal work's caveat (586a8e6b8)
+
+Audited the fabrication-signal landing (function/call sites/severity all
+verified) and found 8 probe/* rows in llm_routing_feedback written at
+22:21 — the prior session's LIVE VERIFICATION probes, written after its
+cleanup, not test residue (both fabrication tests are hermetic). Purged;
+table 0 rows.
+
+Implemented the narrower of the two proposed next steps (hard exclusion,
+NOT flipping ATOM_LEARNING_ROUTER on a thin table — cold-start
+re-ranking on near-empty data would be noise-dominated):
+`BYOKHandler._fabrication_benched` — ≥3 fabrication verdicts
+(user_satisfaction ≤ 0.15) at ≥25% rate over 48h excludes the pair from
+ranked candidates; env-tunable thresholds; kill switch
+ATOM_FABRICATION_BENCH=0; 60s cache; fail-open; WARNING per transition.
+118 passed / 5 suites; backend pid 48325. Design: TOOL_PLANNER_ROUTING §8.
