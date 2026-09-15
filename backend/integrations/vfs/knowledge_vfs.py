@@ -688,7 +688,16 @@ class KnowledgeVFSProvider(VFSProvider):
         return None
 
     async def _get_vector_doc(self, doc_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch one row from the LanceDB ``documents`` table by id."""
+        """Fetch one document from the LanceDB ``documents`` table by id.
+
+        CHUNK FAMILIES: a large file is stored as ``{parent}::c0, ::c1, …``
+        (the pricing workbook attached to the F-5216 thread is 59 chunks), and
+        the parent id has NO row of its own. Resolving only the exact id meant
+        ``documents.cat('knowledge/documents/ext_…')`` returned nothing for
+        every chunked file — so an agent could GREP a spreadsheet row (grep
+        walks chunk rows) and then be unable to OPEN the file it found. The
+        chunks are now assembled in order into the parent document.
+        """
         import asyncio
 
         def _fetch():
@@ -698,7 +707,21 @@ class KnowledgeVFSProvider(VFSProvider):
                 handler = get_lancedb_handler("default")
                 if handler is None:
                     return None
-                return handler.get_document_by_id("documents", str(doc_id))
+                exact = handler.get_document_by_id("documents", str(doc_id))
+                if exact is not None:
+                    return exact
+                if "::c" in str(doc_id):
+                    return None  # a chunk id that does not exist
+                family = self._chunk_family_rows(str(doc_id))
+                if not family:
+                    return None
+                base = dict(family[0])
+                base["text"] = "\n".join(
+                    str(r.get("text") or "") for r in family
+                )
+                base["id"] = str(doc_id)
+                base["chunk_count"] = len(family)
+                return base
             except Exception as e:
                 logger.debug(f"[KnowledgeVFS] vector fallback for {doc_id}: {e}")
                 return None
@@ -707,6 +730,43 @@ class KnowledgeVFSProvider(VFSProvider):
             return await asyncio.to_thread(_fetch)
         except Exception:
             return None
+
+    @staticmethod
+    def _chunk_family_rows(doc_id: str) -> List[Dict[str, Any]]:
+        """Every chunk of ``doc_id`` in chunk order (``[]`` when none).
+
+        Scans the projected ``id``/``text`` columns and keeps rows whose id is
+        ``{doc_id}::c<n>``; a handful of families exist per store, and this
+        runs only for a parent id that has no row of its own."""
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+
+            handler = get_lancedb_handler("default")
+            table = handler.get_table("documents") if handler is not None else None
+            if table is None:
+                return []
+            prefix = f"{doc_id}::c"
+            rows = (
+                table.search()
+                .select(["id", "text", "source", "metadata"])
+                .to_arrow()
+                .to_pylist()
+            )
+            family = []
+            for r in rows:
+                rid = str(r.get("id") or "")
+                if not rid.startswith(prefix):
+                    continue
+                try:
+                    order = int(rid[len(prefix):])
+                except ValueError:
+                    order = 0
+                family.append((order, r))
+            family.sort(key=lambda t: t[0])
+            return [r for _, r in family]
+        except Exception as e:  # noqa: BLE001 — reader must degrade, not raise
+            logger.debug(f"[KnowledgeVFS] chunk family scan for {doc_id}: {e}")
+            return []
 
     @staticmethod
     def _doc_meta(doc) -> Dict[str, Any]:

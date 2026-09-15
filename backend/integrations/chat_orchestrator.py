@@ -874,6 +874,7 @@ def _compose_lookup_evidence(
         return live_block
     from core.chat_tool_planner import _quote_lookup_shape, _with_grounding
 
+
     # Mail-LED for every thread-referencing ask, not just quoted lines:
     # "check the email thread chandrakant forwarded to me about how list
     # price was calculated" has no quoted span, but the user is pointing at

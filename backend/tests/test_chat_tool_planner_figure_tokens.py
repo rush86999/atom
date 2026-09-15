@@ -1101,3 +1101,35 @@ def test_mailbox_line_without_recipient_still_renders():
 
     assert line.startswith("- [ingested mailbox] From: v@x.example")
     assert "To:" not in line
+
+
+# --- attachments on the evidence line ---------------------------------------
+
+def test_mailbox_line_lists_attachments_with_openable_paths(monkeypatch):
+    """The email is often only the envelope: the number being asked about
+    lives in the attached workbook (F-5216 thread → PRICE VIPUL (6).xlsx,
+    row 235 → $7,519). Without the attachment on the line, an agent reads the
+    email and still cannot say a file came with it."""
+    import core.chat_tool_planner as ctp
+
+    row = _row("chandrakant@brennan.ca", "Fw: RFQ - Foot shear",
+               "please check row 235", "2026-09-11 20:07:31", row_id="m-fw")
+    row["recipient"] = "rish@brennan.ca"
+    monkeypatch.setattr(
+        ctp, "_mail_attachments_for",
+        lambda mid, limit=4: [("PRICE VIPUL (6).xlsx", "ext_c1f74")] if mid == "m-fw" else [],
+    )
+
+    line = ctp._ingested_line_from_row(row, with_body=False)
+
+    assert "attachments: PRICE VIPUL (6).xlsx" in line
+    assert "open: knowledge/documents/ext_c1f74/content.lines" in line
+
+
+def test_mailbox_line_omits_attachments_when_there_are_none(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    monkeypatch.setattr(ctp, "_mail_attachments_for", lambda mid, limit=4: [])
+    row = _row("v@x.example", "Quote", "body", "2026-09-11", row_id="m-none")
+
+    assert "attachments:" not in ctp._ingested_line_from_row(row, with_body=False)

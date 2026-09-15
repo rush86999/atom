@@ -1362,6 +1362,16 @@ def _rank_address_hits(
         )
         if participant and subject_hit:
             tier = 0
+        elif participant and _mail_attachments_for(str(row.get("id") or "")):
+            # A participant's message that CARRIES A FILE outranks their
+            # newer attachment-less mail when the request is about the
+            # forwarded artefact ("find the email the attachment came with",
+            # "how was the price calculated" — the number lives in the
+            # attached workbook). Live 2026-09-15: the Fw carrying
+            # `PRICE VIPUL (6).xlsx` sat below four newer chandrakant threads.
+            # Only consulted for participant rows, and the index is cached, so
+            # this costs one dict lookup per row in the common case.
+            tier = 0
         elif participant:
             tier = 1
         else:
@@ -1795,6 +1805,65 @@ def _fig_match_window(
     return None
 
 
+#: message_id -> [(file_name, doc_id)] for attachments ingested from mail.
+_MAIL_ATTACHMENTS: Dict[str, Any] = {}
+_MAIL_ATTACHMENTS_TTL_S = float(
+    os.getenv("ATOM_MAIL_ATTACHMENTS_TTL_S", "120") or 120
+)
+
+
+def _mail_attachments_for(message_id: str, limit: int = 4) -> List[tuple]:
+    """Attachments ingested from one email, as ``(file_name, doc_id)``.
+
+    Ingestion writes each attachment as an ``ingested_documents`` row whose
+    ``external_id`` is ``<message_id>:<attachment_id>`` — the same join the
+    F-5216 thread needs: its forwarded email carries **PRICE VIPUL (6).xlsx**,
+    the workbook whose row 235 derives the $7,519 list price. Without this the
+    listing line named no attachments, so an agent could read the email and
+    still have no way to know a file came with it (live 2026-09-15: the user
+    had to ask for the attachment explicitly).
+
+    One indexed query builds the whole map, TTL-cached; fault-isolated to {}."""
+    import time as _time
+
+    if not message_id:
+        return []
+    now = _time.monotonic()
+    hit = _MAIL_ATTACHMENTS.get("cache")
+    if not (hit and now - hit[0] < _MAIL_ATTACHMENTS_TTL_S):
+        table: Dict[str, List[tuple]] = {}
+        try:
+            from core.database import get_db_session
+            from core.models import IngestedDocument
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(
+                        IngestedDocument.external_id,
+                        IngestedDocument.file_name,
+                        IngestedDocument.id,
+                    )
+                    .filter(IngestedDocument.integration_id == "outlook")
+                    .all()
+                )
+            for ext, name, doc_id in rows:
+                parent = str(ext or "").split(":", 1)[0]
+                if not parent or not name:
+                    continue
+                table.setdefault(parent, []).append((str(name), str(doc_id or "")))
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"mail attachment index unavailable: {e}")
+            table = {}
+        _MAIL_ATTACHMENTS["cache"] = (now, table)
+        hit = _MAIL_ATTACHMENTS["cache"]
+    return (hit[1].get(str(message_id)) or [])[:limit]
+
+
+_ATTACH_FOOTER_RE = re.compile(
+    r"---\s*Attachments\s*---\n((?:- .+\n?)+)", re.IGNORECASE)
+_ATTACHMENT_ITEM_RE = re.compile(r"^- (.+) \(")  # greedy: names may contain (...)
+
+
 def _ingested_line_from_row(
     row: Dict[str, Any],
     with_body: bool,
@@ -1843,6 +1912,17 @@ def _ingested_line_from_row(
     addressed = f" | To: {recipient[:140]}" if recipient else ""
     if direction in ("outbound", "internal"):
         addressed += f" | direction: {direction}"
+    # ATTACHMENTS, with the path that opens each one. The email is often only
+    # the envelope: the number being asked about lives in the attached
+    # workbook (F-5216 thread → PRICE VIPUL (6).xlsx, row 235 → $7,519).
+    _atts = _mail_attachments_for(row_id)
+    if _atts:
+        rendered = "; ".join(
+            f"{name} (open: knowledge/documents/{doc}/content.lines)"
+            if doc else name
+            for name, doc in _atts
+        )
+        addressed += f" | attachments: {rendered}"
     line = (
         f"- [ingested mailbox] From: {row.get('sender')}"
         f"{addressed} | "

@@ -2088,3 +2088,52 @@ history — 38% margin row 235, $700 freight, "put 25 percent only".
 Known env note: users.email=admin@example.com is a dev artifact — in
 provisioned installs the to-me tier discriminates; here it no-ops
 safely.
+
+---
+
+## 2026-09-15 ~10:35 — attached files are now reachable by the agent
+
+**Agent**: DSH session. **Files**: `backend/integrations/vfs/knowledge_vfs.py`
+(chunked-document assembly), `backend/core/chat_tool_planner.py` (attachment
+index + line rendering + attachment relevance tier), tests. Backend restarted.
+
+**Root cause (measured)**: a large attachment is stored as
+`{parent}::c0…c58` with no row for the parent id. `documents.grep` walks chunk
+rows so it found the chunk holding `R235 … 7519`, but
+`documents.cat('knowledge/documents/<parent>')` returned nothing — an agent
+could locate a spreadsheet row and be unable to open its file. Fixed by
+assembling the chunk family in numeric order.
+
+Also: mailbox listing lines now name the email's attachments with an openable
+path, built from the `ingested_documents` join
+(`external_id = <message_id>:<attachment_id>`, verified by id — that parent id
+IS the 2026-09-11 20:07 forward), and a participant's attachment-bearing
+message wins a relevance tier in the address ranker.
+
+⚠️ Keep `_get_vector_doc`'s family assembly when touching the VFS reader:
+without it, every chunked file (spreadsheets, price lists, long PDFs) is
+greppable-but-unopenable.
+
+## 2026-09-15 ~15:00 EDT — ZCode: attachment surfacing verified + duplicate-render cleanup (this commit)
+
+Owner ask: "agent should be able to find the attachment as well." State
+audited and landed (DSH's attachment round + my dedupe):
+
+- `_mail_attachments_for(message_id)` — indexed ingested_documents join on
+  external_id '<message_id>:<attachment_id>', TTL-cached — renders
+  `| attachments: NAME (open: knowledge/documents/<doc>/content.lines)` on
+  evidence lines. Live-verified: the Sep 11 "Fw: RFQ - Foot shear" rows
+  surface `PRICE VIPUL (6).xlsx` with its open path — the calculation
+  workbook the owner hunted across this whole family.
+- Removed my redundant footer-based extractor + ingest-status line (built
+  before I found DSH's structured version — they produced DOUBLE
+  attachments segments).
+- Fintek spec sheet `18896-99_Fintek F5216 Foot Shear (1).doc` is NOT
+  ingested (legacy .doc, engine doesn't parse it) — it exists only as a
+  name in content footers. Honest state: the agent can name it, not open
+  it. .doc ingestion support = open capability.
+
+**Honest caveat from live testing**: probe turns on the polluted session
+grounded on mixed context and produced a wrong reverse-derivation (for a
+question I didn't ask) — pruned. The owner should ask attachment
+questions fresh; the evidence layer is verified.
