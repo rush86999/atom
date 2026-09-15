@@ -2237,6 +2237,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     _plan, user_id, self.tenant_id,
                                     context={
                                         "agent_id": agent_id,
+                                        # The current ask, ahead of session
+                                        # history (which is written only
+                                        # after the response): the stated-
+                                        # date window and the identifier
+                                        # net read it from here.
+                                        "message": message,
                                         "history": (planner_history or history or [])[-6:],
                                         "canvas": {
                                             "title": canvas_context.get("title"),

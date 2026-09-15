@@ -243,7 +243,7 @@ def test_figure_lines_lead_and_survive_address_flood(monkeypatch):
 
 
 def test_figure_leg_skipped_without_distinctive_tokens(monkeypatch):
-    def boom_tokens(user_id, tokens, limit=4):
+    def boom_tokens(user_id, tokens, limit=4, date_window=None):
         raise AssertionError("token scan must not run for non-figure queries")
 
     monkeypatch.setattr(planner, "_search_ingested_by_tokens", boom_tokens)
@@ -259,7 +259,7 @@ def test_figure_scan_runs_off_loop(monkeypatch):
     event loop."""
     import time
 
-    def slow_tokens(user_id, tokens, limit=4):
+    def slow_tokens(user_id, tokens, limit=4, date_window=None):
         time.sleep(0.3)
         return ["- [ingested mailbox] figure hit"]
 
@@ -285,6 +285,49 @@ def test_figure_scan_runs_off_loop(monkeypatch):
     assert lines
     gaps = [b - a for a, b in zip(ticks, ticks[1:])]
     assert max(gaps) < 0.4, f"event loop stalled {max(gaps):.2f}s during figure scan"
+
+
+def test_mailbox_figure_lines_window_comes_from_current_message(monkeypatch):
+    """The stated-date window must flow from the CURRENT message — the
+    planner query rewrite keeps the code but drops the date, and session
+    history lags the turn (it is written only after the response), so the
+    context message key is what carries it."""
+    seen = {}
+
+    def fake_tokens(user_id, tokens, limit=4, date_window=None):
+        seen["tokens"] = tokens
+        seen["window"] = date_window
+        return []
+
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", fake_tokens)
+    msg = "find the email thread for f-5216. it was sent to me on 9/11 friday"
+    asyncio.run(planner._mailbox_figure_lines(
+        "u1", "F-5216 quote", {"message": msg, "history": []}))
+    assert seen["tokens"], "figure leg ran"
+    assert seen["window"] == planner._stated_date_window(msg)
+    assert seen["window"] is not None
+
+
+def test_ingested_mailbox_lines_threads_stated_date_window(monkeypatch):
+    """Same tier handle on the mailbox-shaped search lane: the figure-token
+    calls carry the window, not just the memory lane."""
+    seen = {}
+
+    def fake_tokens(user_id, tokens, limit=4, date_window=None):
+        seen["window"] = date_window
+        return [f"- [ingested mailbox] F-5216 hit {i}" for i in range(6)]
+
+    def fake_address(user_id, address, limit=4, query=""):
+        raise AssertionError("figure lines filled the cap — no table walk")
+
+    monkeypatch.setattr(planner, "_search_ingested_by_tokens", fake_tokens)
+    monkeypatch.setattr(planner, "_search_ingested_by_address", fake_address)
+    msg = "find the email thread for f-5216. it was sent to me on 9/11 friday"
+    lines = asyncio.run(_ingested_mailbox_lines(
+        "u1", "F-5216 quote", {"message": msg, "history": []}))
+    assert len(lines) == 6, "cap filled by figure lines alone"
+    assert seen["window"] == planner._stated_date_window(msg)
+    assert seen["window"] is not None
 
 
 # --- P2-8: ONE comms-table load per turn (shared, TTL-cached, invalidable) ---

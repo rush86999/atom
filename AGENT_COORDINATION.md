@@ -1996,3 +1996,47 @@ Backend pid 11088. NOTE for future verifications: test fakes for
 `_fake_fig_lines` must accept `date_window=None` — a stale signature
 raises inside fault-isolated legs and silently degrades to other lanes
 (leaking live-store rows into assertions).
+
+## 2026-09-15 ~00:50 EDT — ZCode: pre-delivery review of b50a54c52 — Feb-29 crash + dead memory-lane window fixed
+
+Separate read-only review agent audited b50a54c52 (stated-date tiering).
+Two confirmed defects fixed, one coverage gap closed:
+
+1. **Feb-29 future rollover raised ValueError** — `_stated_date_window`'s
+   year-decrement sat outside the try, so "sent 2/29 friday" asked Jan–Feb
+   of a leap year crashed the whole figure/verbatim leg (contained, but
+   coverage silently lost for the turn). The decrement is now guarded:
+   a Feb 29 rolling into a non-leap past year is None (like Feb 30) and
+   the weekday branch takes over.
+2. **The memory-lane window was dead code in production** —
+   `_current_message_text` only read role-shaped history, but both
+   executor entry points pass SESSION-shaped history, which is also
+   written only AFTER the response — so the window never fired on
+   `_mailbox_figure_lines`/`_memory_search_block`. Fix: both executor
+   contexts (`chat_orchestrator.execute_tool_plan` and
+   `chat_canvas_editor._lookup`) now thread `"message": message`;
+   `_current_message_text` prefers it, then falls back to role-shaped or
+   session-shaped (`{message, response}`, user side only) tails.
+   BEHAVIOR NOTE: `_context_identifier_net` (storage/item query nets)
+   also consumes `_current_message_text` — it now sees the current ask
+   instead of "" on those paths; strictly more signal, same caps.
+3. **`_ingested_mailbox_lines` figure-token calls now carry the window
+   too** (the threading had stopped one lane short); `boom_tokens`/
+   `slow_tokens` fakes re-contracted per the date_window=None mandate
+   above.
+
+New pins: Feb-29 rollover shapes; `_current_message_text` message-key +
+session-shape; wiring assertions that a NON-None window actually reaches
+`_search_ingested_by_tokens` from both lanes (the missing wiring test is
+what let defect 2 ship). 269 passed across 9 suites (verbatim evidence,
+figure tokens, orchestrator, tool routing, canvas root-causes, canvas
+editor + fresh-data budget, planner storage supplement, natural routing).
+Backend restarted (pid 20492); live F-5216 re-ask not repeated — the
+orchestrator leg's behavior for that scenario is unchanged by these fixes
+and unit-pinned.
+
+KNOWN LIMITATION (deferred, reviewer's probes): the parser's day-word
+guard is message-wide, not proximity-based — "7/8-inch … he replied
+monday" tiers July 8; modal "may 4" reads as May 4; an incidental weekday
+("Sun hydraulics") can beat the explicit one. Tier-only impact (reorder,
+never filter). Hardening needs proximity logic + its own recall tests.

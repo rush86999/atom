@@ -207,3 +207,20 @@ class TestStatedDateWindow:
         # In-window rows lead (newest first); the cap then keeps the newer
         # out-of-window thread — the Aug 26 row is correctly dropped.
         assert ids == ["m3", "m2", "m4"], ids
+
+    def test_feb29_future_rollover_never_raises(self):
+        # '2/29' stated before this year's Feb 29: last year had no Feb 29,
+        # so the M/D branch must yield nothing (like Feb 30) — the year-
+        # decrement used to raise ValueError and kill the whole evidence
+        # leg. The weekday branch still takes over when present.
+        import datetime
+        today = datetime.date(2028, 1, 4)  # Tuesday
+        got = ctp._stated_date_window("sent 2/29 friday", today=today)
+        assert got == ("2027-12-31 00:00:00", "2028-01-01 00:00:00")
+        # Month form with no day word anywhere: nothing usable -> None.
+        assert ctp._stated_date_window(
+            "the quote from february 29", today=today) is None
+        # A real Feb 29 that has already happened parses normally.
+        assert ctp._stated_date_window(
+            "sent 2/29 friday", today=datetime.date(2028, 3, 6)) == (
+            "2028-02-29 00:00:00", "2028-03-01 00:00:00")

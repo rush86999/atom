@@ -974,6 +974,9 @@ async def fetch_fresh_data_section(
                 plan,
                 user_id,
                 context={
+                    # Current ask ahead of history (same shape as the chat
+                    # path): the stated-date window reads it from here.
+                    "message": message,
                     "history": history,
                     **({"canvas": {
                         "title": canvas.get("title"),

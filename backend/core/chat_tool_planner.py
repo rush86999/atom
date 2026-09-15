@@ -965,11 +965,28 @@ async def plan_tool_use(
 
 
 def _current_message_text(context: Optional[Dict[str, Any]]) -> str:
-    """The user's current message, from the hydrated history tail (last
-    user-role entry). Empty when history is unavailable."""
-    for entry in reversed((context or {}).get("history") or []):
-        if isinstance(entry, dict) and entry.get("role") == "user":
+    """The user's current message. The explicit context ``message`` when the
+    caller threaded it — both executor entry points build the context BEFORE
+    this turn lands in any history (session history is written after the
+    response), so the tail alone cannot see the current ask. Otherwise the
+    most recent user entry from the history tail: role-shaped hydrated
+    entries, or session-shaped ``{message, response}`` entries via the
+    message side only — the response is the assistant's echo (same rule as
+    _latest_user_figure_phrases). Empty when nothing is available."""
+    ctx = context or {}
+    msg = str(ctx.get("message") or "").strip()
+    if msg:
+        return msg
+    for entry in reversed(ctx.get("history") or []):
+        if not isinstance(entry, dict):
+            continue
+        role = str(entry.get("role") or "").lower()
+        if role and role != "user":
+            continue
+        if role == "user":
             return _entry_text(entry)
+        if "message" in entry:
+            return str(entry.get("message") or "")
     return ""
 
 
@@ -2028,12 +2045,14 @@ def _stated_date_window(
     def _bounds(y: int, m: int, d: int) -> Optional[Tuple[str, str]]:
         try:
             day = _dt.date(y, m, d)
+            if day > today:
+                # A Feb 29 rolling back into a non-leap past year is not a
+                # real stated date — None, exactly like Feb 30.
+                day = day.replace(year=day.year - 1)
         except ValueError:
             return None
-        if day > today:
-            day = day.replace(year=day.year - 1)
         start = day.strftime("%Y-%m-%d 00:00:00")
-        end = day.replace(day=day.day) + _dt.timedelta(days=1)
+        end = day + _dt.timedelta(days=1)
         return (start, end.strftime("%Y-%m-%d 00:00:00"))
 
     t = str(text or "")
@@ -2289,6 +2308,12 @@ async def _ingested_mailbox_lines(
     store_lines: List[str] = []
     import re as _re_addr
 
+    # STATED-DATE TIER (same handle as _mailbox_figure_lines): a date the
+    # user stated ("sent 9/11 friday") ranks the figure matches when the
+    # code matches many rows; the query rewrite keeps codes but drops the
+    # date, so the window comes from the current message.
+    _window = _stated_date_window(_current_message_text(context) or "")
+
     # FIGURE TOKENS LEAD: an amount or model code in the query is the most
     # specific evidence there is — it must not be crowded out of the cap by
     # address lines (live 2026-09-12: old Seguin thread lines filled the
@@ -2305,7 +2330,8 @@ async def _ingested_mailbox_lines(
     _inherited_figs: List[str] = []
     if _fig_tokens:
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2)
+            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2),
+            _window
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
@@ -2348,7 +2374,8 @@ async def _ingested_mailbox_lines(
     if _inherited_figs and len(store_lines) < cap:
         # Spare capacity only: the named participant's thread has had its pick.
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _inherited_figs, max(cap - len(store_lines), 2)
+            _search_ingested_by_tokens, user_id, _inherited_figs,
+            max(cap - len(store_lines), 2), _window
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
