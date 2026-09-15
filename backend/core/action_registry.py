@@ -618,6 +618,16 @@ _DOCUMENTS_CAT_SCHEMA = {
     "required": ["path"],
 }
 
+_DOCUMENTS_READ_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS leaf path (e.g. 'knowledge/documents/<id>/content.lines')"},
+        "start_line": {"type": "integer", "description": "1-based first line to return (default 1)"},
+        "max_lines": {"type": "integer", "description": "How many lines to return (default 200, max 2000)"},
+    },
+    "required": ["path"],
+}
+
 _DOCUMENTS_GREP_SCHEMA = {
     "type": "object",
     "properties": {
@@ -766,6 +776,40 @@ async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
     res = await provider.cat(path, _vfs_context(context))
     return {"success": True, **res.to_dict()}
+
+
+@register_action(
+    "documents.read",
+    description=(
+        "Read a BOUNDED region of any leaf, with paging metadata "
+        "(start_line/end_line/total_lines/next_start/complete). USE THIS for "
+        "long email threads, large workbooks, long PDFs and any file whose "
+        "size you do not know: read a window, then follow next_start. Prefer "
+        "it over documents.cat, which returns the whole artifact and can "
+        "exhaust your context. args: path, start_line (1-based), max_lines."
+    ),
+    parameters_schema=_DOCUMENTS_READ_SCHEMA,
+)
+async def _documents_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+
+    path = (args.get("path") or "").strip()
+    if not path:
+        return {"success": False, "error": "path_required",
+                "message": "args.path is required"}
+    start = max(int(args.get("start_line") or 1), 1)
+    span = int(args.get("max_lines") or 200)
+    span = max(1, min(span, 2000))
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider",
+                "message": f"No VFS provider for path '{path}'"}
+    region = await provider.read_region(path, start, span, _vfs_context(context))
+    return {"success": True, **region.to_dict()}
 
 
 @register_action(

@@ -124,6 +124,96 @@ def learning_history_ready() -> bool:
     return ready
 
 
+def readiness_report() -> dict:
+    """WHY auto mode has (or has not) activated — the numbers behind the flip.
+
+    ``auto`` is the default, so "is it on?" is a data question the operator
+    cannot answer from the mode string alone: on a fresh install it reads
+    ``auto`` while doing nothing, and the only signal that it flipped is a log
+    line. This reports the actual counts against the actual thresholds, so the
+    Settings surface can show "auto — waiting for data (1/30 rows, 0/2 models)"
+    instead of an opaque ``auto``.
+
+    Read-only and fail-soft: a query failure reports ``error`` rather than
+    raising, and never changes what the router decides.
+    """
+    report: dict = {
+        "mode": learning_router_mode(),
+        "enabled": None,
+        "ready": None,
+        "rows_in_window": 0,
+        "models_with_enough_observations": 0,
+        "thresholds": {
+            "min_rows": _LR_AUTO_MIN_ROWS,
+            "min_models": _LR_AUTO_MIN_MODELS,
+            "min_observations_per_model": _LR_AUTO_MIN_PER_MODEL,
+            "window_days": _LR_AUTO_WINDOW_DAYS,
+        },
+        "reason": "",
+    }
+    try:
+        from datetime import datetime, timedelta
+
+        from core.database import get_db_session
+        from core.models import LLMRoutingFeedback
+
+        cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+        with get_db_session() as db:
+            rows = (
+                db.query(LLMRoutingFeedback.model_id)
+                .filter(LLMRoutingFeedback.created_at >= cutoff)
+                .all()
+            )
+        per_model: dict = {}
+        for (model_id,) in rows:
+            per_model[model_id] = per_model.get(model_id, 0) + 1
+        qualified = sorted(
+            (n for n in per_model.values() if n >= _LR_AUTO_MIN_PER_MODEL),
+            reverse=True,
+        )
+        report["rows_in_window"] = len(rows)
+        report["models_with_enough_observations"] = len(qualified)
+
+        mode = report["mode"]
+        if mode == "false":
+            report["reason"] = "re-ranking is switched off manually (mode=false)"
+        elif mode == "true":
+            report["reason"] = "re-ranking is switched on manually (mode=true)"
+        elif (
+            report["rows_in_window"] >= _LR_AUTO_MIN_ROWS
+            and len(qualified) >= _LR_AUTO_MIN_MODELS
+        ):
+            report["reason"] = (
+                f"active — {report['rows_in_window']} observations across "
+                f"{len(qualified)} models; re-ranking by fabrication/quality history"
+            )
+        else:
+            missing = []
+            if report["rows_in_window"] < _LR_AUTO_MIN_ROWS:
+                missing.append(
+                    f"{report['rows_in_window']}/{_LR_AUTO_MIN_ROWS} observations"
+                )
+            if len(qualified) < _LR_AUTO_MIN_MODELS:
+                missing.append(
+                    f"{len(qualified)}/{_LR_AUTO_MIN_MODELS} models with "
+                    f">= {_LR_AUTO_MIN_PER_MODEL} observations each"
+                )
+            report["reason"] = (
+                "waiting for evidence — " + ", ".join(missing)
+                + f" in the last {_LR_AUTO_WINDOW_DAYS}d; static BPC ordering "
+                "until then (outcomes are recorded in every mode)"
+            )
+    except Exception as e:  # noqa: BLE001 — diagnostics must never raise
+        report["reason"] = f"readiness unavailable ({type(e).__name__})"
+
+    try:
+        report["ready"] = learning_history_ready()
+        report["enabled"] = learning_router_enabled()
+    except Exception:  # noqa: BLE001
+        pass
+    return report
+
+
 def learning_router_enabled() -> bool:
     """Whether re-ranking by learned satisfaction is active.
 

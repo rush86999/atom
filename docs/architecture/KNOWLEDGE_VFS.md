@@ -28,6 +28,46 @@
   — BM25 (FTS5/tsvector) + vector (LanceDB) fused by RRF. See
   [`AGENT_HYBRID_SEARCH.md`](./AGENT_HYBRID_SEARCH.md).
 
+## Bounded region reads (2026-09-15) — the general answer to "the artifact is
+## bigger than the context window"
+
+Every leaf is addressable **by region**, not just whole. `documents.read(path,
+start_line, max_lines)` returns a self-describing window:
+
+```
+{path, start_line, end_line, total_lines, next_start, returned_lines,
+ complete, content}
+```
+
+- `read_region` lives on the provider contract (`core/vfs_base.py`) with a
+  generic `cat`-then-slice default, so EVERY provider gains it; providers that
+  can seek override it (the knowledge provider reads the document once and
+  slices; the datasets provider renders only the requested window of a sheet).
+- `complete`/`next_start` make paging a loop the agent can drive: it always
+  knows whether it has seen the whole artifact and where to continue.
+- **grep citations carry a runnable read**: every match's snippet ends with
+  `[read: documents.read(path='…', start_line=N, max_lines=20)]`, and the hint
+  uses the SAME path as the citation so line numbers agree (a chunk id
+  resolves to that chunk; the parent id resolves to the assembled document).
+- Default `max_lines` is 200, hard-clamped to 2000 by the action layer, so no
+  read is unbounded.
+
+**Why**: the previous read surface was `cat` (everything) or `head`/`tail` (the
+ends). Agents therefore either exhausted their context or skipped the file —
+and a skipped file is what produced a fabricated `$8,880` derivation while the
+real row sat at line 315 of a 324-line workbook. The pattern (grep → read a
+region → page) is the one production agent filesystems use
+([Letta Filesystem](https://www.letta.com/blog/letta-filesystem/),
+[Claude Code offset/limit reads](https://github.com/ThamjiaHe/claude-code-handbook/blob/main/docs/claude-code-tips-and-tricks.md)).
+
+**Structured data**: `datasets/<group>/<sheet>/content.lines` is renderable the
+same way and its rows read `R<n> | col=value | …` with the sheet's REAL column
+names and row numbers, so a spreadsheet of hundreds (or thousands) of rows is
+grep → region read rather than a text dump. `query_data` remains the analytic
+surface for aggregates.
+
+---
+
 ## VFS contract (`core/vfs_base.py`)
 
 ```

@@ -165,8 +165,11 @@ def test_predictor_and_ema_both_contribute(ema_router, monkeypatch):
         model, req, weights, fake, {"x": 1.0}, ema_norm, max_spec_cost
     )
 
-    # Same inputs but EMA disabled: only base + predictor term.
-    monkeypatch.delenv("ATOM_EMA_ROUTER_ENABLED", raising=False)
+    # Same inputs but EMA explicitly disabled: only base + predictor term.
+    # NOTE: must be an explicit "0" — the flag is now administrable via the
+    # runtime-settings catalog whose default is ON (it is the carrier during
+    # predictor cold start), so an ABSENT env var no longer means "off".
+    monkeypatch.setenv("ATOM_EMA_ROUTER_ENABLED", "0")
     score_no_ema = ema_router._combined_model_score(
         model, req, weights, fake, {"x": 1.0}, ema_norm, max_spec_cost
     )
@@ -182,8 +185,16 @@ def test_predictor_and_ema_both_contribute(ema_router, monkeypatch):
 
 
 def test_ema_disabled_when_flag_off(ema_router, monkeypatch):
-    """ema_router_enabled() must honor the flag (default off)."""
-    monkeypatch.delenv("ATOM_EMA_ROUTER_ENABLED", raising=False)
+    """ema_router_enabled() must honor an explicit off.
+
+    The default is ON (catalog-administrable): EMA is the term that carries
+    ranking while per-model predictors are cold, so shipping it default-off
+    would make the documented cold-start handoff dead on a fresh install. The
+    master gate (ATOM_LEARNING_ROUTER, default off) is what keeps the whole
+    feature inert — this switch only decides whether EMA may contribute once
+    the master gate is on.
+    """
+    monkeypatch.setenv("ATOM_EMA_ROUTER_ENABLED", "0")
     assert ema_router_enabled() is False
 
 

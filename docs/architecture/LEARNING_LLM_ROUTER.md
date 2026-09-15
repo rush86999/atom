@@ -299,6 +299,51 @@ synthetic request into the stashed feature vector.
 > `ATOM_LEARNING_ROUTER=true` is also set, because the EMA state lives in the
 > learning-router singleton that the master gate controls.
 
+### Ranking contract: observed-good > unobserved > observed-bad (Sep 2026)
+
+Both switches are administrable via the runtime-settings catalog
+(*Learning & Verification*): `ATOM_EMA_ROUTER_ENABLED` defaults **ON** (it is the
+term that carries ranking during predictor cold start — shipping it default-off
+made the cold-start handoff above dead on a fresh install), while
+`ATOM_LEARNING_ROUTER` stays default **off** as the master gate, so the whole
+feature remains inert until explicitly enabled.
+
+Enabling the pair exposed a defect in how the live re-rank scored a model with
+**no** telemetry. It received `0.0` — the *same* score as a model whose every
+observed turn was a fabrication (success EMA `0.0`) — so the two tied, the stable
+sort fell back to BPC order, and the fabricator kept (or regained, since the
+in-memory EMA is rebuilt from DB history at process start) its BPC position.
+A recorded hallucination could therefore change nothing.
+
+The live path now ranks:
+
+| Candidate state | Score | Intent |
+|---|---|---|
+| Positive observation / trained predictor | `pred_term + (1-confidence) * EMA_WEIGHT * success` | evidence of good |
+| No telemetry at all | small positive rank gap `(N - idx) * 0.001` | neutral — keeps BPC order among unobserved peers |
+| Observed-bad (`success` EMA `0.0`) | `0.0` | evidence of harm |
+
+Two deliberate asymmetries, both needed for hallucination to steer routing:
+
+1. **A `0.0` EMA term counts as a learned signal.** Treating it as "no signal"
+   (the previous behavior) skipped the whole re-rank, so BPC order silently won.
+2. **A missing score is never filled from specs** on this path — the `route()`
+   path needs a finite score for a whole fleet, but its spec-quality fallback is
+   *positive for a fabricator too*, and is exactly what re-promotes a known-bad
+   model above an unobserved one. Success-only, and evidence-only: latency/cost
+   telemetry must never out-vote hallucination evidence, and a fast, cheap model
+   that invents figures is still a model that invents figures.
+
+Regression tests: `tests/unit/core/test_rerank_hallucination_rank_contract.py`.
+
+Companion mechanism: the **fabrication bench** (`_fabrication_benched`, see
+`byok_handler`) is a hard exclusion — ≥3 verdict-flagged fabrications
+(`user_satisfaction <= 0.15`) in 48h at ≥25% rate removes the pair from ranked
+candidates entirely. The bench acts on *accumulated* evidence and is independent
+of these flags; the EMA rank contract is what orders candidates below that
+threshold, so a fabricator is demoted from the first flagged turn instead of
+only after it crosses the bench.
+
 ## EMA-Guided Protocol Routing (Round 48)
 
 To address potential high-variance loops in pure ML-based routing, the router
