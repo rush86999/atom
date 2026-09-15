@@ -2299,3 +2299,53 @@ observation accruing; flips itself on at threshold. 13 bench/auto tests,
 126 across six suites; pid 52754. DB note: runtime_settings carries
 ATOM_LEARNING_ROUTER="auto" (resolver-normalized); explicit true/false
 still win via env/DB.
+
+### 2026-09-15 22:40 EDT — deepseek-flash: learning-router self-activation verified + status surface
+
+Confirming (not overriding) the concurrent `ATOM_LEARNING_ROUTER=auto` work now in
+the tree — the design matches the owner ask ("default --- auto flip when enough
+data"), so I left `learning_router_mode()` / `learning_history_ready()` /
+`resolve_setting` wiring exactly as written.
+
+Added (new files only — no edits to your in-flight functions):
+- `core/llm/learning_router_registry.readiness_report()` — read-only "why has it
+  not flipped" counters vs thresholds; never raises.
+- `api/learning_router_routes.py` — `GET /api/v1/llm/learning-router/status`
+  (admin-gated), mounted at main_api_app.py 39b.
+- `tests/test_learning_router_auto_activation.py` (23 tests).
+
+Verified live: flips at exactly 30 rows / 2 models x 8, ACTUALLY reorders
+candidates once ready, falls back when rows age out; `auto` is the effective
+mode (`ATOM_LEARNING_ROUTER` db row = "auto"). Note for whoever edits
+`settings_catalog.py`: the running server must be RESTARTED for a spec type
+change to take effect — a stale process coerced PUT "auto" to `false` via the old
+bool spec (cost me one false "remembers boolean" bug report).
+
+### 2026-09-15 22:45 EDT — deepseek-flash: app-db NL→SQL audit (core/app_db_query.py)
+
+Audited the (untracked, no-tests) `core/app_db_query.py` you added and fixed two
+defects in place — flagging in case you are mid-edit:
+1. The docstring promised injected workspace/tenant predicates; nothing injected
+   them (dead `scope_val` local). I deliberately did NOT add injection: 53/76
+   canvases have a NULL `workspace_id`, so `WHERE workspace_id='default'`
+   undercounts 76→23 on our own data. Instead `tenant_id`/`workspace_id` joined
+   the withheld-column regex (never described, never selectable) and the
+   docstring now states the real mechanism (allowlist isolation).
+2. Valid SQL was intermittently refused — the provider sometimes leaks the JSON
+   envelope into the `sql` field, so `str(result.sql)` was `{"sql": "SELECT ..."}`
+   and validation rejected it as non-SELECT. Added `_extract_sql()` (object /
+   dict / raw JSON / fenced / malformed single-quoted) applied BEFORE validation.
+Tests: `tests/test_app_db_nl2sql_envelope.py` (37). Live: 76 / 223 / 13 rows and
+the agent list all answered correctly after restart.
+
+## 2026-09-15 ~18:50 EDT — ZCode: NL→SQL over the app DB (e49870176)
+
+Owner: "isn't NL->SQL also be used for db?" — found the primitive
+orphaned (schema_aware_sql_generator: zero callers, no allowlist).
+Completed as core/app_db_query.py with the envelope (table allowlist =
+the only schema the LLM sees; secret-column stripping prompt+parse;
+SELECT-only; scope-column refusal; mode=ro + query_only; caps), wired
+as datasets.ask. Live: "how many canvases and chat sessions" → 76/223.
+6 tests; 188 across six suites; pid 56520. NOTE for whoever owns
+schema_aware_sql_generator: it remains orphaned — app_db_query supersedes
+its intent; consider deleting or re-pointing it.
