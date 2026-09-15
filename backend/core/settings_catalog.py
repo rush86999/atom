@@ -73,6 +73,7 @@ C_TRUST = "Trust Calibration"
 C_ONTOLOGY = "Ontology Drafts"
 C_ORG = "Org Politics"
 C_LEARN = "Learning & Verification"
+C_BUDGET = "Planner & Reply Budgets"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
 C_BPE = "BPE Agent Workspace"
@@ -297,6 +298,52 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "candidate ordering from the FIRST observation instead of after training. Only effective when "
       "ATOM_LEARNING_ROUTER is also on; the two together are the switch that lets observed "
       "hallucination steer BPC away from a model."),
+    # ── Planner & reply-leg budgets (TOOL_PLANNER_ROUTING.md §5/§7) ──
+    I("ATOM_CHAT_TURN_BUDGET_SECONDS", 95, C_BUDGET,
+      "Whole reply-leg budget in seconds (stream + non-streaming fallback + "
+      "guards). MUST stay below the chat client's 120s axios timeout. 0 = "
+      "unbounded (legacy)."),
+    I("ATOM_STREAM_FALLBACK_RESERVE_SECONDS", 40, C_BUDGET,
+      "Reserved for the non-streaming fallback: the primary stream's slice "
+      "is the remaining budget minus this, so a zero-visible-chunk reasoning "
+      "stream (finish_reason=length) cannot starve the fallback — which pins "
+      "model= to the next-ranked model."),
+    I("ATOM_EVIDENCE_BUDGET_CHARS", 18000, C_BUDGET,
+      "Deterministic ceiling on the injected evidence block. Header and "
+      "SQL/formula lines always survive; longest body lines elide first, "
+      "keeping their full:/open: citation paths."),
+    I("ATOM_PLANNER_CANVAS_CHARS", 700, C_BUDGET,
+      "Bounded canvas head injected into the tool-planner prompt (email "
+      "canvases; grid canvases project as schema+dimensions+samples "
+      "instead)."),
+    I("ATOM_PLANNER_INGEST_BUDGET_SECONDS", 10, C_BUDGET,
+      "Internal budget for the search-miss on-demand-ingest fallback — "
+      "strictly smaller than the 45s chat / 25s canvas lane budgets so the "
+      "fallback degrades to the miss path instead of blowing the caller."),
+    I("ATOM_SHEET_DATASET_TTL_HOURS", 6, C_BUDGET,
+      "Freshness TTL for materialized spreadsheet copies from SYNCED "
+      "sources. Email-attachment copies are immutable and exempt."),
+    I("ATOM_FABRICATION_BENCH_MIN_EVENTS", 3, C_LEARN,
+      "Fabrication bench: minimum recent fabrication verdicts "
+      "(user_satisfaction <= 0.15) before a model can be benched."),
+    F("ATOM_FABRICATION_BENCH_RATE", 0.25, C_LEARN,
+      "Fabrication bench: fabrication rate at/above which the model is "
+      "excluded from ranked candidates (with MIN_EVENTS)."),
+    I("ATOM_FABRICATION_BENCH_WINDOW_HOURS", 48, C_LEARN,
+      "Fabrication bench: lookback window for the rate."),
+    B("ATOM_FABRICATION_BENCH", True, C_LEARN,
+      "Master kill switch for the fabrication bench (hard exclusion of "
+      "verdict-flagged fabricators from ranked candidates — independent of "
+      "the learning router)."),
+    I("ATOM_LEARNING_ROUTER_AUTO_MIN_ROWS", 30, C_LEARN,
+      "AUTO mode: minimum verdict rows in the window before re-ranking "
+      "self-activates."),
+    I("ATOM_LEARNING_ROUTER_AUTO_MIN_MODELS", 2, C_LEARN,
+      "AUTO mode: minimum distinct models with enough observations."),
+    I("ATOM_LEARNING_ROUTER_AUTO_MIN_PER_MODEL", 8, C_LEARN,
+      "AUTO mode: observations per model for the model to 'qualify'."),
+    I("ATOM_LEARNING_ROUTER_AUTO_WINDOW_DAYS", 7, C_LEARN,
+      "AUTO mode: observation window in days."),
     SettingSpec("ATOM_LEARNING_ROUTER", "str", "auto", C_LEARN,
       "Re-rank BPC's candidate list by LEARNED per-model satisfaction. Signals include a FABRICATION "
       "term (unsupported figures / ungrounded claims score 0.1-0.15, below truncation and refusal), so "
