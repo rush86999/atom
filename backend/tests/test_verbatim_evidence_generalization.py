@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
+import core.chat_tool_planner as ctp
 import integrations.chat_orchestrator as co
 
 
@@ -149,3 +150,60 @@ class TestComposerMailLed:
             None, "LIVEBLOCK", mail)
         assert out.startswith("LIVE TOOL RESULTS (ingested mailbox")
         assert "LIVEBLOCK" in out
+
+class TestStatedDateWindow:
+    def test_slash_date_with_weekday_parses(self):
+        import datetime
+        today = datetime.date(2026, 9, 14)  # Monday
+        assert ctp._stated_date_window(
+            "find the email thread for f-5216. it was sent to me on 9/11 friday",
+            today=today,
+        ) == ("2026-09-11 00:00:00", "2026-09-12 00:00:00")
+
+    def test_month_name_and_weekday_forms(self):
+        import datetime
+        today = datetime.date(2026, 9, 14)
+        assert ctp._stated_date_window(
+            "the email from september 11", today=today
+        ) == ("2026-09-11 00:00:00", "2026-09-12 00:00:00")
+        assert ctp._stated_date_window("sent friday", today=today) == (
+            "2026-09-11 00:00:00", "2026-09-12 00:00:00")
+
+    def test_dimension_fractions_are_not_dates(self):
+        # '7/8-inch' without any day-word context must not become July 8.
+        import datetime
+        today = datetime.date(2026, 9, 14)
+        assert ctp._stated_date_window(
+            "check the 7/8-inch port spec", today=today) is None
+
+    def test_date_window_tiers_matches(self):
+        # Live shape: 'F-5216' matches 17 stored rows; the Sep 11 pair the
+        # user pointed at lost the newest-3 cap to Sep 14 traffic. The
+        # stated-date tier must lead with them.
+        rows = [
+            {"id": "m1", "sender": "a@x.ca", "recipient": "r@brennan.ca",
+             "subject": "old thread", "content": "F-5216 mentioned",
+             "timestamp": "2026-08-26 15:50:00", "metadata": ""},
+            {"id": "m2", "sender": "chandrakant@brennan.ca",
+             "recipient": "r@brennan.ca",
+             "subject": "Re: 52 Inch 16 Gauge Foot Shear",
+             "content": "F-5216 alternative, 2-3 weeks",
+             "timestamp": "2026-09-11 19:21:00", "metadata": ""},
+            {"id": "m3", "sender": "kurt@neimanmachinery.com",
+             "recipient": "r@brennan.ca",
+             "subject": "RE: 52 Inch 16 Gauge Foot Shear",
+             "content": "F-5216 hydraulic?",
+             "timestamp": "2026-09-11 20:36:00", "metadata": ""},
+            {"id": "m4", "sender": "chandrakant@brennan.ca",
+             "recipient": "r@brennan.ca",
+             "subject": "Re: Brake, Shear and Lock Former.",
+             "content": "F-5216 at 7519", "timestamp": "2026-09-14 15:38:00",
+             "metadata": ""},
+        ]
+        out = ctp._match_rows_by_figure_tokens(
+            rows, ["F-5216"], limit=3,
+            date_window=("2026-09-11 00:00:00", "2026-09-12 00:00:00"))
+        ids = [r["id"] for r in out]
+        # In-window rows lead (newest first); the cap then keeps the newer
+        # out-of-window thread — the Aug 26 row is correctly dropped.
+        assert ids == ["m3", "m2", "m4"], ids

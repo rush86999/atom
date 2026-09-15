@@ -1981,8 +1981,105 @@ def _fig_occurrence_in_fields(fields: List[str], phrase: str) -> int:
     return -1
 
 
+_WEEKDAY_NAMES = {
+    "monday": 0, "mon": 0, "tuesday": 1, "tue": 1, "tues": 1,
+    "wednesday": 2, "wed": 2, "thursday": 3, "thu": 3, "thur": 3,
+    "friday": 4, "fri": 4, "saturday": 5, "sat": 5, "sunday": 6, "sun": 6,
+}
+_MONTH_NAMES = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7,
+    "july": 7, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12,
+    "december": 12,
+}
+_STATED_DATE_MD_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})\b")
+_STATED_DATE_MONTH_RE = re.compile(
+    r"\b(" + "|".join(sorted(_MONTH_NAMES, key=len, reverse=True))
+    + r")\.?\s+(\d{1,2})\b", re.IGNORECASE)
+_STATED_DATE_WEEKDAY_RE = re.compile(
+    r"\b(" + "|".join(_WEEKDAY_NAMES) + r")\b", re.IGNORECASE)
+
+
+def _stated_date_window(
+    text: str, today: Optional["datetime.date"] = None,
+) -> Optional[Tuple[str, str]]:
+    """The (naive-ISO start, end) day bounds for a date the USER stated, or
+    None. Handles '9/11', 'september 11', 'sep 11', weekday names ('friday'
+    -> the most recent past one), 'yesterday', 'today'.
+
+    Live 2026-09-15 (canvas a1a13834): "find the email thread for f-5216.
+    it was sent to me on 9/11 friday" — the code matched 17 stored rows and
+    the newest-3 cap surfaced Aug 26 + Sep 14 threads while the Sep 11 rows
+    the user was pointing at lost the recency race. The stated date is a
+    ranking handle the lanes ignored entirely.
+
+    Conservative by construction: the bare M/D form counts only when the
+    message ALSO carries a weekday or explicit month/day word (so '7/8-inch'
+    in a port spec never becomes July 8); an M/D that lands in the future is
+    read as last year. Store timestamps are naive ISO ('YYYY-MM-DD HH:MM:SS');
+    comparisons are lexicographic on that shape."""
+    if not text:
+        return None
+    import datetime as _dt
+
+    today = today or _dt.date.today()
+
+    def _bounds(y: int, m: int, d: int) -> Optional[Tuple[str, str]]:
+        try:
+            day = _dt.date(y, m, d)
+        except ValueError:
+            return None
+        if day > today:
+            day = day.replace(year=day.year - 1)
+        start = day.strftime("%Y-%m-%d 00:00:00")
+        end = day.replace(day=day.day) + _dt.timedelta(days=1)
+        return (start, end.strftime("%Y-%m-%d 00:00:00"))
+
+    t = str(text or "")
+
+    m = _STATED_DATE_MONTH_RE.search(t)
+    if m:
+        bounds = _bounds(today.year, _MONTH_NAMES[m.group(1).lower()],
+                         int(m.group(2)))
+        if bounds:
+            return bounds
+
+    has_day_word = (
+        _STATED_DATE_WEEKDAY_RE.search(t)
+        or re.search(r"\b(?:yesterday|today)\b", t, re.IGNORECASE)
+    )
+    if has_day_word:
+        m = _STATED_DATE_MD_RE.search(t)
+        if m:
+            mm, dd = int(m.group(1)), int(m.group(2))
+            if 1 <= mm <= 12 and 1 <= dd <= 31:
+                bounds = _bounds(today.year, mm, dd)
+                if bounds:
+                    return bounds
+        mw = _STATED_DATE_WEEKDAY_RE.search(t)
+        if mw:
+            wd = _WEEKDAY_NAMES[mw.group(1).lower()]
+            delta = (today.weekday() - wd) % 7 or 7 if today.weekday() != wd else 0
+            if delta == 0 and re.search(
+                    r"\b(?:yesterday|today)\b", t, re.IGNORECASE) is None:
+                delta = 7
+            day = today - _dt.timedelta(days=delta)
+            start = day.strftime("%Y-%m-%d 00:00:00")
+            end = (day + _dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+            return (start, end)
+        if re.search(r"\byesterday\b", t, re.IGNORECASE):
+            day = today - _dt.timedelta(days=1)
+            return (day.strftime("%Y-%m-%d 00:00:00"),
+                    today.strftime("%Y-%m-%d 00:00:00"))
+        return (today.strftime("%Y-%m-%d 00:00:00"),
+                (today + _dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00:00"))
+    return None
+
+
 def _match_rows_by_figure_tokens(
-    rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4
+    rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4,
+    date_window: Optional[Tuple[str, str]] = None,
 ) -> List[Dict[str, Any]]:
     """Rank comms rows whose subject/content/html body contains EVERY figure
     token (canonical form). The amount IS the evidence in vendor-cost
@@ -2119,12 +2216,28 @@ def _match_rows_by_figure_tokens(
         tier = 0 if min(positions) <= _FIGURE_OWN_TEXT_WINDOW else 1
         scored.append((tier, str(row.get("timestamp") or ""), row))
 
+    # STATED-DATE TIER (live 2026-09-15): the user's "sent 9/11 friday" is
+    # a ranking handle — when the code matches more rows than the cap, the
+    # in-window rows must lead regardless of recency (17 F-5216 rows fought
+    # over 3 slots and the Sep 11 pair lost to Sep 14 traffic). In-window
+    # rows drop one tier; every other ordering (own-text, newest-first)
+    # is preserved inside each tier.
+    if date_window:
+        w_start, w_end = date_window
+        scored = [
+            ((tier - 1) if (w_start <= ts[:19].replace("T", " ") < w_end)
+             else tier, ts, row)
+            for (tier, ts, row) in scored
+        ]
     scored.sort(key=lambda t: t[1], reverse=True)
     scored.sort(key=lambda t: t[0])
     return [r for _, _, r in scored[:limit]]
 
 
-def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> List[str]:
+def _search_ingested_by_tokens(
+    user_id, tokens: List[str], limit: int = 4,
+    date_window: Optional[Tuple[str, str]] = None,
+) -> List[str]:
     """Deterministic LanceDB lookup of ingested messages containing the
     query's figure tokens (amounts, model codes). Graph $search handles
     quoted currency amounts unreliably and relevance-buries them, so the
@@ -2138,7 +2251,9 @@ def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> Li
         return out
     try:
         for i, row in enumerate(
-            _match_rows_by_figure_tokens(_comms_store_records(), tokens, limit=limit)
+            _match_rows_by_figure_tokens(
+                _comms_store_records(), tokens, limit=limit,
+                date_window=date_window)
         ):
             out.append(
                 _ingested_line_from_row(
@@ -2989,7 +3104,12 @@ async def _mailbox_figure_lines(
         )
         if not figs:
             return []
-        return await asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, limit)
+        # The planner's query rewrite keeps the CODE but drops the user's
+        # stated date ('9/11 friday'); the current message is where the
+        # date lives.
+        window = _stated_date_window(_current_message_text(context) or "")
+        return await asyncio.to_thread(
+            _search_ingested_by_tokens, user_id, figs, limit, window)
     except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
         logger.debug(f"mailbox figure leg skipped: {e}")
         return []

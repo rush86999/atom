@@ -219,7 +219,7 @@ def test_figure_lines_lead_and_survive_address_flood(monkeypatch):
     with old thread lines; the amount match must still lead the listing."""
     fig_calls, addr_calls = [], []
 
-    def fake_tokens(user_id, tokens, limit=4):
+    def fake_tokens(user_id, tokens, limit=4, date_window=None):
         fig_calls.append(tokens)
         return ["- [ingested mailbox] From: joelseguin@seguinmach.com | FW: RFQ - Foot shear"]
 
@@ -582,7 +582,7 @@ async def _no_datasets(*_a, **_k):
     return None
 
 
-def _fake_fig_lines(user_id, tokens, limit=4):
+def _fake_fig_lines(user_id, tokens, limit=4, date_window=None):
     assert tokens, "the figure leg must receive the extracted amount"
     return ["- [ingested mailbox] From: joelseguin@seguinmach.com | FW: RFQ - Foot shear"
             " | received: 2026-08-26 14:06:28 | $ 5,350.00 – 10 % in stock"]
@@ -648,7 +648,7 @@ def test_mailbox_lines_query_figure_wins_over_history(monkeypatch):
     it."""
     calls = []
 
-    def fake_tokens(user_id, tokens, limit=4):
+    def fake_tokens(user_id, tokens, limit=4, date_window=None):
         calls.append(tokens)
         return []
 
@@ -745,7 +745,7 @@ def test_figure_search_gives_the_top_row_the_full_budget(monkeypatch):
     seen_caps = []
     long_body = "x" * 20000
 
-    def fake_match(rows, tokens, limit=4):
+    def fake_match(rows, tokens, limit=4, date_window=None):
         return [
             {"id": "m1", "sender": "joel@x.example", "recipient": "r@y.z",
              "subject": "FW: quote", "timestamp": "2026-08-26", "content": long_body,

@@ -680,6 +680,7 @@ async def _verbatim_mail_evidence(
             _distinctive_figure_phrases,
             _latest_user_figure_phrases,
             _search_ingested_by_tokens,
+            _stated_date_window,
         )
 
         # Resolve CURRENT handles before inheriting a previous turn's figures.
@@ -702,9 +703,14 @@ async def _verbatim_mail_evidence(
             # the scan walks every row's metadata. The old 8s budget silently
             # dropped the evidence exactly on the turns that needed it most,
             # so it is 15s here and the matcher itself was cut from 22s to
-            # ~8s (see _match_rows_by_figure_tokens).
+            # ~8s (see _match_rows_by_figure_tokens). A stated date
+            # ("sent 9/11 friday") tiers the matches: the user's date handle
+            # outranks recency when a common code matches many rows.
             return await asyncio.wait_for(
-                asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
+                asyncio.to_thread(
+                    _search_ingested_by_tokens, user_id, figs, 3,
+                    _stated_date_window(message),
+                ),
                 timeout=15,
             )
         # A missing explicit phrase is a miss for this request, not permission
@@ -725,7 +731,10 @@ async def _verbatim_mail_evidence(
         figs = _latest_user_figure_phrases(context)
         if figs:
             return await asyncio.wait_for(
-                asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
+                asyncio.to_thread(
+                    _search_ingested_by_tokens, user_id, figs, 3,
+                    _stated_date_window(message),
+                ),
                 timeout=15,
             )
         return []

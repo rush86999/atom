@@ -183,7 +183,7 @@ def test_verbatim_mail_evidence_finds_the_quoted_amount(monkeypatch):
 
     seen = {}
 
-    def fake_tokens(user_id, tokens, limit=4):
+    def fake_tokens(user_id, tokens, limit=4, date_window=None):
         seen["tokens"] = tokens
         return ["- [ingested mailbox] From: joelseguin@seguinmach.com | "
                 "FW: RFQ - Foot shear | $ 5,350.00 – 10 % in stock | "
