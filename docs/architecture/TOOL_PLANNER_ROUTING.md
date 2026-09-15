@@ -140,3 +140,48 @@ lane reads it from the execution context (stashed by
   `tests/test_explicit_web_research_floor.py`,
   `tests/test_identifier_search.py`,
   `tests/test_zoho_inventory_search.py`.
+
+## 7. The evidence compiler — long artifacts vs. the one-shot window
+
+The permanent architecture for the class "long email threads / attachments
+/ hundred-row grids lose context" (2026-09-15). Research-grounded: the 2025
+consensus is a HYBRID — RAG-style windowing (outline + match windows) to
+keep prompts lean, one agentic read-hop INSIDE the harness (the reply model
+stays no-tool-calling by contract), and structured decomposition for tables
+(never whole-grid dumps).
+
+Layers (all domain- and business-independent):
+
+1. **UNIFORM ADDRESSING** — every stored artifact is line-addressable via
+   the VFS (`knowledge/conversations/<id>`, `knowledge/documents/<doc>`),
+   attachments render with `open:` paths, workbook rows carry `R###`
+   addresses plus the original cell FORMULAS in dataset answers.
+2. **OUTLINE-FIRST PROJECTION** — grid canvases (xlsx/csv/HTML tables,
+   hundreds of rows) project as schema + dimensions + sample rows
+   (`_grid_canvas_outline`); the full grid stays reachable through the
+   datasets/documents lanes. Long threads keep head + match windows.
+3. **FIGURE-VALUE PROBES + CO-OCCURRENCE RANKING** — when an artifact
+   spells a product by dimensions, codes cannot match; the conversation's
+   integer-part figure tokens (5350/7519) probe the catalog, and hit files
+   rank by how many OTHER conversation figures their rows carry on clean
+   cell boundaries.
+4. **NL→SQL LAYER** — `answer_from_datasets` (DuckDB, column aliases,
+   formula footer) runs on the top-ranked file with the conversation's
+   figures as Stage-0 context; immutable-source attachments skip the
+   freshness TTL (a changed attachment is a new message, hence a new id).
+5. **AUTO-OPEN** — when the evidence block cites `full:`/`open:` paths and
+   the top line does not already carry the full body, the harness opens
+   the top citation once (bounded head+tail window) and appends it. The
+   one-hop answer to "the decisive line sits deeper in the cited
+   artifact".
+6. **EVIDENCE BUDGET** — `ATOM_EVIDENCE_BUDGET_CHARS` (default 18000)
+   caps the injected block at the single injection site: headers and SQL
+   lines always survive, longest body lines elide first with their paths
+   kept. Deterministic prompt ceiling — the per-lane caps summed
+   unpredictably and pushed heavy turns past the provider's in-window
+   ability.
+
+Failure-mode invariants: every layer is optional and fault-isolated (a
+miss leaves the previous layer's answer); citations (paths, rows,
+formulas) always survive trimming; no business vocabulary or filenames in
+code paths — incident names appear in comments only.
