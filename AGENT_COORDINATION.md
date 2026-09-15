@@ -2252,3 +2252,50 @@ re-ranking on near-empty data would be noise-dominated):
 ranked candidates; env-tunable thresholds; kill switch
 ATOM_FABRICATION_BENCH=0; 60s cache; fail-open; WARNING per transition.
 118 passed / 5 suites; backend pid 48325. Design: TOOL_PLANNER_ROUTING §8.
+
+## 2026-09-15 22:35 EDT — deepseek-flash: enabling hallucination-aware BPC routing (ACTIVE)
+
+Scope: `backend/core/llm/byok_handler.py` (`_rerank_with_learning` scoring
+contract), `backend/core/llm/learning_router_registry.py` +
+`backend/core/settings_catalog.py` (`ATOM_EMA_ROUTER_ENABLED` made
+administrable, default ON), `tests/unit/core/test_rerank_hallucination_rank_contract.py`
+(new), `tests/unit/core/test_ema_router_determinism.py` (2 stale expectations),
+`docs/architecture/LEARNING_LLM_ROUTER.md`, `docs/testing/TESTED_FILES_TRACKER.md`.
+
+Heads-up for anyone touching BPC routing:
+1. `ATOM_LEARNING_ROUTER` is now **true in the DB** (`source=db`) and
+   `ATOM_EMA_ROUTER_ENABLED` defaults ON — the live re-rank is no longer inert.
+2. The live re-rank's scoring contract is now explicit: **observed-good >
+   unobserved > observed-bad**. A no-telemetry model gets a small positive rank
+   gap `(N-idx)*0.001`; an observed-bad model (success EMA 0.0) scores 0.0. Do
+   not "simplify" this back to a single zero placeholder — a fabricator TIED
+   with unobserved models and a restart re-promoted it to the front (EMA is
+   rebuilt from `llm_routing_feedback` at process start).
+3. `_rerank_with_learning` deliberately has **no spec fallback** (unlike
+   `route()`'s `_ema_quality_term`): spec quality/latency/cost are positive for a
+   fabricator too. Success-only on that path.
+4. Any `probe/*` rows I wrote during verification are purged —
+   `llm_routing_feedback` holds real history only. Please keep synthetic probe
+   rows out of that table: the bench and the predictor both read it.
+
+Complements (does not replace) `586a8e6b8`'s fabrication bench: bench = hard
+exclusion at ≥3 flagged verdicts/48h, this = ordering from the first flagged
+turn. Backend restarted (pid 48722 → later restarts by others). No commits from
+this session (shared tree); `byok_handler.py` changes were swept into
+`586a8e6b8` by a concurrent session.
+
+## 2026-09-15 ~18:40 EDT (cont.) — ZCode: learning router AUTO (9a4a2a774)
+
+Owner: "flip should be automatic." ATOM_LEARNING_ROUTER is now tri-state,
+default AUTO: re-ranking self-activates at learning_history_ready()
+(≥30 rows/7d, ≥2 models, ≥8 obs each; env-tunable; fail-closed; 60s
+cache). KEY FIX beyond the flag: outcome observation was still gated by
+the old flag (byok's post-generation path returned early) — auto would
+have starved forever on fabrication-only rows; the accrual paths now use
+get_learning_router_instance(observe_only=True) and rows accumulate in
+every mode. byok's duplicate flag resolver removed (registry is the
+single source). Live: mode=auto, empty table → re-ranking safely OFF,
+observation accruing; flips itself on at threshold. 13 bench/auto tests,
+126 across six suites; pid 52754. DB note: runtime_settings carries
+ATOM_LEARNING_ROUTER="auto" (resolver-normalized); explicit true/false
+still win via env/DB.
