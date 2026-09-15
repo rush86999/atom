@@ -28,6 +28,25 @@ def test_current_message_text_reads_last_user_entry():
     assert _current_message_text({}) == ""
 
 
+def test_current_message_text_prefers_threaded_message():
+    # Both executor entry points build the context BEFORE this turn lands in
+    # any history (session history is written after the response), so the
+    # explicit message key is the only place the current ask exists.
+    ctx = {"message": "find the thread, sent 9/11",
+           "history": [{"role": "user", "content": "older ask"}]}
+    assert _current_message_text(ctx) == "find the thread, sent 9/11"
+
+
+def test_current_message_text_reads_session_shaped_tail():
+    # Session history entries are {message, response} with no role key; the
+    # response is the assistant's echo — message side only.
+    ctx = {"history": [{"message": "find the f-5216 thread",
+                        "response": "here is $7,519.00 ..."}]}
+    assert _current_message_text(ctx) == "find the f-5216 thread"
+    assert _current_message_text(
+        {"history": [{"response": "only the assistant echo"}]}) == ""
+
+
 def test_sanitize_graph_kql_quotes_mixed_alnum_tokens():
     from integrations.outlook_service import sanitize_graph_kql
 

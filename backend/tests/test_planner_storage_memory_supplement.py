@@ -716,6 +716,39 @@ class TestItemSearchQueryNet:
                 _plan("zoho_inventory", query="bandsaw"), "user-1", context=ctx)
         assert captured["query"] == "bandsaw WG-350DSAV"
 
+    async def test_inventory_query_net_drops_url_paths(self, mem_block):
+        # Live 2026-09-13 (canvas a1a13834): the canvas carried a brennan.ca
+        # product URL whose path matched the product-token shape (letters,
+        # digits, '/') — appended to the query it pushed the Zoho
+        # search_text past its 100-char cap and the live lookup 400'd on
+        # every rung. The item-search net must append CODES, not paths;
+        # storage searches keep paths (a URL IS searchable document text).
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success", "data": []}
+
+        # Mirrors the orchestrator's canvas context shape: the content
+        # dict is flattened to the top level (_entry_text only reads
+        # top-level string values).
+        ctx = {
+            "canvas": {
+                "title": "FW: RFQ - Foot shear",
+                "body": "See https://brennan.ca/ca/collections/sheet-metal-"
+                        "equipment/products/52-inch-16-gauge-foot-shear — "
+                        "$ 5,350.00 - 10 % in stock (Fintek F-5216)"},
+        }
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_inventory",
+                      query="$ 5,350.00 - 10 % in stock"),
+                "user-1", context=ctx)
+        assert "F-5216" in captured["query"]
+        assert "/" not in captured["query"]
+        assert "collections" not in captured["query"]
+        assert len(captured["query"]) < 100
+
     async def test_inventory_query_with_identifier_untouched(self, mem_block):
         # The net is a backstop: when the planner's draft already names the
         # code, nothing is appended (and the rewrite stays storage-only).

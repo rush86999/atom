@@ -62,7 +62,7 @@ def test_mailbox_lines_dedupes_addresses_across_query_and_history():
     calls = []
 
     with patch.object(planner, "_search_ingested_by_address",
-                      side_effect=lambda uid, addr: calls.append(addr) or []):
+                      side_effect=lambda uid, addr, limit=4, query="": calls.append(addr) or []):
         asyncio.run(planner._ingested_mailbox_lines(
             "u1", "jschulz@blumetric.ca quote",
             {"history": [{"message": "from jschulz@blumetric.ca"}]}))
@@ -114,7 +114,10 @@ def test_gmail_empty_and_no_mailbox_still_honest_dead_end():
             _plan("gmail", "nothing anywhere"), "u1", "default", context={}))
 
     assert "returned nothing usable" in block
-    assert "[ingested mailbox]" not in block
+    # The GROUNDING RULE boilerplate names '[ingested mailbox]' when it
+    # explains how to open full threads; the dead-end contract is that no
+    # mailbox LINE appears (live 2026-09-13 grounding-rule addition).
+    assert "- [ingested mailbox]" not in block
 
 
 def test_slack_execute_path_gets_the_same_supplement():

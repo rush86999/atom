@@ -6,6 +6,559 @@
 
 ---
 
+## Session 2026-09-14c (root causes: the searches that could not reach their thread)
+
+**Context**: the user pasted five live turns. Two of them were retrieval
+failures I could reproduce against the store.
+
+**Failure 1 — "check the email thread chandrakant forwarded to me about how
+list price was calculated for the foot shear" → "my search … came back
+empty".** Root causes, each verified:
+
+* The thread the user means is **`Re: 52 Inch 16 Gauge Foot Shear` /
+  `chandrakant@brennan.ca → kurt@neimanmachinery.com`, 2026-09-14 12:51**.
+  Its text carries `8,880`, `52T`, `81020` — and **zero occurrences of "list
+  price"**, so the user's conceptual wording and the artefact's wording do not
+  overlap.
+* Mailbox recall had exactly two deterministic legs: **figure tokens** and
+  **addresses**. The query had neither, and the conversation's only address
+  belonged to a *different* thread (Seguin), so both legs scanned the wrong
+  thing and the hybrid leg filled the block with unrelated documents.
+* `_rank_address_hits` was **newest-only**: a named participant resolves to an
+  address holding hundreds of messages, so "top 4" returned the four newest
+  and the described thread sat below the cap.
+* **The name itself was never resolved.** "chandrakant forwarded" names the
+  owner; nothing mapped a name to the store's address for it — despite every
+  chandrakant message being filed under one address (measured: 1,584 distinct
+  addresses, name→address index built in 0.01s).
+* A **latent `NameError`** in my own previous edit: `_rank_address_hits(…,
+  query=…)` referenced a `query` the signature did not declare, so every
+  address lookup raised and returned `[]` behind the fault-isolation. This is
+  why "fixes" can look applied and change nothing.
+
+**Fixes**: `_mailbox_code_lines()` (exact CODE scan over the mailbox, fed by
+both the query and the conversation), `_mailbox_code_tokens()` (identifier
+shape that includes `52T` and digits-only `81020`, excludes bare years and
+phone-shaped digit runs), `_code_boundary_hits()` (whole-word, so `81020` does
+not match inside `810200`), `_resolve_named_addresses()` +
+`_people_index()` (name→address from the store's own senders — **no roster in
+code**, per the identity-is-data invariant; generic mailbox local-parts like
+`email@`/`sales@` are excluded), and a **subject-overlap ranking tier** in
+`_rank_address_hits(query=…)` so a described thread outranks merely-newer mail.
+
+**Failure 2 — the figure scan's cost made the safety net miss.** The matcher
+was doing `str(row.get("metadata"))` **per row and per phrase** over a column
+that is 340 MB live (median 48 KB, max 35 MB/row): 13–22 s against a 15 s
+budget. Rewritten as a cheap-column pass first (subject + plain body — which
+resolves the overwhelming majority), then a gated html pass, with the probe
+kept **exactly as broad as the pass** (two narrower probes were tried and both
+silently dropped real matches: a canonical-only key is not a substring of
+`5,350.00`, and a case-sensitive probe missed uppercase html).
+**22 s → 4.2 s**, hits unchanged. Also removed the metadata clause from the
+address match (measured: all 3,777 rows matching an address in metadata also
+match it in sender/recipient/content — the clause changed no result).
+
+**Verified (live store)**
+* The foot-shear query now leads with `chandrakant@brennan.ca | Re: Brake,
+  Shear and Lock Former. | 2026-09-14 15:38:16`.
+* `find the email that said: put 25 percent only` → 0.9s, with the
+  chandrakant/kelbern thread in the lines (the verbatim phrase is not in the
+  stored copy; the agent's honest "not in the returned portions" answer was
+  correct).
+* Matcher: `5,350.00` 4.4s, `F-5216` 4.2s (was 13–22s); hits unchanged.
+* **125 passed** across the six affected suites (+5 new tests for the code
+  scan, boundary precision, name resolution, generic-word exclusion, and the
+  subject-overlap tier).
+
+**Not fixed here (separate failure from the same paste)**: `search for this
+one: $ 5,350.00 …` in a canvas whose action plan leads produced
+*"I couldn't reach the model I use to plan canvas edits"* — another session
+committed `29837d48e` for the canvas editor's fallback context.
+
+---
+
+## Session 2026-09-14b (closing the gaps: provenance, canvas context, matcher cost)
+
+**Context**: "close all gaps" + the question *"why was zoho inventory triggered
+for a dealer email selling his used shear?"*. Tracing it produced a better
+answer than the keyword story, and a generalized fix.
+
+**The real mechanism** (evidence, not inference):
+* ``plan_tool_use(message, history, user_id, llm_service)`` — the planner never
+  received the **canvas**, so it did not know an email was open beside the
+  chat. ``_history_transcript`` sends USER turns only, so all it saw was the
+  bare line ``search for this one: $ 5,350.00 - 10 % in stock``.
+* The catalog it read listed ``zoho_inventory`` **third of twelve**, ahead of
+  every mail tool, described as *"stock inventory — … and check what is in
+  stock"* — the only description mentioning stock, and the message ends
+  "in stock". The prompt's own rules pointed the same way ("stock/quantity
+  questions still go to the inventory app"; "value lookups without a named
+  source → datasets").
+* Replaying the planner on those exact inputs reproduced it: **old rules →
+  ``datasets.search``**; the production run → ``zoho_inventory.search``. Two
+  different wrong answers from one blind spot.
+
+**Gaps closed**
+
+1. **Provenance before planning (the generalized fix).** New
+   ``_provenance_menu()`` resolves *which ingested store already CONTAINS the
+   token the user quoted* and renders it into the planner's prompt as
+   evidence: ingested mail (with sender/subject/date of the matching messages)
+   and the dataset catalog. Decisive measurement — with the **pre-fix rule
+   set**, adding the provenance block flips the plan
+   ``datasets.search`` → **``memory.search``**. The evidence does the work,
+   not the wording.
+2. **The planner now sees the open canvas.** ``plan_tool_use(..., canvas=…)``
+   (and the repair pass) render ``_planner_canvas_block()``: type, title,
+   participants, subject and a hard-capped body head (``ATOM_PLANNER_CANVAS_CHARS``,
+   default 700) — identity, never enough to answer from the prompt.
+3. **Both planner call sites wired**: the overlapped task and the
+   non-overlapped fallback; the provenance probe is LAZY (started only when the
+   planner is awaited, so canvas-edit/action turns that answer first pay
+   nothing) and overlapped with the plan call it feeds.
+4. **The scan cost that made the safety net silently useless**: the figure
+   matcher went 22s → **2.9s** (2.7–4.6s across token shapes) with hits
+   unchanged, by canonicalizing subject/content once per row and gating on
+   those canonical strings, with a RAW metadata probe behind them.
+   Two wrong turns on the way are recorded in the code comments: a
+   canonical-ONLY gate is *narrower* than the pass and turned
+   ``test_match_rows_html_body_counts`` red (the amount lived only in
+   ``metadata.html_body``); canonicalizing 340 MB of metadata to make the gate
+   broader cost **35–88s**. The working shape is: canonicalize the two cheap
+   columns, compare canonical-to-canonical, then one raw substring probe on
+   metadata.
+5. **Repaired a concurrent session's import-order break**: a new
+   ``_LOCAL_STORE_SERVICES`` derived from ``_COMMUNICATION_SERVICES`` before
+   that tuple was defined — ``NameError`` at import, which took the planner
+   down module-wide. The tuple is now defined ahead of the block that consumes
+   it (comment left explaining why it must stay there).
+
+**Verified**
+* 108 passed across ``test_chat_tool_planner_figure_tokens`` (75, +9 this
+  session), ``test_chat_orchestrator``, ``test_vfs_long_thread_coverage``,
+  ``test_conversations_leg_and_vfs``.
+* Provenance menu on the live store: 5 messages, correct thread, 3.65s cold.
+* Planner A/B (same LLM, same inputs): pre-fix rules + provenance →
+  ``memory.search``; pre-fix rules alone → ``datasets.search``.
+* Live app: the user's message answers from Seguin's email (2026-09-14a run).
+
+**Known pre-existing (NOT from this work)**: ``comms_supplement`` +
+``storage_memory_supplement`` in one pytest process fails 24
+``TestItemSearchQueryNet`` tests — reproduced on HEAD without any of these
+changes. Reported, not touched (another session owns those files).
+
+---
+
+## Session 2026-09-14a (ROOT CAUSE: the pasted quote was routed to Zoho Inventory)
+
+**Context**: the user re-ran the canvas turn and got a *different* wrong answer —
+*"I attempted the live Zoho Inventory lookup for that item ($5,350.00 − 10%),
+but the search timed out…"* — for the message
+``search for this one: $ 5,350.00 - 10 % in stock``.
+
+**Root cause (from the log, not inference)**: ``tool plan executed:
+zoho_inventory.search:$ 5,350.00 - 10 % in stock``. The planner routed a line
+the user had **pasted out of a vendor email** to the inventory app because the
+quote contains the word *"stock"*, the live lookup failed inside the 45s lane,
+and the failure path replaced everything with a timeout notice — the mailbox
+was never consulted, so the reply was about the wrong system entirely.
+
+Two independent defects made that possible, and a third made the safety net
+useless:
+
+1. **The planner had no rule for pasted quotes.** Its prompt said
+   *"Stock/quantity questions still go to the inventory app"* with nothing
+   distinguishing *quantities on hand* from *"in stock" inside a vendor's
+   quoted line*. Fixed: a ``PASTED / QUOTED TEXT IS MAIL, NOT A CATALOG
+   QUERY`` rule — route quoted lines to ``memory``, not to zoho_inventory/a
+   CRM/the web, *even when the quote contains the word "stock"*.
+2. **Nothing verified the plan against deterministic mailbox evidence.** New
+   ``_verbatim_mail_evidence()``: a distinctive figure/model code in the
+   user's message that exists verbatim in the ingested mailbox IS a stored
+   message, so the scan runs **independently of the planner's choice**. When
+   it finds the row, that evidence LEADS the tool block and a failed live
+   lookup is demoted to a note (``_LIVE_LOOKUP_FAILED_NOTE``) that says
+   explicitly it does not affect the mailbox evidence — never again "your
+   item could not be found" because a *different* system timed out.
+3. **The evidence scan silently timed out.** ``_match_rows_by_figure_tokens``
+   measured **22s** over the live 7,149-row store, against an 8s helper
+   budget — so even the first fix would have returned nothing. Profiled and
+   cut to **2.7–7.7s**:
+   * a cheap pre-gate tests the decorated/bare spellings and the token's
+     longest digit run (``'350'`` for ``'5,350.00'``) with plain ``in``
+     against subject/content, then ONE probe against the raw metadata string
+     — no ``str()`` copy of a 48 KB median / 35 MB max column, no JSON parse,
+     no per-row canonicalization (the ungated gate itself cost 10s by
+     building strings for every row);
+   * a raw-spelling fast path (``_fig_occurrence_in_fields``) resolves most
+     rows without the character-by-character canonical walk, which stays as
+     the authority for ``5 350.00`` / ``5.350,00`` / ungrouped ``5350.00``;
+   * metadata is parsed once per row and each field canonicalized once,
+     instead of once per phrase.
+   The helper's budget is 15s and, critically, the scan now runs
+   **concurrently with the live lookup** (``asyncio.ensure_future``) so its
+   latency hides behind the lookup rather than adding to the turn.
+
+**Files**: ``backend/core/chat_tool_planner.py`` (planner rule, matcher,
+``_fig_occurrence_in_fields``), ``backend/integrations/chat_orchestrator.py``
+(``_verbatim_mail_evidence``, notes, overlap), ``backend/tests/test_chat_orchestrator.py``.
+
+**Verified**
+* Live end-to-end on the running app (pid 53235), the user's exact message →
+  **HTTP 200** and the reply answers from the mail: *"Found it … Joel Seguin,
+  Seguin Machinery Ltd (joelseguin@seguinmach.com), 'FW: RFQ - Foot shear',
+  received Aug 26, 2026, 2:06 PM … his exact words: '$ 5,350.00 – 10 % in
+  stock' … $5,350.00 − 10% = $4,815.00 … attachment
+  '18896-99_Fintek F5216 Foot Shear (1).doc'"*.
+* Helper against the live store: 3 evidence lines, correct thread, 10.5s cold
+  (now overlapped), ~2s warm.
+* Matcher: ``['5,350.00']`` 7.75s (was 22s), ``['F-5216']`` 2.67s, both-token
+  7.21s, hits unchanged.
+* 99 passed across the four affected suites, including 5 new tests (evidence
+  found independently of the plan, figure-less message skips the store,
+  fault isolation, the demoted-failure wording, and the planner rule itself).
+
+---
+
+## Session 2026-09-13k (fix-all: the concerns 13j recorded were fixed)
+
+**Context**: "fix all" — the delivery review (13j) closed five defects but
+explicitly recorded four open concerns plus a user-visible planner bug. All of
+them are now fixed on the same deliverable.
+
+**1. The documents/comms leg no longer materializes the table (the big one).**
+The projection ladder's fallback was ``to_arrow()`` + ``select`` because
+``lance`` is absent — which on the live comms store is **1.36 s and 3.07 GB**
+of Arrow (two 384-dim vector columns + ``metadata`` at a 49 KB/row median).
+LanceDB's own query builder projects *inside* the scan:
+
+| route | time | bytes |
+|---|---|---|
+| ``to_arrow().select()`` (old fallback) | 0.62 s | 3.07 GB |
+| ``search().select(cols).to_arrow()`` | 0.24 s | 34 MB (89x smaller) |
+| ``search().select(cols).to_batches(2000)`` | **0.16 s** | **65 MB peak** |
+
+``_projected_table`` now tries the query builder first, then ``to_lance``, and
+``_stream_rows`` reads in ``_VFS_SCAN_BATCH`` (2,000) batches — so a
+whole-store grep holds one batch, and a scan that trips the 20 s guard
+abandons at most one batch instead of leaving a thread that keeps
+materializing gigabytes after the caller was told it degraded.
+
+**2. ``invalidate_rows_cache()`` finally has a caller.** The VFS caches
+projected reads for 15 s; nothing cleared it on write, so the on-demand ingest
+fallback ("search missed → pull the message → re-run the search") would pull a
+message and immediately re-read a cache that predates it. Wired at the single
+row-write choke point — ``LanceDBMemoryManager.ingest_communication`` (which
+``ingest_batch`` delegates to) and ``ingest_generic_record`` — via a
+registry-resolved ``_invalidate_vfs_rows_cache()`` that only touches an
+already-constructed provider and never raises.
+
+**3. Planner-timeout fabrication (user-visible, live 2026-09-13).** The user's
+own turn: the overlapped canvas-edit plan took 31–38 s, the 25 s planner wait
+expired with **no plan**, no evidence block was injected, and the reply
+invented *"I attempted the live Zoho Inventory lookup … the search timed out"*
+— a lookup that never ran. ``chat_orchestrator`` now has
+``_planner_timeout_evidence()``: on a planner timeout with no plan it runs the
+**deterministic ingested-mailbox scan** (no planner, no integration, no LLM)
+and injects that evidence under the grounding rule — or, when there is
+nothing, an explicit ``_NO_LOOKUP_BLOCK`` forbidding the model from describing
+a search it did not run, naming a system it did not query, or reporting a
+timeout for a lookup that never started. Fault-isolated and 8 s-bounded (a
+fallback must not become the failure).
+
+**4. Native abort at interpreter exit — no longer reproducing.** The
+``recursive_mutex lock failed`` abort (lancedb 0.38 background-runtime race,
+exit 134 after an otherwise green run) was seen once in ~20 runs by 13j.
+After the streaming change (which removes the 3 GB transient allocation and
+its native churn) it did not reproduce in **6/6** runs of the VFS suite nor
+3/3 broader iterations. Recorded as *not reproduced since the memory fix*,
+not as "root-caused": it is a library-level exit race and no repo-side change
+targets it directly.
+
+**Files changed**: ``backend/integrations/vfs/knowledge_vfs.py``
+(``_projected_table``/``_stream_rows``/``_VFS_SCAN_BATCH``),
+``backend/integrations/atom_communication_ingestion_pipeline.py``
+(``_invalidate_vfs_rows_cache`` + 2 call sites),
+``backend/integrations/chat_orchestrator.py``
+(``_planner_timeout_evidence``/``_NO_LOOKUP_BLOCK`` + the timeout branch).
+
+**Verified**
+* Targeted suites: **106 passed** (``test_vfs_long_thread_coverage`` 16,
+  ``test_conversations_leg_and_vfs``, ``test_chat_tool_planner_figure_tokens``,
+  ``test_chat_orchestrator`` + the two covpush orchestrator suites).
+* Regression control in the SAME tree (files temporarily restored to HEAD for
+  the baseline, then re-applied): failure set **identical** apart from my new
+  tests — 86 baseline vs 82 fixed, the only "regression" being one test that
+  flips FAILED→ERROR from ordering, and the only "newly passing" being the five
+  tests this session added.
+* Live app (pid 76803): ``documents.grep`` for the incident figure → **6
+  matches in 0.27 s**; write-path invalidation verified against the live
+  provider (cache warm → hook → ``{}``).
+* New tests: 2 for streaming/projection (one asserts the full-table read is
+  never taken), 2 for cache invalidation (including that the hook is ON the
+  write path), 4 for the planner-timeout fallback (grounded evidence, honest
+  no-lookup note, fault isolation, no-user no-op).
+
+---
+
+## Session 2026-09-13j (delivery review — read-only subagent pass + authorized corrections)
+
+**Context**: pre-delivery review of the uncommitted VFS long-thread work
+(13h/13i) per the delivery protocol: one bounded review by a separate
+read-only reviewer agent with fresh context, then material findings fixed on
+the exact deliverable and affected checks rerun.
+
+**Confirmed defects fixed** (all `backend/integrations/vfs/knowledge_vfs.py`):
+
+1. **`_comms_total()` ran on the event loop with no timeout** — via
+   `_comms_table()` it could call `manager.initialize()` (embedder model
+   load) directly on the serving loop: the exact Aug-2026 init-stall freeze
+   the module's 20s guard exists to prevent, reachable whenever the scan
+   degraded and the pipeline was uninitialized. Now async, off-loop
+   (`asyncio.to_thread`), same `_COMMS_TIMEOUT_S` guard, degrades to 0.
+2. **Anchored grep patterns silently returned nothing**: the whole-text
+   fast-skip in `_cites_for_text` plus `re.IGNORECASE`-only compilation made
+   `^From:`-style patterns match only at the START of a message — every
+   mid-text line-anchored match was a false negative. Patterns now compile
+   with `re.MULTILINE` (line anchors agree with the per-line citation loop).
+3. **`modified="None"`**: `str(rec.get("timestamp") or None) or None` yields
+   the STRING `"None"` (truthy) for a missing timestamp — it now emits
+   `None`.
+4. **Projection fallback could silently return the FULL table** (vector +
+   metadata columns — the GB-scale materialization this reader exists to
+   avoid) when `select()` raised on a drifted schema. It now projects to
+   requested-∩-existing columns (logged), and raises otherwise so
+   `_vector_rows` degrades the call cleanly.
+5. **The truncation note claimed "newest first" without sorting** — physical
+   order is insertion order and backfills append older mail; listings now
+   sort by timestamp so the claim is true.
+
+**Test repairs in `tests/test_vfs_long_thread_coverage.py`**: removed a
+tautology assert (`… or True`), a dead `if False else` branch, and a no-op
+monkeypatch of a symbol that exists nowhere (`_COMMS_PIPELINE_INIT_DONE`);
+added tests pinning fixes 2 and 4 (anchored-pattern grep; real-pyarrow
+schema-drift projection). File now holds 13 tests.
+
+**Verified**: four targeted suites (long-thread coverage, conversations leg,
+figure tokens, covpush w36 oracle) **120 passed** (twice, stable) with the
+fixes in place; the in-flight planner-documents-VFS seam
+(`tests/test_planner_documents_vfs.py`, another session's WIP) still passes
+(24/24) against the corrected VFS.
+
+**Unresolved concerns (not fixed here — recorded for the next pass)**:
+documents-leg fallback materializes the full table before the client-side
+projection on this `lance`-less build (bounds: 20s timeout, transient RAM
+scales with store; installing `lance` or a `table.query()` projection removes
+it); a timed-out scan leaves its worker thread mid-materialization
+(orphan-thread pile-up on same-turn retries — pre-existing pattern, now
+full-table-sized); `invalidate_rows_cache()` has no callers yet (TTL is the
+only freshness mechanism); and one post-session native abort
+(`recursive_mutex lock failed` in lancedb 0.38 at interpreter exit, after a
+fully green run) was observed once in ~20 suite runs — library-level shutdown
+race, exit code 134 despite "all passed").
+
+**Addendum (post-review continuation, same day)**: the intermittent suite
+failures seen during verification correlate with concurrent pytest waves
+from the parallel session (full-suite and `-k vfs|planner` sweeps, against
+the shared scratch DB), not with code state — the fixed regions were
+byte-identical across flapping and green runs, and every failure vanished on
+isolated rerun. Final verification **147/147** across the five suites
+(long-thread coverage, conversations leg, covpush w36 oracle,
+planner-documents seam, figure tokens) passed WHILE those waves were still
+running. The coverage file now holds 16 tests (13 from this review + 3 added
+by the concurrent session, all green together).
+
+---
+
+## Session 2026-09-13i (long-thread work, round 2 — "visible and searchable", end to end)
+
+
+**Context**: the user repeated *"long email threads should be visible and
+searchable by agents"*. Round 1 (2026-09-13h) made the agent's VFS cover the
+whole mailbox; this round closes the parts that still stopped a user from
+SEEING it work.
+
+**What the logs showed (the user was testing live)** — `uvicorn_8001_restart.log`
+holds their real turns, and the fix from `8fe455f4e` already resolves the
+incident on the running app:
+
+> *Q:* "search the mailbox for the email quoting $ 5,350.00 – 10 % in stock.
+> Does that email come with the spec sheet?"
+> *A:* "Found it — the quote is in an email from **Joel Seguin
+> (joelseguin@seguinmach.com)**, subject **"FW: RFQ - Foot shear"**, received
+> **2026-08-26 14:06:28**, reading "$ 5,350.00 – 10 % in stock" … Yes, it has an
+> attached spec sheet: **18896-99_Fintek F5216 Foot Shear (1).doc** …"
+
+Two real gaps remained, both fixed here:
+
+1. **A clipped excerpt was still a dead end in the middle.** 3,395 of 7,009
+   stored messages exceed the 2,500-char cap, so a head+tail clip could hide the
+   exact middle being asked about. The **top-ranked matched row now renders its
+   WHOLE body** up to `_INGESTED_BODY_CAP_FULL` (default 32,000 chars ≈ 8k
+   tokens, `ATOM_INGESTED_FULL_BODY_CAP` / `_FULL_BODY_LINES`), which covers
+   **98.9% of the live store in full** (6,933/7,009) while deeper rows keep the
+   small cap. Beyond the cap the anchor window (`MATCH for '5,350.00' …`) and
+   the `full: knowledge/conversations/<id>` citation both survive — verified on
+   a synthetic 75k-char thread with the amount buried mid-quote.
+2. **Nothing told the agent how to expand an excerpt.** The shared
+   `_GROUNDING_RULE` attached to EVERY tool block now states that mailbox lines
+   are excerpts running to tens of thousands of chars and names the expansion
+   tools (`documents.cat(path + '/content.lines')`, `documents.head/tail`,
+   `documents.grep` over `knowledge/conversations`) — with "never conclude a
+   figure is 'not ingested' from an excerpt alone". `search_communications`
+   results also gained `content_chars` + `full_path`, so even its 400-char
+   preview carries the route to the complete message.
+
+**Files (this round)**: `backend/core/chat_tool_planner.py` (committed as
+`8fe455f4e` by the repo curator — adaptive full-body budget, `full:` citation
+already in round 1), `backend/core/action_registry.py` (`content_chars` +
+`full_path` on `search_communications`), plus the VFS work of 2026-09-13h.
+
+**Verified**: 100 passed across `test_vfs_long_thread_coverage`,
+`test_chat_tool_planner_figure_tokens`, `test_conversations_leg_and_vfs`,
+`test_chat_tool_planner_address_rank`, `test_chat_tool_planner_comms_supplement`
+(+9 new tests this round). Broad `-k "vfs or knowledge or conversations or
+planner…"` run: failure set **identical** to the HEAD baseline (157 IDs each;
+one test flips FAILED↔ERROR from ordering, no new failures). Live store:
+`grep '5,350'` mailbox → 6 hits with line numbers; documents → 4 (was 0);
+`ls` → 2,001 nodes with sender/subject/size + truncation note; `search_communications`
+now returns `full_path` for every hit.
+
+**Known limitation (separate bug, not visibility)**: one of the user's live turns
+died because the **tool planner timed out** during a slow canvas-edit plan
+(`tool planning skipped: TimeoutError()`) and the fabricator then invented a
+Zoho Inventory lookup — the mailbox leg never ran. Recorded here so it is not
+mistaken for the long-thread work.
+
+---
+
+## Session 2026-09-13h (long email threads visible + searchable by agents)
+
+**Context**: follow-on ask from the canvas incident — "long email threads should
+be visible and searchable by agents". The figure fix (2026-09-13g) made the
+amount *match*; this makes the whole thread *reachable*.
+
+**Measured state of the store** (2026-09-13): `atom_communications` holds
+**7,009 messages**, median body 2,391 chars and **3,395 of them longer than the
+2,500-char excerpt cap** (longest 79,017 — a quoted thread). `documents` holds
+**39,085 rows**. The `metadata` column carries the full original HTML: median
+49 KB/row, **max 33.5 MB/row** — it must never be scanned for a search, and the
+two 384-dim vector columns add ~3 KB/row (3.0 GB of Arrow for the mail store).
+
+**Root causes (three, all silent head-window / init bugs in the agent's own
+knowledge VFS, `backend/integrations/vfs/knowledge_vfs.py`)**:
+
+1. **`grep` scanned only the first 200 messages and the first 1,000 documents.**
+   Coverage was **2.9% of the mailbox and 2.6% of the documents store** — a
+   figure or name living in message 5,000 / document chunk 30,000 could not be
+   found by ANY search the agent could run.
+2. **`ls knowledge/conversations` listed `table.head(200)`** — 97% of threads
+   were absent from the tree, and a truncated listing said nothing about it.
+3. **`cat <id>` could not resolve an id past the head window**: it fell back to
+   a kNN `where` read, which needs an embedder, and the ingestion writer stores
+   ZERO vectors when none is configured (the live log warns
+   *"No embedder available — comm vectors will be zeros"*), so even a known id
+   could come back empty. A fourth, latent bug: `_comms_table()` only called
+   `manager.initialize()` when `manager.db` was **already** set — but
+   `initialize()` is what opens the db, so a fresh process silently degraded
+   every conversation call to empty (reproduced: `ls` → 0 nodes while the store
+   held 7,009 messages).
+
+**Files changed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/integrations/vfs/knowledge_vfs.py` | `_vector_rows(store, columns, limit)` — ONE full-store, off-loop reader shared by both trees (`_comms_rows` delegates); column projection is CLIENT-SIDE (`.select` immediately after the `to_arrow()` fallback — the measured-state note above is the honest cost); `_grep_conversations` scans the whole mailbox with `_COMMS_CITES_PER_MESSAGE` per-message and `_COMMS_CITATION_CAP` total caps; `_grep_documents` scans the whole table (was `.slice(0, 1000)`); `_list_conversations` lists `_COMMS_LIST_LIMIT` messages and appends an explicit truncation **note** node; `cat`/`ls` resolve ids anywhere in the store; `_comms_table` initializes on demand | `tests/test_vfs_long_thread_coverage.py` (13) |
+| `backend/core/vfs_base.py` | `VFSNode.meta: Optional[Dict]` — a listing entry can carry sender/subject/body size (additive; every existing `VFSNode(name,type,path)` call unchanged) | same |
+| `backend/core/chat_tool_planner.py` | `_ingested_line_from_row` stamps every mailbox evidence line with `full: knowledge/conversations/<id>` — the citable path to the COMPLETE body (`documents.cat`), so the 2,500-char excerpt is a context-budget choice, not a dead end | `tests/test_chat_tool_planner_figure_tokens.py` |
+
+**Verified (live store, this machine)**:
+* `grep '5,350'` over the mailbox → **6 citations** with exact line numbers, e.g.
+  `knowledge/conversations/AAMkADdl…HD_JL6AAA= L81 | $ 5,350.00 – 10 %  in stock`
+  (2.9 s for 7,009 rows); `grep '5,350.00'` over documents → **4 citations**
+  (3.1 s for 39,085 rows; this query previously returned **0**).
+* Chat evidence line now reads
+  `… | received: 2026-08-26 14:06:28 | full: knowledge/conversations/AAMkADdl… `
+  and `documents.cat` on that path returns the full 51-line body containing the
+  figure — round-tripped end to end.
+* `ls knowledge/conversations` → **2,001 nodes** (2,000 messages + honest
+  `(showing 2000 of 7009 messages …)` note) carrying
+  `sender | subject | size`, so a 7k-message mailbox is navigable.
+* Targeted suites: **112 passed** (`test_vfs_long_thread_coverage`,
+  `test_conversations_leg_and_vfs`, `test_chat_tool_planner_figure_tokens`,
+  `test_covpush_w36_oracle_vfs`).
+* Broad `-k "vfs or knowledge or conversations"` selection (89570 deselected):
+  failure set equal to the HEAD baseline up to ordering noise — 65 vs 73
+  pre-existing cross-file pollution failures, **zero new failures**; every
+  long-thread test passes (it fails on HEAD, which is the RED proof).
+
+**Not done / follow-ups**: messages are not grouped into threads (the store has
+no `conversation_id` column, and `metadata` is too large to parse per row for
+grouping — subject-based grouping would be a heuristic); the 2,500-char chat
+excerpt cap is unchanged on purpose (token budget) since the full body is now
+one `documents.cat` call away.
+
+---
+
+## Session 2026-09-13g (canvas agent could not find the Seguin $5,350 email)
+
+**Context**: canvas `a1a13834-7bb3-4b3b-91cf-e83a2287daf0` ("Quote for 52 Inch
+16 Gauge Foot Shear"). Five turns; turns 3–4 were the failure. The user asked
+for the vendor's original cost on the F-5216 and then literally pasted the
+target line — `search for this one: $ 5,350.00 – 10 %  in stock` — and the agent
+answered *"no email from joelseguin@seguinmach.com containing '$5,350.00' … may
+not be ingested yet"*.
+
+**Root cause (traced through `backend/logs/uvicorn_8001_restart.log`, the
+`agent_step_update` WS frames and the `agent_communications` store)**: the
+planner routed BOTH figure turns to `memory.search`
+(`{'tool': 'memory', 'params': {'intent': 'search', ...}}`, steps 1–2, turn at
+log line 1741692) — not to the `outlook` leg. The outlook leg had a
+deterministic ingested-mailbox figure scan; the memory lane had none. Its only
+mailbox legs were
+
+1. the hybrid hit list — whose 8-line cap it shares with unrelated document
+   hits (CPO 350 specs filled the real block), and
+2. an address scan — which only fires when a `user@host` appears in the query
+   or the last 6 history turns (this turn had the raw `$5,350.00 – 10%` line and
+   no address at all).
+
+So the block came back with no amount in it and the model, correctly refusing to
+invent a figure, told the user it must not be ingested. The email had been in
+`atom_memory/default/atom_communications` since 2026-08-26 14:06 — **the July
+Seguin thread's "$53,500.00" 10' shear was the false lead it surfaced instead**.
+
+**Files changed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/chat_tool_planner.py` | `_mailbox_figure_lines()` — one shared deterministic amount scan, inherited from the last USER turn when the query has no figure of its own; `_memory_search_block()` now guarantees it (computed once, handed to `_memory_hybrid_block(figure_lines=…)`, which prepends it ahead of the 8-line cap) | `tests/test_chat_tool_planner_figure_tokens.py` (+12) |
+| same | `_match_rows_by_figure_tokens()` now matches each field (subject/content/html) SEPARATELY: canonicalization erases separators, so `"Quote 52"` + `"5350.00 net"` fused to `52535000` and the digit-edge guard read it as the `$53,500` prefix case — a false negative on a genuine match | `test_field_boundary_does_not_create_a_digit_run` |
+
+**Regression found in the in-flight WIP and fixed**: the uncommitted
+digit-edge guard (`_canon_find`) had broken the documented
+separator-insensitivity — it escaped the RAW token (`5\,350\.00`) and searched
+the canonical digit string, so a comma-grouped token could never match a body
+rendering `5 350.00` / `5.350,00` / ungrouped `5350.00`. Four pre-existing tests
+went red on that WIP (`test_match_rows_separator_insensitive`,
+`..._cross_locale_amount_forms`, `..._newest_first_and_limit`,
+`..._tolerates_broken_metadata`); all green again now. Also pinned the
+own-text tier with a test (a newer reply that merely quotes the amount must not
+displace the original message).
+
+**Verified**:
+* `tests/test_chat_tool_planner_figure_tokens.py` **61 passed**.
+* Live store, real query: the memory lane's block now LEADS with
+  `From: joelseguin@seguinmach.com | FW: RFQ - Foot shear | received: 2026-08-26
+  14:06:28` and the first line of its body is the literal
+  `$ 5,350.00 – 10 %  in stock`; a follow-up `try the search again` inherits the
+  amount from the last user turn (assistant echoes of `$7,519.00` are skipped).
+* Combined planner suites: failure set **identical to the HEAD baseline**
+  (`comm` on failure IDs, 33 vs 33 — all pre-existing cross-file test pollution;
+  only-in-fixed set is empty).
+
+---
+
 ## Session 2026-09-11f (infer the goal for chat teaching)
 
 **Context**: "infer a goal for better UX maybe use LLM" — a `/teach` in chat
@@ -8306,3 +8859,27 @@ neighbor suites in the agents' runs. Pre-existing at clean HEAD (verified via
 throwaway worktree, NOT this wave): test_covpush_bigfour 5 (workflow/governance
 class), test_agent_marketplace_service::test_install_agent_handles_template_not_found
 (int(Mock) wiring), test_covpush_w90_core_services::TestW90AddDocument.
+
+## 2026-09-14 — Zoho live-lookup 400-abort root cause (canvas a1a13834, commit 924b70792)
+
+Files: `core/identifier_search.py`, `integrations/zoho_inventory_service.py`,
+`core/chat_tool_planner.py` (item-search net hunks only — the prompt/figure-matcher
+hunks in the working tree belong to the concurrent session), tests
+`test_identifier_search.py`, `test_zoho_inventory_search.py`,
+`test_planner_storage_memory_supplement.py`.
+
+Live evidence (read-only probes, token decrypted in-memory, DB opened `mode=ro`):
+Zoho `search_text` >=100 chars → HTTP 400 code 15 BEFORE auth (an invalid bearer
+gets the same code-15 first); org 110000796196 = Brennan Machinery Inc.; `F-5216`,
+`Fintek`, `foot shear`, `shear` return ZERO items via both search_text and
+name_contains (the quoted F-5216 is Seguin's stock, not a Brennan inventory item);
+`5216` matches 6 unrelated part codes, all zero stock.
+
+Verification: new tests RED on a HEAD worktree (10 failures), GREEN on the fix
+(identifier_search 27, zoho_inventory_search 34, planner_storage_memory_supplement
+38+1skip); commit tree re-verified in a throwaway worktree (97 passed). Neighbors:
+figure_tokens + covpush_w97 match HEAD except 2 pre-existing TestCheckStock
+network flakes (identical at HEAD worktree). Live end-to-end after
+restart_backend.sh: the incident message on canvas a1a13834 returns the grounded
+Seguin email reply (no timeout narrative); one earlier probe turn hit transient
+OpenRouter 429s (qwen3.8-flash upstream capacity) — environmental, unrelated.

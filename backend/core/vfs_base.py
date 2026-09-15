@@ -21,10 +21,14 @@ from typing import Any, Dict, List, Optional
 class VFSNode:
     """One entry in a directory listing."""
     name: str
-    type: str  # "dir" | "file"
+    type: str  # "dir" | "file" | "note"
     path: str
     size: Optional[int] = None
     modified: Optional[str] = None  # ISO timestamp
+    #: Extra structured context (sender / subject / body size for a message
+    #: listing). Optional so every existing ``VFSNode(name, type, path)`` call
+    #: keeps working untouched.
+    meta: Optional[Dict[str, Any]] = None
 
 
 @dataclass

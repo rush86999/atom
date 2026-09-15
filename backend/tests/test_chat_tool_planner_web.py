@@ -35,8 +35,12 @@ def test_platform_services_present_with_key(monkeypatch):
     # no external key); web tools stay Tavily-key-gated.
     # `datasets` is appended from HOST state (catalog non-empty), so pin it off
     # here — this test is about the key gate, not about dataset availability.
+    # `documents` (knowledge VFS) is env-flag-gated, default ON.
     monkeypatch.setattr(
         "core.chat_tool_planner._datasets_service_available", lambda: False
+    )
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: False
     )
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     assert _available_platform_services() == ["memory"]

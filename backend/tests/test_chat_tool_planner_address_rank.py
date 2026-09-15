@@ -112,7 +112,7 @@ def test_mailbox_lines_offload_keeps_loop_responsive(monkeypatch):
     import time
     import core.chat_tool_planner as planner
 
-    def slow_scan(user_id, address, limit=4):
+    def slow_scan(user_id, address, limit=4, query=""):
         time.sleep(0.4)
         return ["- [ingested mailbox] hit"]
 

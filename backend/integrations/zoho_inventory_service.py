@@ -371,6 +371,24 @@ class ZohoInventoryService(IntegrationService):
     # exists anyway.
     _MAX_SEARCH_CALLS = 5
     _MAX_CANDIDATES = 100
+    # Zoho rejects search_text AND name_contains values of 100+ chars with
+    # HTTP 400 code 15 — a pre-AUTH validation, so the failure masqueraded
+    # as an integration problem (live 2026-09-13: a 126-char planner query
+    # 400'd on every rung-of-the-full-query attempt).
+    _ZOHO_VALUE_CAP = 99
+
+    @classmethod
+    def _cap_search_value(cls, value: str) -> str:
+        """Clamp a search value to Zoho's length cap at a whitespace
+        boundary. Enriched queries (user phrase + identifier net) can run
+        past the cap; the full-query rung is best-effort anyway — the
+        ladder's per-token rungs carry the precision."""
+        value = (value or "").strip()
+        if len(value) <= cls._ZOHO_VALUE_CAP:
+            return value
+        head = value[: cls._ZOHO_VALUE_CAP]
+        cut = head.rfind(" ")
+        return head[:cut].strip() if cut > 0 else head
 
     async def _fetch_items_page(
         self, url: str, headers: Dict[str, str], organization_id: str,
@@ -385,7 +403,7 @@ class ZohoInventoryService(IntegrationService):
                 "organization_id": organization_id,
                 "per_page": self._MAX_CANDIDATES,
                 "page": 1,
-                search_param: value,
+                search_param: self._cap_search_value(value),
             },
         )
         response.raise_for_status()

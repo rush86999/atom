@@ -883,7 +883,23 @@ async def fetch_fresh_data_section(
                     # without evidence (pre-existing contract).
                     logger.debug(f"shared tool plan failed: {plan_err}")
                     return None
-            return await plan_tool_use(message, history, user_id, llm_service)
+            # Fallback (no shared task from the chat leg): the same
+            # context the orchestrator's pre-started plan gets — the open
+            # canvas and the provenance menu. Without these the editor's
+            # own plan routed blind (the planner-blindness family, live
+            # 2026-09-14 canvas a1a13834: a pasted vendor line planned into
+            # zoho_inventory). Bounded + fault-isolated: menu failure
+            # degrades to the pre-existing bare call.
+            try:
+                from core.chat_tool_planner import _provenance_menu
+
+                prov = await asyncio.wait_for(
+                    _provenance_menu(message, {"history": history}), timeout=6)
+            except Exception:  # noqa: BLE001 — menu is best-effort
+                prov = ""
+            return await plan_tool_use(
+                message, history, user_id, llm_service,
+                canvas=canvas, provenance=prov)
 
         def _resolved_plan_if_done() -> Any:
             """The shared plan's verdict when it landed just after our cap.
@@ -958,6 +974,9 @@ async def fetch_fresh_data_section(
                 plan,
                 user_id,
                 context={
+                    # Current ask ahead of history (same shape as the chat
+                    # path): the stated-date window reads it from here.
+                    "message": message,
                     "history": history,
                     **({"canvas": {
                         "title": canvas.get("title"),
@@ -1804,6 +1823,31 @@ class CanvasActionPlan(BaseModel):
     reply_all: bool = False
 
 
+# A send-imperative in PRESENT/IMPERATIVE voice aimed at the assistant.
+# Past-tense narration about OTHERS ("the thread chandrakant forwarded to
+# me"), and the noun "email" inside information asks ("check the email
+# thread … show it to me"), must not reach the action LLM: live 2026-09-15
+# (canvas a1a13834) the action planner filed a send_email proposal for that
+# exact question — three times — because "email"/"forwarded" matched its
+# verb list. Detector-gate only: it can suppress the (expensive, wrong)
+# action call; it never CREATES an action. Borderline phrasings simply fall
+# through to the LLM planner as before.
+_ACTION_IMPERATIVE_RE = re.compile(
+    r"(?:^|[.!?:;\n]\s*|,\s*(?:and|then)\s+|\bthen\s+|please\s+|"
+    r"(?:can|could|will|would)\s+you\s+(?:please\s+)?|"
+    r"(?:want|wanted|would\s+like)\s+to\s+)"
+    r"(?:send|email|forward|dispatch|fire\s+off|shoot\s+over|shoot\s+them)\b",
+    re.IGNORECASE,
+)
+
+
+def _message_asks_canvas_send(message: str) -> bool:
+    """True only when the message carries a send verb in imperative/
+    present-voice position. 'forwarded/sent' (past tense, third-party
+    narration) never counts."""
+    return bool(_ACTION_IMPERATIVE_RE.search(message or ""))
+
+
 _ACTION_SYSTEM = """You are the action planner for an AI co-editing panel.
 The user is chatting next to an OPEN canvas (its content is shown below).
 Decide whether their latest message asks you to PERFORM an external action
@@ -1852,6 +1896,12 @@ async def plan_canvas_action(
     facts ("send it with the current price") gets the same grounding the
     edit path has. Returns None on failure — caller falls through."""
     if llm_service is None or not canvas.get("canvas_id"):
+        return None
+    # DETERMINISTIC GATE (before any LLM spend): no send-imperative in the
+    # message, no action plan — questions about data ("check the email
+    # thread … show it to me") can never become send proposals. See
+    # _message_asks_canvas_send.
+    if not _message_asks_canvas_send(message):
         return None
 
     fresh_section = (fresh_data or "").strip()

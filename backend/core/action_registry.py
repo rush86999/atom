@@ -419,7 +419,19 @@ async def _search_communications(args: Dict[str, Any], context: Dict[str, Any]) 
                 "id": str(rec.get("id") or ""),
                 "app_type": rec.get("app_type"),
                 "timestamp": str(rec.get("timestamp") or ""),
+                # 400 chars is a CONTEXT budget, not the message: threads run
+                # to 79k chars live. ``content_chars`` + ``full_path`` tell the
+                # agent the excerpt is partial and resolve to the COMPLETE
+                # line-numbered body via documents.cat/head/tail — so a long
+                # thread is never a dead end (live 2026-09-13: the agent read a
+                # 400-char head of the Seguin quote thread and told the user the
+                # figure "may not be ingested yet").
                 "content": content[:400],
+                "content_chars": len(content),
+                "full_path": (
+                    f"knowledge/conversations/{rec.get('id')}"
+                    if rec.get("id") else ""
+                ),
             })
         return {"success": True, "query": query, "results": results}
     except Exception as e:

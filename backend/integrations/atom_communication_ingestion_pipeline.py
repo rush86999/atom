@@ -1036,6 +1036,7 @@ class LanceDBMemoryManager:
             
             # Update metadata
             self._update_metadata(data.app_type, 1)
+            self._invalidate_vfs_rows_cache()
             
             logger.info(f"Ingested communication {data.id} from {data.app_type}")
             return True
@@ -1098,6 +1099,7 @@ class LanceDBMemoryManager:
             
             # Update metadata
             self._update_metadata(record_data.app_type, 1)
+            self._invalidate_vfs_rows_cache()
             
             logger.info(f"Ingested generic record {record_data.id} ({record_data.record_type.value}) from {record_data.app_type}")
             return True
@@ -1299,6 +1301,32 @@ class LanceDBMemoryManager:
             return []
     
     METADATA_FLUSH_INTERVAL_SECONDS = 60
+
+    @staticmethod
+    def _invalidate_vfs_rows_cache() -> None:
+        """Drop the knowledge VFS's cached store reads after a WRITE.
+
+        The VFS caches projected whole-store reads for a short TTL (15s
+        default) because agents hit ls → grep → cat in one turn. Without this
+        hook a just-ingested message stayed invisible to the agent for the
+        rest of that window — the on-demand ingest fallback ("search missed →
+        pull the message → re-run the search") would pull a message and then
+        re-read a cache that predates it.
+
+        Resolves the provider from the VFS registry (not a fresh instance) so
+        it clears the cache the agent actually reads from, and only when a
+        provider has already been constructed — no registration side effects
+        from the write path. Never raises: ingestion must not fail because a
+        cache could not be cleared.
+        """
+        try:
+            from core.vfs_registry import get_provider
+
+            provider = get_provider("knowledge")
+            if provider is not None:
+                provider.invalidate_rows_cache()
+        except Exception as e:  # noqa: BLE001 — hygiene, never fatal
+            logger.debug(f"VFS rows cache invalidation skipped: {e}")
 
     def _update_metadata(self, app_type: str, message_count: int):
         """Update ingestion metadata (throttled).
