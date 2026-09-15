@@ -2040,3 +2040,19 @@ guard is message-wide, not proximity-based — "7/8-inch … he replied
 monday" tiers July 8; modal "may 4" reads as May 4; an incidental weekday
 ("Sun hydraulics") can beat the explicit one. Tier-only impact (reorder,
 never filter). Hardening needs proximity logic + its own recall tests.
+
+## 2026-09-15 ~07:30 EDT — ZCode: mentioned_date piggyback (705d9c8f7) — owner's design question answered in code
+
+Owner asked why the date parser is regex rather than a low-level LLM.
+Answer: a separate call pays latency+cost+failure-mode for coverage the
+EXISTING planner call can carry. Shipped the piggyback:
+ToolPlan.mentioned_date (lenient validator) + TODAY-IS prompt line +
+wiring into all three evidence paths (fresh overlay, reuse overlay via
+tool_plan_task.result(), memory lane via context stash). Window
+precedence: message regex > plan field > recency.
+
+Lesson for anyone editing the shared orchestrator/planner: inserting a
+nested try/except into a function whose whole body already lives in ONE
+outer try orphans the body into the except suite (happy path returns
+None implicitly — the suite caught it; production would not have).
+Check indentation depth of the WHOLE body after any try insertion.
