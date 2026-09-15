@@ -2056,3 +2056,35 @@ nested try/except into a function whose whole body already lives in ONE
 outer try orphans the body into the except suite (happy path returns
 None implicitly — the suite caught it; production would not have).
 Check indentation depth of the WHOLE body after any try insertion.
+
+## 2026-09-15 ~09:45 EDT — ZCode: "sent to me on that day by chandrakant" — directionality + anaphora + no-plan evidence (a74b18716)
+
+Owner turn reported: the reply attributed a supplier-bound email (To:
+edwin@schulermachinery.com — "did not find the attachment", about a
+LATHE) to the user and claimed "two things" (store truth: FOUR direct
+Chandrakant emails Sep 11). Root causes (log-verified): planner DECLINED
+(previous turn answered) → the overlay only ran on planned/reused paths
+→ model narrated from ambient memory. Fixes in
+`integrations/chat_orchestrator.py` (+ DSH's in-flight To: rendering in
+`_ingested_line_from_row` landed with this, credited — the model
+verifies recipient attribution against those lines):
+
+1. `_participant_mail_rows`: directional tiers — "by <name>" sender
+   match, "to me/us" recipient vs the acting user's cached
+   users-table email, stated-day window. Uniform-penalty-safe when the
+   identity is a dev artifact (admin@example.com): wrong identity
+   penalizes all rows equally = no discrimination change.
+2. Anaphoric dates: "that day" inherits the window from prior USER
+   turns.
+3. Evidence on every no-plan path: declined, clean-None, and the
+   planner-TIMEOUT path (handle-led `_verbatim_mail_evidence` first,
+   generic scan fallback — one DSH timeout test re-contracted to the
+   stronger contract).
+
+**Live-verified**: the same ask now returns the two "Fw: RFQ - Foot
+shear" forwards (To: rish@brennan.ca, 8:07 PM) with the quoted pricing
+history — 38% margin row 235, $700 freight, "put 25 percent only".
+156 passed. Probe turns pruned; session holds the owner's real history.
+Known env note: users.email=admin@example.com is a dev artifact — in
+provisioned installs the to-me tier discriminates; here it no-ops
+safely.
