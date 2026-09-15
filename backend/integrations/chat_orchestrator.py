@@ -15,7 +15,7 @@ import logging
 import os
 import re
 from enum import Enum
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
 from services.agent_service import agent_service
 
@@ -514,6 +514,133 @@ async def _planner_timeout_evidence(
     )
 
 
+# Mailbox local parts that are ROLE addresses, not people: a message word
+# like "sales" or "support" must not surface every row from those aliases.
+_GENERIC_MAILBOX_LOCAL_PARTS = frozenset({
+    "info", "sales", "noreply", "no-reply", "support", "admin", "contact",
+    "office", "marketing", "accounts", "billing", "service", "help",
+    "donotreply", "mail", "team", "hello", "enquiries", "inquiries",
+    "orders", "shipping", "receiving", "purchasing", "quotes",
+})
+# A participant name alone is not a mail ask — "schedule a call with
+# chandrakant" must not lead with his mailbox. The lane fires only when the
+# message also carries a communication referent.
+_PARTICIPANT_REFERENT_RE = re.compile(
+    r"\b(?:email|e-mail|mail|thread|message|inbox|forwarded|forward|fw\b|"
+    r"re\b|reply|replied|wrote|written|said|says|say|sent|send|quoted|"
+    r"quote|heard|told)\b",
+    re.IGNORECASE,
+)
+# Words too generic to rank a participant's rows by subject/content overlap.
+_PARTICIPANT_RANK_STOPWORDS = frozenset({
+    "the", "this", "that", "email", "thread", "message", "about", "from",
+    "forwarded", "forward", "sent", "check", "find", "search", "show",
+    "tell", "what", "when", "were", "was", "how", "why", "and", "for",
+    "with", "calculate", "calculated", "calculation", "please", "just",
+    "said", "quote", "quotes", "price", "list", "me", "you", "your",
+})
+
+
+def _participant_mail_rows(
+    message: str, limit: int = 4,
+) -> List[Dict[str, Any]]:
+    """Comms rows whose PARTICIPANT (sender/recipient) the user just named.
+
+    Live 2026-09-14 (canvas a1a13834): "check the email thread chandrakant
+    forwarded to me about how list price was calculated for the foot shear"
+    — the planner's query dropped the only deterministic handle the user
+    gave ("chandrakant"), and no lane could grip the rest: grep needs
+    verbatim strings, the address lane needs x@y.z, figure lanes need
+    amounts. The participant name is matched against the store's OWN
+    sender/recipient strings (local parts + display-name words), so no
+    name-entity guessing: if the store never saw the person, nothing fires.
+
+    Ranking among one participant's rows: subject/content overlap with the
+    message's other distinctive words ("foot shear") first, then newest —
+    "the thread about the foot shear" beats the same sender's unrelated
+    traffic. Pure scan of the two short columns; [] on anything."""
+    if not message or not _PARTICIPANT_REFERENT_RE.search(message):
+        return []
+    try:
+        from core.chat_tool_planner import _comms_store_records
+
+        rows = _comms_store_records()
+    except Exception:
+        return []
+    msg_l = (message or "").lower()
+    names: Dict[str, None] = {}
+    for row in rows:
+        for field in (row.get("sender"), row.get("recipient")):
+            val = str(field or "")
+            if "@" in val:
+                local = val.split("@", 1)[0].strip().lower()
+                if (
+                    len(local) >= 4
+                    and local not in _GENERIC_MAILBOX_LOCAL_PARTS
+                    and local.replace(".", "").replace("_", "").replace("-", "") in msg_l.replace(".", " ").replace("_", " ").replace("-", " ")
+                ):
+                    names[local] = None
+            disp = val.split("<", 1)[0]
+            for part in re.findall(r"[A-Za-z]{4,}", disp):
+                p = part.lower()
+                if p in msg_l:
+                    names[p] = None
+    if not names:
+        return []
+    overlap_words = [
+        w for w in re.findall(r"[a-z]{4,}", msg_l)
+        if w not in _PARTICIPANT_RANK_STOPWORDS
+    ]
+    scored: List[Tuple[int, str, Dict[str, Any]]] = []
+    for row in rows:
+        hay = f"{row.get('sender') or ''} {row.get('recipient') or ''}".lower()
+        if not any(n in hay for n in names):
+            continue
+        blob = f"{row.get('subject') or ''} {row.get('content') or ''}".lower()
+        overlap = sum(1 for w in overlap_words if w in blob)
+        scored.append((-overlap, str(row.get("timestamp") or ""), row))
+    # Two stable sorts (the _rank_address_hits pattern): newest first
+    # overall, then the overlap tier wins without disturbing it.
+    scored.sort(key=lambda t: t[1], reverse=True)
+    scored.sort(key=lambda t: t[0])
+    # Topic-anchored when any row shares the message's distinctive words;
+    # zero-overlap rows only fill a lane that found no anchor ("show me
+    # chandrakant's recent emails").
+    if any(t[0] < 0 for t in scored):
+        scored = [t for t in scored if t[0] < 0]
+    return [row for _o, _t, row in scored[:limit]]
+
+
+def _render_mail_rows(
+    rows: List[Dict[str, Any]], anchors: Optional[List[str]] = None,
+) -> List[str]:
+    """Comms rows -> the standard evidence lines (top row full-bodied)."""
+    if not rows:
+        return []
+    try:
+        from core.chat_tool_planner import (
+            _INGESTED_BODY_CAP_FULL,
+            _INGESTED_BODY_LINES,
+            _INGESTED_FULL_LINES,
+            _ingested_line_from_row,
+        )
+
+        return [
+            _ingested_line_from_row(
+                row,
+                with_body=i < _INGESTED_BODY_LINES,
+                anchors=anchors,
+                body_cap=(
+                    _INGESTED_BODY_CAP_FULL if i < _INGESTED_FULL_LINES else None
+                ),
+            )
+            for i, row in enumerate(rows)
+            if row.get("id")
+        ]
+    except Exception:
+        return []
+
+
 async def _verbatim_mail_evidence(
     message: str,
     user_id: Optional[str],
@@ -546,21 +673,53 @@ async def _verbatim_mail_evidence(
             _search_ingested_by_tokens,
         )
 
-        figs = _distinctive_figure_phrases(message) or _latest_user_figure_phrases(
-            context
-        )
-        if not figs:
+        # Resolve CURRENT handles before inheriting a previous turn's figures.
+        # Otherwise a bandsaw question displaces the next quoted-email lookup.
+        from core.chat_tool_planner import _mail_contains_phrases, _quoted_content_phrases
+
+        phrases = _quoted_content_phrases(message)
+        if phrases:
+            rows = await asyncio.wait_for(
+                asyncio.to_thread(_mail_contains_phrases, phrases), timeout=15,
+            )
+            lines = _render_mail_rows(rows[:3], anchors=phrases)
+            if lines:
+                return lines
+
+        figs = _distinctive_figure_phrases(message)
+        if figs:
+            # Measured on the live 7,149-row store: ~2s with the comms cache
+            # warm (the chat surfaces load it during the turn), ~8s cold —
+            # the scan walks every row's metadata. The old 8s budget silently
+            # dropped the evidence exactly on the turns that needed it most,
+            # so it is 15s here and the matcher itself was cut from 22s to
+            # ~8s (see _match_rows_by_figure_tokens).
+            return await asyncio.wait_for(
+                asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
+                timeout=15,
+            )
+        # A missing explicit phrase is a miss for this request, not permission
+        # to answer a previous question. The normal search still runs alongside.
+        if phrases:
             return []
-        # Measured on the live 7,149-row store: ~2s with the comms cache warm
-        # (the chat surfaces load it during the turn), ~8s cold — the scan
-        # walks every row's metadata. The old 8s budget silently dropped the
-        # evidence exactly on the turns that needed it most, so it is 15s here
-        # and the matcher itself was cut from 22s to ~8s (see
-        # _match_rows_by_figure_tokens).
-        return await asyncio.wait_for(
-            asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
-            timeout=15,
-        )
+        try:
+            lines = _render_mail_rows(
+                await asyncio.wait_for(
+                    asyncio.to_thread(_participant_mail_rows, message),
+                    timeout=15,
+                )
+            )
+            if lines:
+                return lines
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"participant evidence scan skipped: {e}")
+        figs = _latest_user_figure_phrases(context)
+        if figs:
+            return await asyncio.wait_for(
+                asyncio.to_thread(_search_ingested_by_tokens, user_id, figs, 3),
+                timeout=15,
+            )
+        return []
     except Exception as e:  # noqa: BLE001 — supplemental evidence, never fatal
         logger.debug(f"verbatim mail evidence scan skipped: {e}")
         return []
@@ -577,6 +736,41 @@ _LIVE_LOOKUP_FAILED_NOTE = (
     "unfinished live check only as a secondary note — never present it as the "
     "reason the item could not be found."
 )
+
+
+def _compose_lookup_evidence(
+    message: str, plan: Any, live_block: Optional[str], mail_lines: List[str],
+) -> Optional[str]:
+    """Keep source discovery distinct from confirmation of current records.
+
+    Shared by fresh and reused lookups. A code match in an old email does
+    not make that email authoritative for today's warehouse/CRM state.
+    """
+    if not mail_lines:
+        return live_block
+    from core.chat_tool_planner import _quote_lookup_shape, _with_grounding
+
+    if _quote_lookup_shape(message):
+        note = live_block or _LIVE_LOOKUP_FAILED_NOTE.format(
+            service=getattr(plan, "service", None) or "integration")
+        return _with_grounding(
+            "LIVE TOOL RESULTS (ingested mailbox — source of quoted message):\n"
+            + "\n".join(mail_lines) + f"\n\n{_MAIL_EVIDENCE_NOTE}\n\n{note}"
+        )
+    live = live_block or (
+        f"The live {getattr(plan, 'service', None) or 'integration'} lookup "
+        "could not complete; its current records are unverified."
+    )
+    return _with_grounding(
+        live + "\n\nHISTORICAL CORRESPONDENCE (ingested mailbox):\n"
+        + "\n".join(mail_lines)
+        + "\nThese messages establish what their senders said at the stated "
+        "dates. They cannot establish current availability or other current "
+        "record state. For a current-state question, use the live records "
+        "above; if the check failed or returned no matching record, say the "
+        "current state could not be verified. For a question about an email, "
+        "answer from the relevant message and cite its date."
+    )
 
 
 class ChatOrchestrator:
@@ -1122,7 +1316,7 @@ class ChatOrchestrator:
                     # Not an edit — is it an ACTION on the canvas ("send this")?
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
-                    _action_response = await self._try_canvas_action(
+                    _action_response = None if _shared_tool.get("canvas_planning_unavailable") else await self._try_canvas_action(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
                         shared_tool_state=_shared_tool,
@@ -1154,10 +1348,39 @@ class ChatOrchestrator:
                     prefetched_tool_block=_shared_tool.get("block"),
                     canvas_evidence_unavailable=bool(
                         _shared_tool.get("canvas_evidence_unavailable")),
+                    canvas_planning_unavailable=bool(
+                        _shared_tool.get("canvas_planning_unavailable")),
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
                 )
+                if _shared_tool.get("canvas_planning_unavailable"):
+                    # The edit classifier failed, not the search. Finish the
+                    # read-only answer here so CRM/task/action routing cannot
+                    # reinterpret a failed edit as a different mutation.
+                    response = {
+                        "success": bool(ai_response),
+                        "message": (ai_response or {}).get("content") or (
+                            "I couldn't complete this request. Nothing was changed."
+                        ),
+                        "session_id": session_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {"canvas_edit": {
+                            "canvas_id": _canvas_ctx.get("canvas_id"),
+                            "updated": False, "plan_unavailable": True,
+                        }},
+                        "model": (ai_response or {}).get("model"),
+                        "provider": (ai_response or {}).get("provider"),
+                        "suggested_actions": [], "requires_confirmation": False,
+                        "next_steps": [], "timestamp": datetime.now().isoformat(),
+                    }
+                    self._update_session(session, message, response,
+                                         {"primary_intent": "search_request", "confidence": 0.9})
+                    status = "success" if ai_response else "failed"
+                    await self._emit_agent_status(session_id, _trace_agent_id, _execution_id, status)
+                    self._finish_chat_execution(_execution_id, status, response["message"])
+                    return response
             finally:
                 if _tool_plan_task is not None:
                     if not _tool_plan_task.done():
@@ -1549,6 +1772,7 @@ class ChatOrchestrator:
         images: Optional[List[str]] = None,
         prefetched_tool_block: Optional[str] = None,
         canvas_evidence_unavailable: bool = False,
+        canvas_planning_unavailable: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1759,7 +1983,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # A canvas edit was DECLINED this turn (required live lookup
             # failed). The fallback reply must not claim the edit happened —
             # see core.chat_canvas_editor.canvas_no_edit_note.
-            if canvas_evidence_unavailable:
+            if canvas_planning_unavailable:
+                messages.append({"role": "system", "content": (
+                    "The canvas edit planner was unavailable. NO CANVAS EDIT OR "
+                    "ACTION WAS APPLIED. Answer the user's information request "
+                    "from the retrieved evidence normally. If they requested a "
+                    "change, explain that it was not applied. Do not claim a "
+                    "search failed merely because edit planning failed."
+                )})
+            elif canvas_evidence_unavailable:
                 try:
                     from core.chat_canvas_editor import canvas_no_edit_note
 
@@ -1866,9 +2098,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _step_n, step_type, action, observation, thought=thought,
                 )
 
+            from core.hallucination_config import get_verify_panel_mode
+
             try:
                 from core.chat_tool_planner import execute_tool_plan, plan_tool_use
-                from core.hallucination_config import get_verify_panel_mode
                 from core.verify_panel import verify_reply
 
                 if prefetched_tool_block:
@@ -1881,6 +2114,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.info(
                         "[stage-timing] tool exec: reused canvas-edit leg "
                         "block (singleflight) — no second plan/execute")
+                    # The reused block carries whatever the canvas-edit leg's
+                    # executor produced — the verbatim-mailbox overlay lives
+                    # in the fresh-exec branch below, so on canvas turns a
+                    # quoted figure/phrase/participant never led the
+                    # evidence (live 2026-09-14: the chandrakant
+                    # list-price turn reused the block and the participant
+                    # evidence never rendered). Same overlay, same gates —
+                    # nothing fires for handle-less messages.
+                    try:
+                        _reuse_mail = await asyncio.wait_for(
+                            _verbatim_mail_evidence(
+                                message, user_id,
+                                {"history": planner_history or history},
+                            ),
+                            timeout=15,
+                        )
+                    except Exception as _reuse_err:  # noqa: BLE001
+                        logger.debug(f"reuse-branch mail evidence skipped: {_reuse_err}")
+                        _reuse_mail = []
+                    if _reuse_mail:
+                        _tool_block = _compose_lookup_evidence(
+                            message, None, _tool_block, _reuse_mail,
+                        )
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
                     # model window): in retry-heavy sessions the original request
@@ -1971,21 +2227,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         except Exception as _mail_err:  # noqa: BLE001
                             logger.debug(f"overlapped mail evidence skipped: {_mail_err}")
                             _mail_lines = []
-                        if _live_block is None and _mail_lines:
-                            _live_block = _LIVE_LOOKUP_FAILED_NOTE.format(
-                                service=_plan.service
-                            )
-                        if _mail_lines:
-                            _tool_block = _with_grounding(
-                                "LIVE TOOL RESULTS (ingested mailbox — the "
-                                "workspace's OWN copy of the message the user "
-                                "quoted):\n"
-                                + "\n".join(_mail_lines)
-                                + (f"\n\n{_MAIL_EVIDENCE_NOTE}")
-                                + (f"\n\n{_live_block}" if _live_block else "")
-                            )
-                        else:
-                            _tool_block = _live_block
+                        _tool_block = _compose_lookup_evidence(
+                            message, _plan, _live_block, _mail_lines,
+                        )
                         _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                         await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                      _first_line or "no results")
@@ -3367,6 +3611,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 timeout=30,
             )
         except (CanvasPlanUnavailable, asyncio.TimeoutError) as e:
+            if shared_tool_state is not None:
+                shared_tool_state["canvas_planning_unavailable"] = True
+                shared_tool_state["canvas_evidence_unavailable"] = True
+                logger.warning("canvas edit planner unavailable; continuing with read-only answer")
+                return None
             # Planning infrastructure failed (LLM provider down / timeout).
             # Fall-through here is what produced the worst observed failure:
             # the intent router misfiled edit-shaped requests into

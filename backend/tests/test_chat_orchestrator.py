@@ -203,19 +203,29 @@ def test_verbatim_mail_evidence_finds_the_quoted_amount(monkeypatch):
 
 
 def test_verbatim_mail_evidence_skips_queries_without_a_figure(monkeypatch):
-    """No distinctive figure → no store walk at all (the common case)."""
+    """No handle (figure, quoted phrase, participant+referent) → no store
+    walk at all (the common case). Re-contracted 2026-09-14: the evidence
+    choke point grips more than figures now — "what did Sarah say about the
+    deadline" IS a mail ask and may scan (names resolve against the STORE,
+    so an unknown Sarah still returns []). Referent-free person mentions
+    ("schedule a call with chandrakant") must NOT scan."""
     import asyncio
 
     import core.chat_tool_planner as ctp
     from integrations.chat_orchestrator import _verbatim_mail_evidence
 
     def boom(*a, **k):
-        raise AssertionError("must not scan for a figure-less message")
+        raise AssertionError("must not scan for a handle-less message")
 
     monkeypatch.setattr(ctp, "_search_ingested_by_tokens", boom)
+    monkeypatch.setattr(ctp, "_comms_store_records", boom)
 
     assert asyncio.run(
-        _verbatim_mail_evidence("what did Sarah say about the deadline", "u1", {})
+        _verbatim_mail_evidence("what is the capital of France", "u1", {})
+    ) == []
+    assert asyncio.run(
+        _verbatim_mail_evidence(
+            "schedule a call with chandrakant tomorrow", "u1", {})
     ) == []
 
 
