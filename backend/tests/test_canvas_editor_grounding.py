@@ -135,6 +135,46 @@ async def test_fetch_failure_does_not_raise():
     assert fresh.needed and not fresh.ok and fresh.section == ""
 
 
+def test_action_planner_gated_on_send_imperative():
+    """Live 2026-09-15 (canvas a1a13834): "check the email thread chandrakant
+    forwarded to me about how list price was calculated … show it to me"
+    got a SEND_EMAIL proposal — three times — because "email"/"forwarded"
+    matched the action LLM's verb list. The deterministic gate skips action
+    planning entirely unless a present-voice send imperative exists; it
+    never creates actions, and borderline phrasings still reach the LLM."""
+    import asyncio
+
+    from core.chat_canvas_editor import plan_canvas_action
+
+    llm = MagicMock()
+
+    def boom(*a, **k):
+        raise AssertionError("action LLM must not run without an imperative")
+
+    llm.generate_completion = boom
+    llm.generate_structured_response = boom
+    canvas = {"canvas_id": "c1", "canvas_type": "email", "title": "Quote"}
+    # Question/narration shapes: gate blocks before any LLM spend.
+    for msg in (
+        "check the email thread chandrakant forwarded to me about how list "
+        "price was calculated for the foot shear and reverse engineer the "
+        "calculation and show it to me",
+        "is WG-350DSAV in stock?",
+        "find the email that said: put 25 percent only",
+    ):
+        out = asyncio.run(plan_canvas_action(msg, [], canvas, llm))
+        assert out is None, msg
+    # Imperative shapes still reach the LLM planner (mock returns a plan).
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    send_plan = CanvasActionPlan(
+        action="send_email", wants_action=True, to="mark@x.com")
+    llm.generate_structured_response = AsyncMock(return_value=send_plan)
+    out = asyncio.run(plan_canvas_action(
+        "send this to Mark please", [], canvas, llm))
+    assert out is not None and out.action == "send_email"
+
+
 @pytest.mark.asyncio
 async def test_fallback_plan_gets_canvas_and_provenance():
     """Without a shared plan task, the editor's own planner call must see
