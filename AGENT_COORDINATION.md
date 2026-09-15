@@ -2349,3 +2349,17 @@ as datasets.ask. Live: "how many canvases and chat sessions" → 76/223.
 6 tests; 188 across six suites; pid 56520. NOTE for whoever owns
 schema_aware_sql_generator: it remains orphaned — app_db_query supersedes
 its intent; consider deleting or re-pointing it.
+
+## 2026-09-15 ~19:15 EDT — ZCode: CI repair, test_routing_feedback_endpoint (this commit)
+
+ci/backend-tests red on runs 35032495444 / 35032508772 / 35033593177.
+Root cause: _rerank_with_learning now reads `learning_router._ema_scores`
+whenever the EMA flag resolves on (settings-catalog default ON), but
+TestRerankRoutingResultId's FakeLearningRouter predates that term — the
+re-rank raised AttributeError inside the non-fatal except, so
+_pending_routing_result_id was never stashed. Fix: fake mirrors the real
+router (`_ema_scores = {}`), matching the fake in
+tests/unit/core/test_rerank_hallucination_rank_contract.py. The 3
+TestOutcomeObservationHook failures in the same runs were already resolved
+by 76cc51bcd (response_quality fabrication branches). Verified: full CI
+pytest list locally → 550 passed / 1 skipped. No production code touched.
