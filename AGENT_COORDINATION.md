@@ -2189,3 +2189,49 @@ reasoning-blowout on it, no fallback window saves it. Candidate next
 levers: bench zero-visible offenders per-turn (byok ranking), or a
 compact-evidence mode (row-only, bodies as full: paths) for derivation
 turns.
+
+---
+
+## 2026-09-15 ~18:20 — fabrication is now a BPC/BYOK routing input
+
+**Agent**: DSH session. **Files**: `core/llm/response_quality.py`,
+`core/llm/learning_router_registry.py`, `integrations/chat_orchestrator.py`,
+tests. Backend restarted.
+
+The learning router already re-ranked BPC candidates by per-model satisfaction;
+its signal set (truncation/refusal/schema/empty/exception) simply had **no
+fabrication term**. Added:
+
+* quality issues `unsupported_figures` (0.1) and `ungrounded_claims` (0.15) —
+  scored BELOW truncation (0.3) and refusal (0.4), because fabricated output is
+  confidently wrong rather than visibly incomplete;
+* `record_fabrication_signal()` — the corrective observation, called by the
+  figure-grounding guard and the verify panel, attributed to the model that
+  PRODUCED the reply (the generation path records its own outcome before the
+  reply exists, so it cannot see this).
+
+⚠️ **The row is written even with `ATOM_LEARNING_ROUTER` off** — the flag gates
+re-ranking, not evidence. Flipping it on later should start from real
+fabrication history. Do not move the persistence behind the flag.
+
+## 2026-09-15 ~18:25 EDT — ZCode: the evidence compiler landed (83dd53713) — generalized, domain-independent
+
+Owner ask: permanent solution for long threads / any-file attachments /
+hundred-row Excel canvases, business-independent. Research pass (2025
+consensus: hybrid windowing + harness-side read hop + structured table
+decomposition) → TOOL_PLANNER_ROUTING.md §7 is the architecture;
+83dd53713 implements: evidence BUDGET (one ceiling at injection,
+headers/SQL survive, bodies elide with paths), AUTO-OPEN (harness opens
+the top cited VFS path once — the one-shot chaining gap), GRID CANVAS
+OUTLINES (200-row grid → ~400 chars of schema+samples), NL→SQL wired
+into the derivation lane with two blocker fixes (immutable-source
+freshness skip; search-hit source_kind vs catalog source resolution),
+and full domain-independence (verb-shape + figures-in-context trigger;
+no business literals in code paths). 275 passed / 9 suites; backend
+restarted pid 44338.
+
+**For DSH**: sheet_dataset_service gained `_IMMUTABLE_DATASET_SOURCES`
+(outlook/gmail/attachment) in `_copy_is_fresh` — attachment copies no
+longer TTL out; synced sources unchanged. Stage-0 probe results don't
+attach the FORMULAS footer (only the LLM-SQL path does) — worth adding
+if you own that stage.
