@@ -6,6 +6,160 @@
 
 ---
 
+## Session 2026-09-15b (the AGENT could not open an attached workbook)
+
+**Context**: "agent should be able to find the attachment as well". The
+F-5216 forward carries `PRICE VIPUL (6).xlsx` — the workbook whose row 235
+derives the $7,519 list price. The attachment was ingested; the agent could not
+reach it.
+
+**Chain, verified end to end**:
+* the forward (`chandrakant → rish`, 2026-09-11 20:07:31, "Fw: RFQ - Foot
+  shear") has attachment rows in `ingested_documents` whose `external_id` is
+  ``<message_id>:<attachment_id>`` — the parent id **is** that email's id
+  (proved by joining the id, not by timestamp proximity);
+* the workbook is ingested as **59 chunks** (`ext_c1f74b7fad81fa71596b5380::c0…c58`)
+  with **no row of its own**.
+
+**Two defects, both fixed**:
+
+1. **A chunked document could not be OPENED.** `documents.grep` walks chunk
+   rows, so it happily returned the chunk carrying `R235 … 7519` — while
+   `documents.cat('knowledge/documents/ext_…')` returned nothing, because the
+   LanceDB fallback resolved only an EXACT row id and the parent has none. Any
+   agent could therefore locate a spreadsheet row and be unable to open the
+   file it lives in. `_get_vector_doc` now assembles the whole
+   `{parent}::c<n>` family in **numeric** chunk order (`c10` after `c2`).
+   `cat` now returns **324 lines** containing `R235 … 7519.0`.
+2. **The listing line never said an email HAD attachments.** A new cached
+   index (`_mail_attachments_for`, built from `ingested_documents` by the same
+   `external_id` join, TTL-cached, fault-isolated) renders
+   `` | attachments: PRICE VIPUL (6).xlsx (open: knowledge/documents/ext_…/content.lines) ``
+   on the email's evidence line, so the agent knows a file came with the
+   message and has the exact path to open it.
+
+A third (smaller) change: the address ranker now counts a participant's
+attachment-bearing message as a relevance tier, so a forward is not buried
+under newer attachment-less mail from the same person.
+
+**Verified**: grep `F-52` → the chunk at `…::c57`; the line's attachment path
+→ `documents.cat` → 324 lines → `L315: R235 | F-52"x16G | … | 7519.0`. 139
+passed across the six affected suites (+4 tests: chunk assembly order, empty
+family, attachments rendered with openable paths, omitted when none).
+
+**Honest limitation**: the *email* itself is still hard to retrieve by
+phrasing — it is the 61st-newest of 3,356 participant messages and its subject
+("Fw: RFQ - Foot shear") shares no term with "how the list price was
+calculated". The fix makes the FILE (the actual evidence) reachable and
+citable; a future step would be a "messages with attachments from <person>"
+search lane.
+
+---
+
+## Session 2026-09-15a (the F-5216 list-price derivation — CORRECTS 2026-09-14d)
+
+**Correction first**: 2026-09-14d claimed the answer was the Tennsmith discount
+schedule's "25% 36T/52T" line. That was **wrong** — a different document that
+merely contains "52T" and "25%". The real derivation is the **forwarded email
+thread the user meant**, plus the workbook row it points at.
+
+**The thread** (Chandrakant → rish@brennan.ca, 2026-09-11 20:07, subj
+"Fw: RFQ - Foot shear" — an 8-hop forward of the whole Aug 26 chain):
+
+| hop | from | body |
+|---|---|---|
+| 9:46 AM | Chandrakant → Seguin | RFQ - Foot shear (36" or 52", shorter lead time) |
+| 7:35 PM | **Joel Seguin** | `$ 5,350.00 – 10 %  in stock` — the used/dealer price |
+| 10:27 AM | Chandrakant → Vipul | "CSA and freight" |
+| 8:00 PM | Vipul → Chandrakant | **"700 for freight and 0 csa"** |
+| 11:03 AM | Chandrakant → Poongodi, cc Vipul | **"Please check row - 235 / Vipul margin is 38% please check"** |
+| 8:42 PM | Vipul → Chandrakant, Poongodi | **"Put 25 percent only"** |
+
+**"row 235" is a REAL row**: the pricing workbook ingested as
+`outlook:PRICE VIPUL (6).xlsx`, where `R235` is **`F-52"x16G`** — the F-5216.
+Its EXACT cell formulas (from the materialized sheet's
+`*.parquet.formulas.json`):
+
+```
+G235 =F235*0.9          F 5,350        dealer/Seguin price
+I235 =H235+700          G 4,815        less the 10% dealer discount
+K235 =J235*1.02         I 5,515        + 700 freight, 0 CSA
+L235 =K235/0.87         K 5,625.30     + 2% warehouse
+M235 =L235/0.86         L 6,465.86     ÷ 0.87  (13% margin)
+N235 =ROUNDUP(M235,0)   M 7,518.44     ÷ 0.86  (14% margin)
+                        N 7,519.00  ←  LIST PRICE, as quoted
+```
+
+i.e. **LIST = ROUNDUP(((5350 × 0.9) + 700) × 1.02 ÷ 0.87 ÷ 0.86) = $7,519** —
+the `$7,519.00` in the Wayne Knott draft. `ROUNDUP` (not round) is why it lands
+on 7,519 rather than 7,518.
+
+**Open item, stated honestly**: Vipul's "put 25 percent only" (8:42 PM, AFTER
+Chandrakant's 38% flag) does not reconcile with the workbook's `/0.87 /0.86`
+(= 13% / 14% margins): a 25% margin would give `5625.30 / 0.75 = 7,500.40 →
+7,501`. The row as ingested produces 7,519, so either the margin instruction
+was applied differently than the chain reads, or the shipped workbook is an
+earlier revision. Not guessed at.
+
+**Verified**: every hop above is present in the store with its exact wording;
+the formula chain was read from the spreadsheet's own formula map (not
+inferred); the arithmetic reproduces cell N235 exactly.
+
+---
+
+## Session 2026-09-14d (mailbox lines hid WHO a message was addressed to)
+
+**Context**: the user asked for the F-5216 thread sent on Friday 9/11. The agent
+found it correctly, then read a second message — *"From:
+chandrakant@brennan.ca | Hey, I did not find the attachment"* — and told the
+user **"Chandrakant sent you…"**, building a theory that "the calculation file
+never reached the mailbox".
+
+**Both claims were false**, and the store says so plainly:
+
+```
+ts      : 2026-09-11 12:50:09
+from    : chandrakant@brennan.ca
+to      : edwin@schulermachinery.com
+subject : Re: Enquiry about Lathe machine
+```
+
+It is Chandrakant telling a **supplier** the lathe brochure never arrived —
+nothing to do with the user, and nothing to do with a price calculation. The
+F-5216 thread itself (`chandrakant → kurt@neimanmachinery.com`, 2026-09-11
+19:21, plus Kurt's 20:36 reply) carries **no attachments at all**.
+
+**Root cause**: `_ingested_line_from_row` rendered
+``From: … | subject | received: …`` — **the recipient was never shown**, so
+every stored message looked addressed to the user, and the model reasoned from
+the sender alone. `direction` was available on the row and also unused.
+
+**Fix**: the line now carries ``| To: <recipient>`` (and ``direction:`` for
+outbound/internal rows).
+
+A first cut also added a derived "NOT ADDRESSED TO YOU" verdict from an owner-
+address heuristic; it was **removed** — the heuristic picked three brennan.ca
+members as owners and would have stamped ordinary colleague mail as third-party
+traffic. This is a shared team mailbox, so the verdict is unsound; the fact
+(``To:``) is what a knowledgeable reader needs.
+
+**Verified**: the offending message now renders
+``From: chandrakant@brennan.ca | To: edwin@schulermachinery.com | Re: Enquiry
+about Lathe machine | received: 2026-09-11 12:50:09``. 85 passed in the figure
+suite (+3 tests: recipient shown, outbound marked, legacy rows without a
+recipient still render).
+
+**Related finding (not a code defect) — SUPERSEDED by 2026-09-15a, which found
+the real derivation (the forwarded thread + `PRICE VIPUL (6).xlsx` row 235):
+the discount inputs the agent called
+"hard to pin down" ARE ingested — `Tennsmith Inc. Discount Schedule TNS-059
+PEXTO Connecticut July 2026.pdf` contains **"25%  36T - Tennsmith, 52T -
+Tennsmith"**, with the rule *"Distributor discounts are based on the
+recommended list prices in effect at the time of shipment"*, and
+`Tennsmith Inc. Price List TNS-059.docx` carries the model rows (`52T 81020`).
+
+---
+
 ## Session 2026-09-14c (root causes: the searches that could not reach their thread)
 
 **Context**: the user pasted five live turns. Two of them were retrieval

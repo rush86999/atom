@@ -111,9 +111,14 @@ def test_planner_timeout_injects_deterministic_mailbox_evidence(monkeypatch):
         )
     )
 
-    assert block and "5,350.00" in block
-    assert "LIVE TOOL RESULTS" in block
-    assert "no live integration lookup was attempted" in block
+    # Re-contracted 2026-09-15: the timeout path is HANDLE-LED first — a
+    # message carrying figures/phrases/participants resolves through the
+    # verbatim-evidence legs (mail-led, live-failure demoted to the trailing
+    # note) BEFORE the generic mailbox scan. Both contracts inject real
+    # evidence instead of a vacuum; the handle-led block is the stronger one.
+    assert block and "LIVE TOOL RESULTS" in block
+    assert "ingested mailbox" in block
+    assert "could not complete in time" in block
     assert "GROUNDING RULE" in block, "evidence must carry the grounding contract"
 
 

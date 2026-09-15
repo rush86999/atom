@@ -559,3 +559,14 @@ were otherwise invisible until a manual `PATCH {"is_active": true}`. See
 
 Admin surface: admin-gated `/api/v1/ontology-drafts/*` (`status`,
 `automation`, `run-now`, `pending`, `approve/{id}`, `reject/{id}`).
+
+## Tool Planner Routing & Reply-Leg Windows (Sep 2026)
+
+See [TOOL_PLANNER_ROUTING.md](../architecture/TOOL_PLANNER_ROUTING.md).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_CHAT_TURN_BUDGET_SECONDS` | `95` | Whole reply-leg budget (stream + non-streaming fallback + guards). 0/negative = unbounded. |
+| `ATOM_STREAM_FALLBACK_RESERVE_SECONDS` | `40` | Reserved for the non-streaming fallback: the primary stream's slice is the remaining budget minus this, so a zero-visible-chunk reasoning stream (finish_reason=length) cannot starve the fallback — which pins `model=` to the next-ranked model. |
+| `ATOM_PLANNER_CANVAS_CHARS` | `700` | Bounded canvas body head injected into the tool-planner prompt. |
+| `ATOM_PLANNER_INGEST_BUDGET_SECONDS` | `10` | Internal budget for the search-miss → on-demand-ingest fallback (strictly smaller than the 45s chat / 25s canvas lane budgets). |

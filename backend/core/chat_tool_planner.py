@@ -28,6 +28,7 @@ raising into the chat path.
 # import died with NameError.
 from __future__ import annotations
 
+import datetime as _dt_module
 import asyncio
 import logging
 import re
@@ -440,7 +441,12 @@ Rules:
   specific site). Only conclude "no lookup needed" when the answer is
   genuinely already present.
 - If the needed integration is NOT in the available list, use_tool=false and
-  say which integration is missing in `reason`."""
+  say which integration is missing in `reason`.
+- DATE EXTRACTION: when the user's latest message states WHEN something was
+  sent, received or happened ("sent 9/11 friday", "the august 26 quote",
+  "yesterday's email"), set mentioned_date to that date as YYYY-MM-DD,
+  resolved against TODAY (weekdays = the most recent past one). Omit the
+  field when no date is stated or resolvable. Never invent one."""
 
 # The planner does NOT pin a model — routing is BPC's job. Planning prompts are
 # tiny, so the call is SHAPED cheaply (``disable_reasoning=True``,
@@ -571,6 +577,50 @@ class ToolPlan(BaseModel):
     # low-confidence, or unrecognized.
     suggested_intent: Optional[str] = None
     routing_confidence: Optional[float] = None
+    # Date PIGGYBACK (2026-09-15): the planner reads the same message the
+    # date parser does — let it resolve messy relative expressions the
+    # regex cannot ('end of last month', 'two Tuesdays ago') at zero extra
+    # call cost. Optional by contract: absent/unparseable -> the regex
+    # parser and then plain recency, exactly as before this field existed.
+    mentioned_date: Optional[str] = None
+
+    @field_validator("mentioned_date", mode="before")
+    @classmethod
+    def _normalize_mentioned_date(cls, v: Any) -> Optional[str]:
+        # Lenient ISO coercion: models emit '2026-09-11', '9/11/2026' or
+        # bare '9/11' (resolved to the current year, last year if that
+        # lands in the future). Prose ('september 11') drops silently —
+        # the prompt asks for YYYY-MM-DD.
+        if v is None:
+            return None
+        import datetime as _dt
+
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace("/", "-")
+        try:
+            return _dt.date.fromisoformat(s[:10]).isoformat()
+        except ValueError:
+            pass
+        parts = s.split("-")
+        try:
+            if len(parts) == 3:
+                if len(parts[0]) == 4:  # YYYY-MM-DD
+                    day = _dt.date(int(parts[0]), int(parts[1]), int(parts[2]))
+                else:  # MM-DD-YYYY ('9/11/2026')
+                    day = _dt.date(
+                        int(parts[2]), int(parts[0]), int(parts[1]))
+            elif len(parts) == 2:
+                today = _dt.date.today()
+                day = _dt.date(today.year, int(parts[0]), int(parts[1]))
+                if day > today:
+                    day = day.replace(year=day.year - 1)
+            else:
+                return None
+        except ValueError:
+            return None
+        return day.isoformat()
 
     @field_validator("routing_confidence", mode="before")
     @classmethod
@@ -821,6 +871,7 @@ async def plan_tool_use(
     canvas_block = _planner_canvas_block(canvas)
     prompt = (
         f"{_PLANNER_SYSTEM}\n\n"
+        f"TODAY IS {_dt_module.date.today().isoformat()}.\n"
         f"Available tools:\n{catalog}\n\n"
         + (f"{canvas_block}\n\n" if canvas_block else "")
         + (f"{provenance}\n\n" if provenance else "")
@@ -1311,6 +1362,16 @@ def _rank_address_hits(
         )
         if participant and subject_hit:
             tier = 0
+        elif participant and _mail_attachments_for(str(row.get("id") or "")):
+            # A participant's message that CARRIES A FILE outranks their
+            # newer attachment-less mail when the request is about the
+            # forwarded artefact ("find the email the attachment came with",
+            # "how was the price calculated" — the number lives in the
+            # attached workbook). Live 2026-09-15: the Fw carrying
+            # `PRICE VIPUL (6).xlsx` sat below four newer chandrakant threads.
+            # Only consulted for participant rows, and the index is cached, so
+            # this costs one dict lookup per row in the common case.
+            tier = 0
         elif participant:
             tier = 1
         else:
@@ -1744,6 +1805,65 @@ def _fig_match_window(
     return None
 
 
+#: message_id -> [(file_name, doc_id)] for attachments ingested from mail.
+_MAIL_ATTACHMENTS: Dict[str, Any] = {}
+_MAIL_ATTACHMENTS_TTL_S = float(
+    os.getenv("ATOM_MAIL_ATTACHMENTS_TTL_S", "120") or 120
+)
+
+
+def _mail_attachments_for(message_id: str, limit: int = 4) -> List[tuple]:
+    """Attachments ingested from one email, as ``(file_name, doc_id)``.
+
+    Ingestion writes each attachment as an ``ingested_documents`` row whose
+    ``external_id`` is ``<message_id>:<attachment_id>`` — the same join the
+    F-5216 thread needs: its forwarded email carries **PRICE VIPUL (6).xlsx**,
+    the workbook whose row 235 derives the $7,519 list price. Without this the
+    listing line named no attachments, so an agent could read the email and
+    still have no way to know a file came with it (live 2026-09-15: the user
+    had to ask for the attachment explicitly).
+
+    One indexed query builds the whole map, TTL-cached; fault-isolated to {}."""
+    import time as _time
+
+    if not message_id:
+        return []
+    now = _time.monotonic()
+    hit = _MAIL_ATTACHMENTS.get("cache")
+    if not (hit and now - hit[0] < _MAIL_ATTACHMENTS_TTL_S):
+        table: Dict[str, List[tuple]] = {}
+        try:
+            from core.database import get_db_session
+            from core.models import IngestedDocument
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(
+                        IngestedDocument.external_id,
+                        IngestedDocument.file_name,
+                        IngestedDocument.id,
+                    )
+                    .filter(IngestedDocument.integration_id == "outlook")
+                    .all()
+                )
+            for ext, name, doc_id in rows:
+                parent = str(ext or "").split(":", 1)[0]
+                if not parent or not name:
+                    continue
+                table.setdefault(parent, []).append((str(name), str(doc_id or "")))
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"mail attachment index unavailable: {e}")
+            table = {}
+        _MAIL_ATTACHMENTS["cache"] = (now, table)
+        hit = _MAIL_ATTACHMENTS["cache"]
+    return (hit[1].get(str(message_id)) or [])[:limit]
+
+
+_ATTACH_FOOTER_RE = re.compile(
+    r"---\s*Attachments\s*---\n((?:- .+\n?)+)", re.IGNORECASE)
+_ATTACHMENT_ITEM_RE = re.compile(r"^- (.+) \(")  # greedy: names may contain (...)
+
+
 def _ingested_line_from_row(
     row: Dict[str, Any],
     with_body: bool,
@@ -1773,8 +1893,39 @@ def _ingested_line_from_row(
     reachable on demand rather than silently lost."""
     row_id = str(row.get("id") or "")
     cite = f" | full: knowledge/conversations/{row_id}" if row_id else ""
+    # WHO IT WAS ADDRESSED TO — always shown. Live 2026-09-14: the agent read
+    # "From: chandrakant@brennan.ca | Hey, I did not find the attachment" and
+    # told the user "Chandrakant sent YOU this", when the message was actually
+    # `To: edwin@schulermachinery.com` with subject "Re: Enquiry about Lathe
+    # machine" — a note to a supplier about a missing lathe brochure. The line
+    # carried only the sender, so every message in the mailbox looked addressed
+    # to the user, and the reply built an entire (false) theory on it ("the
+    # calculation file never reached the mailbox").
+    recipient = str(row.get("recipient") or "").strip()
+    direction = str(row.get("direction") or "").strip().lower()
+    # JUST THE FACT. An earlier cut added a "NOT ADDRESSED TO YOU" verdict
+    # from a derived owner-address list, which was WRONG here: this is a shared
+    # team mailbox (three brennan.ca members send and receive as principals),
+    # so messages to a colleague are normal To: lines, not third-party traffic.
+    # Showing To: is enough — a knowledgeable reader sees that
+    # `To: edwin@schulermachinery.com` was not sent to them.
+    addressed = f" | To: {recipient[:140]}" if recipient else ""
+    if direction in ("outbound", "internal"):
+        addressed += f" | direction: {direction}"
+    # ATTACHMENTS, with the path that opens each one. The email is often only
+    # the envelope: the number being asked about lives in the attached
+    # workbook (F-5216 thread → PRICE VIPUL (6).xlsx, row 235 → $7,519).
+    _atts = _mail_attachments_for(row_id)
+    if _atts:
+        rendered = "; ".join(
+            f"{name} (open: knowledge/documents/{doc}/content.lines)"
+            if doc else name
+            for name, doc in _atts
+        )
+        addressed += f" | attachments: {rendered}"
     line = (
-        f"- [ingested mailbox] From: {row.get('sender')} | "
+        f"- [ingested mailbox] From: {row.get('sender')}"
+        f"{addressed} | "
         f"{str(row.get('subject') or '')[:90]} | "
         f"received: {str(row.get('timestamp') or '')[:19]}"
         f"{cite}"
@@ -2096,6 +2247,24 @@ def _stated_date_window(
     return None
 
 
+def _window_from_iso_date(value: Any) -> Optional[Tuple[str, str]]:
+    """Day bounds for an ISO date string (the planner's mentioned_date
+    piggyback field), same shape as _stated_date_window's output. None on
+    anything unparseable."""
+    if not value:
+        return None
+    import datetime as _dt
+
+    try:
+        day = _dt.date.fromisoformat(str(value).strip()[:10])
+    except ValueError:
+        return None
+    return (
+        day.strftime("%Y-%m-%d 00:00:00"),
+        (day + _dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00:00"),
+    )
+
+
 def _match_rows_by_figure_tokens(
     rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
@@ -2312,7 +2481,10 @@ async def _ingested_mailbox_lines(
     # user stated ("sent 9/11 friday") ranks the figure matches when the
     # code matches many rows; the query rewrite keeps codes but drops the
     # date, so the window comes from the current message.
-    _window = _stated_date_window(_current_message_text(context) or "")
+    _window = (
+        _stated_date_window(_current_message_text(context) or "")
+        or _window_from_iso_date((context or {}).get("mentioned_date"))
+    )
 
     # FIGURE TOKENS LEAD: an amount or model code in the query is the most
     # specific evidence there is — it must not be crowded out of the cap by
@@ -3133,8 +3305,13 @@ async def _mailbox_figure_lines(
             return []
         # The planner's query rewrite keeps the CODE but drops the user's
         # stated date ('9/11 friday'); the current message is where the
-        # date lives.
-        window = _stated_date_window(_current_message_text(context) or "")
+        # regex-recognizable date lives, and the planner's mentioned_date
+        # field (stashed into the context by execute_tool_plan) covers the
+        # messy relative expressions the parser cannot.
+        window = (
+            _stated_date_window(_current_message_text(context) or "")
+            or _window_from_iso_date((context or {}).get("mentioned_date"))
+        )
         return await asyncio.to_thread(
             _search_ingested_by_tokens, user_id, figs, limit, window)
     except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
@@ -4359,6 +4536,16 @@ async def execute_tool_plan(
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    # DATE PIGGYBACK: every downstream lane in this execution (memory
+    # figure scan, mailbox lines) reads the window from the context —
+    # hand them the planner's resolved mentioned_date once, here.
+    if (
+        isinstance(context, dict)
+        and context.get("mentioned_date") is None
+        and getattr(plan, "mentioned_date", None)
+    ):
+        context["mentioned_date"] = plan.mentioned_date
 
     # On-demand INGEST: the one write this planner performs. Runs BEFORE the
     # web-query rewrite (the query names an item/message, not a search phrase)

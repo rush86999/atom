@@ -2040,3 +2040,100 @@ guard is message-wide, not proximity-based — "7/8-inch … he replied
 monday" tiers July 8; modal "may 4" reads as May 4; an incidental weekday
 ("Sun hydraulics") can beat the explicit one. Tier-only impact (reorder,
 never filter). Hardening needs proximity logic + its own recall tests.
+
+## 2026-09-15 ~07:30 EDT — ZCode: mentioned_date piggyback (705d9c8f7) — owner's design question answered in code
+
+Owner asked why the date parser is regex rather than a low-level LLM.
+Answer: a separate call pays latency+cost+failure-mode for coverage the
+EXISTING planner call can carry. Shipped the piggyback:
+ToolPlan.mentioned_date (lenient validator) + TODAY-IS prompt line +
+wiring into all three evidence paths (fresh overlay, reuse overlay via
+tool_plan_task.result(), memory lane via context stash). Window
+precedence: message regex > plan field > recency.
+
+Lesson for anyone editing the shared orchestrator/planner: inserting a
+nested try/except into a function whose whole body already lives in ONE
+outer try orphans the body into the except suite (happy path returns
+None implicitly — the suite caught it; production would not have).
+Check indentation depth of the WHOLE body after any try insertion.
+
+## 2026-09-15 ~09:45 EDT — ZCode: "sent to me on that day by chandrakant" — directionality + anaphora + no-plan evidence (a74b18716)
+
+Owner turn reported: the reply attributed a supplier-bound email (To:
+edwin@schulermachinery.com — "did not find the attachment", about a
+LATHE) to the user and claimed "two things" (store truth: FOUR direct
+Chandrakant emails Sep 11). Root causes (log-verified): planner DECLINED
+(previous turn answered) → the overlay only ran on planned/reused paths
+→ model narrated from ambient memory. Fixes in
+`integrations/chat_orchestrator.py` (+ DSH's in-flight To: rendering in
+`_ingested_line_from_row` landed with this, credited — the model
+verifies recipient attribution against those lines):
+
+1. `_participant_mail_rows`: directional tiers — "by <name>" sender
+   match, "to me/us" recipient vs the acting user's cached
+   users-table email, stated-day window. Uniform-penalty-safe when the
+   identity is a dev artifact (admin@example.com): wrong identity
+   penalizes all rows equally = no discrimination change.
+2. Anaphoric dates: "that day" inherits the window from prior USER
+   turns.
+3. Evidence on every no-plan path: declined, clean-None, and the
+   planner-TIMEOUT path (handle-led `_verbatim_mail_evidence` first,
+   generic scan fallback — one DSH timeout test re-contracted to the
+   stronger contract).
+
+**Live-verified**: the same ask now returns the two "Fw: RFQ - Foot
+shear" forwards (To: rish@brennan.ca, 8:07 PM) with the quoted pricing
+history — 38% margin row 235, $700 freight, "put 25 percent only".
+156 passed. Probe turns pruned; session holds the owner's real history.
+Known env note: users.email=admin@example.com is a dev artifact — in
+provisioned installs the to-me tier discriminates; here it no-ops
+safely.
+
+---
+
+## 2026-09-15 ~10:35 — attached files are now reachable by the agent
+
+**Agent**: DSH session. **Files**: `backend/integrations/vfs/knowledge_vfs.py`
+(chunked-document assembly), `backend/core/chat_tool_planner.py` (attachment
+index + line rendering + attachment relevance tier), tests. Backend restarted.
+
+**Root cause (measured)**: a large attachment is stored as
+`{parent}::c0…c58` with no row for the parent id. `documents.grep` walks chunk
+rows so it found the chunk holding `R235 … 7519`, but
+`documents.cat('knowledge/documents/<parent>')` returned nothing — an agent
+could locate a spreadsheet row and be unable to open its file. Fixed by
+assembling the chunk family in numeric order.
+
+Also: mailbox listing lines now name the email's attachments with an openable
+path, built from the `ingested_documents` join
+(`external_id = <message_id>:<attachment_id>`, verified by id — that parent id
+IS the 2026-09-11 20:07 forward), and a participant's attachment-bearing
+message wins a relevance tier in the address ranker.
+
+⚠️ Keep `_get_vector_doc`'s family assembly when touching the VFS reader:
+without it, every chunked file (spreadsheets, price lists, long PDFs) is
+greppable-but-unopenable.
+
+## 2026-09-15 ~15:00 EDT — ZCode: attachment surfacing verified + duplicate-render cleanup (this commit)
+
+Owner ask: "agent should be able to find the attachment as well." State
+audited and landed (DSH's attachment round + my dedupe):
+
+- `_mail_attachments_for(message_id)` — indexed ingested_documents join on
+  external_id '<message_id>:<attachment_id>', TTL-cached — renders
+  `| attachments: NAME (open: knowledge/documents/<doc>/content.lines)` on
+  evidence lines. Live-verified: the Sep 11 "Fw: RFQ - Foot shear" rows
+  surface `PRICE VIPUL (6).xlsx` with its open path — the calculation
+  workbook the owner hunted across this whole family.
+- Removed my redundant footer-based extractor + ingest-status line (built
+  before I found DSH's structured version — they produced DOUBLE
+  attachments segments).
+- Fintek spec sheet `18896-99_Fintek F5216 Foot Shear (1).doc` is NOT
+  ingested (legacy .doc, engine doesn't parse it) — it exists only as a
+  name in content footers. Honest state: the agent can name it, not open
+  it. .doc ingestion support = open capability.
+
+**Honest caveat from live testing**: probe turns on the polluted session
+grounded on mixed context and produced a wrong reverse-derivation (for a
+question I didn't ask) — pruned. The owner should ask attachment
+questions fresh; the evidence layer is verified.

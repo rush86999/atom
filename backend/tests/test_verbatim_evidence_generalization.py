@@ -224,3 +224,151 @@ class TestStatedDateWindow:
         assert ctp._stated_date_window(
             "sent 2/29 friday", today=datetime.date(2028, 3, 6)) == (
             "2028-02-29 00:00:00", "2028-03-01 00:00:00")
+
+class TestMentionedDatePiggyback:
+    """The planner reads the same message the regex parser does — the
+    mentioned_date field (resolved in the SAME structured call, zero extra
+    LLM cost) covers the messy relative expressions the parser cannot
+    ('end of last month', 'two Tuesdays ago'). Regex stays the fast path;
+    the plan field is the fallback; recency the last resort."""
+
+    def test_validator_shapes(self):
+        import datetime
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="2026-09-11"
+        ).mentioned_date == "2026-09-11"
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="9/11/2026"
+        ).mentioned_date == "2026-09-11"
+        # bare M/D resolves to the current year, last year if future
+        today = datetime.date.today()
+        got = ctp.ToolPlan(query="x", mentioned_date="9/11").mentioned_date
+        assert got == "2026-09-11"  # Sep 11 is past as of Sep 2026
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="september 11"
+        ).mentioned_date is None
+        assert ctp.ToolPlan(query="x", mentioned_date=None).mentioned_date is None
+
+    def test_window_from_iso_date(self):
+        assert ctp._window_from_iso_date("2026-09-11") == (
+            "2026-09-11 00:00:00", "2026-09-12 00:00:00")
+        assert ctp._window_from_iso_date(None) is None
+        assert ctp._window_from_iso_date("not-a-date") is None
+
+    @pytest.mark.asyncio
+    async def test_plan_date_used_when_regex_parses_nothing(self, monkeypatch):
+        # 'end of last month' — no regex match; the pinned planner date
+        # must tier the figure matches anyway.
+        captured = {}
+
+        def fake_search(user_id, tokens, limit=4, date_window=None):
+            captured["window"] = date_window
+            return ["- [ingested mailbox] From: a@b.ca | thread | body"]
+
+        monkeypatch.setattr(ctp, "_distinctive_figure_phrases",
+                            lambda *a, **k: ["5,350.00"])
+        monkeypatch.setattr(ctp, "_search_ingested_by_tokens", fake_search)
+        lines = await co._verbatim_mail_evidence(
+            "find the thread from end of last month", "u1", None,
+            plan_date="2026-08-31")
+        assert lines
+        assert captured["window"] == ("2026-08-31 00:00:00",
+                                      "2026-09-01 00:00:00")
+
+    @pytest.mark.asyncio
+    async def test_regex_window_wins_over_plan_date(self, monkeypatch):
+        # When both exist, the message's own parseable date is the truth.
+        captured = {}
+
+        def fake_search(user_id, tokens, limit=4, date_window=None):
+            captured["window"] = date_window
+            return ["- [ingested mailbox] line"]
+
+        monkeypatch.setattr(ctp, "_distinctive_figure_phrases",
+                            lambda *a, **k: ["5,350.00"])
+        monkeypatch.setattr(ctp, "_search_ingested_by_tokens", fake_search)
+        await co._verbatim_mail_evidence(
+            "find the thread sent 9/11 friday", "u1", None,
+            plan_date="2026-08-31")
+        assert captured["window"] == ("2026-09-11 00:00:00",
+                                      "2026-09-12 00:00:00")
+
+class TestDirectionalParticipantAsks:
+    """Live 2026-09-15: "find the email that was sent to me on that day by
+    chandrakant" — the planner DECLINED (previous turn had answered), the
+    overlay never ran, and the reply attributed a supplier-bound email
+    (To: edwin@schulermachinery.com) to the user. The participant lane now
+    tiers directionally (by-<name> sender, to-me recipient) and by the
+    stated-day window; the window itself inherits 'that day' from the
+    previous user turn."""
+
+    DIR_ROWS = _rows(
+        ("chandrakant@brennan.ca", "rish@brennan.ca",
+         "Fw: RFQ - Foot shear", "the forwarded thread", "2026-09-11T20:07:00"),
+        ("chandrakant@brennan.ca", "doug@liquidsystems.net",
+         "Quote for TB80 Bender", "bender pricing", "2026-09-11T20:02:00"),
+        ("edwin@schulermachinery.com", "chandrakant@brennan.ca",
+         "Re: Enquiry about Lathe machine",
+         "hey, i did not find the attachment", "2026-09-11T12:50:00"),
+    )
+
+    def test_by_name_sender_and_window_tier(self):
+        import core.chat_tool_planner as ctp
+
+        with patch.object(ctp, "_comms_store_records",
+                          return_value=self.DIR_ROWS):
+            rows = co._participant_mail_rows(
+                "find the email that was sent to me on that day by chandrakant",
+                4, ("2026-09-11 00:00:00", "2026-09-12 00:00:00"),
+                "rish@brennan.ca")
+        assert rows, "participant lane must fire"
+        # chandrakant-SENT, in-window, addressed to the acting user.
+        assert rows[0]["recipient"] == "rish@brennan.ca"
+        assert rows[0]["subject"] == "Fw: RFQ - Foot shear"
+        # The supplier-bound thread (chandrakant as RECIPIENT, "by" mismatch)
+        # must NOT lead.
+        leaders = [r["subject"] for r in rows[:2]]
+        assert "Re: Enquiry about Lathe machine" not in leaders
+
+    def test_to_me_penalty_for_other_recipients(self):
+        import core.chat_tool_planner as ctp
+
+        with patch.object(ctp, "_comms_store_records",
+                          return_value=self.DIR_ROWS):
+            rows = co._participant_mail_rows(
+                "the email sent to me by chandrakant about the bender",
+                4, None, "rish@brennan.ca")
+        # Both rows are chandrakant-sent; the to-me row outranks doug's.
+        assert rows[0]["recipient"] == "rish@brennan.ca"
+
+    @pytest.mark.asyncio
+    async def test_anaphoric_that_day_inherits_prior_turn_date(self, monkeypatch):
+        captured = {}
+
+        def fake_search(user_id, tokens, limit=4, date_window=None):
+            captured["window"] = date_window
+            return ["- [ingested mailbox] From: a@b.ca | line"]
+
+        monkeypatch.setattr(ctp, "_distinctive_figure_phrases",
+                            lambda *a, **k: ["5,350.00"])
+        monkeypatch.setattr(ctp, "_search_ingested_by_tokens", fake_search)
+        await co._verbatim_mail_evidence(
+            "find the email sent to me on that day by chandrakant",
+            "u1",
+            {"history": [{"role": "user", "content":
+                          "the thread sent 9/11 friday"}]},
+        )
+        assert captured["window"] == ("2026-09-11 00:00:00",
+                                      "2026-09-12 00:00:00")
+
+    def test_declined_plan_still_gets_the_overlay(self):
+        """Wiring pin (source-shape, per the blackboard-test precedent):
+        the DECLINED-plan branch must run the verbatim overlay — follow-up
+        turns decline precisely because the previous turn answered, and
+        without the overlay the reply narrates from ambient memory."""
+        import inspect
+
+        src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+        assert "declined-plan mailbox overlay" in src
+        assert '_declined_mail = await asyncio.wait_for(' in src
+        assert "_tool_block = _compose_lookup_evidence(" in src

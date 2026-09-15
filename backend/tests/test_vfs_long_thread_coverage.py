@@ -489,3 +489,89 @@ def test_write_path_calls_the_invalidator():
         "ingest_communication is the single row-write choke point "
         "(ingest_batch delegates to it) — it must invalidate the VFS cache"
     )
+
+
+# --------------------------------------------------------------------------- #
+# CHUNKED attachments must be OPENABLE, not just greppable
+# --------------------------------------------------------------------------- #
+
+def test_cat_assembles_a_chunked_document(monkeypatch):
+    """Live 2026-09-15: the F-5216 forwarded email attaches `PRICE VIPUL
+    (6).xlsx`, ingested as 59 chunks (`ext_…::c0 … ::c58`) with NO row of its
+    own. grep found the chunk carrying `R235 … 7519` while
+    `documents.cat('knowledge/documents/ext_…')` returned nothing — so an
+    agent could locate a spreadsheet row and then be unable to open the file
+    it sits in. The reader now assembles the family in chunk order."""
+    from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+
+    chunks = [
+        {"id": "ext_doc::c2", "text": "third", "source": "outlook:x.xlsx",
+         "metadata": "{}"},
+        {"id": "ext_doc::c0", "text": "first", "source": "outlook:x.xlsx",
+         "metadata": "{}"},
+        {"id": "ext_doc::c10", "text": "eleventh", "source": "outlook:x.xlsx",
+         "metadata": "{}"},
+        {"id": "other", "text": "unrelated", "source": "outlook:y.xlsx",
+         "metadata": "{}"},
+    ]
+
+    class _Arrow:
+        def to_pylist(self):
+            return chunks
+
+    class _Builder:
+        def select(self, cols):
+            return self
+
+        def to_arrow(self):
+            return _Arrow()
+
+    class _Table:
+        def search(self):
+            return _Builder()
+
+    class _Handler:
+        def get_table(self, name):
+            return _Table()
+
+        def get_document_by_id(self, table, doc_id):
+            return None  # the parent has no row of its own
+
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", lambda *a, **k: _Handler()
+    )
+
+    rows = KnowledgeVFSProvider._chunk_family_rows("ext_doc")
+
+    assert [r["id"] for r in rows] == ["ext_doc::c0", "ext_doc::c2", "ext_doc::c10"], (
+        "chunks must be assembled in NUMERIC order (c10 after c2, not before)"
+    )
+
+
+def test_chunk_family_empty_for_unknown_doc(monkeypatch):
+    from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+
+    class _Arrow:
+        def to_pylist(self):
+            return []
+
+    class _Builder:
+        def select(self, cols):
+            return self
+
+        def to_arrow(self):
+            return _Arrow()
+
+    class _Table:
+        def search(self):
+            return _Builder()
+
+    class _Handler:
+        def get_table(self, name):
+            return _Table()
+
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", lambda *a, **k: _Handler()
+    )
+
+    assert KnowledgeVFSProvider._chunk_family_rows("nope") == []
