@@ -424,6 +424,29 @@ def _reply_claims_inability(text: str) -> bool:
     return bool(_INABILITY_RE.search(text))
 
 
+# A computed derivation with no source citation. Live 2026-09-15: the
+# reply presented "+10% add-back → ÷0.70 → +$473 Google-review markup"
+# landing exactly on the target — arithmetic curve-fit to the user's own
+# hint — while the true chain sat in an ingested workbook row. Cited
+# derivations ('full:'/'open:' paths, dataset 'R###' rows, file names)
+# never trip this.
+_DERIVATION_CITE_RE = re.compile(
+    r"full:\s|open:\s|\.xlsx|\.xls\b|\.csv|\.pdf|\.docx?|"
+    r"\bR\d{1,4}\s*\||SQL RESULT|ingested|PRICE VIPUL|knowledge/",
+    re.IGNORECASE,
+)
+_NUM_STEP_RE = re.compile(r"[$€£]\s?\d[\d,.]*|%\s|÷\s?\d|×\s?\d")
+
+
+def _reply_is_unsourced_derivation(reply: str, message: str) -> bool:
+    """Derivation-shaped ASK + multi-step arithmetic presented in the reply
+    + no source citation anywhere in it → one grounded regeneration."""
+    if not reply or not _derivation_ask(message):
+        return False
+    steps = sum(1 for ln in reply.splitlines() if _NUM_STEP_RE.search(ln))
+    return steps >= 3 and not _DERIVATION_CITE_RE.search(reply)
+
+
 def _reply_is_generic_non_answer(reply: str, message: str) -> bool:
     """True when a reply is so short AND shares no content word with the
     request that it cannot be answering it (live 2026-09-08: "web research
@@ -724,6 +747,149 @@ def _render_mail_rows(
         ]
     except Exception:
         return []
+
+
+# Derivation/verification asks: "figure out how the listed price was
+# derived", "reverse engineer the calculation", "how did they get $8,880".
+# The answer lives in an INGESTED WORKBOOK (row + formula chain), not in
+# mailbox prose — and the model otherwise curve-fits a plausible-looking
+# arithmetic path to whatever number the user hinted at (live 2026-09-15:
+# "+10% add-back, ÷0.70, +$473 Google-review markup" landing exactly on
+# $8,880 while the true chain sat in PRICE VIPUL (6).xlsx row 235).
+_DERIVATION_ASK_RE = re.compile(
+    r"(?:figure out|reverse.?engineer|work out|how\s+(?:was|did|do)|"
+    r"derive|deriv(?:ed|ation)|calculat(?:e|ed|ion)|breakdown|do\s+the\s+math|"
+    r"show\s+me\s+the\s+math)"
+    r"[^.!?]{0,80}"
+    r"(?:price|pricing|cost|list|margin|quote|total|number|figure|amount|"
+    r"discount|freight|markup|calculation|math|derivation)",
+    re.IGNORECASE,
+)
+
+
+def _derivation_ask(message: str) -> bool:
+    return bool(_DERIVATION_ASK_RE.search(message or ""))
+
+
+async def _derivation_supplement(
+    message: str, user_id: Optional[str],
+    history: Optional[List[Dict[str, Any]]],
+    canvas: Optional[Dict[str, Any]],
+    tool_block: Optional[str],
+) -> Optional[str]:
+    """Compose the derivation dataset block ahead of an existing tool
+    block. For a derivation ask the workbook ROW is the answer (the mail
+    lines are its context); for any other ask this is a no-op."""
+    ds = await _derivation_dataset_block(
+        message, user_id, {"history": history or [], "canvas": canvas})
+    if not ds:
+        return tool_block
+    return f"{ds}\n\n{tool_block}" if tool_block else ds
+
+
+async def _derivation_dataset_block(
+    message: str, user_id: Optional[str],
+    context: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """Dataset-catalog rows for a derivation ask.
+
+    Two probe facts (both live 2026-09-15, PRICE VIPUL (6).xlsx): the ask
+    itself names no code, and the workbook may spell the product by
+    DIMENSIONS ('F-52"x16G') so the model CODE can never substring-match
+    the row — while the row's own FIGURE values (Factory 5350, LIST 7519)
+    match. The probe therefore carries the figure phrases + identifier
+    codes of the message, canvas and recent history, and renders up to 6
+    hits: the catalog's row-count ranking buries a one-row exact hit (the
+    derivation row) under 11-row consolidated sheets, so the derivation
+    lane keeps more hits than the default 2. Bounded + fault-isolated;
+    None when the catalog has nothing."""
+    if not _derivation_ask(message):
+        return None
+    try:
+        from core.chat_tool_planner import (
+            _distinctive_figure_phrases,
+            _entry_text,
+        )
+        from core.sheet_dataset_service import (
+            render_dataset_answer,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+
+        if not sheet_datasets_enabled():
+            return None
+        hay_parts = [message or ""]
+        ctx = context or {}
+        canvas = ctx.get("canvas")
+        if isinstance(canvas, dict):
+            hay_parts.append(_entry_text(canvas))
+        hist_texts = [
+            str(h.get("message") or h.get("content") or "")[:500]
+            for h in (ctx.get("history") or [])[-6:]
+            if isinstance(h, dict)
+            and (h.get("message") or h.get("content"))
+        ]
+        for t in hist_texts:
+            hay_parts.append(t)
+        # Integer-part tokens: '8,880.00' probes as 8880 (cells render
+        # 8880.0), never '888000'.
+        figures: List[str] = []
+        for part in hay_parts:
+            for f in _distinctive_figure_phrases(part):
+                # strip GROUPING first, then take the integer part:
+                # '8,880.00' -> '8880' (never '8', never '888000')
+                whole = f.split(".")[0].replace(",", "").replace(" ", "")
+                bare = re.sub(r"[^0-9]", "", whole)
+                if len(bare) >= 4 and bare not in figures:
+                    figures.append(bare)
+        if not figures:
+            return None
+        # One search per token (the catalog is first-token-wins), then rank
+        # the merged hit FILES by how many OTHER conversation figures their
+        # rendered rows contain: the derivation row uniquely carries several
+        # (Factory 5350 AND List 7519) — hit volume cannot bury it.
+        by_file: Dict[str, Tuple[int, Dict[str, Any]]] = {}
+        for token in figures[:4]:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    # limit high: the catalog's row-count cut would bury a
+                    # one-row exact hit (the derivation row) before this
+                    # lane's co-occurrence ranking ever sees it.
+                    search_all_datasets_sync, f"{message} {token}", user_id,
+                    ctx.get("workspace_id"), 200, 200, hist_texts,
+                ),
+                timeout=10,
+            )
+            for hit in (result or {}).get("hits") or []:
+                rendered = render_dataset_answer(hit)
+                # Clean-number matching only: float tails ('15.521625…')
+                # must not count as containing '5216', while '7519.0' does
+                # contain '7519'. Normalize trailing .0, then require the
+                # token to be a whole cell value (no adjacent digits/dot).
+                clean = re.sub(r"(\d)\.0\b", r"\1", rendered)
+                co = sum(
+                    1 for t in figures
+                    if t != token
+                    and re.search(
+                        rf"(?<![\d.]){re.escape(t)}(?![\d.])", clean)
+                )
+                key = str(hit.get("file_name") or "?")
+                if key not in by_file or co > by_file[key][0]:
+                    by_file[key] = (co, hit)
+        if not by_file:
+            return None
+        ranked = sorted(by_file.values(), key=lambda p: -p[0])[:4]
+        lines = [
+            "DATASET CATALOG — derivation inputs (ingested spreadsheets "
+            "searched for the conversation's figures; these rows ARE the "
+            "calculation chain — cite file/sheet/row):"
+        ]
+        for _co, hit in ranked:
+            lines.append(render_dataset_answer(hit))
+        return "\n".join(lines)
+    except Exception as e:  # noqa: BLE001 — best-effort supplement
+        logger.debug(f"derivation dataset block skipped: {e}")
+        return None
 
 
 async def _verbatim_mail_evidence(
@@ -2279,7 +2445,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _reuse_mail = await asyncio.wait_for(
                             _verbatim_mail_evidence(
                                 message, user_id,
-                                {"history": planner_history or history},
+                                {"history": planner_history or history,
+                                 "canvas": canvas_context},
                                 plan_date=_reuse_plan_date,
                             ),
                             timeout=15,
@@ -2294,6 +2461,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = _compose_lookup_evidence(
                             message, None, _tool_block, _reuse_mail,
                         )
+                    _tool_block = await _derivation_supplement(
+                        message, user_id, planner_history or history,
+                        canvas_context, _tool_block)
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
                     # model window): in retry-heavy sessions the original request
@@ -2320,7 +2490,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _plan = await asyncio.wait_for(
                             plan_tool_use(
                                 message, planner_history or history, user_id,
-                                self.llm_service, canvas=_canvas_ctx,
+                                self.llm_service, canvas=canvas_context,
                                 provenance=_prov,
                             ),
                             timeout=25,
@@ -2417,7 +2587,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _declined_mail = await asyncio.wait_for(
                                 _verbatim_mail_evidence(
                                     message, user_id,
-                                    {"history": planner_history or history},
+                                    {"history": planner_history or history,
+                                     "canvas": canvas_context},
                                     plan_date=getattr(
                                         _plan, "mentioned_date", None),
                                 ),
@@ -2432,6 +2603,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{len(_declined_mail)} evidence line(s)")
                             _tool_block = _compose_lookup_evidence(
                                 message, _plan, None, _declined_mail)
+                        _tool_block = await _derivation_supplement(
+                            message, user_id, planner_history or history,
+                            canvas_context, _tool_block)
                     else:
                         # Plan is None (provider produced no decision at
                         # all — distinct from decline and from exception):
@@ -2440,7 +2614,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _none_mail = await asyncio.wait_for(
                                 _verbatim_mail_evidence(
                                     message, user_id,
-                                    {"history": planner_history or history},
+                                    {"history": planner_history or history,
+                                     "canvas": canvas_context},
                                 ),
                                 timeout=15,
                             )
@@ -2453,6 +2628,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{len(_none_mail)} evidence line(s)")
                             _tool_block = _compose_lookup_evidence(
                                 message, None, None, _none_mail)
+                        _tool_block = await _derivation_supplement(
+                            message, user_id, planner_history or history,
+                            canvas_context, _tool_block)
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and
@@ -2751,6 +2929,41 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # across all connected platforms.") — especially with
                         # search evidence sitting in the prompt. One
                         # regeneration anchored on the user's actual ask.
+                        elif (_derivation_ask(message)
+                              and _reply_is_unsourced_derivation(
+                                  _streamed, message)):
+                            # UNSOURCED-DERIVATION GUARD: arithmetic presented
+                            # as findings with nothing behind it. Regenerate
+                            # demanding the ingested artifact or explicit
+                            # speculation labels.
+                            logger.warning(
+                                "streamed reply presents an unsourced "
+                                "derivation — grounded regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply presented a multi-step "
+                                "calculation with no source. A derivation "
+                                "answer must be COMPUTED FROM an ingested "
+                                "artifact — the workbook/dataset rows in the "
+                                "LIVE TOOL RESULTS above (cite the file, "
+                                "sheet and row), or opened from an evidence "
+                                "path. If no artifact carries the numbers, "
+                                "say plainly which parts are speculation and "
+                                "label estimates as estimates — never present "
+                                "reverse-fitted arithmetic as findings."
+                            )})
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_is_unsourced_derivation(
+                                    _fixed, message):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         elif (_tool_block
                               and _reply_is_generic_non_answer(_streamed, message)):
                             logger.warning(
@@ -3181,6 +3394,57 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.info(
                     f"[verify-panel] state: mode={_vpm} tool_block={bool(_tool_block)} "
                     f"content={bool(_content)} mission={mission_critical}")
+
+                # DETERMINISTIC FIGURE GROUNDING — runs on EVERY tool turn,
+                # before (and independently of) the judge panel.
+                #
+                # Live 2026-09-15: asked how the $8,880 list price was derived,
+                # the reply presented "$5,350 → +10% → $5,885 → ÷0.70 → $8,407
+                # → +$473 → $8,880" as the calculation. Every intermediate was
+                # invented (the cited workbook row holds 5,350/4,815/5,515/
+                # 5,625.30/6,465.86/7,518.44/7,519 — and 8,880 is a DIFFERENT
+                # machine's list price). The judge panel saw it twice
+                # (`grounded=False`) and shipped it both times: shadow mode,
+                # high-complexity scope, and an `ambiguous` 1/3 vote is not in
+                # the enforce set. This check needs no judge, no LLM call and no
+                # scope gate — one regex pass over replies that had evidence.
+                if _tool_block and _content:
+                    try:
+                        from core.chat_tool_planner import _unsupported_figures
+
+                        _unsupported = _unsupported_figures(
+                            _content, f"{_tool_block}\n{message}"
+                        )
+                    except Exception as _fig_err:  # noqa: BLE001
+                        logger.debug(f"figure grounding skipped: {_fig_err}")
+                        _unsupported = []
+                    if _unsupported:
+                        logger.warning(
+                            "[figure-grounding] reply states figures the evidence "
+                            "does not contain: " + ", ".join(_unsupported[:6])
+                            + " — grounded regeneration")
+                        messages.append({"role": "system", "content": (
+                            "FIGURE GROUNDING FAILURE: these figures in your reply "
+                            "appear in NO retrieved evidence and no user message: "
+                            + ", ".join(_unsupported[:6])
+                            + ". Do NOT present arithmetic steps, intermediate "
+                            "values or add-ons that are not literally present in "
+                            "the evidence. Open the cited source "
+                            "(documents.cat on the 'full:'/'open:' path) and quote "
+                            "its actual cells, or say the derivation cannot be "
+                            "confirmed from the stored copy."
+                        )})
+                        response_data = await self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
+                        _regenerated = _strip_protocol_tags(
+                            (response_data or {}).get("content")
+                        )
+                        if _regenerated:
+                            _content = _regenerated
                 if _vp_run:
                     _vp_t0 = time.monotonic()
                     _verdict = await verify_reply(

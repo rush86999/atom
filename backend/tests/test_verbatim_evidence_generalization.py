@@ -372,3 +372,60 @@ class TestDirectionalParticipantAsks:
         assert "declined-plan mailbox overlay" in src
         assert '_declined_mail = await asyncio.wait_for(' in src
         assert "_tool_block = _compose_lookup_evidence(" in src
+
+class TestDerivationAsks:
+    """Live 2026-09-15: "figure out how the listed price was derived.
+    Chandrakant might've added a few hundred on top for requesting google
+    reviews." — the true chain sat in PRICE VIPUL (6).xlsx row 235 (an
+    INGESTED DATASET), but no lane reached it (the ask names no code; the
+    reuse overlay ran mail lines only, without the canvas), and the model
+    curve-fit a fabricated path (+10% add-back, ÷0.70, +$473 review
+    markup) exactly onto the user's hinted target."""
+
+    def test_derivation_shape_detected(self):
+        assert co._derivation_ask(
+            "given this info, figure out how the listed price was derived. "
+            "Chandrakant might've added a few hundred on top")
+        assert co._derivation_ask(
+            "reverse engineer the calculation and show it to me")
+        assert co._derivation_ask("how was the $8,880 price calculated?")
+        assert not co._derivation_ask("is WG-350DSAV in stock?")
+        assert not co._derivation_ask("find the email from chandrakant")
+
+    def test_unsourced_derivation_guard(self):
+        fabricated = (
+            "Most likely calculation path:\n"
+            "| +10% add-back | $5,885.00 |\n"
+            "| ÷ 0.70 margin | $8,407.14 |\n"
+            "| + ~$473 markup | $8,880.00 |\n")
+        msg = "figure out how the listed price was derived"
+        assert co._reply_is_unsourced_derivation(fabricated, msg)
+        # Cited derivation (dataset row convention) never trips.
+        cited = (
+            "Per PRICE VIPUL (6).xlsx R235: 5,350 × 0.9 = 4,815.00; "
+            "+700 = 5,515.00; ×1.02 = 5,625.30; ÷0.87 = 6,465.86")
+        assert not co._reply_is_unsourced_derivation(cited, msg)
+        # Not a derivation ask → never trips.
+        assert not co._reply_is_unsourced_derivation(fabricated, "find the thread")
+
+    @pytest.mark.asyncio
+    async def test_derivation_supplement_leads_with_dataset(self, monkeypatch):
+        async def fake_ds(message, user_id, context):
+            if not co._derivation_ask(message):
+                return None
+            return ("SQL RESULT from 'PRICE VIPUL (6).xlsx' — "
+                    "R235 | Factory Price=5350 | Price=7519")
+
+        async def fake_mail(message, user_id, context, plan_date=None):
+            return ["- [ingested mailbox] From: chandrakant@brennan.ca | line"]
+
+        monkeypatch.setattr(co, "_derivation_dataset_block", fake_ds)
+        monkeypatch.setattr(co, "_verbatim_mail_evidence", fake_mail)
+        msg = "figure out how the listed price was derived"
+        block = await co._derivation_supplement(msg, "u1", [], None, "MAILBLOCK")
+        assert block and block.startswith("SQL RESULT from 'PRICE VIPUL")
+        assert "MAILBLOCK" in block
+        # Non-derivation asks: untouched.
+        block2 = await co._derivation_supplement(
+            "find the thread", "u1", [], None, "MAILBLOCK")
+        assert block2 == "MAILBLOCK"
