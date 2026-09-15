@@ -654,6 +654,7 @@ async def _verbatim_mail_evidence(
     message: str,
     user_id: Optional[str],
     context: Optional[Dict[str, Any]],
+    plan_date: Optional[str] = None,
 ) -> List[str]:
     """Mailbox rows that contain a distinctive figure the user just quoted.
 
@@ -675,14 +676,25 @@ async def _verbatim_mail_evidence(
     skipped before touching the store)."""
     if not user_id or not message:
         return []
+    date_window = None
     try:
         from core.chat_tool_planner import (
             _distinctive_figure_phrases,
             _latest_user_figure_phrases,
             _search_ingested_by_tokens,
             _stated_date_window,
+            _window_from_iso_date,
         )
-
+        # DATE PIGGYBACK: the regex parser handles conventionalized
+        # forms; the planner's mentioned_date field (resolved on this
+        # same message at zero extra call cost) covers the messy
+        # relative ones. Either alone tiers the matches; both absent
+        # -> plain recency.
+        date_window = _stated_date_window(message) or _window_from_iso_date(
+            plan_date)
+    except Exception as e:  # noqa: BLE001 — supplemental evidence, never fatal
+        logger.debug(f"verbatim mail evidence setup skipped: {e}")
+    try:
         # Resolve CURRENT handles before inheriting a previous turn's figures.
         # Otherwise a bandsaw question displaces the next quoted-email lookup.
         from core.chat_tool_planner import _mail_contains_phrases, _quoted_content_phrases
@@ -709,7 +721,7 @@ async def _verbatim_mail_evidence(
             return await asyncio.wait_for(
                 asyncio.to_thread(
                     _search_ingested_by_tokens, user_id, figs, 3,
-                    _stated_date_window(message),
+                    date_window,
                 ),
                 timeout=15,
             )
@@ -733,7 +745,7 @@ async def _verbatim_mail_evidence(
             return await asyncio.wait_for(
                 asyncio.to_thread(
                     _search_ingested_by_tokens, user_id, figs, 3,
-                    _stated_date_window(message),
+                    date_window,
                 ),
                 timeout=15,
             )
@@ -2153,11 +2165,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # list-price turn reused the block and the participant
                     # evidence never rendered). Same overlay, same gates —
                     # nothing fires for handle-less messages.
+                    # DATE PIGGYBACK (the nuance): this branch never awaits
+                    # the shared plan task itself — but the canvas-edit leg
+                    # already did, and a DONE task returns its result
+                    # instantly. Pull the planner's mentioned_date from it
+                    # so the overlay keeps LLM-grade date coverage on
+                    # reuse turns; not-done/failed -> regex window only.
+                    _reuse_plan_date = None
+                    if (tool_plan_task is not None
+                            and tool_plan_task.done()
+                            and not tool_plan_task.cancelled()):
+                        try:
+                            _reuse_plan_date = getattr(
+                                tool_plan_task.result(), "mentioned_date", None)
+                        except Exception:  # noqa: BLE001 — best-effort date
+                            _reuse_plan_date = None
                     try:
                         _reuse_mail = await asyncio.wait_for(
                             _verbatim_mail_evidence(
                                 message, user_id,
                                 {"history": planner_history or history},
+                                plan_date=_reuse_plan_date,
                             ),
                             timeout=15,
                         )
@@ -2228,6 +2256,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _verbatim_mail_evidence(
                                 message, user_id,
                                 {"history": planner_history or history},
+                                plan_date=getattr(
+                                    _plan, "mentioned_date", None),
                             )
                         )
                         _exec_t0 = time.monotonic()

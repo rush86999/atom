@@ -224,3 +224,71 @@ class TestStatedDateWindow:
         assert ctp._stated_date_window(
             "sent 2/29 friday", today=datetime.date(2028, 3, 6)) == (
             "2028-02-29 00:00:00", "2028-03-01 00:00:00")
+
+class TestMentionedDatePiggyback:
+    """The planner reads the same message the regex parser does — the
+    mentioned_date field (resolved in the SAME structured call, zero extra
+    LLM cost) covers the messy relative expressions the parser cannot
+    ('end of last month', 'two Tuesdays ago'). Regex stays the fast path;
+    the plan field is the fallback; recency the last resort."""
+
+    def test_validator_shapes(self):
+        import datetime
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="2026-09-11"
+        ).mentioned_date == "2026-09-11"
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="9/11/2026"
+        ).mentioned_date == "2026-09-11"
+        # bare M/D resolves to the current year, last year if future
+        today = datetime.date.today()
+        got = ctp.ToolPlan(query="x", mentioned_date="9/11").mentioned_date
+        assert got == "2026-09-11"  # Sep 11 is past as of Sep 2026
+        assert ctp.ToolPlan(
+            query="x", mentioned_date="september 11"
+        ).mentioned_date is None
+        assert ctp.ToolPlan(query="x", mentioned_date=None).mentioned_date is None
+
+    def test_window_from_iso_date(self):
+        assert ctp._window_from_iso_date("2026-09-11") == (
+            "2026-09-11 00:00:00", "2026-09-12 00:00:00")
+        assert ctp._window_from_iso_date(None) is None
+        assert ctp._window_from_iso_date("not-a-date") is None
+
+    @pytest.mark.asyncio
+    async def test_plan_date_used_when_regex_parses_nothing(self, monkeypatch):
+        # 'end of last month' — no regex match; the pinned planner date
+        # must tier the figure matches anyway.
+        captured = {}
+
+        def fake_search(user_id, tokens, limit=4, date_window=None):
+            captured["window"] = date_window
+            return ["- [ingested mailbox] From: a@b.ca | thread | body"]
+
+        monkeypatch.setattr(ctp, "_distinctive_figure_phrases",
+                            lambda *a, **k: ["5,350.00"])
+        monkeypatch.setattr(ctp, "_search_ingested_by_tokens", fake_search)
+        lines = await co._verbatim_mail_evidence(
+            "find the thread from end of last month", "u1", None,
+            plan_date="2026-08-31")
+        assert lines
+        assert captured["window"] == ("2026-08-31 00:00:00",
+                                      "2026-09-01 00:00:00")
+
+    @pytest.mark.asyncio
+    async def test_regex_window_wins_over_plan_date(self, monkeypatch):
+        # When both exist, the message's own parseable date is the truth.
+        captured = {}
+
+        def fake_search(user_id, tokens, limit=4, date_window=None):
+            captured["window"] = date_window
+            return ["- [ingested mailbox] line"]
+
+        monkeypatch.setattr(ctp, "_distinctive_figure_phrases",
+                            lambda *a, **k: ["5,350.00"])
+        monkeypatch.setattr(ctp, "_search_ingested_by_tokens", fake_search)
+        await co._verbatim_mail_evidence(
+            "find the thread sent 9/11 friday", "u1", None,
+            plan_date="2026-08-31")
+        assert captured["window"] == ("2026-09-11 00:00:00",
+                                      "2026-09-12 00:00:00")

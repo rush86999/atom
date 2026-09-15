@@ -28,6 +28,7 @@ raising into the chat path.
 # import died with NameError.
 from __future__ import annotations
 
+import datetime as _dt_module
 import asyncio
 import logging
 import re
@@ -440,7 +441,12 @@ Rules:
   specific site). Only conclude "no lookup needed" when the answer is
   genuinely already present.
 - If the needed integration is NOT in the available list, use_tool=false and
-  say which integration is missing in `reason`."""
+  say which integration is missing in `reason`.
+- DATE EXTRACTION: when the user's latest message states WHEN something was
+  sent, received or happened ("sent 9/11 friday", "the august 26 quote",
+  "yesterday's email"), set mentioned_date to that date as YYYY-MM-DD,
+  resolved against TODAY (weekdays = the most recent past one). Omit the
+  field when no date is stated or resolvable. Never invent one."""
 
 # The planner does NOT pin a model — routing is BPC's job. Planning prompts are
 # tiny, so the call is SHAPED cheaply (``disable_reasoning=True``,
@@ -571,6 +577,50 @@ class ToolPlan(BaseModel):
     # low-confidence, or unrecognized.
     suggested_intent: Optional[str] = None
     routing_confidence: Optional[float] = None
+    # Date PIGGYBACK (2026-09-15): the planner reads the same message the
+    # date parser does — let it resolve messy relative expressions the
+    # regex cannot ('end of last month', 'two Tuesdays ago') at zero extra
+    # call cost. Optional by contract: absent/unparseable -> the regex
+    # parser and then plain recency, exactly as before this field existed.
+    mentioned_date: Optional[str] = None
+
+    @field_validator("mentioned_date", mode="before")
+    @classmethod
+    def _normalize_mentioned_date(cls, v: Any) -> Optional[str]:
+        # Lenient ISO coercion: models emit '2026-09-11', '9/11/2026' or
+        # bare '9/11' (resolved to the current year, last year if that
+        # lands in the future). Prose ('september 11') drops silently —
+        # the prompt asks for YYYY-MM-DD.
+        if v is None:
+            return None
+        import datetime as _dt
+
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace("/", "-")
+        try:
+            return _dt.date.fromisoformat(s[:10]).isoformat()
+        except ValueError:
+            pass
+        parts = s.split("-")
+        try:
+            if len(parts) == 3:
+                if len(parts[0]) == 4:  # YYYY-MM-DD
+                    day = _dt.date(int(parts[0]), int(parts[1]), int(parts[2]))
+                else:  # MM-DD-YYYY ('9/11/2026')
+                    day = _dt.date(
+                        int(parts[2]), int(parts[0]), int(parts[1]))
+            elif len(parts) == 2:
+                today = _dt.date.today()
+                day = _dt.date(today.year, int(parts[0]), int(parts[1]))
+                if day > today:
+                    day = day.replace(year=day.year - 1)
+            else:
+                return None
+        except ValueError:
+            return None
+        return day.isoformat()
 
     @field_validator("routing_confidence", mode="before")
     @classmethod
@@ -821,6 +871,7 @@ async def plan_tool_use(
     canvas_block = _planner_canvas_block(canvas)
     prompt = (
         f"{_PLANNER_SYSTEM}\n\n"
+        f"TODAY IS {_dt_module.date.today().isoformat()}.\n"
         f"Available tools:\n{catalog}\n\n"
         + (f"{canvas_block}\n\n" if canvas_block else "")
         + (f"{provenance}\n\n" if provenance else "")
@@ -2096,6 +2147,24 @@ def _stated_date_window(
     return None
 
 
+def _window_from_iso_date(value: Any) -> Optional[Tuple[str, str]]:
+    """Day bounds for an ISO date string (the planner's mentioned_date
+    piggyback field), same shape as _stated_date_window's output. None on
+    anything unparseable."""
+    if not value:
+        return None
+    import datetime as _dt
+
+    try:
+        day = _dt.date.fromisoformat(str(value).strip()[:10])
+    except ValueError:
+        return None
+    return (
+        day.strftime("%Y-%m-%d 00:00:00"),
+        (day + _dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00:00"),
+    )
+
+
 def _match_rows_by_figure_tokens(
     rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
@@ -2312,7 +2381,10 @@ async def _ingested_mailbox_lines(
     # user stated ("sent 9/11 friday") ranks the figure matches when the
     # code matches many rows; the query rewrite keeps codes but drops the
     # date, so the window comes from the current message.
-    _window = _stated_date_window(_current_message_text(context) or "")
+    _window = (
+        _stated_date_window(_current_message_text(context) or "")
+        or _window_from_iso_date((context or {}).get("mentioned_date"))
+    )
 
     # FIGURE TOKENS LEAD: an amount or model code in the query is the most
     # specific evidence there is — it must not be crowded out of the cap by
@@ -3133,8 +3205,13 @@ async def _mailbox_figure_lines(
             return []
         # The planner's query rewrite keeps the CODE but drops the user's
         # stated date ('9/11 friday'); the current message is where the
-        # date lives.
-        window = _stated_date_window(_current_message_text(context) or "")
+        # regex-recognizable date lives, and the planner's mentioned_date
+        # field (stashed into the context by execute_tool_plan) covers the
+        # messy relative expressions the parser cannot.
+        window = (
+            _stated_date_window(_current_message_text(context) or "")
+            or _window_from_iso_date((context or {}).get("mentioned_date"))
+        )
         return await asyncio.to_thread(
             _search_ingested_by_tokens, user_id, figs, limit, window)
     except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
@@ -4359,6 +4436,16 @@ async def execute_tool_plan(
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    # DATE PIGGYBACK: every downstream lane in this execution (memory
+    # figure scan, mailbox lines) reads the window from the context —
+    # hand them the planner's resolved mentioned_date once, here.
+    if (
+        isinstance(context, dict)
+        and context.get("mentioned_date") is None
+        and getattr(plan, "mentioned_date", None)
+    ):
+        context["mentioned_date"] = plan.mentioned_date
 
     # On-demand INGEST: the one write this planner performs. Runs BEFORE the
     # web-query rewrite (the query names an item/message, not a search phrase)
