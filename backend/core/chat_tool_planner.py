@@ -216,7 +216,7 @@ _SERVICE_DESCRIPTIONS = {
     # into per-sheet tables (core/sheet_dataset_service). Answers WHERE a
     # value lives and returns the exact rows — the user should never have to
     # name the file.
-    "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in",
+    "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -1112,6 +1112,8 @@ async def plan_tool_use(
                 logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
                 return None
         allowed_intents = {"search", "list"}
+        if plan.service == "datasets":
+            allowed_intents.add("ask")  # NL→SQL over allowlisted app tables
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -4995,6 +4997,41 @@ async def execute_tool_plan(
     # a source ("what's the price of X?"). Always returns a block: either
     # exact rows (file + sheet + R# cited) or honest negative evidence.
     if service == "datasets":
+        # ASK intent: NL→SQL over the app's OWN database (read-only,
+        # allowlisted tables, workspace-scoped, SELECT-only by parse).
+        # Covers "how many canvases this week / which runs are waiting /
+        # per-status breakdowns" — questions about the workspace itself,
+        # distinct from spreadsheet value lookups.
+        if (plan.intent or "search") == "ask":
+            try:
+                from core.app_db_query import answer_from_app_db
+
+                result = await answer_from_app_db(
+                    query,
+                    (context or {}).get("workspace_id"),
+                    tenant_id or "default",
+                    llm_service=llm_service,
+                    user_id=user_id,
+                )
+                if result and result.get("rows"):
+                    rows_rendered = " | ".join(
+                        str(c) for c in result["columns"][:12])
+                    lines = [
+                        f"APP DB ANSWER (read-only NL→SQL over allowlisted "
+                        f"tables; sql: {result['sql'][:200]}):",
+                        f"cols: {rows_rendered}",
+                    ]
+                    for r in result["rows"][:20]:
+                        lines.append("  " + " | ".join(str(v) for v in r[:12]))
+                    return _with_grounding("\n".join(lines))
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.ask, query='{query}'): the "
+                    "app-db query returned no rows or was refused (allowlist/"
+                    "read-only enforcement). Say what was asked and that no "
+                    "matching records came back — do not guess counts."
+                )
+            except Exception as ask_err:  # noqa: BLE001 — fall through
+                logger.warning(f"datasets.ask failed: {ask_err}")
         block = await _datasets_search_block(user_id, query, context)
         if block:
             return block
