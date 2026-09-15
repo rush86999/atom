@@ -185,3 +185,20 @@ Failure-mode invariants: every layer is optional and fault-isolated (a
 miss leaves the previous layer's answer); citations (paths, rows,
 formulas) always survive trimming; no business vocabulary or filenames in
 code paths — incident names appear in comments only.
+
+## 8. Fabrication bench — safety routing, independent of learning
+
+`llm_routing_feedback` carries per-model reply-quality verdicts; the
+learning router re-ranks BPC candidates by learned satisfied-rate only
+while `ATOM_LEARNING_ROUTER=true`. Fabrication is a SAFETY property, not
+a preference: `BYOKHandler._fabrication_benched` excludes a
+(provider, model) pair from ranked candidates when its LAST
+`ATOM_FABRICATION_BENCH_WINDOW_HOURS` (48) of verdict rows show
+≥ `ATOM_FABRICATION_BENCH_MIN_EVENTS` (3) fabrication verdicts
+(`user_satisfaction ≤ 0.15` — the unsupported-figures/ungrounded-claims
+scores) at a rate ≥ `ATOM_FABRICATION_BENCH_RATE` (0.25). Kill switch
+`ATOM_FABRICATION_BENCH=0`. 60s per-pair cache; fail-open on any error;
+one WARNING per bench transition. Observation (`record_fabrication_signal`,
+called by the figure-grounding guard and the verify panel, attributing to
+the PRODUCING model) is never gated — history accrues either way, so
+enabling the learning router later starts from real data.
