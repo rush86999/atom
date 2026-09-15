@@ -46,16 +46,19 @@ _DOCS_CITATION_CAP = 200
 _DOCS_CITES_PER_DOC = 5
 
 #: TTL for cached projected store reads (see ``_vector_rows``). VFS calls
-#: arrive in bursts within one agent turn; each uncached read materializes
-#: the full LanceDB table through the ``to_arrow`` fallback because the
-#: ``lance`` projection package is not in this build (~3s + 3 GB transient
-#: for the comms store). Short TTL keeps fresh ingests visible quickly.
+#: arrive in bursts within one agent turn, and each uncached read walks the
+#: whole store. Short TTL keeps fresh ingests visible quickly.
 #: 0 disables caching. Env: ATOM_VFS_ROWS_CACHE_TTL seconds.
 import os as _os
 
 _VFS_ROWS_CACHE_TTL = float(
     _os.getenv("ATOM_VFS_ROWS_CACHE_TTL", "15") or 15
 )
+
+#: Rows per streamed batch in ``_vector_rows`` — bounds the memory a
+#: whole-store scan holds (and what a timeout can leave behind). Env:
+#: ATOM_VFS_SCAN_BATCH.
+_VFS_SCAN_BATCH = int(_os.getenv("ATOM_VFS_SCAN_BATCH", "2000") or 2000)
 
 
 
@@ -186,7 +189,12 @@ class KnowledgeVFSProvider(VFSProvider):
         import re
         citations: List[VFSCitation] = []
         try:
-            regex = re.compile(pattern, re.IGNORECASE)
+            # MULTILINE keeps `^`/`$` line-anchored — the same semantics as
+            # the per-line citation loop below and as grep itself. Without
+            # it, the whole-text fast-skip in _cites_for_text swallows every
+            # `^From:`-style pattern that matches past the first line
+            # (silent false negatives, the head-window bug's family).
+            regex = re.compile(pattern, re.IGNORECASE | re.MULTILINE)
         except re.error:
             return citations
         # A root prefix ("/" or "") lists only the top-level category dirs, not
@@ -425,6 +433,9 @@ class KnowledgeVFSProvider(VFSProvider):
             ["id", "timestamp", "sender", "subject", "content"],
             limit=_COMMS_LIST_LIMIT,
         )
+        # Physical order is insertion order; backfills append older mail, so
+        # sort by timestamp to make the "newest first" truncation note TRUE.
+        rows.sort(key=lambda r: str(r.get("timestamp") or ""), reverse=True)
         nodes: List[VFSNode] = []
         for rec in rows:
             cid = str(rec.get("id") or "")
@@ -434,13 +445,15 @@ class KnowledgeVFSProvider(VFSProvider):
                     type="file",  # one leaf: content.lines (no sub-directory)
                     path=f"knowledge/conversations/{cid}",
                     size=len(str(rec.get("content") or "")),
-                    modified=str(rec.get("timestamp") or None) or None,
+                    modified=(
+                        str(rec["timestamp"]) if rec.get("timestamp") else None
+                    ),
                     meta={
                         "sender": str(rec.get("sender") or ""),
                         "subject": str(rec.get("subject") or ""),
                     },
                 ))
-        total = self._comms_total()
+        total = await self._comms_total()
         if total and total > len(nodes):
             nodes.append(VFSNode(
                 name=(
@@ -452,41 +465,111 @@ class KnowledgeVFSProvider(VFSProvider):
             ))
         return nodes
 
-    def _comms_total(self) -> int:
+    async def _comms_total(self) -> int:
         """Row count of the comms store (0 when unknown) — lets a listing say
-        what it is NOT showing instead of silently truncating."""
-        try:
+        what it is NOT showing instead of silently truncating.
+
+        Off-loop under the scan timeout: ``_comms_table()`` may call
+        ``manager.initialize()`` (which loads the embedder model) and
+        ``count_rows()`` is disk metadata I/O — running either on the event
+        loop is the exact Aug 2026 init-stall freeze this module's timeout
+        guard exists to prevent."""
+        import asyncio
+
+        def _count():
             table = self._comms_table()
             if table is None:
                 return 0
             return int(table.count_rows())
-        except Exception:
+
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(_count), timeout=_COMMS_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.warning(f"[KnowledgeVFS] comms count failed: {e}")
             return 0
 
-    def _comms_projected_arrow(self, table, columns):
+    def _projected_table(self, table, columns):
         """Arrow table with ONLY ``columns``, lowest-memory route available.
 
-        ``to_lance().to_table(columns=…)`` is true column projection, but the
-        optional ``lance`` package is not installed in this build, so the
-        fallback is ``to_arrow()`` followed IMMEDIATELY by ``select`` — which
-        still materializes the 384-dim vector columns (~3 KB/row, 3.0 GB for
-        the 7k-row store) plus ``metadata`` (median 49 KB/row, 33 MB max) for
-        a moment. Hence the projection is mandatory at every call site: the
-        measured alternative (selecting columns off the full table) is 0.7s
-        and multigigabyte, versus 0.01s and 1.6 MB for the projected form.
+        Ladder, cheapest first (measured on the live store 2026-09-13):
+
+        1. ``table.search().select(cols).to_arrow()`` — LanceDB's own query
+           builder pushes the projection into the scan. The comms store goes
+           from **1.36 s / 3.07 GB** (full ``to_arrow``, mostly the two 384-dim
+           vector columns plus ``metadata`` at a 49 KB/row median) to
+           **0.11 s / 34 MB**.
+        2. ``to_lance().to_table(columns=…)`` — true projection too, when the
+           optional ``lance`` package is installed.
+        3. Last resort: ``to_arrow().select(cols)``. Never the unprojected
+           table — see the guard below.
         """
-        projected = None
+        cols = list(columns)
         try:
-            lance_table = table.to_lance()
-            projected = lance_table.to_table(columns=list(columns))
-        except Exception:
-            projected = None
-        if projected is None:
-            projected = table.to_arrow()
+            qb = table.search()
+            projected = qb.select(cols).to_arrow()
+            if projected is not None:
+                return projected
+        except Exception as e:
+            logger.debug(f"[KnowledgeVFS] query-builder projection unavailable: {e}")
         try:
-            return projected.select(list(columns))
+            return table.to_lance().to_table(columns=cols)
+        except Exception as e:
+            logger.debug(f"[KnowledgeVFS] lance projection unavailable: {e}")
+        projected = table.to_arrow()
+        try:
+            return projected.select(cols)
         except Exception:
-            return projected
+            # Never fall back to the unprojected table: on this build that is
+            # the vector+metadata materialization (GBs for the comms store)
+            # this helper exists to prevent. Columns missing from the store
+            # (schema drift on an open_table'd table) degrade to the
+            # intersection of requested ∩ existing; anything else raises so
+            # _vector_rows logs and degrades the call cleanly.
+            names = list(getattr(projected, "column_names", []) or [])
+            keep = [c for c in cols if c in names]
+            if keep and len(keep) < len(cols):
+                logger.warning(
+                    "[KnowledgeVFS] store lacks columns %s — projecting to %s",
+                    [c for c in cols if c not in keep], keep,
+                )
+                return projected.select(keep)
+            raise
+
+    def _stream_rows(self, table, columns, limit, batch_size):
+        """Yield projected rows in BATCHES — bounded memory for whole-store
+        scans.
+
+        ``search().select().to_batches()`` streams from the scan, so a full
+        grep over the 7k-message / 39k-document stores never holds the table
+        (let alone its vectors) in RAM. Degrades to the projected table when
+        ``to_batches`` is unavailable; returns nothing when even that fails,
+        which the caller reports as a degraded scan.
+
+        The bound is also what makes the ``wait_for`` timeout in
+        ``_vector_rows`` honest: a scan that trips it abandons at most one
+        batch, instead of leaving a thread that keeps materializing gigabytes
+        after the agent has already been told the call degraded."""
+        if batch_size and batch_size > 0:
+            try:
+                builder = table.search().select(list(columns))
+                if limit is not None:
+                    builder = builder.limit(int(limit))
+                reader = builder.to_batches(batch_size=int(batch_size))
+                for batch in reader:
+                    yield from batch.to_pylist()
+                return
+            except Exception as e:
+                logger.debug(f"[KnowledgeVFS] streaming read unavailable: {e}")
+        try:
+            tbl = self._projected_table(table, columns)
+            if limit is not None:
+                tbl = tbl.slice(0, int(limit))
+            yield from tbl.to_pylist()
+        except Exception as e:
+            logger.warning(f"[KnowledgeVFS] projected fallback failed: {e}")
+            return
 
     async def _comms_rows(
         self, columns: List[str], limit: Optional[int] = None
@@ -520,11 +603,14 @@ class KnowledgeVFSProvider(VFSProvider):
         failure — never hangs the agent's filesystem call.
 
         Results are TTL-cached (``_VFS_ROWS_CACHE_TTL``, default 15s): VFS
-        calls arrive in bursts (grep → cat → ls in one turn), and every
-        uncached call re-materializes the full table through the ``to_arrow``
-        fallback (~3s and 3 GB transient for the comms store — ``lance`` is
-        not in this build). Short TTL keeps a just-ingested message visible
-        almost immediately; 0 disables."""
+        calls arrive in bursts (grep → cat → ls in one turn). Short TTL keeps a
+        just-ingested message visible almost immediately; 0 disables.
+
+        Each scan streams in ``_VFS_SCAN_BATCH`` row batches (projected), so a
+        whole-store grep holds one batch rather than the table — and a scan
+        that trips ``_COMMS_TIMEOUT_S`` abandons at most one batch instead of
+        leaving a thread that keeps materializing gigabytes after the caller
+        has already been told the read degraded."""
         import asyncio
         import time as _time
 
@@ -546,13 +632,9 @@ class KnowledgeVFSProvider(VFSProvider):
             table = _table()
             if table is None:
                 return []
-            tbl = self._projected_arrow(table, columns)
-            if limit is not None:
-                try:
-                    tbl = tbl.slice(0, limit)
-                except Exception:
-                    pass
-            return tbl.to_pylist()
+            return list(
+                self._stream_rows(table, columns, limit, _VFS_SCAN_BATCH)
+            )
 
         try:
             rows = await asyncio.wait_for(
@@ -575,7 +657,7 @@ class KnowledgeVFSProvider(VFSProvider):
 
     # Back-compat alias (the projection ladder is store-agnostic).
     def _projected_arrow(self, table, columns):
-        return self._comms_projected_arrow(table, columns)
+        return self._projected_table(table, columns)
 
     async def _get_conversation(self, conv_id: str) -> Optional[Dict[str, Any]]:
         for rec in await self._comms_rows(

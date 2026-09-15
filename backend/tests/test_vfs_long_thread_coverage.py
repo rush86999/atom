@@ -120,7 +120,7 @@ def _provider(monkeypatch, table):
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro) if False else asyncio.run(coro)
+    return asyncio.run(coro)
 
 
 # --------------------------------------------------------------------------- #
@@ -177,6 +177,94 @@ def test_grep_caps_citations_per_message(monkeypatch):
         per_path[h.path] = per_path.get(h.path, 0) + 1
     assert per_path, "expected hits"
     assert max(per_path.values()) <= 5, per_path
+
+
+def test_grep_anchored_pattern_matches_past_the_first_line(monkeypatch):
+    """grep semantics: `^`/`$` anchor per LINE. The whole-text fast-skip in
+    _cites_for_text used to swallow any `^…` pattern whose match is not at
+    the very start of the message — silent false negatives, the same family
+    as the head-window bug this file pins."""
+    recs = _records()
+    recs[7]["content"] = "intro line\nquoted history line"
+    v = _provider(monkeypatch, _FakeTable(recs))
+
+    hits = _run(v.grep("^quoted", "knowledge/conversations"))
+
+    assert hits, "a line-anchored pattern must match at any line start"
+    assert hits[0].line == 2
+    assert "quoted history line" in hits[0].snippet
+
+
+def test_projection_drift_degrades_to_present_columns():
+    """Real pyarrow select() raises KeyError for a missing column. The
+    fallback must project to the requested-∩-existing columns (schema drift
+    on an open_table'd store) — NEVER return the unprojected table, which on
+    this build materializes the vector + metadata columns (GBs for the live
+    comms store)."""
+    import pyarrow as pa
+
+    class _PaWrap:
+        def __init__(self, t):
+            self._t = t
+
+        def to_arrow(self):
+            return self._t
+
+    tbl = _PaWrap(pa.table({
+        "id": ["a", "b"],
+        "content": ["x", "y"],
+        "metadata": ["m1", "m2"],
+    }))
+
+    out = KnowledgeVFSProvider()._projected_table(tbl, ["id", "content", "nope"])
+
+    assert list(out.column_names) == ["id", "content"], list(out.column_names)
+    assert "metadata" not in set(out.column_names), (
+        "a drifted projection must never leak the unprojected columns"
+    )
+
+
+def test_whole_store_read_uses_the_streaming_projection(monkeypatch):
+    """The ladder's first rung must be the query-builder projection: full
+    ``to_arrow()`` on the live comms store materializes 3.07 GB of vectors +
+    metadata (measured) versus 34 MB projected."""
+    import pyarrow as pa
+
+    seen = {}
+
+    class _Builder:
+        def select(self, cols):
+            seen["selected"] = list(cols)
+            return self
+
+        def limit(self, n):
+            seen["limit"] = n
+            return self
+
+        def to_batches(self, batch_size=None):
+            seen["batch_size"] = batch_size
+            return iter([pa.record_batch({"id": ["a"], "content": ["x"]})])
+
+        def to_arrow(self):
+            seen["to_arrow"] = True
+            return pa.table({"id": ["a"], "content": ["x"], "metadata": ["m"]})
+
+    class _Table:
+        def search(self):
+            return _Builder()
+
+        def to_arrow(self):
+            raise AssertionError(
+                "the full-table read is the 3 GB path this reader exists to avoid"
+            )
+
+    rows = list(KnowledgeVFSProvider()._stream_rows(
+        _Table(), ["id", "content"], None, 500
+    ))
+
+    assert rows == [{"id": "a", "content": "x"}]
+    assert seen.get("selected") == ["id", "content"], seen
+    assert seen.get("to_arrow") is not True, "must stream, not materialize"
 
 
 # --------------------------------------------------------------------------- #
@@ -314,7 +402,7 @@ def test_cat_returns_the_whole_long_thread(monkeypatch):
 
     assert len(res.lines) == long_body.count("\n") + 1
     assert "final line" in res.lines[-1]
-    assert res.meta.get("line_count") is None or True  # to_dict carries it
+    assert res.meta.get("app_type") == "outlook" and res.meta.get("timestamp")
 
 
 # --------------------------------------------------------------------------- #
@@ -327,8 +415,6 @@ def test_comms_table_initializes_an_unopened_manager(monkeypatch):
     which is the very call that OPENS the db and creates the table — so every
     conversation call degraded to empty until unrelated code initialized the
     pipeline. The store must come up on demand."""
-    import integrations.vfs.knowledge_vfs as kv
-
     class _Manager:
         def __init__(self):
             self.db = None
@@ -350,9 +436,56 @@ def test_comms_table_initializes_an_unopened_manager(monkeypatch):
         "integrations.atom_communication_ingestion_pipeline.get_ingestion_pipeline",
         lambda *a, **k: _Pipeline(manager),
     )
-    monkeypatch.setattr(kv, "_COMMS_PIPELINE_INIT_DONE", False, raising=False)
 
     table = KnowledgeVFSProvider()._comms_table()
 
     assert table == "TABLE", "a not-yet-opened store must be initialized on demand"
     assert manager.initialize_calls == 1
+
+
+# --------------------------------------------------------------------------- #
+# a WRITE must not stay invisible behind the read cache
+# --------------------------------------------------------------------------- #
+
+def test_store_write_invalidates_the_cached_rows(monkeypatch):
+    """The VFS caches projected whole-store reads for a short TTL (agents hit
+    ls → grep → cat in one turn). Without an invalidation hook on the write
+    path, the on-demand ingest fallback — 'search missed → pull the message →
+    re-run the search' — would pull a message and immediately re-read a cache
+    that predates it, so the agent still saw 'not in the mailbox'."""
+    from core.vfs_registry import get_provider, register_provider
+    from integrations.atom_communication_ingestion_pipeline import (
+        LanceDBMemoryManager,
+    )
+
+    provider = KnowledgeVFSProvider()
+    register_provider(provider)
+    try:
+        assert get_provider("knowledge") is provider
+
+        provider._rows_cache[("comms", ("id", "content"), None)] = (0.0, [{"id": "old"}])
+        assert provider._rows_cache, "precondition: a cached read"
+
+        LanceDBMemoryManager._invalidate_vfs_rows_cache()
+
+        assert provider._rows_cache == {}, (
+            "ingesting a message must drop the VFS read cache so the very next "
+            "search in the same turn sees it"
+        )
+    finally:
+        provider.invalidate_rows_cache()
+
+
+def test_write_path_calls_the_invalidator():
+    """The hook must be ON the write path, not merely available."""
+    import inspect
+
+    from integrations.atom_communication_ingestion_pipeline import (
+        LanceDBMemoryManager,
+    )
+
+    src = inspect.getsource(LanceDBMemoryManager.ingest_communication)
+    assert "_invalidate_vfs_rows_cache()" in src, (
+        "ingest_communication is the single row-write choke point "
+        "(ingest_batch delegates to it) — it must invalidate the VFS cache"
+    )

@@ -1068,18 +1068,201 @@ def _context_identifier_net(ctx: Dict[str, Any], query: str, limit: int = 2,
     ][:limit]
 
 
-def _rank_address_hits(rows: List[Dict[str, Any]], addr_l: str, limit: int = 4) -> List[Dict[str, Any]]:
-    """Rank raw comms rows matching an address. Participant rows (the
-    address appears in sender/recipient — actual thread members) outrank
-    body-only mentions (quoted threads, lead-form echoes); newest first
-    within a tier. Rows arrive in table (insertion) order, not relevance:
-    with a thread's key messages ingested late, a first-N cap surfaced lead
-    forms and internal chatter while the actual reply sat near the end of
-    the table (live 2026-09-06: jschulz@blumetric.ca — Jacob's reply and the
-    sent quote never made the cap). Exact duplicate rows (re-ingested
-    copies) collapse to one so they don't burn cap slots."""
+#: Bare years are not identifiers on their own.
+_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
+
+
+def _mailbox_code_tokens(text: str, limit: int = 4) -> List[str]:
+    """Codes a mailbox search should try, including the shapes the shared
+    ``_product_tokens`` deliberately ignores.
+
+    ``_product_tokens`` requires 5+ chars AND a letter, so it misses the codes
+    this workspace actually files threads under: '52T' (3 chars) and '81020'
+    (digits only, a Tennsmith order number). Live 2026-09-14 a question about
+    the foot-shear list price could not reach a thread whose only identifiers
+    were exactly those.
+
+    Shape here: any token with at least one digit and at least one LETTER OR
+    two digits ('52T', '81020', 'F-5216'), minimum two characters. Rejected:
+    bare years, and digits-only tokens that are phone-shaped once separators
+    are removed (the NANP screen `_is_phone_shaped` uses, which the figure
+    tokenizer already relies on). Identity-shaped tokens are data-driven, so
+    this does not need to know any product vocabulary."""
+    out: List[str] = []
+    seen: set = set()
+    for tok in re.findall(r"[A-Za-z0-9][A-Za-z0-9_/-]*", text or ""):
+        t = tok.strip("-_/")
+        low = t.lower()
+        if len(t) < 2 or low in seen:
+            continue
+        digits = sum(ch.isdigit() for ch in t)
+        if not digits:
+            continue
+        if _YEAR_RE.fullmatch(t):
+            continue
+        stripped = re.sub(r"\D", "", t)
+        if not re.search(r"[A-Za-z]", t) and len(stripped) in (10, 11):
+            continue  # phone-shaped, not a code
+        seen.add(low)
+        out.append(t)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _code_boundary_hits(
+    rows: List[Dict[str, Any]], tokens: List[str], limit: int = 3
+) -> List[Dict[str, Any]]:
+    """Comms rows containing a CODE token as a whole word.
+
+    Live 2026-09-14: "check the email thread chandrakant forwarded to me about
+    how list price was calculated for the foot shear" found nothing — the
+    user's phrasing ("list price calculated") and the thread's wording
+    ("cost", "$8,880", "52T", "81020") share almost no surface terms, and the
+    thread's subject is "Re: Brake, Shear and Lock Former." The identifier
+    ladder already solved this for storage/item searches; the mailbox lane had
+    no equivalent, so a question asked in conceptual words could not reach a
+    thread filed under catalogue codes.
+
+    Index-built and boundary-anchored: alphanumeric runs are compared exactly
+    against the token (so '81020' does not match inside '810200'), and a token
+    matches a run either as written or with separators removed — the store
+    holds both 'WG-350DSAV' and 'WG350DSAV' spellings of the same code.
+    Newest-first; rows without an id are skipped (they cannot be cited)."""
+    wanted = []
+    for t in tokens or []:
+        tok = str(t or "").strip().upper()
+        # Two characters is enough for a code ('52T'); the CALLER decides what
+        # is identifier-shaped (see _mailbox_code_tokens) — a second length
+        # floor here silently dropped exactly the short codes this leg exists
+        # for.
+        if len(_canonical_fig_text(tok)) < 2:
+            continue
+        wanted.append((tok, tok.replace("-", "").replace(" ", "")))
+    if not wanted:
+        return []
+    hits: List[Dict[str, Any]] = []
+    for row in rows:
+        blob = f"{row.get('subject') or ''} {row.get('content') or ''}".upper()
+        runs = {
+            r.replace("-", "").replace(" ", "")
+            for r in re.findall(r"[A-Z0-9][A-Z0-9\- ]{2,}", blob)
+        }
+        runs |= set(re.findall(r"[A-Z0-9]+", blob))
+        if any(plain in runs or raw in runs for raw, plain in wanted):
+            hits.append(row)
+    hits.sort(key=lambda r: str(r.get("timestamp") or ""), reverse=True)
+    return hits[:limit]
+
+
+async def _mailbox_code_lines(
+    user_id, query: str, context: Optional[Dict[str, Any]], limit: int = 3
+) -> List[str]:
+    """Mailbox evidence for the CODES a turn is about, even when the user's
+    words and the stored message share no terms.
+
+    Two sources of tokens, both deterministic (no LLM, no embeddings):
+    codes named in the query itself, plus codes the conversation/canvas
+    carries that the query dropped — the classic "it refers to something
+    named three turns ago" case. The scan runs off-loop; [] on anything."""
+    try:
+        codes = _mailbox_code_tokens(query or "", limit=4)
+    except Exception:
+        codes = []
+    # Codes the CONVERSATION carries (the user rarely repeats them): scanned
+    # with the same broader shape, because the shared identifier net requires
+    # 5+ chars and misses '52T'/'81020' — the exact codes this workspace files
+    # its foot-shear threads under.
+    try:
+        ctx_texts = [
+            str((m or {}).get("message") or "")
+            for m in ((context or {}).get("history") or [])[-6:]
+            if isinstance(m, dict)
+        ]
+        ctx_texts.append(_entry_text((context or {}).get("canvas") or {}))
+        codes += _mailbox_code_tokens(" ".join(ctx_texts), limit=3)
+    except Exception:
+        pass
+    # De-dup, order-preserving, and drop codes already present in the query
+    seen: set = set()
+    ordered: List[str] = []
+    for c in codes:
+        lc = str(c).lower()
+        if lc and lc not in seen:
+            seen.add(lc)
+            ordered.append(str(c))
+    if not ordered:
+        return []
+    try:
+        rows = await asyncio.to_thread(
+            lambda: _code_boundary_hits(_comms_store_records(), ordered, limit=limit)
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"mailbox code scan skipped: {e}")
+        return []
+    out: List[str] = []
+    for i, row in enumerate(rows):
+        if not row.get("id"):
+            continue
+        out.append(
+            _ingested_line_from_row(
+                row,
+                with_body=i < _INGESTED_BODY_LINES,
+                body_cap=(
+                    _INGESTED_BODY_CAP_FULL if i < _INGESTED_FULL_LINES else None
+                ),
+            )
+        )
+    if out:
+        logger.info(
+            "mailbox code scan: %d line(s) for codes %s", len(out), ordered[:3]
+        )
+    return out
+
+
+#: Words too generic to signal relevance when comparing a request to a
+#: subject line (query verbs, articles, the meta-language of asking).
+_RANK_STOPWORDS = frozenset({
+    "email", "emails", "thread", "threads", "check", "find", "search", "show",
+    "tell", "give", "need", "want", "about", "from", "that", "this", "with",
+    "what", "when", "where", "which", "have", "has", "had", "does", "did",
+    "list", "price", "prices", "cost", "quote", "quoted", "calculation",
+    "calculated", "calculate", "forwarded", "forward", "sent", "send",
+    "please", "could", "would", "should", "there", "their", "your", "yours",
+    "mine", "ours", "into", "over", "under", "more", "most", "some", "any",
+})
+
+
+def _rank_address_hits(
+    rows: List[Dict[str, Any]],
+    addr_l: str,
+    limit: int = 4,
+    query: str = "",
+) -> List[Dict[str, Any]]:
+    """Rank raw comms rows matching an address.
+
+    Tiers, strongest first: (1) the row is a participant AND its SUBJECT
+    shares a term with the user's request, (2) participant, (3) body-only
+    mention. Newest first within a tier. Rows arrive in table (insertion)
+    order, not relevance: with a thread's key messages ingested late, a
+    first-N cap surfaced lead forms and internal chatter while the actual
+    reply sat near the end of the table (live 2026-09-06: jschulz@blumetric.ca
+    — Jacob's reply and the sent quote never made the cap).
+
+    The subject-overlap tier is the 2026-09-14 fix: a NAMED participant
+    resolves to one address, but that address holds hundreds of unrelated
+    messages, so "newest N" returned the six latest while the thread the user
+    described ("list price … foot shear") sat below the cap. A term the user
+    used that the SUBJECT also uses is the cheapest reliable relevance signal
+    — and subject-only, so a common word buried in a long quoted body cannot
+    promote noise. Exact duplicate rows (re-ingested copies) collapse to one
+    so they don't burn cap slots."""
     seen_keys = set()
     scored = []
+    q_terms = {
+        t for t in re.findall(r"[a-z0-9]{4,}", (query or "").lower())
+        if t not in _RANK_STOPWORDS
+    }
     for row in rows:
         sender = str(row.get("sender") or "")
         recipient = str(row.get("recipient") or "")
@@ -1093,13 +1276,30 @@ def _rank_address_hits(rows: List[Dict[str, Any]], addr_l: str, limit: int = 4) 
         key = (sender, recipient, subj, content[:120])
         if key in seen_keys:
             continue
-        blob = f"{sender} {recipient} {content} {subj}".lower()
-        if addr_l not in blob:
+        # MATCH IN THE IDENTITY COLUMNS AND THE PLAIN BODY — the only places
+        # the address is the message's own text. The stored ``metadata`` holds
+        # the full original HTML (median 48 KB, max 35 MB/row) and lowercasing
+        # it for every row was pure cost: measured on the live store, every
+        # one of the 3,777 rows whose metadata contains the address ALSO
+        # contains it in sender/recipient/content, so the clause changed no
+        # result. ``content`` keeps quoted-body mentions (a reply that names
+        # the person without being addressed to them), which the tagger
+        # already scores below true participants.
+        participant = addr_l in sender.lower() or addr_l in recipient.lower()
+        if not participant and addr_l not in content.lower():
             continue
         seen_keys.add(key)
-        participant = addr_l in sender.lower() or addr_l in recipient.lower()
-        scored.append((0 if participant else 1, ts, row))
-    # Two stable sorts: newest first overall, then participant tier wins.
+        subject_hit = bool(
+            q_terms & set(re.findall(r"[a-z0-9]{4,}", subj.lower()))
+        )
+        if participant and subject_hit:
+            tier = 0
+        elif participant:
+            tier = 1
+        else:
+            tier = 2
+        scored.append((tier, ts, row))
+    # Two stable sorts: newest first overall, then tier wins.
     scored.sort(key=lambda t: t[1], reverse=True)
     scored.sort(key=lambda t: t[0])
     return [t[2] for t in scored[:limit]]
@@ -1142,7 +1342,8 @@ def _canon_keys(phrases: List[str]) -> List[str]:
 def _probe_variants(phrases: List[str]) -> List[str]:
     """Decorated (raw-text) spellings of each phrase for the matcher's
     containment pre-gate: as written, dot-for-comma, comma-for-space, and
-    fully stripped.
+    fully stripped (the ungrouped form is what the canonical fallback matches
+    inside a body rendering the digits without separators).
 
     Raw spellings only — NOT the canonical digit form, which is covered by
     ``_canon_keys`` and is deliberately kept separate so each probe can be
@@ -1154,6 +1355,7 @@ def _probe_variants(phrases: List[str]) -> List[str]:
             phrase.replace(".", ","),
             phrase.replace(",", " "),
             phrase.replace(",", "").replace(" ", ""),
+            _canonical_fig_text(phrase),
         ):
             c = cand.strip()
             if len(_canonical_fig_text(c)) >= 4 and c not in out:
@@ -1314,7 +1516,10 @@ def _mail_contains_phrases(phrases: List[str]) -> List[Dict[str, Any]]:
         return []
     hits: List[Dict[str, Any]] = []
     for row in rows:
-        head = f"{row.get('subject') or ''}\n{row.get('content') or ''}".lower()
+        head = re.sub(
+            r"\s+", " ",
+            f"{row.get('subject') or ''}\n{row.get('content') or ''}",
+        ).lower()
         if any(n in head for n in needles):
             hits.append(row)
     return hits
@@ -1677,10 +1882,11 @@ def _comms_store_records() -> List[Dict[str, Any]]:
     return records
 
 
-def _search_ingested_by_address(user_id, address, limit=4):
+def _search_ingested_by_address(user_id, address, limit=4, query=""):
     """Deterministic LanceDB lookup of ingested messages tied to an email
     address (sender/recipient/content containment, participant rows ranked
-    first — see _rank_address_hits). Graph free-text search does not
+    first — see _rank_address_hits, which uses ``query`` to prefer a row whose
+    SUBJECT shares a term with the request over merely-newer mail). Graph free-text search does not
     reliably match sender ADDRESSES (live 2026-09-02: Jacob Schulz's reply
     never surfaced because 'jschulz' is only the local part of the sender
     address) — the ingested copy is authoritative here and needs no
@@ -1694,7 +1900,9 @@ def _search_ingested_by_address(user_id, address, limit=4):
         return out
     try:
         for i, row in enumerate(
-            _rank_address_hits(_comms_store_records(), address.lower(), limit=limit)
+            _rank_address_hits(
+                _comms_store_records(), address.lower(), limit=limit, query=query
+            )
         ):
             out.append(
                 _ingested_line_from_row(
@@ -1718,6 +1926,13 @@ def _canonical_fig_text(s: Any) -> str:
     '5 350.00' all canonicalize to '535000' — email bodies render amounts
     in every one of these shapes."""
     return re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
+
+
+#: Above this stored-metadata size the html pass runs only when the plain body
+#: matched nothing. Median live metadata is 48 KB and the max is 35 MB; the
+#: cap keeps mega-threads off the hot path without dropping ordinary html-only
+#: matches from the ranking.
+_HTML_PASS_MAX_CHARS = int(os.getenv("ATOM_HTML_PASS_MAX_CHARS", "200000") or 200000)
 
 
 # A figure match within this many chars of the subject+body start counts as
@@ -1800,75 +2015,110 @@ def _match_rows_by_figure_tokens(
     variants = _probe_variants(phrases)
     seen_keys = set()
     scored = []
+
+    def _consider(row, subject, content, raw_meta):
+        """Score one row against every phrase; None when it does not match.
+
+        Fields are matched SEPARATELY, never concatenated: canonicalization
+        erases separators, so a subject ending in a digit and a body starting
+        in one fused into a single longer number ('Quote 52' + '5350.00 net'
+        → '52535000'), which the digit-edge guard then read as the '$53,500'
+        prefix case and rejected — a false negative on a genuine match.
+        Positions are made comparable by adding each field's start offset in
+        the (vanished) joined text, which keeps the own-text tier honest."""
+        if raw_meta:
+            meta = raw_meta
+            if isinstance(meta, str):
+                try:
+                    meta = _json.loads(meta)
+                except Exception:
+                    meta = {}
+            html = str((meta or {}).get("html_body") or "") if isinstance(meta, dict) else ""
+        else:
+            html = ""
+        positions = [
+            _fig_occurrence_in_fields([subject, content, html], phrase)
+            for phrase in phrases
+        ]
+        return positions if all(p >= 0 for p in positions) else None
+
+    # PASS 1 — the CHEAP columns only (subject + plain body). Measured live:
+    # this resolves the overwhelming majority of figure queries in ~2s and,
+    # crucially, leaves the metadata column UNTOUCHED. The stored metadata is
+    # the full original HTML (median 48 KB, max 35 MB/row); lowercasing and
+    # substring-scanning 340 MB per query is what made this leg cost 13-22s.
     for row in rows:
         subject = str(row.get("subject") or "")
         content = str(row.get("content") or "")
-        # Canonicalize the two CHEAP columns once per row (subject+content for
-        # all 7,149 rows: ~0.2s) — the gate then compares like with like, and
-        # the same prepared strings feed the matcher below instead of being
-        # recomputed per phrase.
-        canon_subject = _canonical_fig_text(subject)
-        canon_content = _canonical_fig_text(content)
-        # CHEAP PRE-GATE. Measured live on 7,149 rows: the ungated matcher
-        # spent 22s to find a handful of matches because it canonicalized
-        # every row's html body (median 48 KB, max 35 MB) once per phrase.
-        # Plain `in` against subject/content and then the raw metadata STRING
-        # costs no copy, no JSON parse and no canonicalization. A figure
-        # token's digit groups are ≤3 digits, so a differently-rendered amount
-        # still contains the longest group — and the canonical pass below
-        # stays the authority, so this gate can only skip work, never matches
-        # (the cross-locale and ungrouped-body tests are the proof).
-        if canon_keys or variants:
-            if not any(k in canon_subject or k in canon_content for k in canon_keys):
-                # Not in the cheap columns. Two tolerated probes, both RAW
-                # substrings (canonicalizing 340 MB of metadata cost 35-88s):
-                #   * a DECORATED variant ('5,350.00') — the common rendering,
-                #     which also catches html-only rows early; and
-                #   * a CANONICAL key ('535000'), which sits inside every
-                #     rendering that preserves those digits in order.
-                # The gate must be BROADER than the pass or it drops real
-                # matches — measured: an earlier canonical-only gate turned
-                # test_match_rows_html_body_counts red because the amount lived
-                # only in metadata.html_body. The pass below stays the
-                # authority for digit-edge precision.
-                raw_meta = row.get("metadata")
-                if not (
-                    isinstance(raw_meta, str)
-                    and (
-                        any(v in raw_meta for v in variants)
-                        or any(k in raw_meta for k in canon_keys)
-                    )
-                ):
-                    continue
-        meta = row.get("metadata")
-        if isinstance(meta, str):
-            try:
-                meta = _json.loads(meta)
-            except Exception:
-                meta = {}
-        html = str((meta or {}).get("html_body") or "") if isinstance(meta, dict) else ""
-        # Fields are matched SEPARATELY, never concatenated: canonicalization
-        # erases separators, so a subject ending in a digit and a body starting
-        # in one fused into a single longer number ('Quote 52' + '5350.00 net'
-        # → '52535000'), which the digit-edge guard then read as the '$53,500'
-        # prefix case and rejected — a false negative on a genuine match.
-        # Positions are made comparable by adding each field's start offset in
-        # the (vanished) joined text, which keeps the own-text tier honest.
-        positions = [_fig_occurrence_in_fields([subject, content, html], phrase)
-                     for phrase in phrases]
-        if any(p < 0 for p in positions):
+        positions = _consider(row, subject, content, None)
+        if positions is None:
             continue
         key = (
             str(row.get("sender") or ""),
             str(row.get("recipient") or ""),
-            str(row.get("subject") or ""),
-            str(row.get("content") or "")[:120],
+            subject,
+            content[:120],
         )
         if key in seen_keys:
             continue
         seen_keys.add(key)
         tier = 0 if min(positions) <= _FIGURE_OWN_TEXT_WINDOW else 1
         scored.append((tier, str(row.get("timestamp") or ""), row))
+    _plain_matched = len(scored)
+
+    # PASS 2 — the styled html body, for every row pass 1 did not already
+    # match. A RAW substring probe runs first (no lowercasing, no JSON parse):
+    # it cannot reject a row the pass would match, because the keys include
+    # the canonical digit string, every decorated spelling AND the ungrouped
+    # form. This keeps the column's 340 MB off the hot path for the typical
+    # query while still surfacing amounts that live ONLY in the html body
+    # (test_match_rows_html_body_counts).
+    for row in rows:
+        subject = str(row.get("subject") or "")
+        content = str(row.get("content") or "")
+        key = (
+            str(row.get("sender") or ""),
+            str(row.get("recipient") or ""),
+            subject,
+            content[:120],
+        )
+        # CHEAPEST CHECK FIRST: a row the pass-1 match already counted never
+        # touches its metadata.
+        if key in seen_keys:
+            continue
+        raw_meta = row.get("metadata")
+        if not isinstance(raw_meta, str) or not raw_meta:
+            continue
+        # ONE probe before the expensive pass, EXACTLY as broad as the matcher
+        # below (variants + canonical keys, lowercased — the stored html has
+        # uppercase tags). Two narrower probes were tried and both silently
+        # dropped real matches: a canonical-only key is NOT a substring of
+        # '5,350.00' (the commas sit inside the digits), and a case-sensitive
+        # one missed uppercase html. This probe can only skip work, never a
+        # match: whatever the pass could find is a substring of one of these
+        # forms, and a hit still goes through the full matcher.
+        meta_lc = raw_meta.lower()
+        if not (
+            any(v in meta_lc for v in variants)
+            or any(k in meta_lc for k in canon_keys)
+        ):
+            continue
+        # A HEAVY html body costs a full canonicalization pass. When the plain
+        # body ALREADY matched rows, those matches can only be displaced by an
+        # html row that outranks them — so heavy bodies are skipped and light
+        # ones still compete (keeping html-only matches in the ranking for
+        # ordinary messages while keeping 35 MB mega-threads off the hot
+        # path). When the plain body matched NOTHING, every html row is read:
+        # that is the html-only case this pass exists for.
+        if _plain_matched and len(raw_meta) > _HTML_PASS_MAX_CHARS:
+            continue
+        positions = _consider(row, subject, content, raw_meta)
+        if positions is None:
+            continue
+        seen_keys.add(key)
+        tier = 0 if min(positions) <= _FIGURE_OWN_TEXT_WINDOW else 1
+        scored.append((tier, str(row.get("timestamp") or ""), row))
+
     scored.sort(key=lambda t: t[1], reverse=True)
     scored.sort(key=lambda t: t[0])
     return [r for _, _, r in scored[:limit]]
@@ -1932,9 +2182,12 @@ async def _ingested_mailbox_lines(
     # A figure-less retry ('try the search again') inherits the most recent
     # user figure query, so a planner rewrite that drops the amount cannot
     # disarm this leg (live 2026-09-13).
-    _fig_tokens = _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT) or (
-        _latest_user_figure_phrases(context)
-    )
+    _fig_tokens = _distinctive_figure_phrases(query, limit=_FIGURE_PHRASE_LIMIT)
+    # A figure the user did NOT just name (inherited from an earlier turn)
+    # ranks BELOW the named participant: when someone says "the thread
+    # chandrakant forwarded about the foot shear", a previous turn's $5,350
+    # quote must not fill the slots with a different thread (live 2026-09-14).
+    _inherited_figs: List[str] = []
     if _fig_tokens:
         for _line in await asyncio.to_thread(
             _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2)
@@ -1943,12 +2196,22 @@ async def _ingested_mailbox_lines(
                 store_lines.append(_line)
                 if len(store_lines) >= cap:
                     break
+    else:
+        _inherited_figs = _latest_user_figure_phrases(context)
 
     _addr_haystack = query + " " + " ".join(
         _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
     )
+    # Named people first: "the thread chandrakant forwarded" resolves to his
+    # address even when the text carries none, and a named owner is stronger
+    # evidence than an incidental address in older history (the live miss had
+    # the mailbox slots filled by a different thread's address).
+    _addr_order = list(_resolve_named_addresses(query or "", limit=2))
+    for _a in _re_addr.findall(r"[\w.+-]+@[\w.-]+", _addr_haystack):
+        if _a.lower() not in [x.lower() for x in _addr_order]:
+            _addr_order.append(_a)
     _seen_addrs = set()
-    for _addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", _addr_haystack):
+    for _addr in _addr_order:
         if _addr.lower() in _seen_addrs:
             continue
         _seen_addrs.add(_addr.lower())
@@ -1957,13 +2220,25 @@ async def _ingested_mailbox_lines(
         # SYNC-OFF-LOOP: the scan loads and walks the whole comms table
         # (~4s at 3.5k rows, live 2026-09-06) — on the loop it froze every
         # concurrent request for that long, per address.
-        for _line in await asyncio.to_thread(_search_ingested_by_address, user_id, _addr):
+        for _line in await asyncio.to_thread(
+            _search_ingested_by_address, user_id, _addr, 4, query
+        ):
             if _line not in store_lines:
                 store_lines.append(_line)
                 if len(store_lines) >= cap:
                     break
         if len(store_lines) >= cap:
             break
+
+    if _inherited_figs and len(store_lines) < cap:
+        # Spare capacity only: the named participant's thread has had its pick.
+        for _line in await asyncio.to_thread(
+            _search_ingested_by_tokens, user_id, _inherited_figs, max(cap - len(store_lines), 2)
+        ):
+            if _line not in store_lines:
+                store_lines.append(_line)
+                if len(store_lines) >= cap:
+                    break
 
     if len(store_lines) < hybrid_min:
         try:
@@ -2143,6 +2418,100 @@ def _latest_user_figure_phrases(
     return []
 
 
+#: name-hint → addresses, built from the comms store's sender/recipient
+#: columns. Cheap (7k rows, 0.01s) but rebuilt per query at most once per TTL.
+_PEOPLE_INDEX: Dict[str, Any] = {}
+_PEOPLE_INDEX_TTL_S = float(os.getenv("ATOM_PEOPLE_INDEX_TTL_S", "60") or 60)
+
+
+def _people_index() -> Dict[str, List[str]]:
+    """``name-hint → [addresses]`` from every sender/recipient in the store.
+
+    The mailbox's own identity map: 'chandrakant' → chandrakant@brennan.ca,
+    'joel' → joelseguin@seguinmach.com. Built from the store rather than from
+    any hardcoded roster (per-install identity is DATA — CLAUDE.md invariant
+    #4), short-TTL cached, and fault-isolated to {}."""
+    import time as _time
+
+    now = _time.monotonic()
+    hit = _PEOPLE_INDEX.get("cache")
+    if hit and now - hit[0] < _PEOPLE_INDEX_TTL_S:
+        return hit[1]
+    index: Dict[str, List[str]] = {}
+    try:
+        addr_re = re.compile(r"[\w.+-]+@[\w.-]+")
+        for row in _comms_store_records():
+            blob = f"{row.get('sender') or ''} {row.get('recipient') or ''}"
+            for addr in addr_re.findall(blob):
+                local = addr.lower().split("@", 1)[0]
+                index.setdefault(local, [])
+                if addr.lower() not in index[local]:
+                    index[local].append(addr.lower())
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"people index unavailable: {e}")
+        index = {}
+    _PEOPLE_INDEX["cache"] = (now, index)
+    return index
+
+
+#: Local-parts that name a FUNCTION, not a person — never resolved as people.
+_GENERIC_MAILBOX_WORDS = frozenset({
+    "email", "mail", "emails", "info", "sales", "support", "admin", "contact",
+    "team", "hello", "office", "accounts", "account", "billing", "service",
+    "webmaster", "help", "shop", "store", "orders", "order", "noreply",
+    "notifications", "notification", "marketing", "enquiries", "inquiries",
+    "general", "reception", "desk", "news", "updates", "alerts", "system",
+    "postmaster", "no-reply", "donotreply", "customerservice", "hr", "jobs",
+})
+
+
+def _extract_named_people(message: str, limit: int = 2) -> List[str]:
+    """Person names the USER wrote, as name-hints to resolve against the store.
+
+    'check the email thread chandrakant forwarded to me' names its owner
+    directly — often in lowercase, which is why capitalisation is NOT the
+    filter. Precision comes from the store instead: a word counts only when it
+    is a local-part of an address that actually appears in the mailbox, so
+    'the thread forwarded to me' resolves to nobody and this never invents a
+    person. Longest match first, so a full first name beats a coincidental
+    substring."""
+    if not message:
+        return []
+    index = _people_index()
+    if not index:
+        return []
+    words = {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z.'-]{3,}", message or "")}
+    # Generic mailbox local-parts are not people: 'email@…', 'sales@…',
+    # 'info@…' would otherwise resolve the word "email" in any ordinary
+    # sentence into a mailbox scan.
+    words -= _GENERIC_MAILBOX_WORDS
+    hits = [hint for hint in index if hint in words]
+    # Longest first: 'chandrakant' over a shorter accidental match.
+    hits.sort(key=len, reverse=True)
+    return hits[:limit]
+
+
+def _resolve_named_addresses(
+    message: str, limit: int = 2, per_name: int = 1
+) -> List[str]:
+    """Addresses for the people the message NAMES — the missing bridge from
+    'who the user said' to 'which rows to read'.
+
+    Live 2026-09-14: the user asked for "the email thread chandrakant
+    forwarded to me about the foot shear". The mailbox legs key off addresses
+    found in the query/history TEXT, and the conversational history carried a
+    different thread's address — so the chandrakant thread was never scanned,
+    even though every one of his messages is filed under one address. No new
+    keyword rules: this resolves a NAME to the store's own address for it."""
+    index = _people_index()
+    out: List[str] = []
+    for hint in _extract_named_people(message, limit=limit):
+        for addr in (index.get(hint) or [])[:per_name]:
+            if addr not in out:
+                out.append(addr)
+    return out
+
+
 def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
     """Email addresses named in the query or the last few history turns —
     the same haystack _ingested_mailbox_lines uses, so the styled-base
@@ -2156,6 +2525,13 @@ def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[s
     for addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", hay):
         if addr.lower() not in [x.lower() for x in out]:
             out.append(addr.lower())
+        if len(out) >= limit:
+            break
+    # A NAME the user wrote resolves through the store's own identity map even
+    # when no address appears anywhere in the text.
+    for addr in _resolve_named_addresses(query or "", limit=2):
+        if addr not in out:
+            out.append(addr)
         if len(out) >= limit:
             break
     return out
@@ -2637,16 +3013,25 @@ async def _memory_search_block(
     row, so a second walk per turn is pure waste."""
     ds_block = await _datasets_evidence(user_id, query, context)
     fig_lines = await _mailbox_figure_lines(user_id, query, context)
+    # CODES the turn is about — the leg that reaches a thread filed under
+    # catalogue numbers when the user asks in conceptual words (live
+    # 2026-09-14: "how list price was calculated for the foot shear" vs a
+    # thread whose text says "cost" and whose subject says "Brake, Shear and
+    # Lock Former."). Runs only when the figure leg found nothing, so the
+    # common turn pays a single cheap scan.
+    code_lines: List[str] = []
+    if not fig_lines:
+        code_lines = await _mailbox_code_lines(user_id, query, context)
     mem_block = await _memory_hybrid_block(
         user_id, query, context, figure_lines=fig_lines
     )
     missing = [
         line
-        for line in fig_lines
+        for line in fig_lines + code_lines
         if line not in (mem_block or "") and line not in (ds_block or "")
     ]
-    fig_block = "\n".join(missing) or None
-    parts = [b for b in (ds_block, fig_block, mem_block) if b]
+    ev_block = "\n".join(missing) or None
+    parts = [b for b in (ds_block, ev_block, mem_block) if b]
     return "\n\n".join(parts) or None
 
 
@@ -2774,7 +3159,9 @@ async def _memory_hybrid_block(
         )
         for _addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", _hay):
             # SYNC-OFF-LOOP: full comms-table scan per address (~4s at 3.5k rows).
-            for _line in await asyncio.to_thread(_search_ingested_by_address, user_id, _addr):
+            for _line in await asyncio.to_thread(
+                _search_ingested_by_address, user_id, _addr, 4, query
+            ):
                 if _line not in lines:
                     lines.append(_line)
                     if len(lines) >= 8:

@@ -62,7 +62,7 @@ def test_mailbox_lines_dedupes_addresses_across_query_and_history():
     calls = []
 
     with patch.object(planner, "_search_ingested_by_address",
-                      side_effect=lambda uid, addr: calls.append(addr) or []):
+                      side_effect=lambda uid, addr, limit=4, query="": calls.append(addr) or []):
         asyncio.run(planner._ingested_mailbox_lines(
             "u1", "jschulz@blumetric.ca quote",
             {"history": [{"message": "from jschulz@blumetric.ca"}]}))

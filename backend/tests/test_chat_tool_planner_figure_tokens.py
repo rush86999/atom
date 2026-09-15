@@ -223,7 +223,7 @@ def test_figure_lines_lead_and_survive_address_flood(monkeypatch):
         fig_calls.append(tokens)
         return ["- [ingested mailbox] From: joelseguin@seguinmach.com | FW: RFQ - Foot shear"]
 
-    def fake_address(user_id, address, limit=4):
+    def fake_address(user_id, address, limit=4, query=""):
         addr_calls.append(address)
         return ["- [ingested mailbox] old thread line"] * 6
 
@@ -768,3 +768,245 @@ def test_figure_search_gives_the_top_row_the_full_budget(monkeypatch):
 
     assert seen_caps[0] == planner._INGESTED_BODY_CAP_FULL
     assert seen_caps[1] is None, "deeper rows keep the small default cap"
+
+
+# --- PROVENANCE: where the quoted token lives, resolved BEFORE planning -----
+#
+# Live 2026-09-14: the user pasted a line out of a vendor email and the planner
+# routed it to zoho_inventory ("in stock"). Nothing in the planner's inputs said
+# the text was a MESSAGE the workspace already held. These pin the generalized
+# fix: the ingested stores are checked for the quoted token first, and the
+# result is rendered into the planner's prompt as evidence.
+
+
+def test_canvas_block_tells_the_planner_what_is_open():
+    from core.chat_tool_planner import _planner_canvas_block
+
+    block = _planner_canvas_block({
+        "canvas_type": "email",
+        "title": "Quote for 52 Inch 16 Gauge Foot Shear",
+        "content": {
+            "to": "Wayne <wayne.knott@belden.com>",
+            "subject": "Quote for 52 Inch 16 Gauge Foot Shear",
+            "body": "<p>Hello Wayne,</p>" + ("x" * 5000),
+        },
+    })
+
+    assert "type: email" in block
+    assert "Quote for 52 Inch 16 Gauge Foot Shear" in block
+    assert "wayne.knott@belden.com" in block
+    # identity yes, the whole body no — the planner must not answer from the
+    # prompt instead of from the tools. The block rides on EVERY planning call.
+    assert len(block) < 1400, len(block)
+
+
+def test_canvas_block_is_bounded_regardless_of_body_size():
+    """A 30 KB canvas body must not bloat the cheap planning prompt — and the
+    cap must hold for the string-content shape too."""
+    from core.chat_tool_planner import _PLANNER_CANVAS_CHARS, _planner_canvas_block
+
+    small = _planner_canvas_block(
+        {"canvas_type": "email", "content": {"body": "y" * 2000}}
+    )
+    huge = _planner_canvas_block(
+        {"canvas_type": "email", "content": {"body": "y" * 30000}}
+    )
+    as_str = _planner_canvas_block({"canvas_type": "doc", "content": "z" * 30000})
+
+    for block in (small, huge, as_str):
+        body_part = block.split("head: ", 1)[-1]
+        assert len(body_part) <= _PLANNER_CANVAS_CHARS, len(body_part)
+    # 30k of body must not cost more than the cap + the fixed header
+    assert len(huge) < _PLANNER_CANVAS_CHARS + 400
+    assert len(as_str) < _PLANNER_CANVAS_CHARS + 400
+
+
+def test_canvas_block_empty_for_no_canvas():
+    from core.chat_tool_planner import _planner_canvas_block
+
+    assert _planner_canvas_block(None) == ""
+    assert _planner_canvas_block({}) == ""
+
+
+def test_token_probe_keys_avoid_the_digit_run_flood():
+    """'350' matched 462 live messages of noise; the canonical key plus the
+    decorated spellings must be used instead."""
+    from core.chat_tool_planner import _token_probe_keys
+
+    keys = _token_probe_keys(["5,350.00"])
+    assert "535000" in keys
+    assert "5,350.00" in keys
+    assert not any(k == "350" for k in keys), keys
+
+
+def test_mail_contains_tokens_rejects_a_longer_amount(monkeypatch):
+    """'535000' is a substring of '$53,500.00' — the verify stage must apply
+    the same digit-edge guard as the evidence path, or provenance would claim
+    the wrong machine."""
+    import core.chat_tool_planner as ctp
+
+    wrong = _row(
+        "joelseguin@seguinmach.com", "RE: RFQ - Shear",
+        "The only one we have is a 10' shear & 53,500.00 made in China",
+        "2026-07-22 13:36:00", row_id="m-wrong",
+    )
+    right = _row(
+        "joelseguin@seguinmach.com", "FW: RFQ - Foot shear",
+        "$ 5,350.00 – 10 %  in stock", "2026-08-26 14:06:28", row_id="m-right",
+    )
+    monkeypatch.setattr(ctp, "_comms_store_records", lambda: [wrong, right])
+    ctp.invalidate_comms_store_cache()
+
+    hits = ctp._mail_contains_tokens(["5,350.00"])
+
+    assert [h["id"] for h in hits] == ["m-right"], [h["id"] for h in hits]
+
+
+def test_provenance_menu_names_the_ingested_mail(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    row = _row(
+        "joelseguin@seguinmach.com", "FW: RFQ - Foot shear",
+        "$ 5,350.00 – 10 %  in stock", "2026-08-26 14:06:28", row_id="m1",
+    )
+    monkeypatch.setattr(ctp, "_comms_store_records", lambda: [row])
+    monkeypatch.setattr(ctp, "_comms_store_cache", {"x": (0, [row])})
+    # no dataset leg in this test
+    import core.sheet_dataset_service as sds
+
+    monkeypatch.setattr(sds, "sheet_datasets_enabled", lambda: False)
+
+    menu = asyncio.run(ctp._provenance_menu(
+        "search for this one: $ 5,350.00 - 10 % in stock", {"history": []}
+    ))
+
+    assert "PROVENANCE" in menu
+    assert "INGESTED MAIL contains your quoted text" in menu
+    assert "joelseguin@seguinmach.com" in menu
+    assert "MESSAGE" in menu
+
+
+def test_provenance_menu_silent_without_a_distinctive_token(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    def boom(*a, **k):
+        raise AssertionError("must not touch the stores for a figure-less message")
+
+    monkeypatch.setattr(ctp, "_mail_contains_tokens", boom)
+    assert asyncio.run(ctp._provenance_menu("what did Sarah say about the deadline")) == ""
+
+
+def test_provenance_menu_is_fault_isolated(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    def boom(*a, **k):
+        raise RuntimeError("lance exploded")
+
+    monkeypatch.setattr(ctp, "_mail_contains_tokens", boom)
+    assert asyncio.run(ctp._provenance_menu("$ 5,350.00")) == ""
+
+
+def test_planner_prompt_carries_a_provenance_rule():
+    from core.chat_tool_planner import _PLANNER_SYSTEM
+
+    low = _PLANNER_SYSTEM.lower()
+    assert "provenance beats wording" in low
+    assert "plan \"memory\"" in low or 'plan "memory"' in low
+
+
+# --- the missing retrieval legs: codes and NAMED participants ---------------
+#
+# Live 2026-09-14, two searches that could not reach the right thread:
+#   * "check the email thread chandrakant forwarded to me about how list price
+#     was calculated for the foot shear" — the user's conceptual wording ("list
+#     price", "calculated") shares almost no terms with the thread's text
+#     ("cost", "$8,880", "52T", "81020") or its subject ("Re: Brake, Shear and
+#     Lock Former."), and the thread is filed under chandrakant@brennan.ca
+#     while the conversational history carried a DIFFERENT address.
+#   * "find the email that said: put 25 percent only" — an exact phrase living
+#     in the elided middle of a long quoted thread.
+# These pin the two legs that close that gap: an exact CODE scan, and NAME →
+# address resolution from the store's own identity map.
+
+
+def test_code_scan_reaches_a_thread_filed_under_catalogue_numbers(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    row = _row(
+        "chandrakant@brennan.ca", "Re: Brake, Shear and Lock Former.",
+        "the 52T shear: cost 8,880 less the usual", "2026-09-14 15:38:16",
+        row_id="m-brake",
+    )
+    monkeypatch.setattr(ctp, "_comms_store_records", lambda: [row])
+
+    lines = asyncio.run(ctp._mailbox_code_lines("u1", "how was the list price calculated", {
+        "history": [{"message": "what is the 52T list price?"}],
+    }))
+
+    assert lines, "a code from the conversation must reach the thread"
+    assert "Brake, Shear and Lock Former" in lines[0]
+
+
+def test_code_boundary_does_not_match_inside_a_longer_code(monkeypatch):
+    import core.chat_tool_planner as ctp
+
+    wrong = _row("v@x.example", "Quote", "part 810200 shipped", "2026-09-14",
+                 row_id="m-wrong")
+    right = _row("v@x.example", "Quote", "part 81020 shipped", "2026-09-13",
+                 row_id="m-right")
+    hits = ctp._code_boundary_hits([wrong, right], ["81020"])
+
+    assert [h["id"] for h in hits] == ["m-right"]
+
+
+def test_named_person_resolves_through_the_stores_own_addresses(monkeypatch):
+    """'chandrakant forwarded to me' → his address, from the store's senders —
+    no hardcoded roster (per-install identity is data)."""
+    import core.chat_tool_planner as ctp
+
+    row = _row("chandrakant@brennan.ca", "Re: Brake, Shear and Lock Former.",
+               "body", "2026-09-14 15:38:16", row_id="m1")
+    monkeypatch.setattr(ctp, "_comms_store_records", lambda: [row])
+    ctp._PEOPLE_INDEX.clear()
+
+    addrs = ctp._resolve_named_addresses(
+        "check the email thread chandrakant forwarded to me"
+    )
+
+    assert addrs == ["chandrakant@brennan.ca"]
+
+
+def test_generic_mailbox_words_are_not_people(monkeypatch):
+    """'email@…' exists in the store; the word "email" in an ordinary sentence
+    must not resolve into a mailbox scan."""
+    import core.chat_tool_planner as ctp
+
+    rows = [
+        _row("email@email.shopify.com", "Newsletter", "sale", "2026-09-14",
+             row_id="m1"),
+        _row("chandrakant@brennan.ca", "Re: Shear", "body", "2026-09-14",
+             row_id="m2"),
+    ]
+    monkeypatch.setattr(ctp, "_comms_store_records", lambda: rows)
+    ctp._PEOPLE_INDEX.clear()
+
+    assert ctp._extract_named_people("find the email about the foot shear") == []
+
+
+def test_address_ranking_prefers_subject_overlap_over_recency(monkeypatch):
+    """A named participant's address holds hundreds of unrelated messages:
+    'newest N' returned the six latest while the described thread sat below
+    the cap. A term the user used that the SUBJECT also uses wins."""
+    import core.chat_tool_planner as ctp
+
+    newer_other = _row("chandrakant@brennan.ca", "Re: Quote for GHS5430",
+                       "unrelated", "2026-09-14 17:38", row_id="m-other")
+    described = _row("chandrakant@brennan.ca", "Re: 52 Inch 16 Gauge Foot Shear",
+                     "how the list price was built", "2026-09-14 12:51",
+                     row_id="m-target")
+    ranked = ctp._rank_address_hits(
+        [newer_other, described], "chandrakant@brennan.ca", limit=1,
+        query="the foot shear list price calculation",
+    )
+
+    assert [r["id"] for r in ranked] == ["m-target"]
