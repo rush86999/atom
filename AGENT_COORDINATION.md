@@ -2388,3 +2388,26 @@ tests/unit/core/test_rerank_hallucination_rank_contract.py. The 3
 TestOutcomeObservationHook failures in the same runs were already resolved
 by 76cc51bcd (response_quality fabrication branches). Verified: full CI
 pytest list locally → 550 passed / 1 skipped. No production code touched.
+
+## 2026-09-15 ~22:00 EDT — ZCode: pre-delivery review of 76cc51bcd + fixes (91d7c2aff)
+
+Separate read-only review agent over the curated concurrent round; 2 P1
++ 1 P2 found, each verified against code before fixing. Fixes: (1)
+documents.read was unreachable from main chat — the planner lane aliased
+"read"→cat and dropped start_line/max_lines while the grounding rule and
+every grep-citation hint advertised the bounded read; the lane now
+dispatches documents.read (kwargs parsed from the echoed hint, lane clamp
+≤400 lines) and documents.read joined GenericAgent.CORE_TOOLS_NAMES
+(chat_tool_planner / generic_agent). (2) failed/unknown reads returned
+complete=True — paging loops would read transient errors as EOF;
+VFSRegion.degraded added, datasets read_region raises FileNotFoundError
+with cat parity (vfs_base / datasets_vfs / knowledge_vfs). BEHAVIOR-CHANGE
+FLAG for operators: 76cc51bcd's "no safety-chain behavior changes" is
+wrong in effect — its response_quality kwargs repaired a latent TypeError
+that had killed ALL outcome/fabrication accrual since 9a4a2a774 (zero
+llm_routing_feedback rows written); expect the table to grow in every
+mode, auto-mode flips now actually possible, _fabrication_benched fed.
+Deferred (P3): datasets read_region renders-then-slices; knowledge
+read_region ignores a meta.json leaf; phantom end_line on empty windows.
+Verified: 169 passed (8 suites) + 162/4 skipped (awareness/planner batch);
+test_e2e_scenarios' 4 governance failures pre-existing at clean HEAD.
