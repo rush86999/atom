@@ -255,6 +255,100 @@ _GROUNDING_RULE = (
 )
 
 
+#: Currency-ish numeric claims. Matches $8,880.00 / $8,880 / 8,880.00 / 5350
+#: (also inside markdown tables and "= $4,815.00" arithmetic).
+_MONEY_RE = re.compile(r"\$\s?\d[\d,]*(?:\.\d{1,2})?|\b\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\b")
+#: Words that mark a figure the reply itself presents as an intermediate
+#: DERIVED value rather than something read from a source.
+_ARITHMETIC_RE = re.compile(
+    r"\b(?:÷|\u00f7|/)\s?0?\.\d+|\*\s?0?\.\d+|\bmarkup\b|\badd[- ]?back\b|"
+    r"\+\s?\$?\d[\d,]*(?:\.\d{1,2})?\s*(?:markup|on top|for)",
+    re.IGNORECASE,
+)
+
+
+#: Evidence side also matches BARE integers: the workbook stores
+#: ``5350 | 4815.0 | 7519.0`` while the reply renders ``$5,350.00`` — the same
+#: value must compare equal, or every grounded figure looks invented.
+_BARE_NUM_RE = re.compile(r"\b\d{3,}\b")
+
+
+def _money_canon(text: str, include_bare: bool = True) -> set:
+    """Canonical numeric values from ``text`` (commas stripped, cents
+    normalized): '$8,880.00', '8880.00', '8880' and a bare '8880' all collapse
+    to one comparable form. ``include_bare`` is for EVIDENCE text; the reply
+    side does not treat bare integers as money claims."""
+    out = set()
+
+    def _add(val: float) -> None:
+        if val.is_integer():
+            out.add(str(int(val)))
+            out.add("%.2f" % val)
+        else:
+            out.add(("%.2f" % val).rstrip("0").rstrip("."))
+            out.add("%.2f" % val)
+
+    for m in _MONEY_RE.finditer(text or ""):
+        raw = m.group(0).replace("$", "").replace(",", "").strip()
+        try:
+            _add(float(raw))
+        except ValueError:
+            continue
+    if include_bare:
+        for m in _BARE_NUM_RE.finditer(text or ""):
+            try:
+                _add(float(m.group(0)))
+            except ValueError:
+                continue
+    return out
+
+
+def _unsupported_figures(reply: str, evidence: str) -> List[str]:
+    """Figures the reply states that the evidence does NOT contain.
+
+    Live 2026-09-15: asked how the $8,880 list price was derived, the agent
+    produced a four-step chain — ``$5,350 → +10% = $5,885 → ÷0.70 = $8,407 →
+    +$473 = $8,880`` — and presented it as the derivation. Every intermediate
+    is invented: the cited workbook row (`PRICE VIPUL (6).xlsx` row 235, the
+    F-5216 line) contains 5,350 / 4,815 / 5,515 / 5,625.30 / 6,465.86 /
+    7,518.44 / **7,519** — and 8,880 belongs to a DIFFERENT machine (the
+    Tennsmith 52T list price in the draft quote).
+
+    The verify panel SAW this (``grounded=False``) twice and acted on neither:
+    it runs in shadow mode, only on high-complexity turns, and its enforce
+    branch requires ``high``/``partial`` agreement — an *ambiguous* 1/3 vote
+    ships the reply. This check is deterministic, costs one regex pass, and
+    needs no judge: any formatted amount in the reply that appears nowhere in
+    the evidence is reported. Cross-turn figures (the user's own earlier
+    message) are the caller's to whitelist."""
+    if not reply:
+        return []
+    ev = _money_canon(evidence or "")
+    flagged = []
+    for m in _MONEY_RE.finditer(reply):
+        raw = m.group(0).replace("$", "").replace(",", "").strip()
+        try:
+            val = float(raw)
+        except ValueError:
+            continue
+        # Only currency-SHAPED or explicitly grouped figures: a bare 2026 or a
+        # quantity must not trip this.
+        if "$" not in m.group(0) and "," not in m.group(0) and val < 1000:
+            continue
+        forms = {str(int(val)) if val.is_integer() else ("%.2f" % val).rstrip("0").rstrip("."),
+                 "%.2f" % val}
+        if not (forms & ev):
+            flagged.append(m.group(0).strip())
+    # Order-preserving de-dup.
+    seen = set()
+    out = []
+    for f in flagged:
+        if f not in seen:
+            seen.add(f)
+            out.append(f)
+    return out
+
+
 def _with_grounding(block: Optional[str]) -> Optional[str]:
     """Attach the grounding contract to a tool-results block."""
     if not block:
@@ -347,10 +441,11 @@ Rules:
   plan ONLY web_fetch when the address is known, otherwise web_search.
 - READ vs FIND: web_fetch is only for READING a page whose full address is
   already known or stated in the conversation. When the user asks you to
-  FIND the page/URL/link ON a site ("find the product page on brennan.ca
-  for this model"), the target address is the UNKNOWN being asked for —
-  plan web_search with the site name AND the subject terms (e.g.
-  "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
+  FIND the page/URL/link ON a site ("find the product page on
+  acme-equipment.example for this model"), the target address is the
+  UNKNOWN being asked for — plan web_search with the site name AND the
+  subject terms (e.g. "acme-equipment.example WG-350DSAV"). Search results
+  carry the real URLs; fetching
   the site's homepage cannot enumerate a site, and inventing a URL from a
   pattern (adding "/products/…" to the model number) is fabrication.
 - Read-only EXCEPT the `ingest` intent: search/list intents for
@@ -684,6 +779,56 @@ _connected_cache: Dict[str, Any] = {}
 _PLANNER_CANVAS_CHARS = int(os.getenv("ATOM_PLANNER_CANVAS_CHARS", "700") or 700)
 
 
+_GRID_CANVAS_TYPES = {"excel", "spreadsheet", "xlsx", "csv", "grid", "table"}
+
+
+def _grid_canvas_outline(kind: str, body: str) -> str:
+    """OUTLINE for a grid-shaped canvas body: dimensions, column headers,
+    first rows as samples. '' when the body is not grid-shaped (the email
+    path keeps its body head). Grid cells arrive as HTML <table>/<tr>/<td>
+    (email-canvas styling) or pipe/TSV rows — both shapes render here.
+
+    Live shape: a quote canvas can carry a 200-row comparison table; the
+    old code fed the planner 700 chars of the FIRST row's cells — the
+    planner saw one product and nothing about the grid's extent. The
+    outline names every column and the row count so 'which row has X'
+    questions plan a lookup, not a guess."""
+    body = body or ""
+    if not body:
+        return ""
+    k = (kind or "").strip().lower()
+    rows: List[List[str]] = []
+    if k in _GRID_CANVAS_TYPES or "<table" in body.lower():
+        if "<tr" in body.lower():
+            for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", body, re.I | re.S)[:400]:
+                cells = [
+                    re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", c)).strip()
+                    for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.I | re.S)
+                ]
+                if any(cells):
+                    rows.append(cells)
+        else:
+            for line in body.splitlines()[:400]:
+                cells = [c.strip() for c in re.split(r"\t|\s*\|\s*", line) if c.strip()]
+                if cells:
+                    rows.append(cells)
+    if len(rows) < 2:
+        return ""
+    ncols = max(len(r) for r in rows)
+    header = rows[0][:ncols]
+    samples = rows[1:4]
+    out = [
+        f"grid: {len(rows) - 1} data rows x {ncols} columns",
+        "columns: " + " | ".join(h[:24] for h in header[:12]),
+    ]
+    for i, r in enumerate(samples, start=1):
+        out.append(f"row {i} sample: " + " | ".join(c[:24] for c in r[:12]))
+    out.append(
+        "(full grid NOT shown — ask datasets/documents for rows by code or "
+        "value; the canvas holds every row)")
+    return "\n  ".join(out)
+
+
 def _planner_canvas_block(canvas: Optional[Dict[str, Any]]) -> str:
     """A SHORT description of the open canvas for the planner prompt.
 
@@ -714,9 +859,19 @@ def _planner_canvas_block(canvas: Optional[Dict[str, Any]]) -> str:
             if val:
                 bits.append(f"{key}: {val[:160]}")
         body = str(content.get("body") or content.get("content") or "")
-        body = re.sub(r"\s+", " ", re.sub(r"<[^>]{0,200}>", " ", body)).strip()
-        if body:
-            bits.append(f"body head: {body[:_PLANNER_CANVAS_CHARS]}")
+        outline = _grid_canvas_outline(kind, body) if body else ""
+        if outline:
+            # GRID canvases (xlsx/csv/hundreds of rows): an OUTLINE, never
+            # the grid — schema + dimensions + sample rows (2025 TableQA
+            # consensus: structured decomposition + layout-aware
+            # serialization, not whole-table dumps). Rows stay addressable
+            # through the datasets/documents lanes.
+            bits.append(outline)
+        else:
+            body = re.sub(
+                r"\s+", " ", re.sub(r"<[^>]{0,200}>", " ", body)).strip()
+            if body:
+                bits.append(f"body head: {body[:_PLANNER_CANVAS_CHARS]}")
     elif isinstance(content, str) and content.strip():
         flat = re.sub(r"\s+", " ", content).strip()
         bits.append(f"content head: {flat[:_PLANNER_CANVAS_CHARS]}")
@@ -3544,15 +3699,29 @@ async def _memory_hybrid_block(
             "was taken. For prices, quotes, or stock that drive an answer, cite "
             "the figure WITH its ingested date; if the customer decision hinges "
             "on it being current, say the source file should be re-opened live "
-            "to confirm. LONG THREADS: an [ingested mailbox] line is an EXCERPT "
-            "(quoted threads run to tens of thousands of chars and the middle "
-            "may be elided). Its 'full: knowledge/conversations/<id>' path is "
-            "the COMPLETE line-numbered message — read it with "
-            "documents.cat(path + '/content.lines') and skim with "
-            "documents.head/tail; if the thread did not surface at all, "
-            "documents.grep over 'knowledge/conversations' searches EVERY stored "
-            "message. Never tell the user a figure or a reply is 'not ingested' "
-            "from an excerpt alone — open the cited thread first."
+            "to confirm. "
+            "LARGE ARTIFACTS — READ A REGION, NEVER GUESS: every evidence line "
+            "is an EXCERPT, and the underlying artifact may be huge (email "
+            "threads run to tens of thousands of chars; workbooks to hundreds "
+            "of rows; attachments become their own documents). You have "
+            "documents.read(path, start_line, max_lines) — a BOUNDED read that "
+            "returns start_line/end_line/total_lines/next_start/complete, so "
+            "you can page through any file and always know whether you have "
+            "seen all of it. Workflow: documents.grep for the term (every "
+            "citation carries a ready-to-run [read: documents.read(...)] hint "
+            "for exactly the region that shows it) → follow that hint → page "
+            "with next_start if needed. Use documents.read instead of "
+            "documents.cat whenever you do not know the size: cat returns the "
+            "WHOLE artifact and can exhaust your context. An 'attachments:' or "
+            "'open:' path on an evidence line is a document you can read the "
+            "same way. "
+            "NEVER present a number, row, cell or arithmetic step that you have "
+            "not read from the cited source: if a derivation is asked for, open "
+            "the file and quote its actual cells; if the source does not contain "
+            "the steps, say so plainly. Inventing intermediate values is the "
+            "single worst failure here. Never tell the user a figure or a reply "
+            "is 'not ingested' from an excerpt alone — open the cited artifact "
+            "first."
         )
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")

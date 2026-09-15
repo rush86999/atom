@@ -432,7 +432,8 @@ def _reply_claims_inability(text: str) -> bool:
 # never trip this.
 _DERIVATION_CITE_RE = re.compile(
     r"full:\s|open:\s|\.xlsx|\.xls\b|\.csv|\.pdf|\.docx?|"
-    r"\bR\d{1,4}\s*\||SQL RESULT|ingested|PRICE VIPUL|knowledge/",
+    r"\bR\d{1,4}\s*\||SQL RESULT|ingested|knowledge/|"
+    r"dataset|catalog|workbook|sheet",
     re.IGNORECASE,
 )
 _NUM_STEP_RE = re.compile(r"[$€£]\s?\d[\d,.]*|%\s|÷\s?\d|×\s?\d")
@@ -749,6 +750,87 @@ def _render_mail_rows(
         return []
 
 
+# EVIDENCE BUDGET: deterministic ceiling on the injected evidence block.
+# Each lane had its own cap and they summed unpredictably — the heavy
+# derivation turns (full mail bodies + dataset rows + canvas) pushed the
+# reply prompt past what the provider tier could answer in-window (live
+# 2026-09-15: both top models ended finish_reason=length with zero visible
+# tokens). Trimming keeps the block's STRUCTURE (headers, every SQL/result
+# line) and elides the longest body lines, pointing at their full:/open:
+# paths — the citations, not the prose, are the contract.
+_EVIDENCE_BUDGET_CHARS = int(
+    os.getenv("ATOM_EVIDENCE_BUDGET_CHARS", "18000") or 18000)
+
+
+async def _auto_open_top_citation(
+    block: Optional[str], already: int = 0,
+) -> Optional[str]:
+    """Harness-side read chaining (agentic-RAG-in-the-harness): when the
+    evidence block cites a full:/open: VFS path, OPEN the top one and
+    append a bounded window — one hop, no LLM, no model tool-calling.
+
+    Why: the reply model is one-shot by contract; long threads routinely
+    answer from the QUOTED layer while the decisive line sits deeper in
+    the cited artifact (live: the F-5216 pricing exchange lived three
+    quote-layers down the forwarded thread). The citation path is the
+    permanent address; this opens it once so the answer is in front of
+    the model. Bounded window (~4k chars around the head + the tail);
+    fault-isolated; skipped when the block already carries a FULL BODY."""
+    if not block or "full: knowledge/" not in block and "open: knowledge/" not in block:
+        return None
+    if "FULL BODY:" in block[:2000]:
+        return None  # top line already carries the whole body
+    m = re.search(
+        r"(?:full|open):\s?(knowledge/[^\s|]+)", block)
+    if not m:
+        return None
+    path = m.group(1).rstrip(".,;)")
+    try:
+        from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+
+        res = await asyncio.wait_for(
+            KnowledgeVFSProvider().cat(path), timeout=8)
+        text = str(getattr(res, "content", "") or "")
+        if not text:
+            return None
+        window = text[:2600]
+        if len(text) > 3200:
+            window += "\n…\n" + text[-1200:]
+        return (
+            f"OPENED (top cited artifact — {path}[:2600 head / tail]):\n"
+            + window
+        )
+    except Exception as e:  # noqa: BLE001 — best-effort read hop
+        logger.debug(f"auto-open skipped: {e}")
+        return None
+
+
+def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
+    """Trim an evidence block to the budget. Header lines (no leading
+    '- ' / not a body line) always survive; body lines survive newest-first
+    of appearance until the budget; the elision note keeps the paths
+    reachable. None/short blocks pass through untouched."""
+    if not block or len(block) <= _EVIDENCE_BUDGET_CHARS:
+        return block
+    lines = block.splitlines()
+    kept: List[str] = []
+    elided = 0
+    kept_len = 0
+    for ln in lines:
+        is_body = ln.lstrip().startswith(("-", "R", "SQL RESULT", "FORMULAS"))
+        if is_body and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300:
+            elided += 1
+            continue
+        kept.append(ln)
+        kept_len += len(ln) + 1
+    if elided:
+        kept.append(
+            f"… {elided} evidence line(s) elided for the turn's context "
+            "budget — every kept line carries its full:/open: path; ask to "
+            "open any elided artifact.")
+    return "\n".join(kept)
+
+
 # Derivation/verification asks: "figure out how the listed price was
 # derived", "reverse engineer the calculation", "how did they get $8,880".
 # The answer lives in an INGESTED WORKBOOK (row + formula chain), not in
@@ -756,19 +838,54 @@ def _render_mail_rows(
 # arithmetic path to whatever number the user hinted at (live 2026-09-15:
 # "+10% add-back, ÷0.70, +$473 Google-review markup" landing exactly on
 # $8,880 while the true chain sat in PRICE VIPUL (6).xlsx row 235).
+# Verb shape only — the subject is checked separately (_DERIVATION_VALUE_RE
+# or a figure in context) so no domain vocabulary gates the trigger.
 _DERIVATION_ASK_RE = re.compile(
     r"(?:figure out|reverse.?engineer|work out|how\s+(?:was|did|do)|"
-    r"derive|deriv(?:ed|ation)|calculat(?:e|ed|ion)|breakdown|do\s+the\s+math|"
-    r"show\s+me\s+the\s+math)"
-    r"[^.!?]{0,80}"
-    r"(?:price|pricing|cost|list|margin|quote|total|number|figure|amount|"
-    r"discount|freight|markup|calculation|math|derivation)",
+    r"derive|deriv(?:ed|ation)|calculat(?:e|ed|ion)|breakdown|"
+    r"do\s+the\s+math|show\s+me\s+the\s+math)",
+    re.IGNORECASE,
+)
+# Generic quantity words (domain-neutral English, not business vocabulary).
+# CONCRETE quantity words only — shape words (calculation/math/
+# derivation) would make the check circular.
+_DERIVATION_VALUE_RE = re.compile(
+    r"\b(?:value|number|amount|total|score|rate|count|price|"
+    r"cost|result)\b|\bfigure\b(?!\s+out)",
     re.IGNORECASE,
 )
 
 
-def _derivation_ask(message: str) -> bool:
-    return bool(_DERIVATION_ASK_RE.search(message or ""))
+def _derivation_ask(
+    message: str, context: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Derivation/verification-shaped ask. Domain-independent: the verb
+    shape ("figure out how … was derived", "reverse engineer") plus either
+    a generic value word OR a concrete figure somewhere in the turn's
+    message/canvas/history — so 'how was that score computed' fires in any
+    domain, and no business vocabulary is enumerated."""
+    if not _DERIVATION_ASK_RE.search(message or ""):
+        return False
+    if _DERIVATION_VALUE_RE.search(message or ""):
+        return True
+    if context is None:
+        return False
+    try:
+        from core.chat_tool_planner import (
+            _distinctive_figure_phrases, _entry_text,
+        )
+
+        hay = message or ""
+        canvas = (context or {}).get("canvas")
+        if isinstance(canvas, dict):
+            hay += " " + _entry_text(canvas)
+        for h in (context or {}).get("history") or []:
+            if isinstance(h, dict):
+                hay += " " + str(
+                    h.get("message") or h.get("content") or "")[:500]
+        return bool(_distinctive_figure_phrases(hay))
+    except Exception:  # noqa: BLE001 — shape check only
+        return False
 
 
 async def _derivation_supplement(
@@ -776,12 +893,14 @@ async def _derivation_supplement(
     history: Optional[List[Dict[str, Any]]],
     canvas: Optional[Dict[str, Any]],
     tool_block: Optional[str],
+    llm_service: Any = None,
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
     lines are its context); for any other ask this is a no-op."""
     ds = await _derivation_dataset_block(
-        message, user_id, {"history": history or [], "canvas": canvas})
+        message, user_id, {"history": history or [], "canvas": canvas},
+        llm_service=llm_service)
     if not ds:
         return tool_block
     return f"{ds}\n\n{tool_block}" if tool_block else ds
@@ -790,6 +909,7 @@ async def _derivation_supplement(
 async def _derivation_dataset_block(
     message: str, user_id: Optional[str],
     context: Optional[Dict[str, Any]],
+    llm_service: Any = None,
 ) -> Optional[str]:
     """Dataset-catalog rows for a derivation ask.
 
@@ -803,7 +923,7 @@ async def _derivation_dataset_block(
     derivation row) under 11-row consolidated sheets, so the derivation
     lane keeps more hits than the default 2. Bounded + fault-isolated;
     None when the catalog has nothing."""
-    if not _derivation_ask(message):
+    if not _derivation_ask(message, context):
         return None
     try:
         from core.chat_tool_planner import (
@@ -884,6 +1004,61 @@ async def _derivation_dataset_block(
             "searched for the conversation's figures; these rows ARE the "
             "calculation chain — cite file/sheet/row):"
         ]
+        # NL→SQL LAYER on the top-ranked file: answer_from_datasets runs a
+        # structured query (DuckDB, column aliases) and its render carries
+        # the ORIGINAL CELL FORMULAS — the exact derivation chain, not just
+        # the probe row. Skippable (no LLM, stale copy, empty SQL) — the
+        # probe rows below still answer.
+        if llm_service is not None:
+            try:
+                from core.sheet_dataset_service import answer_from_datasets
+
+                top = ranked[0][1]
+                # context_texts carry the CONVERSATION'S FIGURES (and the
+                # canvas) so Stage-0's deterministic probe can hit the row
+                # by its values (7519/5350) before the LLM writes SQL
+                # against cell spellings it has never seen ('F-52"x16G'
+                # defeated a generated WHERE clause — 0 rows, live
+                # 2026-09-15). NOTE: search hits carry source_kind ('file'),
+                # NOT the catalog source ('outlook') — resolve the entry or
+                # the per-file lookup silently returns 0 entries.
+                nl_ctx = list(hist_texts) + [
+                    " ".join(figures), _entry_text(canvas)
+                    if isinstance(canvas, dict) else "",
+                ]
+                _src = ""
+                try:
+                    from core.sheet_dataset_service import find_entries_sync
+
+                    for _e in find_entries_sync(
+                            str(top.get("file_name") or ""), user_id,
+                            ctx.get("workspace_id"), 50):
+                        if str(_e.get("external_id")) == str(
+                                top.get("external_id")):
+                            _src = str(_e.get("source") or "")
+                            break
+                except Exception:  # noqa: BLE001 — best-effort resolution
+                    _src = ""
+                nl = None
+                if _src:
+                    nl = await asyncio.wait_for(
+                        answer_from_datasets(
+                            _src,
+                            str(top.get("external_id") or ""),
+                            message,
+                            llm_service=llm_service,
+                            context_texts=nl_ctx,
+                        ),
+                        timeout=12,
+                    )
+                if nl:
+                    lines.append(
+                        "STRUCTURED QUERY (natural language → SQL over the "
+                        "top-matched workbook; FORMULAS are the original "
+                        "workbook cells):")
+                    lines.append(render_dataset_answer(nl))
+            except Exception as e:  # noqa: BLE001 — enhancement layer
+                logger.debug(f"derivation NL->SQL skipped: {e}")
         for _co, hit in ranked:
             lines.append(render_dataset_answer(hit))
         return "\n".join(lines)
@@ -2463,7 +2638,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     _tool_block = await _derivation_supplement(
                         message, user_id, planner_history or history,
-                        canvas_context, _tool_block)
+                        canvas_context, _tool_block,
+                        llm_service=self.llm_service)
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
                     # model window): in retry-heavy sessions the original request
@@ -2605,7 +2781,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 message, _plan, None, _declined_mail)
                         _tool_block = await _derivation_supplement(
                             message, user_id, planner_history or history,
-                            canvas_context, _tool_block)
+                            canvas_context, _tool_block,
+                            llm_service=self.llm_service)
                     else:
                         # Plan is None (provider produced no decision at
                         # all — distinct from decline and from exception):
@@ -2630,7 +2807,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 message, None, None, _none_mail)
                         _tool_block = await _derivation_supplement(
                             message, user_id, planner_history or history,
-                            canvas_context, _tool_block)
+                            canvas_context, _tool_block,
+                            llm_service=self.llm_service)
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and
@@ -2698,6 +2876,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # attempts otherwise anchor weak models into repeating "I can't
             # do that" even when a fresh result is in front of them.
             if _tool_block:
+                _opened = await _auto_open_top_citation(_tool_block)
+                if _opened:
+                    _tool_block = _tool_block + "\n\n" + _opened
+                _tool_block = _enforce_evidence_budget(_tool_block)
                 messages.append({"role": "system", "content": (
                     "TOOL EXECUTION RESULT — the harness ran this JUST NOW, "
                     "successfully, on your behalf. Any earlier statement about "
@@ -2929,7 +3111,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # across all connected platforms.") — especially with
                         # search evidence sitting in the prompt. One
                         # regeneration anchored on the user's actual ask.
-                        elif (_derivation_ask(message)
+                        elif (_derivation_ask(
+                                  message,
+                                  {"history": planner_history or history,
+                                   "canvas": canvas_context})
                               and _reply_is_unsourced_derivation(
                                   _streamed, message)):
                             # UNSOURCED-DERIVATION GUARD: arithmetic presented
@@ -3423,6 +3608,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[figure-grounding] reply states figures the evidence "
                             "does not contain: " + ", ".join(_unsupported[:6])
                             + " — grounded regeneration")
+                        # ROUTING SIGNAL: record the fabrication against the model
+                        # that produced it, so per-model predictors learn it and
+                        # BPC re-ranks away from it next time. This is the only
+                        # place fabrication is observable — the generation path
+                        # records its outcome before the reply is assembled.
+                        try:
+                            from core.llm.learning_router_registry import (
+                                record_fabrication_signal,
+                            )
+
+                            await record_fabrication_signal(
+                                model_id=str(
+                                    (response_data or {}).get("model")
+                                    or forced_model or "unknown"
+                                ),
+                                task_type="question_answering",
+                                tenant_id=self.tenant_id or "default",
+                                unsupported_figures=_unsupported,
+                            )
+                        except Exception as _fab_err:  # noqa: BLE001
+                            logger.debug(f"fabrication signal skipped: {_fab_err}")
                         messages.append({"role": "system", "content": (
                             "FIGURE GROUNDING FAILURE: these figures in your reply "
                             "appear in NO retrieved evidence and no user message: "
@@ -3470,6 +3676,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "[verify-panel] ungrounded claims: "
                                 + "; ".join(_verdict.get("claims") or ["unspecified"])
                                 + " — grounded regeneration")
+                            try:
+                                from core.llm.learning_router_registry import (
+                                    record_fabrication_signal,
+                                )
+
+                                await record_fabrication_signal(
+                                    model_id=str(
+                                        (response_data or {}).get("model")
+                                        or forced_model or "unknown"
+                                    ),
+                                    task_type="question_answering",
+                                    tenant_id=self.tenant_id or "default",
+                                    ungrounded_claims=list(
+                                        _verdict.get("claims") or ["unspecified"]
+                                    ),
+                                )
+                            except Exception as _vp_fab:  # noqa: BLE001
+                                logger.debug(f"panel fabrication signal skipped: {_vp_fab}")
                             messages.append({"role": "system", "content": (
                                 "VERIFICATION FAILURE: your reply contains claims the retrieved "
                                 "evidence does not support: "
