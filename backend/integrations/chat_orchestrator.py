@@ -142,6 +142,15 @@ CHAT_TURN_BUDGET_DEFAULT_SECONDS = 95.0
 # While a stream is silent (provider thinking), emit a keepalive frame at most
 # this often so the websocket/proxy layer never sees an idle connection.
 _HEARTBEAT_SLICE_SECONDS = 10.0
+# The primary stream must not be allowed to consume the WHOLE turn budget:
+# a reasoning model that ends with zero visible chunks (finish_reason=length,
+# live 2026-09-15: glm-5.3-flash on heavy evidence prompts, 3 of 4 turns)
+# otherwise leaves the non-streaming fallback ~10s — not enough to answer.
+# Reserve a floor for the fallback and cap the stream's slice; a stream that
+# needs longer than the slice-minus-reserve would blow the turn anyway.
+_STREAM_FALLBACK_RESERVE_SECONDS = float(
+    os.getenv("ATOM_STREAM_FALLBACK_RESERVE_SECONDS", "40") or 40
+)
 
 
 def _chat_turn_budget_seconds() -> float:
@@ -2341,6 +2350,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # and protocol-tag hygiene. ANY failure falls back to the
             # non-streaming completion: streaming is pure UX sugar.
             _streamed: Optional[str] = None
+            _stream_zero_visible = False
             _turn_reasoning: Optional[str] = None
             if (
                 os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
@@ -2398,6 +2408,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # client's 120s axios budget (R90). A timeout here means
                     # the turn stops streaming and lets the caller fall back.
                     _stream_budget = _remaining_budget(_plan_t0, _turn_budget)
+                    if (
+                        _stream_budget != float("inf")
+                        and _stream_budget > _STREAM_FALLBACK_RESERVE_SECONDS + 15
+                    ):
+                        _stream_budget -= _STREAM_FALLBACK_RESERVE_SECONDS
                     # Slice the wait so a long provider "thinking" gap can emit
                     # a keepalive frame rather than leaving the socket silent
                     # (LiteLLM keepalive_seconds). The overall bound is still
@@ -2677,6 +2692,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         }
                     else:
                         logger.warning("chat streaming produced no tokens — falling back")
+                        _stream_zero_visible = True
                 except Exception as stream_err:
                     logger.warning(f"chat streaming failed — non-streaming fallback: {stream_err}")
 
@@ -2699,12 +2715,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         self._budget_exceeded_runs.add(execution_id)
                 else:
                     try:
+                        _ns_kwargs = dict(extra_kwargs)
+                        if _stream_zero_visible and _fb_models and _s_prov:
+                            # The primary model just spent its whole output
+                            # budget on invisible reasoning (zero visible
+                            # chunks, finish_reason=length — live 2026-09-15:
+                            # glm-5.3-flash on heavy evidence prompts, 3 of 4
+                            # turns). Re-ranking would pick it again; pin the
+                            # next-ranked model for this one attempt instead.
+                            _ns_kwargs["provider_model"] = (
+                                _s_prov, _fb_models[0])
+                            logger.info(
+                                "non-streaming fallback pinned to next-ranked "
+                                f"model {_fb_models[0]} after a "
+                                "zero-visible stream")
                         response_data = await asyncio.wait_for(
                             self.llm_service.generate_completion(
                                 messages=messages,
                                 model=forced_model,  # "auto" unless overridden
                                 tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                                **_ns_kwargs,
                             ),
                             timeout=_ns_left,
                         )
