@@ -4307,6 +4307,18 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Stage router management routes failed to load: {e}")
 
+    # 39b. Learning Router Management Routes (self-activation status + readiness)
+    # The learning router self-activates in `auto` mode once the verdict history
+    # is thick enough; this exposes WHY it has or has not flipped, so the
+    # Settings surface is not an opaque "auto".
+    try:
+        from api.learning_router_routes import router as learning_router_mgmt_router
+
+        app.include_router(learning_router_mgmt_router)
+        logger.info("✓ Learning Router Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Learning router management routes failed to load: {e}")
+
     # 38b. Admin Runtime Settings Routes (env vars as UI admin settings)
     try:
         from api.admin_runtime_settings_routes import router as admin_settings_router

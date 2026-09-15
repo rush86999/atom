@@ -575,3 +575,177 @@ def test_chunk_family_empty_for_unknown_doc(monkeypatch):
     )
 
     assert KnowledgeVFSProvider._chunk_family_rows("nope") == []
+
+
+# --------------------------------------------------------------------------- #
+# BOUNDED REGION READS — the general primitive for large artifacts
+# --------------------------------------------------------------------------- #
+#
+# A leaf can be tens of thousands of lines. The only reads were `cat`
+# (everything) and head/tail (the ends), so agents either blew their context or
+# skipped the file — and a skipped file is what produced an invented $8,880
+# derivation while the real row sat at line 315 of a 324-line workbook.
+# `documents.read(path, start_line, max_lines)` returns a self-describing
+# window (start/end/total/next_start/complete) so paging is a loop the model
+# can drive without guessing.
+
+
+def test_read_region_slices_and_reports_paging():
+    from core.vfs_base import VFSProvider, VFSRegion, VFSResource
+
+    class _P(VFSProvider):
+        prefix = "t"
+
+        async def ls(self, path, ctx=None):
+            return []
+
+        async def cat(self, path, ctx=None):
+            return VFSResource(
+                path=path, lines=[f"L{i}: row {i}" for i in range(1, 101)]
+            )
+
+        async def grep(self, pattern, path_prefix, ctx=None):
+            return []
+
+    region = asyncio.run(_P().read_region("t/leaf", start_line=41, max_lines=10))
+
+    assert isinstance(region, VFSRegion)
+    assert region.lines[0] == "L41: row 41"
+    assert len(region.lines) == 10
+    assert region.total_lines == 100
+    assert region.next_start == 51
+    d = region.to_dict()
+    assert d["start_line"] == 41 and d["end_line"] == 50
+    assert d["complete"] is False and d["returned_lines"] == 10
+
+
+def test_read_region_end_of_content_marks_complete():
+    from core.vfs_base import VFSProvider, VFSResource
+
+    class _P(VFSProvider):
+        prefix = "t"
+
+        async def ls(self, path, ctx=None):
+            return []
+
+        async def cat(self, path, ctx=None):
+            return VFSResource(path=path, lines=["L1: a", "L2: b", "L3: c"])
+
+        async def grep(self, pattern, path_prefix, ctx=None):
+            return []
+
+    region = asyncio.run(_P().read_region("t/leaf", start_line=3, max_lines=10))
+
+    assert region.lines == ["L3: c"]
+    assert region.next_start is None
+    assert region.to_dict()["complete"] is True
+
+
+def test_read_region_clamps_start_past_end():
+    from core.vfs_base import VFSProvider, VFSResource
+
+    class _P(VFSProvider):
+        prefix = "t"
+
+        async def ls(self, path, ctx=None):
+            return []
+
+        async def cat(self, path, ctx=None):
+            return VFSResource(path=path, lines=["L1: a"])
+
+        async def grep(self, pattern, path_prefix, ctx=None):
+            return []
+
+    region = asyncio.run(_P().read_region("t/leaf", start_line=99, max_lines=5))
+
+    assert region.lines == []
+    assert region.total_lines == 1
+    assert region.next_start is None
+
+
+def test_read_region_action_is_registered():
+    """The agent-facing surface must exist and be advertised."""
+    from core import action_registry as ar
+
+    names = set(ar.action_registry.list_actions())
+    assert "documents.read" in names
+    definition = ar.action_registry.get_action("documents.read")
+    desc = (definition.description or "").lower()
+    assert "bounded" in desc and "next_start" in desc
+
+
+def test_grep_citations_carry_a_runnable_bounded_read(monkeypatch):
+    """A hit at line 315 of a 324-line workbook is useless unless the agent can
+    fetch that region without pulling the whole file. Every citation ships the
+    ready-to-run bounded read for exactly the region that shows it."""
+    import pyarrow as pa
+
+    from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+
+    class _FakeCommsTable:
+        def head(self, n):
+            return pa.table({"id": pa.array([]), "content": pa.array([])})
+
+        def to_arrow(self):
+            return self.head(0)
+
+    rows = [
+        {"id": "ext_doc::c57", "text": "R235 | F-52\"x16G | 7519.0",
+         "source": "outlook:x.xlsx", "metadata": None},
+    ]
+
+    class _Arrow:
+        def select(self, cols):
+            return self
+
+        def slice(self, *a):
+            return self
+
+        def to_pylist(self):
+            return rows
+
+    class _Builder:
+        def select(self, cols):
+            return self
+
+        def limit(self, n):
+            return self
+
+        def to_batches(self, batch_size=None):
+            return iter([pa.record_batch({"id": ["ext_doc::c57"],
+                                          "text": ["R235 | F-52\"x16G | 7519.0"]})])
+
+        def to_arrow(self):
+            return _Arrow()
+
+    class _Table:
+        def search(self):
+            return _Builder()
+
+        def head(self, n):
+            return _Arrow()
+
+        def to_arrow(self):
+            return _Arrow()
+
+    class _Handler:
+        def get_table(self, name):
+            return _Table()
+
+        def list_document_heads(self, *a, **k):
+            return []
+
+    v = KnowledgeVFSProvider()
+    monkeypatch.setattr(v, "_comms_table", lambda: _FakeCommsTable())
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", lambda *a, **k: _Handler()
+    )
+
+    hits = asyncio.run(v.grep("R235", "knowledge/documents"))
+
+    assert hits, "expected a document hit"
+    snippet = hits[0].snippet
+    assert "documents.read(" in snippet, snippet
+    # the hint must name the SAME path the citation does, or line numbers skew
+    assert hits[0].path in snippet, (hits[0].path, snippet)
+    assert "start_line=" in snippet

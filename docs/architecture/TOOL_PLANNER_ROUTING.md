@@ -140,3 +140,77 @@ lane reads it from the execution context (stashed by
   `tests/test_explicit_web_research_floor.py`,
   `tests/test_identifier_search.py`,
   `tests/test_zoho_inventory_search.py`.
+
+## 7. The evidence compiler — long artifacts vs. the one-shot window
+
+The permanent architecture for the class "long email threads / attachments
+/ hundred-row grids lose context" (2026-09-15). Research-grounded: the 2025
+consensus is a HYBRID — RAG-style windowing (outline + match windows) to
+keep prompts lean, one agentic read-hop INSIDE the harness (the reply model
+stays no-tool-calling by contract), and structured decomposition for tables
+(never whole-grid dumps).
+
+Layers (all domain- and business-independent):
+
+1. **UNIFORM ADDRESSING** — every stored artifact is line-addressable via
+   the VFS (`knowledge/conversations/<id>`, `knowledge/documents/<doc>`),
+   attachments render with `open:` paths, workbook rows carry `R###`
+   addresses plus the original cell FORMULAS in dataset answers.
+2. **OUTLINE-FIRST PROJECTION** — grid canvases (xlsx/csv/HTML tables,
+   hundreds of rows) project as schema + dimensions + sample rows
+   (`_grid_canvas_outline`); the full grid stays reachable through the
+   datasets/documents lanes. Long threads keep head + match windows.
+3. **FIGURE-VALUE PROBES + CO-OCCURRENCE RANKING** — when an artifact
+   spells a product by dimensions, codes cannot match; the conversation's
+   integer-part figure tokens (5350/7519) probe the catalog, and hit files
+   rank by how many OTHER conversation figures their rows carry on clean
+   cell boundaries.
+4. **NL→SQL LAYER** — `answer_from_datasets` (DuckDB, column aliases,
+   formula footer) runs on the top-ranked file with the conversation's
+   figures as Stage-0 context; immutable-source attachments skip the
+   freshness TTL (a changed attachment is a new message, hence a new id).
+5. **AUTO-OPEN** — when the evidence block cites `full:`/`open:` paths and
+   the top line does not already carry the full body, the harness opens
+   the top citation once (bounded head+tail window) and appends it. The
+   one-hop answer to "the decisive line sits deeper in the cited
+   artifact".
+6. **EVIDENCE BUDGET** — `ATOM_EVIDENCE_BUDGET_CHARS` (default 18000)
+   caps the injected block at the single injection site: headers and SQL
+   lines always survive, longest body lines elide first with their paths
+   kept. Deterministic prompt ceiling — the per-lane caps summed
+   unpredictably and pushed heavy turns past the provider's in-window
+   ability.
+
+Failure-mode invariants: every layer is optional and fault-isolated (a
+miss leaves the previous layer's answer); citations (paths, rows,
+formulas) always survive trimming; no business vocabulary or filenames in
+code paths — incident names appear in comments only.
+
+## 8. Fabrication bench — safety routing, independent of learning
+
+`llm_routing_feedback` carries per-model reply-quality verdicts; the
+learning router re-ranks BPC candidates by learned satisfied-rate only
+while `ATOM_LEARNING_ROUTER=true`. Fabrication is a SAFETY property, not
+a preference: `BYOKHandler._fabrication_benched` excludes a
+(provider, model) pair from ranked candidates when its LAST
+`ATOM_FABRICATION_BENCH_WINDOW_HOURS` (48) of verdict rows show
+≥ `ATOM_FABRICATION_BENCH_MIN_EVENTS` (3) fabrication verdicts
+(`user_satisfaction ≤ 0.15` — the unsupported-figures/ungrounded-claims
+scores) at a rate ≥ `ATOM_FABRICATION_BENCH_RATE` (0.25). Kill switch
+`ATOM_FABRICATION_BENCH=0`. 60s per-pair cache; fail-open on any error;
+one WARNING per bench transition. Observation (`record_fabrication_signal`,
+called by the figure-grounding guard and the verify panel, attributing to
+the PRODUCING model) is never gated — history accrues either way, so
+enabling the learning router later starts from real data.
+
+**Auto activation (2026-09-15)**: `ATOM_LEARNING_ROUTER` is tri-state —
+`auto` (default), `true`, `false`. Auto self-activates re-ranking when
+`learning_history_ready()` (≥30 verdict rows in the last 7 days across
+≥2 models with ≥8 observations each; thresholds
+`ATOM_LEARNING_ROUTER_AUTO_MIN_ROWS/_MIN_MODELS/_MIN_PER_MODEL/
+_WINDOW_DAYS`; 60s cache; fail-closed to static ordering) and falls back
+while thin — the cold-start-noise concern is answered by data sufficiency,
+not a manual flip. OBSERVATION is never gated (`get_learning_router_
+instance(observe_only=True)` on the accrual paths): rows accumulate in
+every mode, so auto has the data to flip on. Explicit `true`/`false`
+always win as operator overrides.

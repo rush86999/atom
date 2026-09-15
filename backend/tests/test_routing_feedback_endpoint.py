@@ -371,6 +371,10 @@ class TestRerankRoutingResultId:
             _per_model_routers = {"default:question_answering": FakePerModel()}
             _routing_decisions = {}
             _max_routing_decisions = 10000
+            # Real router always has EMA state (LearningBasedRouter.__init__);
+            # _rerank_with_learning reads it whenever the EMA flag resolves on
+            # (the settings-catalog default). Empty = no telemetry observed.
+            _ema_scores = {}
             def _extract_request_features(self, request):
                 return {"log_tokens": 5.0}
             # Mirror the real router's thread-safe stash helper (added when the

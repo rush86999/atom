@@ -19,6 +19,8 @@ Signals considered:
   - refusal markers in content → model declined the task
   - schema_error → structured output failed to parse/validate
   - exception → the API call itself failed
+  - unsupported_figures / ungrounded_claims → the reply asserted values or
+    arithmetic the retrieved evidence does not contain (**fabrication**)
 
 The graded ``quality_score`` (0.0–1.0) gives the predictor a continuous
 signal rather than a binary, which trains better than a hard 0/1.
@@ -76,6 +78,8 @@ def assess_response_quality(
     finish_reason: Optional[str] = None,
     schema_error: bool = False,
     exception: Optional[Exception] = None,
+    unsupported_figures: Optional[List[str]] = None,
+    ungrounded_claims: Optional[List[str]] = None,
 ) -> ResponseQuality:
     """Assess response quality from observable characteristics.
 
@@ -85,11 +89,42 @@ def assess_response_quality(
         schema_error: True if structured-output validation failed (e.g. a
             pydantic ValidationError or JSON decode error from instructor).
         exception: The exception if the API call raised, else None.
+        unsupported_figures: Figures the reply stated that appear in NO
+            retrieved evidence and no user message (the deterministic
+            ``_unsupported_figures`` check). Non-empty == fabricated numbers.
+        ungrounded_claims: Claims the verification panel judged unsupported by
+            the evidence.
 
     Returns:
         A ResponseQuality with success/quality_satisfied/score/issues populated.
     """
     issues: List[str] = []
+
+    # --- FABRICATION: the reply asserts values the evidence does not contain.
+    # This is the most damaging failure mode in an assistant that quotes
+    # prices and prepares quotes: a wrong number that reads as verified. It is
+    # scored BELOW truncation and refusal (both of which the user can SEE are
+    # incomplete) because fabricated output is confidently wrong — and it is
+    # recorded as its own issue so per-model predictors learn which models
+    # fabricate, which is what lets BPC route away from them (live 2026-09-15:
+    # an invented $8,880 derivation shipped while the real row sat in an
+    # ingested workbook).
+    if unsupported_figures:
+        issues.append("unsupported_figures")
+        return ResponseQuality(
+            success=True,
+            quality_satisfied=False,
+            quality_score=0.1,
+            issues=issues,
+        )
+    if ungrounded_claims:
+        issues.append("ungrounded_claims")
+        return ResponseQuality(
+            success=True,
+            quality_satisfied=False,
+            quality_score=0.15,
+            issues=issues,
+        )
 
     # --- Hard failure: the API call itself raised. ---
     if exception is not None:

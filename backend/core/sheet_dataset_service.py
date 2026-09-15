@@ -1079,6 +1079,19 @@ _DATASET_TTL = timedelta(
 )
 
 
+# IMMUTABLE dataset sources: email-attachment workbooks. A live-synced
+# file (storage/drive) can change upstream, so answering from the copy
+# needs freshness proof; an attachment CANNOT change — a different
+# version arrives as a new message, hence a new external_id. The TTL
+# gate (built for the sync case) rejected these hours after ingest and
+# silently disabled the NL-to-SQL path on the files least likely to be
+# stale (live 2026-09-15: an email-attachment workbook, gate False at
+# T+5h with no re-download path to fall back to).
+_IMMUTABLE_DATASET_SOURCES = frozenset({
+    "outlook", "gmail", "attachment",
+})
+
+
 def _copy_is_fresh(entries: List[Dict[str, Any]], source_modified_hint: Any = None) -> bool:
     """May agents answer from the materialized copy?
 
@@ -1091,6 +1104,10 @@ def _copy_is_fresh(entries: List[Dict[str, Any]], source_modified_hint: Any = No
     if not entries:
         return False
     newest = max(entries, key=lambda r: (r.get("ingested_at") or ""))
+    ingested_dt = _parse_dt(newest.get("ingested_at"))
+    if str(newest.get("source") or "").lower() in _IMMUTABLE_DATASET_SOURCES:
+        # immutable attachment: a parsable ingest stamp is sufficient
+        return bool(ingested_dt)
     hint_dt = _parse_dt(source_modified_hint)
     entry_dt = _parse_dt(newest.get("source_modified_at"))
     if hint_dt and entry_dt:
