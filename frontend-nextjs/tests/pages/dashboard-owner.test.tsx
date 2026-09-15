@@ -43,6 +43,16 @@ const PAYLOAD = {
   ],
 };
 
+const LIVE_PAYLOAD = {
+  success: true,
+  data: {
+    owner_advice: "Focus on collections to stabilize cash flow.",
+    priorities: [
+      { id: "p1", type: "GROWTH", title: "Call Acme", description: "Renewal call", priority: "HIGH", action_link: "/sales" },
+    ],
+  },
+};
+
 describe("OwnerDashboard", () => {
   let mockFetch: jest.Mock;
   let consoleErrorSpy: jest.SpyInstance;
@@ -73,6 +83,17 @@ describe("OwnerDashboard", () => {
     }));
     expect(screen.getByText("Owner Cockpit")).toBeInTheDocument();
     expect(screen.getByText("Open Simulator (Coming Soon)")).toBeDisabled();
+  });
+
+  test("loads the live backend priorities envelope", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => LIVE_PAYLOAD });
+    render(<OwnerDashboard />);
+
+    await waitFor(() => expect(screen.getByTestId("daily-briefing-card")).toBeInTheDocument());
+    expect(latestBriefing).toEqual(expect.objectContaining({
+      advice: "Focus on collections to stabilize cash flow.",
+      priorities: LIVE_PAYLOAD.data.priorities,
+    }));
   });
 
   test("shows an error toast when the response is not ok", async () => {

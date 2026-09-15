@@ -197,6 +197,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/v1/analytics/:path*",
       },
       {
+        source: "/api/business-health/:path*",
+        destination: "http://127.0.0.1:8000/api/business-health/:path*",
+      },
+      {
         source: "/api/workflow-templates",
         destination: "http://127.0.0.1:8000/api/workflow-templates/",
       },
