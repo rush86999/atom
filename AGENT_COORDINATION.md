@@ -1968,3 +1968,31 @@ across the five affected suites. Backend pid 3744.
 
 Full commit chain for this incident family: 924b70792 → 85a08809e →
 29837d48e → b5dc3a74b → 5d2c0d7b9 → 79179a7c5 → e781915f8.
+
+## 2026-09-14 ~23:45 EDT — ZCode: stated dates now tier figure matches (b50a54c52)
+
+Owner turn: "find the email thread for f-5216. it was sent to me on 9/11
+friday" — the code matched 17 stored rows; the newest-3 cap surfaced Aug 26
++ Sep 14 threads while the Sep 11 pair the user meant (Chandrakant's
+"Re: 52 Inch 16 Gauge Foot Shear" 19:21 UTC + Kurt Neiman's reply 20:36
+UTC) lost the recency race; the reply hedged about a "truncated" copy.
+
+Root cause: a stated DATE is a ranking handle no lane used. Fix in
+`core/chat_tool_planner.py`: `_stated_date_window` (M/D with a day-word
+context — '7/8-inch' never becomes July 8 — month names, weekdays as most-
+recent-past, yesterday/today; future M/D reads as last year) →
+`_match_rows_by_figure_tokens(date_window=...)` tiers in-window matches
+ahead, preserving own-text + recency ordering inside tiers. Threaded
+through `_search_ingested_by_tokens`, the orchestrator's verbatim-evidence
+legs, and the memory figure lane (window from the CURRENT message — the
+planner's query rewrite drops the date). Old-signature test fakes
+re-contracted (date_window param). 142 passed across six suites.
+
+**Verified live**: the same ask returns the Sep 11 thread — Chandrakant →
+Kurt Neiman 3:21 PM, F-5216 at $7,519.00 / 2-3 weeks, Kurt's 8:36 PM
+"powered version? hydraulic?" reply — full bodies, no truncation hedge.
+Backend pid 11088. NOTE for future verifications: test fakes for
+`_search_ingested_by_tokens` / `_match_rows_by_figure_tokens` /
+`_fake_fig_lines` must accept `date_window=None` — a stale signature
+raises inside fault-isolated legs and silently degrades to other lanes
+(leaking live-store rows into assertions).
