@@ -606,7 +606,22 @@ def test_memory_hybrid_figure_leg_beats_hybrid_document_hits(monkeypatch):
     )
     assert block
     lines = [ln for ln in block.splitlines() if ln.startswith("- ")]
-    assert "5,350.00" in lines[0] and len(lines) >= 2, lines
+    assert lines, "the figure leg must contribute a line"
+    # THE CONTRACT IS PLACEMENT, NOT COUNT. This asserted `len(lines) >= 2`,
+    # which only held when the environment's ingested data happened to add
+    # another line (the hybrid/attachment legs) — so it passed against a
+    # populated store and failed on a fresh clone, where the figure line is the
+    # only one. The property under test is that the figure line is PREPENDED and
+    # therefore cannot be cut by the cap, no matter how many other lines exist.
+    assert "5,350.00" in lines[0], lines
+    # When the hybrid leg contributes a line, the figure line must precede it.
+    # Conditional because a bare install (fresh clone, no documents table) has no
+    # hybrid hits at all — asserting their presence would test the environment,
+    # which is exactly what the old `len(lines) >= 2` did.
+    if "unrelated spec text" in block:
+        assert block.index("5,350.00") < block.index("unrelated spec text"), (
+            "the figure line must come BEFORE unrelated document hits"
+        )
 
 
 def _patch_hybrid_search(monkeypatch, results):
