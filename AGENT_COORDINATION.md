@@ -2482,3 +2482,19 @@ window — concurrent restarts killed two verification turns (pids 90936,
 a1a13834 and confirm (1) mail-led answer with attachments, (2) timeout
 rows appearing in llm_routing_feedback (SELECT model_id, user_satisfaction
 ORDER BY created_at DESC).
+
+## 2026-09-16 ~08:20 EDT — ZCode: all derivation gaps closed (0c5ed07a0)
+
+Live-verified end-to-end (one budget-error retry — provider variance):
+"open PRICE VIPUL (6).xlsx … show the formulas" → R235's exact chain
+with formulas AND an honesty note about formula-derived intermediates.
+The three gaps: (1) formulas now attach on the Stage-0 probe path
+(sidecar loader — previously LLM-SQL only); (2) per-(content_hash,
+token) probe cache — 3.7s→0.01s warm, load intermittency gone;
+(3) file ranking gains contiguous filename-phrase dominance (+3 over
+scattered token matches) + row-level selection on the winner (most
+figure co-occurrence, ties to the MESSAGE's figure over canvas
+bystanders). Learning router confirmed SELF-ACTIVATED on accrued
+history. 220 tests / 8 suites. NOTE for DSH: probe results are cached
+BY REFERENCE — read-only consumers; render_dataset_answer's formula
+footer for matched rows is yours and composes with the sidecar attach.
