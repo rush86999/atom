@@ -4028,3 +4028,24 @@ retrieval-flaky under load, not root-caused).
 
 The goal stays ACTIVE. Next round: quote's flakiness, then the remaining
 latency, then the single-instance acceptance.
+
+## 2026-09-16 ~17:50 EDT — ZCode: teach-turn root cause closed — both fixes verified live
+
+The canvas teach turn ("use the above formula as a backup …") that
+produced "⚠️ Could not reach the agent" now completes end-to-end.
+Verified in the DB (be9413c1…, 17:38:51): the agent received the
+lesson, resolved the canvas's hire via the nested-canvas.id fix
+(574b264ec — the sibling session's normalizer; canvas → Sales Agent
+9837ec71 visible in [CHATCTX]), and replied with the backup formula
+drafted from the user's description — no failure bubble.
+
+My complementary fix (90eda9aff): the 401-AuthError pair bench. Root
+cause of the ORIGINAL timeout: opencode-go candidates ranked cheapest
+for planning, answered 401 "Invalid API key", and the wasted attempts +
+the glm reasoning-400 chain pushed the turn past the UI's 120s window.
+_AUTH_FAILED memoizes the rejected pair at the failure site; the
+cost-priority ranking gate skips memoized pairs BEFORE dispatch
+(live log now: "BPC cost-priority: 3 auth-failed pair(s) benched");
+a successful call clears the pair (config-change recovery). 14→25
+tests in the touched suites; 174 across the neighbor sweep. Pushed,
+backend healthy on the combined tree.
