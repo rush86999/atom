@@ -214,3 +214,20 @@ not a manual flip. OBSERVATION is never gated (`get_learning_router_
 instance(observe_only=True)` on the accrual paths): rows accumulate in
 every mode, so auto has the data to flip on. Explicit `true`/`false`
 always win as operator overrides.
+
+## 9. Learned-router promotion policy (research-based)
+
+No calendar trust horizon — promotion is criteria-gated, per the 2025
+consensus on shadow→canary→production for learned routers
+(RouteLLM/Anyscale cost-quality curves, LiteLLM shadow evaluations,
+SageMaker shadow tests; synthesized 2026-09-16):
+
+| stage | behavior | gate to next |
+|---|---|---|
+| `shadow` (default) | re-ranking runs; the disagreement log records what static BPC would have chosen and what learned chose (the unchosen alternative carries an explicit no-outcome marker) | ≥2 full weekly traffic cycles AND ≥200 shadow observations AND disagreement rate stable over 48h AND no quality regression in the log |
+| `canary` | learned ordering on 25% of turns; static on the rest | 3 clean days at 25% (no fabricated/empty outcomes on learned-routed turns above the static baseline rate) |
+| `primary` | learned ordering always | automatic rollback to `canary` on quality regression |
+| `off` | static BPC only | n/a |
+
+Setting: `ATOM_LEARNING_ROUTER_PROMOTION` (str, default `shadow`) —
+admin-editable in Runtime Settings → Learning & Verification.

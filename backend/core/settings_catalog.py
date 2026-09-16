@@ -342,6 +342,18 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "AUTO mode: minimum distinct models with enough observations."),
     I("ATOM_LEARNING_ROUTER_AUTO_MIN_PER_MODEL", 8, C_LEARN,
       "AUTO mode: observations per model for the model to 'qualify'."),
+    SettingSpec("ATOM_LEARNING_ROUTER_PROMOTION", "str", "shadow", C_LEARN,
+      "Learned-router promotion stage. 'shadow' (default — re-ranking runs "
+      "but disagreement logging records what static BPC would have chosen; "
+      "promote only after the criteria below are met). 'canary' (learned "
+      "ordering applies to 25% of turns, static for the rest — rollback "
+      "automatic on quality regression). 'primary' (learned ordering always). "
+      "'off' (never). PROMOTION CRITERIA (research-based, no calendar trust "
+      "horizon — see TOOL_PLANNER_ROUTING.md §9): promote shadow→canary when "
+      ">=2 full weekly traffic cycles AND >=200 shadow observations AND "
+      "learned-vs-static disagreement rate stable over 48h AND no quality "
+      "regression in the disagreement log; canary→primary after 3 clean days "
+      "at 25% with rollback triggers wired."),
     I("ATOM_LEARNING_ROUTER_AUTO_WINDOW_DAYS", 7, C_LEARN,
       "AUTO mode: observation window in days."),
     SettingSpec("ATOM_LEARNING_ROUTER", "str", "auto", C_LEARN,
