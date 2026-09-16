@@ -175,6 +175,30 @@ class TestNameContextIsSeparateFromFigureContext:
         )
 
 
+def _catalog_available() -> bool:
+    """Whether this install has a usable dataset catalog.
+
+    A FRESH CLONE HAS NO DATABASE, so `dataset_entries` does not exist and the
+    live-catalog assertions below would fail with an OperationalError that says
+    nothing about the code. Verified on a clean `git clone` of the pushed commit:
+    178 passed, 2 failed — both here, both environmental. Skipping with a reason
+    keeps the suite honest on a bare checkout while still exercising the real
+    store wherever there is one.
+    """
+    try:
+        from core.sheet_dataset_service import catalog_has_entries_sync
+
+        return bool(catalog_has_entries_sync())
+    except Exception:  # noqa: BLE001 — missing schema/table means "no catalog"
+        return False
+
+
+requires_catalog = pytest.mark.skipif(
+    not _catalog_available(),
+    reason="no dataset catalog in this environment (fresh clone / no ingestion)",
+)
+
+
 class TestScanBudgetDegrades:
     """A scan that runs long must return what it found, marked incomplete.
 
@@ -191,6 +215,7 @@ class TestScanBudgetDegrades:
 
         assert "deadline" in inspect.signature(search_all_datasets_sync).parameters
 
+    @requires_catalog
     def test_expired_deadline_is_fast_and_marked_incomplete(self):
         import time
 
@@ -205,6 +230,7 @@ class TestScanBudgetDegrades:
             "'ran out of time' must be distinguishable from 'nothing matched'"
         )
 
+    @requires_catalog
     def test_no_deadline_is_not_marked_incomplete(self):
         from core.sheet_dataset_service import search_all_datasets_sync
 
