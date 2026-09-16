@@ -37,7 +37,7 @@ echo "📦 Setting up backend..."
 if [ ! -d "backend/venv" ]; then
     python3 -m venv backend/venv
 fi
-source backend/venv/bin/activate
+source backend/venv/Scripts/activate
 pip install -q -r backend/requirements.txt
 echo "✅ Backend dependencies installed"
 

@@ -76,7 +76,7 @@ if [[ -n "$OTHER_PIDS" ]]; then
 fi
 
 cd "$ROOT/backend"
-[[ -d venv ]] && source venv/bin/activate
+[[ -d venv ]] && source venv/Scripts/activate
 export PYTHONPATH="$ROOT:$ROOT/backend"
 export BYPASS_RATE_LIMIT="${BYPASS_RATE_LIMIT:-1}"
 export ATOM_BACKEND_PORT="$PORT"
