@@ -2103,7 +2103,10 @@ def _file_name_tokens(name: str) -> set:
     }
 
 
-def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> List[str]:
+def _messages_carrying_file(
+    file_name: str, query: str = "", limit: int = 2,
+    user_id: Optional[str] = None,
+) -> List[str]:
     """Rendered lines for the message(s) that carried ``file_name``.
 
     Closes the loop a pure text search cannot: the identifier may live in the
@@ -2163,12 +2166,31 @@ def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> 
         if row is None:
             continue
         seen_ids.add(msg_id)
+        # DIRECTION, STATED — never left for the reader to infer. Asked "which
+        # emails did WE SEND that carried X", the reply described the carrier as
+        # "an inbound email from chandrakant to me"; the acceptance criterion
+        # derives direction from the addresses and read the same message as
+        # sent by this mailbox, so the two disagreed about a fact the evidence
+        # never stated (measured 2026-09-16). An INTERNAL message (both ends on
+        # one domain) is neither an inbound customer mail nor a send to a
+        # counterparty, and saying so removes the ambiguity instead of picking
+        # a side.
+        # DIRECTION, both dimensions, stated (see _mail_direction). Domain
+        # equality is the ORGANIZATIONAL relationship; sent-vs-received comes
+        # from the mailbox identity. Collapsing the two is what left an internal
+        # forwarded attachment with no answer to "did we send it".
+        _direction = _mail_direction(
+            str(row.get("sender") or row.get("from") or ""),
+            str(row.get("recipient") or row.get("to") or ""),
+            user_id,
+        )
         out.append(
             _ingested_line_from_row(
                 row, with_body=False, anchors=[], body_cap=None
             )
             + f" | CARRIED THE FILE: {known_name}"
             + (f" (open: knowledge/documents/{doc_id}/content.lines)" if doc_id else "")
+            + _direction
         )
         if len(out) >= limit:
             break
@@ -2188,8 +2210,170 @@ def _doc_to_message_index() -> Dict[str, tuple]:
     return out
 
 
+#: user_id -> (monotonic_ts, own addresses) for mail-direction resolution.
+_OWN_ADDRESSES_CACHE: Dict[str, Any] = {}
+_OWN_ADDRESSES_TTL_S = 60.0
+
+
+def _own_addresses(user_id: Optional[str]) -> List[str]:
+    """The mailbox identity's OWN addresses (lowercased), [] when unknown.
+
+    Direction must be decided from the authenticated identity, not from domain
+    equality: an INTERNAL message (both ends on one domain) can be SENT by the
+    operator or RECEIVED by them, and treating "same domain" as the answer is
+    what left the acceptance fixture's directional question unanswerable —
+    the evidence said "internal" and never said whether the mailbox sent it
+    (audit directive 6, 2026-09-16).
+
+    Returns the user's own address plus any alias addresses the same local part
+    appears under in the store, so a team alias still resolves. Fault-isolated:
+    [] means "cannot determine", which is reported as such rather than guessed.
+    """
+    import time as _time
+
+    if not user_id:
+        return []
+    now = _time.monotonic()
+    hit = _OWN_ADDRESSES_CACHE.get(user_id)
+    if hit and now - hit[0] < _OWN_ADDRESSES_TTL_S:
+        return hit[1]
+    out: List[str] = []
+    try:
+        from core.database import get_db_session
+        from core.models import User
+
+        with get_db_session() as db:
+            email = db.query(User.email).filter(User.id == user_id).scalar()
+        if email:
+            out.append(str(email).strip().lower())
+    except Exception as e:  # noqa: BLE001 — identity lookup is best-effort
+        logger.debug(f"own-address resolve skipped: {e}")
+    _OWN_ADDRESSES_CACHE[user_id] = (now, out)
+    return out
+
+
+def _addresses_in(field: Any) -> List[str]:
+    """Every address in a sender/recipient field, lowercased."""
+    import re as _re
+
+    return [a.lower() for a in _re.findall(r"[\w.+-]+@[\w.-]+", str(field or ""))]
+
+
+def _mailbox_addresses(*fields: Any) -> List[str]:
+    """Addresses belonging to THIS mailbox, learned from the store's own traffic.
+
+    Per-install identity is DATA, never a hardcoded roster (CLAUDE.md invariant
+    #4), so membership is derived from the mailbox itself rather than from the
+    signed-in account: on this install the operator's login is a separate
+    administrative address and the mailbox is a shared team inbox, so keying on
+    the account's domain found nothing and every message read "cannot determine"
+    (measured 2026-09-16).
+
+    The mailbox domain is the one carrying the bulk of the store's mail — it is
+    both the most common sender and the most common recipient domain by a wide
+    margin (brennan.ca: 3,802 sent / 6,528 received here, vs ~250 for the next
+    sender domain). Addresses on it are the mailbox's own; machine-generated
+    local parts (exchange routing noise) are excluded so they cannot be mistaken
+    for a principal.
+
+    Fault-isolated: [] means "cannot determine", which the caller reports as
+    such rather than guessing.
+    """
+    import collections
+    import re as _re
+
+    try:
+        rows = _comms_store_records()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"mailbox discovery skipped: {e}")
+        return []
+    volume: "collections.Counter[str]" = collections.Counter()
+    own_addrs: set = set()
+    for row in rows:
+        for field in (row.get("sender") or "", row.get("recipient") or ""):
+            for addr in _re.findall(r"[\w.+-]+@[\w.-]+", str(field)):
+                addr = addr.lower()
+                volume[addr.rsplit("@", 1)[-1]] += 1
+                own_addrs.add(addr)
+    if not volume:
+        return []
+    domain, hits = volume.most_common(1)[0]
+    if hits < 3:  # too little traffic to call any domain the mailbox
+        return []
+    out: List[str] = []
+    for addr in own_addrs:
+        if not addr.endswith("@" + domain):
+            continue
+        local = addr.split("@", 1)[0]
+        # Machine-generated routing/mailer local parts are not principals.
+        if _re.search(r"(exchange[0-9a-f]{8,}|no-?reply|do-?not-reply|mailer|bounce)", local):
+            continue
+        out.append(addr)
+    # The signed-in account's own address is an own address too, whatever domain
+    # it lives on (an operator mailboxing from a second domain).
+    for addr in _own_addresses(None) if False else []:
+        if addr not in out:
+            out.append(addr)
+    return out
+
+
+def _mail_direction(sender: str, recipient: str, user_id: Optional[str]) -> str:
+    """SENT / RECEIVED by this mailbox, or an explicit cannot-determine.
+
+    Two independent dimensions, kept separate:
+
+    * sent vs received — decided by the authenticated mailbox identity against
+      the sender/recipient fields;
+    * internal vs external — an organizational relationship (domain equality),
+      which says NOTHING about who sent it.
+
+    The previous logic collapsed them: a same-domain message was labelled
+    "internal — neither an inbound customer message nor a send to a counterparty"
+    and the sent/received question was never answered. Stating the relationship
+    AND the direction removes the ambiguity instead of choosing a side.
+    """
+    own = set(_own_addresses(user_id))
+    senders = _addresses_in(sender)
+    recipients = _addresses_in(recipient)
+    same_domain = bool(
+        senders and recipients
+        and senders[0].rsplit("@", 1)[-1] == recipients[0].rsplit("@", 1)[-1]
+    )
+    relation = "internal" if same_domain else "external"
+    # THE MAILBOX is the subject, not one human. This install reads a shared
+    # team inbox in which several members send and receive as principals (the
+    # earlier "NOT ADDRESSED TO YOU" verdict was removed for exactly that
+    # reason), so "sent by this mailbox" means the SENDER is one of the
+    # mailbox's own addresses — not that it equals the signed-in user's address.
+    mailbox = set(own) | set(_mailbox_addresses(sender, recipient))
+    own_sends = bool(mailbox & set(senders))
+    own_receives = bool(mailbox & set(recipients))
+    if own_sends and own_receives:
+        # BOTH ends are the mailbox's own addresses: this is mail BETWEEN its
+        # members, so "did this mailbox send it" has no single answer. Reporting
+        # SENT here would mislabel a colleague's message the operator merely
+        # received — the failure mode this whole dimension exists to prevent.
+        return (
+            f" | DIRECTION: internal relationship; both ends are this mailbox's "
+            "own addresses (mail between its members), so sent-vs-received "
+            "depends on WHICH member you mean — attribute it to the sender, and "
+            "do not present it as sent or received by the mailbox as a whole"
+        )
+    if own_sends:
+        who = "SENT by this mailbox (the sender is one of its own addresses)"
+    elif own_receives:
+        who = "RECEIVED by this mailbox (an own address is a recipient)"
+    else:
+        return (
+            f" | DIRECTION: {relation} relationship; neither end is one of this "
+            "mailbox's own addresses, so sent-vs-received cannot be determined "
+            "from these fields — do not assert either"
+        )
+    return f" | DIRECTION: {relation} relationship; {who}"
+
+
 def _attachment_content_hits(
-    phrases: List[str], limit: int = 3
+    phrases: List[str], limit: int = 3, user_id: Optional[str] = None
 ) -> List[str]:
     """Messages whose ATTACHED FILE CONTENT contains every phrase.
 
@@ -3327,7 +3511,8 @@ async def _ingested_mailbox_lines(
     if _att_phrases and len(store_lines) < cap:
         try:
             _att_lines = await asyncio.wait_for(
-                asyncio.to_thread(_attachment_content_hits, _att_phrases, 2),
+                # user_id carries the mailbox identity for DIRECTION (see _mail_direction)
+                asyncio.to_thread(_attachment_content_hits, _att_phrases, 2, user_id),
                 timeout=_ATTACHMENT_LEG_TIMEOUT_S,
             )
         except Exception as e:  # noqa: BLE001 — timeout/absence is not an error
@@ -4278,7 +4463,8 @@ async def _datasets_evidence(
                 seen_files.append(fname)
         carried: List[str] = []
         for fname in seen_files[:3]:
-            carried.extend(_messages_carrying_file(fname, query=query, limit=2))
+            carried.extend(_messages_carrying_file(
+                fname, query=query, limit=2, user_id=user_id))
         if carried:
             lines.append(
                 "MESSAGE(S) THAT CARRIED THESE FILES — the email thread to cite:"
