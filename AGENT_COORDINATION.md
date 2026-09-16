@@ -2795,3 +2795,105 @@ only this entry. Open items for the next owner are listed in audit §5
 trust-horizon policy) plus §7 residuals (predictor dual-row, JSON1
 gating, probe-cache by-reference contract, episodic degradation
 measurement via the delivered harness).
+
+### 2026-09-16 09:42 EDT — **GO for restart** (tree pinned)
+
+Backend code for items 1, 3 and 7 is complete and checked. Pinned revision for
+the restart:
+
+```
+core/byok_endpoints.py        09:25:08   core/llm/byok_handler.py        09:29:12
+api/byok_routes.py            09:23:09   core/llm_service.py             09:29:21
+core/llm_credential_service.py 09:12:55  core/llm/learning_router_registry.py 09:29:36
+core/llm/fabrication_accounting.py 09:32:55  core/learning_llm_router.py 09:32:55
+integrations/chat_orchestrator.py  09:39:28
+```
+
+Checks run before GO (all with `PYTHONPATH=. ./venv/bin/python -m pytest -p no:randomly`):
+
+- `tests/unit/test_byok_handler.py` — **4 failed / 193 passed**, byte-identical to
+  the pristine-HEAD worktree baseline (`git worktree add /tmp/atom-head
+  c31316004`): the 4 failures are pre-existing and unrelated.
+- BYOK suites show no new failures vs that worktree (compared with `comm` on
+  sorted FAILED lists).
+- `tests/test_fabrication_accounting.py` (38) + `tests/test_fabrication_bench.py`
+  (22) green; `tests/test_verbatim_evidence_generalization.py` +
+  `tests/test_prompt_budget_accounting.py` (53) green.
+
+**WHAT THE RESTART WILL CHANGE (and what it will not):**
+
+1. Credential resolution becomes SCOPE-AWARE. Expected: `deepseek` and
+   `opencode-go` clients exist after restart (before: only `ollama`,
+   `openrouter`). Verified in-process already: instantiating `BYOKHandler`
+   against the live `data/byok_keys.json` logs
+   `Initialized deepseek|opencode-go|openrouter client using BYOK credential`.
+2. The fabrication bench counts EVALUATED GENERATIONS, so its denominator drops
+   from row count to generation count; the rate can only rise, never fall.
+3. The evidence budget is a hard char bound and the assembled prompt is now
+   measured against the selected model's window.
+
+**I am taking the restart now.** Anyone else restarting in the next few minutes
+invalidates the verification below. Verification results will be appended.
+
+### 2026-09-16 09:50 EDT — restart taken and VERIFIED (live, pid 11051)
+
+`bash scripts/restart_backend.sh` → pid **11051**, started **2026-09-16T13:49:31Z**
+(restarted three times as my edits landed: 2908 → 6878 → 11051). Two extra
+backend fixes were made after the first GO and are live in 11051:
+`fabrication_accounting.coerce_features` (a stored JSON `null` is ABSENT, not
+malformed — 67 live rows were being reported as corrupt metadata) and
+`byok_routes.byok_health_check` / `get_provider_status(tenant_id=...)`.
+
+**LIVE EVIDENCE (all against the running process, authenticated as admin):**
+
+| Check | Command | Result |
+|---|---|---|
+| Process identity | `GET /api/health` | pid 11051, started 13:49:31Z, `git_commit a3aa31ba4` (= HEAD), db `data/atom.db`, store `data/byok_keys.json` |
+| Effective settings | `GET /api/v1/admin/settings` | `ATOM_FABRICATION_BENCH=True` (min 3, rate 0.25, window 48h); `ATOM_EVIDENCE_BUDGET_CHARS=18000`; `ATOM_LEARNING_ROUTER=auto` (**source=db**); `ATOM_SANDBOX_FORCE_ENFORCE=True` |
+| Credential availability | `POST /api/ai/providers/{p}/test` | `deepseek` **ok**, `opencode-go` **ok**, `openrouter` **ok** (real `models.list()` round-trips); `openai`/`anthropic` correctly `provider_not_configured` |
+| Scope agreement | `GET /api/ai/providers/{p}` | all three: `has_api_keys=True, has_tenant_key=True, status=active` |
+| Health summary | `GET /api/ai/health` | `{total: 37, active: 3, with_keys: 3}` (was `0/0` before the scope fix) |
+| Ordinary feedback persistence | 1 live `POST /api/chat/message` | 375 → 379 `llm_routing_feedback` rows; newest rows carry the real 16-feature vector; a post-fix turn recorded `deepseek-v4-pro` — a model served by the **deepseek provider client**, which was unreachable before item 1 |
+| Fabrication ledger (live DB) | `account_generations()` over 48h | 379 rows → **244 evaluated generations**, 0 fabricated, 134 unknown, 1 duplicate row collapsed, 0 malformed (was 67 mis-reported before the `null` fix) |
+
+**Still true and worth repeating:** 0 of 379 live rows carry a fabrication
+verdict, so the bench's numerator is still empty — the fix is that the
+denominator is now generations and the reason is legible, not that the rate has
+been measured. Absence of provenance is not absence of fabrication.
+
+### 2026-09-16 10:05 EDT — round complete; matrix delivered
+
+Full deliverable: **`docs/audits/2026-09-16_gap_closure_matrix.md`** — separated
+into *implemented* / *isolated verification passed* / *live verification passed*,
+with the tested revision (`a3aa31ba4`), the live pid (11051), and the effective
+configuration read from the running process.
+
+Headline results, all reproducible from the commands in that document:
+
+- **Item 1** — scope-aware credential resolution; red team **9/9 contained**
+  against 6 cases the in-flight resolver got wrong; live: all three providers
+  now resolve and build clients, deepseek + openrouter complete successfully.
+- **Item 2** — `scripts/verify_isolated_api_boundary.py` **14/14** on an
+  isolated uvicorn + scratch SQLite (SQL boundary 15/15 contained, verdict
+  lifecycle 5 rows / 5 generations / rate 0.4); live restart + identity +
+  settings + credential + ordinary-feedback-persistence checks all recorded.
+- **Item 3** — generation-level accounting; live 379 rows → **244 evaluated
+  generations**, 0 fabricated, 134 unknown, 0 malformed (67 were mis-reported
+  before the JSON-`null` fix). **0 of 379 rows carry a verdict**, so the bench
+  is correct and idle — stated as such, not as a clean bill of health.
+- **Item 7** — evidence budget is a hard bound; the whole prompt is measured
+  against the selected model's window minus its reservation.
+- **Items 4/5/6/8** — reliability harness (contracts, streamed first-visible,
+  per-attempt telemetry, four-state topology, read-only guard that suppressed
+  7 learning writes), router report running the REAL rankers (21/24 profiles
+  reorder), and the independent corpus.
+
+**Two findings I corrected in my own earlier reporting, both now in the matrix:**
+1. `POST /api/ai/providers/{p}/test` can report a **false OK** — it probes
+   `models.list()` only. `opencode-go` passes that probe while a real completion
+   returns `401 Invalid API key` (verified in-process, same store).
+2. Stored JSON `null` is ABSENT, not malformed metadata.
+
+**No regressions:** the final failure list for the 17 affected suites matches
+the pristine-HEAD worktree baseline exactly (`comm` on sorted FAILED lists);
+`tests/unit/test_byok_handler.py` is 4F/193P in both trees.

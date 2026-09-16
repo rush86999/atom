@@ -278,10 +278,23 @@ class TestKeyManagement:
         assert manager.is_configured("t", "openai")
 
     def test_is_configured_tenant_key(self, manager):
+        # Real ciphertext: "configured" now means RETRIEVABLE for this caller,
+        # so a placeholder that can never decrypt ("x") correctly reports
+        # False. The tenant-scoped shape is what this test is about.
+        manager.api_keys["tenant_t-1_openai_default_production"] = APIKey(
+            provider_id="openai", key_name="default",
+            encrypted_key=manager.encrypt_api_key("sk-tenant-1234567890"),
+            key_hash="h", created_at=datetime.now())
+        assert manager.is_configured("t-1", "openai")
+        assert manager.get_tenant_api_key("t-1", "openai") == "sk-tenant-1234567890"
+
+    def test_configured_but_undecryptable_is_not_configured(self, manager):
+        """The guard must not claim a credential the getter cannot produce."""
         manager.api_keys["tenant_t-1_openai_default_production"] = APIKey(
             provider_id="openai", key_name="default", encrypted_key="x",
             key_hash="h", created_at=datetime.now())
-        assert manager.is_configured("t-1", "openai")
+        assert not manager.is_configured("t-1", "openai")
+        assert manager.get_tenant_api_key("t-1", "openai") is None
 
     def test_deactivate_key_flag(self, manager):
         kid = manager.store_api_key("openai", "sk-test-abcdefgh")

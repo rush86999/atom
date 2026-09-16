@@ -10,6 +10,43 @@ fixing, and each fix was verified live end-to-end or by red-first tests.
 **Commits:** 40+ scoped commits (index at the end); tests grew from ~50 to
 220+ across the affected suites.
 
+> ### ⚠️ CORRECTIONS — 2026-09-16 independent verification pass
+>
+> The root causes below held up under reproduction. Four claims did not, and
+> are corrected in place by
+> [`2026-09-16_verification_and_corrections.md`](2026-09-16_verification_and_corrections.md)
+> (full matrix, reproductions and remaining limitations):
+>
+> 1. **§2.5 RC-18 / §3 — the app-DB allowlist was not a boundary.** A
+>    predicate-only read of a non-allowlisted table returned rows
+>    (`SELECT id FROM canvases WHERE (SELECT count(*) FROM 'users') > 0`), as
+>    did the `EXISTS (SELECT 1 FROM (SELECT * FROM 'user_sessions') canvases)`
+>    variant: both the validator and the result-column check are blind to a
+>    table read that is never projected. Closed with a SQLite authorizer; the
+>    timeout now also calls `Connection.interrupt()` so the caller's wait
+>    ending genuinely stops the database work.
+> 2. **§3 — "headers/SQL/formulas always surviving" the evidence budget was
+>    false.** `SQL RESULT` and `FORMULAS` lines were elidable body lines.
+>    Fixed and pinned by `TestBudgetPreservesDecisiveLines`.
+> 3. **§5.4 — "~90 verdict rows" was not a representative sample.** Accrual was
+>    dead from `9a4a2a774` until `76cc51bcd`; every row postdates 2026-09-15
+>    22:24 UTC and 8 synthetic `probe/*` rows had been purged. Current:
+>    170 rows / 168 distinct generations / 14.2 h. The 30-row rule shows
+>    **readiness, not superiority** — no executed comparison against static
+>    BPC exists, and an unexecuted alternative has no outcome.
+> 4. **§5.1 — "an infrastructure spend decision, not a code fix" is not
+>    supported.** The routing ladder returned 9/9 candidates from a single
+>    provider (`openrouter`) with every fallback sharing it, because all 5 keys
+>    in `data/byok_keys.json` are tenant-prefixed while `get_api_key` built the
+>    unprefixed id — the whole local key store was unreachable at runtime.
+>    Fixed; the same live configuration now yields **118 candidates across 3
+>    providers** (`deepseek`, `openrouter`, `opencode-go`). No purchase is
+>    justified by the evidence.
+>
+> Also corrected: `record_fabrication_signal` wrote **two** feedback rows per
+> verdict (one with provenance, one without), inflating the bench denominator;
+> it now writes one, with provenance.
+
 ---
 
 ## 1. The problem, as the user experienced it

@@ -667,7 +667,19 @@ def _participant_mail_rows(
                     and local.replace(".", "").replace("_", "").replace("-", "") in msg_l.replace(".", " ").replace("_", " ").replace("-", " ")
                 ):
                     names[local] = None
-            disp = val.split("<", 1)[0]
+            # Display-name words. The ADDRESS ITSELF is stripped first: the
+            # previous form scanned `val.split("<", 1)[0]`, which for a bare
+            # address is the whole `local@domain.tld`, so the DOMAIN donated
+            # "participant names" — `billing@tooling-depot.example` contributed
+            # "tooling", and an ordinary English word in an unrelated question
+            # ("what does the agreement say the annual tooling amortisation
+            # is?") then pulled that supplier's invoice into the evidence under
+            # "the messages the user is pointing at". Reproduced by the
+            # independent corpus (tests/test_independent_corpus_api_boundary.py).
+            # Stripping every @-token keeps real display names in BOTH shapes
+            # ("Bob Smith <bob@x>" and "bob@x (Bob Smith)") while removing the
+            # domain from consideration.
+            disp = re.sub(r"[^\s<>,;()]*@[^\s<>,;()]*", " ", val)
             for part in re.findall(r"[A-Za-z]{4,}", disp):
                 p = part.lower()
                 if p in msg_l:
@@ -763,7 +775,7 @@ _EVIDENCE_BUDGET_CHARS = int(
 
 
 async def _auto_open_top_citation(
-    block: Optional[str], already: int = 0,
+    block: Optional[str], already: int = 0, query: str = "",
 ) -> Optional[str]:
     """Harness-side read chaining (agentic-RAG-in-the-harness): when the
     evidence block cites a full:/open: VFS path, OPEN the top one and
@@ -774,8 +786,16 @@ async def _auto_open_top_citation(
     the cited artifact (live: the F-5216 pricing exchange lived three
     quote-layers down the forwarded thread). The citation path is the
     permanent address; this opens it once so the answer is in front of
-    the model. Bounded window (~4k chars around the head + the tail);
-    fault-isolated; skipped when the block already carries a FULL BODY."""
+    the model.
+
+    The window is centred on the part the QUERY is about rather than taken
+    head+tail: a head/tail cut silently omits everything in the middle, and
+    the middle is exactly where a forwarded thread's decisive row sits
+    (audit item 6d). When no query token appears in the artifact the window
+    falls back to head/tail and SAYS SO, so the model is told the read was
+    not a targeted hit instead of being left to assume the artifact was read
+    in full. Fault-isolated; skipped when the block already carries a
+    FULL BODY."""
     if not block or "full: knowledge/" not in block and "open: knowledge/" not in block:
         return None
     if "FULL BODY:" in block[:2000]:
@@ -793,60 +813,162 @@ async def _auto_open_top_citation(
         text = str(getattr(res, "content", "") or "")
         if not text:
             return None
-        window = text[:2600]
-        if len(text) > 3200:
-            window += "\n…\n" + text[-1200:]
-        return (
-            f"OPENED (top cited artifact — {path}[:2600 head / tail]):\n"
-            + window
-        )
+        try:
+            from core.llm.prompt_budget import relevant_window
+
+            window, matched, line_no = relevant_window(
+                text, query, max_chars=3800, head_chars=2600, tail_chars=1200)
+        except Exception:  # noqa: BLE001 — windowing is an improvement, not a gate
+            window, matched, line_no = text[:2600], False, None
+            if len(text) > 3200:
+                window += "\n…\n" + text[-1200:]
+        if matched and line_no:
+            header = (
+                f"OPENED (top cited artifact — {path}, window around line "
+                f"{line_no} matching your question; the artifact is longer, "
+                "ask to open another region if the answer is elsewhere):")
+        elif matched:
+            header = f"OPENED (top cited artifact — {path}, whole artifact):"
+        else:
+            header = (
+                f"OPENED (top cited artifact — {path}; NOTE: none of the "
+                "question's terms appear in this artifact, so this is a plain "
+                "head/tail view, NOT a targeted match — do not present it as "
+                "the complete or confirmed source):")
+        return header + "\n" + window
     except Exception as e:  # noqa: BLE001 — best-effort read hop
         logger.debug(f"auto-open skipped: {e}")
         return None
 
 
 def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
-    """Trim an evidence block to the budget. Header lines (no leading
-    '- ' / not a body line) always survive; body lines survive newest-first
-    of appearance until the budget; the elision note keeps the paths
-    reachable. None/short blocks pass through untouched."""
+    """Trim an evidence block to a HARD bound of ``_EVIDENCE_BUDGET_CHARS``.
+
+    The previous version was not a bound. It exempted decisive lines AND every
+    line that did not start with ``-``/``R``/``SQL RESULT``/``FORMULAS`` — so
+    an oversized document of ordinary unprefixed prose passed through intact,
+    and protected rows alone could push the result past the stated cap. Both
+    are pinned by tests now; the invariant is simply ``len(out) <= budget``.
+
+    What survives, in order of claim on the budget:
+
+    1. **Decisive lines** (rows, formulas, SQL results, figure-bearing prose —
+       classified by ``prompt_budget.decisive_kind``, the existing mechanism).
+       Bounded: if the decisive set alone exceeds its share, the excess is
+       dropped and REPORTED rather than silently blowing the cap.
+    2. **Attribution** for a kept decisive line: the nearest preceding line
+       carrying a ``full:``/``open:`` path, so a surviving row never loses the
+       citation that makes it checkable.
+    3. **Neighbours** of a kept decisive line (the line that follows it), so a
+       row keeps the unit it belongs to rather than arriving orphaned.
+    4. Everything else in original order until the budget is spent.
+
+    The elision note is reserved out of the budget before selection, so the
+    returned block always fits, and it reports WHAT was dropped (decisive vs
+    ordinary) instead of implying the evidence was complete.
+    """
     if not block or len(block) <= _EVIDENCE_BUDGET_CHARS:
         return block
-    lines = block.splitlines()
-    kept: List[str] = []
-    elided = 0
-    kept_len = 0
 
-    def _is_decisive(ln: str) -> bool:
-        # A surviving citation alone does not establish a derivation
-        # (audit item 6): rows carrying R### citations, FORMULAS lines,
-        # and lines with currency/percent figures are the payload —
-        # trimmed LAST, after plain prose bodies.
-        s = ln.lstrip()
+    from core.llm.prompt_budget import decisive_kind
+
+    lines = block.splitlines()
+    budget = _EVIDENCE_BUDGET_CHARS
+
+    def _is_attribution(ln: str) -> bool:
+        return ("full:" in ln) or ("open:" in ln)
+
+    decisive_idx = [i for i, ln in enumerate(lines) if decisive_kind(ln)]
+    kept_idx: set = set()
+    used = 0
+
+    # Reserve the omission note FIRST so the cap holds even when everything is
+    # protected and nothing can be dropped politely.
+    def _note(dropped_decisive: int, dropped_other: int) -> str:
         return (
-            s.startswith("FORMULAS")
-            or s.startswith("SQL RESULT")
-            or re.match(r"R\d{1,5}\s*\|", s) is not None
-            or re.search(r"[$€£]\s?\d[\d,.]{2,}|\d+%|MATCH for", s)
+            f"… evidence elided for the turn's {budget}-char budget: "
+            f"{dropped_decisive} decisive line(s) and {dropped_other} other "
+            "line(s) omitted. Kept lines carry their full:/open: path — ask to "
+            "open any omitted artifact or region."
         )
 
-    for ln in lines:
-        is_body = ln.lstrip().startswith(("-", "R", "SQL RESULT", "FORMULAS"))
-        if (
-            is_body
-            and not _is_decisive(ln)
-            and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300
-        ):
-            elided += 1
+    reserve = len(_note(99, 999)) + 1
+    spendable = max(0, budget - reserve)
+
+    # 1 + 2 + 3: decisive lines with their attribution and following neighbour.
+    for idx in decisive_idx:
+        group = []
+        if idx - 1 >= 0 and _is_attribution(lines[idx - 1]):
+            group.append(idx - 1)
+        group.append(idx)
+        if idx + 1 < len(lines) and not decisive_kind(lines[idx + 1]):
+            group.append(idx + 1)
+        group = [i for i in group if i not in kept_idx]
+        cost = sum(len(lines[i]) + 1 for i in group)
+        if used + cost > spendable:
+            continue  # reported below as an omitted decisive line
+        kept_idx.update(group)
+        used += cost
+
+    dropped_decisive = sum(1 for i in decisive_idx if i not in kept_idx)
+
+    # 4: remaining lines, in order, with whatever budget is left.
+    for idx, ln in enumerate(lines):
+        if idx in kept_idx or not ln.strip():
             continue
-        kept.append(ln)
-        kept_len += len(ln) + 1
-    if elided:
-        kept.append(
-            f"… {elided} evidence line(s) elided for the turn's context "
-            "budget — every kept line carries its full:/open: path; ask to "
-            "open any elided artifact.")
-    return "\n".join(kept)
+        if used + len(ln) + 1 > spendable:
+            continue
+        kept_idx.add(idx)
+        used += len(ln) + 1
+
+    dropped_other = sum(
+        1 for idx, ln in enumerate(lines)
+        if idx not in kept_idx and ln.strip())
+
+    out_lines = [lines[i] for i in sorted(kept_idx)]
+    message = _note(dropped_decisive, dropped_other)
+    result = "\n".join(out_lines + [message])
+    # Belt and braces: the invariant is a hard bound, so enforce it even if a
+    # single pathological line slipped past the per-line accounting.
+    if len(result) > budget:
+        keep = max(0, budget - reserve)
+        result = result[:keep] + "\n" + message
+        result = result[:budget]
+    return result
+
+
+def _account_turn_prompt(
+    messages: List[Dict[str, Any]],
+    provider_id: Optional[str] = None,
+    output_reservation: Optional[int] = None,
+):
+    """Measure the COMPLETE prompt — instructions, history, evidence, canvas,
+    the user turn — against the selected model's context window minus its
+    output reservation.
+
+    The 18k-char evidence budget is a per-section budget, not a context bound:
+    it says nothing about what the model actually receives once history, the
+    system instructions and the canvas are added. This returns the
+    ``PromptAccount`` (see ``core.llm.prompt_budget``) so the turn can be
+    checked against the model that will read it instead of against a
+    measured-once character count.
+    """
+    sections: Dict[str, str] = {}
+    for msg in messages or []:
+        role = str(msg.get("role") or "other")
+        content = msg.get("content")
+        if not isinstance(content, str) or not content:
+            continue
+        sections[role] = (sections.get(role, "") + "\n" + content)
+    try:
+        from core.llm.prompt_budget import account_prompt
+
+        return account_prompt(
+            sections, provider_id=provider_id,
+            output_reservation=output_reservation)
+    except Exception as e:  # noqa: BLE001 — accounting must never break a turn
+        logger.debug(f"prompt accounting skipped: {e}")
+        return None
 
 
 # Derivation/verification asks: "figure out how the listed price was
@@ -3056,12 +3178,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # overrides stale refusals: long sessions of earlier failed
             # attempts otherwise anchor weak models into repeating "I can't
             # do that" even when a fresh result is in front of them.
+            _evidence_msg: Optional[Dict[str, Any]] = None
             if _tool_block:
-                _opened = await _auto_open_top_citation(_tool_block)
+                _opened = await _auto_open_top_citation(_tool_block, query=message or "")
                 if _opened:
                     _tool_block = _tool_block + "\n\n" + _opened
                 _tool_block = _enforce_evidence_budget(_tool_block)
-                messages.append({"role": "system", "content": (
+                _evidence_msg = {"role": "system", "content": (
                     "TOOL EXECUTION RESULT — the harness ran this JUST NOW, "
                     "successfully, on your behalf. Any earlier statement about "
                     "lacking access or tools is OUTDATED: ignore it. Do NOT emit "
@@ -3069,8 +3192,58 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "tools yourself — the harness handles tools. Answer the user's "
                     "current message in plain language using this fresh result:\n"
                     + _tool_block
-                )})
+                )}
+                messages.append(_evidence_msg)
                 logger.info(f"tool plan executed: {_planned}")
+
+            # MEASURE THE WHOLE PROMPT, not just the evidence section. The 18k
+            # char evidence budget is a per-section budget; what the model
+            # actually reads is instructions + history + canvas + evidence +
+            # this turn. Account for all of it against the selected model's
+            # context window minus its output reservation, and act on overflow
+            # when the evidence block is what tips it over.
+            try:
+                _hint_provider = (
+                    (sticky_hint or {}).get("provider")
+                    if isinstance(sticky_hint, dict) else None
+                )
+                _acct = _account_turn_prompt(
+                    messages, provider_id=_hint_provider)
+                if _acct is not None:
+                    logger.info(
+                        "[prompt-budget] %s model=%s: input=%d tokens "
+                        "(window=%d, output reservation=%d, fits=%s%s)%s",
+                        _hint_provider or "routing-default",
+                        forced_model, _acct.total_input_tokens,
+                        _acct.context_window, _acct.output_reservation,
+                        _acct.fits,
+                        ", window estimated" if not _acct.window_from_provider
+                        else "",
+                        ", token count estimated" if _acct.estimated else "",
+                    )
+                    if not _acct.fits and _evidence_msg is not None:
+                        # The evidence section is the one section the harness
+                        # can still shrink. Re-trim it by the measured overflow
+                        # (chars ≈ 4×tokens is the same heuristic the counter
+                        # falls back to) and say what was dropped.
+                        _overflow_chars = _acct.overflow_tokens * 4
+                        _evidence_body = str(
+                            _evidence_msg.get("content") or "")
+                        _reduced = max(
+                            2000, len(_evidence_body) - _overflow_chars)
+                        _before = len(_evidence_body)
+                        _evidence_msg["content"] = _enforce_evidence_budget(
+                            _evidence_body[:_reduced])
+                        logger.warning(
+                            "[prompt-budget] prompt exceeds the model window by "
+                            "%d tokens; evidence section re-trimmed from %d to "
+                            "%d chars (largest section: %s)",
+                            _acct.overflow_tokens, _before,
+                            len(str(_evidence_msg.get("content") or "")),
+                            _acct.largest_section,
+                        )
+            except Exception as _acct_err:  # noqa: BLE001 — never block a turn
+                logger.debug(f"prompt accounting skipped: {_acct_err}")
 
             messages.append({"role": "user", "content": message})
 
@@ -3807,6 +3980,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 task_type="question_answering",
                                 tenant_id=self.tenant_id or "default",
                                 unsupported_figures=_unsupported,
+                                # Attach the verdict to the generation that
+                                # produced this reply (its outcome row already
+                                # exists) instead of minting a second one.
+                                routing_result_id=(response_data or {}).get(
+                                    "routing_result_id"),
                             )
                         except Exception as _fab_err:  # noqa: BLE001
                             logger.debug(f"fabrication signal skipped: {_fab_err}")
@@ -3872,6 +4050,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     ungrounded_claims=list(
                                         _verdict.get("claims") or ["unspecified"]
                                     ),
+                                    routing_result_id=(response_data or {}).get(
+                                        "routing_result_id"),
                                 )
                             except Exception as _vp_fab:  # noqa: BLE001
                                 logger.debug(f"panel fabrication signal skipped: {_vp_fab}")

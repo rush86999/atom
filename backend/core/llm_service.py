@@ -395,6 +395,13 @@ class LLMService:
             },
             "model": used_model,
             "provider": used_provider,
+            # Identity of this generation's outcome row (set by the handler
+            # when it recorded one). Callers that judge the ASSEMBLED reply
+            # afterwards — the figure-grounding and verification guards — pass
+            # it back to record_fabrication_signal so the corrective verdict
+            # annotates THIS generation rather than appearing as a second one.
+            "routing_result_id": getattr(
+                handler, "_last_feedback_decision_id", None),
             # The model's chain-of-thought for this call, when the provider
             # returned one (reasoning_content/reasoning/thinking). None for
             # models that don't emit it — callers treat it as optional.

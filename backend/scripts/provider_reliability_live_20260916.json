@@ -1,0 +1,1213 @@
+{
+  "generated_at": "2026-09-16T13:59:15.790592+00:00",
+  "mode": "stream",
+  "budget_calls": 3,
+  "executed_calls": 3,
+  "topology": {
+    "state": "all_shared_fallbacks",
+    "state_meaning": "every fallback shares the primary's upstream provider \u2014 the ladder adds no provider diversity for the top candidate",
+    "primary": {
+      "provider": "opencode-go",
+      "model": "gpt-5.3-codex-spark"
+    },
+    "fallback_count": 2,
+    "fallback_pairs": [
+      {
+        "provider": "opencode-go",
+        "model": "glm-5.3-flash"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "glm-5.3"
+      }
+    ],
+    "shared_providers": [
+      "opencode-go"
+    ],
+    "unresolved_fallback_providers": [],
+    "fallbacks_sharing_primary_upstream": [
+      "opencode-go"
+    ],
+    "fallbacks_share_primary_upstream": true,
+    "ranked_candidates": [
+      {
+        "provider": "opencode-go",
+        "model": "gpt-5.3-codex-spark"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "glm-5.3-flash"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "glm-5.3"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "gemini-3-flash"
+      },
+      {
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-reasoner"
+      },
+      {
+        "provider": "openrouter",
+        "model": "qwen/qwen3.8-flash"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "kimi-k2.5"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-v3-2-251201"
+      },
+      {
+        "provider": "deepseek",
+        "model": "gmi/deepseek-ai/DeepSeek-V3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "hyperbolic/deepseek-ai/DeepSeek-V3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "hyperbolic/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "lambda_ai/deepseek-v3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3.2-exp"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V3.2"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "minimax-m2.5"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "deepseek-v4-flash-free"
+      },
+      {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "dashscope/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "dashscope/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwencloud/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwencloud/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwen_ai_platform/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwen_ai_platform/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "databricks/databricks-deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "lambda_ai/deepseek-llama3.3-70b"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-V4-Flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-V4-Flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "together_ai/deepseek-ai/DeepSeek-V4-Flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "tensormesh/deepseek-ai/DeepSeek-V4-Flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "tencent/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "pinstripes/ps/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "wandb/deepseek-ai/DeepSeek-V4-Flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "wandb/deepseek-ai/DeepSeek-V4-Flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V4-Flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V4-Flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v4-flash-vision-exp"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/deepseek-v4-flash-vision-exp"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "minimax-m3"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "minimax-m2.7"
+      },
+      {
+        "provider": "deepseek",
+        "model": "tencent/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "gmi/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "kimi-k2.7-code"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "scaleway/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "opencode-go",
+        "model": "glm-5.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V3.1-Terminus"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3.1-terminus"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3.1"
+      },
+      {
+        "provider": "openrouter",
+        "model": "xiaomi/mimo-v2.5-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "ovhcloud/DeepSeek-R1-Distill-Llama-70B"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3-0324"
+      },
+      {
+        "provider": "openrouter",
+        "model": "minimax/minimax-m3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash-vision-exp"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-r1-distill-llama-70b"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3-turbo"
+      },
+      {
+        "provider": "deepseek",
+        "model": "vercel_ai_gateway/deepseek/deepseek-r1-distill-llama-70b"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v3/community"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "vercel_ai_gateway/deepseek/deepseek-v3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/DeepSeek-V4-Flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v4-flash-0731"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-r1-distill-llama-70b"
+      },
+      {
+        "provider": "deepseek",
+        "model": "friendliai/deepseek-ai/DeepSeek-V3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-V3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "gradient_ai/deepseek-r1-distill-llama-70b"
+      },
+      {
+        "provider": "deepseek",
+        "model": "libertai/deepseek-v4-flash"
+      },
+      {
+        "provider": "deepseek",
+        "model": "libertai/deepseek-v4-flash-thinking"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "sambanova/DeepSeek-R1-Distill-Llama-70B"
+      },
+      {
+        "provider": "openrouter",
+        "model": "openai/gpt-5-mini"
+      },
+      {
+        "provider": "deepseek",
+        "model": "wandb/deepseek-ai/DeepSeek-V3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v3p1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v3p1-terminus"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v3p2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v3.2-speciale"
+      },
+      {
+        "provider": "deepseek",
+        "model": "together_ai/deepseek-ai/DeepSeek-V3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "vertex_ai/deepseek-ai/deepseek-v3.1-maas"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/FW-DeepSeek-V3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "together_ai/deepseek-ai/DeepSeek-V3"
+      },
+      {
+        "provider": "openrouter",
+        "model": "moonshotai/kimi-k2.5"
+      },
+      {
+        "provider": "deepseek",
+        "model": "replicate/deepseek-ai/deepseek-v3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "replicate/deepseek-ai/deepseek-v3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "crusoe/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "wandb/deepseek-ai/DeepSeek-V4-Pro"
+      },
+      {
+        "provider": "openrouter",
+        "model": "google/gemini-3-flash-preview"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V4-Pro-0813"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepinfra/deepseek-ai/DeepSeek-V4-Pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "wandb/deepseek-ai/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "together_ai/deepseek-ai/DeepSeek-V4-Pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "nebius/deepseek-ai/DeepSeek-V4-Pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "databricks/databricks-deepseek-v4-pro-0813"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "fireworks_ai/accounts/fireworks/models/deepseek-v4-pro-0813"
+      },
+      {
+        "provider": "deepseek",
+        "model": "together_ai/deepseek-ai/DeepSeek-V4-Pro-0813"
+      },
+      {
+        "provider": "deepseek",
+        "model": "novita/deepseek/deepseek-v4-pro-0813"
+      },
+      {
+        "provider": "openrouter",
+        "model": "qwen/qwen3-max"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/FW-DeepSeek-V4-Pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v3"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "azure_ai/deepseek-v3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "dashscope/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwencloud/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "qwen_ai_platform/deepseek-v4-pro"
+      },
+      {
+        "provider": "deepseek",
+        "model": "sambanova/DeepSeek-V3-0324"
+      },
+      {
+        "provider": "deepseek",
+        "model": "sambanova/DeepSeek-V3.1"
+      },
+      {
+        "provider": "deepseek",
+        "model": "sambanova/DeepSeek-V3.2"
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-v4-pro"
+      }
+    ],
+    "ranked_count": 129,
+    "providers_in_ladder": {
+      "opencode-go": 11,
+      "openrouter": 9,
+      "deepseek": 109
+    },
+    "complexity": "SIMPLE",
+    "fallback_models": [
+      "glm-5.3-flash",
+      "glm-5.3"
+    ],
+    "fallback_pair_source": "get_fallback_models() returns model NAMES only; each name was re-resolved against the ranked (provider, model) ladder",
+    "unresolved_fallback_models": [],
+    "ambiguous_fallback_models": {},
+    "name_keyed_lookups_in_production": [
+      "BYOKHandler.get_fallback_models -> List[str] (provider dropped)",
+      "BYOKHandler.stream_completion(fallback_models=[name, ...]) recurses with the caller's provider_id for a name from another ladder pair",
+      "DynamicPricingFetcher.get_model_price(model_name) / LLMService.estimate_cost(..., model) key price on model name alone"
+    ]
+  },
+  "summary": {
+    "denominators": {
+      "attempts": 3,
+      "distinct_generations": 2,
+      "provider_model_pairs": 2,
+      "contract_checked_attempts": 2,
+      "unsupported_by_fixture_attempts": 1
+    },
+    "outcomes": {
+      "provider_error": 1,
+      "ok": 2
+    },
+    "by_prompt_size": {
+      "small": {
+        "provider_error": 1,
+        "ok": 1
+      },
+      "medium": {
+        "ok": 1
+      }
+    },
+    "by_provider_model": {
+      "unknown/unknown": {
+        "attempts": 1,
+        "transport_ok": 0,
+        "contract_checked": 1,
+        "contract_satisfied": 0,
+        "cost_reported": 0.0,
+        "cost_unknown": 1,
+        "mean_first_visible_ms": 2474.9,
+        "mean_completion_ms": 2475.0,
+        "contract_pass_rate": {
+          "pct": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "openrouter/glm-5.3-flash": {
+        "attempts": 1,
+        "transport_ok": 1,
+        "contract_checked": 1,
+        "contract_satisfied": 1,
+        "cost_reported": 0.0,
+        "cost_unknown": 1,
+        "mean_first_visible_ms": 1683.8,
+        "mean_completion_ms": 1697.7,
+        "contract_pass_rate": {
+          "pct": 100.0,
+          "numerator": 1,
+          "denominator": 1
+        }
+      },
+      "deepseek/deepseek-reasoner": {
+        "attempts": 1,
+        "transport_ok": 1,
+        "contract_checked": 0,
+        "contract_satisfied": 0,
+        "cost_reported": 0.0,
+        "cost_unknown": 1,
+        "mean_first_visible_ms": 24702.1,
+        "mean_completion_ms": 24793.4,
+        "contract_pass_rate": {
+          "pct": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "undefined: zero denominator"
+        }
+      }
+    },
+    "rates": {
+      "transport_success": {
+        "pct": 66.7,
+        "numerator": 2,
+        "denominator": 3
+      },
+      "zero_output": {
+        "pct": 0.0,
+        "numerator": 0,
+        "denominator": 3
+      },
+      "rate_limited": {
+        "pct": 0.0,
+        "numerator": 0,
+        "denominator": 3
+      },
+      "contract_pass": {
+        "pct": 50.0,
+        "numerator": 1,
+        "denominator": 2
+      },
+      "non_answer_looking_replies": {
+        "pct": 33.3,
+        "numerator": 1,
+        "denominator": 3
+      },
+      "all_provider_attempts_failed": {
+        "pct": 33.3,
+        "numerator": 1,
+        "denominator": 3
+      }
+    },
+    "answer_success_rate_pct": 66.7,
+    "zero_output_rate_pct": 0.0,
+    "contract_pass_rate_pct": 50.0,
+    "latency": {
+      "first_visible_ms": {
+        "mean": 9620.3,
+        "min": 1683.8,
+        "max": 24702.1,
+        "denominator": 3,
+        "note": "stamped on the first streamed chunk with non-empty content"
+      },
+      "completion_ms": {
+        "mean": 9655.4,
+        "max": 24793.4,
+        "denominator": 3
+      }
+    },
+    "usage": {
+      "prompt_tokens_total": 1062,
+      "completion_tokens_total": 48,
+      "prompt_tokens_known_attempts": 3,
+      "completion_tokens_known_attempts": 3,
+      "note": "streamed attempts report no provider usage; their token counts are estimates and are flagged per attempt"
+    },
+    "cost": {
+      "reported_total": 0.0,
+      "estimated_total": 0.0,
+      "cost_unknown_attempts": 3,
+      "cost_estimate_missing_attempts": 3,
+      "cost_per_successful_answer": null,
+      "cost_per_successful_answer_denominator": 1,
+      "note": "no provider-reported cost on this path: every attempt is flagged cost_unknown and the estimated total is a harness estimate from name-keyed pricing (provider-blind)"
+    },
+    "caps": {
+      "effective_caps": {
+        "budget_calls": 3,
+        "retry_cap": 1,
+        "spend_cap_usd": 0.05
+      },
+      "attempts": 3,
+      "retries_used": 1,
+      "cost_reported_total": 0.0,
+      "cost_estimated_total": 0.0,
+      "charged_total": 0.0,
+      "charged_from_estimate": 0.0,
+      "cost_unknown_attempts": 3,
+      "blocked_by_retry_cap": 0,
+      "blocked_by_spend_cap": 0,
+      "retry_cap_scope": "per generation (probe), checked when a retry would otherwise be scheduled",
+      "spend_cap_basis": "provider-reported cost when present, else the harness estimate; an attempt with neither cannot be charged"
+    },
+    "blocked": [
+      {
+        "workload": "derivation_large",
+        "reason": "budget_calls"
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "workload": "planning_short",
+      "kind": "planning",
+      "generation": 1,
+      "repeat": 0,
+      "attempt_index": 0,
+      "retry": false,
+      "retry_index": 0,
+      "mode": "stream",
+      "prompt_chars": 30,
+      "requested": {
+        "provider": "opencode-go",
+        "model": "gpt-5.3-codex-spark"
+      },
+      "used": null,
+      "provider_identity_known": false,
+      "observed_attempts": [
+        {
+          "provider": "opencode-go",
+          "model": "gpt-5.3-codex-spark",
+          "success": false,
+          "latency_ms": 398.3,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'AuthError', 'message': 'Invalid API key.'}}"
+        },
+        {
+          "provider": "openrouter",
+          "model": "gpt-5.3-codex-spark",
+          "success": false,
+          "latency_ms": 66.9,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "opencode-go",
+          "error": "Error code: 400 - {'error': {'message': 'gpt-5.3-codex-spark is not a valid model ID', 'code': 400}, 'user_id': 'org_3GHnwWcCSxGbfMG64iL8q70qPkK'}"
+        }
+      ],
+      "all_provider_attempts_failed": true,
+      "outcome": "provider_error",
+      "transport_ok": false,
+      "looks_like_non_answer": true,
+      "reply_excerpt": "\n\n[Error: All LLM providers failed. Please check your API key configuration and try again.]",
+      "error": null,
+      "contract": {
+        "status": "violated",
+        "satisfied": false,
+        "supported": true,
+        "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+        "detail": "sentinel token 'ok' absent from reply",
+        "unsupported_expectations": []
+      },
+      "first_visible_ms": 2474.9,
+      "first_visible_measurable": true,
+      "completion_ms": 2475.0,
+      "usage": {
+        "prompt_tokens": 7,
+        "completion_tokens": 20,
+        "total_tokens": 27,
+        "source": "estimated",
+        "estimated": true
+      },
+      "cost": null,
+      "cost_unknown": true,
+      "cost_estimate": null,
+      "cost_estimate_source": null,
+      "output_chars": 89,
+      "output_chunks": 1,
+      "blocked_by": null
+    },
+    {
+      "workload": "planning_short",
+      "kind": "planning",
+      "generation": 1,
+      "repeat": 0,
+      "attempt_index": 1,
+      "retry": true,
+      "retry_index": 1,
+      "mode": "stream",
+      "prompt_chars": 30,
+      "requested": {
+        "provider": "opencode-go",
+        "model": "glm-5.3-flash"
+      },
+      "used": {
+        "provider": "openrouter",
+        "model": "glm-5.3-flash"
+      },
+      "provider_identity_known": true,
+      "observed_attempts": [
+        {
+          "provider": "opencode-go",
+          "model": "glm-5.3-flash",
+          "success": false,
+          "latency_ms": 194.4,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'AuthError', 'message': 'Invalid API key.'}}"
+        },
+        {
+          "provider": "openrouter",
+          "model": "glm-5.3-flash",
+          "success": true,
+          "latency_ms": 1502.3,
+          "output_chunks": 1,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "opencode-go",
+          "error": null
+        }
+      ],
+      "all_provider_attempts_failed": false,
+      "outcome": "ok",
+      "transport_ok": true,
+      "looks_like_non_answer": false,
+      "reply_excerpt": "ok",
+      "error": null,
+      "contract": {
+        "status": "satisfied",
+        "satisfied": true,
+        "supported": true,
+        "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+        "detail": "sentinel token 'ok' present",
+        "unsupported_expectations": []
+      },
+      "first_visible_ms": 1683.8,
+      "first_visible_measurable": true,
+      "completion_ms": 1697.7,
+      "usage": {
+        "prompt_tokens": 7,
+        "completion_tokens": 0,
+        "total_tokens": 7,
+        "source": "estimated",
+        "estimated": true
+      },
+      "cost": null,
+      "cost_unknown": true,
+      "cost_estimate": null,
+      "cost_estimate_source": null,
+      "output_chars": 2,
+      "output_chunks": 1,
+      "blocked_by": null
+    },
+    {
+      "workload": "grounded_medium",
+      "kind": "grounded",
+      "generation": 2,
+      "repeat": 0,
+      "attempt_index": 0,
+      "retry": false,
+      "retry_index": 0,
+      "mode": "stream",
+      "prompt_chars": 4194,
+      "requested": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner"
+      },
+      "used": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner"
+      },
+      "provider_identity_known": true,
+      "observed_attempts": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-reasoner",
+          "success": false,
+          "latency_ms": 1248.8,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": "deepseek/deepseek-reasoner streamed no visible content (chunks=0, finish_reason=length)"
+        },
+        {
+          "provider": "opencode-go",
+          "model": "deepseek-reasoner",
+          "success": false,
+          "latency_ms": 88.9,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "deepseek",
+          "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'ModelError', 'message': 'Model deepseek-reasoner is not supported'}}"
+        },
+        {
+          "provider": "openrouter",
+          "model": "deepseek-reasoner",
+          "success": false,
+          "latency_ms": 31.5,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "deepseek",
+          "error": "Error code: 400 - {'error': {'message': 'deepseek-reasoner is not a valid model ID', 'code': 400}, 'user_id': 'org_3GHnwWcCSxGbfMG64iL8q70qPkK'}"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-reasoner",
+          "success": true,
+          "latency_ms": 23417.0,
+          "output_chunks": 28,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": null
+        }
+      ],
+      "all_provider_attempts_failed": false,
+      "outcome": "ok",
+      "transport_ok": true,
+      "looks_like_non_answer": false,
+      "reply_excerpt": "The evidence does not contain a row for the F-5216, so its list price cannot be determined; no row can be cited.",
+      "error": null,
+      "contract": {
+        "status": "unsupported_by_fixture",
+        "satisfied": null,
+        "supported": false,
+        "expectation": "unsupported_by_fixture: the medium fixture never links its rows to the identifier F-5216, so no list price for it can be verified",
+        "detail": "the medium fixture never links its rows to the identifier F-5216, so no list price for it can be verified",
+        "unsupported_expectations": [
+          "list_price_of_F-5216"
+        ]
+      },
+      "first_visible_ms": 24702.1,
+      "first_visible_measurable": true,
+      "completion_ms": 24793.4,
+      "usage": {
+        "prompt_tokens": 1048,
+        "completion_tokens": 28,
+        "total_tokens": 1076,
+        "source": "estimated",
+        "estimated": true
+      },
+      "cost": null,
+      "cost_unknown": true,
+      "cost_estimate": null,
+      "cost_estimate_source": null,
+      "output_chars": 112,
+      "output_chunks": 28,
+      "blocked_by": null
+    }
+  ],
+  "fixture_limitations": [
+    "medium fixture: its 40 rows bind every value to 'machine <i>' (e.g. 'quote line for machine 7 | list=5007'); no row carries or links the identifier 'F-5216' (fixture-wide regex hits for F-5216: 0). An expected list price for the F-5216 is therefore NOT justified by this fixture \u2014 the probe's contract is unsupported_by_fixture and it is excluded from the contract pass rate (it still counts in the transport denominators).",
+    "large fixture: row R235 does state 'LIST Price=7519.0' (and '$7,519.00'), so the list-price expectation IS checkable and is checked. Its formula string 'G235==F235*0.9 | I235==H235+700' is NOT checkable: the fixture never defines F235 or H235, and 5350*0.9=4815 != 7519, so 'the formula chain that derives it' is unsupported_by_fixture and is excluded from the contract pass rate rather than counted either way."
+  ],
+  "fallback_independence": {
+    "configured_providers": [
+      "deepseek",
+      "ollama",
+      "opencode-go",
+      "openrouter"
+    ],
+    "providers_in_ladder": [
+      "deepseek",
+      "opencode-go",
+      "openrouter"
+    ],
+    "ladder_size": 129,
+    "primary": {
+      "provider": "opencode-go",
+      "model": "gpt-5.3-codex-spark"
+    },
+    "provider_checks": [
+      {
+        "provider": "deepseek",
+        "key_resolvable": true,
+        "key_source": "byok_store_or_env",
+        "in_routing_ladder": true,
+        "ladder_rank": 5,
+        "representative_pair": {
+          "provider": "deepseek",
+          "model": "deepseek-reasoner"
+        },
+        "authenticated": true,
+        "contract": {
+          "status": "satisfied",
+          "satisfied": true,
+          "supported": true,
+          "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+          "detail": "sentinel token 'ok' present",
+          "unsupported_expectations": []
+        },
+        "note": null,
+        "used": {
+          "provider": "deepseek",
+          "model": "deepseek-reasoner"
+        },
+        "transport_error": null,
+        "first_visible_ms": 2522.7
+      },
+      {
+        "provider": "ollama",
+        "key_resolvable": true,
+        "key_source": "client_initialized",
+        "in_routing_ladder": false,
+        "ladder_rank": null,
+        "representative_pair": null,
+        "authenticated": null,
+        "contract": null,
+        "note": "no ladder candidate serves this provider for a SIMPLE request \u2014 it cannot win or be fallen back to, whatever its credential"
+      },
+      {
+        "provider": "opencode-go",
+        "key_resolvable": true,
+        "key_source": "byok_store_or_env",
+        "in_routing_ladder": true,
+        "ladder_rank": 0,
+        "representative_pair": {
+          "provider": "opencode-go",
+          "model": "gpt-5.3-codex-spark"
+        },
+        "authenticated": false,
+        "contract": {
+          "status": "violated",
+          "satisfied": false,
+          "supported": true,
+          "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+          "detail": "sentinel token 'ok' absent from reply",
+          "unsupported_expectations": []
+        },
+        "note": null,
+        "used": null,
+        "transport_error": null,
+        "first_visible_ms": 371.4
+      },
+      {
+        "provider": "openrouter",
+        "key_resolvable": true,
+        "key_source": "byok_store_or_env",
+        "in_routing_ladder": true,
+        "ladder_rank": 4,
+        "representative_pair": {
+          "provider": "openrouter",
+          "model": "z-ai/glm-5.3-flash"
+        },
+        "authenticated": true,
+        "contract": {
+          "status": "satisfied",
+          "satisfied": true,
+          "supported": true,
+          "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+          "detail": "sentinel token 'ok' present",
+          "unsupported_expectations": []
+        },
+        "note": null,
+        "used": {
+          "provider": "openrouter",
+          "model": "z-ai/glm-5.3-flash"
+        },
+        "transport_error": null,
+        "first_visible_ms": 3114.7
+      }
+    ],
+    "controlled_primary_failure": {
+      "forced_primary": {
+        "provider": "opencode-go",
+        "model": "__atom_reliability_invalid_model__"
+      },
+      "fallback_models_requested": [
+        "glm-5.3-flash",
+        "glm-5.3"
+      ],
+      "fallback_pair_source": "stream_completion(fallback_models=[...]) is NAME-keyed: the production fallback recursion keeps the caller's provider_id for a name taken from another ranked (provider, model) pair",
+      "primary_failure_observed": true,
+      "fallback_answered": true,
+      "answered_by": {
+        "provider": "openrouter",
+        "model": "glm-5.3-flash",
+        "fallback": true,
+        "fallback_provider": "opencode-go"
+      },
+      "contract": {
+        "status": "satisfied",
+        "satisfied": true,
+        "supported": true,
+        "expectation": "reply contains the sentinel token 'ok' (must be the only content)",
+        "detail": "sentinel token 'ok' present",
+        "unsupported_expectations": []
+      },
+      "attempt_sequence": [
+        {
+          "provider": "opencode-go",
+          "model": "__atom_reliability_invalid_model__",
+          "success": false,
+          "latency_ms": 101.9,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'ModelError', 'message': 'Model __atom_reliability_invalid_model__ is not supported'}}"
+        },
+        {
+          "provider": "openrouter",
+          "model": "__atom_reliability_invalid_model__",
+          "success": false,
+          "latency_ms": 35.1,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "opencode-go",
+          "error": "Error code: 400 - {'error': {'message': '__atom_reliability_invalid_model__ is not a valid model ID', 'code': 400}, 'user_id': 'org_3GHnwWcCSxGbfMG64iL8q70qPkK'}"
+        },
+        {
+          "provider": "opencode-go",
+          "model": "glm-5.3-flash",
+          "success": false,
+          "latency_ms": 257.5,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": false,
+          "fallback_provider": null,
+          "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'AuthError', 'message': 'Invalid API key.'}}"
+        },
+        {
+          "provider": "openrouter",
+          "model": "glm-5.3-flash",
+          "success": false,
+          "latency_ms": 10674.2,
+          "output_chunks": 0,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "opencode-go",
+          "error": "openrouter/glm-5.3-flash streamed no visible content (chunks=0, finish_reason=length)"
+        },
+        {
+          "provider": "openrouter",
+          "model": "glm-5.3-flash",
+          "success": true,
+          "latency_ms": 1730.7,
+          "output_chunks": 1,
+          "input_tokens": 0,
+          "fallback": true,
+          "fallback_provider": "opencode-go",
+          "error": null
+        }
+      ],
+      "error": null,
+      "skipped": null,
+      "transport_error": null,
+      "note": "a 429 or error observed through a shared gateway dependency (e.g. OpenRouter) does NOT prove every downstream route behind that gateway was affected"
+    },
+    "read_only_guard": {
+      "installed": true,
+      "error": null,
+      "learning_feedback_calls_suppressed": 11,
+      "rate_usage_calls_suppressed": 3,
+      "original_learning_hook": "BYOKHandler._record_outcome_feedback",
+      "rate_usage_guard_installed": true,
+      "original_rate_usage_hook": "install_read_only_guard.<locals>._noop_usage"
+    }
+  },
+  "read_only_check": {
+    "before": {
+      "db": "/Users/rushiparikh/projects/atom/backend/./data/atom.db",
+      "llm_routing_feedback_rows": 405,
+      "rate_usage_records_rows": 13393,
+      "llm_stage_router_audit_rows": 5
+    },
+    "after": {
+      "db": "/Users/rushiparikh/projects/atom/backend/./data/atom.db",
+      "llm_routing_feedback_rows": 405,
+      "rate_usage_records_rows": 13393,
+      "llm_stage_router_audit_rows": 5
+    },
+    "read_only_guard": {
+      "installed": true,
+      "error": null,
+      "learning_feedback_calls_suppressed": 7,
+      "rate_usage_calls_suppressed": 2,
+      "original_learning_hook": "BYOKHandler._record_outcome_feedback",
+      "rate_usage_guard_installed": true,
+      "original_rate_usage_hook": "ProviderRateTracker.record_usage"
+    },
+    "llm_routing_feedback_rows_added": 0,
+    "rate_usage_records_rows_added": 0,
+    "llm_stage_router_audit_rows_added": 0
+  }
+}

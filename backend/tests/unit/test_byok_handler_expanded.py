@@ -31,7 +31,7 @@ def mock_byok_manager():
     """Mock BYOKManager for provider key management"""
     manager = MagicMock()
     manager.is_configured = MagicMock(return_value=True)
-    manager.get_api_key = MagicMock(side_effect=lambda provider_id, key_name="default": {
+    manager.get_api_key = MagicMock(side_effect=lambda provider_id, key_name="default", tenant_id=None: {
         "openai": "sk-test-openai-key-12345",
         "anthropic": "sk-ant-test-key-67890",
         "deepseek": "sk-deepseek-test-key",

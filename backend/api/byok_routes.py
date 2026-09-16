@@ -838,13 +838,24 @@ class BYOKManager:
 
         return suitable_providers[0][0] if suitable_providers else None
 
-    def get_provider_status(self, provider_id: str) -> Dict[str, Any]:
-        """Get comprehensive status for a provider (global status)"""
+    def get_provider_status(
+        self, provider_id: str, tenant_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get comprehensive status for a provider (global status).
+
+        ``tenant_id`` asks the question for a specific caller. Without it the
+        answer is about GLOBAL keys only, which on a store whose every entry is
+        tenant-scoped reads as "no keys configured" while the same provider
+        resolves fine for its owner — the health summary said 0 of 37 providers
+        had keys while the per-tenant endpoint reported all three configured
+        (verified live 2026-09-16).
+        """
         provider = self.providers.get(provider_id)
         usage = self.get_tenant_usage("global").get(
             provider_id, ProviderUsage(provider_id=provider_id)
         )
-        has_keys = _is_usable_api_key(self.get_api_key(provider_id))
+        has_keys = _is_usable_api_key(
+            self.get_api_key(provider_id, tenant_id=tenant_id))
 
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
@@ -1618,13 +1629,22 @@ async def optimize_pdf_processing(
 
 @router.get("/api/ai/health")
 async def byok_health_check(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
-    """Health check for BYOK system"""
+    """Health check for BYOK system.
+
+    Counts keys for the CALLER's scope, not global-only: on a single-operator
+    install every stored key is tenant-prefixed, so a global-only count
+    reported ``with_keys: 0`` for a system that resolves three providers.
+    """
     try:
+        from core.personal_scope import resolve_tenant_id
+
+        tenant_id = resolve_tenant_id(current_user)
         active_providers = 0
         providers_with_keys = 0
 
         for provider_id in byok_manager.providers:
-            status = byok_manager.get_provider_status(provider_id)
+            status = byok_manager.get_provider_status(
+                provider_id, tenant_id=tenant_id)
             if status["status"] == "active":
                 active_providers += 1
             if status["has_api_keys"]:

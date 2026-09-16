@@ -937,6 +937,9 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        #: ``routing_result_id`` of the most recently recorded outcome row —
+        #: the generation identity a later corrective verdict attaches to.
+        self._last_feedback_decision_id: Optional[str] = None
         # Chain-of-thought from the last completed call (delta.reasoning /
         # reasoning_content / thinking fields, provider-dependent). Like the
         # model/provider stash above: generate_response returns only text, so
@@ -1181,7 +1184,15 @@ class BYOKHandler:
         """True while the pair's fabrication rate over the recent window is
         at/above threshold. Cached 60s per pair (the query runs on every
         ranking pass otherwise). Fail-open on any error — benching is a
-        safety improvement, never a new failure mode."""
+        safety improvement, never a new failure mode.
+
+        The rate is FABRICATED GENERATIONS / EVALUATED GENERATIONS, not
+        fabricated rows / all rows: one generation can produce an outcome row
+        *and* a corrective-verdict row, and dividing rows let a correction
+        inflate the denominator (one fabrication among four evaluated
+        generations read as 1/5, below the 0.25 bench threshold). See
+        ``core.llm.fabrication_accounting`` for the identities and for how
+        unprovenanced history stays explicitly unknown."""
         if os.getenv("ATOM_FABRICATION_BENCH", "1") != "1":
             return False
         pair = f"{provider_id}/{model_id}"
@@ -1194,6 +1205,7 @@ class BYOKHandler:
             from datetime import datetime, timedelta
 
             from core.database import get_db_session
+            from core.llm.fabrication_accounting import account_generations
             from core.models import LLMRoutingFeedback
 
             cutoff = datetime.utcnow() - timedelta(
@@ -1201,6 +1213,9 @@ class BYOKHandler:
             with get_db_session() as db:
                 rows = (
                     db.query(
+                        LLMRoutingFeedback.id,
+                        LLMRoutingFeedback.routing_result_id,
+                        LLMRoutingFeedback.model_id,
                         LLMRoutingFeedback.user_satisfaction,
                         LLMRoutingFeedback.prompt_features,
                     )
@@ -1210,27 +1225,10 @@ class BYOKHandler:
                     )
                     .all()
                 )
-            total = len(rows)
 
-            def _is_fabrication_verdict(sat, features) -> bool:
-                # VERDICT PROVENANCE, not score band (audit item 2): empty
-                # responses, empty truncations (0.1) and provider exceptions
-                # (0.0) share the fabrication score range but are
-                # AVAILABILITY failures — benching for them punished outage
-                # victims as liars. Only rows the guards explicitly stamped
-                # count; the score bound remains a belt-and-suspenders guard.
-                try:
-                    feats = features if isinstance(features, dict) else (
-                        json.loads(features) if features else {})
-                except Exception:  # noqa: BLE001 — unparsable = not stamped
-                    return False
-                if str(feats.get("verdict") or "") not in (
-                        "unsupported_figures", "ungrounded_claims"):
-                    return False
-                return sat is not None and float(sat) <= 0.15
-
-            fab = sum(
-                1 for (s, f) in rows if _is_fabrication_verdict(s, f))
+            accounting = account_generations(rows)
+            total = accounting.generations
+            fab = accounting.fabricated
             if (
                 total
                 and fab >= self._FAB_BENCH_MIN_EVENTS
@@ -1240,12 +1238,18 @@ class BYOKHandler:
                 if not hit or not hit[1]:
                     logger.warning(
                         f"FABRICATION BENCH: {pair} benched — {fab}/{total} "
-                        f"verdict-flagged fabrications in the last "
-                        f"{self._FAB_BENCH_WINDOW_HOURS}h "
+                        f"evaluated generations verdict-flagged as fabricated "
+                        f"in the last {self._FAB_BENCH_WINDOW_HOURS}h "
                         f"(>={self._FAB_BENCH_MIN_EVENTS} events and "
-                        f">={self._FAB_BENCH_RATE:.0%} rate). The pair is "
-                        "excluded from ranked candidates until the rate "
-                        "falls; ATOM_FABRICATION_BENCH=0 disables."
+                        f">={self._FAB_BENCH_RATE:.0%} rate). "
+                        f"rows={accounting.rows} "
+                        f"clean={accounting.clean} "
+                        f"unknown={accounting.unknown} "
+                        f"availability={accounting.availability} "
+                        f"duplicates={accounting.duplicate_rows} "
+                        f"malformed={accounting.malformed_rows}. "
+                        "The pair is excluded from ranked candidates until "
+                        "the rate falls; ATOM_FABRICATION_BENCH=0 disables."
                     )
         except Exception as e:  # noqa: BLE001 — fail-open, never block routing
             logger.debug(f"fabrication bench check skipped ({pair}): {e}")
@@ -3879,6 +3883,12 @@ class BYOKHandler:
             # the real prompt features (train/serve consistency). Fall back to
             # a random id (task-level feature defaults) when re-ranking didn't fire.
             decision_id = routing_result_id or str(uuid.uuid4())
+            # Publish the generation's identity so callers can attach a LATER
+            # corrective verdict (fabrication / ungrounded claims are only
+            # visible on the assembled reply, after this row exists) to the
+            # SAME generation instead of recording a second one. Surfaced
+            # through LLMService's result payload; see record_fabrication_signal.
+            self._last_feedback_decision_id = decision_id
             fb = LearningBasedRouter.build_feedback(
                 routing_result_id=decision_id,
                 tenant_id=self.tenant_id or "default",

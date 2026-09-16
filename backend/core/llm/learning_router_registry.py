@@ -306,6 +306,7 @@ async def record_fabrication_signal(
     tenant_id: str = "default",
     unsupported_figures: Optional[list] = None,
     ungrounded_claims: Optional[list] = None,
+    routing_result_id: Optional[str] = None,
 ) -> bool:
     """Tell the learning router that this MODEL FABRICATED on a real turn.
 
@@ -323,7 +324,15 @@ async def record_fabrication_signal(
     raises) when the learning router is off, so the flag stays the only switch.
 
     ``model_id`` should be the model that PRODUCED the reply (the resolved
-    model), not the one that was requested."""
+    model), not the one that was requested.
+
+    ``routing_result_id`` is the GENERATION this verdict judges — the id the
+    generation path published in its result payload (``LLMService`` surfaces it
+    as ``routing_result_id``). Supplying it makes the verdict annotate the
+    outcome row that generation already wrote, so the ledger stays one row per
+    generation and repeated corrections stay idempotent. Omit it only when no
+    outcome row exists; the verdict is then its own generation, which the
+    accounting counts honestly instead of merging into somebody else's."""
     # NO SIGNAL, NO OBSERVATION. `assess_response_quality(content="")` reports
     # an "empty" issue, so calling it unconditionally would write a bogus
     # fabrication row for every clean turn — the guard must require an actual
@@ -346,8 +355,12 @@ async def record_fabrication_signal(
         import uuid
 
         routed_task = task_type or "general"
+        # Join the generation that produced the reply when the caller knows it;
+        # otherwise this verdict is a generation of its own (see docstring).
+        generation_id = (str(routing_result_id).strip()
+                         if routing_result_id else str(uuid.uuid4()))
         feedback = LearningBasedRouter.build_feedback(
-            routing_result_id=str(uuid.uuid4()),
+            routing_result_id=generation_id,
             tenant_id=tenant_id or "default",
             model_id=model_id,
             task_type=routed_task,
@@ -367,19 +380,21 @@ async def record_fabrication_signal(
         # ONE WRITE PER VERDICT. This used to write the row here AND let
         # ``record_feedback`` write it again (with ``recovered_features=None``),
         # so a single fabrication produced TWO rows — one carrying the verdict,
-        # one carrying none. The duplicate inflated the fabrication bench's
-        # denominator, and trained a second copy on task-default features
-        # (measured 2026-09-16: one verdict -> two ``_persist_feedback`` calls,
-        # and two identical live rows sharing routing_result_id ad1fa3e1-…).
+        # one carrying none (measured 2026-09-16: one verdict -> two
+        # ``_persist_feedback`` calls, and two identical live rows sharing
+        # routing_result_id ad1fa3e1-…).
         #
-        # ``record_feedback`` persists the row itself from
-        # ``feedback._prompt_features``, so stamping the verdict there keeps the
-        # provenance on the SINGLE row. The manual write is kept only for the
-        # flag-off path, where no router exists to do it.
+        # The verdict travels on ``feedback.verdict`` — a FIRST-CLASS field, not
+        # a key inside ``_prompt_features``. That dict is replaced wholesale when
+        # ``record_feedback`` recovers the stashed decision features, so a
+        # verdict riding there was silently lost and the annotation became a
+        # second row (reproduced 2026-09-16 through this entry point). The
+        # manual write is kept only for the flag-off path, where no router
+        # exists to do it.
+        feedback.verdict = verdict
         router = get_learning_router_instance()
         _persisted = False
         if router is not None:
-            feedback._prompt_features = {"verdict": verdict}  # type: ignore[attr-defined]
             await router.record_feedback(feedback)
             _persisted = True
         else:
