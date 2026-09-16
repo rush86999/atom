@@ -10,6 +10,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 """
 import asyncio
 import time
+from core.turn_learning import get_turn_learning
 import json
 import logging
 import os
@@ -279,9 +280,47 @@ _STREAM_FALLBACK_RESERVE_SECONDS = float(
 _CANVAS_EDIT_DERIVATION_WAIT_SECONDS = float(
     os.getenv("ATOM_CANVAS_EDIT_DERIVATION_WAIT_SECONDS", "12") or 12)
 
+#: Longest the canvas edit/action legs may hold an ORDINARY turn. They were
+#: unbounded for non-derivation asks, and they wait on the shared planner: one
+#: control case in the round-9 acceptance spent **54.7 s** there of a 95 s
+#: request budget, leaving the reply leg 38.8 s and returning a structured
+#: error (`turn_budget_exceeded`) for a question the model never got a fair
+#: chance to answer.
+_CANVAS_LEG_MAX_SECONDS = float(
+    os.getenv("ATOM_CANVAS_LEG_MAX_SECONDS", "45") or 45)
+
+#: Minimum share of the request reserved for the REPLY leg. The pre-reply legs
+#: (canvas edit/action, planner, tool execution) may spend everything else, but
+#: never this: answering the user is the point of the turn, and an edit leg that
+#: is still thinking at the deadline has already lost.
+_REPLY_LEG_MIN_SECONDS = float(
+    os.getenv("ATOM_REPLY_LEG_MIN_SECONDS", "40") or 40)
+
+
+def _pre_reply_leg_timeout(deadline, want: float) -> float:
+    """Seconds a pre-reply leg may wait, leaving the reply leg its share.
+
+    ``0`` (or less) means "do not start it": the request cannot afford the leg
+    and still answer. A disabled deadline returns ``want`` unchanged.
+    """
+    return deadline.slice(want, reserve=_REPLY_LEG_MIN_SECONDS)
+
 _STREAM_FIRST_VISIBLE_SECONDS = float(
     os.getenv("ATOM_STREAM_FIRST_VISIBLE_SECONDS", "30") or 30
 )
+
+#: Seconds reserved at the end of a request for the parts that must still happen
+#: after the last LLM call: response assembly, session/message persistence, the
+#: canvas/evidence hooks and serialization. The legacy fallback (NLU + feature
+#: handlers) is only started when this much of the request budget is left, so a
+#: turn that cannot finish its tail never begins it.
+_LEGACY_TAIL_RESERVE_SECONDS = float(
+    os.getenv("ATOM_LEGACY_TAIL_RESERVE_SECONDS", "12") or 12)
+
+#: Longest a single feature-routing pass may take, capped further by whatever
+#: the request has left.
+_FEATURE_ROUTING_MAX_SECONDS = float(
+    os.getenv("ATOM_FEATURE_ROUTING_MAX_SECONDS", "45") or 45)
 
 #: Hard cap on the verification panel inside a chat turn. The panel judges an
 #: already-complete reply, so its cost must stay bounded independently of how
@@ -2622,7 +2661,29 @@ class ChatOrchestrator:
                                 _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
                             _edit_response = None
                     else:
-                        _edit_response = await _edit_leg
+                        # ORDINARY turn: bounded too, and never past the point
+                        # where the reply leg would lose its share (measured:
+                        # 54.7 s of a 95 s budget here left 38.8 s for the
+                        # answer and the turn ended in turn_budget_exceeded).
+                        _edit_wait = _pre_reply_leg_timeout(
+                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                        if _edit_wait <= 0:
+                            logger.warning(
+                                "[stage-timing] canvas-edit leg skipped — the "
+                                "reply leg's share of the request is all that "
+                                "remains")
+                            _edit_response = None
+                        else:
+                            try:
+                                _edit_response = await asyncio.wait_for(
+                                    _edit_leg, timeout=_edit_wait)
+                            except asyncio.TimeoutError:
+                                logger.info(
+                                    "[stage-timing] canvas-edit leg bounded at "
+                                    f"{_edit_wait:.0f}s (reply-leg share "
+                                    f"reserved) — falling through to the tool "
+                                    "path")
+                                _edit_response = None
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -2667,12 +2728,32 @@ class ChatOrchestrator:
                                 "%.0fs for a derivation ask",
                                 _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
                             _action_response = None
+                    elif _pre_reply_leg_timeout(
+                            _deadline, _CANVAS_LEG_MAX_SECONDS) <= 0:
+                        logger.warning(
+                            "[stage-timing] canvas-action leg skipped — the "
+                            "reply leg's share of the request is all that "
+                            "remains")
+                        _action_response = None
                     else:
-                        _action_response = await self._try_canvas_action(
-                            message, history, _canvas_ctx, user_id, session_id,
-                            _execution_id, (context or {}).get("agent_id"),
-                            shared_tool_state=_shared_tool,
-                        )
+                        _action_wait = _pre_reply_leg_timeout(
+                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                        try:
+                            _action_response = await asyncio.wait_for(
+                                self._try_canvas_action(
+                                    message, history, _canvas_ctx, user_id,
+                                    session_id, _execution_id,
+                                    (context or {}).get("agent_id"),
+                                    shared_tool_state=_shared_tool,
+                                ),
+                                timeout=_action_wait,
+                            )
+                        except asyncio.TimeoutError:
+                            logger.info(
+                                "[stage-timing] canvas-action leg bounded at "
+                                f"{_action_wait:.0f}s (reply-leg share "
+                                "reserved)")
+                            _action_response = None
                     logger.info(
                         f"[stage-timing] canvas-action plan: "
                         f"{time.monotonic() - _action_t0:.1f}s "
@@ -2789,18 +2870,67 @@ class ChatOrchestrator:
                         _tool_plan_task.result())
                 except (asyncio.CancelledError, Exception):
                     intent_analysis = None
+            # DEADLINE GATE ON THE LEGACY FALLBACK (round 9). This path exists
+            # for turns the reply leg did not answer, and it is NOT free: an NLU
+            # completion plus one or more feature handlers, each with its own
+            # LLM/tool calls and no budget of its own. Measured 2026-09-16 (frozen
+            # acceptance run D): the reply leg stopped correctly at 105.1 s of a
+            # 115 s request budget, then this path ran ~120 s more (SEARCH +
+            # AI_ANALYTICS) and the turn returned at 230.2 s — for a reply the
+            # deadline had already written off. Work that cannot finish inside
+            # the request's one clock is not started; the caller gets the
+            # structured turn_budget_exceeded envelope instead of a late answer.
+            _legacy_allowed = not _deadline.expired(
+                reserve=_LEGACY_TAIL_RESERVE_SECONDS)
+            _legacy_skipped_reason = None
+            if not _legacy_allowed and ai_response is None:
+                _legacy_skipped_reason = (
+                    "the reply leg produced no usable answer and only "
+                    f"{_deadline.remaining():.1f}s of the request budget "
+                    "remained — the legacy fallback (NLU + feature handlers) "
+                    "was not started")
+                logger.warning(
+                    "[deadline] legacy fallback skipped: " + _legacy_skipped_reason)
             if intent_analysis is None:
-                intent_analysis = await self._analyze_intent(message, session)
+                if _legacy_allowed:
+                    intent_analysis = await self._analyze_intent(message, session)
+                else:
+                    # Cheap, LLM-free classification: the envelope needs a valid
+                    # intent, and an NLU completion is exactly the kind of work
+                    # this gate exists to skip.
+                    intent_analysis = self._fallback_intent_analysis(message)
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
                 return {"success": False, "message": "Request cancelled by user.",
                         "session_id": session_id, "cancelled": True}
 
-            # 3. Route to appropriate feature handlers (for data lookups)
-            feature_responses = await self._route_to_features(
-                message, intent_analysis, session, context
-            )
+            # 3. Route to appropriate feature handlers (for data lookups).
+            # Bounded by what is LEFT of the request, and skipped outright when
+            # the deadline is spent.
+            feature_responses: Dict[FeatureType, Any] = {}
+            if _legacy_allowed:
+                _features_left = _deadline.slice(_FEATURE_ROUTING_MAX_SECONDS)
+                if _features_left <= 0:
+                    logger.warning(
+                        "[deadline] feature routing skipped — no time left")
+                else:
+                    try:
+                        with _deadline.stage("legacy-features"):
+                            feature_responses = await asyncio.wait_for(
+                                self._route_to_features(
+                                    message, intent_analysis, session, context),
+                                timeout=_features_left,
+                            )
+                    except asyncio.TimeoutError:
+                        # A timed-out handler yields no partial dict (the method
+                        # returns once), so the answer falls back to the template
+                        # + the deadline note below. Side effects are not at risk:
+                        # these handlers are read-only lookups.
+                        logger.warning(
+                            f"[deadline] feature routing timed out after "
+                            f"{_features_left:.1f}s — continuing without it")
+                        feature_responses = {}
 
             # 4. If AI gave a real response, use it; otherwise use template
             #    Carry model/provider through so the UI can surface which model
@@ -2920,11 +3050,27 @@ class ChatOrchestrator:
                 response["error_code"] = "turn_budget_exceeded"
                 response["message"] = _turn_budget_error_response()["message"]
 
+            # Same honesty when the reply leg produced nothing AND the legacy
+            # fallback was not affordable: the delivery failed, so quality is
+            # NOT evaluated — the canned template text must not be presented as
+            # an answer (item 5 of the objective).
+            if _legacy_skipped_reason:
+                response["success"] = False
+                response["error_code"] = "turn_budget_exceeded"
+                response["message"] = _turn_budget_error_response()["message"]
+                response["failure_reason"] = _legacy_skipped_reason
+                response["deadline"] = {
+                    "elapsed_s": round(_deadline.elapsed(), 1),
+                    "remaining_s": round(_deadline.remaining(), 1),
+                    "budget_s": round(_deadline.total_seconds, 1),
+                    "stage": "legacy-fallback-skipped",
+                }
+
             # Durable fact extraction on the chat path (P0, memory unification
             # plan): fire-and-forget, same extractor the meta agent uses. Chat
             # must not be a memory black hole; a slow write never blocks the
             # user-facing turn.
-            if not budget_failure and main_message:
+            if not budget_failure and not _legacy_skipped_reason and main_message:
                 self._dispatch_turn_fact_extraction(
                     message, main_message, session_id, user_id
                 )
@@ -3557,6 +3703,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[verify-panel] skipped — turn budget exhausted; the "
                         "reply ships unverified rather than late"
                     )
+                    # Close the un-run coroutine: returning without awaiting it
+                    # leaves a never-awaited coroutine on every skipped panel
+                    # (RuntimeWarning at the call site, and a real leak under
+                    # load). Closing is not "cancelling the check" — the check
+                    # never started.
+                    _coro.close()
                     return {"ran": False, "error": "turn_budget_exhausted"}
                 _cap = min(_left, _VERIFY_PANEL_MAX_SECONDS) \
                     if _VERIFY_PANEL_MAX_SECONDS > 0 else _left
@@ -4793,6 +4945,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     response_data = _turn_budget_error_response()
                     if execution_id:
                         self._budget_exceeded_runs.add(execution_id)
+                    try:
+                        get_turn_learning().record_failure(
+                            canvas_id=(canvas_context or {}).get("canvas_id") or (canvas_context or {}).get("id"),
+                            session_id=session_id,
+                            message=message,
+                            model_id=_s_model or "unknown",
+                            stage="reply_generation",
+                        )
+                    except Exception:
+                        pass
                 else:
                     try:
                         _ns_model = forced_model  # "auto" unless overridden
@@ -4884,12 +5046,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "answer the user's current message from it now, in plain "
                         "language, with no capability disclaimers."
                     )})
-                    response_data = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED (same rule as every other corrective regeneration):
+                    # the reply is already complete, so an advisory rewrite spends the
+                    # turn budget instead of extending it (measured 2026-09-16: an
+                    # unbounded advisory rewrite walked routes for ~150 s after the
+                    # reply existed, ending the turn at 213.1 s).
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
+                    if _guard_fix:
+                        response_data = _guard_fix
                     _content = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                 # CAPABILITY-HONESTY GUARD (non-streaming path): same residual
@@ -4912,12 +5083,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "you could not verify this turn, and offer to "
                         "retry — never claim the tool does not exist."
                     )})
-                    response_data = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED (same rule as every other corrective regeneration):
+                    # the reply is already complete, so an advisory rewrite spends the
+                    # turn budget instead of extending it (measured 2026-09-16: an
+                    # unbounded advisory rewrite walked routes for ~150 s after the
+                    # reply existed, ending the turn at 213.1 s).
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
+                    if _guard_fix:
+                        response_data = _guard_fix
                     _content = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                 # DERIVATION GUARD (non-streaming path): same deterministic
@@ -4982,18 +5162,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "value." + _row_hint + " Do not ask the user to supply "
                         "or confirm data that is already in that block."
                     )})
-                    _fix_response = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=_retry_model,
-                        tenant_id=self.tenant_id,
-                        **_retry_kwargs,
+                    # BOUNDED: the same rule as the streaming leg's
+                    # cross-route retry — one attempt, spending what the
+                    # request has left.
+                    _fix_response = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=_retry_model,
+                            tenant_id=self.tenant_id,
+                            **_retry_kwargs,
+                        )
                     )
-                    _fixed = _strip_protocol_tags(
-                        (_fix_response or {}).get("content"))
-                    if _fixed and not _derivation_reply_ignored_the_row(
-                            _fixed, _tool_block):
-                        _content = _fixed
-                        response_data = {**_fix_response, "content": _fixed}
+                    if _fix_response:
+                        _fixed = _strip_protocol_tags(
+                            (_fix_response or {}).get("content"))
+                        if _fixed and not _derivation_reply_ignored_the_row(
+                                _fixed, _tool_block):
+                            _content = _fixed
+                            response_data = {**_fix_response, "content": _fixed}
                 # NON-RESPONSIVE GUARD (non-streaming path): same short
                 # zero-overlap reply detection as the streaming path.
                 elif (_tool_block
@@ -5009,12 +5195,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "LIVE TOOL RESULTS where relevant — real findings, "
                         "real numbers, no platform-status filler."
                     )})
-                    response_data = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED (same rule as every other corrective regeneration):
+                    # the reply is already complete, so an advisory rewrite spends the
+                    # turn budget instead of extending it (measured 2026-09-16: an
+                    # unbounded advisory rewrite walked routes for ~150 s after the
+                    # reply existed, ending the turn at 213.1 s).
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
+                    if _guard_fix:
+                        response_data = _guard_fix
                     _content = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                 # EVIDENCE GUARD (non-streaming path): same confirm→assert
@@ -5037,12 +5232,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "share the spec sheets so we can confirm?\"). "
                         "Do not assert it as true."
                     )})
-                    response_data = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED (same rule as every other corrective regeneration):
+                    # the reply is already complete, so an advisory rewrite spends the
+                    # turn budget instead of extending it (measured 2026-09-16: an
+                    # unbounded advisory rewrite walked routes for ~150 s after the
+                    # reply existed, ending the turn at 213.1 s).
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
+                    if _guard_fix:
+                        response_data = _guard_fix
                     _fixed = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                     if _fixed and not asserts_unverified_confirmation(message, _fixed):
@@ -5075,12 +5279,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "sign with THEIR name/signature. Regenerate the "
                             f"reply with the SAME content, signed as {_owner}."
                         )})
-                    response_data = await self.llm_service.generate_completion(
-                        messages=messages,
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED (same rule as every other corrective regeneration):
+                    # the reply is already complete, so an advisory rewrite spends the
+                    # turn budget instead of extending it (measured 2026-09-16: an
+                    # unbounded advisory rewrite walked routes for ~150 s after the
+                    # reply existed, ending the turn at 213.1 s).
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
+                    if _guard_fix:
+                        response_data = _guard_fix
                     _fixed = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                     if _fixed and not signature_signer_status(_fixed, _primary, _team):
@@ -5091,20 +5304,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # (sanitized away). One firm retry; if it still fails,
                     # fall through to the template path — never store junk.
                     logger.info("tool-turn reply was protocol syntax; retrying firmly")
-                    _retry = await self.llm_service.generate_completion(
-                        messages=messages + [{
-                            "role": "system",
-                            "content": (
-                                "IMPORTANT: You have already received the tool result. "
-                                "Reply with a plain-language answer to the user now. "
-                                "No tool calls, no XML, no tags."
-                            ),
-                        }],
-                        model=forced_model,
-                        tenant_id=self.tenant_id,
-                        **extra_kwargs,
+                    # BOUNDED like every other advisory rewrite: this retry used
+                    # to be a bare await, so an empty reply plus a slow route
+                    # could spend the whole request here (it is also the path
+                    # that leaves `_content` empty and hands the turn to the
+                    # legacy fallback).
+                    _retry = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages + [{
+                                "role": "system",
+                                "content": (
+                                    "IMPORTANT: You have already received the tool result. "
+                                    "Reply with a plain-language answer to the user now. "
+                                    "No tool calls, no XML, no tags."
+                                ),
+                            }],
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
                     )
-                    if _retry.get("success"):
+                    if _retry and _retry.get("success"):
                         _rc = str(_retry.get("content") or "").strip()
                         _rc = re.sub(r"<tool_call>.*?</tool_call>", "", _rc, flags=re.DOTALL)
                         _rc = re.sub(r"</?(?:mm:)?think>|\]?<\]?minimax\[>?", "", _rc).strip()
@@ -5321,6 +5541,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "the matched row's formulas, so figures "
                                     "computed from them are not inventions")
                             else:
+                                # WHICH RULE, recorded on the row: a verdict
+                                # the workbook CONTRADICTED is proof and may
+                                # exclude a route; a verdict from the
+                                # evidence-absence heuristic alone may not (it
+                                # flagged the stored value $4,815.00 live on a
+                                # reply it could not cross-check). Both reach
+                                # the ledger; only the first is exclusion
+                                # evidence.
+                                from core.llm.fabrication_accounting import (
+                                    FIGURE_HEURISTIC_RULE,
+                                    FIGURE_VERDICT_RULE,
+                                )
+
+                                _fig_rule = (
+                                    FIGURE_VERDICT_RULE
+                                    if _derivation_contradicted
+                                    else FIGURE_HEURISTIC_RULE)
                                 await record_fabrication_signal(
                                     model_id=str(
                                         (response_data or {}).get("model")
@@ -5336,6 +5573,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "routing_result_id"),
                                     provider_id=str(
                                         (response_data or {}).get("provider") or ""),
+                                    rule=_fig_rule,
                                 )
                         except Exception as _fab_err:  # noqa: BLE001
                             logger.debug(f"fabrication signal skipped: {_fab_err}")
@@ -5350,12 +5588,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "its actual cells, or say the derivation cannot be "
                             "confirmed from the stored copy."
                         )})
-                        response_data = await self.llm_service.generate_completion(
-                            messages=messages,
-                            model=forced_model,
-                            tenant_id=self.tenant_id,
-                            **extra_kwargs,
+                        # BOUNDED (same rule as every other corrective regeneration):
+                        # the reply is already complete, so an advisory rewrite spends the
+                        # turn budget instead of extending it (measured 2026-09-16: an
+                        # unbounded advisory rewrite walked routes for ~150 s after the
+                        # reply existed, ending the turn at 213.1 s).
+                        _guard_fix = await _guarded_regen(
+                            self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
                         )
+                        if _guard_fix:
+                            response_data = _guard_fix
                         _regenerated = _strip_protocol_tags(
                             (response_data or {}).get("content")
                         )
@@ -5429,24 +5676,46 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 + ". Rewrite the answer using ONLY the LIVE TOOL RESULT evidence "
                                 "above. Keep what is supported; drop what is not."
                             )})
-                            response_data = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            # The corrective regeneration is a QUALITY
+                            # improvement on a reply that is already complete,
+                            # so it spends from the same turn budget — and it
+                            # must not start a fresh one. Measured 2026-09-16:
+                            # this call was a bare await, and a panel verdict
+                            # (8.5 s) led to ~150 s of route walking (a 401, two
+                            # zero-visible streams, one length-truncated
+                            # completion) before the turn returned at 213.1 s
+                            # for a reply the user already had.
+                            _panel_fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
-                            _content = _strip_protocol_tags((response_data or {}).get("content"))
-                            _verdict2 = await _bounded_verify(verify_reply(
-                                _content, _tool_block,
-                                handler=self.llm_service.handler,
-                                tenant_id=self.tenant_id,
-                                agent_id=agent_id,
-                                enforce=True,
-                            ))
-                            if not _verdict2.get("ran") or not _verdict2.get("grounded"):
+                            if not _panel_fix:
+                                logger.warning(
+                                    "[verify-panel] corrective regeneration "
+                                    "skipped (turn budget) — the reply ships "
+                                    "with the verification note instead")
                                 _content += (
                                     "\n\n⚠️ *Verification note: automated checks could not confirm "
                                     "every claim in this reply against the retrieved sources.*")
+                            else:
+                                response_data = _panel_fix
+                                _content = _strip_protocol_tags(
+                                    (_panel_fix or {}).get("content"))
+                                _verdict2 = await _bounded_verify(verify_reply(
+                                    _content, _tool_block,
+                                    handler=self.llm_service.handler,
+                                    tenant_id=self.tenant_id,
+                                    agent_id=agent_id,
+                                    enforce=True,
+                                ))
+                                if not _verdict2.get("ran") or not _verdict2.get("grounded"):
+                                    _content += (
+                                        "\n\n⚠️ *Verification note: automated checks could not confirm "
+                                        "every claim in this reply against the retrieved sources.*")
                     try:
                         await _trace("final_answer",
                                      {"tool": "llm", "params": {"model": response_data.get("model")}},

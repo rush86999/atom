@@ -393,6 +393,27 @@ class _StreamInactivityError(RuntimeError):
     replaying it."""
 
 
+def _stream_connect_timeout_seconds() -> float:
+    """Bound on the INITIAL stream request (response headers), ``<=0`` disables.
+
+    The idle watchdog starts only once a stream object exists. A provider that
+    accepts the connection and never sends headers blocks the connect await for
+    the SDK's read timeout (120 s), which is longer than the turn budget — the
+    orchestrator then sees neither a chunk nor an error and the turn dies on
+    the budget with nothing to show. Default 30 s: comfortably inside the 95 s
+    turn budget and the 115 s derivation budget, so a dead provider is
+    abandoned while there is still time for the fallback.
+    """
+    raw = os.getenv("ATOM_STREAM_CONNECT_TIMEOUT_SECONDS")
+    if raw:
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid ATOM_STREAM_CONNECT_TIMEOUT_SECONDS=%r; using 30", raw)
+    return 30.0
+
+
 def _stream_idle_timeout_seconds() -> float:
     """Idle bound between stream chunks; ``<=0`` disables the watchdog.
 
@@ -1316,10 +1337,26 @@ class BYOKHandler:
         inflate the denominator (one fabrication among four evaluated
         generations read as 1/5, below the 0.25 bench threshold). See
         ``core.llm.fabrication_accounting`` for the identities and for how
-        unprovenanced history stays explicitly unknown."""
+        unprovenanced history stays explicitly unknown.
+
+        ROUTE ATTRIBUTION (fixed 2026-09-16). This used to query
+        ``model_id == f"{provider_id}/{model_id}"`` — a key that is never
+        written, because feedback rows carry the PROVIDER'S OWN model
+        identifier (an OpenRouter id already contains a vendor namespace:
+        ``z-ai/glm-5.3-flash``). Measured on the live table: 667 rows under
+        ``z-ai/glm-5.3-flash``, 0 under ``openrouter/z-ai/glm-5.3-flash``, so
+        the bench was inert for every gateway-served model while 7/19 of that
+        model's evaluated generations carried fabrication verdicts. The rows
+        are now matched on the stored identifier and attributed to THIS
+        provider by the ``route_provider`` stamp the verdict writers record.
+        Rows with no stamp (written before the stamp existed) still count:
+        proven fabrications must not be discarded for missing provenance —
+        that is the "manufactured clean" failure in the other direction."""
         if os.getenv("ATOM_FABRICATION_BENCH", "1") != "1":
             return False
         pair = f"{provider_id}/{model_id}"
+        if not model_id:
+            return False
         now = time.monotonic()
         hit = self._fab_bench_cache.get(pair)
         if hit and now - hit[0] < self._FAB_BENCH_TTL_S:
@@ -1329,7 +1366,12 @@ class BYOKHandler:
             from datetime import datetime, timedelta
 
             from core.database import get_db_session
-            from core.llm.fabrication_accounting import account_generations
+            from core.llm.fabrication_accounting import (
+                CURRENT_VERDICT_RULES,
+                FABRICATION_VERDICTS,
+                account_generations,
+                coerce_features,
+            )
             from core.models import LLMRoutingFeedback
 
             cutoff = datetime.utcnow() - timedelta(
@@ -1344,13 +1386,44 @@ class BYOKHandler:
                         LLMRoutingFeedback.prompt_features,
                     )
                     .filter(
-                        LLMRoutingFeedback.model_id == pair,
+                        LLMRoutingFeedback.model_id == model_id,
                         LLMRoutingFeedback.created_at >= cutoff,
                     )
                     .all()
                 )
 
-            accounting = account_generations(rows)
+            # Keep the route's own history: a row stamped with a DIFFERENT
+            # provider is another gateway's evidence about the same identifier
+            # and must not bench this route. Unstamped rows are legacy and are
+            # kept (see the docstring).
+            #
+            # EXCLUSION EVIDENCE NEEDS A RULE (2026-09-16): a fabrication
+            # verdict is only as good as the rule that produced it, and the
+            # deterministic figure check provably mis-fired on derivation turns
+            # (correctly computed values are absent from the evidence text by
+            # construction — the live log shows verdicts naming the derivation
+            # chain, and the ledger holds 27 such verdicts across two models).
+            # A row whose verdict carries no rule is UNKNOWN CONTEXT: counted in
+            # the ledger, reported here, never used to exclude a route.
+            scoped = []
+            other_routes = 0
+            unknown_rule = 0
+            for row in rows:
+                features, _malformed = coerce_features(row[4])
+                stamped = str(features.get("route_provider") or "").strip()
+                if stamped and stamped != str(provider_id):
+                    other_routes += 1
+                    continue
+                verdict = features.get("verdict")
+                if verdict in FABRICATION_VERDICTS:
+                    rule = features.get("verdict_rule")
+                    if not isinstance(rule, str) or rule.strip() not in CURRENT_VERDICT_RULES:
+                        unknown_rule += 1
+                        continue
+                scoped.append(row)
+
+
+            accounting = account_generations(scoped)
             total = accounting.generations
             fab = accounting.fabricated
             if (
@@ -1370,6 +1443,9 @@ class BYOKHandler:
                         f"clean={accounting.clean} "
                         f"unknown={accounting.unknown} "
                         f"availability={accounting.availability} "
+                        f"evidence_ignored={accounting.evidence_ignored} "
+                        f"other_route_rows={other_routes} "
+                        f"unknown_rule_rows={unknown_rule} "
                         f"duplicates={accounting.duplicate_rows} "
                         f"malformed={accounting.malformed_rows}. "
                         "The pair is excluded from ranked candidates until "
@@ -6204,7 +6280,25 @@ class BYOKHandler:
                     _merged_extra = dict(create_kwargs.get("extra_body") or {})
                     _merged_extra.update(_reasoning_body)
                     create_kwargs["extra_body"] = _merged_extra
-                stream = await client.chat.completions.create(**create_kwargs)
+                # BOUND THE CONNECT, not just the silence between chunks. The
+                # idle watchdog below covers a stream that OPENS and then goes
+                # quiet; it cannot help while the initial `create()` await is
+                # still blocked, because no stream object exists yet. That await
+                # is bounded only by the SDK's own read timeout (120 s by
+                # default), which is longer than the turn budget — so a provider
+                # that accepts the request and never answers consumed the WHOLE
+                # turn without the orchestrator ever receiving a chunk to
+                # decide on (measured 2026-09-16: `Attempting stream with
+                # provider: openrouter …` then, 115 s later, `reply generation:
+                # 115.0s` with no zero-chunk warning and no first-visible
+                # abort — neither bound could fire).
+                _connect_s = _stream_connect_timeout_seconds()
+                if _connect_s and _connect_s > 0:
+                    stream = await asyncio.wait_for(
+                        client.chat.completions.create(**create_kwargs),
+                        timeout=_connect_s)
+                else:
+                    stream = await client.chat.completions.create(**create_kwargs)
                 # Bound inter-chunk silence (see _stream_with_idle_watchdog).
                 _idle_s = _stream_idle_timeout_seconds()
                 if _idle_s and _idle_s > 0:

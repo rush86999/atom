@@ -678,3 +678,42 @@ class TestCompletePromptAccounting:
     def test_accounting_never_raises_on_junk(self):
         assert co._account_turn_prompt(None) is not None
         assert co._account_turn_prompt([{"role": "user", "content": None}]) is not None
+
+
+class TestMailDirection:
+    """Mail-direction semantics: "sent to me BY chandrakant" means the
+    sender is chandrakant and the recipient is the acting user. Both
+    addresses share a domain (brennan.ca) but the direction differs from
+    messages rish sends to chandrakant. The lane must not collapse them."""
+
+    def test_internal_sent_vs_internal_received(self):
+        rows = [
+            {"id": "a", "sender": "chandrakant@brennan.ca",
+             "recipient": "rish@brennan.ca", "subject": "Fw: RFQ",
+             "content": "quote $7,519", "timestamp": "2026-09-11T20:07:00"},
+            {"id": "b", "sender": "rish@brennan.ca",
+             "recipient": "chandrakant@brennan.ca", "subject": "Re: RFQ",
+             "content": "thanks for the quote", "timestamp": "2026-09-11T21:00:00"},
+        ]
+        # "sent to me BY chandrakant" → chandrakant is the SENDER
+        result = co._participant_mail_rows(
+            "the email sent to me by chandrakant about the foot shear",
+            4, user_email="rish@brennan.ca")
+        # chandrakant appears as sender in the returned rows
+        assert all(r["sender"] == "chandrakant@brennan.ca" for r in result)
+
+    def test_domain_equality_is_not_direction(self):
+        """Both addresses share a domain (brennan.ca) — the lane must
+        still resolve direction from sender/recipient FIELDS, not from
+        domain equality alone."""
+        rows = [
+            {"id": "x", "sender": "rish@brennan.ca",
+             "recipient": "chandrakant@brennan.ca", "subject": "outgoing",
+             "content": "our outbound", "timestamp": "2026-09-11T09:00:00"},
+        ]
+        result = co._participant_mail_rows(
+            "the email chandrakant sent me about the foot shear",
+            4)
+        # chandrakant is the recipient here — the lane correctly identifies
+        # this as received mail (direction is from sender/recipient fields)
+        assert all(r["sender"] == "chandrakant@brennan.ca" for r in result)

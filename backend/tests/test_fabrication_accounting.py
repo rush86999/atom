@@ -36,6 +36,7 @@ import pytest
 
 from core.llm.fabrication_accounting import (  # noqa: E402
     AVAILABILITY_VERDICTS,
+    FIGURE_VERDICT_RULE,
     FABRICATION_SCORE_CEILING,
     FABRICATION_VERDICTS,
     account_generations,
@@ -326,14 +327,14 @@ def _writer():
     return LearningBasedRouter.__new__(LearningBasedRouter)
 
 
-def _evaluated(writer, turn, model="openai/m1", score=0.9):
+def _evaluated(writer, turn, model="m1", score=0.9):
     """Record a generation the grounding check RAN on and passed."""
     writer._persist_feedback(
         _feedback(turn, model=model, score=score),
         {"verdict": "grounding_ok"})
 
 
-def _feedback(turn, model="openai/m1", score=0.9, task="question_answering"):
+def _feedback(turn, model="m1", score=0.9, task="question_answering"):
     from core.learning_llm_router import RoutingFeedback
 
     return RoutingFeedback(
@@ -362,6 +363,18 @@ def _read_rows(scratch):
         ]
 
 
+# NOTE ON MODEL NAMING IN THIS SUITE (2026-09-16). The bench used to query
+# ``model_id == f"{provider_id}/{model_id}"``, and these fixtures used to name
+# the model ``openai/m1`` under provider ``openai`` — so the pair string and the
+# stored identifier coincided and the tests passed while the production query
+# matched ZERO rows (a gateway-served model is stored under its own identifier,
+# e.g. ``z-ai/glm-5.3-flash`` served by ``openrouter``, never
+# ``openrouter/z-ai/glm-5.3-flash``). The fixtures now use the production shape:
+# a bare identifier for the provider that serves it, with the vendor-namespace
+# case (``z-ai/...``) covered explicitly in
+# tests/test_evidence_ignored_verdict.py::TestBenchRouteAttribution.
+
+
 def _bench_stub(monkeypatch, min_events=1, rate=0.25):
     """A BYOKHandler without __init__, so the bench runs on real class
     settings plus the scratch DB."""
@@ -384,7 +397,8 @@ class TestBenchUsesGenerationsNotRows:
 
         writer._persist_feedback(
             _feedback("t4", score=0.1),
-            {"verdict": "unsupported_figures"})
+            {"verdict": "unsupported_figures",
+             "verdict_rule": FIGURE_VERDICT_RULE})
 
         rows = _read_rows(scratch_feedback_db)
         assert len(rows) == 4, (
@@ -423,7 +437,8 @@ class TestBenchUsesGenerationsNotRows:
             _evaluated(writer, turn)
         writer._persist_feedback(
             _feedback("t4", score=0.1),
-            {"verdict": "unsupported_figures"})
+            {"verdict": "unsupported_figures",
+             "verdict_rule": FIGURE_VERDICT_RULE})
 
         handler = _bench_stub(monkeypatch)
         assert handler._fabrication_benched("openai", "m1") is True
@@ -437,7 +452,8 @@ class TestBenchUsesGenerationsNotRows:
             _evaluated(writer, turn)
         writer._persist_feedback(
             _feedback("t4", score=0.1),
-            {"verdict": "unsupported_figures"})
+            {"verdict": "unsupported_figures",
+             "verdict_rule": FIGURE_VERDICT_RULE})
 
         before = _bench_stub(monkeypatch)
         assert before._fabrication_benched("openai", "m1") is True
@@ -456,18 +472,48 @@ class TestBenchUsesGenerationsNotRows:
         with scratch_feedback_db["Session"]() as db:
             db.add(LLMRoutingFeedback(
                 id="bad", routing_result_id="t0", tenant_id="default",
-                task_type="question_answering", model_id="openai/m1",
+                task_type="question_answering", model_id="m1",
                 success=True, quality_satisfied=False, cost_within_budget=True,
                 user_satisfaction=0.9, prompt_features=[1, 2, 3],
             ))
         for turn in ("t1", "t2", "t3"):
             writer._persist_feedback(
                 _feedback(turn, score=0.1),
-                {"verdict": "unsupported_figures"})
+                {"verdict": "unsupported_figures",
+                 "verdict_rule": FIGURE_VERDICT_RULE})
 
         handler = _bench_stub(monkeypatch, min_events=3, rate=0.25)
         assert handler._fabrication_benched("openai", "m1") is True, (
             "a malformed row made the whole model check fail open")
+
+    def test_an_unstamped_verdict_cannot_bench(
+            self, scratch_feedback_db, monkeypatch):
+        """EXCLUSION EVIDENCE NEEDS A RULE (2026-09-16). The deterministic
+        figure check provably mis-fired on derivation turns (a correctly
+        COMPUTED value is absent from the evidence text by construction), so
+        the 27 verdict rows it wrote before the fix carry no rule stamp. Their
+        context is UNKNOWN: they stay in the ledger (the accounting above still
+        reads them as fabrications) but they may not exclude a route — the
+        mirror image of "no provenance is not clean"."""
+        writer = _writer()
+        for turn in ("t1", "t2", "t3"):
+            writer._persist_feedback(
+                _feedback(turn, score=0.1),
+                {"verdict": "unsupported_figures"})       # legacy: no rule
+        handler = _bench_stub(monkeypatch, min_events=3, rate=0.25)
+        assert handler._fabrication_benched("openai", "m1") is False
+
+    def test_a_stamped_verdict_from_the_same_rows_still_benches(
+            self, scratch_feedback_db, monkeypatch):
+        """The rule filter must not disable the bench wholesale."""
+        writer = _writer()
+        for turn in ("t1", "t2", "t3"):
+            writer._persist_feedback(
+                _feedback(turn, score=0.1),
+                {"verdict": "unsupported_figures",
+                 "verdict_rule": FIGURE_VERDICT_RULE})
+        handler = _bench_stub(monkeypatch, min_events=3, rate=0.25)
+        assert handler._fabrication_benched("openai", "m1") is True
 
     def test_health_rows_do_not_bench_a_model(self, scratch_feedback_db,
                                               monkeypatch):
@@ -498,10 +544,11 @@ class TestBenchUsesGenerationsNotRows:
     def test_primary_and_fallback_rows_both_count(
             self, scratch_feedback_db, monkeypatch):
         writer = _writer()
-        _evaluated(writer, "t1", model="openai/primary")
+        _evaluated(writer, "t1", model="primary")
         writer._persist_feedback(
-            _feedback("t1", model="openai/fallback", score=0.1),
-            {"verdict": "unsupported_figures"})
+            _feedback("t1", model="fallback", score=0.1),
+            {"verdict": "unsupported_figures",
+             "verdict_rule": FIGURE_VERDICT_RULE})
         rows = _read_rows(scratch_feedback_db)
         assert len(rows) == 2
         acc = account_generations(rows)

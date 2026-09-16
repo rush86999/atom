@@ -101,3 +101,39 @@ class TestAttachmentAskDetector:
         from integrations.chat_orchestrator import _mentions_attachment
 
         assert _mentions_attachment(message) is expected
+
+
+class TestCarrierLineStatesDirection:
+    """The evidence must SAY the direction; the model must not have to infer it.
+
+    Measured 2026-09-16: asked "which emails did WE SEND that carried X", the
+    reply called the carrier "an inbound email from chandrakant to me" while the
+    acceptance criterion read the same message as sent by this mailbox — the two
+    disagreed about a fact the evidence never stated. An INTERNAL message (both
+    ends on one domain) is neither, and saying so removes the ambiguity.
+    """
+
+    def test_internal_message_is_labelled_internal(self, store):
+        out = planner._messages_carrying_file("PRICE VIPUL price list", "")
+        assert out and "DIRECTION: internal" in out[0]
+
+    def test_cross_domain_message_is_not_labelled_internal(self, monkeypatch):
+        # Two shared non-format tokens are required for a match (a single
+        # shared token matched four unrelated price lists in the live store).
+        reverse = {"seguin quotation Q3.pdf": [("msg-ext", "doc-e")]}
+        rows = [{"id": "msg-ext", "sender": "joel@seguinmach.com",
+                 "recipient": "rish@brennan.ca", "subject": "RFQ"}]
+        monkeypatch.setattr(planner, "_mail_attachment_reverse_index", lambda: reverse)
+        monkeypatch.setattr(planner, "_comms_store_records", lambda: rows)
+        monkeypatch.setattr(planner, "_ingested_line_from_row",
+                            lambda row, **kw: "- [ingested mailbox] line")
+        out = planner._messages_carrying_file("seguin quotation", "")
+        # The CONTRACT, not one phrasing (re-labelled 2026-09-16 to name the
+        # relationship precisely): neither end is an own address, so the label
+        # must say sent-vs-received is undetermined and must not read internal.
+        assert out
+        line = out[0]
+        assert "DIRECTION: internal" not in line
+        assert "DIRECTION:" in line
+        assert "external" in line.lower()
+        assert "cannot be determined" in line or "undetermined" in line.lower()

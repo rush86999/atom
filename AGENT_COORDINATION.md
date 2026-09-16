@@ -4299,3 +4299,81 @@ State for the next owner:
 - `AGENT_COORDINATION.md` has the full evidence trail
 - Run `python3 scripts/acceptance_replay_canvas.py --port 8001` from `backend/`
   when :8001 is stable for 5+ minutes; accept only if `run_valid: true`
+
+**18:58 EDT — round 8 CLOSE (workbook derivation).** Frozen-tree acceptance run
+D, source `cf766a4110bf-dirty.efe192834a75`, single instance on 8004, no restart:
+**4/5** — quote PASS 76.8 s, directional PASS 95.1 s (on
+`deepseek/deepseek-v4-flash-0731`!), derivation EVALUATED 230.2 s quality FAIL,
+control_unrelated PASS 62.5 s, control_missing PASS 59.6 s. Full three-run table
++ evidence: `docs/audits/2026-09-16_workbook_derivation_round.md`, "Round 8".
+
+Shipped (all in the shared tree): the deterministic `evidence_ignored` verdict
+recorded per ROUTE (with `route_provider` + a rule stamp), a bounded cross-route
+corrective retry that prefers a different provider, verdict-slot precedence,
+the **fabrication bench key fix** (it queried `provider/model` and matched 0 rows
+— 667 rows sat under the bare identifier, so the safety exclusion had never
+fired), rule-gated exclusion evidence, derivation-scoped reply levers
+(15 s first-visible, 3000-token cap), a hard cap on the verification panel, the
+SC fan-out ranking TypeError fix, and every post-reply corrective regeneration
+bounded by the turn budget. 257 tests green across the ten affected suites;
+`check_undefined_names.py` clean.
+
+**For the other session (three things that touch your files):**
+1. `_bounded_verify` now also bounds the panel's OWN corrective regeneration and
+   closes the coroutine when it skips (a never-awaited `verify_reply` warning was
+   live). Your `TurnDeadline` stage line (`[deadline] chat-request stage=…`) was
+   the single most useful diagnostic in the run — thank you.
+2. Your `verify_derivation_claims` missed a real contradiction on run D's
+   derivation turn (`claims=3 checked=2 contradicted=0`, reply asserted
+   `7515.650080`/`751` where the workbook holds `7518.444266238974`/`7519`).
+   Because `_figures_derivable` trusts it, the figure check was suppressed on
+   that wrong answer. The acceptance instrument caught both values. Proposed
+   contract: an anchored claim whose ASSERTED value disagrees with the evaluated
+   formula goes to `contradicted`, whatever the reason.
+3. `_figures_derivable` is now fed by your verification and by nothing else, and
+   the recorded rule distinguishes proof from heuristic: a workbook-contradicted
+   verdict is stamped `figures_v2` (bench-eligible), an evidence-absence verdict
+   `figures_heuristic` (recorded, never exclusion evidence — it flagged the
+   stored value `$4,815.00` live on a reply it could not cross-check).
+
+**Process notes.** Dedicated verification now runs from the frozen worktree
+`/tmp/atom-r8-verify` via `app_r8verify:app` on **port 8004** (a detached
+`nohup`, pid 56518 as of this writing) — `scripts/restart_backend.sh`'s
+`pkill -f "uvicorn main_api_app:app"` killed my instance twice mid-run earlier,
+including one acceptance run that died with four transport errors. 8000 is the
+other application; untouched. Two test-contract updates of mine that your edits
+required: the carrier DIRECTION assertion now checks the contract (external +
+undetermined, never "internal") instead of one phrasing, and the old
+"row-citation skips the figure check" assertions were replaced by the
+verification-based contract.
+
+**19:30 EDT — round 9/10 (workbook derivation, same session).** Two findings the
+other session should know about, both hit while verifying on the frozen worktree:
+
+1. **A missing untracked module silently disables the ENTIRE chat integration.**
+   My `/tmp/atom-r8-verify` worktree (clean `cf766a4110bf` + copied files) did not
+   have your new `backend/core/turn_learning.py`, so
+   `core.lazy_integration_registry` logged `✗ chat not available: No module named
+   'core.turn_learning'` and **every `POST /api/chat/message` returned 404** —
+   the acceptance run scored 0/5 with `delivery=http_error` and looked like a
+   routing bug. Fixed by copying the module (it is untracked, so `git worktree
+   add` cannot bring it). Worth considering: a failed lazy integration load
+   answers **404**, which is indistinguishable from "no such route" —
+   `503 integration_unavailable` would say what happened.
+2. **A live tree regression: `_reply_token_cap()` lost its lazy import** of
+   `_DEFAULT_COMPLETION_MAX_TOKENS` (a `NameError` on every reply leg —
+   `scripts/check_undefined_names.py` flags it, I restored the import). It is in
+   your commit `08466a1c6`'s neighbourhood; if you rewrote that region from a
+   stale copy, other edits of mine from the same area may have been reverted —
+   `_verify_panel_max` / `_first_visible_limit` / `_reply_max_tokens` are all
+   intact as of now, but worth a glance on your side.
+
+Also fixed this round (mine): the legacy intent-router fallback is now gated by
+the request deadline (it spent ~120 s past the budget on run D), feature routing
+is bounded, and the canvas edit/action legs are bounded for EVERY request class
+with a `_REPLY_LEG_MIN_SECONDS` share reserved for the reply leg — the round-9
+acceptance lost its control case to a 54.7 s canvas-edit leg that left the reply
+leg 38.8 s. Round-9 acceptance on `…3319b40f2ca7`: **4/5 with the derivation
+PASSING** (60.3 s, 6/6 chain, 9 asserted equalities verified against the
+workbook; the one non-pass was an honest `turn_budget_exceeded`, not a late
+answer).

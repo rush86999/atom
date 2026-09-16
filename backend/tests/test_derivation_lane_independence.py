@@ -299,13 +299,48 @@ class TestCanvasEditLegIsBoundedForDerivations:
         assert os.getenv("ATOM_CANVAS_EDIT_DERIVATION_WAIT_SECONDS") is None or \
             float(os.getenv("ATOM_CANVAS_EDIT_DERIVATION_WAIT_SECONDS")) > 0
 
-    def test_the_bound_applies_only_to_derivation_asks(self):
+    def test_the_bound_is_tighter_for_derivations_and_present_for_everything(self):
+        """Re-contracted 2026-09-16 (round 9).
+
+        The derivation bound was the first one; the ORDINARY path stayed
+        unbounded and cost the round-9 acceptance its control case: `canvas-edit
+        plan: 54.7s` of a 95 s request budget left the reply leg 38.8 s and the
+        turn returned `turn_budget_exceeded` for a question the model never had
+        a fair chance to answer. Both classes are bounded now — derivations at
+        the tighter constant, ordinary turns at a general cap — and both reserve
+        the reply leg's share.
+        """
         import inspect
 
         src = inspect.getsource(co.ChatOrchestrator.process_chat_message)
         assert "_CANVAS_EDIT_DERIVATION_WAIT_SECONDS" in src
-        # A non-derivation ask still awaits the leg unbounded by this timeout.
-        assert "else:\n                        _edit_response = await _edit_leg" in src
+        assert "_CANVAS_LEG_MAX_SECONDS" in src
+        assert "_pre_reply_leg_timeout(" in src
+        assert co._CANVAS_EDIT_DERIVATION_WAIT_SECONDS < co._CANVAS_LEG_MAX_SECONDS
+        assert co._REPLY_LEG_MIN_SECONDS > 0
+        # The unbounded ordinary await is gone.
+        assert "_edit_response = await _edit_leg" not in src
+
+    def test_the_reply_leg_share_is_reserved(self):
+        """A pre-reply leg may not wait past the point where the reply fits."""
+        d = co.TurnDeadline(95.0, label="test")
+        d.started_at -= 90.0          # 5 s left
+        assert co._pre_reply_leg_timeout(d, co._CANVAS_LEG_MAX_SECONDS) <= 0
+        d2 = co.TurnDeadline(95.0, label="test")
+        d2.started_at -= 20.0         # 75 s left, reply keeps 40 s
+        assert co._pre_reply_leg_timeout(d2, co._CANVAS_LEG_MAX_SECONDS) == \
+            pytest.approx(75.0 - co._REPLY_LEG_MIN_SECONDS)
+        d3 = co.TurnDeadline(300.0, label="test")
+        assert co._pre_reply_leg_timeout(d3, co._CANVAS_LEG_MAX_SECONDS) == \
+            co._CANVAS_LEG_MAX_SECONDS
+
+    def test_a_skipped_leg_is_stated_not_silent(self):
+        import inspect
+
+        src = inspect.getsource(co.ChatOrchestrator.process_chat_message)
+        assert "canvas-edit leg skipped" in src
+        assert "canvas-action leg skipped" in src
+        assert "reply leg's share of the request is all that " in src
 
     def test_a_bounded_leg_falls_through_instead_of_failing(self):
         import inspect

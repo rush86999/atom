@@ -61,6 +61,15 @@ A generation is classified from all rows that carry its identity:
     only availability verdicts (timeout / provider error / empty response).
     An outage is not evidence about honesty, so it is excluded from BOTH
     terms and reported separately.
+``evidence_ignored``
+    the reply was handed evidence that CONTAINED the answer and did not use it
+    (the deterministic derivation check). A judgement on a real output, so it
+    is counted — but in its OWN class and against its OWN denominator, never
+    the fabrication one: a compliance failure must not dilute the honesty rate
+    and an invention must not dilute the compliance rate. Keeping it out of
+    ``generations`` is deliberate — that denominator decides the fabrication
+    bench, and letting a different defect class enlarge it would rebuild the
+    exact dilution this module exists to prevent.
 ``unevaluated``
     a real quality measurement above the fabrication band with NO grounding
     provenance. ``user_satisfaction`` comes from the heuristic assessment
@@ -98,6 +107,79 @@ FABRICATION_VERDICTS = frozenset({"unsupported_figures", "ungrounded_claims"})
 #: "nothing structural was wrong", which is what the incident's confidently
 #: wrong replies scored.
 GROUNDING_EVALUATED_VERDICTS = frozenset({"grounding_ok", "grounding_passed"})
+
+#: Verdicts that mean "this generation was handed evidence containing the
+#: answer and did not use it". A real defect, judged deterministically on the
+#: output, but NOT dishonesty: no figure was invented. It therefore gets its
+#: own class so neither rate can mask the other.
+EVIDENCE_VERDICTS = frozenset({"evidence_ignored"})
+
+#: WHICH RULE produced a verdict — the version stamp that makes a verdict
+#: usable as EXCLUSION evidence.
+#:
+#: Why this exists (measured 2026-09-16): the deterministic figure check reports
+#: "figures in the reply appear in NO retrieved evidence". For a derivation turn
+#: the delivered evidence carries the matched row's FORMULAS, so every correctly
+#: COMPUTED value is by construction absent from the evidence text. The rule
+#: therefore recorded fabrications against models that had answered correctly —
+#: the live log shows the verdicts naming the derivation chain itself
+#: ("5,625.30, 7,518, 1,893.70" on a reply that walked the stored formulas).
+#: A verdict is only as good as the rule that produced it, so verdict rows now
+#: carry the rule's identity, and a consumer that EXCLUDES a route on verdict
+#: evidence (the fabrication bench) counts only verdicts written by a rule that
+#: can tell "computed" from "invented". Legacy rows carry no stamp: their
+#: context is UNKNOWN, and unknown provenance may not exclude a route — the same
+#: principle that keeps unprovenanced history out of the honest count, applied
+#: in the direction that protects a model from being condemned by a rule we have
+#: since found unsound.
+#: Figure verdict recorded because the WORKBOOK CONTRADICTED the reply's
+#: arithmetic — the derivation verifier evaluated the delivered formulas and the
+#: reply's own cell-anchored claims disagreed with them. This is proof, not a
+#: heuristic, so it may exclude a route.
+FIGURE_VERDICT_RULE = "figures_v2"
+#: Figure verdict recorded by the EVIDENCE-ABSENCE heuristic WITHOUT a
+#: derivation cross-check (no cell-anchored claim to verify, or the verifier
+#: unavailable). The heuristic cannot tell a value COMPUTED from the delivered
+#: formulas from an invented one — live 2026-09-16 it flagged `$4,815.00`, a
+#: stored row value, on a reply it could not cross-check. Recorded (the ledger
+#: keeps what the guard said) but NEVER exclusion evidence: a route may not be
+#: removed on a verdict no independent check confirms.
+FIGURE_HEURISTIC_RULE = "figures_heuristic"
+PANEL_VERDICT_RULE = "panel_v1"          # verification judge panel
+
+#: Rules whose verdicts are acceptable as EXCLUSION evidence today.
+CURRENT_VERDICT_RULES = frozenset({FIGURE_VERDICT_RULE, PANEL_VERDICT_RULE})
+
+#: Which verdict wins when two judgements land on the SAME generation (one
+#: verdict slot per row). Higher wins; equal is idempotent. Ordering is by
+#: severity of the claim about the output: an invention outranks a refusal to
+#: use the evidence, which outranks the positive marker that the grounding
+#: check merely ran. Availability verdicts are absent on purpose — they judge
+#: an attempt that produced no output and never annotate another attempt's row.
+VERDICT_PRECEDENCE = {
+    "unsupported_figures": 4,
+    "ungrounded_claims": 4,
+    "evidence_ignored": 3,
+    "grounding_ok": 2,
+    "grounding_passed": 2,
+}
+
+#: Verdicts that are a JUDGEMENT ON THE OUTPUT (as opposed to a statement
+#: about the check that ran). Only these may rewrite a row's quality fields.
+JUDGEMENT_VERDICTS = FABRICATION_VERDICTS | EVIDENCE_VERDICTS
+
+
+def verdict_rank(verdict: Any) -> int:
+    """Severity rank of a stored verdict; ``0`` for absent/unrecognised.
+
+    Unrecognised provenance ranks 0: it cannot outrank a real judgement, and a
+    real judgement may replace it (an unknown marker carries no information to
+    preserve).
+    """
+    if not isinstance(verdict, str):
+        return 0
+    return VERDICT_PRECEDENCE.get(verdict.strip(), 0)
+
 
 #: Verdicts that mean "no usable output" — an availability failure, which is
 #: evidence about uptime, not about honesty.
@@ -170,6 +252,25 @@ def verdict_of(raw: Any) -> Tuple[Optional[str], bool]:
     return (value or None), malformed
 
 
+def verdict_rule_of(raw: Any) -> Optional[str]:
+    """Return the RULE that produced a row's verdict, or ``None``.
+
+    ``None`` means the row predates rule stamping (or carries no verdict):
+    its context is unknown, which consumers must read as "not usable as
+    exclusion evidence" rather than as a clean bill of health. Never raises —
+    an unreadable payload simply has no rule.
+    """
+    try:
+        features, _malformed = coerce_features(raw)
+    except Exception:  # noqa: BLE001 — unreadable provenance has no rule
+        return None
+    value = features.get("verdict_rule")
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
+
+
+
 def _field(row: Any, name: str, index: int) -> Any:
     """Read a field from an ORM row, a namespace, a mapping or a tuple."""
     if isinstance(row, dict):
@@ -208,6 +309,11 @@ class GenerationAccounting:
     #: grounding marker means "nothing was checked", which is reported as
     #: ``unevaluated`` instead (review item 3).
     grounded_ok: int = 0
+    #: Generations judged to have IGNORED evidence they were handed. Counted in
+    #: its own class: not in ``fabricated`` (no invention), and NOT in
+    #: ``generations`` (that denominator decides the fabrication bench, and a
+    #: different defect class must not enlarge it — see the module docstring).
+    evidence_ignored: int = 0
     #: A real quality measurement with NO grounding provenance: the ordinary
     #: heuristic assessment (truncation / refusal / schema / empty). It cannot
     #: be counted as evaluated for honesty, and it must not be counted as
@@ -235,12 +341,28 @@ class GenerationAccounting:
             return None
         return self.fabricated / self.generations
 
+    @property
+    def judged_outputs(self) -> int:
+        """Generations carrying an OUTPUT JUDGEMENT (honesty or compliance)."""
+        return self.fabricated + self.grounded_ok + self.evidence_ignored
+
+    @property
+    def evidence_ignored_rate(self) -> Optional[float]:
+        """Ignored-evidence share of judged outputs, or ``None`` when there are
+        none. Its own denominator: the compliance signal must stay readable
+        even while the honesty denominator is empty, and vice versa."""
+        if self.judged_outputs <= 0:
+            return None
+        return self.evidence_ignored / self.judged_outputs
+
     def as_dict(self) -> Dict[str, Any]:
         return {
             "generations": self.generations,
             "fabricated": self.fabricated,
             "grounded_ok": self.grounded_ok,
             "clean": self.grounded_ok,  # deprecated alias
+            "evidence_ignored": self.evidence_ignored,
+            "judged_outputs": self.judged_outputs,
             "unevaluated": self.unevaluated,
             "unknown": self.unknown,
             "availability": self.availability,
@@ -248,8 +370,10 @@ class GenerationAccounting:
             "duplicate_rows": self.duplicate_rows,
             "malformed_rows": self.malformed_rows,
             "rate": self.rate,
+            "evidence_ignored_rate": self.evidence_ignored_rate,
             "verdict_counts": dict(self.verdict_counts),
         }
+
 
 
 def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
@@ -279,6 +403,7 @@ def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
         state = states.get(key)
         if state is None:
             state = {"fabricated": False, "grounded_ok": False,
+                     "evidence_ignored": False,
                      "unevaluated": False, "availability": False,
                      "unknown": False}
             states[key] = state
@@ -294,12 +419,22 @@ def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
         if verdict in FABRICATION_VERDICTS:
             state["fabricated"] = True
             continue
+        if verdict in EVIDENCE_VERDICTS:
+            # A real judgement on a real output — counted in its own class.
+            # Deliberately does NOT set ``grounded_ok`` (the honesty check may
+            # never have run) and does NOT enter ``generations``. Checked
+            # BEFORE the grounding marker so a generation carrying both is
+            # classified by the stronger claim, matching ``VERDICT_PRECEDENCE``
+            # (the single verdict slot resolves the same way at write time).
+            state["evidence_ignored"] = True
+            continue
         if verdict in GROUNDING_EVALUATED_VERDICTS:
             # The grounding check RAN on this generation and found nothing
             # unsupported. That is the only way a generation earns a place in
             # the denominator without a fabrication verdict.
             state["grounded_ok"] = True
             continue
+
         if verdict in AVAILABILITY_VERDICTS:
             state["availability"] = True
             continue
@@ -335,6 +470,11 @@ def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
         if state["fabricated"]:
             acc.fabricated += 1
             acc.generations += 1
+        elif state["evidence_ignored"]:
+            # Same order as the per-row classification: the stronger claim
+            # decides the generation, so it cannot also be counted as an
+            # honestly-evaluated one.
+            acc.evidence_ignored += 1
         elif state["grounded_ok"]:
             acc.grounded_ok += 1
             acc.generations += 1
@@ -344,5 +484,7 @@ def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
             acc.unevaluated += 1
         else:
             acc.unknown += 1
+
+
 
     return acc

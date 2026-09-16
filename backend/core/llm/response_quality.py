@@ -80,6 +80,7 @@ def assess_response_quality(
     exception: Optional[Exception] = None,
     unsupported_figures: Optional[List[str]] = None,
     ungrounded_claims: Optional[List[str]] = None,
+    evidence_ignored: Optional[List[str]] = None,
 ) -> ResponseQuality:
     """Assess response quality from observable characteristics.
 
@@ -94,6 +95,9 @@ def assess_response_quality(
             ``_unsupported_figures`` check). Non-empty == fabricated numbers.
         ungrounded_claims: Claims the verification panel judged unsupported by
             the evidence.
+        evidence_ignored: Evidence the reply was HANDED and did not use — the
+            deterministic derivation check (the delivered block carried the
+            matched row and its formulas; the reply cites no row).
 
     Returns:
         A ResponseQuality with success/quality_satisfied/score/issues populated.
@@ -123,6 +127,31 @@ def assess_response_quality(
             success=True,
             quality_satisfied=False,
             quality_score=0.15,
+            issues=issues,
+        )
+
+    # --- EVIDENCE IGNORED: the reply was handed the evidence and did not use
+    # it. Deterministic (the derivation guard: the delivered block carried the
+    # matched row AND its formulas, and the reply cites no row), so it does not
+    # depend on how the model phrases its refusal — measured 2026-09-16 with
+    # byte-identical evidence: one model walked the chain while another said
+    # "the required live-data lookup failed" or asked the user which record
+    # they meant.
+    #
+    # NOT fabrication: the reply asserts no invented figure. It is still a
+    # hard failure the user sees as "it didn't look" — and the model actively
+    # contradicts its own prompt ("the lookup returned nothing" while the row
+    # is in it) — so it is scored BELOW a refusal (0.4) and ABOVE the
+    # fabrication band (0.15). The band matters: a score at/below it would be
+    # read as an outage-or-invention with no provenance. Its own verdict keeps
+    # it out of both the fabrication numerator and the fabricated/grounded
+    # denominator (see core.llm.fabrication_accounting).
+    if evidence_ignored:
+        issues.append("evidence_ignored")
+        return ResponseQuality(
+            success=True,
+            quality_satisfied=False,
+            quality_score=0.25,
             issues=issues,
         )
 
