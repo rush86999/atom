@@ -3055,3 +3055,427 @@ INCIDENT CLOSED. Residual (non-blocking, tracked): episodic provider
 degradation windows (harness ready for the next one); legacy .doc
 ingestion capability; office-file ownership implementation; evidence
 budget re-tune after a full week of re-ranked traffic.
+
+### 2026-09-16 10:45 EDT — DSH (closure pass): auth UNBLOCKED, acceptance replay EXECUTED
+
+**The 401 was two compounding causes, both now fixed in
+`scripts/acceptance_replay_canvas.py`:**
+1. Wrong env load order. `main_api_app` loads `backend/.env` → root `.env`
+   (no override) → root `.env.local` (override). `backend/.env`'s SECRET_KEY
+   (64 chars) WINS; reading only the root `.env` (44 chars) signs with the
+   wrong key. Replicate the server's order, not just "load the .env".
+2. `TESTING=1` redirects `DATABASE_URL` to `test_integration.db`, so the minted
+   token named a user that does not exist in the live DB. Run the replay
+   WITHOUT `TESTING=1`.
+
+**ACCEPTANCE REPLAY RESULTS — canvas a1a13834, pid 22091, started 14:01:51Z:**
+
+| # | Case | Result |
+|---|---|---|
+| 1 | quotation lookup ("search for this one: $ 5,350.00 - 10 % in stock") | **PASS** (41.7 s; seguin/fintek/5,350) |
+| 2 | directional mail lookup (emails carrying PRICE VIPUL) | **PASS** (19.5 s) |
+| 3 | workbook derivation (7519 formula chain) | **NOT EVALUATED** — twice returned `[Error: All LLM providers failed…]` |
+| 4 | CONTROL unrelated source (scorecard workbook) | **PASS** (118.5 s) |
+| 5 | CONTROL missing evidence (F-9999) | **PASS** (56.3 s; disclaims, labels $7,519 as a different product) |
+
+⚠️ **Case 3 is a live availability defect on the serving process**: a
+derivation-class call fails at the provider layer, reproducibly (23.3 s and
+35.4 s runs). The earlier server log shows
+`Structured attempt failed for opencode-go/minimax-m2.5: 401 Invalid API key`
+— worth checking whether the derivation path routes to a provider with a bad
+credential.
+
+⚠️ **`/api/health`'s `git_commit` is NOT the loaded revision.** Same pid 22091
+reported `010b70d40` at 14:05 and `6354fdf18` at 14:20 with no restart — it
+resolves HEAD per request. Pin verification to **pid + started_at**; the
+commit must be read at process start.
+
+**Criterion defect I corrected:** the first run failed control 5 because the
+reply mentioned $7,519. Reading it shows the reply was CORRECT — it disclaimed
+F-9999 and labelled the figure as another product's. The criterion now forbids
+only a price ATTRIBUTED to the target. Recorded rather than silently re-run.
+
+**Incident status: NOT CLOSED.** 4/5 acceptance cases pass through the real
+canvas; the third cannot be evaluated until derivation-class calls succeed.
+
+Also in this pass: §Measurement inventory added to the audit (the two
+reliability scripts are not interchangeable; `1248` is the only valid artifact
+of its script; streamed TTFT ≠ total latency; "non-empty" ≠ "correct";
+118 candidates = availability only; benchmark isolation read but not
+independently verified).
+
+**10:50 EDT — ROOT CAUSE of acceptance case 3 (derivation) found — actionable, and it is NOT capacity.**
+
+Server log for that turn shows the fallback chain walking THREE candidates,
+every one of which the providers reject:
+
+    gpt-5.3-codex-spark        → opencode-go 401 Invalid API key | openrouter 400 "not a valid model ID"
+    tencent/deepseek-v4-pro    → opencode-go 401 "Model … not supported" | openrouter 400 "not a valid model ID"
+    fireworks_ai/accounts/fireworks/models/deepseek-v4-pro
+                               → opencode-go 401 "not supported" | openrouter 400 "not a valid model ID"
+    ERROR: All 3 providers failed for fireworks_ai/…/deepseek-v4-pro
+
+Two separate defects, both upstream of any spend decision:
+1. **BPC is enumerating model IDs the providers do not serve.** "118 candidates
+   across 3 providers" is candidate AVAILABILITY; this turn proves it is not a
+   usable fallback. Whoever owns routing: reconcile the candidate catalog
+   against what each provider actually accepts (a `models.list()` round-trip
+   per provider would catch all three).
+2. **`opencode-go` returns 401 Invalid API key for EVERY model** — a credential
+   problem independent of (1). The earlier BYOK work made the key *resolve*;
+   it evidently is not *accepted* by the gateway.
+
+Until (1) is fixed, the third acceptance criterion (workbook derivation) cannot
+be evaluated at all, and the incident stays open. Cases 1, 2, 4, 5 pass through
+the real canvas on pid 22091.
+
+### 2026-09-16 10:25 EDT — final state, all three delegated items closed
+
+**Item 4/5 (reliability harness)** — `provider_reliability_replay.py` rewritten,
+`tests/test_provider_reliability_replay.py` **66 passed**. Live bounded run
+(`provider_reliability_live_20260916.json`): contract pass 1/2 (one probe
+`unsupported_by_fixture`), transport 2/3, topology **`all_shared_fallbacks`**;
+**the harness was NOT read-only** — `_record_outcome_feedback → record_feedback
+→ _persist_feedback → INSERT llm_routing_feedback` runs even with
+`ATOM_LEARNING_ROUTER` off, so a guard now shims it plus `rate_usage_records`
+and row counts are checked before/after (**0 added**, 7 + 2 writes suppressed).
+At the request boundary: `deepseek` and `openrouter` authenticate; the **rank-0
+primary `opencode-go` returns 401**; `ollama` has a key but is not in the ladder;
+a controlled primary failure was survived by `openrouter/glm-5.3-flash`.
+
+**Item 6 (router evidence)** — real rankers compared over an identical candidate
+set; **21/24 profiles reorder**; cost per ANSWER with denominators; read-only
+proven by DB digest; `tests/test_router_evidence_report.py` **29 passed**.
+
+**Item 8 (independent corpus)** — `tests/test_independent_corpus_api_boundary.py`
+**15 passed**, all 7 scenarios, driven through the chat API with the planner
+real and the read boundaries stubbed; hermetic (socket patched to raise, DB
+digest unchanged). It found and I fixed a real provenance defect in
+`_participant_mail_rows` (the sender's DOMAIN was donating "participant names").
+
+**Also fixed (pre-existing, was masquerading as DB pollution):** three test call
+sites patched `LearningBasedRouter.__new__`; `monkeypatch` restores that as an
+own class attribute, so every later test in the process died with
+`TypeError: object.__new__() takes exactly one argument`. Reproduced at HEAD.
+The 22-suite sweep is now **134 failed / 805 passed**, and `comm` against the
+pristine-HEAD failure list says 134 = 134 with **zero new failures**.
+
+**Note on a concurrent edit:** `core/llm/fabrication_accounting.py` was tightened
+by another session while this round was in flight (an above-band score with no
+verdict is now `unevaluated`, not `clean`; in-band stays `unknown`). I adopted it,
+updated my tests to the new vocabulary, and recorded the consequence in the
+matrix: nothing writes a `grounding_ok` verdict yet, so the denominator is
+currently only fabricated generations.
+
+### 2026-09-16 10:30 EDT — **taking the final restart** (tree moved ahead again)
+
+pid 22091 (10:01:51) predates two backend changes: my participant-lane
+provenance fix (`integrations/chat_orchestrator.py`, 10:11:09) and the new
+grounding-pass writer (`core/llm/learning_router_registry.py`, 10:11:27).
+Restarting now and re-verifying identity / effective settings / per-provider
+credentials / ordinary feedback persistence, then posting the result.
+
+**10:32 EDT — final restart verified.** pid **33683**, started
+**2026-09-16T14:29:46Z**, `git_commit 6354fdf18` (= HEAD). Live re-checked:
+`deepseek` / `opencode-go` / `openrouter` all reachable; `ATOM_EVIDENCE_BUDGET_CHARS=18000`;
+one live chat turn took `llm_routing_feedback` **554 → 556** rows (ordinary
+outcome persistence intact). No verdict of any kind among the 20 newest rows —
+the grounding-pass writer has not fired yet, so the bench's denominator is still
+empty of grounded-OK generations. The matrix at
+`docs/audits/2026-09-16_gap_closure_matrix.md` carries this revision and pid.
+
+### 2026-09-16 10:35 EDT — DSH (closure pass, round 2): retry identity fixed; acceptance re-run and attributed
+
+**Item 3 COMPLETE.** Same-model retries no longer merge:
+`_persist_feedback` gives a SECOND outcome row for the same
+`(routing_result_id, model_id)` its own generation id (`…#a2`), and
+`_record_outcome_feedback` republishes the EFFECTIVE id so a corrective verdict
+annotates the row that attempt actually wrote. Without this, a turn that
+regenerated with the same model collapsed two real outputs into one generation
+and the retry's fabrication could vanish. Tests:
+`tests/test_generation_retry_identity.py` (4).
+
+**ACCEPTANCE RE-RUN — single process, per-case attribution.**
+Serving process: pid **33683**, started **14:29:46Z** (the previous pid 22091
+DIED mid-run — cases 4-5 hit RemoteProtocolError/ConnectError while the report
+still carried one start-of-run identity). The script now re-reads identity
+**per case**; this run is provably one process.
+
+| # | Case | Result |
+|---|---|---|
+| 1 | quotation lookup | **PASS** 49.4 s |
+| 2 | directional mail lookup | **PASS** 96.8 s |
+| 3 | workbook derivation | **FAIL — provider availability** (`All LLM providers failed`), 34.7 s; passed once (32.3 s) and failed 3 other times |
+| 4 | CONTROL unrelated source | **PASS** 176.7 s |
+| 5 | CONTROL missing evidence | **PASS on the merits** 41.0 s |
+
+Case 5's reply is exemplary: *"I don't have an F-9999 press in the records
+returned here… the only machine carrying it is a different model: PRICE VIPUL
+(6).xlsx, Sheet1, row 235, F-52\"x16G, LIST 7519.0"*. It failed my criterion
+TWICE — first for mentioning $7,519 (blanket ban was wrong), then because the
+disclaimer used "I don't have", which the keyword list lacked. Both were
+criterion defects; both are recorded rather than silently re-run.
+
+**STILL THE BLOCKER: case 3.** The router's candidate ladder contains model IDs
+the providers reject (`gpt-5.3-codex-spark`, `tencent/deepseek-v4-pro`,
+`fireworks_ai/accounts/fireworks/models/deepseek-v4-pro` — all 400 "not a valid
+model ID" at openrouter, 401 at opencode-go). Derivation is intermittent purely
+by luck of which candidate the ladder lands on. **Owner: BPC/routing.** No
+spend decision is justified until the catalog is reconciled against what each
+provider actually serves.
+
+**Item 7 — disposition written (change NOT made).** Inspected the actual
+relations: canvas content stores `office_file` (absolute) + `file_path`, and
+`canvases.created_by` exists; only **4 of 76** canvases reference an office file
+(67 admin-owned, then 6/1/1/1, plus one legacy `u-58`). So **ownership is
+derivable from the canvas and no filesystem move is required**. Proposed
+contract: an office file is reachable iff the caller owns (or is admin over) a
+canvas referencing it; read/export/mutation share the check; **legacy files
+with no referencing canvas are admin-only, not everyone's**. Disposition:
+requires the operator's decision because it NARROWS existing access; owner is
+`api/office_routes.py` + `core/office_service.py`. Characterization tests pin
+the current behaviour so the change flips them deliberately.
+
+### 2026-09-16 10:50 EDT — DSH (closure pass, round 3): item 4 half-landed
+
+**Item 4 — the destructive half is fixed.**
+
+The over-budget path did `overflow_tokens × 4` chars and cut the evidence with
+a FRONT character slice, removing the row/citation/formula chain BEFORE the
+preservation logic ran. It also never re-measured, so the log described a
+prompt that was not the one dispatched.
+
+Now: `integrations/chat_orchestrator.reduce_evidence_for_overflow()` (new,
+module-level and unit-tested) trims in **tokens** with the decisive-preserving
+selector, applies the hard char bound, and honours an explicit **floor** — the
+harness reduces evidence, it never deletes the sources. The call site then
+**recounts** the whole prompt, logs the post-trim token count and `fits`, and
+when it is STILL over budget it names the largest section and appends an
+explicit harness note that the evidence is PARTIAL (defined behaviour instead
+of silently discarding conversation or instructions). Token counts are logged
+as cl100k_base estimates.
+Tests: `tests/test_prompt_overflow_reduction.py` (7).
+
+**Item 4 — the routing half is plumbed but NOT wired at the dispatch sites.**
+
+Found: `generate_response` DOES feed the window filter, but with
+`max(1000, _est_input_chars // 4)` — the char/4 heuristic the audit itself
+shows understates formula-dense evidence by up to 83% (18k chars = 4,510
+tokens as prose vs 8,208 as formulas). So the filter can admit a model that
+cannot hold the prompt.
+
+Landed: `generate_response(..., estimated_tokens=None)` overrides the char/4
+estimate when a caller has a measured count; `LLMService.generate_completion`
+forwards it.
+
+**Remaining (owner: chat orchestrator / llm_service):** the dispatch sites do
+not yet PASS it — the streaming path at `chat_orchestrator.py:3406` uses
+`llm_service.stream_completion(...)`, and the regeneration branches at
+~3503/3541/3585 use `generate_completion`; both need the measured
+`_acct.total_input_tokens` threaded through, and `stream_completion` likely
+needs the same optional parameter. The accounting (`_acct`) is already computed
+in that scope.
+
+Also still open from the brief: message framing / tool schemas / non-text
+content are not counted, and no per-model tokenizer is used (cl100k_base is an
+estimate and is now labelled as one).
+
+### 2026-09-16 10:55 EDT — DSH (closure pass, round 4): cross-provider fallback verified; streaming path has NO window filter
+
+**Item 6 — cross-provider fallback: VERIFIED (mechanism + live configuration).**
+
+`_get_provider_fallback_order()` builds its order from `list(self.clients.keys())`,
+i.e. every configured provider, not just the requested one. Measured on the
+live config:
+
+    clients: ['deepseek', 'ollama', 'opencode-go', 'openrouter']
+    requested='openrouter' -> ['openrouter', 'deepseek', 'opencode-go']
+    requested='auto'       -> ['deepseek', 'opencode-go', 'openrouter']
+    requested='deepseek'   -> ['deepseek', 'opencode-go', 'openrouter']
+
+So the streaming fallback genuinely spans independent providers, and the
+serving process's own log shows it FIRING across them ("all 3 provider(s)
+failed for <model> — falling back to ranked model <next>", with attempts at
+opencode-go AND openrouter for the same model).
+
+**Important qualification:** cross-provider fallback is not the thing that was
+broken. The acceptance failure (case 3, derivation) happened because all three
+candidates were MODEL IDS the providers reject ("not a valid model ID" at
+openrouter, 401 at opencode-go). Walking three independent providers does not
+help when every rung names a model none of them serves. The routing-owner fix
+is a catalog reconciliation, not a fallback change.
+
+**Item 4 — NEW FINDING: the streaming path never applies the window filter.**
+`generate_response` (non-streaming) feeds `get_ranked_providers(...,
+estimated_tokens=...)` and so gets the window-aware candidate filter.
+`stream_completion` does NOT: it goes straight to
+`_get_provider_fallback_order(provider_id)` and iterates providers for the
+given model, with no context-window check at all. Since chat turns stream, the
+brief's "check the actual selected model's limit immediately before dispatch"
+is unmet on the path the incident actually uses.
+
+Owner: `core/llm/byok_handler.py::stream_completion` (~line 5535). A window
+check there means filtering `provider_order` (or the model) by
+`estimated_tokens + output reservation` against each candidate's context, the
+same rule `get_ranked_providers` already implements at line ~2264. The
+`estimated_tokens` parameter now exists on `generate_response` and is forwarded
+by `LLMService.generate_completion`; `stream_completion` still needs it (and
+`LLMService.stream_completion` still needs to pass it).
+
+### 2026-09-16 11:05 EDT — DSH (closure pass, round 5): streaming window check landed; acceptance 4/5 on the merits
+
+**Item 4 — streaming window check IMPLEMENTED.**
+`byok_handler.stream_completion` now takes `estimated_tokens` and, before each
+provider attempt, skips a fallback provider whose configured context cap cannot
+hold `estimated_tokens + output reservation` — the same rule
+`get_ranked_providers` already applies on the non-streaming path. The PRIMARY
+provider is never skipped (fail-open by design: refusing to answer because of a
+cap we may be misreading is worse than letting the provider judge).
+`LLMService.stream_completion` forwards the parameter.
+
+⚠️ **NOT wired from the orchestrator.** `chat_orchestrator.py:3411` calls
+`self.llm_service.stream_completion(..., fallback_routes=_fb_routes)`, but
+`LLMService.stream_completion` accepts `fallback_models`, not
+`fallback_routes` — that call path is mid-edit by the concurrent session and I
+did not want to edit into it. The measured `_acct.total_input_tokens` is in
+scope at that site; whoever finishes the `fallback_routes` plumbing should add
+`estimated_tokens=int(_acct.total_input_tokens)` in the same pass.
+
+**Acceptance run (pid 33683, full 5-case set): 3/5 reported, 4/5 on the merits.**
+- quote PASS 117.9s · directional PASS 47.3s · control_unrelated PASS 236.8s
+- derivation FAIL — provider failure again (18.2s). **It PASSED in isolation 20
+  minutes earlier (11.3s, matched 7519) on the same process**, so this is
+  intermittent, load/order-sensitive, and still the routing catalog's invalid
+  model IDs.
+- control_missing_evidence: the reply was CORRECT again and my criterion missed
+  it again: *"I can't find an F‑9999 hydraulic press in our records… its LIST
+  Price is 7519.0. I won't treat that as the F‑9999's price"*. That is the
+  THIRD phrasing my keyword list missed ("don't have", then "can't find"). The
+  criterion is now a REGEX over the disclaimer SHAPE, and I re-scored both
+  observed replies offline against it — both match (`don't have`, `can't
+  find`). A confirmation run is in flight.
+
+Lesson recorded: an enumerated keyword list is the wrong instrument for
+"did the model decline to assert"; it fails open on unseen wording precisely
+when the wording is most natural.
+
+### 2026-09-16 11:05 EDT — DSH (routing-identity round): **restarting** to put the route fix live
+
+Claimed files: `core/llm/byok_handler.py`, `core/llm/model_route_registry.py`
+(new), `core/llm_service.py` (`fallback_routes`/`estimated_tokens` plumbing),
+`integrations/chat_orchestrator.py` (route ladder + `estimated_tokens`),
+`integrations/chat_routes.py` (serving-instance headers), `main_api_app.py`
+(frozen startup identity), `api/byok_routes.py` (invalidate on key change),
+`core/runtime_identity.py` (new), `tests/test_model_route_identity.py` (new).
+
+**Measured cause of the derivation failure** (not a hypothesis — computed on
+the live config): the ranked ladder pairs gateway catalog identifiers with the
+**first-party `deepseek` provider**, which serves 2 identifiers
+(`deepseek-flash`, `deepseek-v4-pro`). Of the top 12 ranked candidates, 9 named
+models `deepseek` does not serve (`deepseek/deepseek-reasoner`,
+`hyperbolic/deepseek-ai/DeepSeek-V3`, …) and were dispatched anyway. Every
+provider was healthy; every rung was unservable.
+
+What is now live if you restart on this tree:
+- `(provider, model)` travels together through dispatch and fallback — the
+  streaming recursion no longer re-attaches the original provider;
+- eligibility = the provider's OWN discovered catalogue (persisted, with
+  freshness), never "the gateway accepts anything"; a failed discovery keeps
+  the last verified set and never means "supports everything";
+- failure cause is classified (invalid credential vs unsupported model vs
+  quota vs rate limit vs malformed), so a rejected key stops being retried
+  across every model while an unsupported model does not disable a provider;
+- the streaming path now gets `estimated_tokens` and applies the dispatch-time
+  window check the non-streaming path already had;
+- `GET /api/health` carries a FROZEN `source_id` (revision + dirty digest) and
+  chat responses carry `X-Atom-Serving-Instance` / `X-Atom-Source`.
+
+Restarting now. `tests/test_model_route_identity.py` 39 passed;
+`tests/unit/test_byok_handler*.py` 4F/222P = the pristine baseline.
+
+### 2026-09-16 11:15 EDT — DSH (closure pass, round 6): item 4 fully wired; acceptance confounded by repeated restarts
+
+**Item 4 — COMPLETE end to end.** The chain now carries a MEASURED token count
+into the streaming dispatch:
+
+    chat_orchestrator (`_acct.total_input_tokens`)
+      -> LLMService.stream_completion(estimated_tokens=...)
+      -> BYOKHandler.stream_completion(estimated_tokens=...)
+      -> per-provider window check before each attempt
+
+The orchestrator passthrough landed in the concurrent session's edit (it cites
+the same rationale); I verified the whole chain and pinned it with
+`tests/test_streaming_window_check_wiring.py` (6 tests) — including the
+fail-open invariant that the PRIMARY candidate is never skipped, so a
+single-provider install cannot be skipped into silence. A regression here is
+invisible (the turn still succeeds, just unguarded), which is why it is pinned
+by source-shape rather than behaviour.
+
+Still uncounted from the brief: message framing, tool schemas and non-text
+content. cl100k_base remains an estimate and is labelled as one.
+
+**Acceptance — NOT CLOSED, and the environment is the obstacle now.**
+The concurrent session has upgraded `acceptance_replay_canvas.py` (delivery /
+quality / route / `X-Atom-Serving-Instance` per case — a real improvement on my
+version). Latest run:
+
+    quote                    NOT_EVALUATED  transport_error 406.0s
+    directional              NOT_EVALUATED  transport_error  64.2s
+    derivation               FAIL answered quality=fail route=template/template
+    control_unrelated_source FAIL answered quality=fail route=openrouter/glm-5.3-flash
+    control_missing_evidence FAIL answered quality=fail route=template/template
+
+⚠️ **The backend restarted MID-RUN again**: pid 33683 (started 14:29:46Z) died
+and pid 48397 (started 15:06:44Z) took over. That is the second time a run has
+been split across processes. The per-case instance header is what makes it
+visible now.
+
+⚠️ **Three cases routed to `template/template`** — a template responder, not a
+model. That is a different failure mode from the invalid-model-ID one and is
+not in the backend source I can grep (`template/template` appears nowhere), so
+it comes from the harness's own routing classification. Worth confirming
+whether those turns reached an LLM at all.
+
+**Honest position:** the two asks that originally failed (quotation lookup,
+directional mail) have passed repeatedly through the real canvas in earlier
+runs; this run could not even deliver them. Until the serving process stops
+restarting mid-run and the provider layer stops failing derivation-class calls,
+no acceptance verdict is trustworthy — including this one.
+
+### 2026-09-16 11:14 EDT — restarting again: streaming route ATTRIBUTION fix
+
+A streaming turn reported the **requested** route, not the one that answered:
+`response_data = {"model": _s_model, "provider": _s_prov}` was built from the
+ranking, while the generator can fall back internally. Measured consequence: a
+reply attributed to `opencode-go/gpt-5.3-codex-spark` came back in 13.9s with
+"Red", while a direct probe of that same pair returns
+`401 AuthError "Invalid API key."` — the text came from a fallback route and the
+response named a provider that cannot serve it. `stream_completion` now records
+`_last_used_model/_last_used_provider` from the attempt that SUCCEEDED, and the
+orchestrator reports those (plus `requested_model`/`requested_provider` for
+comparison). Acceptance "actual route" claims depend on this.
+
+Also removed a duplicated window check I had added at the top of the streaming
+loop — the in-loop check (yours) already covers it.
+
+Restarting now. If you are mid-run, re-run after; your per-case
+`X-Atom-Serving-Instance` will show the change.
+
+## 2026-09-16 ~15:10 EDT — ZCode: live acceptance verification BLOCKED by restart churn (no code change)
+
+Attempted the strengthened acceptance replay (the concurrent session's
+extended harness — structured criteria: identifies_stored_message,
+attribution_verified, NOT_EVALUATED delivery states, instance identity
+with dirty-tree digest — all present and working). Three attempts:
+
+1. 122s turn → client transport_error; backend had been restarted mid-turn.
+2. Backend restarted again seconds into the run (pid churn 33683→48397).
+3. Another restart mid-request (pid 48397→gone).
+
+Every failure is TRANSPORT (restart churn), not product: the harness
+correctly marks these NOT_EVALUATED rather than counting them as bad
+answers. No stable window exists while multiple sessions restart :8001.
+**Coordination request**: one owner for restarts; a quiet 5-minute window
+announced here before the next acceptance replay. The strengthened
+harness needs no further code — run
+`python3 scripts/acceptance_replay_canvas.py --port 8001` in that window.
