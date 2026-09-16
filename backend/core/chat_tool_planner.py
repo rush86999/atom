@@ -2738,10 +2738,17 @@ def _fig_occurrence_in_fields(fields: List[str], phrase: str) -> int:
     '5350.00'). Extracted so both this matcher and the anchor logic use ONE
     occurrence rule."""
     offset = 0
+    # CASE-INSENSITIVE, because a phrase reaches this matcher already lowercased
+    # by the planner's tokenizer while stored text keeps its source casing:
+    # 'f-5216' could not match an email that says "F-5216" (live 2026-09-16 — the
+    # query found the thread only through the subject's words, and the model code
+    # itself never matched). Both the raw and the canonical probe are lowered, so
+    # the digit-blob gate stays a superset of what can match here.
     for field in fields:
+        field_lc = field.lower()
         for probe in (phrase, phrase.replace(",", "").replace(" ", "")):
             if probe:
-                i = field.find(probe)
+                i = field_lc.find(probe.lower())
                 if i >= 0:
                     return offset + i
         offset += len(field) + 1
