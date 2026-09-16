@@ -2518,7 +2518,150 @@ def _comms_store_records() -> List[Dict[str, Any]]:
     table = db.open_table("atom_communications")
     records = table.to_arrow().to_pandas().to_dict("records")
     _comms_store_cache[path] = (now, records)
+    # The digit index is derived from `records`; a refresh builds a NEW list, so
+    # the stale entry is unreachable by key. Clearing keeps memory bounded.
+    _COMMS_DIGITS_CACHE.clear()
     return records
+
+
+#: path -> ([canonical digit string (or None) per row], row count) for the gate.
+_COMMS_DIGITS_CACHE: Dict[str, Any] = {}
+#: Rows whose metadata exceeds this are never gated (always scanned): indexing
+#: them costs more than the scan, and a gate that cannot see the field must not
+#: pretend the row is a non-match.
+_DIGIT_INDEX_MAX_META_CHARS = int(
+    os.getenv("ATOM_DIGIT_INDEX_MAX_META_CHARS", "200000") or 200000
+)
+
+
+def _comms_row_digit_blobs(path: str, records: List[Dict[str, Any]]) -> List[tuple]:
+    """Per-row ``(struct_digits, full_digits_or_None)`` for the metadata gate.
+
+    ``struct_digits``: canonical digits of subject + content + attachments.
+    ``full_digits``: the same INCLUDING metadata, or None when the metadata is
+    too large to index.
+
+    The matcher's pass 2 exists for a figure that lives ONLY in the styled
+    html_body, and it reads that body in full (median 50 KB, max 35 MB — 3 GB
+    across the store, measured at 5.5s per query; it added ZERO matches for the
+    live cases because pass 1 had already found them). Gating it needs the
+    metadata digits, but indexing every byte costs more than the scan it
+    replaces, so:
+
+    * metadata within ``_DIGIT_INDEX_MAX_META_CHARS`` is indexed and the gate is
+      EXACT for those rows (an html-body-only match still passes);
+    * larger metadata is not indexed, and the gate then decides on the
+      structured fields alone — a row whose subject/content/attachments carry
+      none of the query's digits skips the scan even though its 3 MB HTML might
+      have matched. That is the one deliberate trade, and it is what removes
+      2.7 GB from the per-query path. Set
+      ``ATOM_DIGIT_INDEX_MAX_META_CHARS`` high to index more and trade latency
+      back.
+
+    Built once per store refresh and reused by every later query.
+    """
+    # Keyed by the RECORDS LIST, not by the store path: a caller can pass any
+    # row list (tests, previews, a filtered subset), and two different lists for
+    # the same path collide — the second would receive blobs built from the
+    # first, mis-attributing evidence by position. The cache holds a strong
+    # reference to the list it indexed, so the identity cannot be recycled while
+    # the entry lives (the same address-reuse hazard as keying on id(row)).
+    cache_key = id(records)
+    cached = _COMMS_DIGITS_CACHE.get(cache_key)
+    if cached is not None and cached[1] is records:
+        return cached[0]
+    import re as _re
+
+    non_digit = _re.compile(r"\D+")
+    out: List[tuple] = []
+    for row in records:
+        struct = non_digit.sub(
+            "",
+            "\n".join(
+                (
+                    str(row.get("subject") or ""),
+                    str(row.get("content") or ""),
+                    str(row.get("attachments") or ""),
+                )
+            ),
+        )
+        meta = str(row.get("metadata") or "")
+        full = None
+        if meta and len(meta) <= _DIGIT_INDEX_MAX_META_CHARS:
+            full = struct + non_digit.sub("", meta)
+        out.append((struct, full))
+    # Bound the cache: keep only the most recent few row lists.
+    _COMMS_DIGITS_CACHE.clear()
+    _COMMS_DIGITS_CACHE[cache_key] = (out, records)
+    return out
+
+
+def _digit_blob_key(row: Dict[str, Any]):
+    """Stable identity for a comms row (NEVER ``id(row)``).
+
+    The blob map was keyed by ``id(row)`` so the rows themselves would not have
+    to be copied. That is unsafe: CPython reuses an object's address once it is
+    garbage collected, so a test fixture row could inherit a STORE row's blob and
+    be gated out — non-deterministically, depending on allocation order
+    (caught by test_match_rows_indian_grouping once the store had been loaded).
+    """
+    rid = str(row.get("id") or "")
+    if rid:
+        return rid
+    return (
+        str(row.get("sender") or ""),
+        str(row.get("recipient") or ""),
+        str(row.get("subject") or ""),
+        str(row.get("content") or "")[:120],
+    )
+
+
+def _blob_for_row(blob_map, row: Dict[str, Any]):
+    """The row's digit blob, or None when it cannot be attributed to that row.
+
+    Key collision is a real hazard: rows passed in ad-hoc (test fixtures,
+    previews) reuse ids like "msg-1", and looking one up by key would apply a
+    STORE row's blob to it — mis-attributing evidence, the same failure class as
+    keying on ``id(row)`` (CPython address reuse). The blob is therefore only
+    trusted when the row's OWN structured digits are contained in it, which is
+    true by construction for every row the blob was built from and false for an
+    unrelated row that merely shares a key.
+    """
+    if not blob_map:
+        return None
+    candidates = blob_map.get(_digit_blob_key(row))
+    if not candidates:
+        return None
+    own = _figure_canonical_digits(
+        "\n".join(
+            (
+                str(row.get("subject") or ""),
+                str(row.get("content") or ""),
+                str(row.get("attachments") or ""),
+            )
+        )
+    )
+    # A key can legitimately carry SEVERAL blobs (row ids are not unique across
+    # ad-hoc row lists), so take the first blob this row actually fits: a row
+    # with no digits of its own fits any key, and choosing the wrong sibling
+    # could gate it out on another row's evidence.
+    for blob in candidates:
+        if not blob:
+            continue
+        struct_digits, full_digits = blob
+        stored = full_digits if full_digits is not None else struct_digits
+        if stored is None:
+            continue
+        if own in stored:
+            return blob
+    return None
+
+
+def _figure_canonical_digits(phrase: str) -> str:
+    """The phrase's own digits — the needle the canonical haystack is searched for."""
+    import re as _re
+
+    return _re.sub(r"\D+", "", str(phrase or ""))
 
 
 def _search_ingested_by_address(user_id, address, limit=4, query=""):
@@ -2801,6 +2944,19 @@ def _match_rows_by_figure_tokens(
     variants = _probe_variants(phrases)
     seen_keys = set()
     scored = []
+    # Metadata pre-gate (see _comms_row_digit_blobs), keyed by the row's STABLE
+    # identity — see _digit_blob_key for why id(row) was wrong.
+    # The needles are the PHRASES' canonical digits (not the probe variants:
+    # those carry decorated spellings whose digits are a subset anyway).
+    query_needles = [d for d in (_figure_canonical_digits(ph) for ph in phrases) if d]
+    try:
+        _blobs = _comms_row_digit_blobs(_comms_store_db_path(), rows)
+        _blob_by_id = {}
+        for _r, _b in zip(rows, _blobs):
+            _blob_by_id.setdefault(_digit_blob_key(_r), []).append(_b)
+
+    except Exception:  # noqa: BLE001 — no gate is safe, just slower
+        _blob_by_id = {}
 
     def _consider(row, subject, content, raw_meta):
         """Score one row against every phrase; None when it does not match.
@@ -2834,6 +2990,21 @@ def _match_rows_by_figure_tokens(
     # the full original HTML (median 48 KB, max 35 MB/row); lowercasing and
     # substring-scanning 340 MB per query is what made this leg cost 13-22s.
     for row in rows:
+        # DIGIT GATE ON THE CHEAP PASS TOO. `_consider` canonicalizes the subject
+        # and body (variants, digit-edge rules) — the actual per-query cost once
+        # the 3 GB metadata scan was gated out (~4s over 7.2k rows). Pass 1 reads
+        # ONLY subject + content, so the structured half of the index is an EXACT
+        # gate here: if the query's canonical digits are absent from a row's own
+        # digits, no spelling of the phrase can occur in either field, and the
+        # canonicalization can be skipped entirely. Exact, not heuristic — the
+        # matcher requires the phrase's digits inside the field's digits.
+        if _blob_by_id and query_needles:
+            _blob = _blob_for_row(_blob_by_id, row)
+            if _blob is not None:
+                _struct_digits, _full_digits = _blob
+                _struct_hay = _full_digits if _full_digits is not None else _struct_digits
+                if not any(n in _struct_hay for n in query_needles):
+                    continue
         subject = str(row.get("subject") or "")
         content = str(row.get("content") or "")
         positions = _consider(row, subject, content, None)
@@ -2875,6 +3046,7 @@ def _match_rows_by_figure_tokens(
         raw_meta = row.get("metadata")
         if not isinstance(raw_meta, str) or not raw_meta:
             continue
+        row_blob = _blob_for_row(_blob_by_id, row)
         # ONE probe before the expensive pass, EXACTLY as broad as the matcher
         # below (variants + canonical keys, lowercased — the stored html has
         # uppercase tags). Two narrower probes were tried and both silently
@@ -2883,6 +3055,24 @@ def _match_rows_by_figure_tokens(
         # one missed uppercase html. This probe can only skip work, never a
         # match: whatever the pass could find is a substring of one of these
         # forms, and a hit still goes through the full matcher.
+        # CHEAPEST GATE FIRST: this row's digits must intersect the query's.
+        # The probe below reads and lowercases the whole HTML body — 3 GB across
+        # the store, measured at 5.5s per query, and it added ZERO matches for
+        # the live case because the plain-body pass had already found them
+        # (2026-09-16). The digit index is a provable superset of that probe, so
+        # this skip cannot lose a match.
+        if row_blob is not None and query_needles:
+            _struct_digits, _full_digits = row_blob
+            if _full_digits is not None:
+                # Indexed metadata: exact gate.
+                if not any(n in _full_digits for n in query_needles):
+                    continue
+            else:
+                # Oversized metadata: gate on the structured fields only, so a
+                # 3 MB html body is not read for a row whose own text has none
+                # of the query's digits (see _comms_row_digit_blobs).
+                if not any(n in _struct_digits for n in query_needles):
+                    continue
         meta_lc = raw_meta.lower()
         if not (
             any(v in meta_lc for v in variants)
@@ -3094,6 +3284,35 @@ async def _ingested_mailbox_lines(
                 store_lines.append(_line)
                 if len(store_lines) >= cap:
                     break
+
+    # IDENTIFIERS THAT LIVE INSIDE A FILE — the production lane's version of the
+    # general attachment join. This is the leg that reaches the message CARRYING
+    # an artifact when the identifier is in neither the message text nor the
+    # file name (live 2026-09-15: "find the email thread for f-5216" resolved to
+    # the wrong same-subject neighbours because the only message carrying
+    # F-5216.pdf names the code nowhere; the document text and the ledger are the
+    # join). Runs LAST and under its own budget: the content scan is the most
+    # expensive leg here and the caller wraps this lane in a 15s timeout, so it
+    # must never be the reason the lane is cut off — on timeout the lines already
+    # gathered are returned rather than lost.
+    _att_phrases = _fig_tokens or _inherited_figs
+    if _att_phrases and len(store_lines) < cap:
+        try:
+            _att_lines = await asyncio.wait_for(
+                asyncio.to_thread(_attachment_content_hits, _att_phrases, 2),
+                timeout=_ATTACHMENT_LEG_TIMEOUT_S,
+            )
+        except Exception as e:  # noqa: BLE001 — timeout/absence is not an error
+            logger.debug(f"attachment-content lane leg skipped: {e}")
+            _att_lines = []
+        for _line in _att_lines:
+            if len(store_lines) >= cap:
+                break
+            # Same message may already be listed from the text leg; keep the
+            # text line and skip the duplicate rather than listing it twice.
+            if any(_line[:120] == existing[:120] for existing in store_lines):
+                continue
+            store_lines.append(_line)
 
     if len(store_lines) < hybrid_min:
         try:
@@ -3498,6 +3717,14 @@ _OUTLOOK_READ_BODY_CAP = 5000
 # whole evidence budget while the thread that actually matched stays
 # readable. Every line also carries its `full: knowledge/conversations/<id>`
 # VFS path, so even a capped remainder is one documents.cat away.
+#: Hard budget for the attachment-content lane leg. The orchestrator wraps
+#: the whole mailbox lane in ~15s, so this leg must yield rather than be the
+#: reason a lookup comes back empty (a timeout returns the lines already
+#: gathered). Warm, the leg costs ~0.01s; cold, ~2s.
+_ATTACHMENT_LEG_TIMEOUT_S = float(
+    os.getenv("ATOM_ATTACHMENT_LEG_TIMEOUT_S", "3") or 3
+)
+
 _INGESTED_BODY_LINES = 2
 _INGESTED_BODY_CAP = 2500
 _INGESTED_FULL_LINES = int(os.getenv("ATOM_INGESTED_FULL_BODY_LINES", "1") or 1)

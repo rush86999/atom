@@ -199,3 +199,77 @@ class TestRenderedLineCarriesAttachments:
         )
         assert "F-5216.pdf" in line
         assert "ext_abc" in line
+
+
+class TestProductionLaneWiring:
+    """The chat orchestrator consumes ``_ingested_mailbox_lines`` — NOT
+    ``_memory_search_block``.
+
+    The first cut of the attachment legs was wired into the memory block, so the
+    live chat path (and the canvas the user was watching) never ran them: the
+    agent kept answering "the calculation file is not available in the verified
+    data" while its own mailbox lane held the message carrying the file
+    (live 2026-09-16). The legs must be reachable from the lane production
+    actually calls.
+    """
+
+    def test_mailbox_lane_carries_the_attachment_leg(self):
+        import inspect
+
+        src = inspect.getsource(p._ingested_mailbox_lines)
+        assert "_attachment_content_hits" in src, (
+            "_ingested_mailbox_lines must call the attachment-content leg; "
+            "wiring it only into _memory_search_block leaves the live chat path blind"
+        )
+
+    def test_attachment_leg_has_its_own_budget(self):
+        """The orchestrator wraps this lane in ~15s, so the leg must yield
+        rather than be the reason a lookup returns nothing."""
+        assert p._ATTACHMENT_LEG_TIMEOUT_S > 0
+        import inspect
+
+        assert "wait_for" in inspect.getsource(p._ingested_mailbox_lines)
+
+
+class TestDigitGateEquivalence:
+    """The digit pre-gate may only SKIP work, never change an answer.
+
+    It exists because the matcher's metadata pass read 3 GB of HTML per query
+    (5.5s of an 8.4s search) and added zero matches. The gate is sound because a
+    hit requires the phrase's canonical DIGITS inside the field's digits — so a
+    row whose digits lack the needle's digits cannot match. These tests pin that
+    property rather than the implementation: whatever the gate does, the matched
+    ROWS must be identical with and without it.
+    """
+
+    ROWS = [
+        {"id": "a", "subject": "Quote", "content": "Total Rs. 1,00,000 only",
+         "sender": "s@x.com", "recipient": "r@y.com", "timestamp": "2026-01-01 00:00:00"},
+        {"id": "b", "subject": "RE: quote", "content": "no figure here",
+         "metadata": '{"html_body": "<div>quoted $5,350.00 net</div>"}',
+         "sender": "s@x.com", "recipient": "r@y.com", "timestamp": "2026-01-02 00:00:00"},
+        {"id": "c", "subject": "unrelated", "content": "nothing",
+         "sender": "s@x.com", "recipient": "r@y.com", "timestamp": "2026-01-03 00:00:00"},
+    ]
+
+    @pytest.mark.parametrize("phrase", ["1,00,000", "5,350.00", "5350", "999999"])
+    def test_gated_matches_equal_ungated(self, monkeypatch, phrase):
+        rows = [dict(r) for r in self.ROWS]
+        gated = [r["id"] for r in p._match_rows_by_figure_tokens(rows, [phrase], limit=50)]
+
+        monkeypatch.setattr(p, "_comms_row_digit_blobs", lambda *a, **k: [None] * len(a[1]))
+        ungated = [r["id"] for r in p._match_rows_by_figure_tokens(rows, [phrase], limit=50)]
+
+        assert gated == ungated, f"gate changed the answer for {phrase!r}"
+
+    def test_gate_never_crashes_on_a_missing_blob(self, monkeypatch):
+        monkeypatch.setattr(p, "_comms_row_digit_blobs", lambda *a, **k: [None] * len(a[1]))
+        assert p._match_rows_by_figure_tokens([dict(self.ROWS[0])], ["1,00,000"], limit=5)
+
+    def test_blob_is_not_attributed_to_a_lookalike_row(self):
+        """Rows with the same key but different content must not share a blob."""
+        blob_map = {"dup": [("", "535000")]}
+        other = {"id": "dup", "subject": "s", "content": "different text 777",
+                 "sender": "", "recipient": ""}
+        # own digits '777' are NOT in the stored blob, so it is not attributed.
+        assert p._blob_for_row(blob_map, other) is None

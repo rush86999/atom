@@ -42,6 +42,195 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15k: "is there a better approach?" — yes, and it was already in hand
+
+**Ask**: is there a better approach (than tuning this scanner)?
+
+**Tested the obvious candidate first — SQLite FTS5 — and it is DISQUALIFIED by
+measurement.** Build is cheap (0.51s for 7,285 rows) but its tokenizer splits
+figures on punctuation: `MATCH '7519'` returns **0 rows** for text stored as
+`7,519.00`, and `MATCH '5350'` returns 17 rows where the exact matcher finds 27
+(misses real matches). FTS5 token semantics are not canonical-digit semantics, so
+it cannot pre-filter this matcher without recall loss — and a pre-gate narrower
+than the pass it guards is the exact bug class this file has recorded twice.
+
+**The better approach was the index already built in 15j, applied one layer
+higher.** It was gating only the metadata pass while `_match_rows_by_figure_tokens`
+still ran its canonicalization over EVERY row in pass 1 — the actual per-query
+cost once the 3 GB was gone. Pass 1 reads only subject + content, so the
+structured half of the digit blob is an **exact** gate for it (same soundness
+argument: a hit needs the phrase's digits inside the field's digits).
+
+**Result — measured gated vs ungated on the live store, row-for-row identical:**
+
+| query | gated | ungated | speedup |
+|---|---|---|---|
+| `f-5216` | 18 rows / 2.6s | 18 rows / 8.8s | 3.4x |
+| `5,350.00` | 5 rows / 0.8s | 5 rows / 12.0s | 16x |
+| `7519` | 8 rows / 0.9s | 8 rows / 6.7s | 7x |
+| `$ 8,880.00` | 16 rows / 0.6s | 16 rows / 11.0s | 18x |
+
+Production lane: **12.0s → 1.0s** (warm), same 5 lines, F-5216 carrier intact.
+
+**Three attribution bugs found by the suite, all the same class** — a gate keyed
+by something that is not row-unique:
+1. `id(row)` — CPython reuses addresses after GC, so a fixture could inherit a
+   store row's blob (caught by `test_match_rows_indian_grouping`).
+2. dict keyed by row id — rows reuse ids ("msg-1"), so the surviving blob was
+   applied to the wrong row.
+3. the blob cache keyed by store PATH — a second row list for the same store
+   collided with the first list's blobs; now keyed by the records list with a
+   strong reference.
+Resolution: `_blob_for_row` returns a blob only when the row's OWN digits are
+contained in it, and the key map is multi-valued. Plus a None-safe guard so a
+malformed blob can never crash a search.
+
+**Locked by tests**: `TestDigitGateEquivalence` (5) asserts gated == ungated row
+ids for real phrases including an html-body-only figure, and that a lookalike row
+never inherits a sibling's blob. 32 passed in that file, 156 across the four
+planner suites.
+
+### 15j: why the mailbox search was slow — the 3 GB metadata scan
+
+**Measured** (same interpreter/DB the app uses, caches warm):
+
+| leg | before | after |
+|---|---|---|
+| `_search_ingested_by_tokens` | **8.4s** | ~4s |
+| `_attachment_content_hits` (new) | 0.01s | 0.01s |
+| `_resolve_named_addresses` / address scan | ~0 | ~0 |
+| **`_ingested_mailbox_lines` total** | **12.0s** | **3.6s** |
+
+**Root cause**: `_match_rows_by_figure_tokens` pass 2 reads and lowercases the
+`metadata` column — the full original HTML, **3,029 MB** across 7,284 rows (median
+50 KB, max 35 MB, 1,901 rows > 100 KB) — for every row pass 1 did not already
+match. Measured contribution: **5.5s of the 8.4s**, and it added **ZERO** matches
+for the live cases (18 rows with metadata, 18 without): pass 1 had already found
+them. The comment on that pass already suspected this ("lowercasing and
+substring-scanning 340 MB per query is what made this leg cost 13-22s") — the
+store has since grown 9x.
+
+**Fix**: a per-store TTL-cached digit index gates the metadata scan. Correctness
+rests on the matcher's own semantics: a hit requires the phrase's canonical
+DIGITS to appear inside the text's canonical digits, so a row whose digits do not
+contain the needle's digits cannot match and its HTML never needs reading.
+Deliberate design points, each learned by getting it wrong first:
+* **canonical digits, not digit runs** — a runs-based rule looks tighter but
+  MISSED a real match on the live store ('7519' vs a row storing '7,519.00',
+  whose runs are 7/519/00). The canonical form is the property the matcher
+  actually relies on.
+* **metadata is indexed too** (bounded by `ATOM_DIGIT_INDEX_MAX_META_CHARS`,
+  default 200 000): excluding it broke `test_match_rows_html_body_counts`, which
+  is a REAL case — a figure that lives only in the styled html_body.
+* **oversized metadata is gated on the structured fields** with `full=None`:
+  indexing 35 MB rows costs more than the scan, and an ungated 2.7 GB is what
+  kept the query at 8.5s even after the first gate. This is the one deliberate
+  trade (an html-body-only figure inside a >200 KB message can be skipped); the
+  env var raises or removes it.
+* the index is dropped whenever the store cache is reloaded, so a refresh can
+  never gate on stale rows.
+* **fail-open**: a row with no blob (a test fixture) is always scanned.
+
+**Verified**: result counts unchanged across the observed queries (f-5216: 18,
+'5,350.00': 5, '7519': 8, '$ 8,880.00': 16), 137 passed across the three planner
+suites (including the html-body case that the first gate attempt broke), and the
+production lane returns the same 5 lines including the F-5216 carrier.
+
+**Remaining** (~4s): pass 1 itself — Python-level `find` over subject+content for
+all 7,284 rows, paid per call, and the lane calls two matchers. Not addressed
+here; the 3 GB is.
+
+### 15i: the legs were in the wrong lane — live chat path wired
+
+**Owner report**: the canvas agent's retry still said "the calculation
+file/attachment is not available in the verified data" and "the live
+integration lookup still did not complete".
+
+**Root cause of that (mine)**: the attachment legs were wired into
+`_memory_search_block` — which I had been testing — but the chat orchestrator
+does NOT call it. It calls `_ingested_mailbox_lines` (planner-timeout and
+mailbox paths, `chat_orchestrator.py:546`), so every leg I added was invisible to
+the surface the user was looking at. Testing the helper instead of the consumer
+is what hid it; the fix is now asserted structurally
+(`TestProductionLaneWiring`: the lane's own source must reference the leg).
+
+**Wired now**: `_ingested_mailbox_lines` runs the attachment-content leg last,
+under `ATOM_ATTACHMENT_LEG_TIMEOUT_S` (3s) via `asyncio.wait_for`, deduped
+against the text lines — the orchestrator wraps the whole lane in ~15s, so the
+leg yields with the lines already gathered rather than being the reason a lookup
+comes back empty. Live, the lane now returns 5 lines: the four same-subject
+neighbours PLUS
+`vipul@brennan.ca -> kevin@kelbern.ca, chandrakant@brennan.ca | attachments:
+F-5216.pdf (open: knowledge/documents/ext_b411ea…/content.lines) | MATCHED
+INSIDE ITS ATTACHMENT`.
+
+**The pointers were verified openable, not assumed**: `resolve_provider` +
+`documents.read` (read_region) on that path returns the quotation whose text
+literally reads "Brennan Machinery is pleased to provide you with a quotation
+for the F-5216 / # F-5216" — so the agent can now read the artifact instead of
+reporting it missing. Same for the derivation file:
+`knowledge/documents/ext_c1f74b7fad81fa71596b5380/content.lines` L315 =
+``R235 | F-52"x16G | … | 7519.0 | … | 5350 | 4815.0 | 4815.0 | 5515.0 | 5515.0 |
+5625.3 | 6465.86 | 7518.44 | 7519.0``. Both were located by walking regions
+(`next_start`) — the plain `get_provider().cat()` call needs the file path and
+does not take `start_line`, which is why the earlier probe failed.
+
+**Also checked (no change needed)**: a bogus `knowledge/conversations/<id>` path
+returns 0 lines silently, so it was worth asking whether the mailbox excerpt
+pointers are dead — three REAL ids resolve (722/36/224 lines), so the
+convention is sound.
+
+### 15h: attachments are first-class searchable evidence (generalized)
+
+**Ask**: "try the search again … focus on the email thread for F-5216", then
+"solution should be generalized, domain and business independent".
+
+**What the real search returns now** (live `_memory_search_block`, same
+interpreter the app uses): the thread for the code resolves to the message that
+CARRIED the file — `vipul@brennan.ca -> kevin@kelbern.ca, chandrakant@brennan.ca`
+with `F-5216.pdf (open: knowledge/documents/ext_b411ea…/content.lines)` — where
+before the block contained no attachment and no code-bearing file at all.
+
+**The structural problem, stated generally**: an identifier can live in three
+places, and the search only read one of them. (1) message text — covered;
+(2) the file NAME — not covered; (3) the file CONTENT — not covered. The F-5216
+case fails on all three at once: the 4:07 PM forward's body says only "Fw: RFQ -
+Foot shear / Please check - row - 235", the workbook is named `PRICE VIPUL
+(6).xlsx` (no code), and even its row 235 reads ``F-52"x16G`` — the literal
+"F-5216" exists nowhere in the message, the name, or the file. An agent could
+only reach the answer by joining file → carrying message.
+
+**Implemented — three legs, one relation** (`core/chat_tool_planner.py`):
+* `_comms_attachment_names()` / `_comms_attachment_text()` — a message's files
+  from BOTH the `attachments` column AND the ingestion ledger (they disagree in
+  the wild: the F-5216 forward stores `'[]'` while its workbook is ingested
+  behind it), with identifier tokens tokenized out of the file stem.
+* `_mail_attachment_index()` / `_reverse` / `_doc_to_message_index()` — one
+  cached ledger query read three ways (message→file, file→message, doc→message),
+  so the directions can never disagree.
+* `_messages_carrying_file()` — dataset hit → the message that carried the file
+  (token-overlap matched, needs 2 shared tokens or 1 long one).
+* `_attachment_content_hits()` — file CONTENT → carrying message, scanning ONLY
+  the documents that are attachments, case-insensitively.
+* Rendering: listing lines now name the structured attachments with
+  `open: knowledge/documents/<id>/content.lines` even when the legacy
+  `--- Attachments ---` footer is absent (it was: the forward listed none).
+
+**Two generalization bugs found by running it, not by reading it**:
+* `slice(0, 4000)` over the documents table scanned the WRONG rows — the store
+  is not ordered and the target chunk sat past the cut (1 match full-table, 0
+  sliced). Replaced with a membership filter on the attachment set: bounded by
+  construction. Lesson recorded: never slice a scan you cannot order.
+* Case: the planner lowercases tokens (`f-5216`), the store keeps source casing
+  (`F-5216`), `pc.match_substring` is case-sensitive — the leg returned 0 until
+  both sides were lowered. Fixed and narrowed BEFORE lowercasing (39k rows →
+  attachment subset): 2.25s cold, 0.01s warm.
+
+**Verified live** after `restart_backend.sh`: leg returns the carrier message;
+full block (26,158 chars) contains `F-5216.pdf` + `MATCHED INSIDE ITS
+ATTACHMENT` + the openable doc path. Domain-independent throughout: any comms
+row from any integration, any file type, no business vocabulary.
+
 ### 15g: app-database NL→SQL — audited, two real defects fixed
 
 **Question asked**: "isn't NL→SQL also be used for db?" Answer: yes — it already
