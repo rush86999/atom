@@ -56,8 +56,79 @@ fixing, and each fix was verified live end-to-end or by red-first tests.
 
 ## 0. Current status — one consistent account
 
-**Revision:** `010b70d40` · **Serving process:** pid **22091**, started
-**2026-09-16T14:01:51Z**, port **8001**, db `backend/data/atom.db`.
+> **Status: OPEN.** Updated 2026-09-16 by the stabilization pass, superseding
+> earlier per-round claims in this section. `docs/audits/2026-09-16_workbook_derivation_round.md`
+> is the newer chronology and wins on routing detail (§0.1 reconciles the run
+> counts).
+
+### 0.1 The single coherent acceptance result
+
+The only run that counts as a coherent measurement is one instance, one build,
+no restart, low load:
+
+| case | verdict | latency |
+|---|---|---|
+| quote | PASS | **187.9 s** |
+| directional | FAIL (carrier not referenced) | 66.9 s |
+| derivation | **NOT EVALUATED** — `turn_budget_exceeded` | 128.6 s |
+| control_unrelated_source | PASS | 129.6 s |
+| control_missing_evidence | PASS | 86.1 s |
+
+**3/5 on `cf766a4110bf-dirty`.** Completion therefore requires grounded answers,
+bounded delivery AND correct evaluation — not another isolated successful
+derivation.
+
+**Reconciling the conflicting counts.** Earlier entries in this section and in
+the round log cite 2/5, 4/5 and "all five have passed". All three are true of
+*older builds or multi-instance sweeps*, and none is an acceptance result:
+
+* the **4/5** run was against a build that has since changed, and its
+  derivation case is the one now failing on budget;
+* **"all five have passed"** aggregates cases passed on *different* builds and
+  must not be read as a suite result — no single build has ever passed 5/5;
+* the **2/5** run was confounded by a concurrent restart.
+
+**Timing is a first-class verdict, not a footnote.** The quote case PASSED at
+187.9 s against a ~115 s internal budget and a 120 s client abort: that is a
+**quality pass and an operational failure**. A 209 s response cannot satisfy a
+115 s budget regardless of answer quality, so latency and correctness are
+reported separately from here on and a pass that breaches the deadline is
+recorded as a breach.
+
+### 0.2 What this stabilization pass changed
+
+| Directive | Change | Evidence |
+|---|---|---|
+| 1 · one deadline | `TurnDeadline` established as the **first statement of the request** and threaded into the reply leg. Per-leg constants are now upper bounds (`deadline.slice`), the first-visible bound is capped to the remaining time, and the reply leg refuses to start when the turn is already out of time. | **[I][T]** 113 passed across six suites |
+| 1 · cancellation | `_cancel_and_confirm` cancels the turn's owned tasks, waits a grace window and **reports survivors** — cancelling a coroutine awaiting a provider read does not stop the work behind it. | **[T]** probe correctly reported `survived: 1` for a task that ignores `CancelledError` |
+| 3 · verification | The citation bypass is **removed**. Claims are checked by **evaluating** the workbook's own formulas: STORED / COMPUTED / UNRESOLVED / CONTRADICTED, with `is_clean` requiring that something was actually checked. `COLUMNS: <name>=<letter>` now bridges rendered column names to the letters formulas use. | **[I][T]** 16 new tests; the five required cases behave correctly |
+| 4 · detector | `_derivation_reply_ignored_the_row` is **NOT** promoted to a model-quality verdict in this pass (see §0.3). | — |
+
+### 0.3 Correction to the round log's "next step"
+
+`2026-09-16_workbook_derivation_round.md` concludes that recording
+`evidence_ignored` from `_derivation_reply_ignored_the_row` is "the next step".
+**That is wrong as written and is not being done.** The detector infers "the
+reply ignored the evidence" from the ABSENCE of a row-reference pattern, which
+is not proof of anything: a correct calculation can omit the citation syntax
+(the verification contract above explicitly classifies such an answer as
+UNVERIFIED, not failed), and a useless answer can include it. Before it can
+influence routing it must establish that the dispatched prompt actually carried
+sufficient relevant evidence AND that the answer failed the requested task —
+distinguishing missing citation, unanswered request, justified uncertainty,
+unavailable evidence and incorrect calculation. It stays on the observation /
+shadow path until that behaviour is established.
+
+
+**Revision (this table's measurements):** `010b70d40` · **Serving process at
+the time:** pid **22091**, started **2026-09-16T14:01:51Z**, port **8001**, db
+`backend/data/atom.db`.
+
+> The per-area table below is a HISTORICAL record of what each round established.
+> It is **not** the current acceptance status — that is §0.1. Its revision and
+> pid are pinned to the round that produced it, and the code has moved since
+> (the stabilization pass in §0.2 landed on top of it). Read a row as "this was
+> implemented and tested at that revision", never as "this is green now".
 **UI attribution (verified, not assumed):** the Next.js app on :3000 proxies
 `/api/*` to **8001**, and the browser held **3 established sockets to 8001 and
 0 to 8000**. Port **8000 is a DIFFERENT application** (`atom-saas/backend-saas`,
