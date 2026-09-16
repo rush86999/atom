@@ -138,7 +138,112 @@ REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are pow
 # tool execution) and is kept strictly below the client timeout so the backend
 # always gets to answer. Set ATOM_CHAT_TURN_BUDGET_SECONDS=0 to restore the
 # old unbounded behavior.
+class TurnDeadline:
+    """ONE clock for a whole chat request, established at request ENTRY.
+
+    The defect this replaces: the budget was anchored at ``_plan_t0`` — a point
+    already past session load, provenance hydration, planner and tool execution —
+    and every downstream stage (stream, non-streaming fallback, each guard
+    regeneration) called the helper again and got a FRESH budget. So the
+    stages accumulated: a 115 s budget produced a 209 s reply, because nothing
+    was measuring the turn the client was actually waiting on.
+
+    The client's own timeout is the contract (frontend
+    ``useChatInterface.ts: timeout: 120000``). A request-entry deadline is the
+    only anchor that makes "answer before the client gives up" checkable, and
+    every stage must spend from what is LEFT rather than from a new allowance.
+
+    ``expired()`` is checked before starting work, not only during it: a fallback
+    or corrective regeneration that cannot finish is work whose output nobody
+    will see, so starting it is waste on top of the breach.
+    """
+
+    __slots__ = ("started_at", "total_seconds", "enabled", "label")
+
+    def __init__(self, total_seconds: float, label: str = "chat") -> None:
+        self.started_at = time.monotonic()
+        self.total_seconds = float(total_seconds or 0)
+        self.enabled = self.total_seconds > 0
+        self.label = label
+
+    # -- measurement ---------------------------------------------------------
+    def elapsed(self) -> float:
+        return time.monotonic() - self.started_at
+
+    def remaining(self) -> float:
+        """Seconds left on the turn. ``inf`` when the budget is disabled."""
+        if not self.enabled:
+            return float("inf")
+        return self.total_seconds - self.elapsed()
+
+    def expired(self, *, reserve: float = 0.0) -> bool:
+        """True when less than ``reserve`` seconds remain (or none do)."""
+        if not self.enabled:
+            return False
+        return self.remaining() <= max(0.0, reserve)
+
+    def slice(self, want: float, *, reserve: float = 0.0) -> float:
+        """The longest wait allowed now: ``want`` capped to what is left.
+
+        Stage budgets are REQUESTS, not entitlements — this is what keeps a
+        per-stage constant (a 30 s first-visible bound, a 25 s planner wait)
+        from outliving the turn it is part of.
+        """
+        if not self.enabled:
+            return want
+        return max(0.0, min(want, self.remaining() - max(0.0, reserve)))
+
+    def stage(self, name: str):
+        """Context manager that logs a bounded stage's start/end/critical path."""
+        return _DeadlineStage(self, name)
+
+
+class _DeadlineStage:
+    """Trace one stage: its own duration AND how much of the turn it consumed."""
+
+    __slots__ = ("_d", "_name", "_t0", "_turn0")
+
+    def __init__(self, deadline: TurnDeadline, name: str) -> None:
+        self._d = deadline
+        self._name = name
+        self._t0 = 0.0
+        self._turn0 = 0.0
+
+    def __enter__(self):
+        self._t0 = time.monotonic()
+        self._turn0 = self._d.elapsed()
+        return self
+
+    def __exit__(self, *_exc) -> bool:
+        dur = time.monotonic() - self._t0
+        logger.info(
+            f"[deadline] {self._d.label} stage={self._name} dur={dur:.1f}s "
+            f"turn_offset={self._turn0:.1f}s elapsed={self._d.elapsed():.1f}s "
+            f"remaining={self._d.remaining():.1f}s budget={self._d.total_seconds:.1f}s"
+        )
+        return False
+
+
+def _request_deadline_seconds(derivation: bool = False) -> float:
+    """Total wall-clock budget for one chat REQUEST (not one reply leg).
+
+    Defaults sit under the client's 120 s abort so the backend answers first.
+    ``ATOM_CHAT_REQUEST_DEADLINE_SECONDS`` overrides; ``0`` disables.
+    """
+    raw = os.getenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS")
+    if raw is not None and str(raw).strip() != "":
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            logger.warning(f"invalid ATOM_CHAT_REQUEST_DEADLINE_SECONDS {raw!r}")
+    return 115.0 if derivation else CHAT_TURN_BUDGET_DEFAULT_SECONDS
+
+
 CHAT_TURN_BUDGET_DEFAULT_SECONDS = 95.0
+#: Derivation-class turns get a longer internal budget — still under the ~120 s
+#: client budget, but enough for a formula chain (measured 57–94 s of reply).
+CHAT_DERIVATION_TURN_BUDGET_SECONDS = float(
+    os.getenv("ATOM_DERIVATION_TURN_BUDGET_SECONDS", "115") or 115)
 # While a stream is silent (provider thinking), emit a keepalive frame at most
 # this often so the websocket/proxy layer never sees an idle connection.
 _HEARTBEAT_SLICE_SECONDS = 10.0
@@ -162,18 +267,118 @@ _STREAM_FALLBACK_RESERVE_SECONDS = float(
 # and the same pattern on quote/control cases at 118-366s. A stream that has
 # not shown a single content token in this long is not going to finish inside
 # the turn; spending the rest of the budget proving it is the bug.
+#: How long the canvas-EDIT leg may hold a DERIVATION turn before the turn
+#: falls through to the tool path. A derivation ask wants a workbook row and
+#: its formulas (the deterministic lane below supplies exactly that); the
+#: canvas-edit leg is for editing/creating canvas content and *declines* these
+#: asks anyway ("canvas edit declined: the turn needs live data and the lookup
+#: failed — falling through to the tool path"). Measured 2026-09-16: that leg
+#: cost 40–69 s of a turn whose reply is 57–94 s, against a client budget of
+#: ~120 s. Bounding it keeps the leg's chance to answer FAST while stopping
+#: the turn from paying for a decline.
+_CANVAS_EDIT_DERIVATION_WAIT_SECONDS = float(
+    os.getenv("ATOM_CANVAS_EDIT_DERIVATION_WAIT_SECONDS", "12") or 12)
+
 _STREAM_FIRST_VISIBLE_SECONDS = float(
     os.getenv("ATOM_STREAM_FIRST_VISIBLE_SECONDS", "30") or 30
 )
 
+#: Same deadline for a DERIVATION ask — tighter, and for a different reason.
+#: A derivation answer is a few hundred tokens of transcription from the row
+#: the harness already delivered; a route that has shown NOTHING visible after
+#: 15 s of a ~115 s turn is spending the turn on hidden thinking. Measured
+#: 2026-09-16 on one build: the stream sat 30 s with zero chunks, the
+#: non-streaming fallback pinned to the next-ranked route then returned
+#: ``finish_reason=length`` with no visible content either (reasoning consumed
+#: the completion cap), and the turn ended at 141.5 s as
+#: ``turn_budget_exceeded`` — the only case in that acceptance run that was
+#: never evaluated. 0 disables the bound.
+_DERIVATION_STREAM_FIRST_VISIBLE_SECONDS = float(
+    os.getenv("ATOM_DERIVATION_STREAM_FIRST_VISIBLE_SECONDS", "15") or 15)
 
-def _chat_turn_budget_seconds() -> float:
+#: Completion cap for a DERIVATION reply. The reply is short, so the cap is not
+#: there to shorten it: ``max_tokens`` also sets the hidden-reasoning budget
+#: (``_reasoning_request_body`` grants a third of it, capped), and an
+#: over-generous cap lets a reasoning-heavy route spend ~2000 tokens thinking
+#: before writing a visible word — then truncate (``finish_reason=length``) with
+#: nothing to show. 3000 leaves ~2000 tokens of answer room, far more than the
+#: derivation's few hundred, and bounds the thinking that costs the turn its
+#: budget.
+_DERIVATION_COMPLETION_MAX_TOKENS = int(
+    os.getenv("ATOM_DERIVATION_COMPLETION_MAX_TOKENS", "3000") or 3000)
+
+
+def _first_visible_limit_seconds(derivation: bool = False) -> float:
+    """First-visible deadline for one reply leg, by request class.
+
+    Read per call (like ``_chat_turn_budget_seconds``) so an env change applies
+    without a restart, and so the value is testable without reloading the
+    module. ``0`` disables the bound.
+    """
+    if derivation:
+        raw = os.getenv("ATOM_DERIVATION_STREAM_FIRST_VISIBLE_SECONDS")
+        default = _DERIVATION_STREAM_FIRST_VISIBLE_SECONDS
+    else:
+        raw = os.getenv("ATOM_STREAM_FIRST_VISIBLE_SECONDS")
+        default = _STREAM_FIRST_VISIBLE_SECONDS
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        logger.warning(
+            f"invalid first-visible deadline {raw!r} — using {default:.0f}s")
+        return default
+
+
+def _reply_token_cap(derivation: bool = False) -> int:
+    """Completion cap for one reply leg, by request class (see the constants)."""
+    if not derivation:
+        # Imported lazily to keep this module's import graph unchanged, and so
+        # the handler's cap stays the single source of truth for the ordinary
+        # path instead of a duplicated literal that can drift.
+        from core.llm.byok_handler import _DEFAULT_COMPLETION_MAX_TOKENS
+
+        return _DEFAULT_COMPLETION_MAX_TOKENS
+    raw = os.getenv("ATOM_DERIVATION_COMPLETION_MAX_TOKENS")
+    if raw is None or str(raw).strip() == "":
+        return _DERIVATION_COMPLETION_MAX_TOKENS
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        logger.warning(
+            f"invalid derivation completion cap {raw!r} — using "
+            f"{_DERIVATION_COMPLETION_MAX_TOKENS}")
+        return _DERIVATION_COMPLETION_MAX_TOKENS
+
+
+def _chat_turn_budget_seconds(derivation: bool = False) -> float:
     """Total LLM budget (seconds) for one chat reply leg.
 
     ``ATOM_CHAT_TURN_BUDGET_SECONDS`` overrides; ``0`` (or negative) disables
     the budget entirely. Invalid values fall back to the default. Never
     raises — this sits on the chat hot path.
+
+    ``derivation=True`` asks for the DERIVATION budget instead. A derivation
+    answer is a workbook row plus its whole formula chain evaluated cell by
+    cell — measured 57–94 s of reply on top of 12 s of planning, against a
+    ~120 s client budget. The 95 s default is a stricter internal bound than
+    the client it protects, so it failed turns that were about to succeed:
+    measured 2026-09-16, `http=200 108.6s delivery=structured_error
+    (turn_budget_exceeded)` for a derivation that fits the client's window.
+    The derivation budget stays UNDER the client budget on purpose — the
+    point is to fail before the client does, not after.
     """
+    if derivation:
+        raw_d = os.getenv("ATOM_DERIVATION_TURN_BUDGET_SECONDS")
+        if raw_d:
+            try:
+                return float(raw_d)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Invalid ATOM_DERIVATION_TURN_BUDGET_SECONDS=%r, using "
+                    "default %s", raw_d, CHAT_DERIVATION_TURN_BUDGET_SECONDS)
+        return CHAT_DERIVATION_TURN_BUDGET_SECONDS
     raw = os.getenv("ATOM_CHAT_TURN_BUDGET_SECONDS")
     if raw:
         try:
@@ -222,6 +427,45 @@ def _remaining_budget(turn_t0: float, budget: Optional[float] = None) -> float:
     if budget <= 0:
         return float("inf")
     return max(0.0, budget - (time.monotonic() - turn_t0))
+
+
+async def _cancel_and_confirm(
+    tasks: List["asyncio.Task"], *, grace: float = 1.0, label: str = "turn"
+) -> Dict[str, Any]:
+    """Cancel owned work and CONFIRM it stopped, rather than assuming.
+
+    Cancelling a coroutine that is awaiting a provider read does not stop the
+    work behind it: the SDK's own connection/stream can keep running, and a task
+    that swallows CancelledError keeps going. The previous code cancelled and
+    moved on, so an expired turn could leave provider work alive — invisible in
+    the reply but still consuming budget, sockets and rate limit.
+
+    Returns a record of what was cancelled and what SURVIVED the grace window,
+    so "we stopped it" is a measured claim. Survivors are logged loudly.
+    """
+    pending = [t for t in (tasks or []) if t is not None and not t.done()]
+    for t in pending:
+        t.cancel()
+    if not pending:
+        return {"cancelled": 0, "survived": 0}
+    done, still = await asyncio.wait(pending, timeout=grace)
+    survived = [t for t in still if not t.done()]
+    record = {"cancelled": len(pending), "survived": len(survived)}
+    if survived:
+        # Loud: a task that ignores cancellation is a bug in that task, and the
+        # turn's budget accounting is wrong until it is fixed.
+        logger.error(
+            f"[deadline] {label}: {len(survived)} task(s) still running "
+            f"{grace:.1f}s after cancel — they will outlive the turn"
+        )
+        for t in survived:
+            logger.error(f"[deadline]   survivor: {t!r}")
+    else:
+        logger.info(
+            f"[deadline] {label}: cancelled {len(pending)} owned task(s), "
+            f"all confirmed stopped within {grace:.1f}s"
+        )
+    return record
 
 
 def _turn_budget_error_response() -> Dict[str, Any]:
@@ -451,6 +695,80 @@ _DERIVATION_CITE_RE = re.compile(
     re.IGNORECASE,
 )
 _NUM_STEP_RE = re.compile(r"[$€£]\s?\d[\d,.]*|%\s|÷\s?\d|×\s?\d")
+
+
+#: A row reference in a reply: "R235", "row 235", "Row: 235".
+_ROW_CITE_RE = re.compile(r"\bR\d{1,5}\b|\brow\s*[:#]?\s*\d{1,5}\b",
+                          re.IGNORECASE)
+
+
+def _derivation_reply_ignored_the_row(reply: str,
+                                      tool_block: Optional[str]) -> bool:
+    """The evidence carried the matched workbook row; the reply did not use it.
+
+    A derivation ask whose evidence block contains ``FORMULAS FOR THE MATCHED
+    ROW`` has the answer IN THE PROMPT. A reply that cites no row is therefore
+    not "a different view" — it ignored what it was given. Measured
+    2026-09-16 with byte-identical evidence: one model walked the chain
+    (row 235, six formulas, unresolved O235) while another answered "the
+    required live-data lookup failed" or asked the user to confirm which record
+    they meant. The existing inability guard catches only some of those
+    phrasings, so this checks the deterministic thing instead: did the reply
+    use the row it was handed?"""
+    if not reply or not tool_block:
+        return False
+    if "FORMULAS FOR THE MATCHED ROW" not in tool_block:
+        return False
+    return not _ROW_CITE_RE.search(reply)
+
+
+def _cross_route_retry_route(
+    fallback_routes: Optional[list],
+    served_route: Optional[tuple],
+) -> Optional[tuple]:
+    """The route a CORRECTIVE retry should use, or ``None``.
+
+    A reply that ignored delivered evidence came from a specific
+    ``(provider, model)`` route. Re-sending the same prompt to that same route
+    is a coin flip — measured 2026-09-16 with byte-identical evidence, one
+    model declined every time while its siblings walked the chain — so the
+    retry goes to a DIFFERENT route, and prefers a different PROVIDER because
+    the alternative must not be the same upstream's other name for the same
+    behaviour. Preference order:
+
+    1. different model on a different provider (a real cross-provider fallback),
+    2. different model on the same provider,
+    3. the same model on a different provider — a route change is still a
+       change of serving stack, and it is preferred over repeating an attempt
+       that demonstrably ignored the evidence.
+
+    ``None`` when the ranking offers no other route: the caller then keeps the
+    current route, which is honest degradation instead of a fabricated
+    fallback."""
+    routes = [
+        (str(r[0]), str(r[1]))
+        for r in (fallback_routes or [])
+        if isinstance(r, (tuple, list)) and len(r) == 2 and r[0] and r[1]
+    ]
+    if not routes:
+        return None
+    served = None
+    if served_route and len(served_route) == 2 and served_route[0] and served_route[1]:
+        served = (str(served_route[0]), str(served_route[1]))
+        routes = [r for r in routes if r != served]
+    if not routes:
+        return None
+    if served is not None:
+        different_provider = [r for r in routes
+                              if r[1] != served[1] and r[0] != served[0]]
+        if different_provider:
+            return different_provider[0]
+        different_model = [r for r in routes if r[1] != served[1]]
+        if different_model:
+            return different_model[0]
+        return routes[0]
+    return routes[0]
+
 
 
 def _reply_is_unsourced_derivation(reply: str, message: str) -> bool:
@@ -2082,6 +2400,18 @@ class ChatOrchestrator:
                 ``intent`` keys. Threaded through to the LLM call.
         """
         try:
+            # THE TURN DEADLINE STARTS HERE — the first statement of the request,
+            # before session load, provenance hydration, planning or any provider
+            # call. Everything downstream spends from this one clock (see
+            # TurnDeadline): a fallback or a corrective regeneration must not
+            # start a fresh budget, which is how a 115 s budget produced a 209 s
+            # reply.
+            _deadline = TurnDeadline(
+                _request_deadline_seconds(
+                    derivation=_derivation_ask(message, {"history": [], "canvas": context})
+                ),
+                label="chat-request",
+            )
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
@@ -2248,16 +2578,42 @@ class ChatOrchestrator:
             # it first (canvas-edit evidence or the chat tool path) leaves it
             # here and the other reuses it. Without this, a canvas turn paid
             # for TWO planner LLM calls and TWO identical searches.
+            if _tool_plan_task is not None:
+                _plan_created_t0 = _turn_t0
+                _tool_plan_task.add_done_callback(
+                    lambda _t: logger.info(
+                        "[timeline] chat planner finished: %.1fs after the "
+                        "turn's canvas-edit clock started",
+                        time.monotonic() - _plan_created_t0))
+
             _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
                                             "block": None}
             try:
                 if _canvas_ctx:
-                    _edit_response = await self._try_canvas_edit(
+                    _edit_leg = self._try_canvas_edit(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
                         provenance=(context or {}).get("canvas_provenance"),
                         shared_tool_state=_shared_tool,
                     )
+                    if _derivation_ask(message, context):
+                        # A derivation ask is answered by the workbook row, and
+                        # this leg declines it anyway (see the constant). Give
+                        # it a short slice: a fast answer still wins, a slow
+                        # decline no longer costs the turn its budget.
+                        try:
+                            _edit_response = await asyncio.wait_for(
+                                _edit_leg,
+                                timeout=_CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
+                        except asyncio.TimeoutError:
+                            logger.info(
+                                "[stage-timing] canvas-edit leg bounded at "
+                                "%.0fs for a derivation ask — falling through "
+                                "to the tool path",
+                                _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
+                            _edit_response = None
+                    else:
+                        _edit_response = await _edit_leg
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -2278,11 +2634,36 @@ class ChatOrchestrator:
                     # Not an edit — is it an ACTION on the canvas ("send this")?
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
-                    _action_response = None if _shared_tool.get("canvas_planning_unavailable") else await self._try_canvas_action(
-                        message, history, _canvas_ctx, user_id, session_id,
-                        _execution_id, (context or {}).get("agent_id"),
-                        shared_tool_state=_shared_tool,
-                    )
+                    if _shared_tool.get("canvas_planning_unavailable"):
+                        _action_response = None
+                    elif _derivation_ask(message, context):
+                        # The ACTION leg is a sibling of the edit leg and was
+                        # left unbounded: measured 2026-09-16, `canvas-action
+                        # plan: 41.2s (overlapped with canvas-edit plan)` — the
+                        # 12 s bound on the edit leg did not help because this
+                        # one became the critical path. A derivation ask is
+                        # neither an edit nor a canvas action; it declines both.
+                        try:
+                            _action_response = await asyncio.wait_for(
+                                self._try_canvas_action(
+                                    message, history, _canvas_ctx, user_id,
+                                    session_id, _execution_id,
+                                    (context or {}).get("agent_id"),
+                                    shared_tool_state=_shared_tool,
+                                ),
+                                timeout=_CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
+                        except asyncio.TimeoutError:
+                            logger.info(
+                                "[stage-timing] canvas-action leg bounded at "
+                                "%.0fs for a derivation ask",
+                                _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
+                            _action_response = None
+                    else:
+                        _action_response = await self._try_canvas_action(
+                            message, history, _canvas_ctx, user_id, session_id,
+                            _execution_id, (context or {}).get("agent_id"),
+                            shared_tool_state=_shared_tool,
+                        )
                     logger.info(
                         f"[stage-timing] canvas-action plan: "
                         f"{time.monotonic() - _action_t0:.1f}s "
@@ -2300,6 +2681,7 @@ class ChatOrchestrator:
 
                 ai_response = await self._get_qwen_response(
                     message, history, routing_overrides,
+                    deadline=_deadline,
                     sticky_hint=sticky_hint, user_id=user_id,
                     agent_id=(context or {}).get('agent_id'),
                     planner_history=session.get("history", []),
@@ -2721,6 +3103,7 @@ class ChatOrchestrator:
         message: str,
         history: list,
         routing_overrides: Optional[Dict[str, Any]] = None,
+        deadline: Optional["TurnDeadline"] = None,
         tool_plan_task: Optional[asyncio.Task] = None,
         sticky_hint: Optional[tuple] = None,
         user_id: Optional[str] = None,
@@ -3024,15 +3407,56 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # and pushed the turn into the legacy intent-router fallback
             # (live 2026-09-08: "I've processed your request across all
             # connected platforms.").
+            # Turn offset for the stage log — NOT a fresh budget. `_deadline`
+            # owns the clock; this only records where the reply leg began so the
+            # logs show how much of the turn planning consumed before it.
             _plan_t0 = time.monotonic()
+            _reply_leg_offset = _deadline.elapsed() if deadline else 0.0
             _step_n = 0
+            # Is this a DERIVATION ask? Resolved ONCE, because three separate
+            # levers key off it (the turn budget, the hidden-thinking cap and
+            # the first-visible deadline). A derivation reply is a short
+            # transcription of the delivered row and its formulas.
+            _is_derivation_ask = _derivation_ask(
+                message, {"history": planner_history or history,
+                          "canvas": canvas_context})
+            # TWO DERIVATION-SCOPED LEVERS, resolved once so every reply-leg
+            # call (stream, non-streaming fallback, guard regenerations) reads
+            # the same values: a tighter first-visible deadline (the answer is
+            # short, so silence means hidden thinking is eating the budget) and
+            # a tighter completion cap (which also bounds the reasoning budget
+            # the provider is granted). Neither changes WHICH route is chosen —
+            # only how long a route may spend before showing something.
+            _first_visible_limit = _first_visible_limit_seconds(
+                _is_derivation_ask)
+            if deadline is not None:
+                # A 15 s silence bound is meaningless if only 5 s of the turn is
+                # left — it would let the stream hold the turn past its deadline.
+                _first_visible_limit = deadline.slice(_first_visible_limit)
+            _reply_max_tokens = _reply_token_cap(_is_derivation_ask)
             # R90: total LLM budget for this reply leg, resolved once. It is
             # anchored at _plan_t0 — the same clock the "[stage-timing] reply
             # generation" log uses, re-anchored after planner + tool execution
             # — and enforced on every LLM call below (stream, non-streaming
             # fallback, guard regenerations). 0/negative disables the budget
             # (legacy unbounded behavior).
-            _turn_budget = _chat_turn_budget_seconds()
+            # THE REPLY LEG SPENDS WHAT IS LEFT. Previously this was a fresh
+            # per-leg allowance, so planner + tools + stream + fallback + each
+            # regeneration each got their own and the turn accumulated far past
+            # the client's abort (209 s reply against a 115 s budget). Capped to
+            # the request deadline's remaining time; the per-leg constant is only
+            # an upper bound for a turn that still has that much left.
+            _turn_budget = _chat_turn_budget_seconds(
+                derivation=_is_derivation_ask)
+            if deadline is not None:
+                _turn_budget = deadline.slice(_turn_budget)
+            if deadline is not None and deadline.expired():
+                logger.warning(
+                    f"[deadline] reply leg skipped — the turn is already out of "
+                    f"time (elapsed={deadline.elapsed():.1f}s "
+                    f"budget={deadline.total_seconds:.1f}s, plan offset="
+                    f"{_reply_leg_offset:.1f}s)"
+                )
 
             # START THE DERIVATION LANE NOW, not after the planner. It does not
             # depend on the plan (the workbook row IS the answer to a
@@ -3043,16 +3467,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # case never evaluated). Overlapping them removes the lane's cost
             # from the critical path.
             _deriv_task: Optional[asyncio.Task] = None
-            if _derivation_ask(
-                message, {"history": planner_history or history,
-                          "canvas": canvas_context}
-            ):
+            # Work this turn OWNS. Cancelled (and confirmed stopped) when the
+            # deadline expires, instead of being abandoned to run on.
+            _owned_tasks: List[asyncio.Task] = []
+            if _is_derivation_ask:
                 try:
                     _deriv_task = asyncio.create_task(
                         _derivation_supplement(
                             message, user_id, planner_history or history,
                             canvas_context, None,
                             llm_service=self.llm_service))
+                    # Owned by this turn: if the deadline expires, this is work
+                    # that must actually stop, not merely be stopped waiting on.
+                    _owned_tasks.append(_deriv_task)
                 except Exception as _deriv_start_err:  # noqa: BLE001
                     logger.debug(
                         f"[derivation] lane not pre-started: {_deriv_start_err}")
@@ -3083,6 +3510,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "shipping the current reply"
                     )
                     return None
+
+            async def _bounded_verify(_coro):
+                """Run the verification panel only while the turn budget lasts.
+
+                The panel JUDGES an already-complete reply: it is provenance,
+                not a gate, and its verdict can only add a regeneration. Left
+                unbounded it held the request far past the client's window —
+                measured 2026-09-16, one derivation turn answered in 9.6 s and
+                the POST returned after 180 s, the difference being a panel
+                whose judge samples walked a ladder of routes that each
+                truncated ("incomplete due to a max_tokens length limit").
+                Timing out is recorded as "verification unavailable" (the
+                contract ``verify_reply`` already defines for ``ran=False``),
+                never as verified and never as a turn failure.
+                """
+                _left = _remaining_budget(_plan_t0, _turn_budget)
+                if _left <= 0:
+                    logger.warning(
+                        "[verify-panel] skipped — turn budget exhausted; the "
+                        "reply ships unverified rather than late"
+                    )
+                    return {"ran": False, "error": "turn_budget_exhausted"}
+                try:
+                    return await asyncio.wait_for(_coro, timeout=_left)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "[verify-panel] timed out on the turn budget — the "
+                        "reply ships unverified rather than late"
+                    )
+                    return {"ran": False, "error": "verify_panel_timeout"}
+                except Exception as _vp_err:  # noqa: BLE001 — never fail the turn
+                    logger.debug(f"[verify-panel] unavailable: {_vp_err}")
+                    return {"ran": False, "error": "verify_panel_error"}
 
             async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
                              thought: Optional[str] = None) -> None:
@@ -3164,7 +3624,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # plan with the canvas-edit plan — just await it.
                     _plan_t0 = time.monotonic()
                     if tool_plan_task is not None:
+                        # TIMELINE ATTRIBUTION: how long the reply actually
+                        # waited for the planner, and whether it had already
+                        # finished while the canvas-edit leg ran. Without this
+                        # the pre-reply cost is a single opaque stage number.
+                        _plan_was_done = tool_plan_task.done()
+                        _plan_wait_t0 = time.monotonic()
                         _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
+                        logger.info(
+                            "[timeline] planner awaited by the reply builder: "
+                            "%.1fs (already done when awaited: %s)",
+                            time.monotonic() - _plan_wait_t0, _plan_was_done)
                     else:
                         _prov = ""
                         try:
@@ -3551,7 +4021,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "copy. Do NOT say the document is unavailable, do NOT "
                         "ask the user to share or upload it, and do NOT claim "
                         "no cells were retrieved: every value you need is in "
-                        "this block.\n" + _tool_block)
+                        "this block."
+                        # ANSWER SHAPE — and therefore answer COST. The
+                        # generation is the turn's dominant cost (57–115 s under
+                        # load for a chain): the earlier framing produced ~3000
+                        # chars with preamble, restatement and closing offers,
+                        # none of which the reader needs and all of which the
+                        # model has to generate. Asking for the chain and
+                        # nothing else is what makes the turn fit a client
+                        # budget that the full essay does not.
+                        "\nAnswer with the chain ONLY, in this shape and "
+                        "nothing else:\n"
+                        "  <file> — <sheet> — row <N>\n"
+                        "  <CELL> = <formula> = <value>\n"
+                        "  … one line per step, in formula order …\n"
+                        "  Unresolved: <cell> (<why>)\n"
+                        "No preamble, no restatement of the question, no "
+                        "closing offer, no markdown headings.\n" + _tool_block)
                 else:
                     _evidence_instruction += "\n" + _tool_block
                 _evidence_msg = {"role": "system",
@@ -3679,6 +4165,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # as a sticky hint to the routing layer.
             if sticky_hint:
                 extra_kwargs["sticky_hint"] = sticky_hint
+            if _is_derivation_ask:
+                # A derivation reply is a short transcription, so the cap is
+                # not there to shorten it — it bounds the HIDDEN reasoning the
+                # provider is granted (a third of the cap) so a reasoning-heavy
+                # route cannot spend the turn thinking and then truncate with
+                # nothing visible (see _DERIVATION_COMPLETION_MAX_TOKENS).
+                # Applied to every reply-leg call, including the guard
+                # regenerations and the non-streaming fallback.
+                extra_kwargs["max_tokens"] = _reply_max_tokens
 
             # Use LLMService for completion (delegates Qwen/OpenAI/Anthropic routing internally)
             # STREAMING REPLY (ATOM_CHAT_STREAMING, default on): tokens are
@@ -3691,6 +4186,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _streamed: Optional[str] = None
             _stream_zero_visible = False
             _turn_reasoning: Optional[str] = None
+            # Ranked fallback ROUTES for this turn, filled by the streaming leg
+            # when it runs. Initialised here so the non-streaming leg's guards
+            # can offer the same bounded cross-route retry instead of raising
+            # (or, worse, silently retrying the route that just failed).
+            _fb_routes: List[tuple] = []
             if (
                 os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
@@ -3704,7 +4204,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 try:
                     import time as _time
 
-                    from core.llm.byok_handler import _DEFAULT_COMPLETION_MAX_TOKENS
                     from core.websockets import manager as _ws_manager
 
                     _prompt_for_cx = " ".join(
@@ -3741,7 +4240,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         model=_s_model,
                         provider_id=_s_prov,
                         temperature=0.7,
-                        max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                        max_tokens=_reply_max_tokens,
                         reasoning_sink=_reasoning_sink,
                         fallback_routes=_fb_routes,
                         # MEASURED input size: without it the streaming path
@@ -3773,6 +4272,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         else _time.monotonic() + _stream_budget
                     )
                     while True:
+                        # FIRST-VISIBLE DEADLINE, CHECKED ON EVERY CHUNK. The
+                        # check below (in the timeout branch) only fires when a
+                        # slice TIMES OUT. A provider that streams hidden
+                        # reasoning CONTINUOUSLY never times out — every chunk
+                        # arrives inside the slice — so the stream ran to the
+                        # model's own finish with zero visible content, and only
+                        # then did the turn pay for a full non-streaming
+                        # regeneration. Measured 2026-09-16 on one build: a
+                        # derivation turn with `reply STREAMED: 9.9s (445
+                        # chunks)` took ~35 s end to end, while a hidden-
+                        # reasoning stream took 185–209 s for the same answer.
+                        # Checking here bounds that case to the deadline.
+                        if (not _buf and _first_visible_limit > 0
+                                and (_time.monotonic() - _t0)
+                                >= _first_visible_limit):
+                            logger.warning(
+                                f"chat streaming produced no visible content "
+                                f"in {_first_visible_limit:.0f}s "
+                                f"({_s_prov}/{_s_model}, hidden reasoning or an "
+                                "empty completion) — abandoning the stream and "
+                                f"spending the remaining "
+                                f"{_remaining_budget(_plan_t0, _turn_budget):.0f}s "
+                                "on the non-streaming fallback"
+                            )
+                            break
                         try:
                             _slice = _HEARTBEAT_SLICE_SECONDS
                             if _wait_deadline is not None:
@@ -3797,12 +4321,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # chance instead of holding the stream until the
                             # budget dies. Checked on the heartbeat boundary, so
                             # this costs at most one slice of latency.
-                            if (not _buf and _STREAM_FIRST_VISIBLE_SECONDS > 0
+                            if (not _buf and _first_visible_limit > 0
                                     and (_time.monotonic() - _t0)
-                                    >= _STREAM_FIRST_VISIBLE_SECONDS):
+                                    >= _first_visible_limit):
                                 logger.warning(
                                     f"chat streaming produced no visible content "
-                                    f"in {_STREAM_FIRST_VISIBLE_SECONDS:.0f}s "
+                                    f"in {_first_visible_limit:.0f}s "
                                     f"({_s_prov}/{_s_model}) — abandoning the "
                                     f"stream and spending the remaining "
                                     f"{_remaining_budget(_plan_t0, _turn_budget):.0f}s "
@@ -3840,6 +4364,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _explicit_web_research_requested,
                         )
                         _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
+                        # ROUTE THAT PRODUCED THIS STREAM, captured BEFORE any
+                        # guard regeneration runs. The handler's last-used pair
+                        # is overwritten by every later call, so reading it
+                        # afterwards attributed a corrective call's route to the
+                        # reply it was correcting. Both halves matter: the
+                        # provider is what distinguishes two gateways serving
+                        # the same model identifier, and a verdict or a retry
+                        # aimed at the wrong route is worse than none.
+                        _stream_route = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_provider", None) or _s_prov,
+                            getattr(self.llm_service.handler,
+                                    "_last_used_model", None) or _s_model,
+                        )
                         # GROUNDING GUARD: a streamed reply that denies having
                         # data contradicts the LIVE TOOL RESULT injected above
                         # (model-quality wobble, observed live). One grounded
@@ -3877,6 +4415,101 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # declined or the block was lost. Regeneration cannot
                         # conjure data — it keeps the reply TRUE about what
                         # exists instead of denying the capability.
+                        # DERIVATION GUARD: the matched row was DELIVERED and
+                        # the reply did not cite it. Deterministic, so it does
+                        # not depend on how the model phrases its refusal.
+                        if _tool_block and _derivation_reply_ignored_the_row(
+                                _streamed, _tool_block):
+                            logger.warning(
+                                "[derivation] reply ignored the delivered "
+                                "workbook row — grounded regeneration")
+                            # OBSERVATION (per ROUTE, not per model name): this
+                            # route was handed the answer and did not use it.
+                            # Deterministic, so the per-model predictor can
+                            # learn it and later turns stop choosing it — the
+                            # sanctioned alternative to pinning whichever model
+                            # happens to comply. Joined to the generation that
+                            # produced the reply, so the ledger stays one row
+                            # per generation.
+                            try:
+                                from core.llm.learning_router_registry import (
+                                    record_evidence_ignored,
+                                )
+
+                                await record_evidence_ignored(
+                                    model_id=str(_stream_route[1] or ""),
+                                    provider_id=str(_stream_route[0] or ""),
+                                    task_type="question_answering",
+                                    tenant_id=self.tenant_id or "default",
+                                    routing_result_id=getattr(
+                                        self.llm_service.handler,
+                                        "_last_feedback_decision_id", None),
+                                )
+                            except Exception as _ei_err:  # noqa: BLE001
+                                logger.debug(
+                                    f"evidence-ignored signal skipped: {_ei_err}")
+                            # BOUNDED CROSS-ROUTE RETRY. The corrective
+                            # regeneration is the ONE extra attempt this turn
+                            # gets (it runs through _guarded_regen, so it can
+                            # never exceed the turn budget) and it must not be
+                            # spent repeating the route that just ignored the
+                            # evidence. The replacement comes from the SAME
+                            # ranked ladder the dispatch used — never a
+                            # hardcoded model — and the provider travels with
+                            # it.
+                            _retry_route = _cross_route_retry_route(
+                                _fb_routes, _stream_route)
+                            _retry_model = forced_model
+                            _retry_kwargs = dict(extra_kwargs)
+                            _retry_note = (
+                                "Your previous reply did not use the workbook "
+                                "row it was given, so it is WRONG about its own "
+                                "evidence.")
+                            if _retry_route:
+                                _retry_model = _retry_route[1]
+                                # The route hint is set AFTER copying the
+                                # session's LKGP hint so the corrective retry
+                                # target wins for this one attempt.
+                                _retry_kwargs["sticky_hint"] = _retry_route
+                                _retry_note = (
+                                    "An earlier attempt at this answer ignored "
+                                    "the DERIVATION EVIDENCE block above. You "
+                                    "are answering the same question with the "
+                                    "same evidence, so answer it directly.")
+                                logger.info(
+                                    "[derivation] corrective retry on a "
+                                    "different route: "
+                                    f"{_retry_route[0]}/{_retry_route[1]} "
+                                    "(the route that ignored the row was "
+                                    f"{_stream_route[0]}/{_stream_route[1]})")
+                            _row_hint = ""
+                            _row_match = re.search(
+                                r"R\d{1,5}[^\n]{0,200}", _tool_block)
+                            if _row_match:
+                                _row_hint = (" The stored row is: "
+                                             + _row_match.group(0)[:220])
+                            messages.append({"role": "system", "content": (
+                                _retry_note +
+                                " The DERIVATION EVIDENCE block above "
+                                "contains the matched row and its formulas — "
+                                "state the sheet, the ROW NUMBER, and each "
+                                "source formula with its evaluated value." +
+                                _row_hint + " Do not ask the user to supply or "
+                                "confirm data that is already in that block."
+                            )})
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=_retry_model,
+                                    tenant_id=self.tenant_id,
+                                    **_retry_kwargs,
+                                )
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _derivation_reply_ignored_the_row(
+                                    _fixed, _tool_block):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         elif (not _tool_block and _reply_claims_inability(_streamed)
                               and _explicit_web_research_requested(message)):
                             logger.warning(
@@ -4244,6 +4877,79 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _content = _strip_protocol_tags(
                         (response_data or {}).get("content"))
+                # DERIVATION GUARD (non-streaming path): same deterministic
+                # check as the streaming leg — the matched workbook row was
+                # DELIVERED and the reply cites no row, so it ignored what it
+                # was given. Recorded per route and retried on a DIFFERENT
+                # route (see the streaming leg for why both halves matter).
+                elif _tool_block and _derivation_reply_ignored_the_row(
+                        _content, _tool_block):
+                    logger.warning(
+                        "[derivation] reply ignored the delivered workbook row "
+                        "— grounded regeneration")
+                    _ns_route = (
+                        str((response_data or {}).get("provider") or ""),
+                        str((response_data or {}).get("model") or ""),
+                    )
+                    try:
+                        from core.llm.learning_router_registry import (
+                            record_evidence_ignored,
+                        )
+
+                        await record_evidence_ignored(
+                            model_id=_ns_route[1],
+                            provider_id=_ns_route[0],
+                            task_type="question_answering",
+                            tenant_id=self.tenant_id or "default",
+                            routing_result_id=(response_data or {}).get(
+                                "routing_result_id"),
+                        )
+                    except Exception as _ei_err:  # noqa: BLE001
+                        logger.debug(f"evidence-ignored signal skipped: {_ei_err}")
+                    _retry_route = _cross_route_retry_route(_fb_routes, _ns_route)
+                    _retry_model = forced_model
+                    _retry_kwargs = dict(extra_kwargs)
+                    _retry_note = (
+                        "Your previous reply did not use the workbook row it "
+                        "was given, so it is WRONG about its own evidence.")
+                    if _retry_route:
+                        _retry_model = _retry_route[1]
+                        _retry_kwargs["sticky_hint"] = _retry_route
+                        _retry_note = (
+                            "An earlier attempt at this answer ignored the "
+                            "DERIVATION EVIDENCE block above. You are answering "
+                            "the same question with the same evidence, so "
+                            "answer it directly.")
+                        logger.info(
+                            "[derivation] corrective retry on a different "
+                            f"route: {_retry_route[0]}/{_retry_route[1]} (the "
+                            "route that ignored the row was "
+                            f"{_ns_route[0]}/{_ns_route[1]})")
+                    _row_hint = ""
+                    _row_match = re.search(r"R\d{1,5}[^\n]{0,200}", _tool_block)
+                    if _row_match:
+                        _row_hint = (" The stored row is: "
+                                     + _row_match.group(0)[:220])
+                    messages.append({"role": "system", "content": (
+                        _retry_note +
+                        " The DERIVATION EVIDENCE block above contains the "
+                        "matched row and its formulas — state the sheet, the "
+                        "ROW NUMBER, and each source formula with its evaluated "
+                        "value." + _row_hint + " Do not ask the user to supply "
+                        "or confirm data that is already in that block."
+                    )})
+                    _fix_response = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=_retry_model,
+                        tenant_id=self.tenant_id,
+                        **_retry_kwargs,
+                    )
+                    _fixed = _strip_protocol_tags(
+                        (_fix_response or {}).get("content"))
+                    if _fixed and not _derivation_reply_ignored_the_row(
+                            _fixed, _tool_block):
+                        _content = _fixed
+                        response_data = {**_fix_response, "content": _fixed}
                 # NON-RESPONSIVE GUARD (non-streaming path): same short
                 # zero-overlap reply detection as the streaming path.
                 elif (_tool_block
@@ -4411,7 +5117,97 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # high-complexity scope, and an `ambiguous` 1/3 vote is not in
                 # the enforce set. This check needs no judge, no LLM call and no
                 # scope gate — one regex pass over replies that had evidence.
-                if _tool_block and _content:
+                # A DERIVATION EVALUATES ITS EVIDENCE. When the block carries
+                # the matched row's formulas and the reply cites that row, the
+                # figures it states are COMPUTED from the stored cells
+                # (7518.44 = 6465.86 / 0.86) — they are not in the evidence
+                # verbatim and never can be, which is the whole point of a
+                # derivation. Running the grounding check on them flagged
+                # legitimate arithmetic as fabrication: measured 2026-09-16,
+                # "[figure-grounding] reply states figures the evidence does
+                # not contain: 5,625.30, 7,518, 1,893.70" on a correct chain —
+                # costing a full regeneration (~60-90 s) AND recording a
+                # FABRICATION verdict against the model that answered correctly
+                # ("fabrication observed for openai/gpt-5-mini"). The check is
+                # skipped for this shape and the skip is stated; every other
+                # reply still gets it.
+                # THE VERIFICATION CONTRACT REPLACES THE CITATION BYPASS.
+                #
+                # What this used to be: skip figure-grounding when the evidence
+                # carried a formula marker AND the reply contained any row
+                # citation. A citation proves NOTHING about arithmetic — an
+                # invented chain evaded verification by writing "row 235"
+                # somewhere, which is how a fabrication got a clean pass.
+                #
+                # What a derivation reply is now: one that makes a CELL-ANCHORED
+                # claim ("G235 = 4815"), which is a checkable statement, and which
+                # the verifier evaluates against the delivered cells and formulas
+                # (core.derivation_verification). A reply with no anchored claim —
+                # including a CORRECT uncited answer — is simply unverified; it is
+                # not evidence of fabrication, and it must not be treated as
+                # evidence of correctness either.
+                _deriv_verification = None
+                _derivation_reply = False
+                _derivation_contradicted = False
+                if _tool_block and "FORMULAS FOR THE MATCHED ROW" in _tool_block and _content:
+                    try:
+                        from core.derivation_verification import (
+                            verify_derivation_claims,
+                        )
+
+                        _deriv_verification = verify_derivation_claims(_content, _tool_block)
+                        _derivation_reply = bool(_deriv_verification.claims)
+                        _derivation_contradicted = bool(_deriv_verification.contradicted)
+                        logger.info(
+                            f"[derivation-verify] claims={_deriv_verification.claims} "
+                            f"checked={_deriv_verification.checked} "
+                            f"contradicted={len(_deriv_verification.contradicted)} "
+                            f"unresolved={len(_deriv_verification.unresolved_cells)} "
+                            f"→ {_deriv_verification.summary()}"
+                        )
+                    except Exception as _dv_err:  # noqa: BLE001
+                        # A verifier failure must NOT degrade into a clean verdict.
+                        logger.warning(
+                            f"[derivation-verify] unavailable ({_dv_err}) — the "
+                            "reply is treated as UNVERIFIED, not as grounded"
+                        )
+                        _deriv_verification = None
+                        _derivation_reply = False
+                # DERIVATION-CONTEXT VERDICT SUPPRESSION (2026-09-16). Every
+                # correctly COMPUTED value is absent from the evidence TEXT by
+                # construction, so an evidence-absence check cannot conclude
+                # "invented" when the delivered block carries the matched row's
+                # formulas. Measured: verdict rows naming the derivation chain
+                # itself (5,625.30 / 7,518 / 1,893.70) against models that had
+                # walked those stored formulas correctly — 27 such rows in the
+                # live ledger. The regeneration still runs (a stricter retry is
+                # a cheap quality improvement); only the LEDGER entry is
+                # withheld, because that is what steers routing. Those turns are
+                # judged by the derivation guard instead (evidence_ignored when
+                # the reply cites no row).
+                # Suppression is for COMPUTED-and-CONTRADICTED claims only. A
+                # reply whose arithmetic the workbook CONTRADICTS is not
+                # suppressed: it is a real finding (caught above), so it must
+                # reach the ledger rather than being hidden behind "the evidence
+                # carried formulas".
+                _figures_derivable = bool(
+                    _deriv_verification is not None
+                    and not _deriv_verification.contradicted
+                    and _deriv_verification.checked
+                )
+                if _derivation_reply and not _derivation_contradicted:
+                    logger.info(
+                        "[figure-grounding] skipped: every anchored claim was "
+                        "verified against the workbook's own formulas "
+                        "(computed values are not expected to appear verbatim)")
+                elif _derivation_contradicted:
+                    logger.warning(
+                        "[figure-grounding] NOT skipped: the workbook contradicts "
+                        "the reply's arithmetic — this is a real finding"
+                    )
+                if _tool_block and _content and not (
+                    _derivation_reply and not _derivation_contradicted
+                ):
                     _grounding_ran = False
                     try:
                         from core.chat_tool_planner import _unsupported_figures
@@ -4446,6 +5242,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 tenant_id=self.tenant_id or "default",
                                 routing_result_id=(response_data or {}).get(
                                     "routing_result_id"),
+                                # The provider half of the route: model
+                                # identifiers collide across gateways, so a
+                                # verdict without it cannot be attributed.
+                                provider_id=str(
+                                    (response_data or {}).get("provider") or ""),
                             )
                         except Exception as _gp_err:  # noqa: BLE001
                             logger.debug(f"grounding-pass signal skipped: {_gp_err}")
@@ -4459,25 +5260,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # BPC re-ranks away from it next time. This is the only
                         # place fabrication is observable — the generation path
                         # records its outcome before the reply is assembled.
+                        # WITHHELD when the delivered evidence carried the
+                        # matched row's formulas: there, "absent from the
+                        # evidence" is what a CORRECT computation looks like, so
+                        # the finding is not evidence of invention (see
+                        # _figures_derivable).
                         try:
                             from core.llm.learning_router_registry import (
                                 record_fabrication_signal,
                             )
 
-                            await record_fabrication_signal(
-                                model_id=str(
-                                    (response_data or {}).get("model")
-                                    or forced_model or "unknown"
-                                ),
-                                task_type="question_answering",
-                                tenant_id=self.tenant_id or "default",
-                                unsupported_figures=_unsupported,
-                                # Attach the verdict to the generation that
-                                # produced this reply (its outcome row already
-                                # exists) instead of minting a second one.
-                                routing_result_id=(response_data or {}).get(
-                                    "routing_result_id"),
-                            )
+                            if _figures_derivable:
+                                logger.info(
+                                    "[figure-grounding] fabrication verdict "
+                                    "withheld: the delivered evidence carries "
+                                    "the matched row's formulas, so figures "
+                                    "computed from them are not inventions")
+                            else:
+                                await record_fabrication_signal(
+                                    model_id=str(
+                                        (response_data or {}).get("model")
+                                        or forced_model or "unknown"
+                                    ),
+                                    task_type="question_answering",
+                                    tenant_id=self.tenant_id or "default",
+                                    unsupported_figures=_unsupported,
+                                    # Attach the verdict to the generation that
+                                    # produced this reply (its outcome row already
+                                    # exists) instead of minting a second one.
+                                    routing_result_id=(response_data or {}).get(
+                                        "routing_result_id"),
+                                    provider_id=str(
+                                        (response_data or {}).get("provider") or ""),
+                                )
                         except Exception as _fab_err:  # noqa: BLE001
                             logger.debug(f"fabrication signal skipped: {_fab_err}")
                         messages.append({"role": "system", "content": (
@@ -4504,13 +5319,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _content = _regenerated
                 if _vp_run:
                     _vp_t0 = time.monotonic()
-                    _verdict = await verify_reply(
+                    # BOUNDED: the panel judges a complete reply, so a judge
+                    # ladder that stalls must not hold the request open (see
+                    # _bounded_verify). ran=False means "unavailable".
+                    _verdict = await _bounded_verify(verify_reply(
                         _content, _tool_block,
                         handler=self.llm_service.handler,
                         tenant_id=self.tenant_id,
                         agent_id=agent_id,
                         enforce=(_vpm == "enforce"),
-                    )
+                    ))
                     if _verdict.get("ran"):
                         logger.info(
                             "[verify-panel] " + _vpm + ": grounded=" + str(_verdict.get("grounded"))
@@ -4532,19 +5350,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     record_fabrication_signal,
                                 )
 
-                                await record_fabrication_signal(
-                                    model_id=str(
-                                        (response_data or {}).get("model")
-                                        or forced_model or "unknown"
-                                    ),
-                                    task_type="question_answering",
-                                    tenant_id=self.tenant_id or "default",
-                                    ungrounded_claims=list(
-                                        _verdict.get("claims") or ["unspecified"]
-                                    ),
-                                    routing_result_id=(response_data or {}).get(
-                                        "routing_result_id"),
-                                )
+                                if _figures_derivable:
+                                    # Same refusal as the deterministic check: a
+                                    # judge reading an evidence-absence rule
+                                    # cannot certify that a value COMPUTED from
+                                    # the delivered formulas was invented.
+                                    logger.info(
+                                        "[verify-panel] fabrication verdict "
+                                        "withheld: the delivered evidence "
+                                        "carries the matched row's formulas")
+                                else:
+                                    await record_fabrication_signal(
+                                        model_id=str(
+                                            (response_data or {}).get("model")
+                                            or forced_model or "unknown"
+                                        ),
+                                        task_type="question_answering",
+                                        tenant_id=self.tenant_id or "default",
+                                        ungrounded_claims=list(
+                                            _verdict.get("claims") or ["unspecified"]
+                                        ),
+                                        routing_result_id=(response_data or {}).get(
+                                            "routing_result_id"),
+                                        provider_id=str(
+                                            (response_data or {}).get("provider") or ""),
+                                        rule="panel_v1",
+                                    )
                             except Exception as _vp_fab:  # noqa: BLE001
                                 logger.debug(f"panel fabrication signal skipped: {_vp_fab}")
                             messages.append({"role": "system", "content": (
@@ -4561,13 +5392,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 **extra_kwargs,
                             )
                             _content = _strip_protocol_tags((response_data or {}).get("content"))
-                            _verdict2 = await verify_reply(
+                            _verdict2 = await _bounded_verify(verify_reply(
                                 _content, _tool_block,
                                 handler=self.llm_service.handler,
                                 tenant_id=self.tenant_id,
                                 agent_id=agent_id,
                                 enforce=True,
-                            )
+                            ))
                             if not _verdict2.get("ran") or not _verdict2.get("grounded"):
                                 _content += (
                                     "\n\n⚠️ *Verification note: automated checks could not confirm "

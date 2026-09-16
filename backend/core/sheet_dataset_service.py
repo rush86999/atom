@@ -659,6 +659,29 @@ def _formula_map_raw_xml(content: bytes) -> Dict[str, Dict[str, str]]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _column_letters(names: List[str]) -> Dict[str, str]:
+    """Column NAME -> spreadsheet LETTER, by position.
+
+    ``render_dataset_answer`` renders named columns, but the workbook's formulas
+    address cells by letter (``F235``). The extractor writes headers positionally
+    (its own fallback is literally ``c<i+1>``), so position IS the letter.
+    Without this mapping a verifier cannot connect "Factory Price=5350" to the
+    ``=F235*0.9`` that consumes it, and every dependency reads as unresolved
+    (found while implementing the derivation verification contract, 2026-09-16).
+    """
+    out: Dict[str, str] = {}
+    for i, name in enumerate(names or []):
+        letter = ""
+        n = i
+        while True:
+            letter = chr(ord("A") + (n % 26)) + letter
+            n = n // 26 - 1
+            if n < 0:
+                break
+        out[str(name)] = letter
+    return out
+
+
 def _entry_to_dict(row) -> Dict[str, Any]:
     import json as _json
 
@@ -1401,19 +1424,28 @@ def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[
         formulas = load_formulas_for_parquet(str(e.get("parquet_path") or ""))
     except Exception:  # noqa: BLE001 — formulas are additive
         formulas = {}
+    # Attach the actual rows so the derivation evidence carries real data, not
+    # just the file/sheet index (live 2026-09-16: the model named the file
+    # correctly but could not show the derivation because the rows list was
+    # empty). Probe with a wildcard match to pull the sheet's business rows,
+    # capped by max_rows.
+    #
+    # `rows_out` WAS NEVER ASSIGNED: this literal referenced an undefined name,
+    # so every "open the file named X" ask raised NameError inside the tool
+    # (`tool execution failed for zoho_workdrive.read: name 'rows_out' is not
+    # defined`, repeated twice per turn — canvas-edit leg and canvas-action leg)
+    # and the turn then told the model the live lookup had failed. The
+    # content-probe path was unaffected, which is why the same ask sometimes
+    # worked: whichever lane matched first decided the outcome.
+    _rows = _read_sheet_rows(str(e.get("parquet_path") or ""), max_rows)
     return {
         "file_name": e.get("file_name"),
         "entity_name": e.get("entity_name") or e.get("sheet_name"),
         "source_modified_at": e.get("source_modified_at"),
         "sql": "(selected by file name — no content probe needed)",
         "columns": [],
-        # Attach the actual rows so the derivation evidence carries real
-        # data, not just the file/sheet index (live 2026-09-16: the model
-        # named the file correctly but could not show the derivation
-        # because the rows list was empty). Probe with a wildcard match to
-        # pull the sheet's business rows, capped by max_rows.
-        "rows": _read_sheet_rows(str(e.get("parquet_path") or ""), max_rows),
-        "row_count": len(rows_out),
+        "rows": _rows,
+        "row_count": len(_rows),
         "formulas": formulas,
         "selected_by_name": True,
     }
@@ -1462,6 +1494,9 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         return None
     count, e, hit = best
     head = hit.head(max_rows)
+    # Column NAME -> LETTER travels with the rows: the workbook's formulas
+    # address cells by letter, so without it a verifier cannot connect a value
+    # to the formula that produces it (see _column_letters).
     # DIGIT-BOUNDARY CHECK for pure-number tokens. The scan above is a substring
     # match, which is right for codes ('350dsav' must match 'WG-350DSAV') and
     # wrong for amounts/model numbers: EVERY hit for the code "5216" against the
@@ -1493,6 +1528,7 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
                     "source_modified_at": e.get("source_modified_at"),
                     "sql": f"-- content probe: scanned for '{token}' (whole-number match)",
                     "columns": head.columns.tolist(),
+                    "column_letters": _column_letters(head.columns.tolist()),
                     "rows": head.to_dict("records"),
                     "row_count": count,
                     "formulas": load_formulas_for_parquet(str(e.get("parquet_path") or "")),
@@ -1511,6 +1547,7 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         "sql": f"-- content probe: every sheet scanned for '{token}'",
         "row_count": int(count),
         "columns": [str(c) for c in head.columns],
+        "column_letters": _column_letters([str(c) for c in head.columns]),
         "rows": rows,
         # FORMULAS on the deterministic path too (gap fix 2026-09-16): the
         # sidecar exists at materialization time; only the LLM-SQL path
@@ -1965,6 +2002,15 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
     shown = len(result.get("rows", []))
     if result.get("row_count", 0) > shown:
         lines.append(f"... {result['row_count'] - shown} more rows matched")
+    # COLUMN LETTERS: the workbook's formulas address cells by letter (F235),
+    # while the rows above are rendered by name (Factory Price=5350). A verifier
+    # cannot check arithmetic without the bridge, so it travels in the block.
+    letters = result.get("column_letters") or {}
+    if letters:
+        lines.append(
+            "COLUMNS: "
+            + " | ".join(f"{name}={letter}" for name, letter in list(letters.items())[:40])
+        )
     formulas = result.get("formulas") or {}
     if formulas:
         # MATCHED ROWS FIRST. Emitting the sheet's first N cells (what this did)
