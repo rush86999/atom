@@ -3858,3 +3858,173 @@ The harness now (a) refuses to present a confounded count as a verdict,
 (b) distinguishes a canned template from a model answer, and (c) does not
 false-FAIL correct disclaimers — three bugs that were each, until fixed,
 making the acceptance signal untrustworthy.
+
+### 2026-09-16 12:05 EDT — latency mechanism measured (the 118.5s control vs the 95s budget)
+
+Intended budget: `CHAT_TURN_BUDGET_DEFAULT_SECONDS = 95.0`
+(`ATOM_CHAT_TURN_BUDGET_SECONDS` overrides). Measured turns: **112.0s,
+148s, 135.1s, 118.5s** — all over it, and one at 96.6s returned
+`error_code: turn_budget_exceeded`, i.e. the case was NEVER EVALUATED.
+
+Mechanism, from the stage log of a 148s derivation turn:
+
+    [derivation] workbook lane: 1286 chars of dataset evidence (leading)   <- overlapped, ~free
+    [stage-timing] tool plan (overlapped=True): 7.5s
+    [stage-timing] tool exec: 12.4s
+    WARNING: chat streaming produced no tokens — falling back
+    [stage-timing] reply generation: 38.8s
+
+The turn pays for a **zero-visible stream AND then a full non-streaming
+regeneration**. Each stage is capped individually (plan 25s, stream slice,
+non-streaming `_ns_left`), so every stage "respects its budget" while the TURN
+total does not — the budget is checked per wait, not against the turn.
+
+What I changed to shorten the critical path (live in pid 64654): the
+deterministic derivation lane (1–20s, and it does not depend on the plan) is
+now STARTED before the planner and awaited at the append point, so its cost
+overlaps the planner instead of queueing behind it. It is no longer 20s of
+serial time.
+
+Still open and measured, not papered over: the zero-visible stream followed by
+a full regeneration is the dominant cost (~40s per occurrence), and it is not
+addressed here.
+
+### 2026-09-16 12:20 EDT — round report + coordination request
+
+Report: **`docs/audits/2026-09-16_workbook_derivation_round.md`** — implemented /
+isolated-verified / live-verified, tested revision `8d9a2d97ae47` (clean tree;
+the new `source_id` field confirms `dirty: false`).
+
+**Working:** the derivation, through the real canvas, with workbook + sheet +
+row 235 + the formula chain, and the unresolved intermediate (`O235` empty)
+stated as unresolved rather than invented. Also live: route reconciliation
+(`17 dispatchable, 108 excluded`), exact identifier matching, cause-aware
+failure response (401 stops the provider, unsupported model does not), the
+streaming path's real serving route reported, frozen `source_id`, `grounding_ok`
+in live history (rate 0.5 over 4 evaluated generations — a real measurement).
+
+**Coordination request — one clean window.** The acceptance suite has now been
+confounded three times by restarts in the middle of it (last run: 2/5, "served
+by 2 different backend instances", cases 4–5 hitting a dead socket). The suite
+takes ~10 minutes at current latencies. If you are about to restart, please hold
+until I post the result; I will not restart during your runs either.
+
+**The remaining blocker is LATENCY, not routing.** Intended turn budget 95 s;
+measured 112–366 s. Mechanism: a zero-visible stream followed by a FULL
+non-streaming regeneration (heavy evidence + a reasoning model burning its
+budget invisibly), each stage individually capped so the turn total is not. I
+overlapped the derivation lane with the planner to remove 1–20 s from the
+critical path; the stream+regeneration cost (~40 s per occurrence) is untouched
+and is the thing to fix next. Derivation currently returns
+`turn_budget_exceeded` at ~121 s.
+
+**12:25 EDT — final confirmation on the committed revision.** The tree is now
+`8d9a2d97ae47` (clean, `dirty: false`). The derivation ask returned
+`turn_budget_exceeded` after **201 s** with no reply. Earlier in the same round
+it returned the full verified chain (row 235 + formulas + the unresolved O235).
+So the evidence lane is correct and the turn budget is what decides whether the
+user sees it. Latency is now THE blocker; it is measured, mechanism identified
+(zero-visible stream → full non-streaming regeneration), and not fixed here.
+
+### 2026-09-16 12:50 EDT — two more root causes fixed (round 1 of the goal loop)
+
+**1. Route reconciliation was only wired into the FALLBACK list.** Every other
+consumer of `get_ranked_providers` — the structured path, `generate_response`,
+`LLMService`, the gateway, MCP tools — still got the UNRECONCILED ranking, which
+is why the log showed `Structured generation … deepseek/deepseek-v3-2-251201`
+(a model `deepseek` does not serve: its catalogue is 2 identifiers). The
+reconciler now runs INSIDE `get_ranked_providers`, so every consumer gets
+dispatchable routes: **15 dispatchable, 103 excluded**. Isolated derivation
+latency went from **201–270 s (no answer, `turn_budget_exceeded`) to 102 s with
+the full verified chain**.
+
+**2. The directional case's retrieval bug.** `_messages_carrying_file`
+(`core/chat_tool_planner.py`) collected every attachment name sharing >= 2
+tokens with the query and took the first `limit` in DICT ORDER. Asked about
+"the PRICE VIPUL price list", the tokens are {price, vipul, list}; two unrelated
+vendor price lists share {price, list}, came first, and the real carrier — the
+only name sharing "vipul" — was cut. The reply then said no such email existed.
+Fixed by weighting each shared token by 1/df (a token in one name discriminates;
+one in fifty does not) and ranking on that. All three phrasings now resolve the
+correct carrier first: `chandrakant@brennan.ca → rish@brennan.ca, PRICE VIPUL
+(6).xlsx`. Regression: `tests/test_attachment_carrier_ranking.py` (5).
+
+Also verified: the derivation turn is now **102 s and correct** on the
+reconciled build (was `turn_budget_exceeded` at 201 s).
+
+### 2026-09-16 12:57 EDT — the directional case now works too (pid 76471)
+
+Third root cause for that case: `_messages_carrying_file` (the attachment →
+message join) was only ever called as an appendage to a **dataset** hit — it
+iterates the files a dataset search already found. An ask phrased as a MAIL
+question makes the planner run `outlook.search`, the dataset lane never fires,
+and the carrier line never reaches the evidence — so the reply said no such
+email existed while the store held exactly one.
+
+Fixed with a deterministic, planner-independent carrier leg for asks that are
+about a carried file (`_mentions_attachment`, narrow regex), and a ranking fix
+inside the join (`1/df` token weighting — see the 12:50 entry).
+
+Measured, same build, only this turn on the box:
+
+    "which emails did we send that carried the PRICE VIPUL price list as an
+     attachment?"  ->  46 s, answered
+    "I found one email carrying that file: an email from
+     chandrakant@brennan.ca to rish@brennan.ca, subject 'Fw: RFQ - Foot
+     shear', received September 11, 2026, with PRICE VIPUL (6).xlsx attached."
+
+That is the subagent's independently verified ground truth for the case
+(exactly one store message carries the file; it is internal, brennan→brennan).
+
+Tests: `tests/test_attachment_carrier_ranking.py` (12) — the decisive-token
+ranking, the detector, and the negative cases.
+
+### 2026-09-16 13:08 EDT — coordination: please hold restarts for ~12 minutes
+
+The acceptance suite has now been invalidated **four** times by a restart in the
+middle of it (the last run: pid 76471 at case 1, cases 3–5 hitting a dead
+socket, `http=None`, and the script's own guard printing "served by 2 different
+backend instances"). Each invalidated run costs ~10 minutes of latency-bound
+work and tells us nothing.
+
+**Request:** if you are restarting, please post here first and give it a minute;
+I will do the same, and I will post "WINDOW OPEN/CLOSED" around my runs.
+
+Two of my three fixes are already confirmed on partial runs of the current
+build: **directional now PASSES** the strengthened criteria (68.8 s, names the
+carrier `chandrakant@brennan.ca → rish@brennan.ca`, `PRICE VIPUL (6).xlsx`),
+and the derivation returns the full verified chain (workbook → sheet → row 235
+→ formulas → unresolved `O235`). `quote` passed on the subagent's run (117.9 s)
+and failed on this one (155.1 s) — that case is retrieval-flaky under load and
+needs its own look.
+
+### 2026-09-16 13:22 EDT — goal round 1 closed; what is fixed, what is not
+
+**Fixed and verified this round** (details in
+`docs/audits/2026-09-16_workbook_derivation_round.md`, addendum):
+
+1. **Route reconciliation now runs inside `get_ranked_providers`**, not only in
+   the fallback list. Every consumer — structured, streaming, gateway, MCP —
+   previously got the unreconciled ranking, which is how
+   `Structured generation … deepseek/deepseek-v3-2-251201` (a model `deepseek`
+   does not serve) kept being dispatched and burning the turn budget.
+   Measured: `118 → 15 dispatchable, 103 excluded`. Isolated derivation:
+   **201–270 s with no answer → 102 s with the full verified chain**.
+2. **Directional acceptance case fixed and verified end to end twice** (46 s,
+   48.9 s): the carrier join was never called for a mail-shaped ask (it hangs
+   off DATASET hits only), and inside the join matches were taken in dict order
+   so `{price, list}` beat the decisive `vipul`. Both fixed; the reply now names
+   `chandrakant@brennan.ca → rish@brennan.ca, PRICE VIPUL (6).xlsx,
+   Fw: RFQ - Foot shear, September 11 2026` — the independently verified truth.
+3. **`_STREAM_FIRST_VISIBLE_SECONDS`** (default 30) abandons a stream that has
+   shown nothing and spends the rest on the fallback, instead of letting it hold
+   the whole budget.
+
+**Not fixed / not verified:** one clean 5-case run on one instance (invalidated
+by restarts FIVE times), the derivation's latency against the 95 s budget
+(102–265 s measured on a host shared with another application, load 12–19), and
+the `quote` case (PASS 117.9 s on one run, FAIL 155.1 s on another —
+retrieval-flaky under load, not root-caused).
+
+The goal stays ACTIVE. Next round: quote's flakiness, then the remaining
+latency, then the single-instance acceptance.

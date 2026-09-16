@@ -2119,8 +2119,21 @@ def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> 
     target = _file_name_tokens(file_name)
     if not target:
         return []
+    _reverse = _mail_attachment_reverse_index()
+    # Rank by how INFORMATIVE the shared tokens are, not by dict order. Asked
+    # "which emails carried the PRICE VIPUL price list", the query's tokens are
+    # {price, vipul, list}; every vendor price list shares {price, list}, and
+    # iteration order put two of them first, so the real carrier — the only
+    # name sharing "vipul", the decisive token — was cut by `limit` and the
+    # reply said no such email existed (measured 2026-09-16, acceptance case 2).
+    # A token appearing in ONE attachment name discriminates; one appearing in
+    # fifty does not, so weight each shared token by 1/df.
+    _df: Dict[str, int] = {}
+    for _name in _reverse:
+        for _tok in _file_name_tokens(_name):
+            _df[_tok] = _df.get(_tok, 0) + 1
     matches: List[tuple] = []
-    for known_name, carriers in _mail_attachment_reverse_index().items():
+    for known_name, carriers in _reverse.items():
         known = _file_name_tokens(known_name)
         if not known:
             continue
@@ -2133,14 +2146,17 @@ def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> 
         # drift case ("PRICE VIPUL (6).xlsx" vs "PRICE VIPUL.xlsx") and rejected
         # all four. Tolerance must not exceed what the evidence supports.
         if len(overlap) >= 2:
+            _score = sum(1.0 / max(1, _df.get(t, 1)) for t in overlap)
             for carrier in carriers:
-                matches.append((known_name, carrier[0], carrier[1]))
+                matches.append((_score, known_name, carrier[0], carrier[1]))
     if not matches:
         return []
+    # Most-informative overlap first; name as a stable tie-break.
+    matches.sort(key=lambda m: (-m[0], m[1]))
     by_id = {str(r.get("id") or ""): r for r in _comms_store_records()}
     out: List[str] = []
     seen_ids = set()
-    for known_name, msg_id, doc_id in matches:
+    for _score, known_name, msg_id, doc_id in matches:
         if msg_id in seen_ids:
             continue
         row = by_id.get(msg_id)

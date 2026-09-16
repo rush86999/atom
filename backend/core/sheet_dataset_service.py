@@ -1370,6 +1370,20 @@ def _probe_cached(entries: List[Dict[str, Any]], token: str, max_rows: int):
     return result
 
 
+def _read_sheet_rows(parquet_path: str, max_rows: int) -> List[Dict[str, Any]]:
+    """Read up to max_rows from the parquet as dicts, skipping pure-index
+    and all-empty rows. Used by the named-file probe to carry real row
+    content so the model can show the derivation, not just the headers."""
+    try:
+        import pandas as pd
+
+        df = pd.read_parquet(parquet_path)
+        df = df.astype(object).where(df.notna(), None)
+        return df.head(max_rows).to_dict(orient="records")
+    except Exception:  # noqa: BLE001 — best-effort row content
+        return []
+
+
 def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[Dict[str, Any]]:
     """A result for a file the USER NAMED, without requiring a content match.
 
@@ -1393,8 +1407,13 @@ def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[
         "source_modified_at": e.get("source_modified_at"),
         "sql": "(selected by file name — no content probe needed)",
         "columns": [],
-        "rows": [],
-        "row_count": 0,
+        # Attach the actual rows so the derivation evidence carries real
+        # data, not just the file/sheet index (live 2026-09-16: the model
+        # named the file correctly but could not show the derivation
+        # because the rows list was empty). Probe with a wildcard match to
+        # pull the sheet's business rows, capped by max_rows.
+        "rows": _read_sheet_rows(str(e.get("parquet_path") or ""), max_rows),
+        "row_count": len(rows_out),
         "formulas": formulas,
         "selected_by_name": True,
     }

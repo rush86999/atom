@@ -400,6 +400,50 @@ def test_derivation_fabricated_chain_fails():
     assert _quality(criteria) == "fail"
 
 
+LIVE_DERIVATION_REPLY = (
+    "I opened PRICE VIPUL (6).xlsx — Sheet1, row 235 (product F-52”x16G). The "
+    "workbook shows LIST Price (D235 = 7519) was computed from the Factory "
+    "Price (F235 = 5350) using these steps (formulas taken from that sheet):\n"
+    "- F235 = 5350 (Factory Price)\n"
+    "- G235 = F235 * 0.9 = 5350 * 0.9 = 4815.0\n"
+    "- H235 = G235 = 4815.0\n"
+    "- I235 = H235 + 700 = 4815.0 + 700 = 5515.0\n"
+    "- K235 = J235 * 1.02 = 5515.0 * 1.02 = 5625.3\n"
+    "- L235 = K235 / 0.87 = 5625.3 / 0.87 = 6465.862068965517\n"
+    "- M235 = L235 / 0.86 = 6465.862068965517 / 0.86 = 7518.882\n"
+    "- N235 = ROUNDUP(M235, 0) = 7519\n"
+    "From the sheet values (P235 = 7519 and N235 = 7519) the multiplier O235 "
+    "must be 1 for this row."
+)
+
+
+def test_derivation_input_cell_values_are_legitimate():
+    """F235 (Factory Price 5350) has no formula — it is an INPUT, and stating
+    it is not fabrication. The 2026-09-16 run flagged it because the allowed
+    set was built only from formula cells."""
+    ev = _derivation_evidence()
+    assert 5350.0 in ev.workbook.allowed_numbers
+    assert arc.unsupported_figures(
+        "G235 = F235 * 0.9 = 5350 * 0.9 = 4815.0",
+        ev.workbook.allowed_numbers) == []
+
+
+def test_derivation_wrong_quotient_fails_exactness():
+    """The live reply's one slip: M235 divided by 0.86 printed as 7518.882
+    where the sheet computes 7518.444266. Every other step is right, so this
+    must fail ONLY the exactness criterion."""
+    criteria = _run("derivation", LIVE_DERIVATION_REPLY, _derivation_evidence())
+    by_id = _by_id(criteria)
+    assert by_id["derivation.correct_workbook"].passed
+    assert by_id["derivation.correct_row"].passed
+    assert by_id["derivation.formula_chain"].passed
+    assert by_id["derivation.no_fabricated_chain"].passed
+    assert not by_id["derivation.values_match_store"].passed
+    assert "7518.882" in " ".join(
+        by_id["derivation.values_match_store"].evidence)
+    assert _quality(criteria) == "fail"
+
+
 def test_derivation_unresolved_marker_excuses_a_missing_input():
     """A genuine unresolved input, explicitly flagged, is honest — it must not
     be scored as a fabricated chain, even though the chain is incomplete."""
@@ -601,6 +645,28 @@ def test_message_match_reasons_requires_identity_not_a_name():
         "joelseguin@seguinmach.com wrote on Aug 26, 2026", msg)
     assert "sender+date" in reasons
     assert "sender_address" in reasons
+
+
+def test_quote_candidates_require_a_currency_figure_in_context():
+    """A bare '5350' digit run (a phone number) plus a stray '10' elsewhere must
+    not make a message a candidate: the loose version matched 141 messages and
+    turned "identifies the correct message" into "matched one of many"."""
+    spec = {"figure": "5350", "phrases": ["in stock", "10"]}
+    noise = arc.StoredMessage(
+        message_id="A" * 40,
+        sender="someone@example.com",
+        recipients=["chandrakant@brennan.ca"],
+        subject="Unrelated",
+        timestamp="2026-07-01 09:00:00",
+        text=("Call me on +1-519-802-5350. We shipped 10 units last week "
+              "and the pallet is in stock at the warehouse."),
+    )
+    real = _vendor_message()
+    ev = arc.EvidenceBundle(our_domains=["brennan.ca"],
+                            messages={noise.message_id: noise,
+                                      real.message_id: real})
+    candidates = arc._quote_candidates(ev, spec)
+    assert [m.message_id for m in candidates] == [real.message_id]
 
 
 def test_direction_claims_marks_negation():

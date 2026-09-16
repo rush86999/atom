@@ -121,6 +121,7 @@ CASES: List[Dict[str, Any]] = [
             "derivation.correct_row",
             "derivation.formula_chain",
             "derivation.no_fabricated_chain",
+            "derivation.values_match_store",
             "derivation.unresolved_reported",
         ],
     },
@@ -580,14 +581,17 @@ def direction_claims(reply: str) -> List[Dict[str, Any]]:
             "clause": clause.strip()[:400],
             "sent_cues": sent,
             "received_cues": recv,
-            # A negated claim ("it was NOT sent to a counterparty") is not an
-            # assertion about direction and must not be read as one.
+            # A negated claim ("it was NOT sent to a counterparty", "I can't
+            # confirm any email that was sent…") is not an assertion about
+            # direction and must not be read as one. The whole clause prefix is
+            # checked: the negator can sit far from the cue, and a 30-char
+            # window mis-read the live 2026-09-16 refusal as an outbound claim.
             "sent_negated": any(
-                _has_negation_before(low, low.index(cue) + len(cue) - 1, 30)
+                _has_negation_before(low, low.index(cue) + len(cue) - 1, len(low))
                 for cue in sent
             ),
             "received_negated": any(
-                _has_negation_before(low, low.index(cue) + len(cue) - 1, 30)
+                _has_negation_before(low, low.index(cue) + len(cue) - 1, len(low))
                 for cue in recv
             ),
             "addresses": addresses_in(clause),
@@ -844,15 +848,33 @@ def aggregate_quality(delivery: Dict[str, Any],
 # ---------------------------------------------------------------------------
 
 
-def _quote_candidates(ev: EvidenceBundle, spec: Dict[str, Any]) -> List[StoredMessage]:
+def _quote_candidates(ev: EvidenceBundle, spec: Dict[str, Any],
+                      window: int = 160) -> List[StoredMessage]:
+    """Messages that actually CARRY the quoted terms.
+
+    Membership must be strict, or "identifies the correct message" degrades
+    into "matched one of 141 messages": a bare digit-substring test matched
+    every message containing `5350` anywhere (phone numbers, ids) and `10`
+    matched almost every message. A candidate now needs a currency-shaped
+    figure equal to the quoted value AND the qualifier in the same window of
+    text around it.
+    """
+    target = float(digits_only(spec["figure"]) or 0)
+    phrases = [canon(p) for p in spec.get("phrases", []) if p]
     out: List[StoredMessage] = []
     for msg in ev.messages.values():
-        if not figure_in(spec["figure"], msg.text):
-            continue
-        low = canon(msg.text)
-        if not any(p in low for p in spec.get("phrases", [])):
-            continue
-        out.append(msg)
+        text = msg.text or ""
+        low = canon(text)
+        for raw, value in money_mentions(text):
+            if abs(value - target) > max(target * 0.001, 0.01):
+                continue
+            idx = low.find(canon(raw))
+            if idx < 0:
+                continue
+            near = low[max(0, idx - window): idx + len(raw) + window]
+            if all(p in near for p in phrases):
+                out.append(msg)
+                break
     return out
 
 
@@ -1185,8 +1207,43 @@ def criteria_derivation(reply: str, ev: EvidenceBundle) -> List[CriterionResult]
         detail=("fabricated intermediate(s) asserted" if fabricated
                 else "all asserted figures trace to stored values"),
         evidence=([f"unsupported: {fabricated}"] if fabricated else
-                  [f"allowed values: {sorted(set(allowed))[:14]}"]) +
+                  [f"allowed values: {sorted(set(allowed))}"]) +
                  [f"store row values: {wb.values}"],
+    ))
+
+    # EXACTNESS: an asserted equality ("M235 = ... = 7518.882") is a claim about
+    # a cell, and the workbook holds one value for that cell. Stating a
+    # different one is a wrong claim even when it is only an arithmetic slip —
+    # the live 2026-09-16 reply divided by 0.86 and printed 7518.882 where the
+    # sheet computes 7518.444266. Tolerance is a nickel.
+    mismatches: List[str] = []
+    asserted: List[Tuple[str, float]] = []
+    for clause in split_clauses(reply):
+        if not re.search(r"[A-Z]{1,3}\d+|[*/+×÷]", clause):
+            continue
+        for m in re.finditer(r"=\s*\$?\s*(\d[\d,]*(?:\.\d+)?)", clause):
+            try:
+                value = float(m.group(1).replace(",", ""))
+            except ValueError:
+                continue
+            asserted.append((clause.strip()[:200], value))
+    stored = [v for v in wb.allowed_numbers]
+    for clause, value in asserted:
+        if any(abs(value - s) <= max(abs(s) * 1e-6, 0.05) for s in stored):
+            continue
+        mismatches.append(f"asserted {value:g} — no cell in row {wb.row_number} "
+                          f"holds it: {clause[:160]}")
+    results.append(CriterionResult(
+        criterion="derivation.values_match_store",
+        requirement=("every value the reply asserts for a cell/step must equal "
+                     "the stored workbook value (to the cent)"),
+        passed=not mismatches,
+        detail=(f"{len(mismatches)} asserted value(s) contradict the workbook"
+                if mismatches else
+                f"{len(asserted)} asserted equalities match the workbook"),
+        evidence=(mismatches[:3] or
+                  [f"asserted: {[v for _, v in asserted][:10]}"]) +
+                 [f"stored row values: {sorted(set(stored))}"],
     ))
 
     needed_unflagged = bool(fabricated) and not has_unresolved_statement(reply)
@@ -1336,6 +1393,7 @@ FAILING_STAGE_BY_CRITERION = {
     "derivation.correct_row": "retrieval",
     "derivation.formula_chain": "derivation",
     "derivation.no_fabricated_chain": "derivation",
+    "derivation.values_match_store": "derivation",
     "derivation.unresolved_reported": "derivation",
     "control_unrelated_source.lookup_evidence": "planning",
     "control_unrelated_source.source_verified_or_disclaimed": "retrieval",
@@ -1594,7 +1652,11 @@ def collect_workbook_facts(bundle: EvidenceBundle, name: str, target: float,
             return str(columns[idx]) if 0 <= idx < len(columns) else m.group(1)
 
         steps: List[WorkbookStep] = []
-        allowed: List[float] = [float(row_number)]
+        # EVERY value on the row is legitimate for the answer to state — most
+        # of all the INPUT cells, which have no formula (F235 = Factory Price
+        # 5350). Collecting only formula-cell values made the fabrication check
+        # flag the chain's own starting price on 2026-09-16.
+        allowed: List[float] = [float(row_number)] + list(cell_values.values())
         for cell in sorted(row_formulas):
             expr = row_formulas[cell]
             body = expr.lstrip("=").strip()

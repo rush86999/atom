@@ -86,6 +86,16 @@ _TOOLCHOICE_UNSUPPORTED: set = set()
 # and openrouter/openai/gpt-5-mini; the retry meant to handle it never fired).
 _REASONING_MANDATORY: set = set()
 
+# (provider, model) pairs whose endpoint answered 401 AuthError — the
+# credential is wrong for THAT pair. A rejected credential must not be
+# retried across every model on the provider (each retry re-pays a full
+# round trip and can eat the turn budget before a working route is
+# reached — live 2026-09-16: opencode-go/gemini-3-flash 401'd as the
+# cheapest planning pick on a canvas teach turn, the UI timed out at
+# 120s, and the user saw "Could not reach the agent"). Cleared when a
+# pair succeeds (recovery after configuration changes).
+_AUTH_FAILED: set = set()
+
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
     """Run ``coro`` synchronously from sync code — safe with or without a
@@ -2860,10 +2870,42 @@ class BYOKHandler:
             )
             _COST_PRIORITY_MIN_QUALITY = 85
             if _cost_priority:
+                # REASONING-MANDATORY models are latency-ineligible for
+                # small-JSON tasks: they spend whole budgets on hidden
+                # thinking even when the disable switch is accepted or
+                # absent (live 2026-09-15/16: glm-5.3-flash took 75s per
+                # planning call on a heavy prompt, blowing the 95s turn
+                # budget turn after turn — the memo records the measured
+                # rejection, so this is evidence-driven exclusion, not a
+                # name heuristic). Any-model fallback if all quality-85+
+                # candidates are reasoning-mandatory.
+                _auth_dead = [
+                    c for c in candidates
+                    if f"{c.get('provider')}/{c.get('model')}" in _AUTH_FAILED
+                ]
+                if _auth_dead:
+                    logger.info(
+                        "BPC cost-priority: %d auth-failed pair(s) "
+                        "benched (401 memo) — skipped before any dispatch",
+                        len(_auth_dead))
+                candidates = [
+                    c for c in candidates
+                    if f"{c.get('provider')}/{c.get('model')}"
+                    not in _AUTH_FAILED
+                ] or candidates
+                _reasoning_locked = [
+                    c for c in candidates
+                    if f"{c.get('provider')}/{c.get('model')}"
+                    in _REASONING_MANDATORY
+                ]
                 _above = [
                     c for c in candidates
                     if (c.get("quality") or 0) * 100 >= _COST_PRIORITY_MIN_QUALITY
+                    and f"{c.get('provider')}/{c.get('model')}"
+                    not in _REASONING_MANDATORY
                 ]
+                if not _above and _reasoning_locked:
+                    _above = _reasoning_locked
                 if _above:
                     _dropped = len(candidates) - len(_above)
                     if _dropped:
@@ -3078,7 +3120,8 @@ class BYOKHandler:
 
             if ranked_options:
                 logger.info(f"BPC Ranking Successful for {getattr(complexity, 'value', complexity)}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
-                return AwaitableResult(ranked_options)
+                return AwaitableResult(
+                    self._reconcile_ranked_routes(ranked_options))
                 
         except Exception as e:
             logger.debug(f"BPC ranking failed, falling back to static mapping: {e}")
@@ -3212,7 +3255,7 @@ class BYOKHandler:
                 ranked_options.remove(qwen_option)
                 ranked_options.insert(0, qwen_option)
 
-        return AwaitableResult(ranked_options)
+        return AwaitableResult(self._reconcile_ranked_routes(ranked_options))
 
     def _llm_taint_check(self, text: str, provider_id: str, model: str) -> Optional[str]:
         """P4 prompt-taint gate. Returns a block reason under enforce mode,
@@ -5301,12 +5344,30 @@ class BYOKHandler:
                         schema_error=False,
                         routing_result_id=structured_decision_id,
                     )
+                    _AUTH_FAILED.discard(f"{provider_id}/{model}")
                     return result
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
 
                     err_str = str(attempt_err)
+                    # AUTH-FAILURE MEMO: a 401 for this (provider, model)
+                    # means the credential is rejected for the pair —
+                    # every later model on the same provider would fail
+                    # identically. Memoize so ranking skips the pair (see
+                    # the _AUTH_FAILED gate in get_ranked_providers) and
+                    # this provider stops eating the turn budget before a
+                    # working route is reached. Cleared on success.
+                    if "401" in err_str or "autherror" in err_str.lower() \
+                            or "invalid api key" in err_str.lower():
+                        _pair = f"{provider_id}/{model}"
+                        if _pair not in _AUTH_FAILED:
+                            _AUTH_FAILED.add(_pair)
+                            logger.warning(
+                                f"AUTH-FAILED memo: {_pair} benched after "
+                                "401 AuthError — credential rejected; "
+                                "ranking will skip this pair until a "
+                                "successful call clears it")
                     # Record failed structured call for health monitoring.
                     # The structured cascade never fed the health monitor, so
                     # connection-dead providers stayed optimistically healthy,
