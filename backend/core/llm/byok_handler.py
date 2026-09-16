@@ -1549,6 +1549,34 @@ class BYOKHandler:
                     api_key = candidate
                     credential_source = "byok"
 
+            # Personal-edition fallback: keys saved under a specific tenant
+            # (key_id = "tenant_<uuid>_<provider>_<name>_<env>") are invisible
+            # to the workspace-scoped lookup above. In a single-user Personal
+            # Edition deployment the chat orchestrator runs with
+            # tenant_id="default" but the user's saved key lives under their
+            # own tenant UUID — scan the encrypted store for any matching row
+            # and decrypt with the current Fernet key.
+            if not api_key:
+                try:
+                    tenant_prefix = f"tenant_"
+                    for row_id, row in self.byok_manager.api_keys.items():
+                        parts = row_id.split("_")
+                        if (
+                            len(parts) >= 4
+                            and parts[0] == "tenant"
+                            and parts[-3] == provider_id
+                        ):
+                            try:
+                                candidate = self.byok_manager.decrypt_api_key(row.encrypted_key)
+                                if isinstance(candidate, str) and candidate:
+                                    api_key = candidate
+                                    credential_source = "byok"
+                                    break
+                            except Exception:
+                                continue
+                except Exception:
+                    pass
+
             # Special case: Gemini BYOK fallback to Google / Google Flash / Gemini Flash variants
             if not api_key and provider_id == "gemini":
                 for alt_provider in ["google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5"]:

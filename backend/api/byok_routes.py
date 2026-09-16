@@ -1063,12 +1063,45 @@ async def test_provider_key(
         from starlette.concurrency import run_in_threadpool
 
         def _probe() -> Dict[str, Any]:
-            from core.llm.byok_handler import BYOKHandler
+            from openai import OpenAI
+            from core.llm.byok_handler import _llm_request_timeout
 
-            handler = BYOKHandler()
-            client = handler.clients.get(provider_id)
-            if client is None:
+            manager = get_byok_manager()
+            provider_cfg = manager.providers.get(provider_id)
+            base_url = getattr(provider_cfg, "base_url", None) if provider_cfg else None
+
+            api_key = manager.get_tenant_api_key(str(tenant.id), provider_id, db=db)
+            if not api_key:
+                api_key = manager.get_api_key(provider_id)
+            if not api_key:
+                # Personal edition: keys saved under any tenant should be
+                # visible to the admin (single-user deployment). Fall back to
+                # scanning all stored tenant-scoped keys for this provider.
+                prefix = f"tenant_"
+                for row_id, row in manager.api_keys.items():
+                    parts = row_id.split("_")
+                    if len(parts) >= 4 and parts[-3] == provider_id:
+                        try:
+                            candidate = manager.decrypt_api_key(row.encrypted_key)
+                            if candidate:
+                                api_key = candidate
+                                break
+                        except Exception:
+                            continue
+            if not api_key:
                 return {"ok": False, "reason": "provider_not_configured"}
+
+            client_kwargs = {
+                "api_key": api_key,
+                "base_url": base_url,
+                "timeout": _llm_request_timeout(),
+            }
+            if provider_id == "openrouter":
+                client_kwargs["default_headers"] = {
+                    "HTTP-Referer": "https://atom.ai",
+                    "X-Title": "Atom",
+                }
+            client = OpenAI(**client_kwargs)
             models = client.models.list()
             return {
                 "ok": True,
