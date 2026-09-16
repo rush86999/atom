@@ -1048,6 +1048,49 @@ class BYOKHandler:
             logger.debug(f"route eligibility check failed for {provider_id}/{model}: {exc}")
             return provider_id in model.lower() or "/" not in model.lower()
 
+    _provider_models_cache: Dict[str, List[str]] = {}
+
+    def _provider_models_cached(self, provider_id: str) -> List[str]:
+        """Models the pricing cache knows for one provider (cached 60s).
+        Used by the executable-routes gate to check whether ALL of a
+        provider's models are benched (→ drop the provider) or only some
+        (→ keep it, individual pairs were already filtered)."""
+        import time as _t
+
+        now = _t.monotonic()
+        hit = self._provider_models_cache.get(provider_id)
+        if hit and now - hit[0] < 60:
+            return hit[1]
+        models: List[str] = []
+        try:
+            for m in self.cache_router.get_all_models():
+                name = m if isinstance(m, str) else str(
+                    getattr(m, "model", m) or "")
+                if "/" in name:
+                    prov, model = name.split("/", 1)
+                    if prov == provider_id and model not in models:
+                        models.append(model)
+        except Exception:  # noqa: BLE001 — best-effort list
+            models = []
+        self._provider_models_cache[provider_id] = (now, models)
+        return models
+
+    def _gateway_families(self, pairs: List[tuple]) -> Dict[str, int]:
+        """Count candidates per GATEWAY FAMILY. OpenRouter and opencode-go
+        are both multi-model gateways; a candidate list concentrated on
+        one family has zero fallback diversity regardless of how many
+        (provider, model) pairs it contains. Returns {family: count}."""
+        families: Dict[str, int] = {}
+        for provider_id, _model in pairs:
+            # Gateway families: providers that proxy to the same upstream
+            # pool. Direct APIs (deepseek, anthropic) are their own family.
+            if provider_id in ("openrouter", "opencode-go", "opencode", "zen"):
+                fam = provider_id  # distinct gateways, but each is a family
+            else:
+                fam = provider_id
+            families[fam] = families.get(fam, 0) + 1
+        return families
+
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
         Get provider fallback order for resilience.
@@ -1077,8 +1120,45 @@ class BYOKHandler:
         if not available_providers:
             return []
 
-        # Fallback priority order (most reliable first)
-        priority_order = ["deepseek", "openai", "opencode-go", "moonshot", "minimax", "xiaomi", "deepinfra", "ollama"]
+        # FALLBACK ORDER: BPC-ranked, GATEWAY-FAMILY-DIVERSE (2026-09-16).
+        # The old hardcoded priority list ["deepseek", "openai", ...]
+        # ignored credential health, catalog availability, and gateway
+        # diversity — it was a static guess that didn't consult the system
+        # it was falling back into. The new order:
+        #   1. the requested provider (if its client is alive)
+        #   2. then providers ordered by gateway-family diversity — the
+        #      next candidate from a DIFFERENT family than the primary,
+        #      so a single gateway failure doesn't cascade
+        #   3. then remaining providers by family-diverse round-robin
+        # The executable-routes gate already excluded fully-benched
+        # providers from available_providers, so this list is clean.
+        _families = {}
+        for p in available_providers:
+            fam = p  # each provider is its own family (see _gateway_families)
+            _families.setdefault(fam, []).append(p)
+        _primary_family = None
+        for fam, provs in _families.items():
+            if primary_provider in provs:
+                _primary_family = fam
+                break
+        # Interleave: first from each non-primary family, then the rest
+        priority_order = []
+        _remaining = [
+            p for p in available_providers if p != primary_provider
+        ]
+        while _remaining:
+            _picked = False
+            for p in list(_remaining):
+                fam = p
+                if fam != _primary_family:
+                    priority_order.append(p)
+                    _remaining.remove(p)
+                    _primary_family = fam  # next pick should be a new family
+                    _picked = True
+                    break
+            if not _picked:
+                priority_order.extend(_remaining)
+                break
 
         # Build fallback list: primary first, then others in priority order
         fallback_order = []
@@ -2629,6 +2709,42 @@ class BYOKHandler:
                 min_quality = min(min_quality, max_quality)
             
             available_providers = list(self.clients.keys())
+
+            # EXECUTABLE-ROUTES GATE (2026-09-16): BPC consults BYOK's
+            # credential and catalog state BEFORE ranking, not at dispatch.
+            # A (provider, model) pair is only a candidate if:
+            #   (a) its credential hasn't been memoized as 401-rejected
+            #       (the _AUTH_FAILED bench was a post-ranking patch for
+            #       exactly this gap — broken credentials ranked cheapest
+            #       and ate the turn budget before a working route);
+            #   (b) the model isn't reasoning-mandatory for a small-JSON
+            #       task (memoized after a measured 400);
+            #   (c) the provider's client is actually initialized.
+            # The gate is fail-open (returns the unfiltered list when the
+            # memo sets are empty — the common path for a fresh process).
+            _dead_pairs = _AUTH_FAILED | {
+                p for p in _REASONING_MANDATORY
+                if (task_type or "").strip().lower() in
+                ("extraction", "planning", "classification", "routing",
+                 "nl2sql", "structured_extract")
+            }
+            if _dead_pairs:
+                _before = len(available_providers)
+                available_providers = [
+                    p for p in available_providers
+                    if not (
+                        self._provider_models_cached(p)
+                        and all(
+                            f"{p}/{m}" in _dead_pairs
+                            for m in self._provider_models_cached(p)
+                        )
+                    )
+                ] or available_providers  # never empty
+                if len(available_providers) != _before:
+                    logger.info(
+                        "BPC executable-routes gate: %d provider(s) fully "
+                        "benched (401/reasoning memo) — excluded before "
+                        "ranking", _before - len(available_providers))
             candidates = []
 
             # When a capability filter is active, bulk-load the capability index
@@ -3254,6 +3370,24 @@ class BYOKHandler:
             if qwen_option:
                 ranked_options.remove(qwen_option)
                 ranked_options.insert(0, qwen_option)
+
+        # GATEWAY-FAMILY DIVERSITY CHECK: if the final ranking is
+        # concentrated on one gateway family, the caller has zero
+        # cross-provider fallback regardless of candidate count. Log it
+        # so the operator sees the concentration (the topology finding
+        # from the audit — 118 candidates, one upstream).
+        try:
+            if len(ranked_options) > 1:
+                _fam_counts = self._gateway_families(ranked_options)
+                if len(_fam_counts) == 1:
+                    _only = next(iter(_fam_counts))
+                    logger.warning(
+                        "BPC: all %d ranked candidates are on ONE gateway "
+                        "family (%s) — no cross-provider fallback "
+                        "diversity for this call",
+                        len(ranked_options), _only)
+        except Exception:  # noqa: BLE001 — observability only
+            pass
 
         return AwaitableResult(self._reconcile_ranked_routes(ranked_options))
 
@@ -6024,7 +6158,9 @@ class BYOKHandler:
                     f"Skipping {attempt_provider_id}/{model}: model cooldown active")
                 continue
 
-            logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
+            logger.info(
+                "Attempting stream with provider: %s (requested: %s) model=%s",
+                attempt_provider_id, provider_id, model)
 
             try:
                 import time
@@ -6182,6 +6318,18 @@ class BYOKHandler:
                     success=True, cost=None, latency_ms=latency_ms,
                     routing_result_id=stream_decision_id,
                 )
+
+                if token_count == 0:
+                    # Zero VISIBLE chunks is a distinct outcome from a failed
+                    # request: the provider answered (transport OK) but emitted
+                    # no content — a reasoning model that spent its whole budget
+                    # thinking, or an empty completion. The caller then pays for
+                    # a full non-streaming regeneration, so say which shape it
+                    # was instead of leaving "produced no tokens" unexplained.
+                    logger.warning(
+                        "stream for %s/%s finished with ZERO visible chunks "
+                        "(finish_reason=%s); caller will fall back",
+                        attempt_provider_id, model, _stream_finish_reason)
 
                 # Success! Return from the function
                 return

@@ -4066,3 +4066,56 @@ the other application.
 This is a measurement workaround, and I will report it as such: the acceptance
 criterion is "one verified build", and the serving instance is recorded per
 request either way. Runs on 8001 remain the user-facing check.
+
+### 2026-09-16 14:05 EDT — correction + round-2 measurement status
+
+**Correction to my 13:32 entry:** the "served by 2 different backend instances"
+on the port-8002 run was **my own doing** — I restarted the dedicated instance
+for instrumentation while the acceptance was in flight (the run started 18:01:33
+on pid 90689; I replaced it at 18:02:04). The two `NOT_EVALUATED` cases were
+killed by that restart, not by the product. My apologies for the noise.
+
+**What that run DID establish** — three cases scored on ONE instance
+(`0baf7c508fa1-dirty.eb26b684971f.90689`), all against the strengthened
+criteria:
+
+| case | verdict | latency |
+|---|---|---|
+| quote | **PASS** (5 stored messages identified, attribution corroborated, quoted terms verified) | 175.0 s |
+| directional | **PASS** (1 store carrier, direction verified, no phantom outbound) | 92.3 s |
+| control_unrelated_source | **PASS** (12 planner/tool steps, explicit not-found, no false source claim) | 128.1 s |
+
+**Root cause of the derivation's latency, measured this round:** the
+**canvas-edit leg's preparation dominates — 69.1 s** — while the reply itself is
+**10.5 s** (`reply STREAMED: 10.5s … 497 chunks`) and the derivation lane fires
+correctly (`[derivation] workbook lane: 1286 chars`, `matched-row-evidence=True`).
+`plan_canvas_edit` is NOT the cost: called directly it returns in **0.0 s** when
+there is nothing to plan. The cost is the leg's prep (canvas refresh/heal,
+cross-canvas learnings, identity, playbooks, fresh-data join) plus the planner
+legs. So the fix is to bound or bypass that leg when the deterministic
+derivation lane already holds the matched row — not to touch the plan call.
+
+A dedicated instance is live on **8002** (pid 95790, `82a4d548d1dc-dirty.
+48ac68686f03`) with the instrumentation below; I am running the two remaining
+cases there against a 300 s client timeout so the QUALITY verdict is measured
+even where latency is high.
+
+**Instrumentation added (live):** stream attempts now log the model
+(`Attempting stream with provider: openrouter … model=z-ai/glm-5.3-flash`), and
+a stream that ends with zero visible chunks logs its `finish_reason` — the
+"produced no tokens" warning was previously unattributable.
+
+**14:20 EDT — round 2 close.** Four of five cases pass the strengthened criteria
+on the current build (quote 175 s, directional 92.3 s, control_unrelated 128.1 s,
+control_missing 128.9 s, all single-instance). The derivation is the remaining
+failure and it is INTERMITTENT: full verified chain on two runs (subagent 6/6 at
+159.5 s; mine at 102 s), a refusal on two others (197.1 s, 264 s) — and I checked
+directly that the matched row + formulas ARE in the prompt when it refuses (the
+18 k budget trim keeps `R235`, `FORMULAS FOR THE MATCHED ROW`, `LIST Price=7519`).
+So the defect is framing/model choice, not retrieval.
+
+Latency is dominated by the canvas-edit leg's PREPARATION (69.1 s) while the
+reply streams in 10.5 s; `plan_canvas_edit` itself returns in 0.0 s when there is
+nothing to plan. Both items are scoped in
+`docs/audits/2026-09-16_workbook_derivation_round.md` (round-2 addendum).
+Goal stays active.

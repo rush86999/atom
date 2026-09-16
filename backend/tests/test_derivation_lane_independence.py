@@ -147,3 +147,40 @@ class TestLaneIndependenceFromThePlanner:
         src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
         assert '"FORMULAS FOR THE MATCHED ROW" in _block_text' in src
         assert 'and "FORMULAS FOR THE MATCHED ROW" in _block_text' in src
+
+
+class TestDerivationEvidenceFraming:
+    """The evidence block must SAY what it is, or a model treats the decisive
+    rows as background.
+
+    Measured 2026-09-16 with byte-identical evidence: gpt-5-mini walked the
+    formula chain (row 235, six formulas, unresolved O235) while
+    deepseek-v4-flash answered "I don't have the contents of the PRICE VIPUL
+    document — could you share it?" on three separate runs. The fix is framing,
+    not a pinned model (which the brief forbids).
+    """
+
+    def _instruction(self, block: str) -> str:
+        """Reproduce the message the orchestrator builds for a tool block."""
+        import inspect
+
+        src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+        assert "DERIVATION EVIDENCE" in src, "the framing is gone"
+        assert 'if "FORMULAS FOR THE MATCHED ROW" in _tool_block' in src
+        return src
+
+    def test_framing_present_for_a_derivation_block(self):
+        src = self._instruction("")
+        # Phrases that appear inside a single source literal (the message is
+        # built from concatenated strings, so a phrase spanning two literals
+        # would not be found here).
+        for phrase in ("DERIVATION EVIDENCE", "ARE the answer; you already have them",
+                       "the SHEET, the ROW NUMBER", "is UNRESOLVED",
+                       "ask the user to share or upload it",
+                       "every value you need is in"):
+            assert phrase in src, f"missing instruction: {phrase!r}"
+
+    def test_framing_is_conditional_on_the_matched_row(self):
+        """A mail-only block must not be labelled a derivation."""
+        src = self._instruction("")
+        assert '_evidence_instruction += "\\n" + _tool_block' in src

@@ -1096,6 +1096,15 @@ def _derivation_ask(
 #: as an attachment", "the workbook you sent me", "attached price list"). Kept
 #: deliberately narrow: the carrier join costs a scan of the attachment ledger,
 #: so it runs for asks that actually ask about a carried file.
+#: How much NON-derivation evidence may accompany the matched workbook rows.
+#: The rows are ~1.3k chars and ARE the answer; a 27k-char block around them
+#: dilutes them — measured 2026-09-16: with the matched row delivered
+#: (`framing=True | row235=True`) one model still answered with a clarifying
+#: question instead of the chain, while the same ask on a short block produced
+#: the full derivation. The decisive rows LEAD and the bulk is capped.
+_DERIVATION_CONTEXT_BUDGET_CHARS = int(
+    os.getenv("ATOM_DERIVATION_CONTEXT_BUDGET_CHARS", "6000") or 6000)
+
 _ATTACHMENT_ASK_RE = re.compile(
     r"\b(attachments?|attached|enclosed|carried|carrying|sent (?:me|us)|"
     r"emailed (?:me|us)|forwarded)\b",
@@ -3443,7 +3452,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "tool_block=%d chars named_file=%s",
                     _deriv_wanted, _deriv_present, len(_block_text),
                     "PRICE VIPUL" in _block_text.upper())
-                if _deriv_wanted and not _deriv_present:
+                # The lane's rows LEAD the evidence whenever a derivation ask
+                # has them, even when the planner's own block also mentions a
+                # matched row: position decides whether a model uses them.
+                if _deriv_wanted:
                     _deriv_block = None
                     if _deriv_task is not None:
                         try:
@@ -3461,9 +3473,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, None,
                             llm_service=self.llm_service)
                     if _deriv_block:
-                        _tool_block = (
-                            f"{_deriv_block}\n\n{_tool_block}"
-                            if _tool_block else _deriv_block)
+                        # A DETERMINISTIC BLOCK SUPERSEDES A LOOKUP-FAILURE
+                        # NOTE. When the planner timed out, `_tool_block` holds
+                        # "the live lookup FAILED … tell the user" (or "NO TOOL
+                        # LOOKUP RAN THIS TURN"). Prepending the retrieved rows
+                        # to that note leaves the model two contradictory
+                        # instructions, and it obeys the note: measured
+                        # 2026-09-16 — the evidence log showed the matched row
+                        # DELIVERED (`framing=True | row235=True`) while the
+                        # reply said "the document lookup didn't return its
+                        # data". The rows came from the dataset lane, so a
+                        # "no lookup ran" note is simply false here.
+                        _stale_failure_note = bool(_tool_block) and (
+                            "the live lookup FAILED" in _tool_block
+                            or "NO TOOL LOOKUP RAN THIS TURN" in _tool_block)
+                        if _stale_failure_note:
+                            logger.info(
+                                "[derivation] dropping a stale lookup-failure "
+                                "note — the dataset lane DID retrieve the row")
+                            _tool_block = _deriv_block
+                        else:
+                            _bulk = _tool_block or ""
+                            if len(_bulk) > _DERIVATION_CONTEXT_BUDGET_CHARS:
+                                logger.info(
+                                    "[derivation] bounding accompanying "
+                                    "evidence %d -> %d chars so the matched "
+                                    "row leads", len(_bulk),
+                                    _DERIVATION_CONTEXT_BUDGET_CHARS)
+                                _bulk = _enforce_evidence_budget(
+                                    _bulk[:_DERIVATION_CONTEXT_BUDGET_CHARS]) or ""
+                            _tool_block = (
+                                f"{_deriv_block}\n\n{_bulk}"
+                                if _bulk else _deriv_block)
             except Exception as _deriv_err:  # noqa: BLE001
                 logger.warning(f"[derivation] lane failed: {_deriv_err!r}")
 
@@ -3479,17 +3520,59 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if _opened:
                     _tool_block = _tool_block + "\n\n" + _opened
                 _tool_block = _enforce_evidence_budget(_tool_block)
-                _evidence_msg = {"role": "system", "content": (
+                _evidence_instruction = (
                     "TOOL EXECUTION RESULT — the harness ran this JUST NOW, "
                     "successfully, on your behalf. Any earlier statement about "
                     "lacking access or tools is OUTDATED: ignore it. Do NOT emit "
                     "tool-call, XML, or protocol syntax, and do not attempt to call "
                     "tools yourself — the harness handles tools. Answer the user's "
-                    "current message in plain language using this fresh result:\n"
-                    + _tool_block
-                )}
+                    "current message in plain language using this fresh result:")
+                if "FORMULAS FOR THE MATCHED ROW" in _tool_block:
+                    # DERIVATION FRAMING. The matched row and its formulas ARE
+                    # the answer to a derivation ask, but a model can read a
+                    # large evidence block as "background" and answer from
+                    # memory or ask the user to share a file that is already in
+                    # front of it — measured 2026-09-16: with byte-identical
+                    # evidence, `openrouter/openai/gpt-5-mini` walked the chain
+                    # (row 235, six formulas, evaluated, unresolved O235) while
+                    # `openrouter/deepseek/deepseek-v4-flash-0731` answered
+                    # "I don't have the contents of the PRICE VIPUL document …
+                    # could you share it?" on three separate runs. The fix is
+                    # the framing, NOT a pinned model: naming the block's role,
+                    # what must be stated, and the exact wrong answer to avoid.
+                    _evidence_instruction += (
+                        "\n\nDERIVATION EVIDENCE — the workbook rows and "
+                        "FORMULAS below ARE the answer; you already have them. "
+                        "Walk the derivation in order and state: the workbook "
+                        "file, the SHEET, the ROW NUMBER, and each source "
+                        "formula with its evaluated value. A cell the extract "
+                        "leaves EMPTY is UNRESOLVED — name that cell and say "
+                        "the final step cannot be confirmed from the stored "
+                        "copy. Do NOT say the document is unavailable, do NOT "
+                        "ask the user to share or upload it, and do NOT claim "
+                        "no cells were retrieved: every value you need is in "
+                        "this block.\n" + _tool_block)
+                else:
+                    _evidence_instruction += "\n" + _tool_block
+                _evidence_msg = {"role": "system",
+                                 "content": _evidence_instruction}
                 messages.append(_evidence_msg)
                 logger.info(f"tool plan executed: {_planned}")
+                # ATTRIBUTION for the one question that decides a derivation
+                # case: did the model actually RECEIVE the matched row? Without
+                # this the failure is indistinguishable from a model that had
+                # the evidence and ignored it (measured 2026-09-16: two refusals
+                # on deepseek-v4-flash with `matched-row-evidence=True` logged
+                # from the block, so the next step is to see the message text).
+                if "FORMULAS FOR THE MATCHED ROW" in _tool_block:
+                    _ev_text = str(_evidence_msg.get("content") or "")
+                    logger.info(
+                        "[evidence] derivation block delivered to the model: "
+                        "%d chars | framing=%s | row235=%s | head=%r",
+                        len(_ev_text),
+                        "DERIVATION EVIDENCE" in _ev_text,
+                        "R235" in _ev_text or "row 235" in _ev_text.lower(),
+                        _ev_text[:280])
 
             # MEASURE THE WHOLE PROMPT, not just the evidence section. The 18k
             # char evidence budget is a per-section budget; what the model

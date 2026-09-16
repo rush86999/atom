@@ -354,3 +354,69 @@ budget**, all cases satisfying the strengthened criteria, one verified build —
 is **not met**. The routing layer, the evidence lanes and the acceptance
 instrument are in place; what remains is latency and a stable measurement
 window.
+
+---
+
+# Addendum — goal round 2 (2026-09-16 13:22–14:20 EDT)
+
+## Measured on one verified instance (strengthened criteria)
+
+Instance `0baf7c508fa1-dirty.eb26b684971f.90689` (port 8002, dedicated, same
+code + `data/atom.db` + BYOK store):
+
+| case | verdict | latency |
+|---|---|---|
+| quote | **PASS** — 5 stored messages identified, attribution corroborated, quoted terms verified in the source | 175.0 s |
+| directional | **PASS** — 1 store carrier, direction verified, no phantom outbound | 92.3 s |
+| control_unrelated_source | **PASS** — 12 planner/tool steps, explicit not-found, no false source claim | 128.1 s |
+
+Instance `82a4d548d1dc-dirty.48ac68686f03.95790`:
+
+| case | verdict | latency |
+|---|---|---|
+| control_missing_evidence | **PASS** — no price attributed to F-9999, explicit unresolved statement | 128.9 s |
+| derivation | **FAIL** — workbook named ✓, no fabricated chain ✓, unresolved reported ✓, but **row number missing** and **0/6 chain steps stated** (a refusal) | 197.1 s |
+
+So four of the five cases pass the strengthened criteria on the current build;
+the derivation is the one that fails, and it fails **intermittently**:
+
+* subagent's run: **PASS 6/6**, 19 asserted equalities, 159.5 s
+* this session: **PASS** with the full chain at 102 s
+* this session: **FAIL** (refusal) at 197.1 s and again at 264 s
+
+## The evidence IS in the prompt when it refuses
+
+Checked directly rather than assumed:
+
+* the lane fires — `[derivation] workbook lane: 1286 chars of dataset evidence`
+  and `[derivation] ask=True matched-row-evidence=True tool_block=22804 chars`;
+* the 18 000-char budget trim does **not** drop it — against a realistic
+  18 377-char block the trim keeps `R235`, `FORMULAS FOR THE MATCHED ROW` and
+  `LIST Price=7519`, and says so ("3 decisive line(s) and 4 other line(s)
+  omitted").
+
+So the remaining derivation defect is **how the evidence is framed or which
+model answers**, not retrieval and not the budget. That is the next thing to
+take.
+
+## Latency: the pre-reply legs, not the reply
+
+`[stage-timing] canvas-edit plan: 69.1s` … `reply STREAMED: 10.5s to full text
+(497 chunks)` … `reply generation: 20.5s`. `plan_canvas_edit` itself returns in
+**0.0 s** when called directly with nothing to plan, so the cost is the
+canvas-edit LEG's preparation (canvas refresh/heal, cross-canvas learnings,
+identity, playbooks, fresh-data join) plus the planner legs — 60–90 s of a
+turn whose answer takes 10 s. Bounding or bypassing that leg when the
+deterministic derivation lane already holds the matched row is the fix.
+
+## Instrumentation added
+
+`Attempting stream with provider: %s (requested: %s) model=%s` and a warning
+when a stream ends with zero visible chunks, naming the `finish_reason` — the
+recurring "produced no tokens" warning was previously unattributable.
+
+## Correction
+
+Two `NOT_EVALUATED` cases in the 18:01 run were caused by **me** restarting the
+dedicated instance for instrumentation mid-run, not by the product. Recorded
+here because the run's own guard could not tell the difference.
