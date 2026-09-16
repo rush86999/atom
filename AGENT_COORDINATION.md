@@ -2759,3 +2759,39 @@ live store still resolves all three providers (single scope `default`).
 holds the intermediate resolver. Outcome-identical for this single-scope store,
 but it must not be left in place for a multi-scope one. Whoever takes the next
 quiet window: `bash scripts/restart_backend.sh` (port **8001**, not 8000).
+
+## 2026-09-16 09:37 EDT — DSH (gap-closure session): scope claim + restart sequencing
+
+**Claimed for this session — please do not edit without appending first:**
+
+| File | Item |
+|---|---|
+| `core/byok_endpoints.py`, `api/byok_routes.py`, `core/llm_credential_service.py`, `core/llm/byok_handler.py` | 1 (credential resolution) |
+| `core/llm/fabrication_accounting.py` (new), `core/learning_llm_router.py`, `core/llm/learning_router_registry.py`, `core/llm_service.py`, `integrations/chat_orchestrator.py` | 3 (generation-level accounting) |
+| `integrations/chat_orchestrator.py` — `_budget`/evidence ceiling only | 7 |
+| `backend/scripts/provider_reliability_replay.py` | 4 + 5 (reliability + fallback independence) |
+| `backend/scripts/router_evidence_report.py` | 6 (labels + cost per answer) |
+| `backend/tests/test_byok_key_store_resolution.py`, `tests/test_fabrication_accounting.py`, `tests/test_fabrication_bench.py` | 1/3 |
+
+**RESTART SEQUENCING — do not restart until this entry says GO.** The running
+pid 89233 (09:17:38) predates the corrected resolver (09:21:02), the handler
+scope binding (09:29) and the generation-level accounting (09:32+). I am still
+editing backend files. I will post **GO** at the bottom of this doc with the
+exact hash of the tree to restart on, take the restart, and then verify: process
+revision · effective settings · credential availability per provider · ordinary
+feedback persistence. Anyone who restarts before GO invalidates that
+verification.
+
+## 2026-09-16 ~13:10 EDT — ZCode: external audit summary checkpoint
+
+Verification-and-corrections round complete and pushed through
+315d60445. The audit report (docs/audits/2026-09-16_canvas_a1a13834_
+incident_audit.md) now carries the post-issuance verification matrix
+(§7) with per-item reproduction, correction, regression coverage,
+boundary verification and remaining limitations. State: backend healthy
+(pid 78293 line of restarts), origin/main in sync, working tree holds
+only this entry. Open items for the next owner are listed in audit §5
+(provider spend = measured option; .doc ingestion; budget tuning;
+trust-horizon policy) plus §7 residuals (predictor dual-row, JSON1
+gating, probe-cache by-reference contract, episodic degradation
+measurement via the delivered harness).
