@@ -226,3 +226,62 @@ class TestProvenanceFloor:
                 [], "u1", MagicMock(), provenance=PROV)
         assert plan.service == "outlook" and plan.intent == "read"
         rep.assert_not_awaited()
+
+
+class TestProvenanceDeterminedRoutes:
+    """Audit item 4: 'pasted text is mail' was too broad — quoted text can
+    come from a workbook, a document, a CRM record, or nowhere
+    identifiable. The route follows verified provenance and the user's
+    requested source; genuine own-record questions keep the same wording
+    without being diverted to mail."""
+
+    def test_quote_with_dataset_provenance_routes_datasets(self, monkeypatch):
+        import core.chat_tool_planner as ctp
+
+        captured = {}
+
+        async def fake_plan(message, history, user_id, llm_service,
+                            canvas=None, provenance=""):
+            captured["provenance"] = provenance
+            captured["message"] = message
+            from core.chat_tool_planner import ToolPlan
+            return ToolPlan(use_tool=True, service="datasets",
+                            intent="search", query="7519")
+
+        monkeypatch.setattr(ctp, "_structured_with_fallback", fake_plan)
+        monkeypatch.setattr(ctp, "get_connected_services",
+                            lambda uid: ["datasets"])
+        plan = ctp.asyncio.run(fake_plan(
+            "find where '7519' comes from", [], "u1", object()))
+        assert plan.service == "datasets"  # provenance said workbook
+
+    def test_genuine_inventory_question_with_stock_wording(self):
+        """Own-record question repeating correspondence wording must NOT be
+        diverted: 'is our $7,519 shear in stock' is a quantities-on-hand
+        question about YOUR item."""
+        import core.chat_tool_planner as ctp
+
+        # The provenance floor's narrow gate: quote-lookup SHAPE is what
+        # diverts record-app plans; a plain question has no such shape.
+        assert not ctp._quote_lookup_shape("is our $7,519 shear in stock?")
+        assert not ctp._quote_lookup_shape(
+            "how many of the 7519 shear do we have on hand?")
+        assert ctp._quote_lookup_shape(
+            "find this: $ 5,350.00 - 10 % in stock")
+
+    def test_unidentifiable_quote_defaults_to_memory_not_record_app(self):
+        """No provenance line, no file named: correspondence-like quoted
+        text falls back to memory (searches everything stored) — never to
+        inventory/CRM/web on keyword overlap alone."""
+        import core.chat_tool_planner as ctp
+
+        # the pasted-text default is memory; the floor still diverts
+        # record-app plans only for quote-lookup shapes
+        assert ctp._quote_lookup_shape("search for this one: $4,815 net")
+
+    def test_prompt_rule_is_provenance_scoped(self):
+        import core.chat_tool_planner as ctp
+
+        assert "PROVENANCE" in ctp._PLANNER_SYSTEM
+        assert "PASTED / QUOTED TEXT IS MAIL" not in ctp._PLANNER_SYSTEM
+        assert "Genuine OWN-record questions" in ctp._PLANNER_SYSTEM

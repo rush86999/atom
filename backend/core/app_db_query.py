@@ -75,7 +75,13 @@ _FORBIDDEN_COLUMN_RE = re.compile(
     r"(token|secret|password|credential|api_key|private"
     r"|tenant_id|workspace_id)", re.IGNORECASE
 )
-_SELECT_ONLY_RE = re.compile(r"^\s*select\b", re.IGNORECASE)
+# A read-only statement may also open with a CTE (`WITH x AS (...) SELECT`).
+# That form was refused as "not a SELECT" — a false negative that cost real
+# answers. Allowing it is safe because read-only-ness no longer rests on this
+# regex: _FORBIDDEN_VERBS_RE rejects INSERT/UPDATE/DELETE anywhere in the
+# statement (including the `WITH ... INSERT` form SQLite permits) and the
+# execution authorizer denies every write action outright.
+_SELECT_ONLY_RE = re.compile(r"^\s*(?:select|with)\b", re.IGNORECASE)
 _FORBIDDEN_VERBS_RE = re.compile(
     r"\b(insert|update|delete|drop|alter|create|replace|attach|pragma|"
     r"vacuum|reindex|grant)\b", re.IGNORECASE)
@@ -93,15 +99,139 @@ def _strip_forbidden_columns(table: str, columns: List[str]) -> List[str]:
     return kept
 
 
+def _db_authorizer(action: int, arg1, arg2, db_name, trigger):
+    """SQLite authorizer — the AUTHORITATIVE table/column boundary.
+
+    Parse-time validation and result-column inspection are both incomplete.
+    Verified on a scratch DB 2026-09-16: with those two in place, these still
+    returned rows, reading a NON-allowlisted table through a predicate only
+
+        SELECT id FROM canvases
+         WHERE (SELECT count(*) FROM 'users') > 0
+        SELECT id FROM canvases
+         WHERE EXISTS (SELECT 1 FROM (SELECT * FROM 'user_sessions') canvases)
+
+    because sqlparse does not see a single-quoted identifier as a table and
+    ``cur.description`` only names the PROJECTED columns — a table read used
+    purely as an oracle projects nothing. The authorizer is invoked by SQLite
+    itself for every table and column access, after name resolution, so it
+    covers quoted identifiers, nested subqueries, wildcard expansion and
+    predicate-only reads alike.
+
+    Denies: reads of non-allowlisted tables, reads of withheld columns,
+    ATTACH/DETACH/PRAGMA, and every write/DDL action (belt-and-braces — the
+    session is already ``mode=ro`` + ``query_only``). CTEs do not reach the
+    authorizer (SQLite resolves them internally), so ``WITH x AS (...)`` keeps
+    working.
+    """
+    import sqlite3 as _s
+
+    if action == _s.SQLITE_READ:
+        table = str(arg1 or "")
+        if table and table not in APP_DB_ALLOWED_TABLES:
+            return _s.SQLITE_DENY
+        if arg2 and _FORBIDDEN_COLUMN_RE.search(str(arg2)):
+            return _s.SQLITE_DENY
+    elif action in (_s.SQLITE_ATTACH, _s.SQLITE_DETACH, _s.SQLITE_PRAGMA):
+        return _s.SQLITE_DENY
+    elif action in (
+        _s.SQLITE_INSERT, _s.SQLITE_UPDATE, _s.SQLITE_DELETE,
+        _s.SQLITE_CREATE_TABLE, _s.SQLITE_DROP_TABLE, _s.SQLITE_ALTER_TABLE,
+        _s.SQLITE_CREATE_INDEX, _s.SQLITE_DROP_INDEX,
+        _s.SQLITE_CREATE_TRIGGER, _s.SQLITE_DROP_TRIGGER,
+        _s.SQLITE_CREATE_VIEW, _s.SQLITE_DROP_VIEW,
+    ):
+        return _s.SQLITE_DENY
+    return _s.SQLITE_OK
+
+
 def _referenced_tables(sql: str) -> List[str]:
-    return [t.lower() for t in re.findall(
-        r"\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql, re.IGNORECASE)]
+    """Every table the statement reads, via a token walk — NOT a regex.
+    Regex extraction missed QUOTED identifiers ('SELECT * FROM "users"'
+    passed validation and leaked secret columns at execution) and COMMA
+    joins ('FROM canvases, users' referenced only the first). sqlparse
+    resolves both, plus subqueries in any position (audit item 1,
+    reproduced on a scratch DB 2026-09-16)."""
+    import sqlparse
+
+    names: List[str] = []
+
+    def _identifier_name(tok) -> Optional[str]:
+        # Identifier with alias: take the FIRST name part only
+        try:
+            name = tok.get_real_name()
+        except Exception:
+            name = None
+        return str(name).strip('"`[]') if name else None
+
+    def _walk(node):
+        from sqlparse import tokens as T
+
+        if hasattr(node, "tokens"):
+            seen_from = False
+            for tok in node.tokens:
+                if tok.ttype in (T.Keyword,) and "FROM" in str(tok).upper():
+                    seen_from = True
+                    continue
+                if tok.ttype in (T.Keyword,) and str(tok).upper().startswith("JOIN"):
+                    seen_from = True
+                    continue
+                if tok.ttype in (T.Keyword,) and "SELECT" in str(tok).upper():
+                    seen_from = False
+                    continue
+                if tok.ttype in (T.Keyword, T.Comment, T.Whitespace):
+                    if tok.ttype not in (T.Keyword,) or not seen_from:
+                        continue
+                if seen_from and tok.is_group and tok.__class__.__name__ == "IdentifierList":
+                    for item in tok.get_identifiers():
+                        n = _identifier_name(item)
+                        if n:
+                            names.append(n)
+                    seen_from = False
+                elif seen_from and tok.is_group and tok.__class__.__name__ == "Identifier":
+                    n = _identifier_name(tok)
+                    if n:
+                        names.append(n)
+                    seen_from = False
+                elif tok.is_group:
+                    _walk(tok)
+                elif seen_from and not tok.is_whitespace:
+                    seen_from = False
+
+    try:
+        for stmt in sqlparse.parse(sql):
+            _walk(stmt)
+    except Exception:  # noqa: BLE001 — parser failure = not analyzable = reject
+        names = ["__unparsable__"]
+    return [n.lower() for n in names]
+
+
+# CTE definitions in a `WITH [RECURSIVE] name [(cols)] AS (...)` header,
+# including the comma-separated multi-CTE form. A CTE NAME is not a catalog
+# table — SQLite resolves it internally and never consults the authorizer for
+# it — so the parse-time allowlist check must skip these or every legitimate
+# `WITH ... SELECT` is refused as reading an unlisted table.
+_CTE_NAME_RE = re.compile(
+    r"(?:\bwith\b|,)\s*(?:recursive\s+)?([a-zA-Z_][a-zA-Z0-9_]*)"
+    r"\s*(?:\([^)]*\))?\s+as\s*\(",
+    re.IGNORECASE,
+)
+
+
+def _cte_names(sql: str) -> set:
+    if not re.match(r"^\s*with\b", sql or "", re.IGNORECASE):
+        return set()
+    return {m.group(1).lower() for m in _CTE_NAME_RE.finditer(sql)}
 
 
 def validate_app_db_sql(sql: str) -> Optional[str]:
     """Return a rejection reason, or None when the SQL is safe to run:
-    SELECT-only single statement, allowlisted tables only, no forbidden
-    column references, no forbidden verbs anywhere (comments included)."""
+    read-only single statement (SELECT or WITH…SELECT), allowlisted tables
+    only, no forbidden column references, no forbidden verbs anywhere
+    (comments included).
+
+    This is the CHEAP check, not the boundary — the execution authorizer is
+    authoritative (see ``_db_authorizer``)."""
     stripped = (sql or "").strip().rstrip(";").strip()
     if not stripped:
         return "empty sql"
@@ -112,7 +242,10 @@ def validate_app_db_sql(sql: str) -> Optional[str]:
     m = _FORBIDDEN_VERBS_RE.search(stripped)
     if m:
         return f"forbidden verb: {m.group(1)}"
+    cte_names = _cte_names(stripped)
     for t in _referenced_tables(stripped):
+        if t in cte_names:
+            continue  # a CTE reference; its own FROM clause is walked too
         if t not in APP_DB_ALLOWED_TABLES:
             return f"table not in the app-db allowlist: {t}"
     for col in re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b", stripped):
@@ -262,23 +395,71 @@ async def answer_from_app_db(
 
         from core.database import get_database_url
 
+        # Holder so the caller's timeout path can INTERRUPT the in-flight
+        # query even if it is stuck before the progress handler can fire.
+        _conn: Dict[str, Any] = {}
+
         def _run():
+            import time as _time
+
             path = re.sub(
                 r"^sqlite:///", "", str(get_database_url() or ""))
             if not path or not os.path.exists(path):
                 return None, "no sqlite database"
             ro = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            _conn["c"] = ro
+            # query_only BEFORE the authorizer (which denies SQLITE_PRAGMA).
             ro.execute("PRAGMA query_only = ON")
+            # AUTHORITATIVE TABLE/COLUMN ENFORCEMENT at execution — see
+            # _db_authorizer. Installed before the statement is prepared.
+            ro.set_authorizer(_db_authorizer)
+            # TIMEOUT MUST STOP THE DATABASE WORK, not just the caller's
+            # wait: to_thread cannot be cancelled, so a wait_for expiry
+            # left the scan running. The progress handler aborts the query
+            # in-engine at the deadline (audit item 1).
+            deadline = _time.monotonic() + _QUERY_TIMEOUT_S
+            ro.set_progress_handler(
+                lambda: 1 if _time.monotonic() > deadline else 0, 1000)
             try:
                 cur = ro.execute(sql)
-                cols = [d[0] for d in cur.description or []]
+                # EXECUTION-TIME COLUMN ENFORCEMENT: '*' expands to every
+                # column of the referenced tables at execution — validation
+                # only saw the literal SQL text. The RESULT columns are
+                # checked against the forbidden shapes (and the allowlist's
+                # per-table exclusions) BEFORE any row is fetched, so a
+                # wildcard over a table that gained a secret-shaped column
+                # refuses instead of leaking (data moves only on fetch).
+                cols = [str(d[0]) for d in cur.description or []]
+                for c in cols:
+                    if _FORBIDDEN_COLUMN_RE.search(c):
+                        logger.warning(
+                            f"app-db ask refused at execution: wildcard/"
+                            f"projection expanded to secret-shaped column "
+                            f"'{c}' — no rows returned")
+                        return None, "secret-shaped result column"
                 rows = cur.fetchmany(_MAX_ROWS_DEFAULT)
                 return (cols, rows), None
             finally:
+                _conn.pop("c", None)
                 ro.close()
 
-        outcome, err = await asyncio.wait_for(
-            asyncio.to_thread(_run), timeout=_QUERY_TIMEOUT_S)
+        try:
+            outcome, err = await asyncio.wait_for(
+                asyncio.to_thread(_run), timeout=_QUERY_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            # The caller's wait ending does NOT stop the database work on its
+            # own. Order the in-flight statement to abandon at its next
+            # opportunity so the read actually stops (audit item 1).
+            stuck = _conn.get("c")
+            if stuck is not None:
+                try:
+                    stuck.interrupt()
+                except Exception:  # noqa: BLE001 — best-effort abort
+                    pass
+            logger.warning(
+                f"app-db ask timed out after {_QUERY_TIMEOUT_S}s; query "
+                "interrupted")
+            return None
         if err or not outcome:
             return None
         cols, rows = outcome

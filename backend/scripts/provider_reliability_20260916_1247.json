@@ -1,0 +1,73 @@
+{
+ "ran_at": "2026-09-16T12:47:20.488855+00:00",
+ "n_attempts": 6,
+ "ok": 0,
+ "zero_visible": 0,
+ "exceptions": 6,
+ "rate_limited": 0,
+ "median_latency": 2.27498821914196e-05,
+ "max_latency": 5.704071372747421e-05,
+ "ttfv_median": null,
+ "attempts": [
+  {
+   "label": "plan0",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 3.8333237171173096e-06,
+   "finish": "exception",
+   "err": "NameError: name 'svc' is not defined",
+   "chars": 0
+  },
+  {
+   "label": "answer0",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 8.415896445512772e-06,
+   "finish": "exception",
+   "err": "ImportError: cannot import name 'get_fallback_models' from 'core.llm.byok_handler' (/Users/rushiparikh/projects/atom/backend/core/llm/byok_handler.py)",
+   "chars": 0
+  },
+  {
+   "label": "plan1",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.27498821914196e-05,
+   "finish": "exception",
+   "err": "NameError: name 'svc' is not defined",
+   "chars": 0
+  },
+  {
+   "label": "answer1",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 5.704071372747421e-05,
+   "finish": "exception",
+   "err": "ImportError: cannot import name 'get_fallback_models' from 'core.llm.byok_handler' (/Users/rushiparikh/projects/atom/backend/core/llm/byok_handler.py)",
+   "chars": 0
+  },
+  {
+   "label": "plan2",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.00001522898674e-05,
+   "finish": "exception",
+   "err": "NameError: name 'svc' is not defined",
+   "chars": 0
+  },
+  {
+   "label": "answer2",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.8291717171669006e-05,
+   "finish": "exception",
+   "err": "ImportError: cannot import name 'get_fallback_models' from 'core.llm.byok_handler' (/Users/rushiparikh/projects/atom/backend/core/llm/byok_handler.py)",
+   "chars": 0
+  }
+ ]
+}

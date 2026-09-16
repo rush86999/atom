@@ -504,19 +504,22 @@ Rules:
   mailbox) for it even when the wording sounds like inventory/stock/CRM. A
   token listed as present in the DATASET CATALOG belongs to a spreadsheet.
   Only when the block names neither may you route on wording alone.
-- PASTED / QUOTED TEXT IS MAIL, NOT A CATALOG QUERY. When the message
-  quotes a line the user read somewhere (a price, an offer, a discount, a
-  term — often pasted verbatim and prefixed with "search for this one:",
-  "find this:", "this one:"), the artefact is an ingested MESSAGE and the
-  answer is in the mailbox, not in a stock/inventory/CRM/web index. Route
-  to "memory" (which searches every ingested message, email and record)
-  with the quoted line's distinctive terms — NOT to zoho_inventory, a CRM,
-  or the web, even when the quote contains the word "stock": "in stock"
-  inside a vendor's quoted line describes THEIR offer, not your warehouse.
-  Only plan inventory when the question is about QUANTITIES ON HAND in the
-  inventory app for an item the user named as such. Getting this wrong is
-  expensive: a live lookup against the wrong system returns nothing (or
-  times out) and the user is told their own quote cannot be found.
+- PASTED / QUOTED TEXT ROUTES BY PROVENANCE. When the message quotes a
+  line the user read somewhere (a price, an offer, a discount, a term —
+  often prefixed with "search for this one:", "find this:", "this one:"),
+  the artifact is a STORED RECORD somewhere; find WHERE it lives before
+  choosing a service. The PROVENANCE block above (when present) is the
+  authority: quoted wording found in the ingested mail → memory; found in
+  the dataset catalog → datasets; found in a document → documents. When
+  no provenance line exists, quoted correspondence-like text (offers,
+  vendor terms, signoffs) defaults to memory — but a quote that names a
+  file or sheet ("row 235 of the pricing workbook") routes to that
+  artifact's service. Do NOT route quoted text to a live record app
+  (inventory/CRM) or the web just because it contains words like "stock":
+  a vendor's quoted "in stock" describes THEIR offer, not your warehouse.
+  Genuine OWN-record questions — quantities on hand of YOUR items, your
+  invoices, your deals — go to the record apps even when they repeat a
+  price or the word "stock" that also appeared in correspondence.
 - INTERNAL RECORDS vs CORRESPONDENCE — WHOSE data: the record apps
   (inventory, books/invoices, CRM) hold YOUR OWN company's state —
   quantities on hand of YOUR items, YOUR invoices, YOUR deals. Mailboxes
@@ -1833,6 +1836,8 @@ async def _provenance_menu(
                     search_all_datasets_sync,
                     " ".join(probe_tokens), None,
                     (context or {}).get("workspace_id"), 1, 200, [],
+                    # the user's own words name the file; never history
+                    [_current_message_text(context) or ""],
                 ),
                 timeout=budget_s,
             )
@@ -2738,10 +2743,17 @@ def _fig_occurrence_in_fields(fields: List[str], phrase: str) -> int:
     '5350.00'). Extracted so both this matcher and the anchor logic use ONE
     occurrence rule."""
     offset = 0
+    # CASE-INSENSITIVE, because a phrase reaches this matcher already lowercased
+    # by the planner's tokenizer while stored text keeps its source casing:
+    # 'f-5216' could not match an email that says "F-5216" (live 2026-09-16 — the
+    # query found the thread only through the subject's words, and the model code
+    # itself never matched). Both the raw and the canonical probe are lowered, so
+    # the digit-blob gate stays a superset of what can match here.
     for field in fields:
+        field_lc = field.lower()
         for probe in (phrase, phrase.replace(",", "").replace(" ", "")):
             if probe:
-                i = field.find(probe)
+                i = field_lc.find(probe.lower())
                 if i >= 0:
                     return offset + i
         offset += len(field) + 1
@@ -4225,6 +4237,7 @@ async def _datasets_evidence(
     result = await asyncio.to_thread(
         search_all_datasets_sync, probe_query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
+        [_current_message_text(context) or query],
     )
     hits = (result or {}).get("hits") or []
     if not hits:
@@ -4462,6 +4475,7 @@ async def _datasets_search_block(
     result = await asyncio.to_thread(
         search_all_datasets_sync, query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
+        [_current_message_text(context) or query],
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []

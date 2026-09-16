@@ -42,6 +42,104 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15m: "fix all gaps" — probe correctness, named files, and scan budgets (pushed 7e1995ac9 + budget round)
+
+**Gap: the derivation ask reached the WRONG FILE.** Chasing it found three
+independent mechanisms, each verified against the live catalog, each of which on
+its own made the dataset lane answer from a spreadsheet the user never mentioned:
+
+1. **The internal `__sheet_row` column was scanned as data.** It is bookkeeping
+   the extractor adds so answers can cite 'R<n>'; because it rode into the
+   concatenated probe text, a probe for `5350` matched every file that merely HAS
+   a row 5350 — and `7519` matched a sheet with 7,519 rows. Excluded from both the
+   DuckDB and the pandas probe path.
+2. **Pure-number tokens matched inside longer numbers.** EVERY hit for the model
+   code `5216` was a substring of the artifact float tail `15.521625000000002`:
+   five unrelated price lists, with the workbook that answers the question never
+   probed. An all-digit token must now appear as a whole number; tokens containing
+   letters keep substring semantics ('350dsav' still matches 'WG-350DSAV').
+   A trailing decimal is allowed — a numeric cell renders `7519.0`, which is the
+   same number, and forbidding it was my own over-correction (caught by testing
+   the fix against the live rows).
+3. **History supplied FILE NAMES.** `context_texts` legitimately carries figures
+   from earlier turns, but those words also fed name matching — and "vendor"
+   occurs in one catalogued file name, so every probe resolved to "New Vendor
+   Request Form_External.xlsx". Names now come from an explicit
+   `name_context_texts` (the user's own message), and `candidate_probe_tokens`'
+   internal name fallback is suppressed inside the search so history cannot leak
+   back through it (a test caught that second path after the first was closed).
+
+Plus: the derivation lane's ranking claimed named files lead but sorted on
+`(-name_bonus, -co)`, and `co` is 0 for every file when the ask carries a single
+figure — the tie fell through to file-name order and the named workbook lost.
+
+**Gap: scan budgets discarded work.** The lane wrapped the catalog search in
+`asyncio.wait_for(timeout=25)`; a slow scan raised and the whole result was
+thrown away, so a partially-answered derivation became NO evidence, which the
+reply reported as "the lookup did not complete". The search now takes a
+`deadline`, stops itself between files, returns what it found, and sets
+`incomplete` — including on the empty path, where "nothing matched" and "time ran
+out" must not look alike. The block prints an explicit INCOMPLETE note so a
+truncated catalog is never presented as exhaustive.
+
+**Verified live** (restarted, real store, real LLM service):
+`5350/7519/4815/6465` → PRICE VIPUL (6).xlsx; `5216` → no file (the code is
+genuinely absent from every workbook — the row spells the product `F-52"x16G`);
+the derivation block for "how was the F-5216 price derived" with only history
+figures available contains PRICE VIPUL, `R235` with 5350/7519.0, and the whole
+chain `D235/G235/H235/I235/J235/K235/L235/M235/N235`. Mailbox lane unchanged at
+1.0s with the attachment carrier line. **195 passed** across six suites.
+
+**Not claimed**: formula visibility when a file is selected by NAME and no value
+anchors a row is improved (computing rows are emitted, deduplicated by formula
+pattern) but is not row-exact — that needs the user's value to select the row.
+
+### 15l: named-file reachability + formulas follow the matched row (pushed 5df0528b8)
+
+Verified the F-5216 chain end to end after the auto-flip fired (mode=auto,
+enabled=True, 146 observations / 3 models — confirmed in-process, not from the
+log line). Two gaps found, same shape — the system held the answer and could not
+reach it — plus one casing defect:
+
+**1. A file named in words was unreachable.** `candidate_probe_tokens` required a
+digit in every token, so "PRICE VIPUL (6).xlsx" yielded NO candidates and the
+catalog was never probed; the dataset lane then ran SQL against whichever
+spreadsheet the query's incidental digits matched (Consolidated Price List
+answered a question about the VIPUL workbook). Worse: the identifying word
+"vipul" appears ONLY in the file NAME — a content probe for it returns None — so
+no amount of content searching could ever find that file. Fixes:
+`distinctive_name_tokens` (rarity measured against this install's own catalog:
+price 6/65 names, vipul 1/65 — no domain vocabulary in code; two uncommon words
+decisive together, a lone rare word needs a digit/code as corroboration so prose
+questions stay out of the catalog probe) and `_probe_named_file` (a named file is
+returned directly, no content match required).
+
+**2. The formulas answered a different row.** `load_formulas_for_parquet` capped
+at 60 cells of a 1,764-cell dict (A1 order ≈ first five rows) and
+`render_dataset_answer` printed `items()[:40]` — so a row-235 derivation ask
+rendered unrelated early rows' formulas. The F-5216 chain
+(`=F235*0.9 → +700 → *1.02 → /0.87 → /0.86 → ROUNDUP → 7519`) was in the store
+and never reached the model. Loader reads the whole sheet; renderer emits the
+MATCHED rows first and labels other rows as context.
+
+**3. 'f-5216' could not match "F-5216".** The planner lowercases tokens;
+`_fig_occurrence_in_fields` matched raw spellings case-sensitively, so the code
+itself never matched the email. Both raw and canonical probes are lowered now —
+and the digit-blob gate is a superset of both (both canonical helpers already
+lowercase), so the gate stays consistent with the pass it guards.
+
+**Verified live** (restarted, real store): mailbox lane returns the F-5216 carrier
+in 1.0s; "open the PRICE VIPUL workbook" and "PRICE VIPUL (6).xlsx derivation"
+both resolve to PRICE VIPUL (6).xlsx with all 1,764 formula cells; `f-5216` and
+`F-5216` return identical rows. **188 passed** across the six affected suites.
+
+**Known limitation (documented, not hidden)**: when a file is selected BY NAME
+there are no matched rows, so the matched-row formula line is empty — the agent
+gets the file and its sheet index but not the derivation chain until it asks
+about a value (e.g. "show 5350"), which then selects the row and emits
+G235/I235/K235/M235/N235. A "show the formulas of the most-relevant rows when
+nothing matched" pass is the follow-up.
+
 ### 15k: "is there a better approach?" — yes, and it was already in hand
 
 **Ask**: is there a better approach (than tuning this scanner)?

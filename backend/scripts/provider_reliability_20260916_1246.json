@@ -1,0 +1,73 @@
+{
+ "ran_at": "2026-09-16T12:46:39.952221+00:00",
+ "n_attempts": 6,
+ "ok": 0,
+ "zero_visible": 0,
+ "exceptions": 6,
+ "rate_limited": 0,
+ "median_latency": 1.704227179288864e-05,
+ "max_latency": 2.787495031952858e-05,
+ "ttfv_median": null,
+ "attempts": [
+  {
+   "label": "plan0",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.874992787837982e-06,
+   "finish": "exception",
+   "err": "AttributeError: 'BYOKHandler' object has no attribute 'generate_completion'",
+   "chars": 0
+  },
+  {
+   "label": "answer0",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 9.708106517791748e-06,
+   "finish": "exception",
+   "err": "TypeError: BYOKHandler.stream_completion() missing 2 required positional arguments: 'model' and 'provider_id'",
+   "chars": 0
+  },
+  {
+   "label": "plan1",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 1.704227179288864e-05,
+   "finish": "exception",
+   "err": "AttributeError: 'BYOKHandler' object has no attribute 'generate_completion'",
+   "chars": 0
+  },
+  {
+   "label": "answer1",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.6374589651823044e-05,
+   "finish": "exception",
+   "err": "TypeError: BYOKHandler.stream_completion() missing 2 required positional arguments: 'model' and 'provider_id'",
+   "chars": 0
+  },
+  {
+   "label": "plan2",
+   "mode": "plan",
+   "ok": false,
+   "ttFv": null,
+   "latency": 1.1708121746778488e-05,
+   "finish": "exception",
+   "err": "AttributeError: 'BYOKHandler' object has no attribute 'generate_completion'",
+   "chars": 0
+  },
+  {
+   "label": "answer2",
+   "mode": "stream",
+   "ok": false,
+   "ttFv": null,
+   "latency": 2.787495031952858e-05,
+   "finish": "exception",
+   "err": "TypeError: BYOKHandler.stream_completion() missing 2 required positional arguments: 'model' and 'provider_id'",
+   "chars": 0
+  }
+ ]
+}

@@ -816,9 +816,27 @@ def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
     kept: List[str] = []
     elided = 0
     kept_len = 0
+
+    def _is_decisive(ln: str) -> bool:
+        # A surviving citation alone does not establish a derivation
+        # (audit item 6): rows carrying R### citations, FORMULAS lines,
+        # and lines with currency/percent figures are the payload —
+        # trimmed LAST, after plain prose bodies.
+        s = ln.lstrip()
+        return (
+            s.startswith("FORMULAS")
+            or s.startswith("SQL RESULT")
+            or re.match(r"R\d{1,5}\s*\|", s) is not None
+            or re.search(r"[$€£]\s?\d[\d,.]{2,}|\d+%|MATCH for", s)
+        )
+
     for ln in lines:
         is_body = ln.lstrip().startswith(("-", "R", "SQL RESULT", "FORMULAS"))
-        if is_body and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300:
+        if (
+            is_body
+            and not _is_decisive(ln)
+            and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300
+        ):
             elided += 1
             continue
         kept.append(ln)
@@ -931,6 +949,7 @@ async def _derivation_dataset_block(
             _entry_text,
         )
         from core.sheet_dataset_service import (
+            distinctive_name_tokens,
             render_dataset_answer,
             search_all_datasets_sync,
             sheet_datasets_enabled,
@@ -938,6 +957,19 @@ async def _derivation_dataset_block(
 
         if not sheet_datasets_enabled():
             return None
+        # The WORDS that name a file, if the ask uses any ("open the PRICE VIPUL
+        # workbook", "the F-5216 price — PRICE VIPUL"). Passed as context so the
+        # catalog search can reach that file by NAME: its contents need not
+        # contain the code at all (PRICE VIPUL (6).xlsx spells the product
+        # 'F-52"x16G', so a 'F-5216' probe can never match its rows), which left
+        # the named workbook invisible and the SQL running on the nearest
+        # unrelated price list (live 2026-09-16).
+        # THE MESSAGE ONLY, never the history: history is background, and its
+        # incidental words become spurious "named files" — "vendor" appears in one
+        # catalogued file name, so a history turn mentioning "the vendor quote"
+        # made every probe resolve to "New Vendor Request Form_External.xlsx" and
+        # the real workbook vanished again (measured live 2026-09-16).
+        _name_ctx = distinctive_name_tokens([message or ""], max_tokens=2)
         hay_parts = [message or ""]
         ctx = context or {}
         canvas = ctx.get("canvas")
@@ -979,20 +1011,42 @@ async def _derivation_dataset_block(
         # wrong workbook, the named one never probed).
         msg_l = (message or "").lower()
 
+        def _norm_phrase(s: str) -> str:
+            return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+        msg_phrase = _norm_phrase(message or "")
+
         def _name_bonus(hit: Dict[str, Any]) -> int:
-            # DISTINCT matching tokens: 'price' alone matches every price
-            # list generically; the NAMED file matches name + brand + ext
-            # and must outrank them.
+            # The user TYPING the filename is the strongest possible signal:
+            # a contiguous phrase match of the file's base name in the
+            # message ('price vipul' in 'open PRICE VIPUL (6).xlsx…')
+            # outweighs any number of scattered common-word token matches
+            # ('price'+'list' also match 'Copy of Consolidated Price
+            # List' — a tie at bonus 2 that Arbitrarily displaced the named
+            # file, live 2026-09-16).
             fname = str(hit.get("file_name") or "").lower()
             if not fname:
                 return 0
             base = fname.rsplit(".", 1)[0]
-            return sum(
+            base_phrase = _norm_phrase(base)
+            bonus = sum(
                 1 for tok in set(re.findall(r"[a-z0-9]{4,}", base))
                 if tok in msg_l
             )
+            if base_phrase and len(base_phrase.split()) >= 2 \
+                    and base_phrase in msg_phrase:
+                bonus += 3
+            return bonus
 
         by_file: Dict[str, Tuple[int, Dict[str, Any]]] = {}
+        # A BUDGET, passed INTO the search rather than enforced around it. Wrapping
+        # the call in wait_for meant a slow catalog raised TimeoutError and threw
+        # away every hit the scan had already found — the derivation lane then
+        # contributed nothing and the reply reported that the lookup "did not
+        # complete" (live 2026-09-16). The search stops itself at the deadline and
+        # returns what it has.
+        _deriv_deadline = time.monotonic() + 20.0
+        _partial = False
         for token in figures[:4]:
             result = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1005,10 +1059,15 @@ async def _derivation_dataset_block(
                     # in the message — dropped out of the 200 window this
                     # way).
                     search_all_datasets_sync, token, user_id,
-                    ctx.get("workspace_id"), 200, 500, hist_texts,
+                    ctx.get("workspace_id"), 200, 500,
+                    # history supplies FIGURES only; the NAMED file comes from
+                    # the message the user actually typed
+                    hist_texts, _name_ctx, _deriv_deadline,
                 ),
                 timeout=25,
             )
+            if (result or {}).get("incomplete"):
+                _partial = True
             for hit in (result or {}).get("hits") or []:
                 rendered = render_dataset_answer(hit)
                 # Clean-number matching only: float tails ('15.521625…')
@@ -1028,17 +1087,95 @@ async def _derivation_dataset_block(
                     by_file[key] = (co, hit)
         if not by_file:
             return None
-        # Named-file entries first (they carry the biggest name bonus),
-        # then by co-occurrence.
+        # A FILE THE USER NAMED WINS, full stop, before any co-occurrence score.
+        # The comment above always claimed this, but the key was
+        # `(-name_bonus, -co)` and co is 0 for every file when the ask carries a
+        # single figure (no OTHER figure can co-occur), so the tie fell through to
+        # file-name order and "how was the F-5216 price derived" ran its SQL on
+        # "Copy of Consolidated Price List…" while PRICE VIPUL (6).xlsx — named in
+        # the message — was never probed (measured live 2026-09-16).
+        # Name bonus is a separate, dominant tier: co-occurrence only orders files
+        # the user did NOT name, which is exactly what it can actually judge.
         ranked = sorted(
             by_file.items(),
             key=lambda kv: (-kv[0][1], -kv[1][0]),
         )[:4]
+        if ranked and ranked[0][0][1] <= 0:
+            # Nothing named: keep pure co-occurrence (previous behaviour).
+            ranked = sorted(
+                by_file.items(),
+                key=lambda kv: (-kv[1][0], -kv[0][1]),
+            )[:4]
+        # ROW-LEVEL SELECTION on the winner: a file can hold MANY rows
+        # matching different figure tokens (live 2026-09-16: PRICE VIPUL's
+        # R192 graymills row matched '8880' while the ask was the '7519'
+        # F-5216 row R235). Re-probe the winning file with EVERY figure and
+        # keep the probe whose rows co-occur with the most OTHER figures —
+        # the derivation row uniquely carries several (5350 AND 7519).
+        # Probe-cached, so the re-probe is ~free.
+        try:
+            from core.sheet_dataset_service import (
+                _probe_cached, entries_for_file_sync, find_entries_sync,
+            )
+
+            (w_fname, _w_bonus), (_w_co, w_hit) = ranked[0]
+            w_entries = None
+            for _e in find_entries_sync(
+                    w_fname, user_id, ctx.get("workspace_id"), 50):
+                if str(_e.get("external_id")) == str(
+                        w_hit.get("external_id")):
+                    w_entries = [_e]
+                    break
+            if w_entries:
+                best_rows = None
+                best_key = (-1, -1, -1)
+                msg_fig_l = re.sub(
+                    r"[^0-9]+", " ", (message or "")).split()
+                for idx, tok in enumerate(figures[:6]):
+                    r = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            _probe_cached, w_entries, tok, 10),
+                        timeout=8,
+                    )
+                    if not r:
+                        continue
+                    rendered = render_dataset_answer(r)
+                    clean = re.sub(r"(\d)\.0\b", r"\1", rendered)
+                    row_co = sum(
+                        1 for t in figures
+                        if t != tok
+                        and re.search(
+                            rf"(?<![\d.]){re.escape(t)}(?![\d.])", clean)
+                    )
+                    # Ties break toward the figure THE MESSAGE names (the
+                    # question's subject) over canvas/history bystanders,
+                    # then toward later position (the ask's focus tends to
+                    # come last). Live: '7519' (message) vs '8880' (canvas
+                    # noise) both hit one row each; the canvas row won.
+                    in_msg = 1 if tok in msg_fig_l else 0
+                    key = (row_co, in_msg, idx)
+                    if key > best_key:
+                        best_key = key
+                        best_rows = r
+                if best_rows is not None:
+                    ranked[0] = ((w_fname, _w_bonus),
+                                 (_w_co, best_rows))
+        except Exception as row_err:  # noqa: BLE001 — file-level result stands
+            logger.debug(f"row-level selection skipped: {row_err}")
         lines = [
             "DATASET CATALOG — derivation inputs (ingested spreadsheets "
             "searched for the conversation's figures; these rows ARE the "
             "calculation chain — cite file/sheet/row):"
         ]
+        if _partial:
+            # Honest scope marker: the scan stopped at its time budget, so a file
+            # that was not reached may still hold the row. Without this the model
+            # (and the user) reads a truncated catalog as the whole catalog.
+            lines.append(
+                "NOTE: the catalog scan hit its time budget and is INCOMPLETE — "
+                "a file that was not reached may still contain the figures. Say "
+                "so rather than presenting these rows as exhaustive."
+            )
         # NL→SQL LAYER on the top-ranked file: answer_from_datasets runs a
         # structured query (DuckDB, column aliases) and its render carries
         # the ORIGINAL CELL FORMULAS — the exact derivation chain, not just

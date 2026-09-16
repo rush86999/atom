@@ -153,6 +153,19 @@ def _hashlib_sha1(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()
 
 
+# Pre-2007 binary Office containers (.doc/.ppt/.xls are OLE2 compound files,
+# NOT the OOXML zip container .docx/.pptx/.xlsx use). The parser chain is
+# python-docx/python-pptx, which cannot open them; the drive connectors
+# nonetheless DISCOVER `.doc` — it sits in the same document-extension funnel
+# as `.docx` — so the file is visible by NAME while its CONTENT never lands in
+# memory. Left alone that surfaced as `skipped: no_text`, identical to a
+# readable-but-empty document, which let a caller treat an unreadable format
+# as "nothing to find here" (audit item 7, the Fintek F-5216 spec sheet).
+# Capability path (separate task): LibreOffice headless conversion — the
+# discovery helper already exists at core.workbook_runtime._find_soffice.
+LEGACY_BINARY_OFFICE_EXTS = frozenset({"doc", "ppt"})
+
+
 def interpret_ingest_result(result: Dict[str, Any]) -> Dict[str, Any]:
     """One interpretation of a ``process_file_bytes`` result for every caller.
 
@@ -1265,6 +1278,22 @@ class AutoDocumentIngestionService:
         # Blank-only text is junk; short-but-real content (e.g. "data") is a
         # valid document and must not be dropped.
         if not text or not text.strip():
+            # A legacy binary container that yielded nothing is NOT an empty
+            # document — the parser never read it. Say which one happened, so
+            # "the workbook's .doc spec sheet is name-only in the store" is
+            # distinguishable from "the file was read and holds no text".
+            if file_ext in LEGACY_BINARY_OFFICE_EXTS:
+                logger.info(
+                    f"{file_name}: legacy binary .{file_ext} could not be "
+                    "read by the OOXML parser chain — discovered by name, "
+                    "content NOT extracted")
+                return {
+                    "status": "unsupported_format",
+                    "reason": "legacy_office_binary_unsupported",
+                    "file_name": file_name,
+                    "file_ext": file_ext,
+                    "extraction_supported": False,
+                }
             return {"status": "skipped", "reason": "no_text", "file_name": file_name}
 
         # Redact secrets before storage

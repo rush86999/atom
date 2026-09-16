@@ -32,12 +32,15 @@ dataset answer cites the same R# an excerpt would.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import io
 import json
 import logging
 import os
 import re
+import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -512,8 +515,18 @@ def _write_formula_sidecar(target: Path, sheet_name: str, formulas: Dict[str, st
         logger.debug(f"formula sidecar write failed for {target.name}: {err}")
 
 
-def load_formulas_for_parquet(parquet_path: str, max_cells: int = 60) -> Dict[str, str]:
-    """cell -> formula for one dataset Parquet's sheet ([] when no sidecar)."""
+def load_formulas_for_parquet(parquet_path: str, max_cells: int = 5000) -> Dict[str, str]:
+    """cell -> formula for one dataset Parquet's sheet ([] when no sidecar).
+
+    ``max_cells`` used to default to 60, which made the sidecar effectively
+    useless for any real sheet: the dict is in A1 order, so 60 cells covered
+    roughly the first five rows. A derivation ask about a row further down (the
+    F-5216 workbook's row 235 — the whole point of keeping formulas) rendered the
+    formulas of UNRELATED rows and none of the ones being asked about (live
+    2026-09-16). The sidecar is a few thousand short strings, so the full sheet is
+    cheap to hold; the RENDERER is what keeps the prompt bounded, by emitting
+    only the formulas for the rows that matched.
+    """
     try:
         sidecar = _formula_sidecar_path(parquet_path)
         if not sidecar.exists():
@@ -1011,6 +1024,8 @@ def search_all_datasets_sync(
     limit: int = 5,
     max_files: int = 200,
     context_texts: Optional[List[str]] = None,
+    name_context_texts: Optional[List[str]] = None,
+    deadline: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     """Cross-file content probe: which ingested spreadsheet contains the
     question's identifying code?
@@ -1020,9 +1035,24 @@ def search_all_datasets_sync(
     hits. Returns None when the query has no identifying token — callers
     fall back to memory. App-record datasets (source_kind='app_records') are
     scanned too, so this one probe covers files AND synced app entities.
+
+    ``context_texts`` supplements the CANDIDATE (figure/code) tokens from earlier
+    turns. ``name_context_texts`` supplements the NAME tokens and defaults to the
+    query alone — see the note at its use for why history must not name files.
     """
-    candidates = candidate_probe_tokens([query] + list(context_texts or []))
-    if not candidates:
+    # `context_texts` may legitimately carry FIGURES from earlier turns (a "try
+    # again" turn inherits the amount). It must NOT carry NAMES: an incidental
+    # history word that happens to appear in one catalogued file name ("the vendor
+    # quote" -> "vendor") becomes a spurious named file and hijacks the probe.
+    # Callers that want name matching pass `name_context_texts` explicitly.
+    _name_sources = list(name_context_texts) if name_context_texts is not None else [query]
+    _name_tokens = set(distinctive_name_tokens(_name_sources))
+    # Code/figure candidates may draw on history; the NAME decision does not, so
+    # suppress this helper's own name fallback (see the note above).
+    candidates = candidate_probe_tokens(
+        [query] + list(context_texts or []), allow_name_fallback=False
+    )
+    if not candidates and not _name_tokens:
         return None
     entries = find_entries_sync("", user_id, workspace_id, 500)
     files: Dict[tuple, List[Dict[str, Any]]] = {}
@@ -1034,25 +1064,101 @@ def search_all_datasets_sync(
             order.append(key)
         files[key].append(e)
     order = order[:max_files]
-    for token in candidates:
+    # A query that NAMES a file must reach that file. Token content-matching alone
+    # does not do it: "vipul" occurs inside an unrelated vendor form and an
+    # invoice export, and those matched before the workbook whose NAME contains
+    # the word — the dataset lane then ran SQL against the wrong spreadsheet
+    # (live 2026-09-16). Name matches are therefore ordered ahead of content-only
+    # matches within each token's hits; both still require the token to be present
+    # somewhere, so this reorders evidence rather than inventing it.
+    # A word can name a file WITHOUT occurring in its content — "vipul" exists only
+    # in "PRICE VIPUL (6).xlsx", so every content probe for it returns None and the
+    # file the user named is unreachable (measured live 2026-09-16). When the query
+    # names a catalogued file, probe THAT file using the query's numeric tokens
+    # (the codes/amounts a derivation ask is about), and lead with the result.
+    def _out_of_time() -> bool:
+        """True once the caller's budget is spent.
+
+        A scan that runs long must DEGRADE, not vanish: the caller wraps this in
+        `asyncio.wait_for` and a timeout discards the whole result — so a slow
+        catalog used to turn a partially-answered derivation into no evidence at
+        all, which the reply then reported as "the lookup did not complete"
+        (live 2026-09-16). Returning what was found, marked `incomplete`, keeps
+        the answer as good as the work already done.
+        """
+        return deadline is not None and time.monotonic() > deadline
+
+    if _name_tokens:
+        # Numeric tokens the query already yielded (codes/amounts) are the ones
+        # worth probing INSIDE the named file; fall back to the candidate itself.
+        base_nums = [t for t in candidates if t.isdigit()]
+        named: List[Dict[str, Any]] = []
+        for key in order:
+            if _out_of_time():
+                break
+            fname = str((files[key][0] or {}).get("file_name") or "").lower()
+            if not any(t in fname for t in _name_tokens):
+                continue
+            # Probe with the query's numbers if it has any; otherwise take the
+            # named file itself, because a word that names a file need not appear
+            # in its contents ("vipul"), and "open the PRICE VIPUL workbook" is
+            # exactly that request.
+            rec = None
+            if base_nums:
+                for tok in base_nums:
+                    rec = _probe_cached(files[key], tok, 20)
+                    if rec is not None:
+                        break
+            if rec is None:
+                rec = _probe_cached(files[key], sorted(_name_tokens)[0], 20)
+            if rec is None and files[key]:
+                # Return the file by NAME even when no token matched inside it:
+                # the user named it and it exists, which is itself the answer.
+                rec = _probe_named_file(files[key], 20)
+            if rec is not None:
+                named.append(rec)
+        if named:
+            return {
+                "token": ",".join(sorted(_name_tokens)),
+                "tokens_tried": candidates,
+                "files_searched": len(order),
+                "hits": named[:limit],
+                "incomplete": _out_of_time(),
+            }
+    for token in candidates or [None]:
+        if token is None:
+            break  # name-only query: the named-file block below handles it
+        if _out_of_time():
+            break
         hits: List[Dict[str, Any]] = []
         for key in order:
-            best = _probe_sheet_hits(files[key], token, 10)
+            if _out_of_time():
+                break
+            best = _probe_cached(files[key], token, 10)
             if best is not None:
                 hits.append(best)
         if hits:
-            hits.sort(key=lambda r: r["row_count"], reverse=True)
+            def _name_rank(rec: Dict[str, Any]) -> int:
+                fname = str(rec.get("file_name") or "").lower()
+                return 0 if any(t in fname for t in _name_tokens) else 1
+
+            hits.sort(key=lambda r: (_name_rank(r), -r["row_count"]))
             return {
                 "token": token,
                 "tokens_tried": candidates,
                 "files_searched": len(order),
                 "hits": hits[:limit],
+                "incomplete": _out_of_time(),
             }
     return {
-        "token": candidates[0],
+        "token": candidates[0] if candidates else ",".join(sorted(_name_tokens)),
         "tokens_tried": candidates,
         "files_searched": len(order),
         "hits": [],
+        # "nothing matched" and "time ran out" are different answers, and the
+        # caller must be able to tell them apart — otherwise a truncated scan
+        # reads as a definitive empty catalog.
+        "incomplete": bool(_out_of_time()),
     }
 
 
@@ -1150,6 +1256,15 @@ def _duckdb_probe_entry(con, entry: Dict[str, Any], token: str, limit: int):
     columns = [str(c) for c in (entry.get("columns") or [])]
     if not columns:
         return None, None
+    # NEVER SCAN THE INTERNAL ROW-NUMBER COLUMN. `__sheet_row` is bookkeeping the
+    # extractor adds so answers can cite 'R<n>'; it is not workbook data, yet it
+    # rode into the concatenated probe text — so a query for 5350 matched every
+    # file that merely HAS a row 5350, and a row-7519 query matched a sheet with
+    # 7,519 rows. That is how an amount probe resolved to a 2019 price list
+    # instead of the workbook holding the value (measured live 2026-09-16).
+    columns = [c for c in columns if c != SHEET_ROW_COL]
+    if not columns:
+        return None, None
     path = str(entry.get("parquet_path", "")).replace("'", "''")
     cols_sql = ", ".join(
         f'CAST("{c.replace(chr(34), chr(34) * 2)}" AS VARCHAR)' for c in columns
@@ -1179,11 +1294,110 @@ def _pandas_probe_entry(entry: Dict[str, Any], token: str):
     if df.empty:
         return None, None
     strs = df.astype(str)
+    # same exclusion as the DuckDB path — see the note there
+    strs = strs.drop(columns=[C for C in (SHEET_ROW_COL,) if C in strs.columns])
     mask = strs.apply(lambda col: col.str.contains(token, case=False, regex=False, na=False))
     hit = df[mask.any(axis=1)]
     if hit.empty:
         return None, None
     return len(hit), hit
+
+
+# PROBE CACHE: search_all_datasets_sync scans EVERY dataset's parquet per
+# token — 200+ files, and the derivation lane probes up to 4 tokens per
+# turn. Repeated tokens ('5216', '7519') re-scanned every turn made the
+# catalog's answers intermittent under load (live 2026-09-16: PRICE VIPUL
+# present in one probe, absent the next). Keyed by (content_hash, token,
+# max_rows) so a re-materialized file (new hash) invalidates naturally;
+# TTL bounds staleness for same-hash updates. Env kill switch + TTL:
+# ATOM_SHEET_PROBE_CACHE_TTL_SECONDS (default 300, 0 = off).
+_PROBE_CACHE: Dict[tuple, tuple] = {}
+# Guards the cache dict only — never held across a probe (probing can take
+# seconds and must not serialize the evidence legs).
+_PROBE_CACHE_LOCK = threading.Lock()
+_PROBE_CACHE_TTL_S = float(
+    os.getenv("ATOM_SHEET_PROBE_CACHE_TTL_SECONDS", "300") or 300
+)
+
+
+def _probe_cached(entries: List[Dict[str, Any]], token: str, max_rows: int):
+    """_probe_sheet_hits with a per-(file-version, token) cache.
+
+    The cached object is never handed out: callers receive a deep copy, so a
+    consumer that edits the result it got cannot corrupt what the next caller
+    reads. ("Callers must not mutate it" was a documented request, not an
+    enforced invariant — verified failing 2026-09-16.)
+
+    Cacheability requires an identity. A row with neither content_hash,
+    external_id, parquet_path nor file_name cannot be told apart from any
+    other such row, so an anonymous entry is probed directly rather than
+    cached under a key that would serve one file's result for another.
+    """
+    if _PROBE_CACHE_TTL_S <= 0:
+        return _probe_sheet_hits(entries, token, max_rows)
+    import time as _t
+
+    now = _t.monotonic()
+    e0 = entries[0] if entries else {}
+    # identity: content_hash gives content-version invalidation; the rest keep
+    # two catalog rows apart when they share bytes (the same attachment on two
+    # messages) or carry no hash at all.
+    identity = (
+        str(e0.get("content_hash") or ""),
+        str(e0.get("external_id") or ""),
+        str(e0.get("parquet_path") or ""),
+        str(e0.get("file_name") or ""),
+    )
+    if not any(identity):
+        return _probe_sheet_hits(entries, token, max_rows)
+    key = (identity, token, max_rows)
+    with _PROBE_CACHE_LOCK:
+        hit = _PROBE_CACHE.get(key)
+        if hit and now - hit[0] < _PROBE_CACHE_TTL_S:
+            return copy.deepcopy(hit[1])
+    result = _probe_sheet_hits(entries, token, max_rows)
+    with _PROBE_CACHE_LOCK:
+        # bound the cache: drop expired entries first (the common case), and
+        # only clear wholesale when everything in it is still live.
+        if len(_PROBE_CACHE) > 512:
+            expired = [k for k, (ts, _v) in _PROBE_CACHE.items()
+                       if now - ts >= _PROBE_CACHE_TTL_S]
+            for k in expired:
+                _PROBE_CACHE.pop(k, None)
+            if len(_PROBE_CACHE) > 512:
+                _PROBE_CACHE.clear()
+        _PROBE_CACHE[key] = (now, copy.deepcopy(result))
+    return result
+
+
+def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[Dict[str, Any]]:
+    """A result for a file the USER NAMED, without requiring a content match.
+
+    Content probing answers "which file contains this value". A naming ask is the
+    other direction — "open the file called X" — and X need not contain any token
+    from the question (the F-5216 workbook's contents never name the code the user
+    knows it by). Returning the catalog entry with its sheet index and formulas
+    gives the reply model the file the user means, instead of the nearest
+    unrelated file whose contents happened to match a word.
+    """
+    if not entries:
+        return None
+    e = entries[0]
+    try:
+        formulas = load_formulas_for_parquet(str(e.get("parquet_path") or ""))
+    except Exception:  # noqa: BLE001 — formulas are additive
+        formulas = {}
+    return {
+        "file_name": e.get("file_name"),
+        "entity_name": e.get("entity_name") or e.get("sheet_name"),
+        "source_modified_at": e.get("source_modified_at"),
+        "sql": "(selected by file name — no content probe needed)",
+        "columns": [],
+        "rows": [],
+        "row_count": 0,
+        "formulas": formulas,
+        "selected_by_name": True,
+    }
 
 
 def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) -> Optional[Dict[str, Any]]:
@@ -1229,6 +1443,42 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         return None
     count, e, hit = best
     head = hit.head(max_rows)
+    # DIGIT-BOUNDARY CHECK for pure-number tokens. The scan above is a substring
+    # match, which is right for codes ('350dsav' must match 'WG-350DSAV') and
+    # wrong for amounts/model numbers: EVERY hit for the code "5216" against the
+    # live catalog was a substring of the artifact float tail "15.521625000000002",
+    # so the derivation ask resolved to unrelated price lists while the workbook
+    # that actually answers it was never probed (measured 2026-09-16). A token
+    # that is ALL digits must therefore appear as a whole number, not inside one;
+    # tokens containing letters keep substring semantics.
+    if token.isdigit() and count:
+        for _line in render_dataset_answer({
+            "file_name": e.get("file_name"), "entity_name": e.get("entity_name"),
+            "sql": "", "columns": head.columns.tolist(), "rows": head.to_dict("records"),
+            "row_count": count, "formulas": {},
+        }).splitlines():
+            if _line.startswith("SQL RESULT") or _line.startswith("... "):
+                continue
+            # A NUMERIC CELL renders as '7519.0' when the source stores it as a
+            # float, so a trailing decimal is the same number, not a longer one.
+            # A trailing DIGIT is not ('75190'), and a digit before a dot is not
+            # ('15.5216' is a fragment, while a leading '0' as in a zero-padded
+            # part number is an identifier and passes).
+            if re.search(
+                rf"(?<![0-9.]){re.escape(token)}(?![0-9])", _line
+            ):
+                return {
+                    "file_name": e.get("file_name"),
+                    "entity_name": e.get("entity_name"),
+                    "external_id": e.get("external_id"),
+                    "source_modified_at": e.get("source_modified_at"),
+                    "sql": f"-- content probe: scanned for '{token}' (whole-number match)",
+                    "columns": head.columns.tolist(),
+                    "rows": head.to_dict("records"),
+                    "row_count": count,
+                    "formulas": load_formulas_for_parquet(str(e.get("parquet_path") or "")),
+                }
+        return None  # only float-tail/substring matches — not this number
     rows = head.astype(object).where(head.notna(), None).to_dict(orient="records")
     return {
         "dataset_name": e["dataset_name"],
@@ -1243,6 +1493,11 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         "row_count": int(count),
         "columns": [str(c) for c in head.columns],
         "rows": rows,
+        # FORMULAS on the deterministic path too (gap fix 2026-09-16): the
+        # sidecar exists at materialization time; only the LLM-SQL path
+        # attached it before, so a Stage-0 answer rendered values without
+        # the cell formulas — exactly the derivation asks' evidence.
+        "formulas": load_formulas_for_parquet(str(e.get("parquet_path") or "")),
         "note": "",
     }
 
@@ -1267,7 +1522,116 @@ def _select_probe_token(query: str) -> Optional[str]:
     return sorted(digit_tokens, key=len, reverse=True)[0]
 
 
-def candidate_probe_tokens(texts: List[str], max_tokens: int = 3) -> List[str]:
+#: token -> number of catalogued FILE NAMES containing it, plus the file count.
+#: Derived from this install's own corpus, so "distinctive" means distinctive
+#: HERE ("price" is in 128 files, "vipul" in 1) with no domain vocabulary baked
+#: into the code.
+_NAME_TOKEN_INDEX: Dict[str, Any] = {}
+_NAME_TOKEN_INDEX_TTL_S = 300.0
+
+
+def _name_token_index() -> tuple:
+    """``(doc_freq, file_count)`` over catalogued file names, TTL-cached."""
+    import time as _time
+
+    hit = _NAME_TOKEN_INDEX.get("t")
+    now = _time.monotonic()
+    if hit and now - hit[0] < _NAME_TOKEN_INDEX_TTL_S:
+        return hit[1], hit[2]
+    doc_freq: Dict[str, int] = {}
+    total = 0
+    try:
+        entries = find_entries_sync("", None, None, 500)
+        names = {str(e.get("file_name") or "") for e in entries}
+        names.discard("")
+        total = len(names)
+        for name in names:
+            for tok in set(re.split(r"[^a-z0-9]+", name.lower())):
+                if len(tok) >= 4 and not tok.isdigit():
+                    doc_freq[tok] = doc_freq.get(tok, 0) + 1
+    except Exception as err:  # noqa: BLE001 — the index is an optimisation
+        logger.debug(f"name-token index unavailable: {err}")
+    _NAME_TOKEN_INDEX["t"] = (now, doc_freq, total)
+    return doc_freq, total
+
+
+def distinctive_name_tokens(texts: List[str], max_tokens: int = 2) -> List[str]:
+    """Query words that identify a FILE by name, ranked by rarity in the corpus.
+
+    The digit-only rule above cannot see a file named in words: "PRICE VIPUL
+    (6).xlsx" carries no code, so a query naming it produced NO candidate tokens,
+    the catalog was never probed, and the dataset lane ran its SQL against
+    whatever other spreadsheet the query's incidental digits matched (live
+    2026-09-16: Consolidated Price List answered a question about the VIPUL
+    workbook).
+
+    Rarity is measured against this install's catalogued file names, so nothing
+    domain-specific is hard-coded: "price" appears in 6 of 65 file names here and
+    is rejected as non-identifying, while "vipul" appears in 1 and is accepted.
+    Two uncommon words are decisive together; a LONE rare word needs the query to
+    carry a digit/code as corroboration, which keeps prose questions ("which
+    vendors sent a price list") from probing the catalog on ordinary vocabulary
+    while still resolving a file named in words.
+    """
+    doc_freq, total = _name_token_index()
+    if not total or not doc_freq:
+        return []
+    # A word is "identifying" only if it is rare in THIS catalog. Measured on the
+    # live corpus: "price" is in 6 of 65 file names and "list" in 6, while the
+    # token that names the F-5216 workbook ("vipul") is in exactly 1 — so rarity
+    # is derived from the install's own catalog instead of any vocabulary list.
+    #
+    # At this catalog size frequency alone cannot decide: "lead" is also in 1
+    # file name and appears in countless questions. Word LENGTH cannot decide
+    # either — "vipul" is 5 characters, so a 6-character floor dropped the very
+    # token this exists to catch while admitting "harsle". The safety therefore
+    # comes from AGREEMENT: a lone rare word is only trusted when the query also
+    # carries a code/blob/amount, because a file-naming question nearly always
+    # does ("PRICE VIPUL (6).xlsx", "the F-5216 workbook"). "what is the lead
+    # time" carries neither and stays out of the catalog probe.
+    # ANY digit run counts as corroboration — a version marker like "(6)" in
+    # "PRICE VIPUL (6).xlsx" is exactly the signal, and a \d{2,} floor missed it
+    # (single digits fell through, so a file-naming query still produced no
+    # tokens). One digit anywhere in the ask plus one rare name word is a far
+    # tighter test than either alone.
+    corroborated = bool(
+        re.search(r"(?:[a-z]{1,4}-\d|\d)", " ".join(texts or []).lower())
+    )
+    common_cutoff = max(2, int(total * 0.03))
+    rare_cutoff = 1
+    scored: List[tuple] = []
+    seen: set = set()
+    for text in texts or []:
+        for tok in re.split(r"[^a-z0-9]+", (text or "").lower()):
+            if len(tok) < 4 or tok in seen or tok.isdigit():
+                continue
+            seen.add(tok)
+            freq = doc_freq.get(tok)
+            if freq is None or freq > common_cutoff:
+                continue  # not a catalog word, or too common to identify one file
+            scored.append((freq, tok))
+    scored.sort(key=lambda t: (t[0], -len(t[1])))
+    if not scored:
+        return []
+    if len(scored) >= 2:
+        return [tok for _f, tok in scored[:max_tokens]]
+    if scored[0][0] <= rare_cutoff and corroborated:
+        return [scored[0][1]][:max_tokens]
+    # A LONE rare word with no digit anywhere ("open the PRICE VIPUL workbook"):
+    # the corroboration rule above rejected it and the file the user named became
+    # unreachable again. At this catalog size (65 names, typically one or two
+    # distinctive words per question) requiring corroboration costs a real answer
+    # to avoid a speculative probe, and the two outcomes are not symmetric: being
+    # wrong means the catalog rows for a file whose name matched are shown, while
+    # being silent means the agent tells the user its own workbook is unavailable.
+    # The probe is a local SQLite+parquet read on a name the user typed, so it is
+    # taken.
+    if scored[0][0] <= rare_cutoff:
+        return [scored[0][1]][:max_tokens]
+    return []
+def candidate_probe_tokens(
+    texts: List[str], max_tokens: int = 3, allow_name_fallback: bool = True
+) -> List[str]:
     """Ranked candidate identifier tokens from the query AND its context
     (history turns, canvas).
 
@@ -1295,7 +1659,18 @@ def candidate_probe_tokens(texts: List[str], max_tokens: int = 3) -> List[str]:
         key=lambda t: (sum(ch.isdigit() for ch in t), len(t)),
         reverse=True,
     )
-    return tokens[:max_tokens]
+    if tokens:
+        return tokens[:max_tokens]
+    if not allow_name_fallback:
+        # The caller is running its OWN, narrower name matching (see the
+        # `name_context_texts` note in search_all_datasets_sync). Falling back
+        # here would re-read the full context — history included — and quietly
+        # reintroduce the hijack this flag exists to prevent.
+        return []
+    # No code in the query: it may still be naming a FILE in words. Appended
+    # (not replacing) so a code always leads, and so the caller's "no candidate"
+    # branch still means "nothing identifying was said".
+    return distinctive_name_tokens(texts, max_tokens=min(max_tokens, 2))
 
 
 async def answer_from_datasets(
@@ -1573,11 +1948,79 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
         lines.append(f"... {result['row_count'] - shown} more rows matched")
     formulas = result.get("formulas") or {}
     if formulas:
-        cells = [
-            f"{cell}={_fmt(f)}"
-            for cell, f in list(formulas.items())[:40]
+        # MATCHED ROWS FIRST. Emitting the sheet's first N cells (what this did)
+        # shows the derivation of some arbitrary early row — useless for "how was
+        # THIS price derived", and actively misleading because it looks like the
+        # answer. Map every cell to its row and keep the rows in the result.
+        import re as _re
+
+        wanted_rows = {
+            str(row.get(SHEET_ROW_COL))
+            for row in result.get("rows", [])
+            if row.get(SHEET_ROW_COL) is not None
+        }
+
+        def _row_of(cell: str) -> str:
+            m = _re.match(r"^[A-Za-z]+(\d+)$", str(cell))
+            return m.group(1) if m else ""
+
+
+        matched = [
+            (cell, f) for cell, f in formulas.items() if _row_of(cell) in wanted_rows
         ]
-        lines.append("FORMULAS (original workbook): " + " | ".join(cells))
+        rest = [
+            (cell, f) for cell, f in formulas.items() if _row_of(cell) not in wanted_rows
+        ]
+        shown = matched[:40]
+        if shown:
+            lines.append(
+                "FORMULAS FOR THE MATCHED ROW(S) — the derivation the original "
+                "workbook computes (cell=formula): "
+                + " | ".join(f"{cell}={_fmt(f)}" for cell, f in shown)
+            )
+        elif formulas:
+            # NO ROW MATCHED — because the file was selected BY NAME ("open the
+            # PRICE VIPUL workbook"), which is the very request that wants the
+            # derivation. Without this the agent got the file and its sheet index
+            # but no chain, and answered "the calculation file is unavailable"
+            # while the chain sat in the sidecar.
+            #
+            # Rather than dump the sheet's first cells (the old bug), pick the rows
+            # that actually COMPUTE something: a derivation row carries several
+            # formulas, while footer/label rows carry one or none. Distinct rows
+            # are then deduplicated by their formula PATTERN, because a price list
+            # repeats one pattern down hundreds of rows and 200 identical rows
+            # would bury the answer.
+            by_row: Dict[str, List[tuple]] = {}
+            for cell, f in formulas.items():
+                r = _row_of(cell)
+                if r:
+                    by_row.setdefault(r, []).append((cell, f))
+            patterns: List[str] = []
+            for row_num in sorted(by_row, key=lambda x: int(x) if x.isdigit() else 0):
+                cells_in_row = sorted(by_row[row_num])
+                if len(cells_in_row) < 2:
+                    continue  # a single formula is usually a bare reference
+                signature = "|".join(_re.sub(r"\d+", "#", f) for _c, f in cells_in_row)
+                if signature in patterns:
+                    continue  # same computation as a row already shown
+                patterns.append(signature)
+                lines.append(
+                    f"FORMULAS FOR ROW {row_num} (a computing row of this sheet; "
+                    "no single row matched the question, so these show how the "
+                    "sheet derives its values): "
+                    + " | ".join(f"{c}={_fmt(f)}" for c, f in cells_in_row[:12])
+                )
+                if len(patterns) >= 3:
+                    break
+        if rest and shown:
+            # A little context from other rows helps the model read the pattern.
+            extra = rest[: max(0, 40 - len(shown))]
+            if extra:
+                lines.append(
+                    "OTHER ROWS' FORMULAS (pattern context, not this row): "
+                    + " | ".join(f"{cell}={_fmt(f)}" for cell, f in extra)
+                )
     return "\n".join(lines)
 
 

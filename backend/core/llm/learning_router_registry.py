@@ -293,7 +293,7 @@ async def record_timeout_outcome(
             actual_cost=0.0,
             actual_latency_ms=(elapsed_s or 0.0) * 1000.0,
         )
-        router._persist_feedback(feedback, None)
+        router._persist_feedback(feedback, {"verdict": "timeout"})
         return True
     except Exception as e:  # noqa: BLE001 — best-effort signal
         logger.debug(f"timeout outcome not recorded: {e}")
@@ -363,7 +363,9 @@ async def record_fabrication_signal(
 
         writer = LearningBasedRouter.__new__(LearningBasedRouter)
         try:
-            writer._persist_feedback(feedback, None)
+            writer._persist_feedback(feedback, {"verdict": (
+                "unsupported_figures" if unsupported_figures
+                else "ungrounded_claims")})
             _persisted = True
         except Exception as persist_err:  # noqa: BLE001
             logger.debug(f"fabrication row persist skipped: {persist_err}")

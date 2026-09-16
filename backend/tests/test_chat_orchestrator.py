@@ -267,9 +267,12 @@ def test_planner_prompt_forbids_pasted_quotes_going_to_inventory():
     from core.chat_tool_planner import _PLANNER_SYSTEM
 
     low = _PLANNER_SYSTEM.lower()
-    assert "pasted / quoted text is mail" in low
-    assert 'even when the quote contains the word "stock"' in low
-    assert "not to zoho_inventory" in low
+    # Re-contracted 2026-09-16 (audit item 4): the route is
+    # PROVENANCE-determined, not unconditionally mail.
+    assert "pasted / quoted text routes by provenance" in low
+    assert 'just because it contains words like "stock"' in low
+    assert "record apps even when they repeat a" in low
+    assert "genuine own-record questions" in low
     assert "quantities on hand" in low
 
 
