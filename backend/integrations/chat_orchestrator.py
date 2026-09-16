@@ -979,18 +979,32 @@ async def _derivation_dataset_block(
         # wrong workbook, the named one never probed).
         msg_l = (message or "").lower()
 
+        def _norm_phrase(s: str) -> str:
+            return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+        msg_phrase = _norm_phrase(message or "")
+
         def _name_bonus(hit: Dict[str, Any]) -> int:
-            # DISTINCT matching tokens: 'price' alone matches every price
-            # list generically; the NAMED file matches name + brand + ext
-            # and must outrank them.
+            # The user TYPING the filename is the strongest possible signal:
+            # a contiguous phrase match of the file's base name in the
+            # message ('price vipul' in 'open PRICE VIPUL (6).xlsx…')
+            # outweighs any number of scattered common-word token matches
+            # ('price'+'list' also match 'Copy of Consolidated Price
+            # List' — a tie at bonus 2 that Arbitrarily displaced the named
+            # file, live 2026-09-16).
             fname = str(hit.get("file_name") or "").lower()
             if not fname:
                 return 0
             base = fname.rsplit(".", 1)[0]
-            return sum(
+            base_phrase = _norm_phrase(base)
+            bonus = sum(
                 1 for tok in set(re.findall(r"[a-z0-9]{4,}", base))
                 if tok in msg_l
             )
+            if base_phrase and len(base_phrase.split()) >= 2 \
+                    and base_phrase in msg_phrase:
+                bonus += 3
+            return bonus
 
         by_file: Dict[str, Tuple[int, Dict[str, Any]]] = {}
         for token in figures[:4]:
@@ -1034,6 +1048,62 @@ async def _derivation_dataset_block(
             by_file.items(),
             key=lambda kv: (-kv[0][1], -kv[1][0]),
         )[:4]
+        # ROW-LEVEL SELECTION on the winner: a file can hold MANY rows
+        # matching different figure tokens (live 2026-09-16: PRICE VIPUL's
+        # R192 graymills row matched '8880' while the ask was the '7519'
+        # F-5216 row R235). Re-probe the winning file with EVERY figure and
+        # keep the probe whose rows co-occur with the most OTHER figures —
+        # the derivation row uniquely carries several (5350 AND 7519).
+        # Probe-cached, so the re-probe is ~free.
+        try:
+            from core.sheet_dataset_service import (
+                _probe_cached, entries_for_file_sync, find_entries_sync,
+            )
+
+            (w_fname, _w_bonus), (_w_co, w_hit) = ranked[0]
+            w_entries = None
+            for _e in find_entries_sync(
+                    w_fname, user_id, ctx.get("workspace_id"), 50):
+                if str(_e.get("external_id")) == str(
+                        w_hit.get("external_id")):
+                    w_entries = [_e]
+                    break
+            if w_entries:
+                best_rows = None
+                best_key = (-1, -1, -1)
+                msg_fig_l = re.sub(
+                    r"[^0-9]+", " ", (message or "")).split()
+                for idx, tok in enumerate(figures[:6]):
+                    r = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            _probe_cached, w_entries, tok, 10),
+                        timeout=8,
+                    )
+                    if not r:
+                        continue
+                    rendered = render_dataset_answer(r)
+                    clean = re.sub(r"(\d)\.0\b", r"\1", rendered)
+                    row_co = sum(
+                        1 for t in figures
+                        if t != tok
+                        and re.search(
+                            rf"(?<![\d.]){re.escape(t)}(?![\d.])", clean)
+                    )
+                    # Ties break toward the figure THE MESSAGE names (the
+                    # question's subject) over canvas/history bystanders,
+                    # then toward later position (the ask's focus tends to
+                    # come last). Live: '7519' (message) vs '8880' (canvas
+                    # noise) both hit one row each; the canvas row won.
+                    in_msg = 1 if tok in msg_fig_l else 0
+                    key = (row_co, in_msg, idx)
+                    if key > best_key:
+                        best_key = key
+                        best_rows = r
+                if best_rows is not None:
+                    ranked[0] = ((w_fname, _w_bonus),
+                                 (_w_co, best_rows))
+        except Exception as row_err:  # noqa: BLE001 — file-level result stands
+            logger.debug(f"row-level selection skipped: {row_err}")
         lines = [
             "DATASET CATALOG — derivation inputs (ingested spreadsheets "
             "searched for the conversation's figures; these rows ARE the "
