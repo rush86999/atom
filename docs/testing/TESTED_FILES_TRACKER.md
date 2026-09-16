@@ -42,6 +42,56 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15n: the agent must learn from instructions given in chat (root cause)
+
+**Owner report**: "agent should be learning from my instructions in the agent
+chat". The instruction was *"use the above formula as a backup for figuring out
+the list price from a dealer's used machine. Used machinery price is actually
+calculated from retail listed of a new one and depreciating as per market trends
+until the age of the machine is reached."* The agent acknowledged it and the next
+turn answered as if it had never been said.
+
+**Root cause — TWO independent gaps, both verified:**
+
+1. **The rule was stored against the wrong agent.** It WAS captured (4 relevant
+   entries in the Sales Agent's learning log), but retrieval was strictly
+   per-agent and the chat was being served by a different agent with zero
+   lessons. The operator cannot know which agent a chat turn routes to, and the
+   knowledge ("how we price used machines") is workspace truth rather than one
+   hire's quirk. `get_agent_lessons` now merges relevant lessons from SIBLING
+   agents in the same workspace, tagged `_source_agent_id` and labelled in the
+   block as taught to a different agent; own lessons keep priority on a
+   relevance tie. Workspace matching treats an unset `workspace_id` as
+   compatible, because most shipped agents here carry none — requiring an exact
+   match would exclude precisely the agents the operator teaches from the ones
+   they talk to.
+2. **The instruction was never even suggested.** Both teaching channels required
+   the message to OPEN with a directive ("always …", "/teach …"). This one
+   arrived mid-message, appended to the request that prompted it, so nothing was
+   stored *and nothing was offered*. Added `detect_mid_message_cue`, which
+   returns the sentence carrying the directive (not the whole request) and is
+   wired into the same confirm-first suggestion path — detection still never
+   writes, preserving the lesson-poisoning guard.
+
+**A third bug, mine, caught by running it**: the sibling merge capped at `limit`
+BEFORE ranking, so it kept the newest siblings and discarded the highest-scoring
+one — the 5-token match on "list price for a used machine" lost to four
+unrelated recent notes. Collect-all → rank → cap.
+
+**And a false positive caught by a test**: `never mind, that is fine` matched the
+`never` directive; conversational idioms ("never mind", "always the case") are now
+excluded.
+
+**Also recorded**: the pricing rule itself, in the owner's own words, as a
+permanent lesson via `deliver_teacher_lesson` — primary method (depreciate the
+new list price to the machine's age), secondary/backup (the workbook ladder
+F235*0.9 → +700 → *1.02 → /0.87 → /0.86 → ROUNDUP, ~40-50% margin rule of thumb).
+
+**Verified live**: the Chat Assistant (0 own lessons) now receives the pricing
+rule for "price a used 52 inch foot shear for a dealer", labelled as taught to a
+different agent. 149 passed across six suites; new
+`tests/test_workspace_lesson_recall.py` (12).
+
 ### 15m: "fix all gaps" — probe correctness, named files, and scan budgets (pushed 7e1995ac9 + budget round)
 
 **Gap: the derivation ask reached the WRONG FILE.** Chasing it found three

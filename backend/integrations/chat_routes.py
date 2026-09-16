@@ -1273,9 +1273,21 @@ async def send_chat_message(
             # Detected cue → confirm-first suggestion attached to the reply.
             _teaching_suggestion: Optional[Dict[str, Any]] = None
             try:
-                from core.chat_teaching import detect_teaching_cue, suggest_lesson
+                from core.chat_teaching import (
+                    detect_mid_message_cue,
+                    detect_teaching_cue,
+                    suggest_lesson,
+                )
 
-                _cue_lesson = detect_teaching_cue(request.message)
+                # Opening directive first; otherwise a directive that arrived
+                # MID-message ("…show the derivation. use the above formula as a
+                # backup for pricing a used machine"). The second channel exists
+                # because that is how instructions actually arrive while working,
+                # and without it the rule was neither stored nor even offered
+                # (live 2026-09-16). Still confirm-first — detection never writes.
+                _cue_lesson = detect_teaching_cue(request.message) or detect_mid_message_cue(
+                    request.message
+                )
                 if _cue_lesson:
                     _teaching_suggestion = suggest_lesson(
                         db,
