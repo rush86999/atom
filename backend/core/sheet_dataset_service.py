@@ -32,12 +32,14 @@ dataset answer cites the same R# an excerpt would.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import io
 import json
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -1310,32 +1312,61 @@ def _pandas_probe_entry(entry: Dict[str, Any], token: str):
 # TTL bounds staleness for same-hash updates. Env kill switch + TTL:
 # ATOM_SHEET_PROBE_CACHE_TTL_SECONDS (default 300, 0 = off).
 _PROBE_CACHE: Dict[tuple, tuple] = {}
+# Guards the cache dict only — never held across a probe (probing can take
+# seconds and must not serialize the evidence legs).
+_PROBE_CACHE_LOCK = threading.Lock()
 _PROBE_CACHE_TTL_S = float(
     os.getenv("ATOM_SHEET_PROBE_CACHE_TTL_SECONDS", "300") or 300
 )
 
 
 def _probe_cached(entries: List[Dict[str, Any]], token: str, max_rows: int):
-    """_probe_sheet_hits with a per-(file-version, token) cache. The cached
-    dict is returned BY REFERENCE to read-only consumers; callers must not
-    mutate it."""
+    """_probe_sheet_hits with a per-(file-version, token) cache.
+
+    The cached object is never handed out: callers receive a deep copy, so a
+    consumer that edits the result it got cannot corrupt what the next caller
+    reads. ("Callers must not mutate it" was a documented request, not an
+    enforced invariant — verified failing 2026-09-16.)
+
+    Cacheability requires an identity. A row with neither content_hash,
+    external_id, parquet_path nor file_name cannot be told apart from any
+    other such row, so an anonymous entry is probed directly rather than
+    cached under a key that would serve one file's result for another.
+    """
     if _PROBE_CACHE_TTL_S <= 0:
         return _probe_sheet_hits(entries, token, max_rows)
     import time as _t
 
     now = _t.monotonic()
     e0 = entries[0] if entries else {}
-    key = (str(e0.get("content_hash") or e0.get("external_id") or ""),
-           token, max_rows)
-    hit = _PROBE_CACHE.get(key)
-    if hit and now - hit[0] < _PROBE_CACHE_TTL_S:
-        return hit[1]
+    # identity: content_hash gives content-version invalidation; the rest keep
+    # two catalog rows apart when they share bytes (the same attachment on two
+    # messages) or carry no hash at all.
+    identity = (
+        str(e0.get("content_hash") or ""),
+        str(e0.get("external_id") or ""),
+        str(e0.get("parquet_path") or ""),
+        str(e0.get("file_name") or ""),
+    )
+    if not any(identity):
+        return _probe_sheet_hits(entries, token, max_rows)
+    key = (identity, token, max_rows)
+    with _PROBE_CACHE_LOCK:
+        hit = _PROBE_CACHE.get(key)
+        if hit and now - hit[0] < _PROBE_CACHE_TTL_S:
+            return copy.deepcopy(hit[1])
     result = _probe_sheet_hits(entries, token, max_rows)
-    # bound the cache: same laziness as the rest of the module — evict all
-    # when it grows past a few hundred entries (tokens × files)
-    if len(_PROBE_CACHE) > 512:
-        _PROBE_CACHE.clear()
-    _PROBE_CACHE[key] = (now, result)
+    with _PROBE_CACHE_LOCK:
+        # bound the cache: drop expired entries first (the common case), and
+        # only clear wholesale when everything in it is still live.
+        if len(_PROBE_CACHE) > 512:
+            expired = [k for k, (ts, _v) in _PROBE_CACHE.items()
+                       if now - ts >= _PROBE_CACHE_TTL_S]
+            for k in expired:
+                _PROBE_CACHE.pop(k, None)
+            if len(_PROBE_CACHE) > 512:
+                _PROBE_CACHE.clear()
+        _PROBE_CACHE[key] = (now, copy.deepcopy(result))
     return result
 
 

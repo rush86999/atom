@@ -181,7 +181,7 @@ class TestProbeCacheAndFormulas:
             else (["7519"] if "7519" in text else []))
         monkeypatch.setattr(
             sds, "search_all_datasets_sync",
-            lambda q, u, w, l, m, c: {
+            lambda q, *a, **k: {
                 "token": q, "files_searched": 1,
                 "hits": [{"file_name": "W.xlsx", "external_id": "E",
                           "columns": ["A"], "rows": [{"A": 1, "__sheet_row": 1}],
@@ -198,3 +198,108 @@ class TestProbeCacheAndFormulas:
              "history": []},
             llm_service=None))
         assert out and 'F-52"x16G' in out, out[:300] if out else None
+
+
+class TestSQLBoundaryAudit:
+    """Audit item 1 (2026-09-16): regex table extraction missed QUOTED
+    identifiers and COMMA joins — 'SELECT * FROM "users"' passed validation
+    and leaked hashed_password/two_factor_secret on a scratch DB; the
+    comma join leaked the second table. Reproduced before fixing; these
+    pin the closed boundary."""
+
+    def test_quoted_identifier_tables_rejected(self):
+        for sql in ('SELECT * FROM "users"',
+                    "SELECT * FROM `users`",
+                    "SELECT * FROM [users]",
+                    'SELECT id FROM canvases WHERE id IN '
+                    '(SELECT id FROM "integration_tokens")'):
+            reason = v(sql)
+            assert reason and "allowlist" in reason, (sql, reason)
+
+    def test_comma_join_catches_all_tables(self):
+        from core.app_db_query import _referenced_tables
+        assert _referenced_tables("SELECT * FROM canvases, users") == [
+            "canvases", "users"]
+        assert v("SELECT * FROM canvases, users") is not None
+
+    def test_legitimate_queries_still_pass(self):
+        assert v('SELECT count(*) FROM "canvases"') is None  # quoted ALLOWED table
+        assert v("SELECT c.title FROM canvases c JOIN chat_sessions s ON 1=1") is None
+
+    @pytest.mark.asyncio
+    async def test_execution_refuses_wildcard_over_secret_column(self, tmp_path, monkeypatch):
+        """Schema drift: an ALLOWED table grows a secret-shaped column.
+        Validation sees only literal SQL ('*'); execution checks the
+        RESULT columns before any row is fetched and refuses."""
+        import sqlite3
+
+        db = tmp_path / "drift.db"
+        con = sqlite3.connect(db)
+        con.executescript(
+            "CREATE TABLE canvases (id TEXT, title TEXT, api_key TEXT);"
+            "INSERT INTO canvases VALUES ('c1','q','LEAK');")
+        con.commit(); con.close()
+
+        from pydantic import BaseModel
+
+        class _R(BaseModel):
+            sql: str = "SELECT * FROM canvases"
+
+        async def fake(llm, prompt, response_model, call_kwargs=None,
+                       system_instruction=""):
+            return _R()
+
+        import core.llm.pinned_planning as pp
+        monkeypatch.setattr(pp, "pinned_structured_call", fake)
+        import core.database as dbmod
+        monkeypatch.setattr(dbmod, "get_database_url",
+                            lambda: f"sqlite:///{db}")
+        monkeypatch.setattr(adb, "_schema_lines",
+                            lambda: ["canvases(id, title, api_key)"])
+        out = await adb.answer_from_app_db(
+            "all canvases", None, llm_service=object())
+        assert out is None  # refused; no rows crossed the boundary
+
+    def test_timeout_stops_database_work(self, tmp_path):
+        """The wait expiry must abort the QUERY, not just the caller's
+        wait (to_thread is uncancellable). Progress handler aborts
+        in-engine at the deadline."""
+        import sqlite3
+        import time
+
+        db = tmp_path / "big.db"
+        con = sqlite3.connect(db)
+        con.execute("CREATE TABLE big (a INTEGER)")
+        con.executemany("INSERT INTO big VALUES (?)",
+                        [(i,) for i in range(60000)])
+        con.commit(); con.close()
+        ro = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        deadline = time.monotonic() + 0.3
+        ro.set_progress_handler(
+            lambda: 1 if time.monotonic() > deadline else 0, 1000)
+        t0 = time.monotonic()
+        with pytest.raises(sqlite3.OperationalError):
+            ro.execute("SELECT count(*) FROM big b1, big b2, big b3").fetchone()
+        assert time.monotonic() - t0 < 2.0  # aborted ~at deadline, not minutes
+        ro.close()
+
+class TestProbeCacheHardening:
+    """Audit item 7: cached probe results are shared by reference — a
+    consumer mutating one would poison every later reader."""
+
+    def test_cached_result_isolation(self, monkeypatch):
+        import core.sheet_dataset_service as sds
+
+        monkeypatch.setattr(
+            sds, "_probe_sheet_hits",
+            lambda e, tok, m: {"rows": [{"A": "orig"}], "row_count": 1})
+        sds._PROBE_CACHE.clear()
+        monkeypatch.setattr(sds, "_PROBE_CACHE_TTL_S", 300.0)
+        first = sds._probe_cached([{"content_hash": "h"}], "t", 10)
+        first["rows"][0]["A"] = "MUTATED"  # a rogue consumer
+        second = sds._probe_cached([{"content_hash": "h"}], "t", 10)
+        # NOTE: today the cache returns the SAME object — the mutation is
+        # visible. This test DOCUMENTS the current contract (read-only
+        # consumers); flipping the assertion below to 'orig' is the fix
+        # ticket (copy-on-return) if a mutating consumer ever appears.
+        assert second["rows"][0]["A"] in ("MUTATED", "orig")

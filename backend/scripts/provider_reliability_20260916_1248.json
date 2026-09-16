@@ -1,0 +1,76 @@
+{
+ "ran_at": "2026-09-16T12:48:50.313189+00:00",
+ "n_attempts": 6,
+ "ok": 6,
+ "zero_visible": 0,
+ "exceptions": 0,
+ "rate_limited": 0,
+ "median_latency": 12.549500250257552,
+ "max_latency": 25.681464582681656,
+ "ttfv_median": 13.410295624751598,
+ "attempts": [
+  {
+   "label": "plan0",
+   "mode": "plan",
+   "ok": true,
+   "ttFv": null,
+   "latency": 5.112228333950043,
+   "finish": "ok",
+   "err": null,
+   "chars": 143,
+   "model": "qwen/qwen3.8-flash"
+  },
+  {
+   "label": "answer0",
+   "mode": "stream",
+   "ok": true,
+   "ttFv": 24.096287874970585,
+   "latency": 25.681464582681656,
+   "finish": "stream_ok",
+   "err": null,
+   "chars": 283
+  },
+  {
+   "label": "plan1",
+   "mode": "plan",
+   "ok": true,
+   "ttFv": null,
+   "latency": 12.549500250257552,
+   "finish": "ok",
+   "err": null,
+   "chars": 136,
+   "model": "deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label": "answer1",
+   "mode": "stream",
+   "ok": true,
+   "ttFv": 13.410295624751598,
+   "latency": 15.116119333077222,
+   "finish": "stream_ok",
+   "err": null,
+   "chars": 267
+  },
+  {
+   "label": "plan2",
+   "mode": "plan",
+   "ok": true,
+   "ttFv": null,
+   "latency": 3.5540410419926047,
+   "finish": "ok",
+   "err": null,
+   "chars": 144,
+   "model": "deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label": "answer2",
+   "mode": "stream",
+   "ok": true,
+   "ttFv": 4.260945874731988,
+   "latency": 4.301882833708078,
+   "finish": "stream_ok",
+   "err": null,
+   "chars": 14
+  }
+ ]
+}

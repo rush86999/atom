@@ -1202,6 +1202,7 @@ class BYOKHandler:
                 rows = (
                     db.query(
                         LLMRoutingFeedback.user_satisfaction,
+                        LLMRoutingFeedback.prompt_features,
                     )
                     .filter(
                         LLMRoutingFeedback.model_id == pair,
@@ -1210,10 +1211,26 @@ class BYOKHandler:
                     .all()
                 )
             total = len(rows)
+
+            def _is_fabrication_verdict(sat, features) -> bool:
+                # VERDICT PROVENANCE, not score band (audit item 2): empty
+                # responses, empty truncations (0.1) and provider exceptions
+                # (0.0) share the fabrication score range but are
+                # AVAILABILITY failures — benching for them punished outage
+                # victims as liars. Only rows the guards explicitly stamped
+                # count; the score bound remains a belt-and-suspenders guard.
+                try:
+                    feats = features if isinstance(features, dict) else (
+                        json.loads(features) if features else {})
+                except Exception:  # noqa: BLE001 — unparsable = not stamped
+                    return False
+                if str(feats.get("verdict") or "") not in (
+                        "unsupported_figures", "ungrounded_claims"):
+                    return False
+                return sat is not None and float(sat) <= 0.15
+
             fab = sum(
-                1 for (s,) in rows
-                if s is not None and float(s) <= 0.15
-            )
+                1 for (s, f) in rows if _is_fabrication_verdict(s, f))
             if (
                 total
                 and fab >= self._FAB_BENCH_MIN_EVENTS
@@ -4062,6 +4079,22 @@ class BYOKHandler:
             # Stable sort by learned score descending (ties keep BPC order).
             scored.sort(key=lambda t: -t[0])
             reranked = [(pid, mdl) for _, pid, mdl in scored]
+
+            # ROUTING DISAGREEMENT LOG (audit item 3): when learned and
+            # static ordering disagree, record BOTH orders and the chosen
+            # top — an evaluation stream for the trust-horizon decision.
+            # Deliberately records no outcome for the unchosen alternative:
+            # an unexecuted route has NO known result, and treating it as
+            # a success/failure would poison the comparison.
+            if reranked and options and reranked[0] != options[0]:
+                logger.info(
+                    "[LearningRouter] disagreement: static top "
+                    f"{options[0][1]} -> learned top {reranked[0][1]} "
+                    f"(task={task_type or 'general'}; static order "
+                    f"{[m for _, m in options[:3]]}, learned "
+                    f"{[m for _, m in reranked[:3]]}; the unchosen "
+                    "alternative was not executed and has no outcome)"
+                )
 
             # Mint a routing_result_id and stash the prompt features under it
             # so the outcome-observation hook can recover the REAL features

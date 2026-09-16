@@ -504,19 +504,22 @@ Rules:
   mailbox) for it even when the wording sounds like inventory/stock/CRM. A
   token listed as present in the DATASET CATALOG belongs to a spreadsheet.
   Only when the block names neither may you route on wording alone.
-- PASTED / QUOTED TEXT IS MAIL, NOT A CATALOG QUERY. When the message
-  quotes a line the user read somewhere (a price, an offer, a discount, a
-  term — often pasted verbatim and prefixed with "search for this one:",
-  "find this:", "this one:"), the artefact is an ingested MESSAGE and the
-  answer is in the mailbox, not in a stock/inventory/CRM/web index. Route
-  to "memory" (which searches every ingested message, email and record)
-  with the quoted line's distinctive terms — NOT to zoho_inventory, a CRM,
-  or the web, even when the quote contains the word "stock": "in stock"
-  inside a vendor's quoted line describes THEIR offer, not your warehouse.
-  Only plan inventory when the question is about QUANTITIES ON HAND in the
-  inventory app for an item the user named as such. Getting this wrong is
-  expensive: a live lookup against the wrong system returns nothing (or
-  times out) and the user is told their own quote cannot be found.
+- PASTED / QUOTED TEXT ROUTES BY PROVENANCE. When the message quotes a
+  line the user read somewhere (a price, an offer, a discount, a term —
+  often prefixed with "search for this one:", "find this:", "this one:"),
+  the artifact is a STORED RECORD somewhere; find WHERE it lives before
+  choosing a service. The PROVENANCE block above (when present) is the
+  authority: quoted wording found in the ingested mail → memory; found in
+  the dataset catalog → datasets; found in a document → documents. When
+  no provenance line exists, quoted correspondence-like text (offers,
+  vendor terms, signoffs) defaults to memory — but a quote that names a
+  file or sheet ("row 235 of the pricing workbook") routes to that
+  artifact's service. Do NOT route quoted text to a live record app
+  (inventory/CRM) or the web just because it contains words like "stock":
+  a vendor's quoted "in stock" describes THEIR offer, not your warehouse.
+  Genuine OWN-record questions — quantities on hand of YOUR items, your
+  invoices, your deals — go to the record apps even when they repeat a
+  price or the word "stock" that also appeared in correspondence.
 - INTERNAL RECORDS vs CORRESPONDENCE — WHOSE data: the record apps
   (inventory, books/invoices, CRM) hold YOUR OWN company's state —
   quantities on hand of YOUR items, YOUR invoices, YOUR deals. Mailboxes

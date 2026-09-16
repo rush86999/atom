@@ -816,9 +816,27 @@ def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
     kept: List[str] = []
     elided = 0
     kept_len = 0
+
+    def _is_decisive(ln: str) -> bool:
+        # A surviving citation alone does not establish a derivation
+        # (audit item 6): rows carrying R### citations, FORMULAS lines,
+        # and lines with currency/percent figures are the payload —
+        # trimmed LAST, after plain prose bodies.
+        s = ln.lstrip()
+        return (
+            s.startswith("FORMULAS")
+            or s.startswith("SQL RESULT")
+            or re.match(r"R\d{1,5}\s*\|", s) is not None
+            or re.search(r"[$€£]\s?\d[\d,.]{2,}|\d+%|MATCH for", s)
+        )
+
     for ln in lines:
         is_body = ln.lstrip().startswith(("-", "R", "SQL RESULT", "FORMULAS"))
-        if is_body and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300:
+        if (
+            is_body
+            and not _is_decisive(ln)
+            and kept_len + len(ln) > _EVIDENCE_BUDGET_CHARS - 300
+        ):
             elided += 1
             continue
         kept.append(ln)

@@ -482,7 +482,12 @@ class TestNLSQLLayerWiring:
         import core.sheet_dataset_service as sds
         monkeypatch.setattr(sds, "answer_from_datasets", fake_answer)
 
-        def fake_search(query, user_id, ws, limit, max_files, ctx):
+        def fake_search(query, user_id=None, ws=None, limit=None,
+                        max_files=None, ctx=None, *args, **kwargs):
+            # The production call grew extra trailing arguments (named-file
+            # context, derived deadline). Pin the behaviour, not the arity —
+            # an arity-pinned fake silently turns every new argument into a
+            # TypeError that reads as "the lane returned nothing".
             return {"token": "7519", "files_searched": 1, "hits": [
                 {"file_name": "W.xlsx", "external_id": "E1",
                  "source_kind": "file", "entity_name": "S",
@@ -490,7 +495,7 @@ class TestNLSQLLayerWiring:
                  "rows": [{"A": "x", "Price": 7519, "__sheet_row": 5}],
                  "row_count": 1}]}
 
-        def fake_find(q, u, w, l):
+        def fake_find(q, u=None, w=None, l=None, *args, **kwargs):
             return [{"source": "outlook", "external_id": "E1",
                      "file_name": "W.xlsx"}]
         monkeypatch.setattr(sds, "search_all_datasets_sync", fake_search)
@@ -548,3 +553,22 @@ class TestEvidenceBudgetAndAutoOpen:
                  "knowledge/conversations/m1")
         assert await co._auto_open_top_citation(block) is None
         assert await co._auto_open_top_citation(None) is None
+
+class TestBudgetPreservesDecisiveLines:
+    """Audit item 6: a surviving citation alone does not establish a
+    derivation — the budget trim must drop PROSE before rows, formulas,
+    and figure-bearing lines."""
+
+    def test_decisive_row_and_formulas_survive_small_budget(self, monkeypatch):
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 1500)
+        lines = ["HEADER: evidence"]
+        lines += [f"- [ingested mailbox] prose body line {i} " + "y" * 220
+                  for i in range(8)]
+        lines.append("R235 | Product Name=F-52x16G | LIST Price=7519.0 | "
+                     "Factory Price=5350 | $7,519.00")
+        lines.append("FORMULAS FOR THE MATCHED ROW(S): G235==F235*0.9 | "
+                     "I235==H235+700 | K235==J235*1.02 | 7519")
+        out = co._enforce_evidence_budget("\n".join(lines))
+        assert "R235" in out, "decisive row must survive"
+        assert "FORMULAS" in out and "G235==F235*0.9" in out
+        assert "elided" in out  # prose was dropped instead
