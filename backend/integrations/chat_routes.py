@@ -55,6 +55,50 @@ def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
     )
 
 
+def _context_canvas_id(context: Any) -> Optional[str]:
+    """The canvas a chat turn belongs to, from EITHER shape the clients send.
+
+    The canvas panel posts ``context={"canvas": {"id": ..., "canvas_type": ...,
+    "name": ...}}`` (the id NESTED under "canvas"), while this module read
+    ``context["canvas_id"]``. The key was therefore always absent for real panel
+    turns, so canvas agent resolution, the provenance hydration, the teaching
+    target and the session binding all silently no-opped — the logs showed
+    ``[CHATCTX] request.agent_id=None`` with the canvas plainly present in the
+    context (live 2026-09-16). Consequences: the canvas's own hire was never
+    attached (so every lesson taught to it was invisible in the panel the
+    operator was actually typing into), provenance questions could not be
+    answered, and the per-user thread binding never persisted.
+
+    Accepts both spellings so older callers keep working. Fault-isolated.
+    """
+    if not isinstance(context, dict):
+        return None
+    direct = context.get("canvas_id")
+    if direct:
+        return str(direct)
+    canvas = context.get("canvas")
+    if isinstance(canvas, dict):
+        nested = canvas.get("id") or canvas.get("canvas_id")
+        if nested:
+            return str(nested)
+    if isinstance(canvas, str) and canvas:
+        return canvas
+    return None
+
+
+def _context_canvas_type(context: Any) -> Optional[str]:
+    """The canvas KIND from either shape (see _context_canvas_id)."""
+    if not isinstance(context, dict):
+        return None
+    direct = context.get("canvas_type")
+    if direct:
+        return str(direct)
+    canvas = context.get("canvas")
+    if isinstance(canvas, dict) and canvas.get("canvas_type"):
+        return str(canvas["canvas_type"])
+    return None
+
+
 def _resolve_canvas_agent_id(canvas_id: str, tenant_id: Optional[str]) -> Optional[str]:
     """Which hire works this canvas? Resolution mirrors the training panel's
     provenance order (api/agent_maturity_routes.get_canvas_training_context):
@@ -1199,7 +1243,7 @@ async def send_chat_message(
         # then canvas provenance (audit rows carry the creating/editing
         # agent). Everything downstream (persona, role-scoped memory, tier
         # behavior, audit attribution, learning loop) keys off agent_id.
-        _canvas_id_for_agent = (request.context or {}).get("canvas_id")
+        _canvas_id_for_agent = _context_canvas_id(request.context)
         if not getattr(request, "agent_id", None) and _canvas_id_for_agent:
             _resolved = _resolve_canvas_agent_id(
                 str(_canvas_id_for_agent),
@@ -1243,7 +1287,7 @@ async def send_chat_message(
             _effective_agent_id = getattr(request, "agent_id", None) or (
                 request.context or {}
             ).get("agent_id")
-            _teaching_canvas_id = (request.context or {}).get("canvas_id")
+            _teaching_canvas_id = _context_canvas_id(request.context)
             _teaching_workspace_id = (
                 getattr(current_user, "workspace_id", None) or "default"
             )
@@ -1339,8 +1383,8 @@ async def send_chat_message(
         # across refreshes AND devices — localStorage only ever worked
         # per-browser. Latest turn wins, which is the panel's own behavior.
         _bind_canvas_chat_session(
-            canvas_id=(request.context or {}).get("canvas_id"),
-            canvas_type=(request.context or {}).get("canvas_type") or "generic",
+            canvas_id=_context_canvas_id(request.context),
+            canvas_type=_context_canvas_type(request.context) or "generic",
             user_id=active_user_id,
             tenant_id=getattr(current_user, "tenant_id", None),
             agent_id=getattr(request, "agent_id", None),

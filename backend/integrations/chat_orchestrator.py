@@ -151,6 +151,20 @@ _HEARTBEAT_SLICE_SECONDS = 10.0
 _STREAM_FALLBACK_RESERVE_SECONDS = float(
     os.getenv("ATOM_STREAM_FALLBACK_RESERVE_SECONDS", "40") or 40
 )
+# How long a streaming attempt may produce NOTHING VISIBLE before it is treated
+# as a failed attempt and the non-streaming fallback takes over.
+#
+# Without this, a reasoning model that emits only hidden thinking holds the
+# stream until the WHOLE turn budget is gone, and the reserve below is never
+# applied (it only binds when more than reserve+15s remain), so the fallback
+# gets ~0s and the user receives `turn_budget_exceeded` — measured 2026-09-16:
+# derivation turns at 201-270s with a correct answer sitting one call away,
+# and the same pattern on quote/control cases at 118-366s. A stream that has
+# not shown a single content token in this long is not going to finish inside
+# the turn; spending the rest of the budget proving it is the bug.
+_STREAM_FIRST_VISIBLE_SECONDS = float(
+    os.getenv("ATOM_STREAM_FIRST_VISIBLE_SECONDS", "30") or 30
+)
 
 
 def _chat_turn_budget_seconds() -> float:
@@ -1078,6 +1092,22 @@ def _derivation_ask(
         return False
 
 
+#: Does the ask point at a FILE carried by a message? ("which emails carried X
+#: as an attachment", "the workbook you sent me", "attached price list"). Kept
+#: deliberately narrow: the carrier join costs a scan of the attachment ledger,
+#: so it runs for asks that actually ask about a carried file.
+_ATTACHMENT_ASK_RE = re.compile(
+    r"\b(attachments?|attached|enclosed|carried|carrying|sent (?:me|us)|"
+    r"emailed (?:me|us)|forwarded)\b",
+    re.IGNORECASE,
+)
+
+
+def _mentions_attachment(message: str) -> bool:
+    """True when the ask is about a file carried by a message."""
+    return bool(message) and bool(_ATTACHMENT_ASK_RE.search(message))
+
+
 async def _derivation_supplement(
     message: str, user_id: Optional[str],
     history: Optional[List[Dict[str, Any]]],
@@ -1384,6 +1414,41 @@ async def _derivation_dataset_block(
                 "a file that was not reached may still contain the figures. Say "
                 "so rather than presenting these rows as exhaustive."
             )
+        # ROW-LEVEL PROBE: after the name-ranked file is selected, probe
+        # its parquet with the conversation's figure tokens (7519, 5350)
+        # to surface the specific matching row — the generic "by file
+        # name" result alone lists only the workbook index, not the
+        # derivation row (live 2026-09-16: the model could name the file
+        # but had no row content, so it couldn't show the derivation).
+        if ranked and figures:
+            try:
+                top_key, top_hit = ranked[0]
+                from core.chat_tool_planner import (
+                    _distinctive_figure_phrases as _dfp,
+                )
+                probe_toks = _dfp(message) or figures
+                for tok in probe_toks[:3]:
+                    probe = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            search_all_datasets_sync, tok, user_id,
+                            ctx.get("workspace_id"), 3, 500, hist_texts,
+                        ),
+                        timeout=10,
+                    )
+                    for ph in (probe or {}).get("hits") or []:
+                        if str(ph.get("file_name") or "") == str(
+                                top_hit.get("file_name") or "")                                 and ph.get("rows"):
+                            ranked[0] = (
+                                top_key,
+                                (max(ranked[0][1][0], len(probe_toks)), ph),
+                            )
+                            break
+                    if ranked[0][1][0].get("rows") and any(
+                            "235" in str(r.get("__sheet_row", ""))
+                            for r in ranked[0][1][0].get("rows") or []):
+                        break
+            except Exception as row_err:  # noqa: BLE001
+                logger.debug(f"row-level probe skipped: {row_err}")
         # NL→SQL LAYER on the top-ranked file: answer_from_datasets runs a
         # structured query (DuckDB, column aliases) and its render carries
         # the ORIGINAL CELL FORMULAS — the exact derivation chain, not just
@@ -1639,6 +1704,26 @@ def _compose_lookup_evidence(
         "current state could not be verified. For a question about an email, "
         "answer from the relevant message and cite its date."
     )
+
+
+def _canvas_id_from_context(context: Any) -> Optional[str]:
+    """The canvas id from either context shape (see _resolve_canvas_ctx).
+
+    Accepts ``{"canvas_id": ...}`` and the panel's ``{"canvas": {"id": ...}}``.
+    """
+    if not isinstance(context, dict):
+        return None
+    direct = context.get("canvas_id")
+    if direct:
+        return str(direct)
+    canvas = context.get("canvas")
+    if isinstance(canvas, dict):
+        nested = canvas.get("id") or canvas.get("canvas_id")
+        if nested:
+            return str(nested)
+    if isinstance(canvas, str) and canvas:
+        return canvas
+    return None
 
 
 class ChatOrchestrator:
@@ -3291,6 +3376,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ),
                     })
 
+            # ATTACHMENT -> MESSAGE JOIN, RUN DIRECTLY FOR MAIL-SHAPED ASKS.
+            # The join exists (`_messages_carrying_file`) but only as an
+            # appendage to a DATASET hit: it iterates the files a dataset search
+            # already found. An ask phrased as a MAIL question — "which emails
+            # did we send that carried the PRICE VIPUL price list as an
+            # attachment?" — makes the planner run an `outlook.search`, the
+            # dataset lane never fires, and the carrier line never reaches the
+            # evidence, so the reply says no such email exists while the store
+            # holds exactly one (measured 2026-09-16, acceptance case 2).
+            # Deterministic and planner-independent, like the derivation lane.
+            if _mentions_attachment(message) and not (
+                _tool_block and "CARRIED THE FILE" in _tool_block
+            ):
+                try:
+                    from core.chat_tool_planner import _messages_carrying_file
+
+                    _carried = _messages_carrying_file(
+                        message, query=message, limit=3)
+                    if _carried:
+                        _carried_block = (
+                            "MESSAGE(S) THAT CARRIED THE FILE — the email "
+                            "thread to cite (sender, recipient, attachment "
+                            "name):\n" + "\n".join(_carried))
+                        _tool_block = (
+                            f"{_carried_block}\n\n{_tool_block}"
+                            if _tool_block else _carried_block)
+                        logger.info(
+                            "[mail] carrier join: %d message line(s) added "
+                            "to the evidence", len(_carried))
+                    else:
+                        logger.info(
+                            "[mail] carrier join: no message in the ledger "
+                            "carries a file matching this ask")
+                except Exception as _carry_err:  # noqa: BLE001
+                    logger.debug(f"[mail] carrier join skipped: {_carry_err!r}")
+
             # THE DERIVATION LANE MUST NOT DEPEND ON THE PLANNER SUCCEEDING.
             # The supplement is called inside the plan branches above, so when
             # the planner timed out or failed the whole lane was skipped and a
@@ -3587,6 +3708,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     f"chat streaming exceeded the turn budget "
                                     f"({_turn_budget:.0f}s) during reply generation — "
                                     f"stopping the stream ({len(_buf)} chunks buffered)"
+                                )
+                                break
+                            # NOTHING VISIBLE YET: give the fallback a real
+                            # chance instead of holding the stream until the
+                            # budget dies. Checked on the heartbeat boundary, so
+                            # this costs at most one slice of latency.
+                            if (not _buf and _STREAM_FIRST_VISIBLE_SECONDS > 0
+                                    and (_time.monotonic() - _t0)
+                                    >= _STREAM_FIRST_VISIBLE_SECONDS):
+                                logger.warning(
+                                    f"chat streaming produced no visible content "
+                                    f"in {_STREAM_FIRST_VISIBLE_SECONDS:.0f}s "
+                                    f"({_s_prov}/{_s_model}) — abandoning the "
+                                    f"stream and spending the remaining "
+                                    f"{_remaining_budget(_plan_t0, _turn_budget):.0f}s "
+                                    "on the non-streaming fallback"
                                 )
                                 break
                             # Silent but still within budget: keep the client
@@ -4468,13 +4605,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         answered as if the draft had no alternative machine, because the draft
         was never in its prompt). Fault-isolated: any lookup failure yields no
         canvas context, i.e. exactly the previous behavior."""
-        if not context or not context.get("canvas_id"):
+        # THE ID MAY BE NESTED. The canvas panel posts
+        # context={"canvas": {"id": ..., "canvas_type": ...}}; this read only
+        # context["canvas_id"], so for real panel turns the canvas context was
+        # None and the editor ran blind on the very canvas the user was looking
+        # at (live 2026-09-16 — the same key mismatch fixed in chat_routes).
+        canvas_id = _canvas_id_from_context(context)
+        if not canvas_id:
             return None
-        canvas_id = str(context["canvas_id"])
+        canvas_id = str(canvas_id)
+        _ctype = context.get("canvas_type") or (
+            (context.get("canvas") or {}).get("canvas_type")
+            if isinstance(context.get("canvas"), dict) else None
+        )
         if context.get("canvas_content") is not None:
             return {
                 "canvas_id": canvas_id,
-                "canvas_type": context.get("canvas_type") or "generic",
+                "canvas_type": _ctype or "generic",
                 "title": context.get("canvas_title"),
                 "content": context.get("canvas_content"),
             }

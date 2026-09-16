@@ -42,6 +42,52 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15o: the REAL root cause — the canvas id arrives NESTED, so the panel's agent was never attached
+
+**Owner correction**: "it should be the same sales agent as i was chatting in the
+canvas right panel". Verification confirmed the owner: canvas `a1a13834` resolves
+to **Sales Agent** (`9837ec71-…`) via `CanvasContext`, and Sales Agent holds the
+lessons. So per-agent retrieval was working — 15n's sibling recall was treating a
+symptom.
+
+**Root cause**: the canvas panel posts
+`context = {"canvas": {"id": "a1a13834…", "canvas_type": "email", "name": …}}` —
+the id **NESTED** under `canvas` — while four readers looked up
+`context["canvas_id"]`, which is always absent for real panel turns. The live log
+proves it: `[CHATCTX] request.agent_id=None context={'canvas': {'id':
+'a1a13834-7bb3-4b3b-91cf-e83a2287daf0', …}}` — the canvas plainly present, the
+agent unresolved. Downstream:
+
+* **canvas agent resolution never ran** → `request.agent_id` stayed None, so
+  `[MEMCTX] agent_id=None` and `assemble_memory_context` skipped the lessons leg
+  entirely (`_agent_lessons` returns [] without an agent id). Every lesson taught
+  to that canvas's hire was invisible in the panel the owner was typing into —
+  which is exactly the reported "agent should be learning from my instructions in
+  the agent chat";
+* the provenance hydration no-opped (the "why was this draft written this way?"
+  provenance leg);
+* the per-user canvas↔session binding never persisted;
+* and in `chat_orchestrator._resolve_canvas_ctx` the same key mismatch meant the
+  canvas context was **None** — the editor ran blind on the very canvas on screen.
+
+**Fix**: one normalizer per module (`chat_routes._context_canvas_id` /
+`_context_canvas_type`, `chat_orchestrator._canvas_id_from_context`) accepting
+both shapes — flat `canvas_id` (legacy/API clients) and nested
+`canvas.id` (the panel) — wired into all four reads. No behaviour changes for
+clients already sending the flat key.
+
+**Verified live**: the real panel context now resolves to
+`9837ec71-4f1b-41db-b014-119862362d44` = Sales Agent, and that agent's lessons for
+a pricing question return the used-machine depreciation rule and the 40-50%
+margin fallback. `_resolve_canvas_ctx` returns the canvas with type `email` and
+its content. 93 passed across four suites; new
+`tests/test_canvas_context_id_shapes.py` (11), asserted structurally where the
+behaviour depends on the store (the test DB is isolated).
+
+**Lesson recorded**: 15n fixed retrieval without first proving the agent identity
+was reaching the turn. The log line that would have shown it in one query
+(`[MEMCTX] agent_id=None`) was already being written on every turn.
+
 ### 15n: the agent must learn from instructions given in chat (root cause)
 
 **Owner report**: "agent should be learning from my instructions in the agent
