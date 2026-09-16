@@ -1969,51 +1969,344 @@ _MAIL_ATTACHMENTS_TTL_S = float(
 )
 
 
+def _comms_attachment_names(row: Dict[str, Any]) -> List[str]:
+    """Every attachment name known for a stored message, from BOTH sources.
+
+    The ``attachments`` column and the ingestion ledger disagree in the wild,
+    and neither is complete:
+
+    * the ingestion ledger (``ingested_documents``, keyed
+      ``<message_id>:<attachment_id>``) records what was actually INGESTED —
+      i.e. what an agent can open and read — and it is the only source that
+      carries the file for the F-5216 forward;
+    * the ``attachments`` column is the integration's own report of the message
+      envelope, which ingestion itself sometimes leaves empty (the same forward
+      stores ``'[]'`` while its workbook sits ingested behind it).
+
+    Taking the union means a file is never invisible merely because one side
+    failed to write it, and a file is never offered if nothing can open it
+    (the ledger wins for the ``open:`` path). Integration-independent: both
+    sources exist for every comms row, not just mail.
+    """
+    names = list(_attachment_names(row.get("attachments")))
+    for fname, _doc_id in _mail_attachments_for(str(row.get("id") or ""), limit=8):
+        if fname not in names:
+            names.append(fname)
+    return names
+
+
+def _comms_attachment_text(row: Dict[str, Any]) -> str:
+    """Everything a stored message's ATTACHMENTS say, as searchable text.
+
+    Domain- and integration-independent: any comms row from any source
+    (outlook/gmail/teams/whatsapp/synced records) that carries attachments —
+    in its own column or in the ingestion ledger — contributes its file names
+    here, and any caller can treat the result exactly like the subject or body.
+
+    Why this exists: a file name is often the ONLY place an identifier appears.
+    Chandrakant's 9/11 4:07 PM forward to the owner (live 2026-09-15) mentions
+    "F-5216" nowhere in its text — its subject is "Fw: RFQ - Foot shear" and its
+    body says "Please check - row - 235". The model code lives in the attached
+    workbook `PRICE VIPUL (6).xlsx`, whose row 235 derives the $7,519 list
+    price. Every text-only leg was therefore blind to the one message that
+    answers the question, and the user had to ask for the attachment by name.
+
+    Returns the names AND their identifier-ish tokens (a code, model number,
+    amount or date inside a file name is what a query actually matches), deduped
+    and order-stable. Empty string when the row has no attachments.
+    """
+    names = _comms_attachment_names(row)
+    if not names:
+        return ""
+    parts: List[str] = []
+    for name in names:
+        parts.append(name)
+        stem = name.rsplit(".", 1)[0] if "." in name else name
+        for tok in _attachment_token_splitter(stem):
+            if tok and tok not in parts:
+                parts.append(tok)
+    return " ".join(parts)
+
+
+def _attachment_token_splitter(stem: str) -> List[str]:
+    """Identifier-shaped tokens inside a file name stem.
+
+    Splits on the separators file names actually use (space, underscore, dash,
+    dot, brackets) and keeps tokens that carry a digit or a code-like shape —
+    "F-5216" -> F-5216, "5216"; "PRICE VIPUL (6)" -> VIPUL, 6. Deliberately
+    generic: no domain vocabulary, no per-business rules."""
+    out: List[str] = []
+    for chunk in re.split(r"[^0-9A-Za-z]+", stem or ""):
+        if not chunk:
+            continue
+        if any(ch.isdigit() for ch in chunk) or len(chunk) > 2:
+            out.append(chunk)
+    # A hyphenated code is also useful as one token ("F-5216").
+    for m in re.finditer(r"\b[A-Za-z]{1,4}-\d{2,}\b", stem or ""):
+        if m.group(0) not in out:
+            out.append(m.group(0))
+    return out
+
+
+def _mail_attachment_reverse_index() -> Dict[str, List[tuple]]:
+    """``file_name -> [(message_id, doc_id)]`` — the OTHER direction of the
+    attachment join.
+
+    A user asks about a file and wants the mail that carried it, or asks about a
+    thread and wants the file: the same join, read from either end. Built from
+    the same TTL-cached ledger query as ``_mail_attachment_index`` so the two
+    directions can never disagree (a fix to one is a fix to both). Integration-
+    independent: any comms row whose ``external_id`` follows
+    ``<message_id>:<attachment_id>`` participates, not just Outlook."""
+    rows = []
+    for msg_id, pairs in _mail_attachment_index().items():
+        for fname, doc_id in pairs:
+            rows.append((fname, msg_id, doc_id))
+    reverse: Dict[str, List[tuple]] = {}
+    for fname, msg_id, doc_id in rows:
+        reverse.setdefault(fname, []).append((msg_id, doc_id))
+    return reverse
+
+
+#: Tokens that say what FORMAT a file is, not WHICH file it is. They must never
+#: count as shared evidence — without this, "any two spreadsheets" match each
+#: other on "xlsx" and the file→message join degenerates into "all of them".
+_FORMAT_TOKENS = {
+    "pdf", "doc", "docx", "xls", "xlsx", "xlsm", "csv", "tsv", "ppt", "pptx",
+    "txt", "rtf", "msg", "eml", "zip", "rar", "png", "jpg", "jpeg", "gif",
+    "tif", "tiff", "bmp", "svg", "heic", "webp", "json", "xml", "html", "htm",
+    "copy", "final", "draft", "version", "rev", "file", "document", "sheet",
+    "scan", "img", "image", "photo", "attachment",
+}
+
+
+def _file_name_tokens(name: str) -> set:
+    """Distinctive tokens of a file name, for tolerant file→file matching.
+
+    Ingestion and the dataset catalog often disagree about the exact name of the
+    same artifact ("PRICE VIPUL (6).xlsx" vs a catalog entry's own label), so
+    equality is too strict. Tokens are alphanumeric runs of 3+ chars, lowercased,
+    with FORMAT/version words removed (see ``_FORMAT_TOKENS``) so two unrelated
+    files of the same type cannot match on the type alone.
+    Generic: no domain or business vocabulary."""
+    import re as _re
+
+    return {
+        t.lower()
+        for t in _re.split(r"[^0-9A-Za-z]+", str(name or ""))
+        if len(t) >= 3 and t.lower() not in _FORMAT_TOKENS
+    }
+
+
+def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> List[str]:
+    """Rendered lines for the message(s) that carried ``file_name``.
+
+    Closes the loop a pure text search cannot: the identifier may live in the
+    FILE, not in any message text (live 2026-09-15 — "F-5216" appears in neither
+    the forward's body nor its workbook, whose row 235 reads ``F-52"x16G``, so no
+    token leg could join the code to the thread that carried the workbook).
+    Starting from the file the dataset/document lane DID find and walking back to
+    its carrying message is the join that survives that mismatch.
+
+    Best-effort: [] when no message carries the file."""
+    if not file_name:
+        return []
+    target = _file_name_tokens(file_name)
+    if not target:
+        return []
+    matches: List[tuple] = []
+    for known_name, carriers in _mail_attachment_reverse_index().items():
+        known = _file_name_tokens(known_name)
+        if not known:
+            continue
+        overlap = target & known
+        # TWO shared tokens, not one. Measured against the 400 real attachment
+        # names in this store: allowing a single shared token -- even a 5-char
+        # one like "price" -- matched four UNRELATED price lists for the
+        # "PRICE VIPUL (6).xlsx" query, so the join would have annotated the
+        # answer with other vendors' files. Two tokens kept every legitimate
+        # drift case ("PRICE VIPUL (6).xlsx" vs "PRICE VIPUL.xlsx") and rejected
+        # all four. Tolerance must not exceed what the evidence supports.
+        if len(overlap) >= 2:
+            for carrier in carriers:
+                matches.append((known_name, carrier[0], carrier[1]))
+    if not matches:
+        return []
+    by_id = {str(r.get("id") or ""): r for r in _comms_store_records()}
+    out: List[str] = []
+    seen_ids = set()
+    for known_name, msg_id, doc_id in matches:
+        if msg_id in seen_ids:
+            continue
+        row = by_id.get(msg_id)
+        if row is None:
+            continue
+        seen_ids.add(msg_id)
+        out.append(
+            _ingested_line_from_row(
+                row, with_body=False, anchors=[], body_cap=None
+            )
+            + f" | CARRIED THE FILE: {known_name}"
+            + (f" (open: knowledge/documents/{doc_id}/content.lines)" if doc_id else "")
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _doc_to_message_index() -> Dict[str, tuple]:
+    """``doc_id -> (message_id, file_name)`` for every ingested attachment.
+
+    Built from the SAME cached ledger query as the other two directions, so all
+    three views of the attachment relation are one fact."""
+    out: Dict[str, tuple] = {}
+    for msg_id, pairs in _mail_attachment_index().items():
+        for fname, doc_id in pairs:
+            if doc_id:
+                out[str(doc_id)] = (str(msg_id), str(fname))
+    return out
+
+
+def _attachment_content_hits(
+    phrases: List[str], limit: int = 3
+) -> List[str]:
+    """Messages whose ATTACHED FILE CONTENT contains every phrase.
+
+    The last and most general leg of the identifier join. An identifier that
+    lives inside a file — a model code in a price-list row, an invoice number in
+    a PDF, a serial in a scanned quote — is in neither the message text nor the
+    file name, so no comms-text search and no file→name match can reach it. It
+    IS in the ingested document text, and the ingestion ledger says which
+    message carried that document; walking name-agnostic from content → carrying
+    message is what makes "find the thread for <code>" work for ANY artifact type
+    in ANY domain (live 2026-09-15: the code queried as "F-5216" appears only as
+    ``F-52"x16G`` inside the attached workbook, so every name/text leg missed it).
+
+    Bounded by CONSTRUCTION, not by a row slice: the scan is restricted to the
+    documents that are actually attachments (the keys of the ingestion ledger),
+    so cost tracks the attachment set rather than store size. An earlier cut
+    used ``slice(0, N)`` over the whole table and silently scanned the WRONG
+    rows — the store is not ordered by relevance or recency, and the target
+    chunk sat past the cut (measured live: 1 match across the full table, 0
+    across the first 4000 rows). Never slice a scan you cannot order.
+
+    Best-effort: needs a real token (>= 4 canonical chars), returns [] on any
+    failure."""
+    wanted = [p for p in (phrases or []) if len(_canonical_fig_text(p)) >= 4]
+    if not wanted:
+        return []
+    try:
+        import pyarrow as _pa
+        import pyarrow.compute as _pc
+
+        doc_to_msg = _doc_to_message_index()
+        if not doc_to_msg:
+            return []
+        table = _load_documents_table()
+        if table is None:
+            return []
+        ids = _pc.cast(table["id"], "string")
+        # Chunk ids are "<parent>::c<n>"; membership is decided on the parent.
+        parent_of_chunk = _pc.utf8_slice_codeunits(ids, 0, 40)
+        attachment_parents = _pa.array(
+            sorted({str(k).split("::", 1)[0][:40] for k in doc_to_msg})
+        )
+        # NARROW FIRST, then lower-case: the attachment subset is a few hundred
+        # documents, the store is ~39k chunks, and utf8_lower on every row cost
+        # more than the scan it enabled.
+        attachments_only = table.filter(
+            _pc.is_in(parent_of_chunk, value_set=attachment_parents)
+        )
+        # CASE-INSENSITIVE: tokens arrive lowercased from the planner
+        # ('f-5216') while document text keeps the source casing ('F-5216'), and
+        # match_substring is case-sensitive — the leg silently found nothing
+        # until this lowered both sides (measured live: 1 hit, 0 with the mixed
+        # casing). File content is not normalized anywhere else in the store, so
+        # the comparison must be the tolerant side.
+        texts = _pc.utf8_lower(_pc.cast(attachments_only["text"], "string"))
+        mask = None
+        for phrase in wanted:
+            probe = _pc.match_substring(texts, phrase.lower())
+            mask = probe if mask is None else _pc.and_(mask, probe)
+        found = attachments_only.filter(mask) if mask is not None else attachments_only
+        by_id = {str(r.get("id") or ""): r for r in _comms_store_records()}
+        out: List[str] = []
+        seen = set()
+        for i in range(len(found)):
+            chunk_id = str(found["id"][i].as_py() or "")
+            parent = chunk_id.split("::", 1)[0]
+            carrier = doc_to_msg.get(parent)
+            if not carrier:
+                continue
+            msg_id, fname = carrier
+            if msg_id in seen:
+                continue
+            row = by_id.get(msg_id)
+            if row is None:
+                continue
+            seen.add(msg_id)
+            out.append(
+                _ingested_line_from_row(row, with_body=False, anchors=[], body_cap=None)
+                + f" | MATCHED INSIDE ITS ATTACHMENT: {fname}"
+                + f" (open: knowledge/documents/{parent}/content.lines)"
+            )
+            if len(out) >= limit:
+                break
+        return out
+    except Exception as e:  # noqa: BLE001 — a supplement must never break a turn
+        logger.debug(f"attachment-content leg skipped: {e}")
+        return []
+
+
+def _mail_attachment_index() -> Dict[str, List[tuple]]:
+    """``message_id -> [(file_name, doc_id)]`` for attachments ingested from mail.
+
+    Ingestion writes each attachment as an ``ingested_documents`` row whose
+    ``external_id`` is ``<message_id>:<attachment_id>`` — the join the F-5216
+    thread needs: its forwarded email carries **PRICE VIPUL (6).xlsx**, the
+    workbook whose row 235 derives the $7,519 list price. Exposed as one
+    TTL-cached, fault-isolated query so every caller shares it."""
+    import time as _time
+
+    now = _time.monotonic()
+    hit = _MAIL_ATTACHMENTS.get("cache")
+    if hit and now - hit[0] < _MAIL_ATTACHMENTS_TTL_S:
+        return hit[1]
+    table: Dict[str, List[tuple]] = {}
+    try:
+        from core.database import get_db_session
+        from core.models import IngestedDocument
+
+        with get_db_session() as db:
+            rows = (
+                db.query(
+                    IngestedDocument.external_id,
+                    IngestedDocument.file_name,
+                    IngestedDocument.id,
+                )
+                .filter(IngestedDocument.integration_id == "outlook")
+                .all()
+            )
+        for ext, name, doc_id in rows:
+            parent = str(ext or "").split(":", 1)[0]
+            if not parent or not name:
+                continue
+            table.setdefault(parent, []).append((str(name), str(doc_id or "")))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"mail attachment index unavailable: {e}")
+        table = {}
+    _MAIL_ATTACHMENTS["cache"] = (now, table)
+    return table
+
+
 def _mail_attachments_for(message_id: str, limit: int = 4) -> List[tuple]:
     """Attachments ingested from one email, as ``(file_name, doc_id)``.
 
-    Ingestion writes each attachment as an ``ingested_documents`` row whose
-    ``external_id`` is ``<message_id>:<attachment_id>`` — the same join the
-    F-5216 thread needs: its forwarded email carries **PRICE VIPUL (6).xlsx**,
-    the workbook whose row 235 derives the $7,519 list price. Without this the
-    listing line named no attachments, so an agent could read the email and
-    still have no way to know a file came with it (live 2026-09-15: the user
-    had to ask for the attachment explicitly).
-
     One indexed query builds the whole map, TTL-cached; fault-isolated to {}."""
-    import time as _time
-
     if not message_id:
         return []
-    now = _time.monotonic()
-    hit = _MAIL_ATTACHMENTS.get("cache")
-    if not (hit and now - hit[0] < _MAIL_ATTACHMENTS_TTL_S):
-        table: Dict[str, List[tuple]] = {}
-        try:
-            from core.database import get_db_session
-            from core.models import IngestedDocument
+    return (_mail_attachment_index().get(str(message_id)) or [])[:limit]
 
-            with get_db_session() as db:
-                rows = (
-                    db.query(
-                        IngestedDocument.external_id,
-                        IngestedDocument.file_name,
-                        IngestedDocument.id,
-                    )
-                    .filter(IngestedDocument.integration_id == "outlook")
-                    .all()
-                )
-            for ext, name, doc_id in rows:
-                parent = str(ext or "").split(":", 1)[0]
-                if not parent or not name:
-                    continue
-                table.setdefault(parent, []).append((str(name), str(doc_id or "")))
-        except Exception as e:  # noqa: BLE001
-            logger.debug(f"mail attachment index unavailable: {e}")
-            table = {}
-        _MAIL_ATTACHMENTS["cache"] = (now, table)
-        hit = _MAIL_ATTACHMENTS["cache"]
-    return (hit[1].get(str(message_id)) or [])[:limit]
 
 
 _ATTACH_FOOTER_RE = re.compile(
@@ -2126,6 +2419,22 @@ def _ingested_line_from_row(
         if attachments and attachments[:60] not in body:
             body = (body + "\n\n" + attachments).strip()
             full_body = (full_body + "\n\n" + attachments).strip()
+    # The STRUCTURED attachments column, independent of the text footer: it is
+    # the authoritative list, it exists for every integration, and it is what
+    # the search legs match on — so the reader must see the same files the
+    # search matched (`--- Attachments ---` above is only whatever ingestion
+    # happened to paste into the plain content column, and the styled html_body
+    # preferred for the body does not carry it at all). Without this the F-5216
+    # forward listed no attachments while the workbook sat ingested behind it
+    # (live 2026-09-15).
+    _structured = _comms_attachment_names(row)
+    if _structured:
+        have = {name for name, _ in _atts}
+        extra = [name for name in _structured if name not in have]
+        if extra:
+            body = (body + "\n\nattachments: " + "; ".join(extra)).strip()
+            full_body = (full_body + "\n\nattachments: " + "; ".join(extra)).strip()
+
     if len(body) > (body_cap or _INGESTED_BODY_CAP):
         cap = body_cap or _INGESTED_BODY_CAP
         head = int(cap * 0.6)
@@ -2160,8 +2469,13 @@ def _ingested_line_from_row(
 # (core.lancedb_handler._resolve_local_db_path) instead of a second
 # hand-rolled Path(__file__)-relative source of truth, so legacy-store
 # adoption and LANCEDB_URI overrides behave like every other reader.
+# 300s: ingestion INVALIDATES this cache event-driven (invalidate_rows_
+# cache at the ingest choke point), so staleness is bounded by the event,
+# not the TTL. The old 5s TTL made the cache useless — nearly every call
+# reloaded the 7k-row table (340MB metadata column, ~10s cold), which is
+# what blew the evidence-leg waits under load (live 2026-09-15).
 _COMMS_CACHE_TTL_SECONDS = float(
-    os.getenv("ATOM_PLANNER_COMMS_CACHE_TTL_SECONDS", "5") or 5
+    os.getenv("ATOM_PLANNER_COMMS_CACHE_TTL_SECONDS", "300") or 300
 )
 _comms_store_cache: Dict[str, tuple] = {}
 
@@ -2422,6 +2736,36 @@ def _window_from_iso_date(value: Any) -> Optional[Tuple[str, str]]:
     )
 
 
+def _attachment_names(raw: Any) -> List[str]:
+    """File names from a comms row's ``attachments`` column.
+
+    The column is a JSON list of ``{"id", "name", ...}`` objects (empty list or
+    a string form depending on the row's vintage). Fault-isolated to [] — a
+    malformed cell must never break a search leg."""
+    if not raw:
+        return []
+    data = raw
+    if isinstance(raw, str):
+        try:
+            import json as _json
+
+            data = _json.loads(raw)
+        except Exception:  # noqa: BLE001 — unparseable cell = no names
+            return []
+    if not isinstance(data, list):
+        return []
+    names: List[str] = []
+    for item in data:
+        if isinstance(item, dict):
+            name = item.get("name") or item.get("fileName") or ""
+        else:
+            name = str(item or "")
+        name = str(name).strip()
+        if name:
+            names.append(name)
+    return names
+
+
 def _match_rows_by_figure_tokens(
     rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
@@ -2560,6 +2904,46 @@ def _match_rows_by_figure_tokens(
         seen_keys.add(key)
         tier = 0 if min(positions) <= _FIGURE_OWN_TEXT_WINDOW else 1
         scored.append((tier, str(row.get("timestamp") or ""), row))
+
+    # PASS 3 — the ATTACHMENTS, for rows whose own text never names the code.
+    # This is the F-5216 case (live 2026-09-15): Chandrakant's 9/11 4:07 PM
+    # forward to the owner carries the derivation evidence — PRICE VIPUL (6).xlsx,
+    # the workbook whose row 235 derives the $7,519 list price — but its body
+    # says only "Fw: RFQ - Foot shear / Please check - row - 235 / Put 25 percent
+    # only". The model code exists ONLY in the attachment's file name, so passes
+    # 1-2 (subject/body/html) can never match the message and the thread stays
+    # invisible to a code query even though the file IS ingested, IS readable via
+    # documents.*, and IS linked to that message by _mail_attachments_for.
+    #
+    # Tier 2, one BELOW any own-text match: an attachment hit is strong evidence
+    # (the file is the reason the user is asking) but it is not text the reader
+    # sees in the message, so it must never displace a body match — it fills the
+    # remaining slots instead. `attachments` is a cheap JSON column already
+    # present on the cached records, so this pass costs no extra query.
+    #
+    # GENERAL, not mail-specific: the text comes from _comms_attachment_text,
+    # which reads the structured column of ANY comms row (every integration), so
+    # the same query shape works for gmail, teams, whatsapp and synced records.
+    for row in rows:
+        att_text = _comms_attachment_text(row)
+        if not att_text:
+            continue
+        subject = str(row.get("subject") or "")
+        content = str(row.get("content") or "")
+        key = (
+            str(row.get("sender") or ""),
+            str(row.get("recipient") or ""),
+            subject,
+            content[:120],
+        )
+        if key in seen_keys:
+            continue
+        if not all(
+            _fig_occurrence_in_fields([att_text], phrase) >= 0 for phrase in phrases
+        ):
+            continue
+        seen_keys.add(key)
+        scored.append((2, str(row.get("timestamp") or ""), row))
 
     # STATED-DATE TIER (live 2026-09-15): the user's "sent 9/11 friday" is
     # a ranking handle — when the code matches more rows than the cap, the
@@ -3394,6 +3778,44 @@ def _load_documents_df():
     return table.to_arrow().to_pandas()
 
 
+#: Projected documents table (id/text) + its load timestamp, TTL-cached.
+_DOCS_TABLE_CACHE: Dict[str, Any] = {}
+_DOCS_TABLE_TTL_S = float(os.getenv("ATOM_DOCS_TABLE_TTL_S", "120") or 120)
+
+
+def _load_documents_table():
+    """The documents table PROJECTED to ``id``/``text``, or None — TTL-cached.
+
+    ``to_arrow()`` has no projection pushdown and this store's metadata column
+    runs to tens of megabytes per row, so the naive load is what makes document
+    scans expensive. Selecting only the two columns needed keeps the scan bound
+    to text size instead of metadata size, and the projection is cached because
+    the leg runs per turn: read-only, and a two-minute staleness window can only
+    delay a brand-new attachment, never lose one (the name and text legs still
+    cover the gap).
+    Fault-isolated: None when the table/store is unavailable."""
+    import time as _time
+
+    now = _time.monotonic()
+    hit = _DOCS_TABLE_CACHE.get("t")
+    if hit and now - hit[0] < _DOCS_TABLE_TTL_S:
+        return hit[1]
+    table = None
+    try:
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        tbl = lancedb.connect(str(base / "default")).open_table("documents")
+        cols = [c for c in ("id", "text") if c in tbl.schema.names]
+        if len(cols) >= 2:
+            table = tbl.search().select(cols).limit(200000).to_arrow()
+    except Exception as e:  # noqa: BLE001 — absence of the store is not an error
+        logger.debug(f"documents table unavailable: {e}")
+        table = None
+    _DOCS_TABLE_CACHE["t"] = (now, table)
+    return table
+
+
 def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600,
                      df: Any = None) -> tuple:
     """Query-anchored excerpt from the FULL stored text of a file-ingest row
@@ -3444,7 +3866,7 @@ async def _mailbox_figure_lines(
     user_id: Optional[str],
     query: str,
     context: Optional[Dict[str, Any]],
-    limit: int = 3,
+    limit: int = 4,
 ) -> List[str]:
     """The deterministic ingested-mailbox figure scan, available to EVERY
     memory-shaped lane. Amounts and model codes are the evidence in a
@@ -3503,6 +3925,31 @@ async def _memory_search_block(
     code_lines: List[str] = []
     if not fig_lines:
         code_lines = await _mailbox_code_lines(user_id, query, context)
+    # IDENTIFIERS THAT LIVE INSIDE A FILE. A code can be absent from every
+    # message text AND from every file name while sitting in the attached
+    # document's content (live 2026-09-15: the queried "F-5216" appears only as
+    # ``F-52"x16G`` inside the workbook, so text legs, name legs and the code
+    # net all missed the thread that carried it). This walks document content →
+    # carrying message, and runs ONLY when the two mailbox legs found nothing:
+    # it is the most expensive and the least specific of the three, so it is the
+    # last resort rather than a per-turn cost.
+    try:
+        att_phrases = _distinctive_figure_phrases(query) or _latest_user_figure_phrases(
+            context
+        )
+        if att_phrases:
+            # SUPPLEMENT, not last resort: an earlier cut ran this only when the
+            # two mailbox legs returned NOTHING, which silenced it in exactly the
+            # case it exists for — the figure leg DOES return rows for an
+            # F-5216-style query, they are simply the wrong rows (same-subject
+            # neighbours whose text quotes the code), so the leg that reaches the
+            # message carrying F-5216.pdf never ran (measured live). Appended
+            # under the figure lines so it can never displace a text match.
+            code_lines = list(code_lines) + await asyncio.to_thread(
+                _attachment_content_hits, att_phrases, 3
+            )
+    except Exception as e:  # noqa: BLE001 — supplement only
+        logger.debug(f"attachment-content leg unavailable: {e}")
     mem_block = await _memory_hybrid_block(
         user_id, query, context, figure_lines=fig_lines
     )
@@ -3561,6 +4008,28 @@ async def _datasets_evidence(
     ]
     for hit in hits:
         lines.append(render_dataset_answer(hit))
+    # THE ENVELOPE, not just the contents. A dataset hit names a FILE; the user
+    # often needs the MESSAGE that carried it (the thread, its participants, the
+    # date they remember). The reverse-join is what bridges the two, and it is
+    # what makes the F-5216 thread reachable when the code lives in the workbook
+    # rather than in any message text (live 2026-09-15). Additive and bounded:
+    # best-effort, at most two lines, never displaces the rows themselves.
+    try:
+        seen_files: List[str] = []
+        for hit in hits:
+            fname = str((hit or {}).get("file_name") or (hit or {}).get("file") or "")
+            if fname and fname not in seen_files:
+                seen_files.append(fname)
+        carried: List[str] = []
+        for fname in seen_files[:3]:
+            carried.extend(_messages_carrying_file(fname, query=query, limit=2))
+        if carried:
+            lines.append(
+                "MESSAGE(S) THAT CARRIED THESE FILES — the email thread to cite:"
+            )
+            lines.extend(dict.fromkeys(carried))
+    except Exception as e:  # noqa: BLE001 — the join is best-effort
+        logger.debug(f"dataset→message join skipped: {e}")
     return "\n".join(lines)
 
 

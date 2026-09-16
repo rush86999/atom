@@ -535,7 +535,7 @@ async def _planner_timeout_evidence(
     try:
         handle_lines = await asyncio.wait_for(
             _verbatim_mail_evidence(message, user_id, context),
-            timeout=8,
+            timeout=20,
         )
     except Exception as e:  # noqa: BLE001 — the fallback must not raise
         logger.debug(f"planner-timeout handle evidence skipped: {e}")
@@ -547,7 +547,7 @@ async def _planner_timeout_evidence(
 
         lines = await asyncio.wait_for(
             _ingested_mailbox_lines(user_id, message, context),
-            timeout=8,
+            timeout=15,
         )
     except Exception as e:  # noqa: BLE001 — the fallback must not raise
         logger.debug(f"planner-timeout evidence scan skipped: {e}")
@@ -1133,7 +1133,7 @@ async def _verbatim_mail_evidence(
         phrases = _quoted_content_phrases(message)
         if phrases:
             rows = await asyncio.wait_for(
-                asyncio.to_thread(_mail_contains_phrases, phrases), timeout=15,
+                asyncio.to_thread(_mail_contains_phrases, phrases), timeout=25,
             )
             lines = _render_mail_rows(rows[:3], anchors=phrases)
             if lines:
@@ -1154,7 +1154,7 @@ async def _verbatim_mail_evidence(
                     _search_ingested_by_tokens, user_id, figs, 3,
                     date_window,
                 ),
-                timeout=15,
+                timeout=25,
             )
         # A missing explicit phrase is a miss for this request, not permission
         # to answer a previous question. The normal search still runs alongside.
@@ -1168,7 +1168,7 @@ async def _verbatim_mail_evidence(
                         4, date_window,
                         _resolve_user_email(user_id),
                     ),
-                    timeout=15,
+                    timeout=25,
                 )
             )
             if lines:
@@ -1182,7 +1182,7 @@ async def _verbatim_mail_evidence(
                     _search_ingested_by_tokens, user_id, figs, 3,
                     date_window,
                 ),
-                timeout=15,
+                timeout=25,
             )
         return []
     except Exception as e:  # noqa: BLE001 — supplemental evidence, never fatal
@@ -2624,7 +2624,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                  "canvas": canvas_context},
                                 plan_date=_reuse_plan_date,
                             ),
-                            timeout=15,
+                            timeout=25,
                         )
                     except Exception as _reuse_err:  # noqa: BLE001
                         logger.debug(f"reuse-branch mail evidence skipped: {_reuse_err}")
@@ -2768,7 +2768,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     plan_date=getattr(
                                         _plan, "mentioned_date", None),
                                 ),
-                                timeout=15,
+                                timeout=25,
                             )
                         except Exception as _dm_err:  # noqa: BLE001
                             logger.debug(f"declined-plan mail evidence skipped: {_dm_err}")
@@ -2794,7 +2794,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     {"history": planner_history or history,
                                      "canvas": canvas_context},
                                 ),
-                                timeout=15,
+                                timeout=25,
                             )
                         except Exception as _nm_err:  # noqa: BLE001
                             logger.debug(f"none-plan mail evidence skipped: {_nm_err}")
