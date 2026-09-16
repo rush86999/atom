@@ -18,7 +18,14 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from core.vfs_base import VFSCitation, VFSNode, VFSProvider, VFSResource, to_line_numbered
+from core.vfs_base import (
+    VFSCitation,
+    VFSNode,
+    VFSProvider,
+    VFSRegion,
+    VFSResource,
+    to_line_numbered,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +181,50 @@ class KnowledgeVFSProvider(VFSProvider):
             res.lines = to_line_numbered(text)
         return res
 
+    async def read_region(
+        self,
+        path: str,
+        start_line: int = 1,
+        max_lines: int = 200,
+        ctx: Optional[Dict[str, Any]] = None,
+    ) -> VFSRegion:
+        """Bounded read of a document OR conversation leaf.
+
+        Overrides the generic (cat-then-slice) default: a long artifact is
+        materialized once per read there, and the whole point of the primitive
+        is that reading line 315 of a 324-line workbook costs the same as
+        reading line 1. The sliced path also keeps the paging contract honest
+        for chunk families — the number the agent pages through is the number
+        the citations use."""
+        region = VFSRegion(path=path, start_line=max(int(start_line or 1), 1))
+        cleaned = (path or "").lstrip("/")
+        parts = [p for p in cleaned.split("/") if p]
+        text = ""
+        try:
+            if len(parts) >= 3 and parts[:2] == ["knowledge", "conversations"]:
+                conv = await self._get_conversation(parts[2])
+                if conv is not None:
+                    text = str(conv.get("content") or "")
+            elif len(parts) >= 3 and parts[:2] == ["knowledge", "documents"]:
+                doc = await self._get_doc(parts[2], ctx)
+                if doc is not None:
+                    text = self._doc_text(doc)
+                    if doc[0] == "ingested":
+                        vec = await self._get_vector_doc(parts[2])
+                        if vec and len(str(vec.get("text") or "")) > len(text):
+                            text = str(vec.get("text") or "")
+        except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
+            logger.debug(f"[KnowledgeVFS] read_region failed for {path}: {e}")
+            region.degraded = True
+            return region
+        lines = to_line_numbered(text)
+        region.total_lines = len(lines)
+        window = lines[region.start_line - 1:region.start_line - 1 + max(int(max_lines or 1), 1)]
+        region.lines = window
+        nxt = region.start_line + len(window)
+        region.next_start = None if (not window or nxt > region.total_lines) else nxt
+        return region
+
     async def grep(
         self, pattern: str, path_prefix: str, ctx: Optional[Dict[str, Any]] = None
     ) -> List[VFSCitation]:
@@ -208,6 +259,21 @@ class KnowledgeVFSProvider(VFSProvider):
             citations.extend(await self._grep_documents(regex, ctx))
         if "knowledge/conversations" in prefixes:
             citations.extend(await self._grep_conversations(regex))
+        # Make every citation ACTIONABLE: a hit at line 315 of a 324-line
+        # workbook is useless unless the agent can fetch that region without
+        # pulling the whole file. Snippet gets the ready-to-run bounded read.
+        for c in citations:
+            start = max(1, int(c.line) - 2)
+            # The hint uses the SAME path the citation names, so line numbers
+            # agree: a chunk id resolves to that chunk (6 lines), while the
+            # parent id resolves to the whole assembled document (324 lines)
+            # — mixing them would send the agent to the wrong line.
+            hint = (
+                f"[read: documents.read(path='{c.path}/content.lines', "
+                f"start_line={start}, max_lines=20)]"
+            )
+            if hint not in c.snippet:
+                c.snippet = f"{c.snippet} {hint}"
         return citations
 
     def _cites_for_text(self, regex, path: str, text: str) -> List[VFSCitation]:
@@ -246,6 +312,10 @@ class KnowledgeVFSProvider(VFSProvider):
             if not doc_id or not text:
                 continue
             vector_ids.add(doc_id)
+            # The chunk id IS addressable (`_get_doc` resolves it), so it
+            # stays in the citation: line numbers then match the text the
+            # agent reads back. The parent id remains available in the same
+            # tree for the full assembled document.
             hits = self._cites_for_text(
                 regex, f"knowledge/documents/{doc_id}", text
             )

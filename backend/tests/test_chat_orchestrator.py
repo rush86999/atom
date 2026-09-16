@@ -255,7 +255,10 @@ def test_live_failure_note_does_not_bury_mail_evidence():
     note = _LIVE_LOOKUP_FAILED_NOTE.format(service="zoho_inventory")
     assert "does NOT affect the mailbox evidence" in note
     assert "answer the question from it now" in note
-    assert "never present it as the reason the item could not be found" in note
+    # Re-contracted 2026-09-16: the note now LEADS-FORCES the answer and
+    # caps the failure at one closing sentence.
+    assert "Do NOT open your reply with the failed lookup" in note
+    assert "never as the reason the item could not be found" in note
 
 
 def test_planner_prompt_forbids_pasted_quotes_going_to_inventory():
@@ -268,3 +271,168 @@ def test_planner_prompt_forbids_pasted_quotes_going_to_inventory():
     assert 'even when the quote contains the word "stock"' in low
     assert "not to zoho_inventory" in low
     assert "quantities on hand" in low
+
+
+# --------------------------------------------------------------------------- #
+# FIGURE GROUNDING — invented arithmetic must not ship
+# --------------------------------------------------------------------------- #
+
+def test_invented_derivation_figures_are_detected():
+    """Live 2026-09-15: asked how the $8,880 list price was derived, the reply
+    presented "$5,350 → +10% → $5,885 → ÷0.70 → $8,407 → +$473 → $8,880" as
+    the calculation. The cited workbook row holds 5350/4815/5515/5625.30/
+    6465.86/7518.44/7519 — every intermediate was invented, and 8,880 is a
+    different machine's list price."""
+    from core.chat_tool_planner import _unsupported_figures
+
+    evidence = (
+        "- [document] PRICE VIPUL (6).xlsx | L315: R235 | F-52\"x16G | 7519.0 | "
+        "5350 | 4815.0 | 5515.0 | 5625.3 | 6465.862068965517 | 7518.444266238974"
+    )
+    reply = (
+        "Step 1: Dealer list $5,350.00\n"
+        "+10% freight = $5,885.00\n"
+        "÷ 0.70 (30% margin) = $8,407.14\n"
+        "+ $473 google-review markup = $8,880.00"
+    )
+
+    flagged = _unsupported_figures(reply, evidence)
+
+    assert "$5,885.00" in flagged
+    assert "$8,407.14" in flagged
+    assert "$8,880.00" in flagged
+    assert "$5,350.00" not in flagged, "a figure present in the evidence must not be flagged"
+
+
+def test_grounded_derivation_is_not_flagged():
+    from core.chat_tool_planner import _unsupported_figures
+
+    # the freight figure is evidence too — the thread says "700 for freight"
+    evidence = ("R235 | F-52\"x16G | 5350 | 4815.0 | 5515.0 | 5625.3 | 6465.86 "
+                "| 7518.44 | 7519.0\n- [ingested mailbox] Vipul: 700 for freight and 0 csa")
+    reply = (
+        "Row 235 derives it: $5,350.00 less 10% = $4,815.00, + $700 freight = "
+        "$5,515.00, then the margin steps give $7,519.00."
+    )
+
+    assert _unsupported_figures(reply, evidence) == []
+
+
+def test_user_supplied_figures_are_grounded_by_their_own_message():
+    """The guard compares against evidence AND the user's message, so echoing
+    a figure the customer just quoted is never treated as invented."""
+    from core.chat_tool_planner import _unsupported_figures
+
+    message = "here's their offer: $12,345.67 net"
+    reply = "Their quote was $12,345.67 net — shall I match it?"
+
+    assert _unsupported_figures(reply, f"unrelated evidence\n{message}") == []
+
+
+def test_bare_small_numbers_are_not_money_claims():
+    """Years, quantities and counts must not trip the detector."""
+    from core.chat_tool_planner import _unsupported_figures
+
+    reply = "I checked 12 messages from 2026 and found 3 threads."
+
+    assert _unsupported_figures(reply, "evidence with no figures") == []
+
+
+# --------------------------------------------------------------------------- #
+# FABRICATION AS A ROUTING SIGNAL (hallucination score for BPC/BYOK)
+# --------------------------------------------------------------------------- #
+#
+# The models BPC picks vary wildly in how much they invent. The learning
+# router already re-ranks BPC's candidate list by observed per-model
+# satisfaction — but its signal set was truncation / refusal / schema / empty /
+# exception, so FABRICATION was invisible: a model could invent prices on every
+# turn and keep winning the routing. These pin the new signal.
+
+
+def test_fabrication_scores_worst_and_is_named():
+    from core.llm.response_quality import assess_response_quality
+
+    fabricated = assess_response_quality(
+        content="here is the derivation", unsupported_figures=["$8,880.00"]
+    )
+    ungrounded = assess_response_quality(
+        content="here is the derivation", ungrounded_claims=["claimed a 5% fee"]
+    )
+    truncated = assess_response_quality(content="half a sen", finish_reason="length")
+    refusal = assess_response_quality(content="I am sorry, but I cannot help with that.")
+    clean = assess_response_quality(content="Row 235 lists 7519.0 CAD.")
+
+    assert fabricated.issues == ["unsupported_figures"]
+    assert ungrounded.issues == ["ungrounded_claims"]
+    assert fabricated.quality_satisfied is False
+    # Fabrication must rank BELOW the failures a user can SEE are incomplete.
+    assert fabricated.quality_score < truncated.quality_score
+    assert fabricated.quality_score < refusal.quality_score
+    assert clean.quality_satisfied is True
+
+
+def test_fabrication_feedback_feeds_the_per_model_predictor():
+    """The label must reach the trainer, not just the log."""
+    from core.learning_llm_router import LearningBasedRouter
+    from core.llm.response_quality import assess_response_quality
+
+    quality = assess_response_quality(
+        content="x", unsupported_figures=["$8,880.00"]
+    )
+    fb = LearningBasedRouter.build_feedback(
+        routing_result_id="r1", tenant_id="default",
+        model_id="provider/inventor", task_type="question_answering",
+        quality=quality,
+    )
+
+    assert fb.quality_satisfied is False
+    assert fb.user_satisfaction == quality.quality_score
+
+
+def test_fabrication_signal_records_even_with_routing_flag_off(monkeypatch):
+    """ATOM_LEARNING_ROUTER gates RE-RANKING, not observation: with the flag
+    off the fabrication row must still be written, or flipping the flag on
+    later starts from an empty table and the hallucination history is lost."""
+    import asyncio
+
+    import core.llm.learning_router_registry as reg
+
+    written = {}
+
+    class _Router:
+        def _persist_feedback(self, feedback, features):
+            written["row"] = feedback
+
+    monkeypatch.setattr(reg, "get_learning_router_instance", lambda: None)
+    monkeypatch.setattr(
+        "core.learning_llm_router.LearningBasedRouter.__new__",
+        lambda cls: _Router(),
+    )
+
+    ok = asyncio.run(reg.record_fabrication_signal(
+        model_id="provider/inventor", task_type="question_answering",
+        unsupported_figures=["$8,880.00"],
+    ))
+
+    assert ok is True
+    assert written["row"].model_id == "provider/inventor"
+    assert written["row"].quality_satisfied is False
+
+
+def test_clean_reply_records_no_fabrication_signal(monkeypatch):
+    """A verdict-less call must be a pure no-op — no row, no router work."""
+    import asyncio
+
+    import core.llm.learning_router_registry as reg
+
+    writes = []
+    monkeypatch.setattr(
+        "core.learning_llm_router.LearningBasedRouter.__new__",
+        lambda cls: type("R", (), {"_persist_feedback":
+                                   lambda self, fb, feats: writes.append(fb)})(),
+    )
+
+    ok = asyncio.run(reg.record_fabrication_signal(model_id="m"))
+
+    assert ok is False
+    assert writes == [], "a clean verdict must not write a fabrication row"

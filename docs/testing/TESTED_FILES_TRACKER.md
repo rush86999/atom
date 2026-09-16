@@ -6,6 +6,496 @@
 
 ---
 
+## Session 2026-09-15e (hallucination as a ROUTING input for BPC/BYOK)
+
+**Context**: "high hallucinations by the models picked by bpc/byok system. a
+hallucination score maybe can be added to avoid fabrication."
+
+**What already existed** (so this is an extension, not a new subsystem):
+`core/llm/response_quality.py` grades every response from observable signals
+(truncation / refusal / schema_error / empty / exception) into a 0–1 score;
+`byok_handler._record_outcome_feedback` writes it to `llm_routing_feedback`; and
+`_rerank_with_learning` RE-RANKS BPC's candidate list by per-model satisfaction
+(flag `ATOM_LEARNING_ROUTER`). The signal set simply had **no fabrication
+term** — a model could invent prices on every turn and keep winning the route.
+
+**Added**:
+* `assess_response_quality(..., unsupported_figures, ungrounded_claims)` →
+  issues `unsupported_figures` (score **0.1**) and `ungrounded_claims` (0.15).
+  Deliberately BELOW truncation (0.3) and refusal (0.4): those are failures the
+  user can SEE are incomplete, while fabricated output is confidently wrong —
+  the most damaging mode in an assistant that quotes prices.
+* `record_fabrication_signal()` (`core/llm/learning_router_registry.py`) — the
+  CORRECTIVE signal. The generation path records its outcome before the reply
+  is assembled, so it cannot know about fabrication; the orchestrator calls
+  this when a guard catches an invented figure (figure-grounding) or an
+  unsupported claim (verify panel), attributing it to the model that PRODUCED
+  the reply.
+* **Observation is not gated by the routing flag**: the row is always written,
+  so flipping `ATOM_LEARNING_ROUTER` on later starts from real fabrication
+  history rather than an empty table; the flag only controls whether BPC
+  re-ranks by it. The row is also the audit trail of which model fabricated what.
+
+**Trap found while testing**: `assess_response_quality(content="")` reports an
+`empty` issue, so calling it unconditionally wrote a bogus fabrication row for
+EVERY clean turn. `record_fabrication_signal` now returns early when neither
+signal is present, and uses a non-empty placeholder so the content is not
+re-judged.
+
+### 15k: "is there a better approach?" — yes, and it was already in hand
+
+**Ask**: is there a better approach (than tuning this scanner)?
+
+**Tested the obvious candidate first — SQLite FTS5 — and it is DISQUALIFIED by
+measurement.** Build is cheap (0.51s for 7,285 rows) but its tokenizer splits
+figures on punctuation: `MATCH '7519'` returns **0 rows** for text stored as
+`7,519.00`, and `MATCH '5350'` returns 17 rows where the exact matcher finds 27
+(misses real matches). FTS5 token semantics are not canonical-digit semantics, so
+it cannot pre-filter this matcher without recall loss — and a pre-gate narrower
+than the pass it guards is the exact bug class this file has recorded twice.
+
+**The better approach was the index already built in 15j, applied one layer
+higher.** It was gating only the metadata pass while `_match_rows_by_figure_tokens`
+still ran its canonicalization over EVERY row in pass 1 — the actual per-query
+cost once the 3 GB was gone. Pass 1 reads only subject + content, so the
+structured half of the digit blob is an **exact** gate for it (same soundness
+argument: a hit needs the phrase's digits inside the field's digits).
+
+**Result — measured gated vs ungated on the live store, row-for-row identical:**
+
+| query | gated | ungated | speedup |
+|---|---|---|---|
+| `f-5216` | 18 rows / 2.6s | 18 rows / 8.8s | 3.4x |
+| `5,350.00` | 5 rows / 0.8s | 5 rows / 12.0s | 16x |
+| `7519` | 8 rows / 0.9s | 8 rows / 6.7s | 7x |
+| `$ 8,880.00` | 16 rows / 0.6s | 16 rows / 11.0s | 18x |
+
+Production lane: **12.0s → 1.0s** (warm), same 5 lines, F-5216 carrier intact.
+
+**Three attribution bugs found by the suite, all the same class** — a gate keyed
+by something that is not row-unique:
+1. `id(row)` — CPython reuses addresses after GC, so a fixture could inherit a
+   store row's blob (caught by `test_match_rows_indian_grouping`).
+2. dict keyed by row id — rows reuse ids ("msg-1"), so the surviving blob was
+   applied to the wrong row.
+3. the blob cache keyed by store PATH — a second row list for the same store
+   collided with the first list's blobs; now keyed by the records list with a
+   strong reference.
+Resolution: `_blob_for_row` returns a blob only when the row's OWN digits are
+contained in it, and the key map is multi-valued. Plus a None-safe guard so a
+malformed blob can never crash a search.
+
+**Locked by tests**: `TestDigitGateEquivalence` (5) asserts gated == ungated row
+ids for real phrases including an html-body-only figure, and that a lookalike row
+never inherits a sibling's blob. 32 passed in that file, 156 across the four
+planner suites.
+
+### 15j: why the mailbox search was slow — the 3 GB metadata scan
+
+**Measured** (same interpreter/DB the app uses, caches warm):
+
+| leg | before | after |
+|---|---|---|
+| `_search_ingested_by_tokens` | **8.4s** | ~4s |
+| `_attachment_content_hits` (new) | 0.01s | 0.01s |
+| `_resolve_named_addresses` / address scan | ~0 | ~0 |
+| **`_ingested_mailbox_lines` total** | **12.0s** | **3.6s** |
+
+**Root cause**: `_match_rows_by_figure_tokens` pass 2 reads and lowercases the
+`metadata` column — the full original HTML, **3,029 MB** across 7,284 rows (median
+50 KB, max 35 MB, 1,901 rows > 100 KB) — for every row pass 1 did not already
+match. Measured contribution: **5.5s of the 8.4s**, and it added **ZERO** matches
+for the live cases (18 rows with metadata, 18 without): pass 1 had already found
+them. The comment on that pass already suspected this ("lowercasing and
+substring-scanning 340 MB per query is what made this leg cost 13-22s") — the
+store has since grown 9x.
+
+**Fix**: a per-store TTL-cached digit index gates the metadata scan. Correctness
+rests on the matcher's own semantics: a hit requires the phrase's canonical
+DIGITS to appear inside the text's canonical digits, so a row whose digits do not
+contain the needle's digits cannot match and its HTML never needs reading.
+Deliberate design points, each learned by getting it wrong first:
+* **canonical digits, not digit runs** — a runs-based rule looks tighter but
+  MISSED a real match on the live store ('7519' vs a row storing '7,519.00',
+  whose runs are 7/519/00). The canonical form is the property the matcher
+  actually relies on.
+* **metadata is indexed too** (bounded by `ATOM_DIGIT_INDEX_MAX_META_CHARS`,
+  default 200 000): excluding it broke `test_match_rows_html_body_counts`, which
+  is a REAL case — a figure that lives only in the styled html_body.
+* **oversized metadata is gated on the structured fields** with `full=None`:
+  indexing 35 MB rows costs more than the scan, and an ungated 2.7 GB is what
+  kept the query at 8.5s even after the first gate. This is the one deliberate
+  trade (an html-body-only figure inside a >200 KB message can be skipped); the
+  env var raises or removes it.
+* the index is dropped whenever the store cache is reloaded, so a refresh can
+  never gate on stale rows.
+* **fail-open**: a row with no blob (a test fixture) is always scanned.
+
+**Verified**: result counts unchanged across the observed queries (f-5216: 18,
+'5,350.00': 5, '7519': 8, '$ 8,880.00': 16), 137 passed across the three planner
+suites (including the html-body case that the first gate attempt broke), and the
+production lane returns the same 5 lines including the F-5216 carrier.
+
+**Remaining** (~4s): pass 1 itself — Python-level `find` over subject+content for
+all 7,284 rows, paid per call, and the lane calls two matchers. Not addressed
+here; the 3 GB is.
+
+### 15i: the legs were in the wrong lane — live chat path wired
+
+**Owner report**: the canvas agent's retry still said "the calculation
+file/attachment is not available in the verified data" and "the live
+integration lookup still did not complete".
+
+**Root cause of that (mine)**: the attachment legs were wired into
+`_memory_search_block` — which I had been testing — but the chat orchestrator
+does NOT call it. It calls `_ingested_mailbox_lines` (planner-timeout and
+mailbox paths, `chat_orchestrator.py:546`), so every leg I added was invisible to
+the surface the user was looking at. Testing the helper instead of the consumer
+is what hid it; the fix is now asserted structurally
+(`TestProductionLaneWiring`: the lane's own source must reference the leg).
+
+**Wired now**: `_ingested_mailbox_lines` runs the attachment-content leg last,
+under `ATOM_ATTACHMENT_LEG_TIMEOUT_S` (3s) via `asyncio.wait_for`, deduped
+against the text lines — the orchestrator wraps the whole lane in ~15s, so the
+leg yields with the lines already gathered rather than being the reason a lookup
+comes back empty. Live, the lane now returns 5 lines: the four same-subject
+neighbours PLUS
+`vipul@brennan.ca -> kevin@kelbern.ca, chandrakant@brennan.ca | attachments:
+F-5216.pdf (open: knowledge/documents/ext_b411ea…/content.lines) | MATCHED
+INSIDE ITS ATTACHMENT`.
+
+**The pointers were verified openable, not assumed**: `resolve_provider` +
+`documents.read` (read_region) on that path returns the quotation whose text
+literally reads "Brennan Machinery is pleased to provide you with a quotation
+for the F-5216 / # F-5216" — so the agent can now read the artifact instead of
+reporting it missing. Same for the derivation file:
+`knowledge/documents/ext_c1f74b7fad81fa71596b5380/content.lines` L315 =
+``R235 | F-52"x16G | … | 7519.0 | … | 5350 | 4815.0 | 4815.0 | 5515.0 | 5515.0 |
+5625.3 | 6465.86 | 7518.44 | 7519.0``. Both were located by walking regions
+(`next_start`) — the plain `get_provider().cat()` call needs the file path and
+does not take `start_line`, which is why the earlier probe failed.
+
+**Also checked (no change needed)**: a bogus `knowledge/conversations/<id>` path
+returns 0 lines silently, so it was worth asking whether the mailbox excerpt
+pointers are dead — three REAL ids resolve (722/36/224 lines), so the
+convention is sound.
+
+### 15h: attachments are first-class searchable evidence (generalized)
+
+**Ask**: "try the search again … focus on the email thread for F-5216", then
+"solution should be generalized, domain and business independent".
+
+**What the real search returns now** (live `_memory_search_block`, same
+interpreter the app uses): the thread for the code resolves to the message that
+CARRIED the file — `vipul@brennan.ca -> kevin@kelbern.ca, chandrakant@brennan.ca`
+with `F-5216.pdf (open: knowledge/documents/ext_b411ea…/content.lines)` — where
+before the block contained no attachment and no code-bearing file at all.
+
+**The structural problem, stated generally**: an identifier can live in three
+places, and the search only read one of them. (1) message text — covered;
+(2) the file NAME — not covered; (3) the file CONTENT — not covered. The F-5216
+case fails on all three at once: the 4:07 PM forward's body says only "Fw: RFQ -
+Foot shear / Please check - row - 235", the workbook is named `PRICE VIPUL
+(6).xlsx` (no code), and even its row 235 reads ``F-52"x16G`` — the literal
+"F-5216" exists nowhere in the message, the name, or the file. An agent could
+only reach the answer by joining file → carrying message.
+
+**Implemented — three legs, one relation** (`core/chat_tool_planner.py`):
+* `_comms_attachment_names()` / `_comms_attachment_text()` — a message's files
+  from BOTH the `attachments` column AND the ingestion ledger (they disagree in
+  the wild: the F-5216 forward stores `'[]'` while its workbook is ingested
+  behind it), with identifier tokens tokenized out of the file stem.
+* `_mail_attachment_index()` / `_reverse` / `_doc_to_message_index()` — one
+  cached ledger query read three ways (message→file, file→message, doc→message),
+  so the directions can never disagree.
+* `_messages_carrying_file()` — dataset hit → the message that carried the file
+  (token-overlap matched, needs 2 shared tokens or 1 long one).
+* `_attachment_content_hits()` — file CONTENT → carrying message, scanning ONLY
+  the documents that are attachments, case-insensitively.
+* Rendering: listing lines now name the structured attachments with
+  `open: knowledge/documents/<id>/content.lines` even when the legacy
+  `--- Attachments ---` footer is absent (it was: the forward listed none).
+
+**Two generalization bugs found by running it, not by reading it**:
+* `slice(0, 4000)` over the documents table scanned the WRONG rows — the store
+  is not ordered and the target chunk sat past the cut (1 match full-table, 0
+  sliced). Replaced with a membership filter on the attachment set: bounded by
+  construction. Lesson recorded: never slice a scan you cannot order.
+* Case: the planner lowercases tokens (`f-5216`), the store keeps source casing
+  (`F-5216`), `pc.match_substring` is case-sensitive — the leg returned 0 until
+  both sides were lowered. Fixed and narrowed BEFORE lowercasing (39k rows →
+  attachment subset): 2.25s cold, 0.01s warm.
+
+**Verified live** after `restart_backend.sh`: leg returns the carrier message;
+full block (26,158 chars) contains `F-5216.pdf` + `MATCHED INSIDE ITS
+ATTACHMENT` + the openable doc path. Domain-independent throughout: any comms
+row from any integration, any file type, no business vocabulary.
+
+### 15g: app-database NL→SQL — audited, two real defects fixed
+
+**Question asked**: "isn't NL→SQL also be used for db?" Answer: yes — it already
+is, via `core/app_db_query.answer_from_app_db`, wired into the planner's
+`datasets` + `ask` intent (`chat_tool_planner.py:~5005`). Verified live: 18/18
+allowlisted tables present; "how many canvases are there in total" → 76,
+"how many chat sessions" → 223, "which agents are registered, by name" → 4 rows.
+The sheet lane (`answer_from_datasets`, DuckDB) and this lane share the same
+NL→SQL primitive — sheets for file values, app-db for questions about the
+workspace itself (canvases, sessions, runs, approvals, accounting).
+
+**Defect 1 — the promised scope predicate was never injected, and injecting it
+would have been WRONG.** The module docstring claimed "WORKSPACE + TENANT
+scoping injected as hard predicates"; the code only *refused* SQL that named a
+scope column, and never added a predicate (a dead `scope_val` local was the
+tell). Measured before changing anything: 53 of 76 canvases carry a **NULL**
+`workspace_id` (23 = 'default'), and 3 of 4 agents likewise. This is a
+single-tenant app (CLAUDE.md), so `WHERE workspace_id = 'default'` does not
+isolate anything — it drops the operator's own rows and undercounts **76 → 23**.
+Fix: no predicate injection (documented as deliberate), and `tenant_id` /
+`workspace_id` added to the withheld-column regex so they are stripped from the
+schema the LLM sees and any reference fails validation. Isolation = table
+allowlist; every row in an allowlisted table belongs to this install. Messages
+renamed "secret-shaped" → "withheld" since the set now carries a second reason.
+
+**Defect 2 — a valid query was intermittently REFUSED as "only SELECT
+statements are allowed".** Live log showed
+`refused (only SELECT statements are allowed): {"sql": "SELECT COUNT(*) AS
+row_count FROM llm_routing_feedback LIMIT 1"}` — the JSON envelope had leaked
+INTO the `sql` field, so `str(result.sql)` was the envelope and validation
+rejected it. Provider-dependent and intermittent (the same question answered
+correctly seconds earlier), which is exactly how it would have read as "the
+model wrote bad SQL". Fix: `_extract_sql()` normalizes every shape a provider
+returns — parsed object, dict, raw JSON, fenced ```sql/```json block, even a
+malformed single-quoted `{'sql': '...'}` — and is applied BEFORE validation, so
+the allowlist still governs the recovered statement.
+
+**Tests**: `tests/test_app_db_nl2sql_envelope.py` (37) — the module previously
+had ZERO tests despite being the security boundary in front of model-authored
+SQL: allowlist (+ JOIN smuggling), withheld columns incl. scope columns, the
+NULL-scope regression that predicate injection would have caused, SELECT-only,
+single statement, forbidden verbs in comments, and every unwrapping shape.
+Verified live after restart: all four questions above, two of which refused
+before. Backend restarted (pid 56343).
+
+### 15f: self-activation ("this is default --- auto flip when enough data")
+
+**Ask**: the hallucination-aware router must not need a manual switch — it should
+be a SETTING that activates itself once enough data exists.
+
+**Landed (shared with the concurrent session, which had the same design)**:
+`ATOM_LEARNING_ROUTER` is now a tri-state **string** in the catalog —
+`auto` (default) | `true` | `false` — resolved through `resolve_setting` and
+admin-editable, with thresholds `ATOM_LEARNING_ROUTER_AUTO_{MIN_ROWS=30,
+MIN_MODELS=2, MIN_PER_MODEL=8, WINDOW_DAYS=7}`. Gate:
+`learning_router_registry.learning_router_mode()` +
+`learning_history_ready()` (60s cache, fail-CLOSED to static ordering);
+`learning_router_enabled()` is the single reader every call site delegates to
+(`byok_handler._learning_router_enabled` included — no duplicate resolver).
+Observation is never gated, so `auto` has data to learn from.
+
+**Verified live** (`venv314`, real `llm_routing_feedback`, `restart_backend.sh`,
+rows purged after): 1 row → ready=False; 28 rows/2 models → False (row floor);
+36 rows/3 models → **True and re-ranking physically reordered**, benching the
+low-quality model; purging the rows → False again (symmetric revocation).
+End-to-end with auto on: empty history → `[fab, safe]` (static), at 40 seeded
+rows → `[safe, fab]`.
+
+**Gap found and closed — the flip was invisible.** `auto` reads as "on" on a
+fresh install while doing nothing; nothing surfaced readiness. Added
+`readiness_report()` (`core/llm/learning_router_registry.py`, read-only,
+never raises) + `GET /api/v1/llm/learning-router/status` (admin-gated;
+`api/learning_router_routes.py`, mounted in `main_api_app.py`) returning the
+mode, whether re-ranking is live, the counters against the thresholds, and a
+human-readable reason. Live now:
+`auto | enabled=False | 1/30 observations, 0/2 models | "waiting for evidence …"`;
+unauthenticated → 401.
+
+**Regression**: `tests/test_learning_router_auto_activation.py` (23) — defaults,
+threshold boundaries, one-model-cannot-justify-a-relative-decision, aging-out
+revocation, fail-closed on DB error, operator overrides beating the data, legacy
+truthy strings, report shape/reason, admin gating. **Harness trap**:
+`get_db_session()` is a context manager, so the fake's `__enter__` must return
+the SESSION (callable `query`) — returning the result chain silently fell through
+to the REAL database and produced six false failures.
+
+### 15e-follow-up: "enable it" — the toggle was inert, then actively backwards
+
+**Enabled** (`2026-09-15`, via the admin API, not by editing `.env`):
+`ATOM_LEARNING_ROUTER=true` (`source=db`) and the newly-catalogued
+`ATOM_EMA_ROUTER_ENABLED` (*Learning & Verification*, now default **ON**;
+`learning_router_registry.ema_router_enabled()` reads it through
+`resolve_setting`, so it is UI-administrable like its master gate). Default is
+ON because EMA is the term that carries ranking while per-model predictors are
+cold (`_min_samples_per_model = 20`) — default-off made the documented
+cold-start handoff dead on every fresh install.
+
+**Defect 1 — the switch did nothing.** With predictors cold and no EMA history,
+every candidate scored `0.0` and the re-rank returned BPC order unchanged
+(probed live: `RERANKED: [('prov','probe/bad'), ('prov','probe/good')]`). The
+EMA branch was gated by the second flag, which was off — so "enabled" measured
+nothing. Proven only by running the real `_rerank_with_learning` against the
+live singleton, not by unit test.
+
+**Defect 2 — the tie-break was backwards (the real bug).** A model with NO
+history and a model observed to fabricate on every turn (success EMA `0.0`) both
+scored `0.0`; equal scores keep BPC order, so **a restart silently promoted the
+fabricator back to the front** (in-memory EMA is rebuilt from `llm_routing_feedback`
+at process start). Two fixes in `_rerank_with_learning`:
+* a `0.0` EMA term now counts as a learned signal (previously only
+  `success > 0` set `learned_any`, so a pure fabrication history skipped the
+  re-rank entirely);
+* scoring is a strict contract — **observed-good > unobserved > observed-bad**:
+  positive observation = `(1-confidence)*EMA_WEIGHT*success`; no telemetry = a
+  small positive rank gap `(N-idx)*0.001` (keeps BPC order among unobserved
+  peers); observed-bad = `0.0`. No spec fallback on this path: the `route()`
+  path's spec-quality fallback is *positive for a fabricator too*, which is
+  exactly what re-promotes it. Success-only — latency/cost telemetry must never
+  out-vote hallucination evidence.
+
+**Verified** (backend `venv314`, `restart_backend.sh`, then a FRESH process so
+the state came only from DB hydration): seeded `probe/fab` success 1.0, fired one
+real `record_fabrication_signal` → EMA 1.0→0.8, order flipped
+`[fab, safe]` → `[safe, fab]`; after restart the hydrated fabricator ranked LAST
+(`[safe, never_seen, fab]`). All `probe/*` rows then purged —
+`llm_routing_feedback` holds real history only.
+
+**Tests**: `tests/unit/core/test_rerank_hallucination_rank_contract.py` (7 new:
+restart-promotion, zero-as-evidence, unobserved-order preservation, no-history
+no-op, EMA-flag-off no-op, latency/cost never outvoting fabrication, decision
+id minted). Two stale expectations in `tests/unit/core/test_ema_router_determinism.py`
+updated for the now-catalogued default (they asserted "absent env == off").
+23 passed across both files; 47 passed across the learning-router/plan suites;
+267 passed / 5 failed in the BYOK handler suites — the 5 are
+`test_covpush_bigfour_byok.py::TestBPC::test_static_fallback_*` +
+`test_managed_plan_allows_model` + `test_qwen_boost`, a pre-existing
+`TypeError: '<=' not supported between 'Mock' and 'float'` at
+`byok_handler.py:2822` (introduced by `9866e77af`, frontier-reserved gate;
+MagicMock rate tracker) and unrelated to this path.
+
+**Not mine, but adjacent**: `586a8e6b8` (same window) added the **fabrication
+bench** — a hard exclusion from ranked candidates at ≥3 verdict-flagged rows in
+48h and ≥25% rate, independent of these flags. Complementary: the bench acts on
+accumulated evidence, the EMA contract above orders candidates from the FIRST
+flagged turn. Documented together in `docs/architecture/LEARNING_LLM_ROUTER.md`.
+
+**Verified**: fabricated figures score 0.1 / `unsupported_figures`, ungrounded
+claims 0.15, truncation 0.3, refusal 0.4, clean 0.7 (satisfied); a fabricated
+signal persists (`llm_routing_feedback`: `test/fabricator-model |
+question_answering | quality_satisfied=0`), and the label reaches the trainer
+(`user_satisfaction=0.1`). 152 passed across the six affected suites + 53 in
+the learning-router/quality suites (+4 tests, one of which pins the
+flag-off-still-records behaviour).
+
+---
+
+## Session 2026-09-15d (GENERAL SOLUTION: bounded region reads for every artifact)
+
+**Context**: "if email threads are long and context is being lost, we need a
+better permanent solution… generalize a solution that solves all the issues…
+domain and business independent."
+
+**The structural diagnosis** (five rounds of symptom fixes reduced to one
+shape): the agent's document model was *flat text injected into the prompt*.
+Every artifact bigger than the excerpt window therefore failed in one of three
+ways — unreachable, truncated, or **fabricated** — and the variants we chased
+(email elision, chunked attachments, 324-line workbooks, the invented $8,880
+chain) are all the same defect.
+
+**What production agent filesystems do** (research, cited in
+`docs/architecture/KNOWLEDGE_VFS.md`): the artifact lives in a navigable
+filesystem; the agent greps and then reads a REGION, with the context carrying
+citations rather than content ([Letta
+Filesystem](https://www.letta.com/blog/letta-filesystem/), [Claude Code
+offset/limit
+reads](https://github.com/ThamjiaHe/claude-code-handbook/blob/main/docs/claude-code-tips-and-tricks.md)).
+
+**Implemented — one primitive, every artifact type**:
+
+| piece | what it fixes |
+|---|---|
+| `VFSRegion` + `read_region` on the provider contract (`core/vfs_base.py`), generic `cat`-then-slice default | every provider gains bounded reads; no read is unbounded |
+| `documents.read(path, start_line, max_lines)` action (clamped ≤2000) | the agent-facing surface; returns `start_line/end_line/total_lines/next_start/complete` so paging is drivable |
+| knowledge provider override (slice the document, don't re-materialize) | reading line 315 of 324 costs the same as line 1 |
+| datasets provider override (render only the requested window) | a hundreds/thousands-row sheet is paged, not dumped |
+| grep citations now end with `[read: documents.read(path='…', start_line=N)]`, using the SAME path as the citation | a hit at line 315 is actionable; chunk/parent line numbering cannot skew |
+| grounding rule rewritten: "LARGE ARTIFACTS — READ A REGION, NEVER GUESS" with the grep → read → page loop, and "never present a number/cell/step you have not read" | the model uses the primitive instead of excerpting or inventing |
+
+**Verified on the live store**
+* workbook row: `documents.read` on the F-5216 pricing workbook at
+  `start_line=310` → `start=310 end=319 total=324 next=320 complete=False`, and
+  line 315 is `R235 | F-52"x16G | … | 7519.0`.
+* sheet with real schema: `datasets/outlook_price_vipul_6_/sheet1` →
+  `read lines 234-236 of 241`, rendering
+  `R235 | Product Name=F-52"x16G | LIST Price=7519.0 | Factory Price=5350 | …`
+  — named columns and true row numbers, no text flattening.
+* citation round trip: grep `R235` → snippet carries
+  `documents.read(path='knowledge/documents/ext_…::c57/content.lines', start_line=1, max_lines=20)`
+  → following it returns 6 lines containing that row.
+* **186 passed** across the nine affected suites (+5 tests: slicing/paging,
+  end-of-content `complete`, start-past-end, action registration and wording,
+  citation→read consistency).
+
+**Deliberately NOT built**: a new table engine. `query_data` (NL→SQL over
+DuckDB with column aliases and a formula footer) already exists and is the
+analytic surface; the gap was that large tables were *consumed as text*, which
+the region read now fixes at the navigation layer.
+
+---
+
+## Session 2026-09-15c (the agent INVENTED a price derivation — and the guard saw it twice)
+
+**Context**: asked "figure out how the listed price was derived", the agent
+answered with a four-step chain:
+
+> Dealer list **$5,350** → +10% freight/handling = **$5,885** → ÷0.70 (30%
+> margin) = **$8,407.14** → + ~**$473** google-review markup = **$8,880**
+
+**Every intermediate is invented.** The cited source (`PRICE VIPUL (6).xlsx`
+row 235, the F-5216 line) contains 5,350 / 4,815 / 5,515 / 5,625.30 / 6,465.86
+/ 7,518.44 / **7,519** — none of 5,885, 8,407.14 or 473. And **$8,880 is a
+different machine**: the Tennsmith 52T list price in the draft quote. The row's
+own margin column reads 0.445 (44.5%), not 30%.
+
+**Root cause — the existing guard knew and shipped it anyway.** The verify
+panel DID flag these turns:
+
+```
+[verify-panel] shadow: grounded=False agreement=0.333 (ambiguous, 3 samples, 195.1s)
+[verify-panel] shadow: grounded=False agreement=0.333 (ambiguous, 3 samples, 247.1s)
+```
+
+Three independent reasons it changed nothing:
+1. **shadow mode** — judges vote and are recorded, replies unchanged (`auto`
+   resolves to shadow until a maintenance latch flips it);
+2. **scope** — only mission-critical or COMPLEX/ADVANCED turns (the panel costs
+   N structured calls, ~200-350s per run);
+3. **`agreement` gate** — enforce acts on `high`/`partial` only, and an
+   *ambiguous* 1/3 vote is not in that set. So the exact shape this failure
+   produced (judges split) is the shape that ships.
+
+**Fix — a deterministic figure-grounding check, no judges, no scope gate, no
+LLM call**: `_unsupported_figures(reply, evidence)` extracts currency-shaped and
+grouped figures from the reply and reports any that appear in NEITHER the
+evidence NOR the user's own message. Evidence values are compared
+separator-insensitively and bare-integer-tolerant (the workbook stores
+`5350 | 7519.0`, the reply renders `$5,350.00` — the same value). Wired into the
+streaming reply path ahead of the panel; on a hit it appends a targeted
+correction naming the unsupported figures and regenerates once. Cost: one regex
+pass per tool turn.
+
+**Verified**: the fabricated chain flags exactly `$5,885.00 / $8,407.14 / $473
+/ $8,880.00` while `$5,350.00` (present) is left alone; a grounded derivation
+flags nothing; figures the user supplied themselves are grounded by their own
+message; years/quantities do not trip it. 143 passed across the six affected
+suites (+4 tests).
+
+**Note**: the third answer in that paste also honestly reported "the live
+mailbox lookup didn't run this turn" — the planner-timeout fallback added in
+2026-09-14a working as designed. And the Trumatic table it quoted IS real
+(verified cell by cell: 20000/25000/26315.79/35087.72/47415.84, margin 0.445) —
+that part was correct.
+
+---
+
 ## Session 2026-09-15b (the AGENT could not open an attached workbook)
 
 **Context**: "agent should be able to find the attachment as well". The

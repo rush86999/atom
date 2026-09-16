@@ -66,6 +66,48 @@ def to_line_numbered(text: str) -> List[str]:
     return [f"L{i + 1}: {line}" for i, line in enumerate(raw)]
 
 
+@dataclass
+class VFSRegion:
+    """A BOUNDED slice of a leaf's content — the addressing unit for large
+    artifacts (long email threads, 300-row workbooks, 100-page PDFs).
+
+    Why this exists: a leaf can be tens of thousands of lines, and the only
+    reads available were ``cat`` (everything) or ``head``/``tail`` (the ends).
+    Agents therefore either blew their context or skipped the file — and a
+    skipped file is what produced fabricated "derivations" (live 2026-09-15:
+    an invented $8,880 arithmetic chain while the real row sat at line 315 of
+    a 324-line workbook).
+
+    ``total_lines`` and ``next_start`` make the slice SELF-DESCRIBING: the
+    agent always knows whether it has seen the whole artifact and where to
+    continue, so paging is a loop the model can drive without guessing.
+
+    ``degraded`` marks a read that FAILED partway (store error, unreadable
+    parquet): an empty degraded region must never read as end-of-content —
+    a paging loop that mistakes a transient error for EOF silently drops
+    the tail of the evidence, the exact failure family this type exists to
+    prevent."""
+    path: str
+    start_line: int                  # 1-based, inclusive
+    lines: List[str] = field(default_factory=list)   # "L<n>: <text>"
+    total_lines: int = 0
+    next_start: Optional[int] = None  # None == end of content
+    degraded: bool = False            # True == the read failed; NOT EOF
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "path": self.path,
+            "start_line": self.start_line,
+            "end_line": self.start_line + max(len(self.lines) - 1, 0),
+            "total_lines": self.total_lines,
+            "next_start": self.next_start,
+            "content": "\n".join(self.lines),
+            "returned_lines": len(self.lines),
+            "complete": self.next_start is None and not self.degraded,
+            "degraded": self.degraded,
+        }
+
+
 class VFSProvider(ABC):
     """Agent-native filesystem view of one store (knowledge, github, etc.)."""
 
@@ -79,6 +121,37 @@ class VFSProvider(ABC):
     @abstractmethod
     async def cat(self, path: str, ctx: Optional[Dict[str, Any]] = None) -> VFSResource:
         """Return meta + content.lines (line-numbered) for a leaf path."""
+
+    async def read_region(
+        self,
+        path: str,
+        start_line: int = 1,
+        max_lines: int = 200,
+        ctx: Optional[Dict[str, Any]] = None,
+    ) -> VFSRegion:
+        """Read a BOUNDED region of a leaf, with paging metadata.
+
+        The default implementation is built on :meth:`cat` so every existing
+        provider gains bounded reads without changes; providers that can seek
+        (a table, an indexed store) should override it and avoid materializing
+        the whole leaf. ``max_lines`` is clamped by the caller's action
+        layer — the point of the primitive is that NO read is unbounded."""
+        res = await self.cat(path, ctx)
+        all_lines = list(getattr(res, "lines", []) or [])
+        total = len(all_lines)
+        start = max(int(start_line or 1), 1)
+        span = max(int(max_lines or 1), 1)
+        window = all_lines[start - 1:start - 1 + span]
+        next_start = start + len(window)
+        if next_start > total or not window:
+            next_start = None
+        return VFSRegion(
+            path=path,
+            start_line=start,
+            lines=window,
+            total_lines=total,
+            next_start=next_start,
+        )
 
     async def grep(
         self, pattern: str, path_prefix: str, ctx: Optional[Dict[str, Any]] = None

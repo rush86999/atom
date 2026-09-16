@@ -74,6 +74,7 @@ class GenericAgent:
         "documents.ls",
         "documents.cat",
         "documents.grep",
+        "documents.read",
         # Others can be discovered
     ]
 

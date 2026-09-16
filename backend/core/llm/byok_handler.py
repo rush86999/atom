@@ -217,6 +217,20 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+def _learning_router_enabled() -> bool:
+    """Whether RE-RANKING by learned satisfaction is active.
+
+    Delegates to the registry's tri-state gate (true/false/AUTO — auto
+    self-activates when the observation history is ready; the default).
+    This was a second resolver reading the same setting; two sources of
+    truth could disagree after a UI edit. Observation is NOT gated by
+    this — see the observe_only sites below."""
+    from core.llm.learning_router_registry import learning_router_enabled
+
+    return learning_router_enabled()
+
+
+
 
 def _stop_iteration_safe(fn, *args, **kwargs):
     """Worker-thread shim for _to_thread_safe — the StopIteration must be
@@ -1137,6 +1151,90 @@ class BYOKHandler:
     # providers (score < 0.2, i.e. ~30% success at zero latency) are dropped;
     # borderline ones remain candidates and self-correct via the sliding window.
     _HEALTH_EXCLUDE_THRESHOLD = 0.2
+
+    # FABRICATION BENCH: a model whose RECENT replies were verdict-flagged
+    # as fabricated (user_satisfaction <= 0.15 — the unsupported-figures /
+    # ungrounded-claims scores) above a rate threshold is EXCLUDED from
+    # ranked candidates, independent of ATOM_LEARNING_ROUTER. The learning
+    # router re-ranks by learned satisfaction only when the flag is on;
+    # fabrication is a safety property — it is avoided NOW, not measured
+    # (live 2026-09-15: a model could invent prices every turn and keep
+    # winning the route while the flag was off). Kill switch:
+    # ATOM_FABRICATION_BENCH=0 restores pure BPC ordering.
+    _FAB_BENCH_MIN_EVENTS = max(
+        1, int(os.getenv("ATOM_FABRICATION_BENCH_MIN_EVENTS", "3") or 3))
+    _FAB_BENCH_RATE = float(
+        os.getenv("ATOM_FABRICATION_BENCH_RATE", "0.25") or 0.25)
+    _FAB_BENCH_WINDOW_HOURS = max(
+        1, int(os.getenv("ATOM_FABRICATION_BENCH_WINDOW_HOURS", "48") or 48))
+    _FAB_BENCH_TTL_S = 60.0
+
+    @property
+    def _fab_bench_cache(self) -> dict:
+        cache = getattr(self, "_fab_bench_cache_store", None)
+        if cache is None:
+            cache = {}
+            self._fab_bench_cache_store = cache
+        return cache
+
+    def _fabrication_benched(self, provider_id: str, model_id: str) -> bool:
+        """True while the pair's fabrication rate over the recent window is
+        at/above threshold. Cached 60s per pair (the query runs on every
+        ranking pass otherwise). Fail-open on any error — benching is a
+        safety improvement, never a new failure mode."""
+        if os.getenv("ATOM_FABRICATION_BENCH", "1") != "1":
+            return False
+        pair = f"{provider_id}/{model_id}"
+        now = time.monotonic()
+        hit = self._fab_bench_cache.get(pair)
+        if hit and now - hit[0] < self._FAB_BENCH_TTL_S:
+            return hit[1]
+        benched = False
+        try:
+            from datetime import datetime, timedelta
+
+            from core.database import get_db_session
+            from core.models import LLMRoutingFeedback
+
+            cutoff = datetime.utcnow() - timedelta(
+                hours=self._FAB_BENCH_WINDOW_HOURS)
+            with get_db_session() as db:
+                rows = (
+                    db.query(
+                        LLMRoutingFeedback.user_satisfaction,
+                    )
+                    .filter(
+                        LLMRoutingFeedback.model_id == pair,
+                        LLMRoutingFeedback.created_at >= cutoff,
+                    )
+                    .all()
+                )
+            total = len(rows)
+            fab = sum(
+                1 for (s,) in rows
+                if s is not None and float(s) <= 0.15
+            )
+            if (
+                total
+                and fab >= self._FAB_BENCH_MIN_EVENTS
+                and (fab / total) >= self._FAB_BENCH_RATE
+            ):
+                benched = True
+                if not hit or not hit[1]:
+                    logger.warning(
+                        f"FABRICATION BENCH: {pair} benched — {fab}/{total} "
+                        f"verdict-flagged fabrications in the last "
+                        f"{self._FAB_BENCH_WINDOW_HOURS}h "
+                        f"(>={self._FAB_BENCH_MIN_EVENTS} events and "
+                        f">={self._FAB_BENCH_RATE:.0%} rate). The pair is "
+                        "excluded from ranked candidates until the rate "
+                        "falls; ATOM_FABRICATION_BENCH=0 disables."
+                    )
+        except Exception as e:  # noqa: BLE001 — fail-open, never block routing
+            logger.debug(f"fabrication bench check skipped ({pair}): {e}")
+            benched = False
+        self._fab_bench_cache[pair] = (now, benched)
+        return benched
 
     def _filter_by_health(self, provider_id: str) -> bool:
         """
@@ -2318,6 +2416,12 @@ class BYOKHandler:
 
                 # Phase 226.4-04: Check provider health
                 if not self._filter_by_health(active_provider):
+                    continue
+
+                # FABRICATION BENCH (independent of the learning-router
+                # flag): recent verdict-flagged fabrications at/above the
+                # rate threshold exclude the pair from ranked candidates.
+                if self._fabrication_benched(active_provider, model_id):
                     continue
 
                 # Phase 5': measured endpoint health for openrouter-hosted
@@ -3669,6 +3773,8 @@ class BYOKHandler:
         schema_error: bool = False,
         routing_result_id: Optional[str] = None,
         resolved_model: Optional[str] = None,
+        unsupported_figures: Optional[list] = None,
+        ungrounded_claims: Optional[list] = None,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
@@ -3724,15 +3830,16 @@ class BYOKHandler:
         except Exception:
             pass  # stage outcome is best-effort; never blocks generation
 
-        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
-            return
+        # OBSERVATION IS NOT GATED: rows accrue in every mode (auto's
+        # data supply — gating observation would starve the readiness
+        # check that flips re-ranking on). Only RE-RANKING is gated.
         try:
             from core.llm.response_quality import assess_response_quality
             from core.learning_llm_router import LearningBasedRouter
             from core.llm.learning_router_registry import get_learning_router_instance
             import uuid
 
-            learning_router = get_learning_router_instance()
+            learning_router = get_learning_router_instance(observe_only=True)
             if learning_router is None:
                 return
 
@@ -3741,6 +3848,8 @@ class BYOKHandler:
                 finish_reason=finish_reason,
                 schema_error=schema_error,
                 exception=exception,
+                unsupported_figures=unsupported_figures,
+                ungrounded_claims=ungrounded_claims,
             )
             # Use the stashed decision id when available so feedback recovers
             # the real prompt features (train/serve consistency). Fall back to
@@ -3804,14 +3913,14 @@ class BYOKHandler:
             # Re-ranking needs at least 2 candidates to matter. Single-provider
             # setups yield 1 — log so operators can diagnose why learning had
             # no effect (it's expected, not a bug).
-            if options and os.getenv("ATOM_LEARNING_ROUTER", "false").lower() == "true":
+            if options and _learning_router_enabled():
                 logger.debug(
                     f"[LearningRouter] Only {len(options)} BPC candidate(s) — "
                     f"nothing to re-rank (configure multiple provider keys to "
                     f"give the learning router candidates to choose among)"
                 )
             return options
-        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
+        if _learning_router_enabled() is False:
             return options
         try:
             from core.llm.learning_router_registry import get_learning_router_instance
@@ -3860,17 +3969,38 @@ class BYOKHandler:
                 })()
             )
 
-            # Score each candidate by the SAME blend the route() path uses:
-            # a learned per-model satisfaction term (confidence-weighted) PLUS,
-            # when ATOM_EMA_ROUTER_ENABLED, an EMA/online-telemetry term weighted
-            # by (1 - confidence). Previously this live path only ever consulted
-            # the predictor and ignored EMA entirely, so the EMA flag had zero
-            # effect on production routing. Now EMA drives re-ranking during
-            # cold-start (no/weak predictor) and hands off as predictors mature.
+            # Score each candidate as a learned per-model satisfaction term
+            # (confidence-weighted) PLUS, when ATOM_EMA_ROUTER_ENABLED, an
+            # EMA/online-telemetry term weighted by (1 - confidence) — so EMA
+            # drives re-ranking during cold start (no/weak predictor) and hands
+            # off as predictors mature. Previously this live path ignored EMA
+            # entirely, so the EMA flag had zero effect on production routing.
+            #
+            # Ranking contract (what must stay true for hallucination to steer
+            # routing): observed-good > unobserved > observed-bad. A fabricator
+            # with success EMA 0.0 must sort BELOW a model with no telemetry at
+            # all, or "never observed" silently ties with "observed fabricating"
+            # and BPC order reinstates the fabricator.
             tenant = self.tenant_id or "default"
             task = self._adapt_task_type(task_type)
             ema_weight = getattr(learning_router, "_EMA_SCORE_WEIGHT", 0.3)
+            # Rank bonus for an UNOBSERVED model — it must sit strictly ABOVE a
+            # model observed to fabricate, and strictly BELOW any positive
+            # observation. Without it, an unobserved candidate scored exactly
+            # 0.0 — identical to a model whose every turn was a fabrication
+            # (success EMA 0.0) — so the sort fell back to BPC order and the
+            # fabricator was PROMOTED back to its BPC position, including on the
+            # next process start (in-memory EMA is rebuilt from DB history).
+            #
+            # Neutral is not bad: "no evidence" must beat "evidence of harm",
+            # while staying sub-CONFIDENCE so it can never outvote a positive
+            # observation or a trained predictor. It is a rank gap — it only
+            # preserves the existing relative order among unobserved candidates.
+            prior_rank_bonus = 0.001
 
+            # NOTE: a model that has never been observed gets no spec-derived
+            # score even when its spec looks excellent — "no evidence" must
+            # never read as "good evidence".
             scored = []
             learned_any = False
             for idx, (provider_id, model) in enumerate(options):
@@ -3891,27 +4021,43 @@ class BYOKHandler:
 
                 # EMA / online term. Even when the predictor is cold
                 # (confidence≈0), observed telemetry can still steer ranking.
-                ema_term = 0.0
+                #
+                # Only a model WITH history produces a term. The route() path can
+                # fall back to spec quality/latency/cost when history is missing
+                # (it needs a finite score to rank a whole fleet); this live path
+                # cannot, because those spec terms are positive for a fabricator
+                # too — a spec-quality fallback is exactly what re-promotes a
+                # known-bad model above an unobserved one.
+                #
+                # Success-only by design: latency/cost telemetry must never
+                # out-vote hallucination evidence here. A fast, cheap model that
+                # invents figures is still a model that invents figures.
+                ema_term = None
                 if use_ema:
                     ema_key = f"{tenant}:{task}:{model}"
                     ema_data = learning_router._ema_scores.get(ema_key, {})
-                    # success is the EMA of (success AND quality_satisfied), in
-                    # [0,1]. Missing history -> no EMA contribution for this model.
                     if "success" in ema_data:
+                        # EMA of (success AND quality_satisfied), in [0,1].
                         ema_term = (1.0 - confidence) * ema_weight * ema_data["success"]
-                        if ema_data.get("success", 0.0) > 0:
-                            learned_any = True
+                        # A zero observation is EVIDENCE (the fabrication is why
+                        # this model is ranked last) even though its term is 0.0,
+                        # so it must count as a learned signal — otherwise the
+                        # whole re-rank was skipped and BPC order silently won.
+                        learned_any = True
 
-                score = pred_term + ema_term
-                if score == 0.0:
-                    # No learned signal at all (predictor cold AND no EMA): keep
-                    # BPC order via a small negative score so this model sorts
-                    # after any learned-favored model but above none.
-                    score = -(idx * 0.001)
+                if ema_term is not None:
+                    score = pred_term + ema_term
+                elif pred_term > 0.0:
+                    # A trained predictor outranks sheer lack of history.
+                    score = pred_term
+                else:
+                    # Unobserved: keep BPC order, but strictly above a model with
+                    # negative evidence (which scores 0.0 from its 0.0 EMA term).
+                    score = (len(options) - idx) * prior_rank_bonus
                 scored.append((score, provider_id, model))
 
             if not learned_any:
-                return options  # no predictor had enough data to influence
+                return options  # no predictor AND no telemetry to influence order
 
             # Stable sort by learned score descending (ties keep BPC order).
             scored.sort(key=lambda t: -t[0])
@@ -3957,8 +4103,8 @@ class BYOKHandler:
         prompt (mirrors generate_response) — any failure leaves intent unset
         (all-zero intent features).
         """
-        if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
-            return None
+        # Observation-path helper (feeds feedback rows) — not gated;
+        # rows accrue in every mode. Rerank consumers gate separately.
         try:
             if intent is None:
                 try:

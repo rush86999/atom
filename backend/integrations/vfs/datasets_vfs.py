@@ -23,7 +23,13 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from core.vfs_base import VFSCitation, VFSNode, VFSProvider, VFSResource
+from core.vfs_base import (
+    VFSCitation,
+    VFSNode,
+    VFSProvider,
+    VFSRegion,
+    VFSResource,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +160,85 @@ class DatasetsVFSProvider(VFSProvider):
             },
             lines=lines,
         )
+
+    async def read_region(
+        self,
+        path: str,
+        start_line: int = 1,
+        max_lines: int = 200,
+        ctx: Optional[Dict[str, Any]] = None,
+    ) -> VFSRegion:
+        """Bounded read of ONE sheet, without rendering the whole table.
+
+        The generic default slices a full ``cat`` — for a sheet that means
+        rendering every row (capped at ``_MAX_LINES_PER_SHEET``) to return a
+        window of it. Here the parquet is read once and only the requested
+        window is rendered, so paging a 5,000-row sheet costs a window per
+        call instead of the whole sheet.
+
+        Line 1 is the sheet header; row N of the sheet is line N+1, so a
+        citation and its window agree. ``total_lines`` is the sheet's real
+        line count, which is what makes ``next_start`` trustworthy for paging
+        to the end.
+
+        Unresolvable paths raise ``FileNotFoundError`` exactly like ``cat``
+        (a wrong path must be an ERROR, not an empty "complete" region that
+        reads as a real empty sheet), and a render failure returns a
+        ``degraded`` region — never a silent end-of-content."""
+        import asyncio
+
+        from core.sheet_dataset_service import SHEET_ROW_COL
+
+        region = VFSRegion(path=path, start_line=max(int(start_line or 1), 1))
+        cleaned = (path or "").lstrip("/").rstrip("/")
+        if cleaned.endswith(f"/{_LEAF}"):
+            cleaned = cleaned[: -len(f"/{_LEAF}")]
+        parts = [p for p in cleaned.split("/") if p and p != "datasets"]
+        if len(parts) < 2:
+            raise FileNotFoundError(f"'{path}' is not a dataset leaf")
+        group, entity_slug = parts[0], parts[1]
+        entry = next(
+            (e for e in self._entities_of(group, self._entries())
+             if self._entity_slug(e) == entity_slug),
+            None,
+        )
+        if entry is None:
+            raise FileNotFoundError(f"No dataset '{entity_slug}' under '{group}'")
+
+        def _render() -> List[str]:
+            import pandas as pd
+
+            df = pd.read_parquet(entry["parquet_path"])
+            cols = [c for c in df.columns if c != SHEET_ROW_COL]
+            out = [
+                f"# {entry.get('file_name')} — sheet '{entry.get('entity_name')}' "
+                f"({entry.get('row_count')} rows; source modified "
+                f"{entry.get('source_modified_at') or 'unknown'})"
+            ]
+            for _, row in df.iterrows():
+                rnum = row.get(SHEET_ROW_COL)
+                cells = " | ".join(
+                    f"{c}={' '.join(str(row[c]).split())[:48]}"
+                    for c in cols
+                    if row.get(c) is not None and str(row.get(c)).strip()
+                )
+                out.append(f"R{rnum} | {cells}")
+            return out
+
+        try:
+            lines = await asyncio.to_thread(_render)
+        except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
+            logger.debug(f"[DatasetsVFS] read_region failed for {path}: {e}")
+            region.degraded = True
+            return region
+        region.total_lines = len(lines)
+        span = max(int(max_lines or 1), 1)
+        region.lines = lines[region.start_line - 1:region.start_line - 1 + span]
+        nxt = region.start_line + len(region.lines)
+        region.next_start = (
+            None if (not region.lines or nxt > region.total_lines) else nxt
+        )
+        return region
 
     async def grep(
         self, pattern: str, path_prefix: str, ctx: Optional[Dict[str, Any]] = None

@@ -66,10 +66,6 @@ def _fake_store(monkeypatch):
     import core.chat_tool_planner as ctp
 
     monkeypatch.setattr(ctp, "_comms_store_records", lambda: STORE)
-    # The figure leg's renderer is irrelevant to these cases (no figures);
-    # keep it from touching anything else.
-    monkeypatch.setattr(ctp, "_distinctive_figure_phrases", lambda *a, **k: [])
-    monkeypatch.setattr(ctp, "_latest_user_figure_phrases", lambda *a, **k: [])
 
 
 class TestParticipantLeg:
@@ -97,9 +93,15 @@ class TestParticipantLeg:
             "check the thread bernhard forwarded about shears") == []
 
 
+@pytest.fixture
+def _no_figures(monkeypatch):
+    monkeypatch.setattr(ctp, "_distinctive_figure_phrases", lambda *a, **k: [])
+    monkeypatch.setattr(ctp, "_latest_user_figure_phrases", lambda *a, **k: [])
+
+
 class TestVerbatimEvidenceLegs:
     @pytest.mark.asyncio
-    async def test_quoted_phrase_leads_the_evidence(self):
+    async def test_quoted_phrase_leads_the_evidence(self, _no_figures):
         lines = await co._verbatim_mail_evidence(
             "find the email that said: put 25 percent only", "u1", None)
         assert any("Fw: RFQ - Foot shear" in l for l in lines), lines
@@ -107,7 +109,7 @@ class TestVerbatimEvidenceLegs:
         assert "Fw: RFQ - Foot shear" in lines[0]
 
     @pytest.mark.asyncio
-    async def test_participant_ask_surfaces_the_thread(self):
+    async def test_participant_ask_surfaces_the_thread(self, _no_figures):
         lines = await co._verbatim_mail_evidence(
             "check the email thread chandrakant forwarded to me about how "
             "list price was calculated for the foot shear and reverse "
@@ -116,7 +118,7 @@ class TestVerbatimEvidenceLegs:
         assert any("Brake, Shear and Lock Former" in l for l in lines), lines
 
     @pytest.mark.asyncio
-    async def test_no_handles_returns_empty(self):
+    async def test_no_handles_returns_empty(self, _no_figures):
         lines = await co._verbatim_mail_evidence(
             "what is the capital of France", "u1", None)
         assert lines == []
@@ -372,3 +374,177 @@ class TestDirectionalParticipantAsks:
         assert "declined-plan mailbox overlay" in src
         assert '_declined_mail = await asyncio.wait_for(' in src
         assert "_tool_block = _compose_lookup_evidence(" in src
+
+class TestDerivationAsks:
+    """Live 2026-09-15: "figure out how the listed price was derived.
+    Chandrakant might've added a few hundred on top for requesting google
+    reviews." — the true chain sat in PRICE VIPUL (6).xlsx row 235 (an
+    INGESTED DATASET), but no lane reached it (the ask names no code; the
+    reuse overlay ran mail lines only, without the canvas), and the model
+    curve-fit a fabricated path (+10% add-back, ÷0.70, +$473 review
+    markup) exactly onto the user's hinted target."""
+
+    def test_derivation_shape_detected(self):
+        assert co._derivation_ask(
+            "given this info, figure out how the listed price was derived. "
+            "Chandrakant might've added a few hundred on top")
+        # shape word alone ('calculation') is not a value — needs a
+        # concrete figure in context (see TestDomainIndependence)
+        assert not co._derivation_ask(
+            "reverse engineer the calculation and show it to me")
+        assert co._derivation_ask("how was the $8,880 price calculated?")
+        assert not co._derivation_ask("is WG-350DSAV in stock?")
+        assert not co._derivation_ask("find the email from chandrakant")
+
+    def test_unsourced_derivation_guard(self):
+        fabricated = (
+            "Most likely calculation path:\n"
+            "| +10% add-back | $5,885.00 |\n"
+            "| ÷ 0.70 margin | $8,407.14 |\n"
+            "| + ~$473 markup | $8,880.00 |\n")
+        msg = "figure out how the listed price was derived"
+        assert co._reply_is_unsourced_derivation(fabricated, msg)
+        # Cited derivation (dataset row convention) never trips.
+        cited = (
+            "Per PRICE VIPUL (6).xlsx R235: 5,350 × 0.9 = 4,815.00; "
+            "+700 = 5,515.00; ×1.02 = 5,625.30; ÷0.87 = 6,465.86")
+        assert not co._reply_is_unsourced_derivation(cited, msg)
+        # Not a derivation ask → never trips.
+        assert not co._reply_is_unsourced_derivation(fabricated, "find the thread")
+
+    @pytest.mark.asyncio
+    async def test_derivation_supplement_leads_with_dataset(self, monkeypatch):
+        async def fake_ds(message, user_id, context, llm_service=None):
+            if not co._derivation_ask(message):
+                return None
+            return ("SQL RESULT from 'PRICE VIPUL (6).xlsx' — "
+                    "R235 | Factory Price=5350 | Price=7519")
+
+        async def fake_mail(message, user_id, context, plan_date=None):
+            return ["- [ingested mailbox] From: chandrakant@brennan.ca | line"]
+
+        monkeypatch.setattr(co, "_derivation_dataset_block", fake_ds)
+        monkeypatch.setattr(co, "_verbatim_mail_evidence", fake_mail)
+        msg = "figure out how the listed price was derived"
+        block = await co._derivation_supplement(msg, "u1", [], None, "MAILBLOCK")
+        assert block and block.startswith("SQL RESULT from 'PRICE VIPUL")
+        assert "MAILBLOCK" in block
+        # Non-derivation asks: untouched.
+        block2 = await co._derivation_supplement(
+            "find the thread", "u1", [], None, "MAILBLOCK")
+        assert block2 == "MAILBLOCK"
+
+class TestDomainIndependence:
+    """The derivation machinery must not encode one business's vocabulary
+    or filenames (2026-09-15 review): trigger on derivation-verb shape +
+    concrete value words OR figures in context — any domain."""
+
+    def test_trigger_shapes(self):
+        assert co._derivation_ask("figure out how the listed price was derived")
+        assert co._derivation_ask("how was the reliability score computed")
+        assert co._derivation_ask(
+            "figure out how that was derived",
+            {"canvas": {"body": "model X-100 at $7,519"}})
+        # 'figure' inside 'figure out' is not a value word
+        assert not co._derivation_ask("figure out how that was derived")
+        assert not co._derivation_ask("is WG-350DSAV in stock?")
+        assert not co._derivation_ask("find the email from chandrakant")
+
+    def test_cite_regex_has_no_business_literals(self):
+        import inspect
+        src = inspect.getsource(co)
+        assert "PRICE VIPUL" not in src.split("_DERIVATION_CITE_RE")[1].split(")")[0]
+
+
+class TestImmutableDatasetFreshness:
+    def test_attachment_copy_is_fresh_past_ttl(self):
+        from datetime import datetime, timezone, timedelta
+        from core.sheet_dataset_service import _copy_is_fresh
+        stale = datetime.now(timezone.utc) - timedelta(hours=30)
+        att = [{"source": "outlook", "ingested_at": stale.isoformat(),
+                "source_modified_at": None}]
+        live = [{"source": "zoho_workdrive", "ingested_at": stale.isoformat(),
+                 "source_modified_at": None}]
+        assert _copy_is_fresh(att) is True   # immutable: ingest stamp enough
+        assert _copy_is_fresh(live) is False  # synced: TTL applies
+
+
+class TestNLSQLLayerWiring:
+    @pytest.mark.asyncio
+    async def test_structured_section_leads(self, monkeypatch):
+        async def fake_answer(source, ext, query, llm_service=None,
+                              context_texts=None, **kw):
+            assert source == "outlook", "catalog source resolved, not source_kind"
+            return {"file_name": "W.xlsx", "entity_name": "S",
+                    "sql": "SELECT 1", "columns": ["A", "Price"],
+                    "rows": [{"A": "x", "Price": 7519, "__sheet_row": 5}],
+                    "row_count": 1}
+        import core.sheet_dataset_service as sds
+        monkeypatch.setattr(sds, "answer_from_datasets", fake_answer)
+
+        def fake_search(query, user_id, ws, limit, max_files, ctx):
+            return {"token": "7519", "files_searched": 1, "hits": [
+                {"file_name": "W.xlsx", "external_id": "E1",
+                 "source_kind": "file", "entity_name": "S",
+                 "columns": ["A", "Price"],
+                 "rows": [{"A": "x", "Price": 7519, "__sheet_row": 5}],
+                 "row_count": 1}]}
+
+        def fake_find(q, u, w, l):
+            return [{"source": "outlook", "external_id": "E1",
+                     "file_name": "W.xlsx"}]
+        monkeypatch.setattr(sds, "search_all_datasets_sync", fake_search)
+        monkeypatch.setattr(sds, "find_entries_sync", fake_find)
+
+        class _LLM:  # truthy marker only
+            pass
+
+        out = await co._derivation_dataset_block(
+            "figure out how the listed price was derived", "u1",
+            {"canvas": {"body": "F-5216 $7,519.00"},
+             "history": [{"role": "user", "content": "quoted $5,350.00"}]},
+            llm_service=_LLM())
+        assert out and "STRUCTURED QUERY" in out
+        # header first, STRUCTURED QUERY ahead of every probe-row render
+        assert out.startswith("DATASET CATALOG")
+        assert out.index("STRUCTURED QUERY") < out.index("SQL RESULT")
+
+class TestEvidenceBudgetAndAutoOpen:
+    def test_budget_trims_bodies_keeps_headers(self, monkeypatch):
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 2000)
+        lines = ["HEADER: evidence"] + [
+            f"- [ingested mailbox] body line {i} " + "x" * 400 +
+            " | full: knowledge/conversations/m" + str(i)
+            for i in range(12)
+        ]
+        out = co._enforce_evidence_budget("\n".join(lines))
+        assert out.startswith("HEADER: evidence")
+        assert "elided" in out
+        assert len(out) < 4000
+
+    def test_budget_passthrough_short(self):
+        assert co._enforce_evidence_budget("short") == "short"
+        assert co._enforce_evidence_budget(None) is None
+
+    @pytest.mark.asyncio
+    async def test_auto_open_opens_top_citation(self, monkeypatch):
+        class _Res:
+            content = "L1 the decisive line\nL2\n" + "filler\n" * 900
+        class _Prov:
+            async def cat(self, path, ctx=None):
+                assert path.startswith("knowledge/conversations/")
+                return _Res()
+        import integrations.vfs.knowledge_vfs as vfs
+        monkeypatch.setattr(vfs, "KnowledgeVFSProvider", _Prov)
+        block = ("- [ingested mailbox] From: a@b.ca | subj | full: "
+                 "knowledge/conversations/msg-1")
+        out = await co._auto_open_top_citation(block)
+        assert out and out.startswith("OPENED (top cited artifact")
+        assert "the decisive line" in out
+
+    @pytest.mark.asyncio
+    async def test_auto_open_skips_full_body_blocks(self):
+        block = ("- [ingested mailbox] FULL BODY:\nstuff\n | full: "
+                 "knowledge/conversations/m1")
+        assert await co._auto_open_top_citation(block) is None
+        assert await co._auto_open_top_citation(None) is None

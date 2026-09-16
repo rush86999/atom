@@ -2161,3 +2161,324 @@ to the auth-gated backend) instead of Next 404; direct
 `http://localhost:8000/api/business-health/priorities` also returns 401.
 Focused Jest discovery finds `tests/pages/dashboard-owner.test.tsx`, but the
 test run hung in shared MSW setup and was interrupted.
+(Follow-up at merge review: focused Jest on this branch verified 6/6 pass
+incl. the live-envelope test — the MSW hang did not reproduce.)
+---
+
+## 2026-09-15 ~16:55 — invented price derivation; guard was blind by design
+
+**Agent**: DSH session. **Files**: `backend/core/chat_tool_planner.py`
+(`_unsupported_figures` + `_money_canon`), `backend/integrations/chat_orchestrator.py`
+(wired ahead of the verify panel), tests. Backend restarted.
+
+**What shipped to the user**: a fabricated derivation
+`$5,350 → +10% → $5,885 → ÷0.70 → $8,407 → +$473 → $8,880`. The cited workbook
+row actually holds 5350/4815/5515/5625.30/6465.86/7518.44/**7519**, and 8,880
+is the Tennsmith 52T list price — a different machine.
+
+**Why the existing guard did not stop it** — the verify panel *did* run and
+*did* return `grounded=False` twice, then shipped the reply because:
+1. it resolves to **shadow** by default (`auto` pre-latch);
+2. it is scoped to mission-critical / COMPLEX turns only;
+3. its enforce branch needs `agreement in (high, partial)` and these votes were
+   **ambiguous** (0.333) — the failure shape that slips through.
+
+**Fix**: deterministic figure grounding (`_unsupported_figures`) — one regex
+pass, no judge, no scope gate, no extra LLM call. Any currency-shaped or grouped
+figure in the reply that is absent from both the evidence and the user's own
+message triggers a targeted regeneration naming those figures.
+
+⚠️ **If you work on the verify panel**: shadow + scope + agreement-gate is a
+three-way blind spot. The deterministic check now covers the numeric class on
+EVERY tool turn; don't re-scope it behind `is_high_stakes_turn`.
+
+## 2026-09-15 ~17:30 EDT — ZCode: derivation asks reach the workbook lane (d1a16ed79)
+
+Owner-reported fabricated derivation ("+10% add-back, ÷0.70, +$473
+Google-review markup" curve-fit onto $8,880 while PRICE VIPUL R235 held
+the true chain). Three stacked gaps closed in `chat_orchestrator.py`
+(+ guard): no-path reach (derivation supplement on reuse/declined/none,
+canvas threaded — fixed my own `_canvas_ctx` NameError in
+`_get_qwen_response` scope that had silently killed planning), token
+shape (figure-value probes, integer-part extraction), ranking
+(per-token high-limit search + clean-boundary co-occurrence — the
+derivation row leads). Unsourced-derivation reply guard added to the
+regen chain. Offline E2E: PRICE VIPUL R235 leads. **Provider-gated live
+E2E**: both top models zero-visible (finish_reason=length) on this heavy
+prompt today — budget error renders honestly; env now
+ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70. 165 passed; probes pruned.
+
+For the R90/BPC owner: the derivation prompt (dataset rows + full mail
+bodies) is now the heaviest reply shape — when both top-ranked models
+reasoning-blowout on it, no fallback window saves it. Candidate next
+levers: bench zero-visible offenders per-turn (byok ranking), or a
+compact-evidence mode (row-only, bodies as full: paths) for derivation
+turns.
+
+---
+
+## 2026-09-15 ~18:20 — fabrication is now a BPC/BYOK routing input
+
+**Agent**: DSH session. **Files**: `core/llm/response_quality.py`,
+`core/llm/learning_router_registry.py`, `integrations/chat_orchestrator.py`,
+tests. Backend restarted.
+
+The learning router already re-ranked BPC candidates by per-model satisfaction;
+its signal set (truncation/refusal/schema/empty/exception) simply had **no
+fabrication term**. Added:
+
+* quality issues `unsupported_figures` (0.1) and `ungrounded_claims` (0.15) —
+  scored BELOW truncation (0.3) and refusal (0.4), because fabricated output is
+  confidently wrong rather than visibly incomplete;
+* `record_fabrication_signal()` — the corrective observation, called by the
+  figure-grounding guard and the verify panel, attributed to the model that
+  PRODUCED the reply (the generation path records its own outcome before the
+  reply exists, so it cannot see this).
+
+⚠️ **The row is written even with `ATOM_LEARNING_ROUTER` off** — the flag gates
+re-ranking, not evidence. Flipping it on later should start from real
+fabrication history. Do not move the persistence behind the flag.
+
+## 2026-09-15 ~18:25 EDT — ZCode: the evidence compiler landed (83dd53713) — generalized, domain-independent
+
+Owner ask: permanent solution for long threads / any-file attachments /
+hundred-row Excel canvases, business-independent. Research pass (2025
+consensus: hybrid windowing + harness-side read hop + structured table
+decomposition) → TOOL_PLANNER_ROUTING.md §7 is the architecture;
+83dd53713 implements: evidence BUDGET (one ceiling at injection,
+headers/SQL survive, bodies elide with paths), AUTO-OPEN (harness opens
+the top cited VFS path once — the one-shot chaining gap), GRID CANVAS
+OUTLINES (200-row grid → ~400 chars of schema+samples), NL→SQL wired
+into the derivation lane with two blocker fixes (immutable-source
+freshness skip; search-hit source_kind vs catalog source resolution),
+and full domain-independence (verb-shape + figures-in-context trigger;
+no business literals in code paths). 275 passed / 9 suites; backend
+restarted pid 44338.
+
+**For DSH**: sheet_dataset_service gained `_IMMUTABLE_DATASET_SOURCES`
+(outlook/gmail/attachment) in `_copy_is_fresh` — attachment copies no
+longer TTL out; synced sources unchanged. Stage-0 probe results don't
+attach the FORMULAS footer (only the LLM-SQL path does) — worth adding
+if you own that stage.
+
+## 2026-09-15 ~18:40 EDT — ZCode: fabrication bench closes the signal work's caveat (586a8e6b8)
+
+Audited the fabrication-signal landing (function/call sites/severity all
+verified) and found 8 probe/* rows in llm_routing_feedback written at
+22:21 — the prior session's LIVE VERIFICATION probes, written after its
+cleanup, not test residue (both fabrication tests are hermetic). Purged;
+table 0 rows.
+
+Implemented the narrower of the two proposed next steps (hard exclusion,
+NOT flipping ATOM_LEARNING_ROUTER on a thin table — cold-start
+re-ranking on near-empty data would be noise-dominated):
+`BYOKHandler._fabrication_benched` — ≥3 fabrication verdicts
+(user_satisfaction ≤ 0.15) at ≥25% rate over 48h excludes the pair from
+ranked candidates; env-tunable thresholds; kill switch
+ATOM_FABRICATION_BENCH=0; 60s cache; fail-open; WARNING per transition.
+118 passed / 5 suites; backend pid 48325. Design: TOOL_PLANNER_ROUTING §8.
+
+## 2026-09-15 22:35 EDT — deepseek-flash: enabling hallucination-aware BPC routing (ACTIVE)
+
+Scope: `backend/core/llm/byok_handler.py` (`_rerank_with_learning` scoring
+contract), `backend/core/llm/learning_router_registry.py` +
+`backend/core/settings_catalog.py` (`ATOM_EMA_ROUTER_ENABLED` made
+administrable, default ON), `tests/unit/core/test_rerank_hallucination_rank_contract.py`
+(new), `tests/unit/core/test_ema_router_determinism.py` (2 stale expectations),
+`docs/architecture/LEARNING_LLM_ROUTER.md`, `docs/testing/TESTED_FILES_TRACKER.md`.
+
+Heads-up for anyone touching BPC routing:
+1. `ATOM_LEARNING_ROUTER` is now **true in the DB** (`source=db`) and
+   `ATOM_EMA_ROUTER_ENABLED` defaults ON — the live re-rank is no longer inert.
+2. The live re-rank's scoring contract is now explicit: **observed-good >
+   unobserved > observed-bad**. A no-telemetry model gets a small positive rank
+   gap `(N-idx)*0.001`; an observed-bad model (success EMA 0.0) scores 0.0. Do
+   not "simplify" this back to a single zero placeholder — a fabricator TIED
+   with unobserved models and a restart re-promoted it to the front (EMA is
+   rebuilt from `llm_routing_feedback` at process start).
+3. `_rerank_with_learning` deliberately has **no spec fallback** (unlike
+   `route()`'s `_ema_quality_term`): spec quality/latency/cost are positive for a
+   fabricator too. Success-only on that path.
+4. Any `probe/*` rows I wrote during verification are purged —
+   `llm_routing_feedback` holds real history only. Please keep synthetic probe
+   rows out of that table: the bench and the predictor both read it.
+
+Complements (does not replace) `586a8e6b8`'s fabrication bench: bench = hard
+exclusion at ≥3 flagged verdicts/48h, this = ordering from the first flagged
+turn. Backend restarted (pid 48722 → later restarts by others). No commits from
+this session (shared tree); `byok_handler.py` changes were swept into
+`586a8e6b8` by a concurrent session.
+
+## 2026-09-15 ~18:40 EDT (cont.) — ZCode: learning router AUTO (9a4a2a774)
+
+Owner: "flip should be automatic." ATOM_LEARNING_ROUTER is now tri-state,
+default AUTO: re-ranking self-activates at learning_history_ready()
+(≥30 rows/7d, ≥2 models, ≥8 obs each; env-tunable; fail-closed; 60s
+cache). KEY FIX beyond the flag: outcome observation was still gated by
+the old flag (byok's post-generation path returned early) — auto would
+have starved forever on fabrication-only rows; the accrual paths now use
+get_learning_router_instance(observe_only=True) and rows accumulate in
+every mode. byok's duplicate flag resolver removed (registry is the
+single source). Live: mode=auto, empty table → re-ranking safely OFF,
+observation accruing; flips itself on at threshold. 13 bench/auto tests,
+126 across six suites; pid 52754. DB note: runtime_settings carries
+ATOM_LEARNING_ROUTER="auto" (resolver-normalized); explicit true/false
+still win via env/DB.
+
+### 2026-09-15 22:40 EDT — deepseek-flash: learning-router self-activation verified + status surface
+
+Confirming (not overriding) the concurrent `ATOM_LEARNING_ROUTER=auto` work now in
+the tree — the design matches the owner ask ("default --- auto flip when enough
+data"), so I left `learning_router_mode()` / `learning_history_ready()` /
+`resolve_setting` wiring exactly as written.
+
+Added (new files only — no edits to your in-flight functions):
+- `core/llm/learning_router_registry.readiness_report()` — read-only "why has it
+  not flipped" counters vs thresholds; never raises.
+- `api/learning_router_routes.py` — `GET /api/v1/llm/learning-router/status`
+  (admin-gated), mounted at main_api_app.py 39b.
+- `tests/test_learning_router_auto_activation.py` (23 tests).
+
+Verified live: flips at exactly 30 rows / 2 models x 8, ACTUALLY reorders
+candidates once ready, falls back when rows age out; `auto` is the effective
+mode (`ATOM_LEARNING_ROUTER` db row = "auto"). Note for whoever edits
+`settings_catalog.py`: the running server must be RESTARTED for a spec type
+change to take effect — a stale process coerced PUT "auto" to `false` via the old
+bool spec (cost me one false "remembers boolean" bug report).
+
+### 2026-09-15 22:45 EDT — deepseek-flash: app-db NL→SQL audit (core/app_db_query.py)
+
+Audited the (untracked, no-tests) `core/app_db_query.py` you added and fixed two
+defects in place — flagging in case you are mid-edit:
+1. The docstring promised injected workspace/tenant predicates; nothing injected
+   them (dead `scope_val` local). I deliberately did NOT add injection: 53/76
+   canvases have a NULL `workspace_id`, so `WHERE workspace_id='default'`
+   undercounts 76→23 on our own data. Instead `tenant_id`/`workspace_id` joined
+   the withheld-column regex (never described, never selectable) and the
+   docstring now states the real mechanism (allowlist isolation).
+2. Valid SQL was intermittently refused — the provider sometimes leaks the JSON
+   envelope into the `sql` field, so `str(result.sql)` was `{"sql": "SELECT ..."}`
+   and validation rejected it as non-SELECT. Added `_extract_sql()` (object /
+   dict / raw JSON / fenced / malformed single-quoted) applied BEFORE validation.
+Tests: `tests/test_app_db_nl2sql_envelope.py` (37). Live: 76 / 223 / 13 rows and
+the agent list all answered correctly after restart.
+
+## 2026-09-15 ~18:50 EDT — ZCode: NL→SQL over the app DB (e49870176)
+
+Owner: "isn't NL->SQL also be used for db?" — found the primitive
+orphaned (schema_aware_sql_generator: zero callers, no allowlist).
+Completed as core/app_db_query.py with the envelope (table allowlist =
+the only schema the LLM sees; secret-column stripping prompt+parse;
+SELECT-only; scope-column refusal; mode=ro + query_only; caps), wired
+as datasets.ask. Live: "how many canvases and chat sessions" → 76/223.
+6 tests; 188 across six suites; pid 56520. NOTE for whoever owns
+schema_aware_sql_generator: it remains orphaned — app_db_query supersedes
+its intent; consider deleting or re-pointing it.
+
+## 2026-09-15 ~19:15 EDT — ZCode: CI repair, test_routing_feedback_endpoint (this commit)
+
+ci/backend-tests red on runs 35032495444 / 35032508772 / 35033593177.
+Root cause: _rerank_with_learning now reads `learning_router._ema_scores`
+whenever the EMA flag resolves on (settings-catalog default ON), but
+TestRerankRoutingResultId's FakeLearningRouter predates that term — the
+re-rank raised AttributeError inside the non-fatal except, so
+_pending_routing_result_id was never stashed. Fix: fake mirrors the real
+router (`_ema_scores = {}`), matching the fake in
+tests/unit/core/test_rerank_hallucination_rank_contract.py. The 3
+TestOutcomeObservationHook failures in the same runs were already resolved
+by 76cc51bcd (response_quality fabrication branches). Verified: full CI
+pytest list locally → 550 passed / 1 skipped. No production code touched.
+
+## 2026-09-15 ~22:00 EDT — ZCode: pre-delivery review of 76cc51bcd + fixes (91d7c2aff)
+
+Separate read-only review agent over the curated concurrent round; 2 P1
++ 1 P2 found, each verified against code before fixing. Fixes: (1)
+documents.read was unreachable from main chat — the planner lane aliased
+"read"→cat and dropped start_line/max_lines while the grounding rule and
+every grep-citation hint advertised the bounded read; the lane now
+dispatches documents.read (kwargs parsed from the echoed hint, lane clamp
+≤400 lines) and documents.read joined GenericAgent.CORE_TOOLS_NAMES
+(chat_tool_planner / generic_agent). (2) failed/unknown reads returned
+complete=True — paging loops would read transient errors as EOF;
+VFSRegion.degraded added, datasets read_region raises FileNotFoundError
+with cat parity (vfs_base / datasets_vfs / knowledge_vfs). BEHAVIOR-CHANGE
+FLAG for operators: 76cc51bcd's "no safety-chain behavior changes" is
+wrong in effect — its response_quality kwargs repaired a latent TypeError
+that had killed ALL outcome/fabrication accrual since 9a4a2a774 (zero
+llm_routing_feedback rows written); expect the table to grow in every
+mode, auto-mode flips now actually possible, _fabrication_benched fed.
+Deferred (P3): datasets read_region renders-then-slices; knowledge
+read_region ignores a meta.json leaf; phantom end_line on empty windows.
+Verified: 169 passed (8 suites) + 162/4 skipped (awareness/planner batch);
+test_e2e_scenarios' 4 governance failures pre-existing at clean HEAD.
+
+### 2026-09-16 00:00 EDT — deepseek-flash: attachments as first-class evidence (generalized)
+
+Owner ask after the F-5216 retry: "solution should be generalized, domain and
+business independent". Implemented in `core/chat_tool_planner.py` (+ tests
+`tests/test_attachment_evidence_general.py`, 24 tests; 191 passed across the
+five affected suites; backend restarted pid 76925).
+
+The general statement of the bug: an identifier lives in message TEXT, file NAME,
+or file CONTENT — the search read only the text. New legs, all
+integration-independent (any comms row, any file type, no domain vocabulary):
+`_comms_attachment_names` (union of the `attachments` column AND the ingestion
+ledger — they disagree; the F-5216 forward stores `'[]'` while its workbook is
+ingested behind it), `_attachment_token_splitter`, `_mail_attachment_index` +
+reverse + `_doc_to_message_index` (one cached ledger query, three directions),
+`_messages_carrying_file` (dataset hit → carrying message), and
+`_attachment_content_hits` (file content → carrying message).
+
+**For anyone touching this**: three traps are now load-bearing, each measured
+live and each a silent-failure class —
+1. never `slice(N)` a document scan (store is unordered: target chunk sat past
+   the cut; 1 match full-table vs 0 sliced) — bound by set membership instead;
+2. token casing differs (planner lowercases, store does not) and
+   `pc.match_substring` is case-sensitive;
+3. file→file matching needs TWO shared tokens: one shared token (even "price")
+   matched four unrelated price lists in the real 400-name sample.
+
+## 2026-09-15 ~19:20 EDT — ZCode: comms-store cache TTL was the systemic evidence-kill (732bca823)
+
+Follow-up to the "no fresh results" retries: the comms-store cache TTL
+was 5 SECONDS against a ~10s cold reload (7k rows, 340MB metadata) —
+nearly every evidence call reloaded, and reloads exceeding the 15s leg
+waits returned [] (swallowed by fault isolation) → honest-but-useless
+"no fresh results" replies. TTL 5 → 300 (event-driven invalidation
+bounds staleness); evidence-leg waits 15 → 25s; planner-timeout outer
+waits 8 → 20/15. Offline repro before/after: [] → 3 mail-led lines.
+188 passed incl. the concurrent session's new
+test_attachment_evidence_general.py battery (also landed). Backend on
+pid 76925+ (churning with concurrent restarts — end-to-end re-verify on
+a quiet window recommended).
+
+### 2026-09-16 01:50 EDT — deepseek-flash: attachment legs moved into the production lane
+
+Correction to my previous entry (15h): the attachment legs were wired into
+`_memory_search_block`, which the chat orchestrator does NOT call — production
+uses `_ingested_mailbox_lines` (`chat_orchestrator.py:546`). So the canvas agent
+kept answering "the calculation file is not available" while every test I ran
+passed. The legs now run in `_ingested_mailbox_lines`, last, bounded by
+`ATOM_ATTACHMENT_LEG_TIMEOUT_S` (3s) via `asyncio.wait_for`, deduped against the
+text lines. Structural test added (`TestProductionLaneWiring`) so the lane
+cannot silently lose the leg again: **when adding a search leg, wire it where the
+consumer calls it and assert that call site, not just the helper.**
+
+## 2026-09-16 ~02:00 EDT — ZCode: cancelled planning calls now record timeout outcomes (82261d974)
+
+The "try again" turn: mailbox TTL fix held (real prices cited) but the
+turn starved on 75s canvas-edit plans — and cancelled calls left NO
+routing feedback (the cancellation kills the coroutine before outcome
+recording), so the router could never learn the planning pick was too
+slow. record_timeout_outcome (truncated band 0.3, measured latency,
+model from the provenance contextvar) now fires from
+pinned_structured_call's _record_if_cancelled wrapper — accrues in every
+mode; learning router demotes once re-ranking; auto counter crossed
+28/30 on this incident's own traffic. Failure note re-worded to force
+answer-first replies (the old wording let models open with the apology).
+158 passed / 5 suites. ⚠️ Live E2E re-verify still pending a QUIET
+window — concurrent restarts killed two verification turns (pids 90936,
+91720). Whoever gets a quiet window: re-ask the F-5216 retry on canvas
+a1a13834 and confirm (1) mail-led answer with attachments, (2) timeout
+rows appearing in llm_routing_feedback (SELECT model_id, user_satisfaction
+ORDER BY created_at DESC).
