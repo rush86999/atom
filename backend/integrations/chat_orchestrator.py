@@ -283,6 +283,15 @@ _STREAM_FIRST_VISIBLE_SECONDS = float(
     os.getenv("ATOM_STREAM_FIRST_VISIBLE_SECONDS", "30") or 30
 )
 
+#: Hard cap on the verification panel inside a chat turn. The panel judges an
+#: already-complete reply, so its cost must stay bounded independently of how
+#: much turn budget is left: bounded only by the turn, it consumed the
+#: remainder and timed out anyway (measured 2026-09-16: reply at 21.1 s, panel
+#: timeout at the budget, response at 95.5 s — ~74 s spent for no verdict).
+#: 0 falls back to "whatever the turn has left".
+_VERIFY_PANEL_MAX_SECONDS = float(
+    os.getenv("ATOM_VERIFY_PANEL_MAX_SECONDS", "30") or 30)
+
 #: Same deadline for a DERIVATION ask — tighter, and for a different reason.
 #: A derivation answer is a few hundred tokens of transcription from the row
 #: the harness already delivered; a route that has shown NOTHING visible after
@@ -3411,7 +3420,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # owns the clock; this only records where the reply leg began so the
             # logs show how much of the turn planning consumed before it.
             _plan_t0 = time.monotonic()
-            _reply_leg_offset = _deadline.elapsed() if deadline else 0.0
+            _reply_leg_offset = deadline.elapsed() if deadline else 0.0
+            if deadline is not None:
+                logger.info(
+                    f"[deadline] {deadline.label} stage=reply-leg-START "
+                    f"dur=0.0s turn_offset={_reply_leg_offset:.1f}s "
+                    f"elapsed={deadline.elapsed():.1f}s "
+                    f"remaining={deadline.remaining():.1f}s "
+                    f"budget={deadline.total_seconds:.1f}s"
+                )
             _step_n = 0
             # Is this a DERIVATION ask? Resolved ONCE, because three separate
             # levers key off it (the turn budget, the hidden-thinking cap and
@@ -3512,7 +3529,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     return None
 
             async def _bounded_verify(_coro):
-                """Run the verification panel only while the turn budget lasts.
+                """Run the verification panel inside a HARD cap, never longer.
 
                 The panel JUDGES an already-complete reply: it is provenance,
                 not a gate, and its verdict can only add a regeneration. Left
@@ -3521,9 +3538,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 the POST returned after 180 s, the difference being a panel
                 whose judge samples walked a ladder of routes that each
                 truncated ("incomplete due to a max_tokens length limit").
-                Timing out is recorded as "verification unavailable" (the
-                contract ``verify_reply`` already defines for ``ran=False``),
-                never as verified and never as a turn failure.
+
+                The cap is its own limit, not just what the turn has left:
+                with only the turn budget as the bound the panel consumed
+                whatever remained and THEN timed out, so a 95 s request spent
+                ~74 s buying no verdict at all (measured on the 8004 acceptance
+                run: reply at 21.1 s, panel timed out at the budget, 200 at
+                95.5 s). The panel's adaptive mode runs ONE judge sample first,
+                so a clean answer costs one call; a judge ladder that cannot
+                finish inside the cap is a route problem, and the reply ships
+                unverified rather than late. ``ran=False`` is the contract's
+                existing "verification unavailable" — never "verified", never a
+                turn failure.
                 """
                 _left = _remaining_budget(_plan_t0, _turn_budget)
                 if _left <= 0:
@@ -3532,8 +3558,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "reply ships unverified rather than late"
                     )
                     return {"ran": False, "error": "turn_budget_exhausted"}
+                _cap = min(_left, _VERIFY_PANEL_MAX_SECONDS) \
+                    if _VERIFY_PANEL_MAX_SECONDS > 0 else _left
                 try:
-                    return await asyncio.wait_for(_coro, timeout=_left)
+                    return await asyncio.wait_for(_coro, timeout=_cap)
                 except asyncio.TimeoutError:
                     logger.warning(
                         "[verify-panel] timed out on the turn budget — the "
@@ -4418,8 +4446,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # DERIVATION GUARD: the matched row was DELIVERED and
                         # the reply did not cite it. Deterministic, so it does
                         # not depend on how the model phrases its refusal.
-                        if _tool_block and _derivation_reply_ignored_the_row(
-                                _streamed, _tool_block):
+                        if (_is_derivation_ask and _tool_block
+                                and _derivation_reply_ignored_the_row(
+                                    _streamed, _tool_block)):
                             logger.warning(
                                 "[derivation] reply ignored the delivered "
                                 "workbook row — grounded regeneration")
@@ -4817,6 +4846,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.info(
                 f"[stage-timing] reply generation: {time.monotonic() - _plan_t0:.1f}s "
                 f"(incl. tool plan + exec above)")
+            if deadline is not None:
+                # The DEADLINE trace, distinct from the stage timer above: this
+                # one is measured against the REQUEST clock, so it shows how much
+                # of the user's turn the reply leg consumed and what margin was
+                # left — the number `scripts/trace_turn_latency.py` reads to
+                # separate critical-path time from concurrent work.
+                logger.info(
+                    f"[deadline] {deadline.label} stage=reply-leg "
+                    f"dur={time.monotonic() - _plan_t0:.1f}s "
+                    f"turn_offset={_reply_leg_offset:.1f}s "
+                    f"elapsed={deadline.elapsed():.1f}s "
+                    f"remaining={deadline.remaining():.1f}s "
+                    f"budget={deadline.total_seconds:.1f}s"
+                )
             if response_data.get("success"):
                 # Reasoning/protocol-tag hygiene: some models (minimax m3 via
                 # OpenRouter) leak chain-of-thought fragments ("</mm:think>")
@@ -4882,8 +4925,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # DELIVERED and the reply cites no row, so it ignored what it
                 # was given. Recorded per route and retried on a DIFFERENT
                 # route (see the streaming leg for why both halves matter).
-                elif _tool_block and _derivation_reply_ignored_the_row(
-                        _content, _tool_block):
+                elif (_streamed is None and _is_derivation_ask
+                      and _tool_block and _derivation_reply_ignored_the_row(
+                          _content, _tool_block)):
                     logger.warning(
                         "[derivation] reply ignored the delivered workbook row "
                         "— grounded regeneration")
