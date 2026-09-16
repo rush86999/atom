@@ -37,7 +37,16 @@ echo "📦 Setting up backend..."
 if [ ! -d "backend/venv" ]; then
     python3 -m venv backend/venv
 fi
-source backend/venv/bin/activate
+# Activate the venv — Python's venv module uses bin/ on POSIX and Scripts/
+# on Windows. Both must work so the Makefile's Git-Bash-on-Windows path is
+# unblocked without breaking Linux/macOS CI.
+if [ -f "backend/venv/Scripts/activate" ]; then
+    # shellcheck disable=SC1091
+    source backend/venv/Scripts/activate
+else
+    # shellcheck disable=SC1091
+    source backend/venv/bin/activate
+fi
 pip install -q -r backend/requirements.txt
 echo "✅ Backend dependencies installed"
 
