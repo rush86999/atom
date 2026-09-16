@@ -127,6 +127,11 @@ class APIKey:
     is_active: bool = True
     usage_count: int = 0
     environment: str = "production"
+    # Owning tenant for entries written by the tenant-scoped API route. Rows
+    # predating this field keep only the id shape (see _entry_scope); both
+    # writers share data/byok_keys.json, so the field must round-trip here or
+    # the runtime manager silently drops the ownership the admin manager wrote.
+    tenant_id: Optional[str] = None
 
 
 class BYOKManager:
@@ -253,6 +258,7 @@ class BYOKManager:
             "is_active": api_key.is_active,
             "usage_count": api_key.usage_count,
             "environment": api_key.environment,
+            "tenant_id": api_key.tenant_id,
         }
 
     @staticmethod
@@ -837,18 +843,155 @@ class BYOKManager:
 
         return key_id
 
+    @staticmethod
+    def _entry_scope(key_id: str, obj: APIKey) -> Optional[str]:
+        """Owning tenant of a stored entry, or ``None`` when it is global.
+
+        Two writers persist into this store with different id shapes, and the
+        tenant-scoped one (``api/byok_routes.store_tenant_api_key``) records
+        ``tenant_id`` on the entry. Rows written before that field existed —
+        which is every row in the live ``data/byok_keys.json``, because the
+        runtime manager's loader used to filter it away — carry the owner ONLY
+        in the storage id, so recover it from the id the writer itself
+        constructed.
+
+        The tenant is recovered from the TAIL, not by splitting on ``_``: key
+        names are free-form and may contain underscores and spaces (the live
+        store contains ``openrouter (onboarding)``).
+        """
+        recorded = getattr(obj, "tenant_id", None)
+        if isinstance(recorded, str) and recorded.strip():
+            return recorded.strip()
+
+        prefix = "tenant_"
+        suffix = f"{obj.provider_id}_{obj.key_name}_{obj.environment}"
+        if (
+            key_id.startswith(prefix)
+            and len(key_id) > len(prefix) + len(suffix) + 1
+            and key_id.endswith(f"_{suffix}")
+        ):
+            scope = key_id[len(prefix):-(len(suffix) + 1)]
+            return scope or None
+        return None
+
+    def _find_stored_key(
+        self,
+        provider_id: str,
+        key_name: str,
+        environment: str,
+        tenant_id: Optional[str] = None,
+    ) -> Optional[APIKey]:
+        """Resolve a stored key by IDENTITY: ``(scope, provider, name, env)``.
+
+        This is the ONE place credential ownership is decided; every read path
+        (``get_api_key``, ``is_configured``, ``get_tenant_api_key``, the
+        credential service and the runtime handler) resolves through it.
+
+        Match by FIELDS, never by the dict id: id shapes differ per writer and
+        key names may contain underscores/spaces. The scoping rules are:
+
+        * a caller that declares ``tenant_id`` gets its OWN scoped entry, else
+          the operator's global entry — never another tenant's;
+        * a caller that declares none gets the global entry; failing that, a
+          single-scope store resolves to that one scope (the single-operator
+          local install, whose every key is tenant-prefixed — the live shape);
+        * two or more distinct scopes with no global entry are AMBIGUOUS and
+          resolve to ``None``. Refusing is the point: silently returning the
+          first match is what would promote one tenant's credential into
+          everybody's global fallback.
+
+        Inactive entries are never candidates — a key marked inactive is not a
+        credential, and the guard must not claim it either.
+
+        Precedence is otherwise first-writer-wins WITHIN a scope; across scopes
+        it never depends on dict/insertion order.
+        """
+        global_entry: Optional[APIKey] = None
+        scoped: Dict[str, APIKey] = {}
+        for key_id, obj in self.api_keys.items():
+            if not isinstance(obj, APIKey):
+                continue
+            if not getattr(obj, "is_active", True):
+                continue
+            if (
+                str(getattr(obj, "provider_id", "")) != provider_id
+                or str(getattr(obj, "key_name", "")) != key_name
+                or str(getattr(obj, "environment", "")) != environment
+            ):
+                continue
+            scope = self._entry_scope(key_id, obj)
+            if scope is None:
+                if global_entry is None:
+                    global_entry = obj
+            elif scope not in scoped:
+                scoped[scope] = obj
+
+        # Fast path for entries addressed by the id their writer constructed
+        # but carrying no usable identity fields (a partially loaded or
+        # foreign-shaped row — the live single-source-of-truth rows are shaped
+        # exactly this way in tests). The id IS what the writers build for
+        # these values, so it is a legitimate address — never the only one.
+        def _by_id(key_id: Optional[str]):
+            if not key_id:
+                return None
+            obj = self.api_keys.get(key_id)
+            if obj is None or not getattr(obj, "is_active", True):
+                return None
+            return obj
+
+        if tenant_id:
+            own = scoped.get(str(tenant_id)) or _by_id(
+                f"tenant_{tenant_id}_{provider_id}_{key_name}_{environment}"
+            )
+            if own is not None:
+                return own
+            return global_entry or _by_id(
+                f"{provider_id}_{key_name}_{environment}")
+
+        if global_entry is not None:
+            return global_entry
+        exact_global = _by_id(f"{provider_id}_{key_name}_{environment}")
+        if exact_global is not None:
+            return exact_global
+        if len(scoped) == 1:
+            scope = next(iter(scoped))
+            logger.debug(
+                "BYOK lookup %s/%s/%s resolved to the store's only scope %r",
+                provider_id, key_name, environment, scope,
+            )
+            return scoped[scope]
+        if len(scoped) > 1:
+            logger.warning(
+                "BYOK lookup %s/%s/%s is ambiguous across %d scopes (%s); "
+                "refusing to pick an owner — declare tenant_id to resolve",
+                provider_id, key_name, environment, len(scoped),
+                ", ".join(sorted(scoped)),
+            )
+            return None
+        return None
+
     def get_api_key(
         self,
         provider_id: str,
         key_name: str = "default",
         environment: str = "production",
+        tenant_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Retrieve and decrypt an API key"""
+        """Retrieve and decrypt an API key for a caller and scope.
+
+        ``tenant_id`` binds the lookup to that tenant's own credential (see
+        :meth:`_find_stored_key`); omit it for the operator/global lookup the
+        local runtime uses. The environment variable is consulted only when the
+        store yields nothing for this scope.
+        """
         key_name = self._normalize_key_part(key_name, "default")
         environment = self._normalize_key_part(environment, "production")
         key_id = f"{provider_id}_{key_name}_{environment}"
 
-        if key_id not in self.api_keys:
+        api_key_obj = self._find_stored_key(
+            provider_id, key_name, environment, tenant_id=tenant_id
+        )
+        if api_key_obj is None:
             # Fallback to environment variable — read-only. Deliberately NOT
             # persisted: auto-storing env values here is what let the test
             # suite's fake provider keys (set by conftest env setup) leak into
@@ -860,8 +1003,6 @@ class BYOKManager:
                 if env_key:
                     return env_key
             return None
-
-        api_key_obj = self.api_keys[key_id]
 
         # Update usage stats
         api_key_obj.last_used = datetime.now()
@@ -966,14 +1107,53 @@ class BYOKManager:
         }
 
     # --- Compatibility Methods for BYOKHandler ---
-    def is_configured(self, workspace_id: str, provider_id: str) -> bool:
-        """Check if a provider is configured for a workspace (compatibility alias)"""
-        # Map workspace_id to key_name
-        return bool(self.get_api_key(provider_id, key_name=workspace_id))
+    def is_configured(
+        self,
+        workspace_id: str,
+        provider_id: str,
+        tenant_id: Optional[str] = None,
+    ) -> bool:
+        """True when :meth:`get_api_key` can produce a credential for this caller.
+
+        Deliberately defined AS the getter, with the same arguments: the
+        runtime handler gates on this and then retrieves, so any independent
+        definition is a silent credential loss waiting to happen (a key that
+        cannot be decrypted, or that belongs to another tenant, is not
+        "configured"). Historical alias semantics are preserved — the
+        workspace id doubles as the key name.
+        """
+        return bool(
+            self.get_api_key(provider_id, key_name=workspace_id, tenant_id=tenant_id)
+        )
 
     def get_tenant_api_key(self, tenant_id: str, provider_id: str) -> Optional[str]:
-        """Get API key for a tenant (compatibility alias)"""
-        return self.get_api_key(provider_id, key_name=tenant_id)
+        """Get a TENANT-OWNED API key (compatibility alias).
+
+        Tenant-scoped by contract: matches only entries owned by
+        ``tenant_id`` and NEVER falls back to the global/env credential —
+        serving the operator's global key to any tenant is the cross-scope
+        leak class (audit item 1). Callers that intentionally allow a
+        workspace/env fallback do it at their layer
+        (llm_credential_service._try_byok_credential)."""
+        # The route stores tenant keys with key_name="default" under a
+        # tenant-prefixed id (store_tenant_api_key). Match THAT shape first
+        # (tenant-scoped), then the legacy alias shape (key_name=tenant_id).
+        # Never falls back to the global/env credential — cross-scope leak.
+        for candidate_name in ("default", tenant_id):
+            stored = self._find_stored_key(
+                provider_id, key_name=candidate_name,
+                environment="production", tenant_id=tenant_id,
+            )
+            if stored is None:
+                continue
+            try:
+                return self.decrypt_api_key(stored.encrypted_key)
+            except Exception as e:  # noqa: BLE001 — fail-closed, no env leak
+                logger.error(
+                    f"Failed to decrypt tenant API key for {tenant_id}/"
+                    f"{provider_id}: {e}")
+                return None
+        return None
 
     @staticmethod
     def _normalize_key_part(value: Any, default: str) -> str:

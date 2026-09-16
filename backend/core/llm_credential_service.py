@@ -214,12 +214,16 @@ class LLMCredentialService:
                     logger.debug(f"Using tenant BYOK key for {provider_id}")
                     return tenant_key
 
-            # Try workspace-level BYOK
-            if self.byok_manager.is_configured(self.workspace_id, provider_id):
-                api_key = self.byok_manager.get_api_key(provider_id)
-                if api_key:
-                    logger.debug(f"Using workspace BYOK key for {provider_id}")
-                    return api_key
+            # Try workspace-level BYOK. One scoped resolution call, not a
+            # guard-then-getter pair: a key that "is configured" but cannot be
+            # decrypted, or that belongs to another tenant, must not be
+            # reported as available here.
+            api_key = self.byok_manager.get_api_key(
+                provider_id, tenant_id=self.tenant_id or self.workspace_id
+            )
+            if api_key:
+                logger.debug(f"Using workspace BYOK key for {provider_id}")
+                return api_key
 
             return None
 
@@ -409,9 +413,12 @@ class LLMCredentialService:
             except Exception as e:
                 logger.debug(f"Error checking subscription status: {e}")
 
-        # Check BYOK
+        # Check BYOK — scoped to this caller, so "has_byok" reports what
+        # get_credential would actually produce for it.
         try:
-            if self.byok_manager.is_configured(self.workspace_id, provider_id):
+            if self.byok_manager.get_api_key(
+                provider_id, tenant_id=self.tenant_id or self.workspace_id
+            ):
                 status["has_byok"] = True
         except Exception as e:
             logger.debug(f"Error checking BYOK status: {e}")

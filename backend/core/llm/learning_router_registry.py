@@ -361,20 +361,34 @@ async def record_fabrication_signal(
         # is the audit trail ("which model fabricated what, when").
         from core.learning_llm_router import LearningBasedRouter
 
-        writer = LearningBasedRouter.__new__(LearningBasedRouter)
-        try:
-            writer._persist_feedback(feedback, {"verdict": (
-                "unsupported_figures" if unsupported_figures
-                else "ungrounded_claims")})
-            _persisted = True
-        except Exception as persist_err:  # noqa: BLE001
-            logger.debug(f"fabrication row persist skipped: {persist_err}")
-            _persisted = False
+        verdict = ("unsupported_figures" if unsupported_figures
+                   else "ungrounded_claims")
 
+        # ONE WRITE PER VERDICT. This used to write the row here AND let
+        # ``record_feedback`` write it again (with ``recovered_features=None``),
+        # so a single fabrication produced TWO rows — one carrying the verdict,
+        # one carrying none. The duplicate inflated the fabrication bench's
+        # denominator, and trained a second copy on task-default features
+        # (measured 2026-09-16: one verdict -> two ``_persist_feedback`` calls,
+        # and two identical live rows sharing routing_result_id ad1fa3e1-…).
+        #
+        # ``record_feedback`` persists the row itself from
+        # ``feedback._prompt_features``, so stamping the verdict there keeps the
+        # provenance on the SINGLE row. The manual write is kept only for the
+        # flag-off path, where no router exists to do it.
         router = get_learning_router_instance()
+        _persisted = False
         if router is not None:
-            # Flag on: also feed the in-memory preference set + retrain.
+            feedback._prompt_features = {"verdict": verdict}  # type: ignore[attr-defined]
             await router.record_feedback(feedback)
+            _persisted = True
+        else:
+            writer = LearningBasedRouter.__new__(LearningBasedRouter)
+            try:
+                writer._persist_feedback(feedback, {"verdict": verdict})
+                _persisted = True
+            except Exception as persist_err:  # noqa: BLE001
+                logger.debug(f"fabrication row persist skipped: {persist_err}")
         logger.info(
             "[LearningRouter] fabrication observed for %s (%s): %s%s",
             model_id, routed_task, ", ".join(quality.issues),

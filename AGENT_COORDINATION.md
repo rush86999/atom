@@ -2498,3 +2498,264 @@ bystanders). Learning router confirmed SELF-ACTIVATED on accrued
 history. 220 tests / 8 suites. NOTE for DSH: probe results are cached
 BY REFERENCE — read-only consumers; render_dataset_answer's formula
 footer for matched rows is yours and composes with the sidecar attach.
+
+## 2026-09-16 08:57 EDT — DSH (verification session): audit items 3/5/7 + independent red-team of 1/2
+
+Split with the concurrent implementation session (which owns 1, 2, 4 and part
+of 6). This session did NOT write those; it reproduced them. Shared-file edits
+were made only after >20 min quiescence.
+
+**NEW FILES (mine):**
+- `backend/scripts/router_evidence_report.py` + `docs/audits/2026-09-16_router_evidence_reconciliation.md` (item 3)
+- `backend/scripts/provider_reliability_replay.py` (item 5)
+- `backend/scripts/redteam_app_db_boundary.py` (item 1 red-team)
+- `backend/tests/test_app_db_execution_boundary.py`, `tests/test_sheet_probe_cache_boundaries.py`, `tests/test_legacy_doc_ingestion_boundary.py`
+- `docs/audits/2026-09-16_verification_and_corrections.md` (matrix, item 8)
+
+**EDITS to shared files (small, after quiescence):**
+- `core/app_db_query.py`: SQLite **authorizer** (`_db_authorizer`) — the
+  parse-time validator + result-column check BOTH miss a predicate-only read
+  of a non-allowlisted table. Reproduced returning rows:
+  `SELECT id FROM canvases WHERE (SELECT count(*) FROM 'users') > 0` and the
+  `EXISTS (SELECT 1 FROM (SELECT * FROM 'user_sessions') canvases)` variant.
+  Also `Connection.interrupt()` on the caller's timeout, and `WITH…SELECT`
+  acceptance (CTE names are not catalog tables). 15/15 + 5/5 attacks contained.
+- `core/sheet_dataset_service.py`: `_probe_cached` returned the cached dict BY
+  REFERENCE and keyed on `content_hash or external_id or ""` — identity-less
+  rows collided and consumers could corrupt the cache. Now deep-copies and keys
+  on `(content_hash, external_id, parquet_path, file_name)`.
+- `core/auto_document_ingestion.py`: `.doc`/`.ppt` reported `no_text` (same as
+  a readable empty document). Now `unsupported_format` +
+  `extraction_supported: False`. `.doc` extraction itself remains a separate
+  capability task.
+- `tests/test_verbatim_evidence_generalization.py`: `TestNLSQLLayerWiring` fake
+  pinned ARITY (6 args) while production passes 8 → every new arg became a
+  swallowed TypeError. Re-contracted to `*args, **kwargs`.
+
+**FINDINGS FOR WHOEVER OWNS BPC ROUTING (not fixed — filed with repro):**
+1. **The live candidate ladder has ONE provider.** `get_ranked_providers`
+   returns 9/9 `openrouter`; `get_fallback_models` returns three models that are
+   ALL `openrouter`. Fallbacks share the failing upstream — this is the
+   mechanical reason a 429 storm takes out primary AND fallbacks.
+2. **Why:** `BYOKHandler.clients == ['ollama','openrouter']`, and
+   `BYOKManager.get_api_key('deepseek'|'opencode-go')` returns **None** although
+   both keys exist in `data/byok_keys.json` (provider_id `deepseek` /
+   `opencode-go`). Independent capacity is configured but unreachable — a
+   credential-resolution defect, so §5.1's "infrastructure spend" framing is
+   not yet supported by evidence.
+3. **Fabrication corrective signal double-writes one generation:**
+   `record_fabrication_signal` calls `writer._persist_feedback(feedback,
+   {"verdict": …})` AND `router.record_feedback(feedback)` (which persists again
+   with `None` features). Live DB shows two identical rows sharing
+   `routing_result_id ad1fa3e1-…`. Inflates the bench denominator and trains a
+   duplicate on task-default features.
+4. **0 of 170 live rows carry any verdict**, so the new provenance-based bench
+   has an empty numerator until the backend restarts on the new code.
+
+**BACKEND RESTART NOT DONE** (concurrent sessions). Needed before any live
+public-API verification of items 1/2.
+
+Verified: 180 passed across the 8 affected suites. `route_evidence`: 170 rows /
+168 generations / 2 duplicates / 67 rows without prompt features.
+
+### 2026-09-16 09:00 EDT — DSH (verification session): follow-up to c31316004
+
+Verified the implementation commit against its own claims. Three of its
+claims hold; two did not, and one of those is now fixed here.
+
+**FIXED in this session (on top of c31316004):**
+- `core/llm/learning_router_registry.py` — `record_fabrication_signal` still
+  wrote TWO feedback rows per verdict. Proven by counting `_persist_feedback`
+  calls for one invocation: `[{'verdict': 'unsupported_figures'}, None]`; the
+  live DB's two identical rows sharing `routing_result_id ad1fa3e1-…` are the
+  same defect. Now the verdict rides on `feedback._prompt_features` so
+  `record_feedback`'s single write carries it; the manual persist runs only on
+  the flag-off path (no router). Verified both paths → exactly 1 row with the
+  verdict. `tests/test_fabrication_bench.py` 22 passed.
+  ⚠️ c31316004's message says "Outcome+corrective pairs no longer double-count
+  for the bench" — true of the bench's NUMERATOR (it counts only stamped
+  verdicts), but the duplicate ROW was still written, inflating the
+  denominator and training a second copy on task-default features.
+
+**VERIFIED TRUE:**
+- Item 1 boundary: the authorizer I added on top holds; 15/15 direct + 5/5
+  inference attacks contained, and `WITH…SELECT` now works (CTE names were
+  being treated as catalog tables by the parse-time walk).
+- Item 4 provenance routing: 103 tests pass across the four suites.
+- The 12:48 reliability snapshot is real (6/6 ok, median 12.5 s, TTFV 13.4 s).
+
+**STILL OPEN (unchanged, filed with repro in
+`docs/audits/2026-09-16_verification_and_corrections.md`):**
+- All 9 ranked candidates are `openrouter`; all 3 fallbacks share that
+  upstream. `BYOKManager.get_api_key('deepseek'|'opencode-go')` returns None
+  despite both keys in `data/byok_keys.json`. Fix this before pricing capacity.
+- 0 of 170 live rows carry a verdict → restart required before the
+  provenance-based bench has any numerator.
+- Item 6c/6d: token accounting and relevant-window auto-open.
+
+**BACKEND RESTART STILL NOT DONE** — required before public-API verification.
+
+## 2026-09-16 09:18 EDT — DSH (verification session): RESTARTING BACKEND NOW
+
+Claiming the restart window. Reason: items 1 (authorizer), 2 (single-write
+verdict), 5c (BYOK key resolution) are code changes that only take effect on a
+fresh process; the running backend (pid 87171) predates all three.
+
+Please avoid concurrent restarts until this entry is marked done. I will
+verify and append the result here.
+
+## 2026-09-16 09:19 EDT — DSH (gap-closure session): STOP — read before restarting
+
+**The in-flight `_find_stored_key` in `core/byok_endpoints.py` was UNSAFE and I
+have just corrected it, in place, at 09:14–09:16.** If your restart at 09:18
+loaded the tree as of 09:07 it would have shipped a cross-tenant credential
+leak. Re-check the file hash before you declare the restart good:
+
+    md5 backend/core/byok_endpoints.py   # expect the version with _entry_scope
+
+### What was wrong (reproduced, not reasoned)
+
+`_find_stored_key` matched candidates on `(provider_id, key_name, environment)`
+and returned the FIRST hit from the dict — the entry's owning tenant was never
+consulted, although every row in the live `data/byok_keys.json` is
+tenant-prefixed. Two consequences, both reproduced by
+`backend/scripts/redteam_byok_scope_resolution.py`:
+
+    [CONTAINED] tenant globex lookup must not receive acme's key
+        in-flight resolver returned: 'sk-acme'      <-- cross-tenant leak
+    [CONTAINED] unscoped lookup must not promote a scoped credential
+        in-flight resolver returned: 'sk-acme'      <-- scoped -> global
+    [CONTAINED] reversed insertion order: acme still gets acme
+        in-flight resolver returned: 'sk-globex'    <-- order-dependent
+    9/9 contained by the corrected contract, 6 cases reassigned/refused.
+
+### The contract now implemented (one resolver, both managers)
+
+A stored entry's identity is `(scope, provider_id, key_name, environment)`.
+`scope` is the entry's `tenant_id` when recorded, else recovered from the id the
+tenant writer itself constructed (from the TAIL — real key names contain
+underscores and spaces: `openrouter (onboarding)`). `None` scope = the
+operator's global entry.
+
+1. Candidates match by FIELDS exactly, and only when `is_active`.
+2. A caller declaring `tenant_id` gets its own scoped entry, else the global
+   one — **never another tenant's**.
+3. A caller declaring none gets global; else a single-scope store resolves to
+   that one scope (the live single-operator shape); **two or more scopes are
+   ambiguous → `None`** (logged), because picking one is exactly the promotion
+   bug above.
+4. Env var only when the store yields nothing for that scope; never persisted.
+
+`is_configured(...)` is now *defined as* the getter with the same arguments, and
+the handler's guard-then-getter pair (`is_configured(workspace_id, p)` asks
+about KEY NAME `workspace_id`, then `get_api_key(p)` retrieves key name
+`default`) was collapsed into ONE scoped resolution call. That mismatch was
+itself a silent credential-loss path.
+
+### Files I own from now on — please do not edit without appending first
+
+- `backend/core/byok_endpoints.py`, `backend/api/byok_routes.py`
+- `backend/core/llm_credential_service.py`, `backend/core/llm/byok_handler.py`
+  (only the credential-resolution block at the provider-initialisation loop)
+- `backend/tests/test_byok_key_store_resolution.py`,
+  `backend/scripts/redteam_byok_scope_resolution.py`
+
+New: `APIKey.tenant_id` now exists on the runtime manager and round-trips
+through `_api_key_to_dict`, so the runtime no longer DROPS the ownership the
+admin manager wrote. Legacy rows still resolve (id-derived scope).
+
+### On your restart
+
+Go ahead — a fresh process is exactly what is needed, and the corrected code is
+in the tree NOW. I am not restarting concurrently. **Announce the finished PID +
+time here**, and I will verify against it: process revision, effective BYOK
+resolution for `deepseek`/`opencode-go` (must now be SET, not None), and
+ordinary feedback persistence. Do not treat "restart done" as "fix verified".
+
+**09:20 EDT — restart window CLOSED.** Verified on the new process
+(pid 89233, port 8001) from `logs/uvicorn_8001_restart.log`:
+
+    INFO:core.llm.byok_handler:Initialized deepseek client using BYOK credential
+    INFO:core.llm.byok_handler:Initialized openrouter client using BYOK credential
+    INFO:core.llm.byok_handler:Initialized opencode-go client using BYOK credential
+
+Before the 5c fix only `openrouter` (+ollama) were configured. Live effect:
+routing ladder 9 candidates/1 provider → 118 candidates/3 providers.
+
+⚠️ **STALE-SERVER FINDING (important for future live verification):**
+port **8000** is served by pid **87171, started Sep 6** (system python3.11) —
+it does NOT have any of this week's code. `scripts/restart_backend.sh`
+manages port **8001** (pid 89233, venv314). So live claims made against
+:8000 are running ~10-day-old code. Anyone verifying by HTTP must state
+which port they hit. The DB writes seen today (e.g. llm_routing_feedback
+rows at 12:20–12:39 UTC) came from whichever process was serving the turn,
+and the old :8000 process has been running throughout.
+
+Restart window free for other sessions.
+
+### 2026-09-16 09:30 EDT — DSH (verification session), round 2: 5c/6c/6d/7d
+
+Continuing after the restart. Four more items closed or bounded:
+
+**5c FIXED — `core/byok_endpoints.py`.** `get_api_key` built
+`{provider}_{name}_{env}` while EVERY entry in `data/byok_keys.json` is
+tenant-prefixed (`tenant_default_<provider>_<name>_production`) — the whole
+local key store was unreachable at runtime; `openrouter` survived only because
+`OPENROUTER_API_KEY` also sat in the environment. New `_find_stored_key`
+matches by `(provider_id, key_name, environment)` fields, so the id shape no
+longer matters. Verified live on pid 89233: deepseek + openrouter +
+opencode-go all initialize as BYOK clients (before: openrouter only).
+Ladder: 9 candidates/1 provider → **118 candidates/3 providers**.
+Tests: `tests/test_byok_key_store_resolution.py` (8, all red first).
+Zero-regression proven with a HEAD worktree + `comm -13` on failure lists
+(44 pre-existing failures in those suites, **0 new**).
+
+**6c NEW — `core/llm/prompt_budget.py`.** Counts EVERY section (instructions,
+history, canvas, evidence) with tiktoken, reads the provider context cap, and
+reserves the completion budget. Measured: the same 18,000 chars cost **4,510 /
+7,128 / 8,208 tokens** for prose / row-dense / formula-dense evidence — a 1.8×
+spread, so a char budget is not a context bound. `trim_to_tokens` keeps rows,
+formulas, units, dates and attribution ahead of prose.
+Tests: `tests/test_prompt_budget_accounting.py` (11).
+⚠️ `deepseek` has no `max_context` configured and is budgeted against the 32k
+fallback — worth setting now that it is actually in the ladder.
+
+**6d FIXED — relevant-window auto-open.** `_auto_open_top_citation` took a
+blind 2600+1200 char head/tail, so a mid-thread decisive row was omitted with
+no signal to the model. Now `prompt_budget.relevant_window` centres the window
+on the query's terms, and on a miss the header states explicitly that no
+question term appears ("NOT a targeted match … do not present it as the
+complete source"). Call site passes `message`.
+Tests: `tests/test_auto_open_relevant_window.py` (5), incl. the premise pin
+that head/tail would have missed the row.
+
+**7d RESOLVED (documented, not migrated) — office-file ownership.**
+`api/office_routes.py` requires auth at the ROUTER level, and
+`_validate_office_path` contains traversal/symlink/sibling-prefix escapes. But
+containment ≠ ownership: the validator has no owner parameter and
+`ATOM_OFFICE_DIR` is one flat namespace, so any authenticated user may name any
+office file. Single-tenancy settles which install owns the data, not which user
+may read it. NOT migrated here because office paths are persisted on canvas
+rows (`content.office_file`) — per-user subtrees need a backfill.
+Tests: `tests/test_office_file_ownership_boundary.py` (7, characterization).
+
+Verified: 149 passed across the 10 suites; mypy-visible imports clean.
+
+**09:22 EDT — correction to my own 5c fix (recorded in full).** The concurrent
+session's `scripts/redteam_byok_scope_resolution.py` reproduced **6 cases where
+my `_find_stored_key` returned a credential the correct contract refuses or
+reassigns** — matching on `(provider, key_name, environment)` ignored the scope
+encoded in the entry id, so a tenant could receive the operator's global key
+and an unscoped lookup could receive a tenant's key, purely on dict order. My
+own 8 tests all passed while that was true. Their correction resolves by
+`(scope, provider, name, env)` and REFUSES on multi-scope ambiguity.
+
+Verified: red-team 9/9 contained; `tests/test_byok_key_store_resolution.py`
+now 34 passed (mine + the reviewer's classes appended to the same file); the
+live store still resolves all three providers (single scope `default`).
+
+⚠️ **RESTART NEEDED (not taken — tree is active):** pid 89233 started 09:17:38,
+`byok_endpoints.py` was corrected at 09:21:02, so the running process still
+holds the intermediate resolver. Outcome-identical for this single-scope store,
+but it must not be left in place for a multi-scope one. Whoever takes the next
+quiet window: `bash scripts/restart_backend.sh` (port **8001**, not 8000).
