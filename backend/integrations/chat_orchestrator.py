@@ -931,6 +931,7 @@ async def _derivation_dataset_block(
             _entry_text,
         )
         from core.sheet_dataset_service import (
+            distinctive_name_tokens,
             render_dataset_answer,
             search_all_datasets_sync,
             sheet_datasets_enabled,
@@ -938,6 +939,19 @@ async def _derivation_dataset_block(
 
         if not sheet_datasets_enabled():
             return None
+        # The WORDS that name a file, if the ask uses any ("open the PRICE VIPUL
+        # workbook", "the F-5216 price — PRICE VIPUL"). Passed as context so the
+        # catalog search can reach that file by NAME: its contents need not
+        # contain the code at all (PRICE VIPUL (6).xlsx spells the product
+        # 'F-52"x16G', so a 'F-5216' probe can never match its rows), which left
+        # the named workbook invisible and the SQL running on the nearest
+        # unrelated price list (live 2026-09-16).
+        # THE MESSAGE ONLY, never the history: history is background, and its
+        # incidental words become spurious "named files" — "vendor" appears in one
+        # catalogued file name, so a history turn mentioning "the vendor quote"
+        # made every probe resolve to "New Vendor Request Form_External.xlsx" and
+        # the real workbook vanished again (measured live 2026-09-16).
+        _name_ctx = distinctive_name_tokens([message or ""], max_tokens=2)
         hay_parts = [message or ""]
         ctx = context or {}
         canvas = ctx.get("canvas")
@@ -1019,7 +1033,10 @@ async def _derivation_dataset_block(
                     # in the message — dropped out of the 200 window this
                     # way).
                     search_all_datasets_sync, token, user_id,
-                    ctx.get("workspace_id"), 200, 500, hist_texts,
+                    ctx.get("workspace_id"), 200, 500,
+                    # history supplies FIGURES only; the NAMED file comes from
+                    # the message the user actually typed
+                    hist_texts, _name_ctx,
                 ),
                 timeout=25,
             )
@@ -1042,12 +1059,25 @@ async def _derivation_dataset_block(
                     by_file[key] = (co, hit)
         if not by_file:
             return None
-        # Named-file entries first (they carry the biggest name bonus),
-        # then by co-occurrence.
+        # A FILE THE USER NAMED WINS, full stop, before any co-occurrence score.
+        # The comment above always claimed this, but the key was
+        # `(-name_bonus, -co)` and co is 0 for every file when the ask carries a
+        # single figure (no OTHER figure can co-occur), so the tie fell through to
+        # file-name order and "how was the F-5216 price derived" ran its SQL on
+        # "Copy of Consolidated Price List…" while PRICE VIPUL (6).xlsx — named in
+        # the message — was never probed (measured live 2026-09-16).
+        # Name bonus is a separate, dominant tier: co-occurrence only orders files
+        # the user did NOT name, which is exactly what it can actually judge.
         ranked = sorted(
             by_file.items(),
             key=lambda kv: (-kv[0][1], -kv[1][0]),
         )[:4]
+        if ranked and ranked[0][0][1] <= 0:
+            # Nothing named: keep pure co-occurrence (previous behaviour).
+            ranked = sorted(
+                by_file.items(),
+                key=lambda kv: (-kv[1][0], -kv[0][1]),
+            )[:4]
         # ROW-LEVEL SELECTION on the winner: a file can hold MANY rows
         # matching different figure tokens (live 2026-09-16: PRICE VIPUL's
         # R192 graymills row matched '8880' while the ask was the '7519'

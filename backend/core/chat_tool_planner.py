@@ -1833,6 +1833,8 @@ async def _provenance_menu(
                     search_all_datasets_sync,
                     " ".join(probe_tokens), None,
                     (context or {}).get("workspace_id"), 1, 200, [],
+                    # the user's own words name the file; never history
+                    [_current_message_text(context) or ""],
                 ),
                 timeout=budget_s,
             )
@@ -4232,6 +4234,7 @@ async def _datasets_evidence(
     result = await asyncio.to_thread(
         search_all_datasets_sync, probe_query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
+        [_current_message_text(context) or query],
     )
     hits = (result or {}).get("hits") or []
     if not hits:
@@ -4469,6 +4472,7 @@ async def _datasets_search_block(
     result = await asyncio.to_thread(
         search_all_datasets_sync, query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
+        [_current_message_text(context) or query],
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []

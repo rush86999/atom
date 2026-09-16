@@ -95,3 +95,81 @@ class TestFormulaLoader:
             "a small default covers only the first rows and silently answers a "
             "derivation question about a different row"
         )
+
+
+class TestProbeBoundaryAndRowColumn:
+    """Probe correctness fixes found by running real derivation asks.
+
+    Three separate ways a *wrong* file won the catalog probe, each of which made
+    the dataset lane answer a question about a different spreadsheet:
+
+    1. the internal `__sheet_row` column rode into the concatenated probe text,
+       so a query for 5350 matched every file that merely HAS a row 5350;
+    2. a pure-number token matched inside float tails — every hit for the model
+       code "5216" was a substring of "15.521625000000002";
+    3. a numeric cell storing 7519.0 was rejected once (2) was fixed, because the
+       boundary rule forbade a trailing decimal that is part of the same number.
+    """
+
+    def test_row_number_column_is_not_scanned(self):
+        import inspect
+
+        from core import sheet_dataset_service as svc
+
+        for fn in (svc._duckdb_probe_entry, svc._pandas_probe_entry):
+            src = inspect.getsource(fn)
+            assert "SHEET_ROW_COL" in src, (
+                f"{fn.__name__} must exclude the internal row-number column from "
+                "the scanned text — otherwise row numbers masquerade as values"
+            )
+
+    def test_numeric_cell_with_decimal_tail_still_matches(self):
+        """'7519.0' is the number 7519, not a longer one."""
+        import re
+
+        token = "7519"
+        assert re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", "LIST Price=7519.0")
+        # ...while genuine neighbours still do not match
+        assert not re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", "No.=017519")
+        assert not re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", "c=15.521625000000002")
+        assert not re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", "id=75190")
+
+
+class TestNameContextIsSeparateFromFigureContext:
+    """History may supply FIGURES; it must never NAME a file.
+
+    An incidental history word that appears in one catalogued file name ("the
+    vendor quote" -> "vendor") became a spurious named file, and the derivation
+    lane resolved every probe to that unrelated form (live 2026-09-16).
+    """
+
+    def test_signature_separates_the_two_contexts(self):
+        import inspect
+
+        from core.sheet_dataset_service import search_all_datasets_sync
+
+        params = inspect.signature(search_all_datasets_sync).parameters
+        assert "context_texts" in params
+        assert "name_context_texts" in params, (
+            "figure context and name context must be separable, or history words "
+            "hijack file selection"
+        )
+
+    def test_name_context_defaults_to_the_query_alone(self, monkeypatch):
+        from core import sheet_dataset_service as svc
+
+        seen = {}
+
+        def _fake_name_tokens(texts, max_tokens=2):
+            seen["texts"] = list(texts)
+            return []
+
+        monkeypatch.setattr(svc, "distinctive_name_tokens", _fake_name_tokens)
+        monkeypatch.setattr(svc, "find_entries_sync", lambda *a, **k: [])
+        svc.search_all_datasets_sync(
+            "how was the price derived", None, None, 2, 10,
+            ["history says the vendor quote was 5,350.00"],
+        )
+        assert seen.get("texts") == ["how was the price derived"], (
+            "history leaked into name matching"
+        )
