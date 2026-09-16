@@ -42,6 +42,56 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15p: stabilization pass — one deadline, verified derivations, direction dimensions
+
+Three of the audit's seven directives landed (1, 3, 6) plus the instrumentation
+half of 2. Incident REMAINS OPEN: acceptance is still 3/5 (§0.1 of the audit).
+
+**1 · ONE END-TO-END DEADLINE.** `TurnDeadline` is established as the FIRST
+statement of `process_chat_message` — before session load, provenance hydration,
+planning or any provider call — and threaded into the reply leg. The defect it
+replaces: the budget was anchored at `_plan_t0` (already past planner + tools) and
+every downstream stage called the helper again for a FRESH allowance, so stages
+accumulated and a 115 s budget produced a 209 s reply. Now per-leg constants are
+upper bounds (`deadline.slice`), the first-visible bound is capped to what is
+left, and the reply leg refuses to start when the turn is already out of time.
+`_cancel_and_confirm` cancels owned work and REPORTS SURVIVORS — verified by
+probe, which correctly flagged `survived: 1` for a task that swallows
+`CancelledError`; cancelling a coroutine awaiting a provider read does not stop
+the work behind it. Each stage logs its own duration AND its turn offset, so
+concurrent work is separable from critical-path time (the measurement half of
+directive 2; the controlled A/B experiments are still to run).
+
+**3 · DERIVED FIGURES VERIFIED BY EVALUATION.** The citation bypass is gone: the
+orchestrator used to skip figure-grounding when the evidence carried a formula
+marker AND the reply contained any row citation, so an invented chain passed by
+writing "row 235". `core/derivation_verification` now classifies every
+CELL-ANCHORED claim — STORED / COMPUTED / UNRESOLVED / CONTRADICTED — evaluating
+the workbook's own formulas through a whitelisted AST (no eval of untrusted
+text; circular refs and division by zero resolve to UNRESOLVED, not wrong).
+`is_clean` requires that something was actually CHECKED, so silence can never
+read as approval, and a CORRECT UNCITED answer is reported unverified rather
+than fabricated. The enabling bridge: the evidence now carries
+`COLUMNS: <name>=<letter>`, because rows render by column NAME while formulas
+address cells by LETTER — nothing could previously connect "Factory Price=5350"
+to "=F235*0.9". Five required cases verified; two tests asserting the old
+bypass shape were re-contracted.
+
+**6 · DIRECTION HAS TWO DIMENSIONS.** Internal/external (domain equality) and
+sent/received (this mailbox) were collapsed, so a same-domain message never
+answered the sent-vs-received question the directional fixture asks. Membership
+is derived from the store's dominant traffic domain (the signed-in account is an
+administrative address on a different domain from the shared inbox, so keying on
+it found nothing). Member-to-member mail is reported as depending on WHICH
+member — not mislabelled — and unrelated-both-ends asserts nothing.
+
+**Also**: the audit's §0 status block now carries the single coherent 3/5 result,
+reconciles the 2/5 · 4/5 · "all five" counts (each true of a different build or
+sweep, none an acceptance result), records the 187.9 s PASS as an operational
+failure, and corrects the round log's proposed next step — promoting
+`_derivation_reply_ignored_the_row` to a routing input is wrong as written,
+since it infers "ignored the evidence" from the absence of citation syntax.
+
 ### 15o: the REAL root cause — the canvas id arrives NESTED, so the panel's agent was never attached
 
 **Owner correction**: "it should be the same sales agent as i was chatting in the
