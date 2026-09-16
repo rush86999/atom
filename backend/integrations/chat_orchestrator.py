@@ -1197,9 +1197,11 @@ _MAIL_EVIDENCE_NOTE = (
 _LIVE_LOOKUP_FAILED_NOTE = (
     "The live {service} lookup could not complete in time. That does NOT "
     "affect the mailbox evidence above, which is already the user's own copy "
-    "of the quoted message: answer the question from it now. Mention the "
-    "unfinished live check only as a secondary note — never present it as the "
-    "reason the item could not be found."
+    "of the quoted message: answer the question from it now. Do NOT open "
+    "your reply with the failed lookup or frame the reply around it — lead "
+    "with the answer from the evidence; the unfinished live check merits at "
+    "most one closing sentence, and never as the reason the item could not "
+    "be found."
 )
 
 

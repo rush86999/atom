@@ -43,6 +43,8 @@ attempts so the retry is not a weaker request than the first.
 """
 from __future__ import annotations
 
+import asyncio
+import time as _time
 import logging
 from typing import Any, Dict, Optional
 
@@ -104,6 +106,36 @@ def resolve_pinned_provider_model(
     return {}
 
 
+async def _record_if_cancelled(coro, log_label, task_type, t0):
+    """Await ``coro``; if the CALLER's budget cancelled us, record a
+    timeout outcome for the model this call resolved to — cancelled
+    planning calls otherwise leave no routing feedback and a
+    budget-burning model keeps winning the route (live 2026-09-15/16)."""
+    import time as _time
+
+    try:
+        return await coro
+    except asyncio.CancelledError:
+        try:
+            from core.llm.learning_router_registry import record_timeout_outcome
+
+            model = None
+            try:
+                from core.llm.model_provenance import get_resolved_model
+
+                model = get_resolved_model()
+            except Exception:  # noqa: BLE001 — provenance optional
+                model = None
+            if model:
+                asyncio.get_event_loop().create_task(
+                    record_timeout_outcome(
+                        str(model), task_type=task_type,
+                        elapsed_s=_time.monotonic() - t0))
+        except Exception:  # noqa: BLE001 — never block cancellation
+            pass
+        raise
+
+
 async def pinned_structured_call(
     llm_service: Any,
     *,
@@ -162,11 +194,13 @@ async def pinned_structured_call(
     pin_kwargs = dict(call_kwargs or {})
     pinned = bool(pin_kwargs.get("provider_model"))
 
+    _t0 = _time.monotonic()
     if pinned:
         try:
-            result = await llm_service.generate_structured_response(
-                **base, **pin_kwargs
-            )
+            result = await _record_if_cancelled(
+                llm_service.generate_structured_response(
+                    **base, **pin_kwargs),
+                log_label, task_type, _t0)
         except Exception as pinned_err:  # noqa: BLE001
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
@@ -184,13 +218,17 @@ async def pinned_structured_call(
             pin_kwargs.get("provider_model"),
         )
         try:
-            return await llm_service.generate_structured_response(**base)
+            return await _record_if_cancelled(
+                llm_service.generate_structured_response(**base),
+                log_label, task_type, _t0)
         except Exception as unpinned_err:  # noqa: BLE001
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
             return None
 
     try:
-        return await llm_service.generate_structured_response(**base)
+        return await _record_if_cancelled(
+            llm_service.generate_structured_response(**base),
+            log_label, task_type, _t0)
     except Exception as err:  # noqa: BLE001
         logger.warning("%s call raised: %s", log_label, err)
         return None

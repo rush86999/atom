@@ -254,6 +254,52 @@ def ema_router_enabled() -> bool:
     return os.getenv("ATOM_EMA_ROUTER_ENABLED", "false").lower() in _TRUTHY
 
 
+async def record_timeout_outcome(
+    model_id: str,
+    task_type: Optional[str] = None,
+    tenant_id: str = "default",
+    elapsed_s: Optional[float] = None,
+) -> bool:
+    """Tell the router this MODEL WAS TOO SLOW for the window it got.
+
+    Cancelled planning/structured calls leave NO outcome row — the caller's
+    wait_for cancels the coroutine before the generation path records
+    anything — so a model that burns whole budgets on hidden reasoning kept
+    winning the planning route with zero evidence against it (live
+    2026-09-15/16: 75s canvas-edit plans, 25s tool-plan timeouts, turn
+    after turn, glm still the cost-priority pick). This records the timeout
+    where the cancellation is CAUGHT (inside the call), where the resolved
+    model is known: truncated-class satisfaction 0.3 (visibly incomplete —
+    above fabrication's 0.15 so it never trips the fabrication BENCH;
+    below refusal) with the measured latency. The learning router's
+    per-model predictor then demotes the model for these task types once
+    it re-ranks; observation accrues in every mode. Best-effort, never
+    raises."""
+    try:
+        import uuid as _uuid
+
+        from core.learning_llm_router import RoutingFeedback, LearningBasedRouter
+
+        router = LearningBasedRouter.__new__(LearningBasedRouter)
+        feedback = RoutingFeedback(
+            routing_result_id=str(_uuid.uuid4()),
+            tenant_id=tenant_id,
+            task_type=task_type or "planning",
+            model_id=model_id,
+            success=False,
+            quality_satisfied=False,
+            cost_within_budget=True,
+            user_satisfaction=0.3,
+            actual_cost=0.0,
+            actual_latency_ms=(elapsed_s or 0.0) * 1000.0,
+        )
+        router._persist_feedback(feedback, None)
+        return True
+    except Exception as e:  # noqa: BLE001 — best-effort signal
+        logger.debug(f"timeout outcome not recorded: {e}")
+        return False
+
+
 async def record_fabrication_signal(
     model_id: str,
     task_type: Optional[str] = None,

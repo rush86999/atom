@@ -255,7 +255,10 @@ def test_live_failure_note_does_not_bury_mail_evidence():
     note = _LIVE_LOOKUP_FAILED_NOTE.format(service="zoho_inventory")
     assert "does NOT affect the mailbox evidence" in note
     assert "answer the question from it now" in note
-    assert "never present it as the reason the item could not be found" in note
+    # Re-contracted 2026-09-16: the note now LEADS-FORCES the answer and
+    # caps the failure at one closing sentence.
+    assert "Do NOT open your reply with the failed lookup" in note
+    assert "never as the reason the item could not be found" in note
 
 
 def test_planner_prompt_forbids_pasted_quotes_going_to_inventory():

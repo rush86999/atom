@@ -164,3 +164,100 @@ class TestLearningRouterAuto:
         monkeypatch.setattr(reg, "_lr_ready_cache",
                             {"ts": 0.0, "ready": False, "logged": None})
         assert reg.learning_history_ready() is True
+
+
+class TestTimeoutOutcomeRecording:
+    """Cancelled planning calls must leave a routing-feedback row —
+    otherwise a budget-burning model keeps winning the planning route with
+    zero evidence against it (live 2026-09-15/16: 75s canvas-edit plans
+    turn after turn)."""
+
+    @pytest.mark.asyncio
+    async def test_cancellation_records_timeout(self, monkeypatch):
+        import asyncio
+        import time
+
+        import core.llm.pinned_planning as pp
+
+        recorded = {}
+
+        async def fake_record(model_id, task_type=None, tenant_id="default",
+                              elapsed_s=None):
+            recorded["model"] = model_id
+            recorded["task"] = task_type
+            recorded["elapsed"] = elapsed_s is not None
+            return True
+
+        import core.llm.learning_router_registry as reg
+        monkeypatch.setattr(reg, "record_timeout_outcome", fake_record)
+        import core.llm.model_provenance as prov
+        monkeypatch.setattr(prov, "get_resolved_model",
+                            lambda: "openrouter/z-ai/glm-5.3-flash")
+
+        class _Svc:
+            async def generate_structured_response(self, **kw):
+                await asyncio.sleep(30)  # slower than the caller's budget
+
+        async def caller():
+            coro = _Svc().generate_structured_response()
+            t0 = time.monotonic()
+            try:
+                await asyncio.wait_for(
+                    pp._record_if_cancelled(
+                        coro, "test", "planning", t0),
+                    timeout=0.05)
+            except asyncio.TimeoutError:
+                pass  # the shape the orchestrator's wait_for produces
+
+        await caller()
+        await asyncio.sleep(0.1)  # let the spawned recorder task run
+        assert recorded.get("model") == "openrouter/z-ai/glm-5.3-flash"
+        assert recorded.get("task") == "planning"
+        assert recorded.get("elapsed") is True
+
+    @pytest.mark.asyncio
+    async def test_normal_completion_records_nothing(self, monkeypatch):
+        import core.llm.pinned_planning as pp
+        import core.llm.learning_router_registry as reg
+
+        called = []
+
+        async def fake_record(**kw):
+            called.append(kw)
+            return True
+
+        monkeypatch.setattr(reg, "record_timeout_outcome", fake_record)
+
+        class _Svc:
+            async def generate_structured_response(self, **kw):
+                return "ok"
+
+        out = await pp._record_if_cancelled(
+            _Svc().generate_structured_response(), "t", "planning", 0.0)
+        assert out == "ok"
+        assert called == []
+
+    def test_record_timeout_outcome_writes_row(self, monkeypatch):
+        import asyncio as _aio
+
+        import core.llm.learning_router_registry as reg
+
+        written = {}
+
+        class _Router:
+            def _persist_feedback(self, fb, feats):
+                written["fb"] = fb
+
+        import core.learning_llm_router as lrouter
+        monkeypatch.setattr(
+            lrouter.LearningBasedRouter, "__new__",
+            lambda cls: _Router())
+
+        ok = _aio.run(reg.record_timeout_outcome(
+            "p/m", task_type="planning", elapsed_s=25.0))
+        assert ok is True
+        fb = written["fb"]
+        assert fb.model_id == "p/m"
+        assert fb.success is False
+        assert fb.user_satisfaction == 0.3  # truncated band, NOT fabrication
+        assert fb.actual_latency_ms == 25000.0
