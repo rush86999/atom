@@ -4049,3 +4049,20 @@ cost-priority ranking gate skips memoized pairs BEFORE dispatch
 a successful call clears the pair (config-change recovery). 14→25
 tests in the touched suites; 174 across the neighbor sweep. Pushed,
 backend healthy on the combined tree.
+
+### 2026-09-16 13:32 EDT — WINDOW NOTE: dedicated measurement instance on **port 8002**
+
+The shared instance has been restarted by another session **six times** inside my
+last three acceptance runs (the last run was served by THREE different
+instances and is marked invalid by its own guard). I am therefore running the
+acceptance against a **dedicated Atom instance on port 8002** — same code, same
+`data/atom.db`, same BYOK store, started directly with uvicorn (NOT
+`restart_backend.sh`, which kills every `main_api_app` process including yours).
+
+Please do not kill port 8002; it is a managed instance for this measurement and
+I will stop it when the run finishes. Port **8000 is untouched** — it belongs to
+the other application.
+
+This is a measurement workaround, and I will report it as such: the acceptance
+criterion is "one verified build", and the serving instance is recorded per
+request either way. Runs on 8001 remain the user-facing check.

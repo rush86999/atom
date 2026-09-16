@@ -118,3 +118,57 @@ class TestOwnershipIsNotEnforcedByContainment:
         resolved = Path(_validate_office_path(str(office_dir / "x.xlsx")))
         assert resolved.parent == office_dir.resolve()
         assert os.environ["ATOM_OFFICE_DIR"] == str(office_dir)
+
+
+class TestTeamVsPerUserOwnership:
+    """Owner decision 2026-09-16: team vs per-user depends on whether the
+    file is shared (canvas-linked / integration-origin) or 3rd-party-app
+    owned. Canvas-linked files are TEAM (the canvas panel is the auth
+    surface). Integration files are TEAM (workspace data)."""
+
+    def test_canvas_linked_file_is_team(self):
+        from api.office_routes import _resolve_file_owner
+        from core.models import CanvasContext
+
+        class _Ctx:
+            canvas_id = "c1"
+
+        class _CanvasQ:
+            def filter(self, *a, **k):
+                self_ctx = _Ctx()
+                # CanvasContext.current_state is a column, .contains() is
+                # the SQLAlchemy operator — simulate it matching
+                return self
+            def first(self):
+                return _Ctx()
+
+        class _NoneQ:
+            def filter(self, *a, **k):
+                return self
+            def first(self):
+                return None
+
+        class _Db:
+            def query(self, model):
+                return _CanvasQ() if model is CanvasContext else _NoneQ()
+
+        info = _resolve_file_owner(_Db(), "/some/file.xlsx")
+        assert info["ownership"] == "team"
+        assert info["origin"] == "canvas"
+
+    def test_default_is_team(self):
+        from api.office_routes import _resolve_file_owner
+
+        class _Q:
+            def filter(self, *a, **k):
+                return self
+            def first(self):
+                return None
+
+        class _Db:
+            def query(self, model):
+                return _Q()
+
+        info = _resolve_file_owner(_Db(), "/some/manual.xlsx")
+        assert info["ownership"] == "team"
+        assert info["origin"] == "default"
