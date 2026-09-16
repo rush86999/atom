@@ -285,14 +285,18 @@ class TestTimeoutOutcomeRecording:
 
         written = {}
 
-        class _Router:
-            def _persist_feedback(self, fb, feats):
-                written["fb"] = fb
+        def _record(_self, fb, feats):
+            written["fb"] = fb
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(
-            lrouter.LearningBasedRouter, "__new__",
-            lambda cls: _Router())
+        # Patch the METHOD, not __new__: monkeypatch restores a patched
+        # __new__ as an OWN class attribute, after which type.__call__ stops
+        # treating it as the default and hands the constructor args to
+        # object.__new__ — "object.__new__() takes exactly one argument" in
+        # every LATER test that builds a LearningBasedRouter. Reproduced at
+        # HEAD in a pristine worktree (this file + test_router_round2_fixes).
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
 
         ok = _aio.run(reg.record_timeout_outcome(
             "p/m", task_type="planning", elapsed_s=25.0))
@@ -356,14 +360,19 @@ class TestVerdictProvenanceSeparation:
 
         written = {}
 
-        class _W:
-            def _persist_feedback(self, fb, feats):
-                written["fb"] = fb
-                written["feats"] = feats
+        def _record(_self, fb, feats):
+            written["fb"] = fb
+            written["feats"] = feats
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(lrouter.LearningBasedRouter, "__new__",
-                            lambda cls: _W())
+        # Patch the METHOD, not __new__: monkeypatch restores a patched
+        # __new__ as an own class attribute, after which type.__call__ stops
+        # treating it as the default and passes the constructor args to
+        # object.__new__ -> "object.__new__() takes exactly one argument" in
+        # every LATER test that instantiates LearningBasedRouter. Reproduced at
+        # HEAD in a pristine worktree (this file + test_router_round2_fixes).
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
         # HERMETIC: pin the flag-off path deterministically. Otherwise a
         # self-activated router (auto mode + any accumulated history) takes the
         # `router is not None` branch and this fake writer is bypassed, so the
@@ -390,13 +399,12 @@ class TestVerdictProvenanceSeparation:
 
         written = {}
 
-        class _W:
-            def _persist_feedback(self, fb, feats):
-                written["feats"] = feats
+        def _record(_self, fb, feats):
+            written["feats"] = feats
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(lrouter.LearningBasedRouter, "__new__",
-                            lambda cls: _W())
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
         asyncio.run(reg.record_timeout_outcome(
             "p/m", task_type="planning", elapsed_s=25.0))
         assert written["feats"] == {"verdict": "timeout"}

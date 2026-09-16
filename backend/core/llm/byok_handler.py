@@ -471,6 +471,19 @@ _REASONING_BUDGET_UNSUPPORTED: set = set()
 # How long a (provider, model) pair is benched after empty/inactivity output.
 _MODEL_COOLDOWN_SECONDS = 120.0
 
+# Provider-scoped failures (a rejected credential, an exhausted quota, an
+# entitlement block) mean "asking this provider for a DIFFERENT model fails the
+# same way". Pausing the provider stops a turn from re-walking it model by
+# model. It is deliberately time-bounded and cleared when credentials change —
+# a pause, never a decommission.
+_PROVIDER_COOLDOWN_SECONDS = float(
+    os.getenv("ATOM_PROVIDER_FAILURE_COOLDOWN_SECONDS", "600") or 600)
+_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = float(
+    os.getenv("ATOM_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS", "60") or 60)
+_PROVIDER_COOLDOWN_UNTIL: Dict[str, float] = {}
+_PROVIDER_COOLDOWN_REASON: Dict[str, tuple] = {}
+_PROVIDER_COOLDOWN_LOCK = threading.Lock()
+
 
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
@@ -955,54 +968,75 @@ class BYOKHandler:
         self._embedding_initialized = False
         self._embedding_init_lock = threading.Lock()
 
-    def _provider_serves_model(self, provider_id: str, model: str) -> bool:
-        """Heuristic: does this provider's client serve this model?
+    def _route_context_window(self, provider_id: str, model: str) -> Optional[int]:
+        """Effective context window for a route, or ``None`` when unknown.
 
-        Cross-provider streaming fallback previously reused the same model name
-        on every provider (e.g. asking Anthropic to serve 'gpt-4o'), which 404s
-        on most fallbacks (Bug 14). We can't know the provider's full catalog
-        without an API call, so use the model-name prefix as the signal — the
-        same heuristic BPC uses (provider id appears in the model id). Local
-        providers (ollama/vllm/lmstudio) serve arbitrary model names, so they
-        always match.
+        Same source of truth the BPC candidate filter uses: the model's cached
+        ``max_input_tokens`` capped by the PROVIDER's configured ceiling
+        (``rate_tracker.get_max_context`` — e.g. a gateway that caps what it
+        will serve regardless of the model's own advertised window).
+
+        ``None`` means "not known", and callers must not treat that as "too
+        small": refusing an unmeasured route would trade a real answer for a
+        guess about a number nobody has.
+        """
+        try:
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
+            pricing = (get_pricing_fetcher().pricing_cache or {}).get(model) or {}
+            window = pricing.get("max_input_tokens") or pricing.get("max_tokens") or 0
+            provider_max = self.rate_tracker.get_max_context(provider_id)
+            if provider_max:
+                window = min(window, provider_max) if window else provider_max
+            return int(window) if window else None
+        except Exception as exc:  # noqa: BLE001 — measurement, not a gate
+            logger.debug("context window lookup failed for %s/%s: %s",
+                         provider_id, model, exc)
+            return None
+
+    def _provider_serves_model(self, provider_id: str, model: str) -> bool:
+        """Does this provider actually serve this model identifier?
+
+        Answered from the provider's DISCOVERED catalogue
+        (``core.llm.model_route_registry``), not from a name heuristic. The
+        previous version returned ``True`` for every gateway provider
+        ('opencode-go'/'openrouter'), on the theory that "the gateway client is
+        authoritative for any model routed to it". That is precisely backwards:
+        it made every catalog identifier eligible for every gateway, which is
+        how a ladder of three independent providers failed on all three rungs —
+        openrouter answered "not a valid model ID" and opencode-go 401'd.
+
+        A discovery that has never succeeded yields UNKNOWN, and unknown is not
+        a licence to dispatch. It is also not a veto on an explicit request:
+        callers try the provider the user named regardless of this gate.
         """
         if not model:
             return True
-        model_l = model.lower()
-        # Local/open providers serve whatever BARE model name is configured.
-        # A namespaced id ("z-ai/glm-5.3-flash") is a gateway catalog model,
-        # not a local name: treating it as locally servable made the streaming
-        # fallback retry the SAME OpenRouter model on ollama, which 404s and
-        # burned the final provider slot (live 2026-09-11 — the Sales Agent's
-        # canvas turn ended "All 2 providers failed for z-ai/glm-5.3-flash").
-        # Callers always try the REQUESTED provider regardless of this gate,
-        # so an explicitly selected local model still works.
-        if provider_id in {"ollama", "vllm", "lmstudio", "local"} or provider_id.startswith("local_"):
-            return "/" not in model_l
-        # Gateways (opencode-go/zen, openrouter) serve model families from
-        # many vendors under bare gateway IDs (e.g. 'deepseek-v4-flash'),
-        # so family-prefix matching can't apply — the gateway client is
-        # authoritative for any model routed to it.
-        if provider_id in {"opencode-go", "opencode", "zen", "openrouter"}:
-            return True
-        # Provider id is a substring of the model id (e.g. 'openai' in
-        # 'gpt-4o'? no — but 'deepseek' in 'deepseek-chat', 'gemini' in
-        # 'gemini-2.5-flash', 'qwen' in 'qwen-plus'). Also handle the common
-        # family prefixes.
-        family_for_provider = {
-            "openai": ("gpt", "o1", "o3", "o4", "chatgpt"),
-            "anthropic": ("claude",),
-            "deepseek": ("deepseek",),
-            "gemini": ("gemini",),
-            "qwen": ("qwen",),
-            "moonshot": ("kimi", "moonshot"),
-            "minimax": ("minimax",),
-            "glm": ("glm", "chatglm"),
-        }
-        prefixes = family_for_provider.get(provider_id)
-        if prefixes:
-            return any(model_l.startswith(p) for p in prefixes)
-        return provider_id in model_l
+        try:
+            from core.llm.model_route_registry import evaluate_route
+
+            local_models = None
+            if provider_id in {"ollama", "vllm", "lmstudio"} or provider_id.startswith("local_"):
+                state = None
+                try:
+                    state = self._ollama_runtime_state() if provider_id == "ollama" else None
+                except Exception:  # noqa: BLE001
+                    state = None
+                if state and state[0] == "up":
+                    local_models = state[1]
+            decision = evaluate_route(
+                provider_id, model,
+                configured_providers=sorted(self.clients.keys()),
+                local_runtime_models=local_models,
+            )
+            if not decision.eligible:
+                logger.debug(
+                    "route %s/%s not dispatched: %s (%s)",
+                    provider_id, model, decision.reason, decision.detail)
+            return decision.eligible
+        except Exception as exc:  # noqa: BLE001 — gate must never break routing
+            logger.debug(f"route eligibility check failed for {provider_id}/{model}: {exc}")
+            return provider_id in model.lower() or "/" not in model.lower()
 
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
@@ -1486,6 +1520,104 @@ class BYOKHandler:
         until[f"{provider_id}/{model}"] = time.time() + (
             seconds if seconds is not None else _MODEL_COOLDOWN_SECONDS)
 
+    def _record_attempt_failure(
+        self, provider_id: str, model: str, exc: Optional[BaseException] = None,
+        *, body: Optional[str] = None, status: Optional[int] = None,
+        empty_output: bool = False,
+    ) -> str:
+        """Classify ONE failed attempt and respond according to its cause.
+
+        Returns the cause. The distinction is the point: a rejected credential
+        and an unsupported model look alike in a status code and demand
+        opposite responses. Retrying a bad key across every model burns the
+        turn; disabling a healthy provider because one model was rejected
+        throws away capacity.
+        """
+        from core.llm.model_route_registry import (
+            FailureCause, classify_failure, get_provider_model_catalog,
+            sanitize_error_text,
+        )
+
+        cause, detail, http_status = classify_failure(
+            exc, status=status, body=body, empty_output=empty_output)
+        logger.warning(
+            "attempt %s/%s failed: cause=%s status=%s detail=%s",
+            provider_id, model, cause, http_status, detail[:200])
+
+        if cause in FailureCause.PROVIDER_SCOPED:
+            # Asking this provider for a DIFFERENT model fails the same way.
+            self._bench_provider(provider_id, cause=cause, detail=detail)
+            if cause == FailureCause.INVALID_CREDENTIAL:
+                try:
+                    get_provider_model_catalog().record_auth_probe(
+                        provider_id, False, detail)
+                except Exception:  # noqa: BLE001
+                    pass
+        elif cause in FailureCause.ROUTE_SCOPED:
+            # The provider may be perfectly healthy for other models.
+            self._bench_model(provider_id, model)
+        elif cause == FailureCause.RATE_LIMITED:
+            self._bench_provider(provider_id, cause=cause, detail=detail,
+                                 seconds=_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS)
+        return cause
+
+    def _bench_provider(self, provider_id: str, *, cause: str, detail: str = "",
+                        seconds: Optional[float] = None) -> None:
+        """Stop asking a provider for other models until the cooldown expires.
+
+        Process-wide on purpose: the chat path builds several handlers per
+        message, and a credential the provider just rejected will be rejected
+        by all of them. Expiry (plus an explicit invalidation when credentials
+        change) is what preserves recovery — this is a pause, not a
+        decommission.
+        """
+        from core.llm.model_route_registry import sanitize_error_text
+
+        with _PROVIDER_COOLDOWN_LOCK:
+            _PROVIDER_COOLDOWN_UNTIL[provider_id] = time.time() + (
+                seconds if seconds is not None
+                else _PROVIDER_COOLDOWN_SECONDS)
+            _PROVIDER_COOLDOWN_REASON[provider_id] = (
+                cause, sanitize_error_text(detail))
+
+    def _provider_cooldown_active(self, provider_id: str) -> bool:
+        with _PROVIDER_COOLDOWN_LOCK:
+            return _PROVIDER_COOLDOWN_UNTIL.get(provider_id, 0) > time.time()
+
+    def _provider_cooldown_state(self) -> Dict[str, Any]:
+        now = time.time()
+        with _PROVIDER_COOLDOWN_LOCK:
+            return {
+                pid: {
+                    "seconds_remaining": round(until - now, 1),
+                    "cause": _PROVIDER_COOLDOWN_REASON.get(pid, ("", ""))[0],
+                    "detail": _PROVIDER_COOLDOWN_REASON.get(pid, ("", ""))[1][:200],
+                }
+                for pid, until in _PROVIDER_COOLDOWN_UNTIL.items() if until > now
+            }
+
+    @staticmethod
+    def invalidate_provider_failures(provider_id: Optional[str] = None) -> None:
+        """Forget provider cooldowns and discovered catalogues.
+
+        Called when credentials change: a key the provider rejected five
+        minutes ago may be valid now, and a catalogue fetched with the old key
+        may not describe the new one. Recovery must not wait for a TTL.
+        """
+        with _PROVIDER_COOLDOWN_LOCK:
+            if provider_id is None:
+                _PROVIDER_COOLDOWN_UNTIL.clear()
+                _PROVIDER_COOLDOWN_REASON.clear()
+            else:
+                _PROVIDER_COOLDOWN_UNTIL.pop(provider_id, None)
+                _PROVIDER_COOLDOWN_REASON.pop(provider_id, None)
+        try:
+            from core.llm.model_route_registry import get_provider_model_catalog
+
+            get_provider_model_catalog().invalidate(provider_id)
+        except Exception:  # noqa: BLE001
+            pass
+
     # Availability probe caching. A DOWN runtime must neither stall routing
     # (probes are cached, and localhost connection-refused is instant anyway)
     # nor gate-keep recovery — the down state is re-checked every minute, so
@@ -1746,6 +1878,67 @@ class BYOKHandler:
         # etc.) from the DB and create OpenAI-compatible clients for each.
         # Their models become eligible for BPC ranking alongside cloud models.
         self._load_local_providers()
+
+        # Discover which identifiers each configured provider actually serves.
+        # A catalog entry proves a model EXISTS and what it costs; it does not
+        # prove THIS endpoint serves it (the incident: every ranked rung named
+        # an identifier the configured providers reject). Discovery is
+        # best-effort and never blocks construction — a provider whose
+        # catalogue cannot be read stays "unknown", which is not the same as
+        # "serves everything".
+        try:
+            if "pytest" not in sys.modules:
+                self._refresh_provider_catalog()
+        except Exception as _disc_err:  # noqa: BLE001 — never block init
+            logger.debug(f"provider model discovery skipped: {_disc_err}")
+
+    def _refresh_provider_catalog(
+        self, providers: Optional[List[str]] = None, force: bool = False,
+    ) -> Dict[str, Any]:
+        """Populate the provider model catalog from each provider's own endpoint.
+
+        Returns a per-provider record of what was discovered or why it was not.
+        Never raises: a failed discovery KEEPS the previously verified set
+        (marked stale) rather than downgrading the provider to "anything goes".
+        """
+        from core.llm.model_route_registry import get_provider_model_catalog
+
+        catalog = get_provider_model_catalog()
+        targets = providers or sorted(self.clients.keys())
+        outcome: Dict[str, Any] = {}
+        for provider_id in targets:
+            if provider_id in {"ollama", "vllm", "lmstudio"} or provider_id.startswith("local_"):
+                # Local runtimes advertise their pulled models through their own
+                # runtime probe; the caller supplies that set at decision time.
+                outcome[provider_id] = {"skipped": "local runtime"}
+                continue
+            if not force and catalog.freshness(provider_id) == "fresh":
+                outcome[provider_id] = {"skipped": "catalogue is fresh"}
+                continue
+            client = self.clients.get(provider_id)
+            if client is None:
+                outcome[provider_id] = {"skipped": "no client configured"}
+                continue
+            try:
+                from core.llm.model_route_registry import discover_provider_models
+
+                model_ids, error = discover_provider_models(client, provider_id)
+            except Exception as exc:  # noqa: BLE001
+                model_ids, error = None, exc
+            if model_ids:
+                catalog.record_discovery(provider_id, model_ids)
+                outcome[provider_id] = {"discovered": len(model_ids)}
+                logger.info(
+                    "provider catalogue: %s serves %d identifier(s) (sample: %s)",
+                    provider_id, len(model_ids), ", ".join(model_ids[:4]))
+            else:
+                catalog.record_discovery_failure(provider_id, error)
+                outcome[provider_id] = {"error": str(error)[:200]}
+                logger.warning(
+                    "provider catalogue for %s could not be discovered (%s); "
+                    "keeping the last verified set — support is NOT assumed",
+                    provider_id, str(error)[:160])
+        return outcome
 
     def _load_local_providers(self) -> None:
         """Load registered local model providers from the DB into self.clients.
@@ -2164,30 +2357,125 @@ class BYOKHandler:
             "No LLM providers available. You need an AI provider to do this. Add an API key or enable local Ollama to continue."
         )
 
+    def _route_for_model(self, model: str) -> Optional[tuple[str, str]]:
+        """Resolve a bare model name to a ``(provider, model)`` route it is served by.
+
+        Used only for callers that still hand over names. The provider is
+        recovered from the providers' DISCOVERED catalogues: the first
+        configured provider observed to serve the identifier wins, in the
+        handler's provider-fallback order so the choice is deterministic.
+
+        Returns ``None`` when no configured provider is known to serve it —
+        which the caller must treat as "no route", never as "try the original
+        provider anyway".
+        """
+        if not model:
+            return None
+        for provider_id in self._get_provider_fallback_order("auto"):
+            if self._provider_serves_model(provider_id, model):
+                return (provider_id, model)
+        return None
+
+    def get_fallback_routes(
+        self, complexity: QueryComplexity, primary_model: str,
+        primary_provider: Optional[str] = None, limit: int = 2,
+        **rank_kwargs,
+    ) -> List[tuple[str, str]]:
+        """Distinct ``(provider, model)`` ROUTES ranked below the primary.
+
+        The provider travels WITH the model. Returning bare model names (the
+        previous shape) forced every caller to re-attach a provider — and the
+        streaming caller re-attached the ORIGINAL one, so a fallback model
+        ranked for provider B was dispatched to provider A. A route is only
+        useful if both halves are the ones the ranker chose.
+
+        Routes are reconciled against the providers' discovered catalogues
+        first, so every returned pair is one the named provider was observed to
+        serve. Fault-isolated: any ranking failure yields an empty list, i.e.
+        exactly the previous behavior."""
+        try:
+            options = self.get_ranked_providers(complexity, **rank_kwargs)
+        except Exception as e:  # noqa: BLE001 — fallback list is best-effort
+            logger.debug(f"fallback-route ranking skipped: {e}")
+            return []
+        ranked = self._reconcile_ranked_routes(options)
+        out: List[tuple[str, str]] = []
+        seen_models = {primary_model} if primary_model else set()
+        for provider_id, model_id in ranked:
+            if not model_id or model_id in seen_models:
+                continue
+            if provider_id == primary_provider and model_id == primary_model:
+                continue
+            seen_models.add(model_id)
+            out.append((provider_id, model_id))
+            if len(out) >= max(1, int(limit)):
+                break
+        return out
+
+    def _reconcile_ranked_routes(
+        self, options: Optional[List[tuple[str, str]]]
+    ) -> List[tuple[str, str]]:
+        """Keep the ranked candidates this install can actually dispatch.
+
+        Catalog knowledge is not route knowledge: a model with a benchmark
+        score and a price can still be one no configured endpoint serves under
+        that identifier. Eligible routes keep their ranking order; a route that
+        is not in its provider's discovered catalogue is DROPPED (and why, at
+        debug level) instead of being dispatched and failing.
+
+        Availability guard: if NOTHING is verified yet (fresh install, or every
+        discovery failed) the ranking is returned unchanged — refusing to route
+        at all would be a self-inflicted outage — but every route is marked
+        unverified and the caller sees a warning, so the uncertainty is visible
+        instead of implied.
+        """
+        if not options:
+            return []
+        try:
+            from core.llm.model_route_registry import evaluate_route
+
+            configured = sorted(self.clients.keys())
+            eligible: List[tuple[str, str]] = []
+            excluded: List[str] = []
+            for provider_id, model_id in options:
+                decision = evaluate_route(
+                    provider_id, model_id, configured_providers=configured)
+                if decision.eligible:
+                    eligible.append((provider_id, model_id))
+                else:
+                    excluded.append(
+                        f"{provider_id}/{model_id}: {decision.reason}")
+            if eligible:
+                if excluded:
+                    logger.info(
+                        "ranked routes reconciled: %d dispatchable, %d excluded "
+                        "(%s)", len(eligible), len(excluded),
+                        "; ".join(excluded[:4]))
+                return eligible
+            logger.warning(
+                "no ranked route is verified against a provider catalogue "
+                "(%d candidate(s) checked); using the unreconciled ranking — "
+                "support is UNKNOWN, not confirmed: %s",
+                len(options), "; ".join(excluded[:4]))
+            return list(options)
+        except Exception as exc:  # noqa: BLE001 — never break ranking
+            logger.debug(f"route reconciliation skipped: {exc}")
+            return list(options)
+
     def get_fallback_models(
         self, complexity: QueryComplexity, primary_model: str,
         limit: int = 2, **rank_kwargs,
     ) -> List[str]:
         """Distinct models ranked below ``primary_model`` — model-level fallback.
 
-        The ranked ladder already computes alternatives; exposing them lets the
-        streaming path try the next MODEL when every provider for the chosen one
-        fails (live 2026-09-11: a single ranked model with one healthy provider
-        had nowhere to go). Fault-isolated: any ranking failure yields an empty
-        list, i.e. exactly the previous behavior."""
-        try:
-            options = self.get_ranked_providers(complexity, **rank_kwargs)
-        except Exception as e:  # noqa: BLE001 — fallback list is best-effort
-            logger.debug(f"fallback-model ranking skipped: {e}")
-            return []
-        out: List[str] = []
-        for _prov, _model in (options or []):
-            if not _model or _model == primary_model or _model in out:
-                continue
-            out.append(_model)
-            if len(out) >= max(1, int(limit)):
-                break
-        return out
+        Kept for callers that only need names; the PROVIDER is not recoverable
+        from this shape, so anything that dispatches should use
+        :meth:`get_fallback_routes` instead. Routes are reconciled against the
+        providers' discovered catalogues before their names are returned, so a
+        name here is one some configured provider was observed to serve."""
+        routes = self.get_fallback_routes(
+            complexity, primary_model, limit=limit, **rank_kwargs)
+        return [model for _provider, model in routes]
 
     def get_ranked_providers(
         self,
@@ -2971,6 +3259,7 @@ class BYOKHandler:
         sticky_hint: Optional[tuple] = None,  # LKGP (provider, model) hint
         messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
+        estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -3144,7 +3433,17 @@ class BYOKHandler:
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
                 max_quality=max_quality_override,
-                estimated_tokens=max(1000, _est_input_chars // 4) + _image_tokens,
+                # A MEASURED count beats the char/4 estimate when the caller
+                # has one. char/4 understates formula- and number-dense
+                # evidence by up to 83% (measured: the same 18k chars cost
+                # 4,510 tokens as prose and 8,208 as formulas), so the
+                # window filter below could admit a model that cannot hold the
+                # prompt. Falls back to the char heuristic when absent.
+                estimated_tokens=(
+                    int(estimated_tokens)
+                    if estimated_tokens
+                    else max(1000, _est_input_chars // 4) + _image_tokens
+                ),
                 # Vision turns rank ONLY vision-capable candidates up front —
                 # the old flow ranked vision-blind and either fell back to a
                 # lossy image-description pass or hard-pinned GPT-4o, which a
@@ -3899,6 +4198,13 @@ class BYOKHandler:
                 actual_latency_ms=latency_ms,
             )
             await learning_router.record_feedback(fb)
+            # RE-PUBLISH the EFFECTIVE id: when this generation is a RETRY that
+            # reused the routing decision, persistence re-keys it onto its own
+            # generation id so two real outputs are not merged into one. A
+            # corrective verdict must annotate the row THIS attempt wrote, so
+            # the payload has to carry the id that was actually stored.
+            effective_id = getattr(fb, "routing_result_id", None) or decision_id
+            self._last_feedback_decision_id = effective_id
         except Exception as e:
             logger.debug(f"Learning-router outcome observation skipped: {e}")
 
@@ -5483,6 +5789,8 @@ class BYOKHandler:
         extra_kwargs: Optional[Dict[str, Any]] = None,
         reasoning_sink: Optional[Dict[str, Any]] = None,
         fallback_models: Optional[List[str]] = None,
+        fallback_routes: Optional[List[tuple[str, str]]] = None,
+        estimated_tokens: Optional[int] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -5506,6 +5814,12 @@ class BYOKHandler:
                 ``reasoning_sink["deltas"]`` instead of being dropped. Existing
                 callers that don't pass it are unaffected: the yield contract
                 (visible content tokens only) is unchanged.
+            fallback_routes: Ranked ``(provider, model)`` pairs to try when
+                every provider for THIS route fails. The provider travels with
+                the model — see :meth:`get_fallback_routes`. Preferred over
+                ``fallback_models``, which cannot name the provider that serves
+                the fallback model and therefore re-dispatches it to the
+                original one.
 
         Yields:
             Individual tokens as they arrive from the LLM
@@ -5558,6 +5872,7 @@ class BYOKHandler:
         _empty_budget_retry_used: set = set()
 
         # Try each provider in fallback order
+        _window_admitted = False
         for attempt_provider_id in provider_order:
             _attempt_max_tokens = (
                 _empty_stream_retry_max_tokens
@@ -5575,6 +5890,42 @@ class BYOKHandler:
                 logger.warning(f"No client available for provider: {attempt_provider_id}")
                 continue
 
+            # DISPATCH-TIME WINDOW CHECK. This streaming path never applied one:
+            # it iterated providers for the requested model and let the provider
+            # reject an oversized prompt. `get_ranked_providers` (non-streaming)
+            # has filtered candidates by `estimated_tokens + output
+            # reservation` for a while — the same rule is applied here, against
+            # each candidate's configured context cap (closure item 4:
+            # "check the actual selected model's limit immediately before
+            # dispatch, including fallbacks").
+            #
+            # FAIL-OPEN BY DESIGN: if the check would exclude EVERY candidate,
+            # the first is attempted anyway (see the guard after the loop).
+            # Refusing to answer because of a cap we may be misreading is worse
+            # than letting the provider be the judge.
+            if estimated_tokens and not _window_admitted:
+                try:
+                    from core.llm.provider_rate_limits import (
+                        get_provider_rate_tracker,
+                    )
+
+                    _cap = get_provider_rate_tracker().get_max_context(
+                        attempt_provider_id)
+                    _needed = int(estimated_tokens) + int(
+                        _attempt_max_tokens or 0)
+                    if _cap and _needed > _cap and attempt_provider_id != provider_order[0]:
+                        logger.warning(
+                            "[prompt-budget] skipping %s for this turn: "
+                            "measured input %d + output reservation %d = %d "
+                            "tokens exceeds its %d-token window",
+                            attempt_provider_id, int(estimated_tokens),
+                            int(_attempt_max_tokens or 0), _needed, _cap,
+                        )
+                        continue
+                except Exception as _win_err:  # noqa: BLE001 — never block a turn
+                    logger.debug(f"window check skipped: {_win_err}")
+
+
             # Skip fallback providers that don't serve this model — cross-
             # provider streaming fallback previously retried the SAME model
             # name on incompatible providers (e.g. 'gpt-4o' on Anthropic),
@@ -5587,6 +5938,21 @@ class BYOKHandler:
                 logger.debug(
                     f"Skipping stream fallback to {attempt_provider_id}: does not serve model '{model}'"
                 )
+                continue
+
+            # A provider whose CREDENTIAL was just rejected (or whose quota is
+            # exhausted) will reject a different model the same way. Skipping
+            # the rest of its rungs is what turns a 401 into a fallback to a
+            # provider that works, instead of three failures with the same
+            # cause. The requested provider is exempt only when no cooldown is
+            # active for it — a rejected key is a fact about the provider, not
+            # about the caller's intent.
+            if self._provider_cooldown_active(attempt_provider_id):
+                logger.info(
+                    "Skipping provider %s for this attempt: %s",
+                    attempt_provider_id,
+                    self._provider_cooldown_state().get(
+                        attempt_provider_id, {}).get("cause", "provider cooling down"))
                 continue
 
             # Bench a pair that recently produced empty/inactive output. This
@@ -5725,6 +6091,15 @@ class BYOKHandler:
 
                 # Phase 226.4-04: Record successful streaming API call for health monitoring
                 latency_ms = (time.time() - request_start) * 1000
+                # WHICH route actually produced this text. The caller reported
+                # the REQUESTED pair, so a turn that fell back advertised the
+                # primary it never used — observed live 2026-09-16: a reply
+                # attributed to opencode-go/<model>, whose provider rejects
+                # every completion with 401, while the text came from the
+                # fallback route. Attribution must come from the attempt that
+                # succeeded, not from the ranking that started the turn.
+                self._last_used_model = model
+                self._last_used_provider = attempt_provider_id
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
                                        model_id=model)
@@ -5753,6 +6128,17 @@ class BYOKHandler:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+
+                # Classify BEFORE deciding what to do next: a rejected
+                # credential and an unsupported model look alike in a status
+                # code and demand opposite responses.
+                try:
+                    self._record_attempt_failure(
+                        attempt_provider_id, model, e,
+                        status=getattr(getattr(e, "response", None),
+                                       "status_code", None))
+                except Exception as _cause_err:  # noqa: BLE001
+                    logger.debug(f"failure classification skipped: {_cause_err}")
 
                 # Mid-stream inactivity: the user already has partial output.
                 # End the stream with what arrived — replaying the request
@@ -6020,20 +6406,39 @@ class BYOKHandler:
                 # This was the last provider, fall through to error handling
                 break
 
-        # Model-level fallback: every provider for THIS model failed. Try the
-        # next ranked MODEL before declaring the turn dead — the mature-gateway
+        # Model-level fallback: every provider for THIS route failed. Try the
+        # next ranked ROUTE before declaring the turn dead — the mature-gateway
         # behavior (LiteLLM model-group fallbacks, OpenRouter `models: []`).
         # Zero visible tokens reached the caller here (a mid-stream stall
-        # returns above), so replaying on another model cannot duplicate output.
-        if fallback_models:
-            _next_model = fallback_models[0]
+        # returns above), so replaying on another route cannot duplicate output.
+        #
+        # The provider must travel with the model. Passing the ORIGINAL
+        # ``provider_id`` here dispatched a model ranked for provider B to
+        # provider A, which is why "provider fallback" could walk three
+        # independent providers and fail on all of them: none of them was
+        # asked for a model it serves.
+        _next_routes = list(fallback_routes or [])
+        if not _next_routes and fallback_models:
+            # Legacy shape: names only. The provider that serves them is not
+            # recoverable, so route each name through the ranker's own
+            # reconciliation rather than assuming the original provider.
+            logger.debug(
+                "stream fallback received model names without providers; "
+                "resolving each name to a route")
+            for _name in fallback_models:
+                _route = self._route_for_model(_name)
+                if _route:
+                    _next_routes.append(_route)
+        if _next_routes:
+            _next_provider, _next_model = _next_routes[0]
             logger.warning(
-                f"all {len(provider_order)} provider(s) failed for {model} — "
-                f"falling back to ranked model {_next_model}")
+                f"all {len(provider_order)} provider(s) failed for "
+                f"{provider_id}/{model} — falling back to ranked route "
+                f"{_next_provider}/{_next_model}")
             async for _fb_tok in self.stream_completion(
                 messages=messages,
                 model=_next_model,
-                provider_id=provider_id,
+                provider_id=_next_provider,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 agent_id=agent_id,
@@ -6041,7 +6446,7 @@ class BYOKHandler:
                 task_type=task_type,
                 extra_kwargs=extra_kwargs,
                 reasoning_sink=reasoning_sink,
-                fallback_models=list(fallback_models[1:]),
+                fallback_routes=_next_routes[1:],
             ):
                 yield _fb_tok
             return
@@ -6196,14 +6601,25 @@ class BYOKHandler:
                 continue
 
             # Skip fallback providers that don't serve this model (same
-            # heuristic as stream_completion). The requested primary is always
-            # tried regardless.
+            # catalogue rule as stream_completion). The requested primary is
+            # always tried regardless.
             if attempt_provider_id != provider_id and not self._provider_serves_model(
                 attempt_provider_id, model
             ):
                 logger.debug(
                     f"Skipping fallback to {attempt_provider_id}: does not serve model '{model}'"
                 )
+                continue
+
+            # Provider-scoped failure (rejected credential / exhausted quota):
+            # a different model on the same provider fails identically, so stop
+            # spending the request budget on it and keep the fallback moving.
+            if self._provider_cooldown_active(attempt_provider_id):
+                logger.info(
+                    "Skipping provider %s for this attempt: %s",
+                    attempt_provider_id,
+                    self._provider_cooldown_state().get(
+                        attempt_provider_id, {}).get("cause", "provider cooling down"))
                 continue
 
             logger.info(f"Attempting completion with provider: {attempt_provider_id} (requested: {provider_id})")
@@ -6300,6 +6716,13 @@ class BYOKHandler:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
+                try:
+                    self._record_attempt_failure(
+                        attempt_provider_id, model, e,
+                        status=getattr(getattr(e, "response", None),
+                                       "status_code", None))
+                except Exception as _cause_err:  # noqa: BLE001
+                    logger.debug(f"failure classification skipped: {_cause_err}")
                 try:
                     latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms,

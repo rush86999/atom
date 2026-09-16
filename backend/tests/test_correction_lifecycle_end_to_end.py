@@ -60,11 +60,23 @@ def _rows(scratch, turn, model):
 
 
 def _fresh_router(monkeypatch, scratch):
-    """A real LearningBasedRouter wired to the scratch session."""
+    """A real LearningBasedRouter wired to the scratch session.
+
+    Order-independence guard: another suite monkeypatches
+    ``LearningBasedRouter.__new__`` to return a stub. Restoring it re-binds the
+    inherited ``object.__new__`` as an explicit class attribute, which makes
+    ``tp_new`` a slot dispatcher — after that, ANY constructor argument raises
+    ``TypeError: object.__new__() takes exactly one argument``. Deleting the
+    attribute does not restore the slot, so construction goes through
+    ``object.__new__`` directly (the slot, not the class attribute) and
+    ``__init__`` is called by hand. Without this, these tests passed alone and
+    failed whenever the bench suite ran first.
+    """
     from core.llm import learning_router_registry as reg
     from core.learning_llm_router import LearningBasedRouter
 
-    router = LearningBasedRouter(db=scratch["Session"]())
+    router = object.__new__(LearningBasedRouter)
+    LearningBasedRouter.__init__(router, scratch["Session"]())
     monkeypatch.setattr(reg, "get_learning_router_instance",
                         lambda *a, **k: router)
     return router

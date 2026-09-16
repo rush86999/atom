@@ -1713,16 +1713,21 @@ class LearningBasedRouter:
         try:
             from core.llm.fabrication_accounting import (
                 FABRICATION_VERDICTS,
+                GROUNDING_EVALUATED_VERDICTS,
                 coerce_features,
             )
 
             features, _malformed = coerce_features(prompt_features)
             verdict = getattr(feedback, "verdict", None) or (
                 features.get("verdict") if features else None)
+            # Verdicts about THIS OUTPUT annotate its row; availability
+            # verdicts (a timed-out planning call) describe an attempt that
+            # produced nothing, and must not annotate some other attempt that
+            # happens to share the turn.
             annotates = (
                 verdict in FABRICATION_VERDICTS
-                and bool(feedback.routing_result_id)
-            )
+                or verdict in GROUNDING_EVALUATED_VERDICTS
+            ) and bool(feedback.routing_result_id)
 
             with get_db_session() as db:
                 if annotates:
@@ -1738,8 +1743,13 @@ class LearningBasedRouter:
                     )
                     if existing is not None:
                         stored, _ = coerce_features(existing.prompt_features)
+                        # A fabrication verdict is never downgraded by a later
+                        # positive marker; and repeating the same verdict is a
+                        # no-op.
                         if stored.get("verdict") == verdict:
-                            # Same generation, same verdict — already recorded.
+                            return
+                        if (stored.get("verdict") in FABRICATION_VERDICTS
+                                and verdict in GROUNDING_EVALUATED_VERDICTS):
                             return
                         # Reassign a NEW mapping: mutating the dict in place
                         # leaves SQLAlchemy's JSON column clean and the verdict
@@ -1747,10 +1757,42 @@ class LearningBasedRouter:
                         updated = dict(stored)
                         updated["verdict"] = verdict
                         existing.prompt_features = updated
-                        existing.quality_satisfied = feedback.quality_satisfied
-                        existing.user_satisfaction = feedback.user_satisfaction
-                        existing.success = feedback.success
+                        # QUALITY FIELDS follow the verdict only when the
+                        # verdict is a JUDGEMENT ON THE OUTPUT. A grounding
+                        # pass is a statement about the CHECK, not a new score
+                        # for the reply — overwriting the outcome's real
+                        # measurement with the marker's placeholder score would
+                        # corrupt the training signal.
+                        if verdict in FABRICATION_VERDICTS:
+                            existing.quality_satisfied = feedback.quality_satisfied
+                            existing.user_satisfaction = feedback.user_satisfaction
+                            existing.success = feedback.success
                         return
+
+                if not annotates:
+                    # A SECOND outcome row for the same (turn, model) is a
+                    # RETRY that reused the routing decision — a DISTINCT
+                    # generation, not a duplicate of the first. Generation
+                    # accounting keys on (routing_result_id, model_id), so
+                    # sharing the id merged two real outputs into one and the
+                    # second output's fabrication could be hidden (closure
+                    # item 3: "must not merge separate outputs when retries
+                    # reuse a routing decision"). Give the later attempt its
+                    # own id; the handler publishes the EFFECTIVE id after this
+                    # write, so a corrective verdict for that attempt targets
+                    # the row it actually wrote.
+                    prior = (
+                        db.query(LLMRoutingFeedback.id)
+                        .filter(
+                            LLMRoutingFeedback.routing_result_id
+                            == feedback.routing_result_id,
+                            LLMRoutingFeedback.model_id == feedback.model_id,
+                        )
+                        .count()
+                    )
+                    if prior:
+                        feedback.routing_result_id = (
+                            f"{feedback.routing_result_id}#a{prior + 1}")
 
                 row = LLMRoutingFeedback(
                     routing_result_id=feedback.routing_result_id,

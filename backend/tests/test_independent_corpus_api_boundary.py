@@ -43,6 +43,15 @@ STUBBED (read boundaries + the model transport only):
   * ``outlook_service.search_emails`` / ``get_email_by_id`` — the live Graph
     read (network) → empty.
   * ``core.database.get_db_session`` / ``get_db`` — a null session; no DB.
+  * ``DocumentsHybridSearch`` — the LanceDB semantic supplement → no hits.
+  * ``socket.connect`` / ``create_connection`` — replaced with a raise, so a
+    stray provider/Graph/Tavily call fails the test instead of leaving the box.
+
+Scenarios (one class each): mail · workbook(+formula) · document · explicit
+inventory · conflicting provenance · missing evidence · changed follow-up
+subject. ``TestParticipantLaneAddressStripping`` is the regression lock for a
+defect this corpus found (a bare address's DOMAIN donated "participant names");
+it was pinned failing and is now green because the lane was fixed.
 
 Hermetic: no network, no live store, no shared test DB, no wall-clock ordering
 dependence (every session id is unique per test).
@@ -54,7 +63,7 @@ import re
 import uuid
 from contextlib import contextmanager
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -107,6 +116,18 @@ MAIL_ROWS: List[Dict[str, Any]] = [
         "subject": "Invoice 55210 - calibration service",
         "content": "Calibration service for the quarter is billed at $3,975.00.",
         "timestamp": "2026-04-02T11:00:00",
+        "metadata": "",
+        "attachments": "[]",
+    },
+    {
+        # The POSITIVE control for the participant lane: a real display name
+        # ("Name <addr>") that a user can legitimately name.
+        "id": "cm-9005",
+        "sender": "Ravi Menon <ravi.menon@caldercastings.example>",
+        "recipient": "ops@brightwater.example",
+        "subject": "Re: casting lead time",
+        "content": "The castings ship in nine weeks from receipt of the pattern.",
+        "timestamp": "2026-03-18T08:30:00",
         "metadata": "",
         "attachments": "[]",
     },
@@ -303,13 +324,9 @@ class RecordingLLM:
         return self.reply_calls[-1]["messages"]
 
     def last_evidence(self) -> str:
-        ev = _evidence_of(self.last_messages())
-        import os as _os
-        import sys as _sys
-        if _os.environ.get("ATOM_CORPUS_DEBUG") == "1":
-            print("\n=== EVIDENCE ===\n" + ev + "\n=== /EVIDENCE ===\n",
-                  file=_sys.stderr)
-        return ev
+        """The evidence the harness assembled for the LAST answer call — the
+        selection decision, as the model saw it."""
+        return _evidence_of(self.last_messages())
 
 
 def _evidence_of(messages: List[Dict[str, Any]]) -> str:
@@ -792,29 +809,28 @@ class TestDocumentSourcedFact:
         assert MAIL_FIGURE_ANZ not in reply
 
 
-class TestParticipantLaneDomainWordLeak:
-    """REGRESSION (was an xfail; the defect is now fixed) — the participant
-    lane used to treat any 4+ letter token inside a *bare address* as a
-    participant name the user said.
+class TestParticipantLaneAddressStripping:
+    """REGRESSION LOCK for a defect this corpus found on 2026-09-16.
 
     ``_participant_mail_rows`` (integrations/chat_orchestrator.py) scanned
-    ``sender``/``recipient`` for display-name words via
-    ``re.findall(r"[A-Za-z]{4,}", val.split("<", 1)[0])``. For an address with
-    no display name that prefix is the whole ``local@domain.tld`` string, so
-    the DOMAIN contributed "words": ``billing@tooling-depot.example``
-    contributed "tooling", "depot" and "example".
+    ``re.findall(r"[A-Za-z]{4,}", val.split("<", 1)[0])`` for display-name
+    words. For a BARE address that prefix is the whole ``local@domain.tld``
+    string, so the DOMAIN donated "participant names":
+    ``billing@tooling-depot.example`` contributed "tooling", "depot" and
+    "example".
 
-    Consequence observed here (independent corpus): a question about a stored
-    PROSE DOCUMENT — "what does the supplier quality agreement say the annual
-    tooling amortisation is?" — made the lane fire on the ordinary English word
-    "tooling", and the harness injected an unrelated supplier's calibration
+    Consequence observed here: a question about a stored PROSE DOCUMENT —
+    "what does the supplier quality agreement say the annual tooling
+    amortisation is?" — made the lane fire on the ordinary English word
+    "tooling", and the harness injected that supplier's unrelated calibration
     invoice ($3,975.00) under the header "LIVE TOOL RESULTS (ingested mailbox —
-    the messages the user is pointing at)", i.e. it told the reply model that
-    the user was pointing at a message they never mentioned.
+    the messages the user is pointing at)" — i.e. it told the reply model the
+    user was pointing at a message they never mentioned.
 
-    Fixed by stripping every @-token before scanning for display-name words.
-    Both halves are pinned below: the domain no longer donates a name, and a
-    REAL display name still matches.
+    This was pinned as ``xfail(strict=True)``; the lane was then fixed (every
+    @-token is stripped before the display-name scan), so both halves are now
+    plain assertions: the domain donates nothing, and a REAL display name still
+    grips its rows.
     """
 
     ASK = ("what does the supplier quality agreement say the annual tooling "
@@ -835,14 +851,25 @@ class TestParticipantLaneDomainWordLeak:
             not in evidence
         assert MAIL_FIGURE_NOISE not in evidence
 
-    def test_real_display_names_still_match(self):
-        """The fix must not be over-broad: an actual display name still grips
-        its rows, in both ``Name <addr>`` and ``addr (Name)`` shapes."""
-        from integrations.chat_orchestrator import _participant_mail_rows
+    def test_real_display_names_still_match(self, harness):
+        """The fix must not be over-broad: a genuine ``Name <addr>``
+        participant still resolves to that participant's rows."""
+        def _plan(_prompt: str) -> ToolPlan:
+            return ToolPlan(use_tool=True, service="outlook", intent="search",
+                            query="casting lead time",
+                            reason="the user named a person",
+                            suggested_intent="search_request",
+                            routing_confidence=0.9)
+        harness.llm._plan_for = _plan
 
-        rows = _participant_mail_rows(
-            "what did chandrakant say about the foot shear?")
-        assert rows, "a real display-name participant stopped matching"
+        harness.ask("what did Ravi Menon say about the casting lead time?")
+        evidence = harness.llm.last_evidence()
+        assert "ravi.menon@caldercastings.example" in evidence
+        assert "nine weeks" in evidence
+        # ... and no other participant's records came with it
+        assert MAIL_FIGURE_ANZ not in evidence
+        assert MAIL_FIGURE_BKT not in evidence
+        assert MAIL_FIGURE_NOISE not in evidence
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -950,14 +977,15 @@ class TestMissingEvidence:
 
     def test_no_source_supports_the_asked_figure(self, _dataset_plan):
         harness = _dataset_plan
-        harness.ask(self.ASK)
+        body = harness.ask(self.ASK)
         evidence = harness.llm.last_evidence()
 
         # the harness says so explicitly instead of leaving a gap
-        assert "XR-7704" in evidence or "7704" in evidence
+        assert "7704" in evidence
         assert "appear in NONE of them" in evidence
         # and nothing that could be mistaken for the answer
         assert _money_figures(evidence) == []
+        assert _money_figures(body["message"]) == []
 
     def test_invented_number_is_caught_and_never_reaches_the_user(
             self, _dataset_plan):

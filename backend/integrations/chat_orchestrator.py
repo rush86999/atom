@@ -878,6 +878,24 @@ def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
     def _is_attribution(ln: str) -> bool:
         return ("full:" in ln) or ("open:" in ln)
 
+    # How far back to look for a kept row's citation. The docstring has always
+    # said "the NEAREST preceding line carrying a full:/open: path", but the
+    # code checked only ``idx - 1`` — so a row whose citation sat two lines up
+    # (a From: line, a Subject: line, then the row) survived WITHOUT the
+    # citation that makes it checkable, while the note claimed otherwise
+    # (closure item 5). Bounded, and stopped by a blank line, so one message's
+    # citation is never attached to an unrelated block's rows.
+    _ATTRIBUTION_LOOKBACK = 12
+
+    def _nearest_attribution(idx: int) -> Optional[int]:
+        lower = max(-1, idx - 1 - _ATTRIBUTION_LOOKBACK)
+        for j in range(idx - 1, lower, -1):
+            if not lines[j].strip():
+                return None  # block boundary: do not cross it
+            if _is_attribution(lines[j]):
+                return j
+        return None
+
     decisive_idx = [i for i, ln in enumerate(lines) if decisive_kind(ln)]
     kept_idx: set = set()
     used = 0
@@ -898,8 +916,9 @@ def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
     # 1 + 2 + 3: decisive lines with their attribution and following neighbour.
     for idx in decisive_idx:
         group = []
-        if idx - 1 >= 0 and _is_attribution(lines[idx - 1]):
-            group.append(idx - 1)
+        attribution = _nearest_attribution(idx)
+        if attribution is not None:
+            group.append(attribution)
         group.append(idx)
         if idx + 1 < len(lines) and not decisive_kind(lines[idx + 1]):
             group.append(idx + 1)
@@ -935,6 +954,37 @@ def _enforce_evidence_budget(block: Optional[str]) -> Optional[str]:
         result = result[:keep] + "\n" + message
         result = result[:budget]
     return result
+
+
+def reduce_evidence_for_overflow(
+    evidence_body: Optional[str],
+    overflow_tokens: int,
+    floor_tokens: int = 200,
+) -> tuple:
+    """Shrink an evidence block by ``overflow_tokens`` WITHOUT losing the answer.
+
+    Returns ``(trimmed_body, stats)``.
+
+    The previous implementation converted the overflow with ``tokens × 4`` and
+    cut the block with a FRONT character slice, so the decisive row, its
+    citation and the formula chain were removed before the preservation logic
+    ever saw them (closure item 4). This trims in TOKENS, keeps the decisive
+    lines first (``prompt_budget.trim_to_tokens``), and then applies the hard
+    char bound.
+
+    ``floor_tokens`` is the explicit lower bound: the harness reduces the
+    evidence, it never deletes the sources outright. When the floor is reached
+    the caller is responsible for saying the prompt is still over budget.
+    """
+    from core.llm.prompt_budget import count_tokens, trim_to_tokens
+
+    body = evidence_body or ""
+    if not body:
+        return "", {}
+    measured, _estimated = count_tokens(body)
+    target = max(int(floor_tokens), measured - max(0, int(overflow_tokens)))
+    trimmed, stats = trim_to_tokens(body, target)
+    return _enforce_evidence_budget(trimmed), stats
 
 
 def _account_turn_prompt(
@@ -1042,7 +1092,15 @@ async def _derivation_supplement(
         message, user_id, {"history": history or [], "canvas": canvas},
         llm_service=llm_service)
     if not ds:
+        # ATTRIBUTION: "the derivation lane ran and found nothing" and "the
+        # derivation lane never ran" look identical in the reply — the model
+        # either guesses or declines in both cases. Say which one it was, so a
+        # failed case can name its stage instead of being diagnosed by guess.
+        logger.info("[derivation] workbook lane: no dataset block for this ask")
         return tool_block
+    logger.info(
+        "[derivation] workbook lane: %d chars of dataset evidence %s",
+        len(ds), "prepended to the tool block" if tool_block else "(leading)")
     return f"{ds}\n\n{tool_block}" if tool_block else ds
 
 
@@ -1119,6 +1177,34 @@ async def _derivation_dataset_block(
                 bare = re.sub(r"[^0-9]", "", whole)
                 if 4 <= len(bare) <= 12 and bare not in figures:
                     figures.append(bare)
+        if not figures:
+            # A derivation ask may name the value as a BARE INTEGER — "show how
+            # the 7519 listed price was derived" — with no currency symbol and
+            # no grouping. `_distinctive_figure_phrases` is a currency/format
+            # recogniser and returns NOTHING for that, so `figures` was empty,
+            # this function returned None, and the workbook lane never ran:
+            # the model answered from memory or asked permission instead of
+            # reading the row (measured 2026-09-16 on the incident's own ask,
+            # which is why the derivation passed only when the canvas happened
+            # to carry a formatted '$7,519.00').
+            #
+            # Scoped to a DERIVATION ask, where a 4-6 digit integer next to a
+            # value word IS the figure being asked about. The bound keeps ids,
+            # hashes and years out of the probe slots.
+            _VALUE_WORD_RE = re.compile(
+                r"(price|cost|amount|total|value|rate|score|number|figure)",
+                re.IGNORECASE)
+            for part in hay_parts:
+                for _m in re.finditer(r"\b\d{3,6}\b", part or ""):
+                    _window = (part or "")[
+                        max(0, _m.start() - 40): _m.end() + 40]
+                    if not _VALUE_WORD_RE.search(_window):
+                        continue
+                    _bare = _m.group(0).lstrip("0") or _m.group(0)
+                    if _bare not in figures:
+                        figures.append(_bare)
+                if figures:
+                    break  # the message itself named the figure
         if not figures:
             return None
         # One search per token (the catalog is first-token-wins), then rank
@@ -2625,6 +2711,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _outbound_signers: Optional[Dict[str, Any]] = None
             if user_id or agent_id:
                 try:
+                    # IMPORTED HERE because it was never imported at all: the
+                    # name was used, the NameError was swallowed by the
+                    # `except` below, and outbound signing identity silently
+                    # never resolved (found by an undefined-name pass
+                    # 2026-09-16 after a rename broke a neighbouring path the
+                    # same way — that one reached the user as a canned
+                    # template reply).
+                    from core.outbound_identity import collect_team_signers
+
                     _outbound_signers = await asyncio.wait_for(
                         asyncio.to_thread(
                             collect_team_signers, user_id, self.tenant_id, agent_id
@@ -2844,6 +2939,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # fallback, guard regenerations). 0/negative disables the budget
             # (legacy unbounded behavior).
             _turn_budget = _chat_turn_budget_seconds()
+
+            # START THE DERIVATION LANE NOW, not after the planner. It does not
+            # depend on the plan (the workbook row IS the answer to a
+            # derivation ask), and it costs 1-20s: run sequentially behind a
+            # planner that can burn 25s, the pair pushed the reply past the 95s
+            # turn budget and the turn returned `turn_budget_exceeded` instead
+            # of the derivation (measured 2026-09-16: 96.6s, structured error,
+            # case never evaluated). Overlapping them removes the lane's cost
+            # from the critical path.
+            _deriv_task: Optional[asyncio.Task] = None
+            if _derivation_ask(
+                message, {"history": planner_history or history,
+                          "canvas": canvas_context}
+            ):
+                try:
+                    _deriv_task = asyncio.create_task(
+                        _derivation_supplement(
+                            message, user_id, planner_history or history,
+                            canvas_context, None,
+                            llm_service=self.llm_service))
+                except Exception as _deriv_start_err:  # noqa: BLE001
+                    logger.debug(
+                        f"[derivation] lane not pre-started: {_deriv_start_err}")
+                    _deriv_task = None
 
             async def _guarded_regen(_coro):
                 """Run a guard regeneration only while turn budget remains.
@@ -3172,6 +3291,61 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ),
                     })
 
+            # THE DERIVATION LANE MUST NOT DEPEND ON THE PLANNER SUCCEEDING.
+            # The supplement is called inside the plan branches above, so when
+            # the planner timed out or failed the whole lane was skipped and a
+            # derivation ask was answered from a vacuum — measured 2026-09-16
+            # on the incident's own ask: "shall I open it now?" (or a flat "I
+            # couldn't retrieve the file"), with the workbook row sitting one
+            # call away. The row IS the answer to a derivation ask, so compose
+            # it here as the last word regardless of what the planner did.
+            # Idempotent: skipped when the block already carries dataset
+            # evidence, and `_derivation_supplement` is fault-isolated.
+            try:
+                _deriv_wanted = _derivation_ask(
+                    message, {"history": planner_history or history,
+                              "canvas": canvas_context})
+                # WHAT COUNTS AS "ALREADY PRESENT" MATTERS. The planner's own
+                # `datasets.search` block also starts with DATASET CATALOG, so
+                # testing for that marker made this guard suppress the very
+                # lane that produces the answer: the turn carried 12k chars of
+                # catalog rows from other sheets, the matched ROW and its
+                # FORMULAS were never composed, and the model answered "I don't
+                # have the PRICE VIPUL document" (measured 2026-09-16). The
+                # lane's own signature is the matched row plus its formulas.
+                _block_text = _tool_block or ""
+                _deriv_present = (
+                    "DATASET CATALOG" in _block_text
+                    and "FORMULAS FOR THE MATCHED ROW" in _block_text)
+                logger.info(
+                    "[derivation] ask=%s matched-row-evidence=%s "
+                    "tool_block=%d chars named_file=%s",
+                    _deriv_wanted, _deriv_present, len(_block_text),
+                    "PRICE VIPUL" in _block_text.upper())
+                if _deriv_wanted and not _deriv_present:
+                    _deriv_block = None
+                    if _deriv_task is not None:
+                        try:
+                            # Already running since before the planner: this
+                            # await normally returns instantly.
+                            _deriv_block = await _deriv_task
+                        except Exception as _deriv_await_err:  # noqa: BLE001
+                            logger.debug(
+                                f"[derivation] pre-started lane failed: "
+                                f"{_deriv_await_err!r}")
+                            _deriv_block = None
+                    if not _deriv_block:
+                        _deriv_block = await _derivation_supplement(
+                            message, user_id, planner_history or history,
+                            canvas_context, None,
+                            llm_service=self.llm_service)
+                    if _deriv_block:
+                        _tool_block = (
+                            f"{_deriv_block}\n\n{_tool_block}"
+                            if _tool_block else _deriv_block)
+            except Exception as _deriv_err:  # noqa: BLE001
+                logger.warning(f"[derivation] lane failed: {_deriv_err!r}")
+
             # Fresh tool results go LAST — closest to the question they answer.
             # (Earlier failures in the transcript stay where they belong: in
             # the past. The newest data wins.) The block also explicitly
@@ -3223,25 +3397,66 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if not _acct.fits and _evidence_msg is not None:
                         # The evidence section is the one section the harness
-                        # can still shrink. Re-trim it by the measured overflow
-                        # (chars ≈ 4×tokens is the same heuristic the counter
-                        # falls back to) and say what was dropped.
-                        _overflow_chars = _acct.overflow_tokens * 4
+                        # can still shrink. Trim in TOKENS and with the
+                        # decisive-preserving selector: the previous version
+                        # converted the overflow with `tokens × 4` and then cut
+                        # the block with a FRONT character slice, which removed
+                        # the answer, its citation and the formula chain BEFORE
+                        # the preservation logic ever ran (closure item 4).
+                        from core.llm.prompt_budget import count_tokens
+
                         _evidence_body = str(
                             _evidence_msg.get("content") or "")
-                        _reduced = max(
-                            2000, len(_evidence_body) - _overflow_chars)
+                        _evidence_tokens, _ev_estimated = count_tokens(
+                            _evidence_body)
                         _before = len(_evidence_body)
-                        _evidence_msg["content"] = _enforce_evidence_budget(
-                            _evidence_body[:_reduced])
+                        _trimmed, _stats = reduce_evidence_for_overflow(
+                            _evidence_body, _acct.overflow_tokens)
+                        _evidence_msg["content"] = _trimmed
+                        # RECOUNT after trimming. The pre-trim account is not
+                        # evidence about the prompt that will actually be
+                        # dispatched, and the trim itself changes the section.
+                        _after = _account_turn_prompt(
+                            messages, provider_id=_hint_provider)
                         logger.warning(
-                            "[prompt-budget] prompt exceeds the model window by "
-                            "%d tokens; evidence section re-trimmed from %d to "
-                            "%d chars (largest section: %s)",
+                            "[prompt-budget] prompt exceeded the model window "
+                            "by %d tokens; evidence re-trimmed %d→%d chars "
+                            "(decisive kept: %s); post-trim input=%s fits=%s",
                             _acct.overflow_tokens, _before,
                             len(str(_evidence_msg.get("content") or "")),
-                            _acct.largest_section,
+                            {k: v for k, v in _stats.items()
+                             if k != "tokens_used"},
+                            getattr(_after, "total_input_tokens", "?"),
+                            getattr(_after, "fits", "?"),
                         )
+                        if _after is not None and not _after.fits:
+                            # DEFINED BEHAVIOUR when trimming evidence cannot
+                            # close the gap: the excess is in history or the
+                            # system instructions, which the harness must not
+                            # silently discard. Say so explicitly, name the
+                            # largest section, and let the turn proceed — the
+                            # provider's own limit is the next backstop.
+                            logger.error(
+                                "[prompt-budget] still over the window by %d "
+                                "tokens after the evidence trim — the excess "
+                                "is in '%s', not in evidence; not discarding "
+                                "conversation or instructions silently",
+                                _after.overflow_tokens,
+                                _after.largest_section,
+                            )
+                            _evidence_msg["content"] = (
+                                str(_evidence_msg.get("content") or "")
+                                + "\n\n[harness note: this prompt is over the "
+                                "model's input budget even after the evidence "
+                                "was trimmed; the excess is in the "
+                                f"'{_after.largest_section}' section. Treat "
+                                "the evidence above as PARTIAL and say so if "
+                                "the answer is not in it.]")
+                        if _ev_estimated:
+                            logger.info(
+                                "[prompt-budget] token counts are cl100k_base "
+                                "estimates; models with other tokenizers may "
+                                "differ")
             except Exception as _acct_err:  # noqa: BLE001 — never block a turn
                 logger.debug(f"prompt accounting skipped: {_acct_err}")
 
@@ -3293,14 +3508,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _cx = self.llm_service.handler.analyze_query_complexity(_prompt_for_cx)
                     _s_prov, _s_model = await self.llm_service.handler.get_optimal_provider(_cx)
-                    # Model-level fallback ladder: if every provider for the
-                    # chosen model fails (empty stream, outage), try the next
-                    # ranked model instead of ending the turn.
+                    # Route-level fallback ladder: if every provider for the
+                    # chosen route fails (empty stream, outage), try the next
+                    # ranked ROUTE. The provider travels with the model — the
+                    # previous shape carried names only, and the streaming
+                    # fallback re-attached the ORIGINAL provider, so a model
+                    # ranked for provider B was dispatched to provider A. That
+                    # is how a ladder of three independent providers failed on
+                    # all three rungs (live 2026-09-16).
                     try:
-                        _fb_models = self.llm_service.handler.get_fallback_models(
-                            _cx, _s_model, limit=2)
+                        _fb_routes = self.llm_service.handler.get_fallback_routes(
+                            _cx, _s_model, primary_provider=_s_prov, limit=2)
                     except Exception:
-                        _fb_models = []
+                        _fb_routes = []
 
                     _buf: List[str] = []
                     _t0 = _time.monotonic()
@@ -3319,7 +3539,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         temperature=0.7,
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                         reasoning_sink=_reasoning_sink,
-                        fallback_models=_fb_models,
+                        fallback_routes=_fb_routes,
+                        # MEASURED input size: without it the streaming path
+                        # cannot apply the dispatch-time window check the
+                        # non-streaming path applies (a streaming turn could
+                        # dispatch a route whose window cannot hold the prompt).
+                        estimated_tokens=(
+                            int(_acct.total_input_tokens)
+                            if _acct is not None else None),
                     )
                     # Turn budget: the provider stream gets whatever remains of
                     # this turn's budget. Every provider attempt inside
@@ -3642,11 +3869,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             f"[stage-timing] reply STREAMED: "
                             f"{_time.monotonic() - _t0:.1f}s to full text "
                             f"({_s_prov}/{_s_model}, {len(_buf)} chunks)")
+                        # Report the route that ACTUALLY answered. The stream
+                        # generator can fall back to a different provider and
+                        # model internally; reporting the ranked pair made a
+                        # fallback turn look like it came from a provider that
+                        # rejects every completion (live 2026-09-16).
+                        _actual_provider = getattr(
+                            self.llm_service.handler,
+                            "_last_used_provider", None) or _s_prov
+                        _actual_model = getattr(
+                            self.llm_service.handler,
+                            "_last_used_model", None) or _s_model
                         response_data = {
                             "success": True,
                             "content": _streamed,
-                            "model": _s_model,
-                            "provider": _s_prov,
+                            "model": _actual_model,
+                            "provider": _actual_provider,
+                            "requested_model": _s_model,
+                            "requested_provider": _s_prov,
                         }
                     else:
                         logger.warning("chat streaming produced no tokens — falling back")
@@ -3675,18 +3915,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     try:
                         _ns_model = forced_model  # "auto" unless overridden
                         _ns_kwargs = dict(extra_kwargs)
-                        if _stream_zero_visible and _fb_models:
+                        if _stream_zero_visible and _fb_routes:
                             # The primary model just spent its whole output
                             # budget on invisible reasoning (zero visible
                             # chunks, finish_reason=length — live 2026-09-15:
                             # glm-5.3-flash on heavy evidence prompts, 3 of 4
                             # turns). Re-ranking would pick it again; pin the
-                            # next-ranked model for this one attempt instead
-                            # (model_type "specific model" -> pinned_model).
-                            _ns_model = _fb_models[0]
+                            # next-ranked ROUTE for this one attempt instead.
+                            # Only the MODEL can be pinned through this API
+                            # (the provider is chosen inside the handler), so
+                            # the route's model is used and the handler's own
+                            # catalogue reconciliation keeps it on a provider
+                            # that actually serves it.
+                            _ns_model = _fb_routes[0][1]
                             logger.info(
                                 "non-streaming fallback pinned to next-ranked "
-                                f"model {_fb_models[0]} after a "
+                                f"model {_ns_model} after a "
                                 "zero-visible stream")
                         response_data = await asyncio.wait_for(
                             self.llm_service.generate_completion(
@@ -3948,15 +4192,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # the enforce set. This check needs no judge, no LLM call and no
                 # scope gate — one regex pass over replies that had evidence.
                 if _tool_block and _content:
+                    _grounding_ran = False
                     try:
                         from core.chat_tool_planner import _unsupported_figures
 
                         _unsupported = _unsupported_figures(
                             _content, f"{_tool_block}\n{message}"
                         )
+                        _grounding_ran = True
                     except Exception as _fig_err:  # noqa: BLE001
                         logger.debug(f"figure grounding skipped: {_fig_err}")
                         _unsupported = []
+                    if not _unsupported and _grounding_ran:
+                        # POSITIVE GROUNDING PROVENANCE. A generation may only
+                        # count as evaluated for honesty when the check actually
+                        # RAN and found nothing — a high heuristic score is not
+                        # evidence, and neither is a check that errored out
+                        # (hence the explicit `_grounding_ran` flag). Without
+                        # this marker the accounting denominator could only
+                        # ever contain fabrications, so the rate would read
+                        # 100% by construction (closure item 3).
+                        try:
+                            from core.llm.learning_router_registry import (
+                                record_grounding_pass,
+                            )
+
+                            await record_grounding_pass(
+                                model_id=str(
+                                    (response_data or {}).get("model")
+                                    or forced_model or "unknown"
+                                ),
+                                task_type="question_answering",
+                                tenant_id=self.tenant_id or "default",
+                                routing_result_id=(response_data or {}).get(
+                                    "routing_result_id"),
+                            )
+                        except Exception as _gp_err:  # noqa: BLE001
+                            logger.debug(f"grounding-pass signal skipped: {_gp_err}")
                     if _unsupported:
                         logger.warning(
                             "[figure-grounding] reply states figures the evidence "

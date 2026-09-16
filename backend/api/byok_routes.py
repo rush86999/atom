@@ -44,6 +44,23 @@ BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
 )
 
 
+def _invalidate_provider_route_state(provider_id: Optional[str] = None) -> None:
+    """Clear cached route knowledge after a credential change.
+
+    A key the provider rejected five minutes ago may be valid now, and a model
+    catalogue fetched with the old key may not describe the new one. Recovery
+    must not wait for a cooldown TTL: storing or deleting a key re-opens the
+    provider (and its discovery) immediately. Best-effort — never blocks the
+    operator's request.
+    """
+    try:
+        from core.llm.byok_handler import BYOKHandler
+
+        BYOKHandler.invalidate_provider_failures(provider_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("provider route state not invalidated: %s", exc)
+
+
 def _is_usable_api_key(key: Optional[str]) -> bool:
     """True when a resolved key exists AND is not a known placeholder.
 
@@ -606,6 +623,7 @@ class BYOKManager:
 
         self.api_keys[key_id] = api_key_obj
         self._save_configuration()
+        _invalidate_provider_route_state(provider_id)
 
         return key_id
 
@@ -946,6 +964,7 @@ class BYOKManager:
 
         self.api_keys[key_id] = api_key_obj
         self._save_configuration()
+        _invalidate_provider_route_state(provider_id)
 
         # 2. Sync with tenant_settings table for frontend compatibility.
         # R81: store the Fernet-encrypted value, not the plaintext — the
@@ -1324,6 +1343,11 @@ async def delete_api_key(
 
     if not removed:
         raise HTTPException(status_code=404, detail="API key not found")
+
+    # Deleting a key changes what this provider can do: drop any cached
+    # cooldown/catalogue so the next turn re-evaluates instead of serving a
+    # stale verdict about a credential that no longer exists.
+    _invalidate_provider_route_state(provider_id)
 
     return ApiResponse(success=True, message=f"API key {provider_id}/{key_name} deleted", data={"removed": removed})
 

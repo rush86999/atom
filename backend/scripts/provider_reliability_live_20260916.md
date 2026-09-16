@@ -1,6 +1,6 @@
 # Provider reliability — bounded replay
 
-_Generated 2026-09-16T13:59:15.790592+00:00 · mode `stream` · budget 3 calls · executed 3._
+_Generated 2026-09-16T14:02:01.417577+00:00 · mode `stream` · budget 3 calls · executed 3._
 
 ## 1. What this run measured
 
@@ -41,14 +41,14 @@ _Generated 2026-09-16T13:59:15.790592+00:00 · mode `stream` · budget 3 calls �
 
 | provider/model | attempts | transport ok | contract pass | mean first-visible ms | mean completion ms | cost unknown |
 |---|---|---|---|---|---|---|
-| `unknown/unknown` | 1 | 0 | 0.0% (0/1) | 2474.9 | 2475.0 | 1 |
-| `openrouter/glm-5.3-flash` | 1 | 1 | 100.0% (1/1) | 1683.8 | 1697.7 | 1 |
-| `deepseek/deepseek-reasoner` | 1 | 1 | n/a (no denominator) | 24702.1 | 24793.4 | 1 |
+| `unknown/unknown` | 1 | 0 | 0.0% (0/1) | 2410.5 | 2410.7 | 1 |
+| `openrouter/glm-5.3-flash` | 1 | 1 | 100.0% (1/1) | 2123.5 | 2128.3 | 1 |
+| `deepseek/deepseek-reasoner` | 1 | 1 | n/a (no denominator) | 7211.1 | 7330.0 | 1 |
 
 ## 6. Latency
 
-- First visible (streamed): mean 9620.3 ms / min 1683.8 / max 24702.1 over **3** attempts — stamped on the first streamed chunk with non-empty content
-- Completion: mean 9655.4 ms / max 24793.4 over **3** attempts
+- First visible (streamed): mean 3915.0 ms / min 2123.5 / max 7211.1 over **3** attempts (of which 1 came from an all-providers-failed attempt) — stamped on the first streamed chunk with non-empty content; 1 of these stamp(s) come from attempts where every observed provider attempt failed and the text was the handler's own error message, so read the distribution together with the transport outcomes
+- Completion: mean 3956.3 ms / max 7330.0 over **3** attempts
 
 ## 7. Cost
 
@@ -79,7 +79,7 @@ _Generated 2026-09-16T13:59:15.790592+00:00 · mode `stream` · budget 3 calls �
 
 - Forced primary failure: `opencode-go/__atom_reliability_invalid_model__` · primary failure observed: **True**
 - Fallback answered a contract-satisfying reply: **True** via `{'provider': 'openrouter', 'model': 'glm-5.3-flash', 'fallback': True, 'fallback_provider': 'opencode-go'}`
-- Attempt sequence: `[{'provider': 'opencode-go', 'model': '__atom_reliability_invalid_model__', 'success': False, 'latency_ms': 101.9, 'output_chunks': 0, 'input_tokens': 0, 'fallback': False, 'fallback_provider': None, 'error': "Error code: 401 - {'type': 'error', 'error': {'type': 'ModelError', 'message': 'Model __atom_reliability_invalid_model__ is not supported'}}"}, {'provider': 'openrouter', 'model': '__atom_reliability_invalid_model__', 'success': False, 'latency_ms': 35.1, 'output_chunks': 0, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': "Error code: 400 - {'error': {'message': '__atom_reliability_invalid_model__ is not a valid model ID', 'code': 400}, 'user_id': 'org_3GHnwWcCSxGbfMG64iL8q70qPkK'}"}, {'provider': 'opencode-go', 'model': 'glm-5.3-flash', 'success': False, 'latency_ms': 257.5, 'output_chunks': 0, 'input_tokens': 0, 'fallback': False, 'fallback_provider': None, 'error': "Error code: 401 - {'type': 'error', 'error': {'type': 'AuthError', 'message': 'Invalid API key.'}}"}, {'provider': 'openrouter', 'model': 'glm-5.3-flash', 'success': False, 'latency_ms': 10674.2, 'output_chunks': 0, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': 'openrouter/glm-5.3-flash streamed no visible content (chunks=0, finish_reason=length)'}, {'provider': 'openrouter', 'model': 'glm-5.3-flash', 'success': True, 'latency_ms': 1730.7, 'output_chunks': 1, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': None}]`
+- Attempt sequence: `[{'provider': 'opencode-go', 'model': '__atom_reliability_invalid_model__', 'success': False, 'latency_ms': 162.5, 'output_chunks': 0, 'input_tokens': 0, 'fallback': False, 'fallback_provider': None, 'error': "Error code: 401 - {'type': 'error', 'error': {'type': 'ModelError', 'message': 'Model __atom_reliability_invalid_model__ is not supported'}}"}, {'provider': 'openrouter', 'model': '__atom_reliability_invalid_model__', 'success': False, 'latency_ms': 40.4, 'output_chunks': 0, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': "Error code: 400 - {'error': {'message': '__atom_reliability_invalid_model__ is not a valid model ID', 'code': 400}, 'user_id': 'org_3GHnwWcCSxGbfMG64iL8q70qPkK'}"}, {'provider': 'opencode-go', 'model': 'glm-5.3-flash', 'success': False, 'latency_ms': 169.1, 'output_chunks': 0, 'input_tokens': 0, 'fallback': False, 'fallback_provider': None, 'error': "Error code: 401 - {'type': 'error', 'error': {'type': 'AuthError', 'message': 'Invalid API key.'}}"}, {'provider': 'openrouter', 'model': 'glm-5.3-flash', 'success': False, 'latency_ms': 1749.3, 'output_chunks': 0, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': 'openrouter/glm-5.3-flash streamed no visible content (chunks=0, finish_reason=length)'}, {'provider': 'openrouter', 'model': 'glm-5.3-flash', 'success': True, 'latency_ms': 1483.0, 'output_chunks': 1, 'input_tokens': 0, 'fallback': True, 'fallback_provider': 'opencode-go', 'error': None}]`
 
 ## 10. What this does and does not establish
 

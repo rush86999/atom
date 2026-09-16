@@ -317,12 +317,19 @@ def account_generations(rows: Iterable[Any]) -> GenerationAccounting:
         except (TypeError, ValueError):
             state["unknown"] = True
             continue
-        # A score above the band with NO verdict is the ordinary heuristic
-        # assessment (truncation / refusal / schema / empty) — it says nothing
-        # about grounding. It is NOT counted as evaluated and NOT called clean
-        # (review item 3): "no fabrication detected" is not "grounding
-        # evaluated successfully".
-        state["unevaluated"] = True
+        # A real score with NO grounding verdict means the grounding check never
+        # ran on this generation, so it does not belong in the denominator —
+        # whatever the score says (review item 3). The two bands are reported
+        # separately because they carry different risk:
+        #   * ABOVE the band -> the ordinary heuristic assessment (truncation /
+        #     refusal / schema / empty); merely not grounded. UNEVALUATED.
+        #   * INSIDE the band -> exactly where provider exceptions, empty
+        #     completions AND fabrications all land; without provenance we
+        #     cannot tell which. UNKNOWN, never "clean".
+        if score_value > FABRICATION_SCORE_CEILING:
+            state["unevaluated"] = True
+        else:
+            state["unknown"] = True
 
     for state in states.values():
         if state["fabricated"]:

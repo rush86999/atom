@@ -364,6 +364,11 @@ class LLMService:
             model_type=model,
             temperature=temperature,
             turn_index=turn_index,
+            # MEASURED input size, when the caller measured it. Routing's
+            # window filter otherwise uses char/4, which understates
+            # number/formula-dense prompts badly enough to admit a model that
+            # cannot hold the prompt (closure item 4).
+            estimated_tokens=kwargs.pop("estimated_tokens", None),
             # Full conversation through to the model: `prompt` alone only
             # feeds routing (complexity/last-user-text). Previously this call
             # flattened messages to (prompt, last-system) and the BYOK handler
@@ -786,6 +791,8 @@ class LLMService:
         db = None,
         reasoning_sink: Optional[Dict[str, Any]] = None,
         fallback_models: Optional[List[str]] = None,
+        fallback_routes: Optional[List[tuple]] = None,
+        estimated_tokens: Optional[int] = None,
     ):
         """
         Stream LLM responses token-by-token with automatic provider fallback.
@@ -847,6 +854,12 @@ class LLMService:
             db=db,
             reasoning_sink=reasoning_sink,
             fallback_models=fallback_models,
+            # Ranked (provider, model) pairs: the provider travels WITH the
+            # model, so a fallback ranked for provider B is dispatched to B.
+            fallback_routes=fallback_routes,
+            # MEASURED input size so the streaming path can apply the same
+            # dispatch-time window check the non-streaming path uses.
+            estimated_tokens=estimated_tokens,
         ):
             yield token
 

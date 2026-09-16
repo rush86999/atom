@@ -239,7 +239,21 @@ def relevant_window(
         t for t in re.findall(r"[A-Za-z0-9][A-Za-z0-9._-]{2,}", (query or "").lower())
     }
     lines = text.splitlines()
+
+    # Character offset of each line's start, so the window can be centred on
+    # the matched PASSAGE rather than on a line index. The previous line-range
+    # implementation walked whole lines and then front-sliced the result when
+    # it was still too big, which cut the match out of the window entirely for
+    # a single-line document or a long preceding line — the exact case the
+    # window exists for (closure item 5).
+    line_start: List[int] = []
+    _pos = 0
+    for _line in lines:
+        line_start.append(_pos)
+        _pos += len(_line) + 1  # +1 for the newline consumed by splitlines
+
     best_idx: Optional[int] = None
+    best_pos: Optional[int] = None
     best_score = 0
     if tokens:
         for idx, line in enumerate(lines):
@@ -248,34 +262,37 @@ def relevant_window(
             if score > best_score:
                 best_score = score
                 best_idx = idx
+                # Anchor on the FIRST matching token inside that line so a very
+                # long line still gets a window around the relevant words.
+                anchor = None
+                for t in sorted(tokens):
+                    found = low.find(t)
+                    if found >= 0 and (anchor is None or found < anchor):
+                        anchor = found
+                best_pos = line_start[idx] + (anchor or 0)
 
-    if best_idx is None:
+    if best_idx is None or best_pos is None:
         head = text[:head_chars]
         tail = text[-tail_chars:] if len(text) > head_chars + tail_chars else ""
         return (head + ("\n…\n" + tail if tail else "")), False, None
 
-    # Centre the window on the matched line, weighted toward the text before
-    # it (a decisive row usually follows its own context).
+    # Centre on the match by character offset, weighted toward the text before
+    # it (a decisive row usually follows its own context). Clamping keeps the
+    # anchor strictly inside [start, end), so the matched passage is always in
+    # the returned window.
     before_chars = int(max_chars * 0.6)
     after_chars = max_chars - before_chars
-    out: List[str] = []
-    used = 0
-    # walk backwards then forwards from the match
-    start = best_idx
-    while start > 0 and used < before_chars:
-        start -= 1
-        used += len(lines[start]) + 1
-    used = 0
-    end = best_idx
-    while end < len(lines) - 1 and used < after_chars:
-        end += 1
-        used += len(lines[end]) + 1
-    out = lines[start:end + 1]
-    window = "\n".join(out)
-    if len(window) > max_chars * 2:  # guard against pathological long lines
-        window = window[: max_chars * 2]
+    start = max(0, best_pos - before_chars)
+    end = min(len(text), start + max_chars)
+    if end - start < max_chars:          # ran off the end -> pull the start back
+        start = max(0, end - max_chars)
+    if not (start <= best_pos < end):    # belt-and-braces containment
+        start = max(0, best_pos - (max_chars // 2))
+        end = min(len(text), start + max_chars)
+    window = text[start:end]
+
     prefix = "…\n" if start > 0 else ""
-    suffix = "\n…" if end < len(lines) - 1 else ""
+    suffix = "\n…" if end < len(text) else ""
     return prefix + window + suffix, True, best_idx + 1
 
 

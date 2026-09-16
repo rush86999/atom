@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-16T13:59:15.790592+00:00",
+  "generated_at": "2026-09-16T14:02:01.417577+00:00",
   "mode": "stream",
   "budget_calls": 3,
   "executed_calls": 3,
@@ -596,8 +596,8 @@
         "contract_satisfied": 0,
         "cost_reported": 0.0,
         "cost_unknown": 1,
-        "mean_first_visible_ms": 2474.9,
-        "mean_completion_ms": 2475.0,
+        "mean_first_visible_ms": 2410.5,
+        "mean_completion_ms": 2410.7,
         "contract_pass_rate": {
           "pct": 0.0,
           "numerator": 0,
@@ -611,8 +611,8 @@
         "contract_satisfied": 1,
         "cost_reported": 0.0,
         "cost_unknown": 1,
-        "mean_first_visible_ms": 1683.8,
-        "mean_completion_ms": 1697.7,
+        "mean_first_visible_ms": 2123.5,
+        "mean_completion_ms": 2128.3,
         "contract_pass_rate": {
           "pct": 100.0,
           "numerator": 1,
@@ -626,8 +626,8 @@
         "contract_satisfied": 0,
         "cost_reported": 0.0,
         "cost_unknown": 1,
-        "mean_first_visible_ms": 24702.1,
-        "mean_completion_ms": 24793.4,
+        "mean_first_visible_ms": 7211.1,
+        "mean_completion_ms": 7330.0,
         "contract_pass_rate": {
           "pct": null,
           "numerator": 0,
@@ -673,21 +673,22 @@
     "contract_pass_rate_pct": 50.0,
     "latency": {
       "first_visible_ms": {
-        "mean": 9620.3,
-        "min": 1683.8,
-        "max": 24702.1,
+        "mean": 3915.0,
+        "min": 2123.5,
+        "max": 7211.1,
         "denominator": 3,
-        "note": "stamped on the first streamed chunk with non-empty content"
+        "from_attempts_where_every_provider_failed": 1,
+        "note": "stamped on the first streamed chunk with non-empty content; 1 of these stamp(s) come from attempts where every observed provider attempt failed and the text was the handler's own error message, so read the distribution together with the transport outcomes"
       },
       "completion_ms": {
-        "mean": 9655.4,
-        "max": 24793.4,
+        "mean": 3956.3,
+        "max": 7330.0,
         "denominator": 3
       }
     },
     "usage": {
       "prompt_tokens_total": 1062,
-      "completion_tokens_total": 48,
+      "completion_tokens_total": 52,
       "prompt_tokens_known_attempts": 3,
       "completion_tokens_known_attempts": 3,
       "note": "streamed attempts report no provider usage; their token counts are estimates and are flagged per attempt"
@@ -748,7 +749,7 @@
           "provider": "opencode-go",
           "model": "gpt-5.3-codex-spark",
           "success": false,
-          "latency_ms": 398.3,
+          "latency_ms": 498.9,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": false,
@@ -759,7 +760,7 @@
           "provider": "openrouter",
           "model": "gpt-5.3-codex-spark",
           "success": false,
-          "latency_ms": 66.9,
+          "latency_ms": 80.1,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": true,
@@ -781,9 +782,9 @@
         "detail": "sentinel token 'ok' absent from reply",
         "unsupported_expectations": []
       },
-      "first_visible_ms": 2474.9,
+      "first_visible_ms": 2410.5,
       "first_visible_measurable": true,
-      "completion_ms": 2475.0,
+      "completion_ms": 2410.7,
       "usage": {
         "prompt_tokens": 7,
         "completion_tokens": 20,
@@ -823,7 +824,7 @@
           "provider": "opencode-go",
           "model": "glm-5.3-flash",
           "success": false,
-          "latency_ms": 194.4,
+          "latency_ms": 202.3,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": false,
@@ -834,7 +835,7 @@
           "provider": "openrouter",
           "model": "glm-5.3-flash",
           "success": true,
-          "latency_ms": 1502.3,
+          "latency_ms": 1925.5,
           "output_chunks": 1,
           "input_tokens": 0,
           "fallback": true,
@@ -856,9 +857,9 @@
         "detail": "sentinel token 'ok' present",
         "unsupported_expectations": []
       },
-      "first_visible_ms": 1683.8,
+      "first_visible_ms": 2123.5,
       "first_visible_measurable": true,
-      "completion_ms": 1697.7,
+      "completion_ms": 2128.3,
       "usage": {
         "prompt_tokens": 7,
         "completion_tokens": 0,
@@ -898,7 +899,7 @@
           "provider": "deepseek",
           "model": "deepseek-reasoner",
           "success": false,
-          "latency_ms": 1248.8,
+          "latency_ms": 1153.4,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": false,
@@ -909,7 +910,7 @@
           "provider": "opencode-go",
           "model": "deepseek-reasoner",
           "success": false,
-          "latency_ms": 88.9,
+          "latency_ms": 130.2,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": true,
@@ -920,7 +921,7 @@
           "provider": "openrouter",
           "model": "deepseek-reasoner",
           "success": false,
-          "latency_ms": 31.5,
+          "latency_ms": 30.3,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": true,
@@ -931,8 +932,8 @@
           "provider": "deepseek",
           "model": "deepseek-reasoner",
           "success": true,
-          "latency_ms": 23417.0,
-          "output_chunks": 28,
+          "latency_ms": 6011.4,
+          "output_chunks": 32,
           "input_tokens": 0,
           "fallback": false,
           "fallback_provider": null,
@@ -943,7 +944,7 @@
       "outcome": "ok",
       "transport_ok": true,
       "looks_like_non_answer": false,
-      "reply_excerpt": "The evidence does not contain a row for the F-5216, so its list price cannot be determined; no row can be cited.",
+      "reply_excerpt": "The evidence does not contain a row for F-5216, so its list price cannot be determined from the provided rows msg-0 through msg-39.",
       "error": null,
       "contract": {
         "status": "unsupported_by_fixture",
@@ -955,13 +956,13 @@
           "list_price_of_F-5216"
         ]
       },
-      "first_visible_ms": 24702.1,
+      "first_visible_ms": 7211.1,
       "first_visible_measurable": true,
-      "completion_ms": 24793.4,
+      "completion_ms": 7330.0,
       "usage": {
         "prompt_tokens": 1048,
-        "completion_tokens": 28,
-        "total_tokens": 1076,
+        "completion_tokens": 32,
+        "total_tokens": 1080,
         "source": "estimated",
         "estimated": true
       },
@@ -969,8 +970,8 @@
       "cost_unknown": true,
       "cost_estimate": null,
       "cost_estimate_source": null,
-      "output_chars": 112,
-      "output_chunks": 28,
+      "output_chars": 131,
+      "output_chunks": 32,
       "blocked_by": null
     }
   ],
@@ -1021,7 +1022,7 @@
           "model": "deepseek-reasoner"
         },
         "transport_error": null,
-        "first_visible_ms": 2522.7
+        "first_visible_ms": 2239.5
       },
       {
         "provider": "ollama",
@@ -1056,7 +1057,7 @@
         "note": null,
         "used": null,
         "transport_error": null,
-        "first_visible_ms": 371.4
+        "first_visible_ms": 408.7
       },
       {
         "provider": "openrouter",
@@ -1083,7 +1084,7 @@
           "model": "z-ai/glm-5.3-flash"
         },
         "transport_error": null,
-        "first_visible_ms": 3114.7
+        "first_visible_ms": 4253.0
       }
     ],
     "controlled_primary_failure": {
@@ -1117,7 +1118,7 @@
           "provider": "opencode-go",
           "model": "__atom_reliability_invalid_model__",
           "success": false,
-          "latency_ms": 101.9,
+          "latency_ms": 162.5,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": false,
@@ -1128,7 +1129,7 @@
           "provider": "openrouter",
           "model": "__atom_reliability_invalid_model__",
           "success": false,
-          "latency_ms": 35.1,
+          "latency_ms": 40.4,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": true,
@@ -1139,7 +1140,7 @@
           "provider": "opencode-go",
           "model": "glm-5.3-flash",
           "success": false,
-          "latency_ms": 257.5,
+          "latency_ms": 169.1,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": false,
@@ -1150,7 +1151,7 @@
           "provider": "openrouter",
           "model": "glm-5.3-flash",
           "success": false,
-          "latency_ms": 10674.2,
+          "latency_ms": 1749.3,
           "output_chunks": 0,
           "input_tokens": 0,
           "fallback": true,
@@ -1161,7 +1162,7 @@
           "provider": "openrouter",
           "model": "glm-5.3-flash",
           "success": true,
-          "latency_ms": 1730.7,
+          "latency_ms": 1483.0,
           "output_chunks": 1,
           "input_tokens": 0,
           "fallback": true,
@@ -1187,13 +1188,13 @@
   "read_only_check": {
     "before": {
       "db": "/Users/rushiparikh/projects/atom/backend/./data/atom.db",
-      "llm_routing_feedback_rows": 405,
+      "llm_routing_feedback_rows": 406,
       "rate_usage_records_rows": 13393,
       "llm_stage_router_audit_rows": 5
     },
     "after": {
       "db": "/Users/rushiparikh/projects/atom/backend/./data/atom.db",
-      "llm_routing_feedback_rows": 405,
+      "llm_routing_feedback_rows": 406,
       "rate_usage_records_rows": 13393,
       "llm_stage_router_audit_rows": 5
     },

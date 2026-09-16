@@ -1279,18 +1279,37 @@ try:
             "cwd": os.getcwd(),
             "git_commit": "unknown",
         }
+        # WHICH SOURCE this process loaded — captured once at startup, never
+        # re-resolved. `git rev-parse HEAD` per health request reports the
+        # repository's CURRENT state, which on an actively edited tree is not
+        # the state that was loaded; pid + start time do not close that gap.
+        # `source_id` covers the uncommitted case (revision + dirty digest),
+        # so "the fix was live" becomes checkable instead of assumed.
+        try:
+            from core.runtime_identity import get_runtime_identity
+
+            info.update(get_runtime_identity().as_dict())
+        except Exception as _ident_err:  # noqa: BLE001
+            info["identity_error"] = f"{type(_ident_err).__name__}: {_ident_err}"
         try:
             if "--port" in sys.argv:
                 info["port"] = int(sys.argv[sys.argv.index("--port") + 1])
         except Exception:
             pass
         try:
-            import subprocess as _sp
-            info["git_commit"] = _sp.run(
-                ["git", "rev-parse", "--short", "HEAD"],
-                capture_output=True, text=True, timeout=2,
-                cwd=os.path.dirname(os.path.abspath(__file__)),
-            ).stdout.strip() or "unknown"
+            # Prefer the FROZEN revision captured at startup. The live
+            # `rev-parse` is kept only as a fallback for installs where the
+            # identity capture failed; on an edited tree it would answer a
+            # different question than "what did this process load".
+            if info.get("revision"):
+                info["git_commit"] = str(info["revision"])[:12]
+            else:
+                import subprocess as _sp
+                info["git_commit"] = _sp.run(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    capture_output=True, text=True, timeout=2,
+                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                ).stdout.strip() or "unknown"
         except Exception:
             pass
         try:

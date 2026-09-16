@@ -407,9 +407,14 @@ def test_fabrication_signal_records_even_with_routing_flag_off(monkeypatch):
             written["row"] = feedback
 
     monkeypatch.setattr(reg, "get_learning_router_instance", lambda: None)
+    # Patch the METHOD, not __new__: monkeypatch restores a patched __new__ as
+    # an OWN class attribute, after which type.__call__ stops treating it as
+    # the default and passes the constructor args to object.__new__ — every
+    # LATER test that builds a LearningBasedRouter then dies with
+    # "object.__new__() takes exactly one argument". Reproduced at HEAD.
     monkeypatch.setattr(
-        "core.learning_llm_router.LearningBasedRouter.__new__",
-        lambda cls: _Router(),
+        "core.learning_llm_router.LearningBasedRouter._persist_feedback",
+        lambda _self, feedback, features: written.__setitem__("row", feedback),
     )
 
     ok = asyncio.run(reg.record_fabrication_signal(
@@ -430,9 +435,8 @@ def test_clean_reply_records_no_fabrication_signal(monkeypatch):
 
     writes = []
     monkeypatch.setattr(
-        "core.learning_llm_router.LearningBasedRouter.__new__",
-        lambda cls: type("R", (), {"_persist_feedback":
-                                   lambda self, fb, feats: writes.append(fb)})(),
+        "core.learning_llm_router.LearningBasedRouter._persist_feedback",
+        lambda _self, fb, feats: writes.append(fb),
     )
 
     ok = asyncio.run(reg.record_fabrication_signal(model_id="m"))

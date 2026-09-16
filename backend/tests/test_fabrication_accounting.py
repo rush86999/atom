@@ -54,11 +54,11 @@ class TestGenerationIdentity:
         """THE regression: the corrective row must not become a 5th
         generation. 4 evaluated generations, 1 fabricated -> 0.25, not 0.20."""
         rows = [
-            _row("r1", "turn-1", score=0.9),
-            _row("r2", "turn-2", score=0.9),
-            _row("r3", "turn-3", score=0.9),
+            _row("r1", "turn-1", score=0.9, features={"verdict": "grounding_ok"}),
+            _row("r2", "turn-2", score=0.9, features={"verdict": "grounding_ok"}),
+            _row("r3", "turn-3", score=0.9, features={"verdict": "grounding_ok"}),
             # The generation's own outcome row...
-            _row("r4", "turn-4", score=0.9),
+            _row("r4", "turn-4", score=0.9, features={"verdict": "grounding_ok"}),
             # ...and the corrective verdict the guard wrote for it afterwards.
             _row("r5", "turn-4", score=0.1,
                  features={"verdict": "unsupported_figures"}),
@@ -87,16 +87,19 @@ class TestGenerationIdentity:
         """A turn that fell back produced TWO real attempts; neither may be
         dropped or merged."""
         rows = [
-            _row("r1", "turn-1", model="primary", score=0.9),
-            _row("r2", "turn-1", model="fallback", score=0.9),
+            _row("r1", "turn-1", model="primary", score=0.9,
+                 features={"verdict": "grounding_ok"}),
+            _row("r2", "turn-1", model="fallback", score=0.9,
+                 features={"verdict": "grounding_ok"}),
         ]
         acc = account_generations(rows)
         assert acc.generations == 2, "a fallback attempt was merged away"
-        assert acc.clean == 2
+        assert acc.grounded_ok == 2
 
     def test_fabricated_fallback_does_not_condemn_the_primary(self):
         rows = [
-            _row("r1", "turn-1", model="primary", score=0.9),
+            _row("r1", "turn-1", model="primary", score=0.9,
+                 features={"verdict": "grounding_ok"}),
             _row("r2", "turn-1", model="fallback", score=0.1,
                  features={"verdict": "ungrounded_claims"}),
         ]
@@ -107,8 +110,8 @@ class TestGenerationIdentity:
     def test_rows_without_a_turn_id_do_not_merge(self):
         """Legacy rows with no routing id must not collapse into each other."""
         rows = [
-            _row("a", None, score=0.9),
-            _row("b", None, score=0.9),
+            _row("a", None, score=0.9, features={"verdict": "grounding_ok"}),
+            _row("b", None, score=0.9, features={"verdict": "grounding_ok"}),
             _row("c", "", score=0.1,
                  features={"verdict": "unsupported_figures"}),
         ]
@@ -134,37 +137,70 @@ class TestGenerationIdentity:
 class TestUnknownIsNotClean:
     def test_low_score_without_provenance_is_unknown(self):
         """0.0/0.1 is where provider exceptions, empty completions and
-        fabrications all land — without provenance it is UNKNOWN, never
+        fabrications all land — without a verdict the grounding check never
+        ran, so the generation is UNKNOWN: out of the denominator, never
         clean."""
         acc = account_generations([_row("r1", "t1", score=0.0)])
         assert acc.generations == 0
         assert acc.unknown == 1
-        assert acc.clean == 0
+        assert acc.grounded_ok == 0
         assert acc.rate is None
 
     def test_missing_score_is_unknown(self):
         acc = account_generations([_row("r1", "t1", score=None)])
         assert acc.unknown == 1 and acc.generations == 0
 
-    def test_score_above_the_band_is_clean(self):
+    def test_score_without_a_grounding_verdict_is_unevaluated(self):
+        """A heuristic score says nothing about grounding: only an explicit
+        grounding verdict puts a generation in the denominator."""
+        acc = account_generations([_row("r1", "t1", score=0.9)])
+        assert acc.generations == 0
+        assert acc.unevaluated == 1
+        assert acc.grounded_ok == 0
+
+    def test_grounding_verdict_puts_a_generation_in_the_denominator(self):
+        acc = account_generations([
+            _row("r1", "t1", score=0.9, features={"verdict": "grounding_ok"}),
+            _row("r2", "t2", score=0.1,
+                 features={"verdict": "unsupported_figures"}),
+        ])
+        assert acc.generations == 2
+        assert acc.grounded_ok == 1 and acc.fabricated == 1
+        assert acc.rate == pytest.approx(0.5)
+
+    def test_score_above_the_band_without_grounding_is_unevaluated(self):
+        """A high heuristic score means "nothing structural was wrong", NOT
+        "grounding was evaluated". It must not enter the denominator
+        (closure item 3): the incident's confidently wrong replies scored
+        well, and their rows carried no grounding provenance."""
         acc = account_generations(
             [_row("r1", "t1", score=FABRICATION_SCORE_CEILING + 0.01)])
-        assert acc.clean == 1 and acc.generations == 1
+        assert acc.unevaluated == 1
+        assert acc.generations == 0
+        assert acc.grounded_ok == 0
+        assert acc.rate is None
+
+    def test_grounding_marker_qualifies_a_generation(self):
+        """The positive half: an explicit grounding pass IS evaluated."""
+        acc = account_generations(
+            [_row("r1", "t1", score=0.9, features={"verdict": "grounding_ok"})])
+        assert acc.grounded_ok == 1 and acc.generations == 1
+        assert acc.unevaluated == 0
 
     def test_unrecognised_verdict_is_unknown_not_clean(self):
         acc = account_generations(
             [_row("r1", "t1", score=0.9, features={"verdict": "looks_fine"})])
-        assert acc.clean == 0
+        assert acc.grounded_ok == 0
         assert acc.unknown == 1
 
     def test_availability_verdicts_are_excluded_from_both_terms(self):
         rows = [
             _row("r1", "t1", score=0.3, features={"verdict": "timeout"}),
-            _row("r2", "t2", score=0.9),
+            _row("r2", "t2", score=0.9, features={"verdict": "grounding_ok"}),
         ]
         acc = account_generations(rows)
         assert acc.availability == 1
-        assert acc.generations == 1 and acc.clean == 1
+        assert acc.generations == 1 and acc.grounded_ok == 1
         assert acc.rate == 0.0
 
     def test_fabrication_outranks_a_companion_availability_verdict(self):
@@ -177,13 +213,13 @@ class TestUnknownIsNotClean:
         assert acc.fabricated == 1
         assert acc.availability == 0
 
-    def test_clean_row_wins_over_a_companion_availability_row(self):
+    def test_grounded_row_wins_over_a_companion_availability_row(self):
         rows = [
             _row("r1", "t1", score=0.3, features={"verdict": "timeout"}),
-            _row("r2", "t1", score=0.9),
+            _row("r2", "t1", score=0.9, features={"verdict": "grounding_ok"}),
         ]
         acc = account_generations(rows)
-        assert acc.clean == 1 and acc.generations == 1
+        assert acc.grounded_ok == 1 and acc.generations == 1
 
     def test_rate_is_none_when_nothing_was_evaluated(self):
         acc = account_generations([])
@@ -290,6 +326,13 @@ def _writer():
     return LearningBasedRouter.__new__(LearningBasedRouter)
 
 
+def _evaluated(writer, turn, model="openai/m1", score=0.9):
+    """Record a generation the grounding check RAN on and passed."""
+    writer._persist_feedback(
+        _feedback(turn, model=model, score=score),
+        {"verdict": "grounding_ok"})
+
+
 def _feedback(turn, model="openai/m1", score=0.9, task="question_answering"):
     from core.learning_llm_router import RoutingFeedback
 
@@ -337,7 +380,7 @@ class TestBenchUsesGenerationsNotRows:
         rows, and the fabricated one carries the provenance."""
         writer = _writer()
         for turn in ("t1", "t2", "t3", "t4"):
-            writer._persist_feedback(_feedback(turn), {"quality": 0.9})
+            _evaluated(writer, turn)
 
         writer._persist_feedback(
             _feedback("t4", score=0.1),
@@ -354,17 +397,17 @@ class TestBenchUsesGenerationsNotRows:
         assert stored.get("verdict") == "unsupported_figures", (
             "the outcome row kept no provenance, so the bench cannot tell a "
             "fabrication from an outage")
-        # The other three keep their real outcome rows untouched.
+        # The other three keep the verdict they were evaluated under.
         for turn in ("t1", "t2", "t3"):
             other = by_turn[turn][4]
             if isinstance(other, str):
                 other = json.loads(other)
-            assert not (other or {}).get("verdict")
+            assert (other or {}).get("verdict") == "grounding_ok"
 
     def test_repeated_correction_does_not_duplicate(
             self, scratch_feedback_db, monkeypatch):
         writer = _writer()
-        writer._persist_feedback(_feedback("t1"), {"quality": 0.9})
+        _evaluated(writer, "t1")
         for _ in range(3):
             writer._persist_feedback(
                 _feedback("t1", score=0.1),
@@ -377,7 +420,7 @@ class TestBenchUsesGenerationsNotRows:
         was 1/5 = 0.20 and the model stayed in the candidate list."""
         writer = _writer()
         for turn in ("t1", "t2", "t3", "t4"):
-            writer._persist_feedback(_feedback(turn), {"quality": 0.9})
+            _evaluated(writer, turn)
         writer._persist_feedback(
             _feedback("t4", score=0.1),
             {"verdict": "unsupported_figures"})
@@ -391,7 +434,7 @@ class TestBenchUsesGenerationsNotRows:
         same verdict from the database alone."""
         writer = _writer()
         for turn in ("t1", "t2", "t3", "t4"):
-            writer._persist_feedback(_feedback(turn), {"quality": 0.9})
+            _evaluated(writer, turn)
         writer._persist_feedback(
             _feedback("t4", score=0.1),
             {"verdict": "unsupported_figures"})
@@ -455,8 +498,7 @@ class TestBenchUsesGenerationsNotRows:
     def test_primary_and_fallback_rows_both_count(
             self, scratch_feedback_db, monkeypatch):
         writer = _writer()
-        writer._persist_feedback(
-            _feedback("t1", model="openai/primary"), {"quality": 0.9})
+        _evaluated(writer, "t1", model="openai/primary")
         writer._persist_feedback(
             _feedback("t1", model="openai/fallback", score=0.1),
             {"verdict": "unsupported_figures"})

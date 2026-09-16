@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 # Add parent directory to path to import from backend
 import sys
 from typing import Any, Dict, Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Response, APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -1141,12 +1141,28 @@ async def get_session_details(
 async def send_chat_message(
     request: ChatMessageRequest,
     http_request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: _Session = Depends(get_db),
 ) -> ChatMessageResponse:
     """
     Send a chat message to the ATOM chat orchestrator (authenticated with optional dev fallback)
     """
+    # Attribute THIS response to the instance that served it. A separate
+    # GET /api/health made beforehand can describe a different process — the
+    # first acceptance run was confounded exactly that way (cases 1-3 answered
+    # by one pid, cases 4-5 by a dead socket, one identity reported for all).
+    # The headers are set on the injected Response, so every return path below
+    # carries them.
+    try:
+        from core.runtime_identity import get_runtime_identity
+
+        _identity = get_runtime_identity()
+        for _name, _value in _identity.headers().items():
+            response.headers[_name] = _value
+    except Exception as _ident_err:  # noqa: BLE001 — attribution is best-effort
+        logger.debug(f"serving-instance headers skipped: {_ident_err}")
+
     try:
         # Resolve active user ID
         active_user_id = str(current_user.id) if current_user else (request.user_id or "demo-user")

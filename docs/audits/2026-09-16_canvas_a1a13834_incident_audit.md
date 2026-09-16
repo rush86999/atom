@@ -46,6 +46,196 @@ fixing, and each fix was verified live end-to-end or by red-first tests.
 > Also corrected: `record_fabrication_signal` wrote **two** feedback rows per
 > verdict (one with provenance, one without), inflating the bench denominator;
 > it now writes one, with provenance.
+>
+> **This banner SUPERSEDES the body wherever they disagree.** Sections 3, 5
+> and 7 below were written mid-incident and describe intentions, not the
+> current state; treat every claim in them as superseded unless it is restated
+> in the status block.
+
+---
+
+## 0. Current status — one consistent account
+
+**Revision:** `010b70d40` · **Serving process:** pid **22091**, started
+**2026-09-16T14:01:51Z**, port **8001**, db `backend/data/atom.db`.
+**UI attribution (verified, not assumed):** the Next.js app on :3000 proxies
+`/api/*` to **8001**, and the browser held **3 established sockets to 8001 and
+0 to 8000**. Port **8000 is a DIFFERENT application** (`atom-saas/backend-saas`,
+commit `7ced86ffa3`, started Sep 6) — earlier notes calling it "a stale Atom
+instance" were wrong.
+
+Evidence grades used below:
+**[I]** implemented · **[T]** tested in isolation · **[V]** verified through the
+serving API/UI.
+
+| Area | Superseded claim | Current state |
+|---|---|---|
+| App-DB SQL boundary (§2.5 RC-18, §3) | "a completed app-DB NL→SQL with a table allowlist" | **[I][T]** SQLite authorizer is the authoritative boundary; 15/15 attack + 5/5 inference scripts contained; timeout calls `Connection.interrupt()`. **[V]** not yet re-run against the serving process |
+| Evidence budget (§3) | "headers/SQL/formulas always surviving" | **[I][T]** decisive-line preservation pinned; token accounting added (18k chars = 4,510–8,208 tokens by content shape); `relevant_window` now character-centred with containment enforced |
+| Provider availability (§5.1) | "infrastructure spend decision, not a code fix" | **[I][T][V]** the local key store was unreachable (tenant-prefixed ids vs unprefixed lookup); fixed, and the serving process logs `deepseek`, `opencode-go`, `openrouter` BYOK clients. Ladder 9 candidates/1 provider → 118/3 |
+| Cache copying (§7 superseded note) | "probe results cached BY REFERENCE — read-only consumers" | **[I][T]** deep-copied on store and hit; identity-scoped keys; anonymous entries bypass the cache |
+| Verdict accounting (§5.4) | "auto-active on ~90 verdict rows" | **[I][T]** accounting is per EVALUATED GENERATION; the denominator requires a fabrication verdict or an explicit `grounding_ok` marker (newly emitted); unprovenanced scores are `unevaluated`/`unknown`, never "clean" |
+| Correction lifecycle (new) | — | **[I][T]** verdict is a first-class field (survives feature recovery); the annotated row's quality fields follow a fabrication verdict; in-memory learning supersedes rather than appends, so a restart cannot flip the router's view |
+| Office-file ownership | "resolved" in the follow-up report | **[I][T]** containment holds, ownership does NOT: any authenticated user may name any file under a flat `ATOM_OFFICE_DIR`. Characterization tests pin it; the per-user migration is unowned and deferred (canvas rows persist these paths) |
+| Legacy `.doc` | name-only in the store | **[I][T]** reported as `unsupported_format` + `extraction_supported: False` instead of `no_text`; extraction remains unsupported |
+
+### Measurement inventory — the two reliability scripts are not interchangeable
+
+The audit referenced both; they measure different things, and their numbers
+must not be compared or combined.
+
+| Script | Artifacts | What it actually measures |
+|---|---|---|
+| `backend/scripts/measure_provider_reliability.py` | `scripts/provider_reliability_20260916_124{6,7,8}.json` | 6 bounded attempts: a planning **structured** call plus a short **streaming** answer. Records **streamed time-to-first-visible**, fallback engagement, 429s, cost. Runs `1246`/`1247` are harness failures (6/6 exceptions: `AttributeError: 'BYOKHandler' object has no attribute 'generate_completion'`, then `NameError: name 'svc' is not defined` + `ImportError: get_fallback_models`); **`1248` is the only valid run** (6/6 ok, median 12.5 s, TTFT median 13.4 s) |
+| `backend/scripts/provider_reliability_replay.py` | `scripts/provider_reliability_live_20260916.{json,md}` | Three **prompt-size tiers** (small/medium/evidence-sized) via a **non-streaming** completion, plus the routing-topology check (candidate ladder, provider diversity, whether fallbacks share the primary's upstream) |
+
+Three distinctions that the earlier report flattened:
+
+1. **Streamed first-visible latency ≠ total latency.** `1248`'s 13.4 s TTFT is
+   a streaming measurement; the replay's tier latencies are whole non-streaming
+   completions. They are not the same quantity and neither is "the" latency.
+2. **A non-empty response is not a correct grounded answer.** Both scripts
+   score *non-empty*, and `provider_reliability_replay.py` classifies
+   rate-limit / timeout / budget-exceeded separately. Neither establishes
+   groundedness — that is what the grounding marker and fabrication verdicts
+   are for, and they are a different channel.
+3. **118 candidates across 3 providers is candidate AVAILABILITY only.** It is
+   not proof of successful authentication (that needs a live provider
+   round-trip — the concurrent session reports `/api/ai/providers/{p}/test`
+   succeeding for all three against pid 11051; **I have not reproduced that
+   myself**), not proof of a *usable independent fallback*, and not proof of
+   incident recovery. A controlled cross-provider fallback was **not executed**
+   in this pass.
+4. **Benchmark traffic and production learning.** The extended replay script
+   documents installing no-op learning hooks so benchmark attempts do not land
+   in `llm_routing_feedback`. I read the intent and the call sites but did not
+   independently verify the isolation by counting rows around a benchmark run.
+5. **Disagreement logs do not supply outcomes.** A logged routing disagreement
+   records what was *not* executed; it is not an observation of the
+   alternative. And "twenty attempts" (or six) is a sampling choice, not an
+   automatic trust threshold.
+
+
+### Office-file ownership — contract, disposition, owner (inspection done, change NOT made)
+
+**Inspected, not assumed:**
+
+- `core/office_service._validate_office_path` contains a path to
+  `ATOM_OFFICE_DIR` (one flat directory). `api/office_routes.py` carries
+  router-level `Depends(get_current_user)`, so the effective rule today is
+  *authenticated ⇒ install-wide access to every office file*.
+- **Ownership is already derivable, so a filesystem move is not required.**
+  Canvas content stores both `office_file` (absolute path) and `file_path`
+  (relative) — verified in the live DB — and `canvases.created_by` exists. An
+  office file's owner is therefore the owner of the canvas that references it.
+- **The affected surface is small: 4 of 76 canvases** reference an office file
+  at all. Canvas ownership in the live DB: 67 to the admin, then 6/1/1/1 to
+  four other users, plus one legacy canvas owned by the non-UUID placeholder
+  `u-58`.
+
+**Intended authorization contract (proposed):**
+
+1. An office file is reachable **iff** the caller owns — or is an admin over —
+   a canvas whose `content.office_file` / `content.file_path` references it.
+2. Read (`GET /excel`, `/word`, `/pptx`), export (`POST /present`) and mutation
+   (`POST /excel`, `/sync-update`) all pass the same check. Today `present`
+   and `sync-update` already carry `current_user`; the read endpoints do not
+   use it.
+3. **Legacy files with no referencing canvas resolve to admin-only**, not to
+   "everyone". This is the ambiguous-ownership rule: fail closed, and log the
+   path so an operator can adopt it onto a canvas.
+4. A per-user subtree under `ATOM_OFFICE_DIR` stays **optional hardening** —
+   useful for defence in depth, not a prerequisite, because the relation that
+   decides access is already stored.
+
+**Disposition: NOT implemented.** This narrows access to files that are
+currently readable by every authenticated user, so it needs the operator's
+decision rather than a silent change inside a verification pass.
+**Owner:** the office/canvas surface — `api/office_routes.py` +
+`core/office_service.py`, with the canvas relation read via
+`canvases.content.office_file`. `tests/test_office_file_ownership_boundary.py`
+pins the current behaviour, including the negative case, so implementing the
+contract flips an assertion deliberately.
+
+
+### Acceptance replay — executed against the serving canvas
+
+`backend/scripts/acceptance_replay_canvas.py` replays the three original asks
+plus two controls through `POST /api/chat/message` on the incident canvas
+(`a1a13834-7bb3-4b3b-91cf-e83a2287daf0`), against the process the browser is
+connected to, and records the serving process identity alongside every result.
+
+**Serving process for the reported run:** pid **33683**, started
+**2026-09-16T14:29:46Z**, port 8001, db `backend/data/atom.db`. The script now
+re-reads the identity **per case**; this run was answered entirely by one
+process, which is now provable rather than assumed.
+
+⚠️ **An earlier run was confounded by a mid-run death.** pid **22091** answered
+cases 1–3 and then died; cases 4–5 hit `RemoteProtocolError` / `ConnectError`
+while the report still carried a single start-of-run identity. Attributing a
+whole run to one process without re-checking is exactly the error this pass
+exists to prevent — the per-case check was added because of it.
+
+| # | Case | Result | Latency | Evidence |
+|---|---|---|---|---|
+| 1 | Original quotation lookup — `search for this one: $ 5,350.00 - 10 % in stock` | **PASS** | 49.4 s | `seguin`, `5,350`; also passed at 41.7 s and 133.4 s on earlier runs |
+| 2 | Directional mail lookup — "which emails did we send that carried the PRICE VIPUL price list as an attachment?" | **PASS** | 96.8 s | `price vipul`, `attachment`, `email`, `sent` |
+| 3 | Workbook derivation — "open PRICE VIPUL and show how the 7519 listed price was derived" | **FAIL — provider availability** | 34.7 s | `[Error: All LLM providers failed…]`. Passed once (32.3 s, matched `7,519`) and failed on three other attempts |
+| 4 | CONTROL — quoted line that is not mail (workbook scorecard) | **PASS** | 176.7 s | `0.87`, `reliability`, `scorecard`, `workbook` |
+| 5 | CONTROL — answer not in any store (`F-9999`) | **PASS on the merits** | 41.0 s | Reply: *"I don't have an F-9999 press in the records returned here… the only machine carrying it is a different model: PRICE VIPUL (6).xlsx, Sheet1, row 235, F-52\"x16G, LIST 7519.0"* — a disclaimer with correct attribution |
+
+**On control 5 — a criterion gap, twice.** This case first failed because the
+reply *mentioned* `$7,519`; corrected to forbid only a price **attributed to the
+target**. It then failed again because the reply's disclaimer used *"I don't
+have…"*, which the keyword list did not cover. Both were defects in the
+acceptance criterion, not in the product; the reply is the honest behaviour the
+incident demanded. Fixing the criterion changed the count, so it is recorded
+rather than silently re-run.
+
+**Verdict against the acceptance criterion (updated 2026-09-16 11:05, pid
+33683):** 4 of 5 pass on the merits; the derivation case is **intermittent**.
+Across five runs on this process the same derivation ask passed once (11.3 s)
+and failed four times with `[Error: All LLM providers failed…]`. Control 5's
+replies were correct every time; the criterion that rejected them was mine and
+has been rewritten as a regex over the disclaimer's *shape* (an enumerated
+keyword list failed open on "I don't have", then "I can't find").
+
+Two distinct obstacles remain, and neither is the derivation logic:
+
+1. **Provider availability / routing catalog** — the failing turns name model
+   IDs the providers reject. Owner: BPC/routing.
+2. **Serving-process latency** — observed turn times rose across the session
+   (quotation lookup 41.7 → 49.4 → 117.9 s; unrelated-source control
+   118.5 → 176.7 → 236.8 s), and the final control run exceeded a 240 s client
+   timeout. The set is no longer completable within a reasonable window on this
+   process.
+
+The incident is therefore **not closed**: the two asks that originally failed
+(quotation lookup, directional mail) pass consistently, but the third cannot be
+met reliably.
+
+**Root cause of the derivation failure — invalid model IDs in the candidate
+ladder.** The server log for that turn shows BPC walking a fallback chain in
+which *every* candidate is a model no configured provider accepts:
+
+```
+gpt-5.3-codex-spark                       → opencode-go 401 Invalid API key
+                                          → openrouter 400 "not a valid model ID"
+tencent/deepseek-v4-pro                   → opencode-go 401 "Model … not supported"
+                                          → openrouter 400 "not a valid model ID"
+fireworks_ai/accounts/fireworks/models/deepseek-v4-pro
+                                          → opencode-go 401 "not supported"
+                                          → openrouter 400 "not a valid model ID"
+ERROR: All 3 providers failed for fireworks_ai/…/deepseek-v4-pro
+```
+
+This is the concrete form of the caveat recorded above: **118 candidates across
+3 providers is candidate availability, not a usable fallback.** The ladder was
+enumerated from a catalog whose IDs the providers reject, so "three providers"
+bought nothing — the same upstream-shaped dead end as the single-provider
+ladder, arrived at differently. Note also that `opencode-go` returns **401
+Invalid API key for every model**, which is a credential problem distinct from
+the invalid-ID problem and needs its own fix.
 
 ---
 

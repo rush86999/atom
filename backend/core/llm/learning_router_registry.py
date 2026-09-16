@@ -415,6 +415,61 @@ async def record_fabrication_signal(
         return False
 
 
+async def record_grounding_pass(
+    model_id: str,
+    task_type: Optional[str] = None,
+    tenant_id: str = "default",
+    routing_result_id: Optional[str] = None,
+) -> bool:
+    """Record that the grounding check RAN on this generation and passed.
+
+    The NEGATIVE signal already existed (``record_fabrication_signal``); what
+    was missing is the positive one. Without it, a generation with no
+    fabrication verdict is indistinguishable from one that was never checked —
+    and ``user_satisfaction`` cannot tell them apart either, because it is the
+    heuristic assessment (truncation / refusal / schema / empty), not a
+    grounding result. The incident's confidently wrong replies scored well.
+
+    Fabrication accounting therefore requires this marker to place a
+    generation in the denominator (``grounding_ok``). Emitting it is the only
+    way the rate becomes a real measurement instead of "1.0 by construction".
+
+    Annotates the generation's existing outcome row when
+    ``routing_result_id`` is supplied (one UPDATE, no new row); a caller that
+    cannot supply one writes a standalone marker row, which the accounting
+    counts as its own generation. Best-effort: never raises.
+    """
+    if not model_id:
+        return False
+    try:
+        import uuid as _uuid
+
+        from core.learning_llm_router import LearningBasedRouter
+        from core.llm.response_quality import assess_response_quality
+
+        generation_id = (str(routing_result_id).strip()
+                         if routing_result_id else str(_uuid.uuid4()))
+        feedback = LearningBasedRouter.build_feedback(
+            routing_result_id=generation_id,
+            tenant_id=tenant_id or "default",
+            model_id=model_id,
+            task_type=task_type or "general",
+            quality=assess_response_quality(content="[grounding check ran]"),
+        )
+        feedback.verdict = "grounding_ok"
+
+        router = get_learning_router_instance(observe_only=True)
+        if router is not None:
+            await router.record_feedback(feedback)
+            return True
+        writer = LearningBasedRouter.__new__(LearningBasedRouter)
+        writer._persist_feedback(feedback, {"verdict": "grounding_ok"})
+        return True
+    except Exception as e:  # noqa: BLE001 — telemetry must never break a turn
+        logger.debug(f"grounding-pass signal skipped: {e}")
+        return False
+
+
 def get_learning_router_instance(observe_only: bool = False):
     """Return the process-wide LearningBasedRouter singleton.
 
