@@ -957,10 +957,13 @@ async def _derivation_dataset_block(
         for part in hay_parts:
             for f in _distinctive_figure_phrases(part):
                 # strip GROUPING first, then take the integer part:
-                # '8,880.00' -> '8880' (never '8', never '888000')
+                # '8,880.00' -> '8880' (never '8', never '888000'). Digit
+                # runs >12 are ids/hashes, not figures (live: a 19-digit
+                # id filled the probe slots and the derivation row never
+                # surfaced).
                 whole = f.split(".")[0].replace(",", "").replace(" ", "")
                 bare = re.sub(r"[^0-9]", "", whole)
-                if len(bare) >= 4 and bare not in figures:
+                if 4 <= len(bare) <= 12 and bare not in figures:
                     figures.append(bare)
         if not figures:
             return None
@@ -968,17 +971,43 @@ async def _derivation_dataset_block(
         # the merged hit FILES by how many OTHER conversation figures their
         # rendered rows contain: the derivation row uniquely carries several
         # (Factory 5350 AND List 7519) — hit volume cannot bury it.
+        by_file: Dict[Tuple[int, str], Tuple[int, Dict[str, Any]]] = {}
+        # FILENAME MATCH: when the user/message NAMES a file ("open PRICE
+        # VIPUL (6).xlsx"), hits from that file rank first regardless of
+        # row volume — the float-tail noise of bigger catalogs must not
+        # displace the named artifact (live 2026-09-16: NL→SQL ran on the
+        # wrong workbook, the named one never probed).
+        msg_l = (message or "").lower()
+
+        def _name_bonus(hit: Dict[str, Any]) -> int:
+            # DISTINCT matching tokens: 'price' alone matches every price
+            # list generically; the NAMED file matches name + brand + ext
+            # and must outrank them.
+            fname = str(hit.get("file_name") or "").lower()
+            if not fname:
+                return 0
+            base = fname.rsplit(".", 1)[0]
+            return sum(
+                1 for tok in set(re.findall(r"[a-z0-9]{4,}", base))
+                if tok in msg_l
+            )
+
         by_file: Dict[str, Tuple[int, Dict[str, Any]]] = {}
         for token in figures[:4]:
             result = await asyncio.wait_for(
                 asyncio.to_thread(
-                    # limit high: the catalog's row-count cut would bury a
-                    # one-row exact hit (the derivation row) before this
-                    # lane's co-occurrence ranking ever sees it.
-                    search_all_datasets_sync, f"{message} {token}", user_id,
-                    ctx.get("workspace_id"), 200, 200, hist_texts,
+                    # BARE token only, and the full catalog window: the
+                    # message text must NOT ride into the search — its
+                    # common words ('price', 'quote') re-score the catalog's
+                    # name enumeration and push the NAMED file past the
+                    # max_files truncation before its content is ever
+                    # probed (live 2026-09-16: PRICE VIPUL (6).xlsx — named
+                    # in the message — dropped out of the 200 window this
+                    # way).
+                    search_all_datasets_sync, token, user_id,
+                    ctx.get("workspace_id"), 200, 500, hist_texts,
                 ),
-                timeout=10,
+                timeout=25,
             )
             for hit in (result or {}).get("hits") or []:
                 rendered = render_dataset_answer(hit)
@@ -993,12 +1022,18 @@ async def _derivation_dataset_block(
                     and re.search(
                         rf"(?<![\d.]){re.escape(t)}(?![\d.])", clean)
                 )
-                key = str(hit.get("file_name") or "?")
+                fname = str(hit.get("file_name") or "?")
+                key = (fname, _name_bonus(hit))
                 if key not in by_file or co > by_file[key][0]:
                     by_file[key] = (co, hit)
         if not by_file:
             return None
-        ranked = sorted(by_file.values(), key=lambda p: -p[0])[:4]
+        # Named-file entries first (they carry the biggest name bonus),
+        # then by co-occurrence.
+        ranked = sorted(
+            by_file.items(),
+            key=lambda kv: (-kv[0][1], -kv[1][0]),
+        )[:4]
         lines = [
             "DATASET CATALOG — derivation inputs (ingested spreadsheets "
             "searched for the conversation's figures; these rows ARE the "
@@ -1013,7 +1048,7 @@ async def _derivation_dataset_block(
             try:
                 from core.sheet_dataset_service import answer_from_datasets
 
-                top = ranked[0][1]
+                top = ranked[0][1][1]  # ((fname, bonus), (co, hit)) item
                 # context_texts carry the CONVERSATION'S FIGURES (and the
                 # canvas) so Stage-0's deterministic probe can hit the row
                 # by its values (7519/5350) before the LLM writes SQL
@@ -1041,16 +1076,23 @@ async def _derivation_dataset_block(
                     _src = ""
                 nl = None
                 if _src:
-                    nl = await asyncio.wait_for(
-                        answer_from_datasets(
-                            _src,
-                            str(top.get("external_id") or ""),
-                            message,
-                            llm_service=llm_service,
-                            context_texts=nl_ctx,
-                        ),
-                        timeout=12,
-                    )
+                    try:
+                        nl = await asyncio.wait_for(
+                            answer_from_datasets(
+                                _src,
+                                str(top.get("external_id") or ""),
+                                message,
+                                llm_service=llm_service,
+                                context_texts=nl_ctx,
+                            ),
+                            timeout=12,
+                        )
+                    except Exception as nl_err:  # noqa: BLE001
+                        # Enhancement layer only: its timeout/failure must
+                        # never discard the probe-row block below.
+                        logger.warning(
+                            f"derivation NL→SQL skipped ({nl_err!r}); "
+                            "keeping probe rows")
                 if nl:
                     lines.append(
                         "STRUCTURED QUERY (natural language → SQL over the "
@@ -1059,7 +1101,7 @@ async def _derivation_dataset_block(
                     lines.append(render_dataset_answer(nl))
             except Exception as e:  # noqa: BLE001 — enhancement layer
                 logger.debug(f"derivation NL->SQL skipped: {e}")
-        for _co, hit in ranked:
+        for (fname, bonus), (cov, hit) in ranked:
             lines.append(render_dataset_answer(hit))
         return "\n".join(lines)
     except Exception as e:  # noqa: BLE001 — best-effort supplement
