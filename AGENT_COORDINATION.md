@@ -2451,3 +2451,34 @@ waits 8 → 20/15. Offline repro before/after: [] → 3 mail-led lines.
 test_attachment_evidence_general.py battery (also landed). Backend on
 pid 76925+ (churning with concurrent restarts — end-to-end re-verify on
 a quiet window recommended).
+
+### 2026-09-16 01:50 EDT — deepseek-flash: attachment legs moved into the production lane
+
+Correction to my previous entry (15h): the attachment legs were wired into
+`_memory_search_block`, which the chat orchestrator does NOT call — production
+uses `_ingested_mailbox_lines` (`chat_orchestrator.py:546`). So the canvas agent
+kept answering "the calculation file is not available" while every test I ran
+passed. The legs now run in `_ingested_mailbox_lines`, last, bounded by
+`ATOM_ATTACHMENT_LEG_TIMEOUT_S` (3s) via `asyncio.wait_for`, deduped against the
+text lines. Structural test added (`TestProductionLaneWiring`) so the lane
+cannot silently lose the leg again: **when adding a search leg, wire it where the
+consumer calls it and assert that call site, not just the helper.**
+
+## 2026-09-16 ~02:00 EDT — ZCode: cancelled planning calls now record timeout outcomes (82261d974)
+
+The "try again" turn: mailbox TTL fix held (real prices cited) but the
+turn starved on 75s canvas-edit plans — and cancelled calls left NO
+routing feedback (the cancellation kills the coroutine before outcome
+recording), so the router could never learn the planning pick was too
+slow. record_timeout_outcome (truncated band 0.3, measured latency,
+model from the provenance contextvar) now fires from
+pinned_structured_call's _record_if_cancelled wrapper — accrues in every
+mode; learning router demotes once re-ranking; auto counter crossed
+28/30 on this incident's own traffic. Failure note re-worded to force
+answer-first replies (the old wording let models open with the apology).
+158 passed / 5 suites. ⚠️ Live E2E re-verify still pending a QUIET
+window — concurrent restarts killed two verification turns (pids 90936,
+91720). Whoever gets a quiet window: re-ask the F-5216 retry on canvas
+a1a13834 and confirm (1) mail-led answer with attachments, (2) timeout
+rows appearing in llm_routing_feedback (SELECT model_id, user_satisfaction
+ORDER BY created_at DESC).
