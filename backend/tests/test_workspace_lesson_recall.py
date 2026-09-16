@@ -206,3 +206,45 @@ class TestMidMessageTeachingCapture:
         before = {k: list(v) for k, v in store.items()}
         detect_mid_message_cue("always add the Canadian tariff line to quotes.")
         assert store == before, "detection must not write a permanent lesson"
+
+
+class TestLessonCompleteness:
+    """The suggestion must contain the METHOD, not just the announcement.
+
+    The rule is typically stated in one sentence and EXPLAINED in the next ("use
+    the above formula as a backup for pricing a used machine. Used machinery
+    price is calculated from the new retail price depreciated to the machine's
+    age."). Returning only the first sentence suggested a lesson that omitted the
+    method entirely (live 2026-09-16).
+    """
+
+    MESSAGE = (
+        "use the above formula as a backup (secondary option) for figuring out "
+        "the list price from a dealer's used machine. Use machinery price is "
+        "actually calculated from retail listed of a new one and depreciating as "
+        "per market trends until the age of the machine is reached."
+    )
+
+    def test_elaboration_is_carried(self):
+        from core.chat_teaching import detect_mid_message_cue
+
+        clause = detect_mid_message_cue(self.MESSAGE)
+        assert "backup" in clause.lower()
+        assert "depreciating" in clause.lower(), (
+            "the METHOD sentence must ride along with the announcement"
+        )
+
+    def test_a_new_directive_starts_a_new_lesson(self):
+        """Two rules in one message must not be merged into one lesson."""
+        from core.chat_teaching import detect_mid_message_cue
+
+        clause = detect_mid_message_cue(
+            "always CC the lead on quotes. never quote below warehouse cost."
+        )
+        assert "never quote below" not in clause.lower()
+
+    def test_length_bound_still_applies(self):
+        from core.chat_teaching import _MAX_LESSON_CHARS, detect_mid_message_cue
+
+        clause = detect_mid_message_cue("always " + ("word " * 400))
+        assert clause is None or len(clause) <= _MAX_LESSON_CHARS

@@ -168,6 +168,25 @@ def detect_mid_message_cue(message: Any) -> Optional[str]:
             idx = text.find(stop, start)
             if idx != -1:
                 tail = min(tail, idx + 1)
+        # CARRY THE ELABORATION. The rule is often stated in one sentence and
+        # EXPLAINED in the next: "use the above formula as a backup for pricing a
+        # used machine. Used machinery price is calculated from the new retail
+        # price depreciated to the machine's age." Returning only the first
+        # sentence suggested a lesson that omitted the actual method (live
+        # 2026-09-16). Continue through following sentences while they read as
+        # elaboration, stopping at a question or at the length bound.
+        while True:
+            nxt = _next_sentence_span(text, tail)
+            if nxt is None:
+                break
+            s_start, s_end, s_text = nxt
+            if s_text.rstrip().endswith("?"):
+                break
+            if _MID_TEACH_RE.search(s_text) or _TEACHING_CUE_RE.match(s_text):
+                break  # a new directive starts; do not merge two rules
+            if len(text[head:s_end].strip()) > _MAX_LESSON_CHARS:
+                break
+            tail = s_end
         clause = text[head:tail].strip(" \t\n:,-\u2013\u2014")
         clause = _LEAD_IN_RE.sub("", clause).strip(" \t\n:,-\u2013\u2014")
         if not clause or clause.rstrip().endswith("?"):
@@ -176,6 +195,25 @@ def detect_mid_message_cue(message: Any) -> Optional[str]:
             continue
         return clause
     return None
+
+
+def _next_sentence_span(text: str, after: int):
+    """``(start, end, sentence)`` of the next non-empty sentence after ``after``."""
+    i = after
+    n = len(text)
+    while i < n and text[i] in " \t\n":
+        i += 1
+    if i >= n:
+        return None
+    end = n
+    for stop in (".", "!", "?"):
+        idx = text.find(stop, i)
+        if idx != -1:
+            end = min(end, idx + 1)
+    sentence = text[i:end].strip()
+    if not sentence:
+        return None
+    return i, end, sentence
 
 
 def detect_teaching_cue(message: Any) -> Optional[str]:
