@@ -1021,6 +1021,14 @@ async def _derivation_dataset_block(
             return bonus
 
         by_file: Dict[str, Tuple[int, Dict[str, Any]]] = {}
+        # A BUDGET, passed INTO the search rather than enforced around it. Wrapping
+        # the call in wait_for meant a slow catalog raised TimeoutError and threw
+        # away every hit the scan had already found — the derivation lane then
+        # contributed nothing and the reply reported that the lookup "did not
+        # complete" (live 2026-09-16). The search stops itself at the deadline and
+        # returns what it has.
+        _deriv_deadline = time.monotonic() + 20.0
+        _partial = False
         for token in figures[:4]:
             result = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1036,10 +1044,12 @@ async def _derivation_dataset_block(
                     ctx.get("workspace_id"), 200, 500,
                     # history supplies FIGURES only; the NAMED file comes from
                     # the message the user actually typed
-                    hist_texts, _name_ctx,
+                    hist_texts, _name_ctx, _deriv_deadline,
                 ),
                 timeout=25,
             )
+            if (result or {}).get("incomplete"):
+                _partial = True
             for hit in (result or {}).get("hits") or []:
                 rendered = render_dataset_answer(hit)
                 # Clean-number matching only: float tails ('15.521625…')
@@ -1139,6 +1149,15 @@ async def _derivation_dataset_block(
             "searched for the conversation's figures; these rows ARE the "
             "calculation chain — cite file/sheet/row):"
         ]
+        if _partial:
+            # Honest scope marker: the scan stopped at its time budget, so a file
+            # that was not reached may still hold the row. Without this the model
+            # (and the user) reads a truncated catalog as the whole catalog.
+            lines.append(
+                "NOTE: the catalog scan hit its time budget and is INCOMPLETE — "
+                "a file that was not reached may still contain the figures. Say "
+                "so rather than presenting these rows as exhaustive."
+            )
         # NL→SQL LAYER on the top-ranked file: answer_from_datasets runs a
         # structured query (DuckDB, column aliases) and its render carries
         # the ORIGINAL CELL FORMULAS — the exact derivation chain, not just

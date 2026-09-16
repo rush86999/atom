@@ -38,6 +38,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -1022,6 +1023,7 @@ def search_all_datasets_sync(
     max_files: int = 200,
     context_texts: Optional[List[str]] = None,
     name_context_texts: Optional[List[str]] = None,
+    deadline: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     """Cross-file content probe: which ingested spreadsheet contains the
     question's identifying code?
@@ -1072,12 +1074,26 @@ def search_all_datasets_sync(
     # file the user named is unreachable (measured live 2026-09-16). When the query
     # names a catalogued file, probe THAT file using the query's numeric tokens
     # (the codes/amounts a derivation ask is about), and lead with the result.
+    def _out_of_time() -> bool:
+        """True once the caller's budget is spent.
+
+        A scan that runs long must DEGRADE, not vanish: the caller wraps this in
+        `asyncio.wait_for` and a timeout discards the whole result — so a slow
+        catalog used to turn a partially-answered derivation into no evidence at
+        all, which the reply then reported as "the lookup did not complete"
+        (live 2026-09-16). Returning what was found, marked `incomplete`, keeps
+        the answer as good as the work already done.
+        """
+        return deadline is not None and time.monotonic() > deadline
+
     if _name_tokens:
         # Numeric tokens the query already yielded (codes/amounts) are the ones
         # worth probing INSIDE the named file; fall back to the candidate itself.
         base_nums = [t for t in candidates if t.isdigit()]
         named: List[Dict[str, Any]] = []
         for key in order:
+            if _out_of_time():
+                break
             fname = str((files[key][0] or {}).get("file_name") or "").lower()
             if not any(t in fname for t in _name_tokens):
                 continue
@@ -1105,12 +1121,17 @@ def search_all_datasets_sync(
                 "tokens_tried": candidates,
                 "files_searched": len(order),
                 "hits": named[:limit],
+                "incomplete": _out_of_time(),
             }
     for token in candidates or [None]:
         if token is None:
             break  # name-only query: the named-file block below handles it
+        if _out_of_time():
+            break
         hits: List[Dict[str, Any]] = []
         for key in order:
+            if _out_of_time():
+                break
             best = _probe_cached(files[key], token, 10)
             if best is not None:
                 hits.append(best)
@@ -1125,12 +1146,17 @@ def search_all_datasets_sync(
                 "tokens_tried": candidates,
                 "files_searched": len(order),
                 "hits": hits[:limit],
+                "incomplete": _out_of_time(),
             }
     return {
         "token": candidates[0] if candidates else ",".join(sorted(_name_tokens)),
         "tokens_tried": candidates,
         "files_searched": len(order),
         "hits": [],
+        # "nothing matched" and "time ran out" are different answers, and the
+        # caller must be able to tell them apart — otherwise a truncated scan
+        # reads as a definitive empty catalog.
+        "incomplete": bool(_out_of_time()),
     }
 
 

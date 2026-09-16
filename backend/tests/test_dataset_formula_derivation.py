@@ -173,3 +173,40 @@ class TestNameContextIsSeparateFromFigureContext:
         assert seen.get("texts") == ["how was the price derived"], (
             "history leaked into name matching"
         )
+
+
+class TestScanBudgetDegrades:
+    """A scan that runs long must return what it found, marked incomplete.
+
+    The caller wrapped the search in `asyncio.wait_for`; a timeout raised and the
+    whole result was discarded, so a slow catalog turned a partially-answered
+    derivation into NO evidence — which the reply reported as "the lookup did not
+    complete" (live 2026-09-16).
+    """
+
+    def test_deadline_parameter_exists(self):
+        import inspect
+
+        from core.sheet_dataset_service import search_all_datasets_sync
+
+        assert "deadline" in inspect.signature(search_all_datasets_sync).parameters
+
+    def test_expired_deadline_is_fast_and_marked_incomplete(self):
+        import time
+
+        from core.sheet_dataset_service import search_all_datasets_sync
+
+        t0 = time.time()
+        res = search_all_datasets_sync(
+            "5350", "default", None, 3, 500, [], None, time.monotonic() - 1
+        )
+        assert time.time() - t0 < 5, "an expired deadline must stop the scan early"
+        assert res is not None and res.get("incomplete") is True, (
+            "'ran out of time' must be distinguishable from 'nothing matched'"
+        )
+
+    def test_no_deadline_is_not_marked_incomplete(self):
+        from core.sheet_dataset_service import search_all_datasets_sync
+
+        res = search_all_datasets_sync("5350", "default", None, 3, 500, [], None, None)
+        assert res is None or res.get("incomplete") is False
