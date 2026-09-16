@@ -2411,3 +2411,43 @@ Deferred (P3): datasets read_region renders-then-slices; knowledge
 read_region ignores a meta.json leaf; phantom end_line on empty windows.
 Verified: 169 passed (8 suites) + 162/4 skipped (awareness/planner batch);
 test_e2e_scenarios' 4 governance failures pre-existing at clean HEAD.
+
+### 2026-09-16 00:00 EDT — deepseek-flash: attachments as first-class evidence (generalized)
+
+Owner ask after the F-5216 retry: "solution should be generalized, domain and
+business independent". Implemented in `core/chat_tool_planner.py` (+ tests
+`tests/test_attachment_evidence_general.py`, 24 tests; 191 passed across the
+five affected suites; backend restarted pid 76925).
+
+The general statement of the bug: an identifier lives in message TEXT, file NAME,
+or file CONTENT — the search read only the text. New legs, all
+integration-independent (any comms row, any file type, no domain vocabulary):
+`_comms_attachment_names` (union of the `attachments` column AND the ingestion
+ledger — they disagree; the F-5216 forward stores `'[]'` while its workbook is
+ingested behind it), `_attachment_token_splitter`, `_mail_attachment_index` +
+reverse + `_doc_to_message_index` (one cached ledger query, three directions),
+`_messages_carrying_file` (dataset hit → carrying message), and
+`_attachment_content_hits` (file content → carrying message).
+
+**For anyone touching this**: three traps are now load-bearing, each measured
+live and each a silent-failure class —
+1. never `slice(N)` a document scan (store is unordered: target chunk sat past
+   the cut; 1 match full-table vs 0 sliced) — bound by set membership instead;
+2. token casing differs (planner lowercases, store does not) and
+   `pc.match_substring` is case-sensitive;
+3. file→file matching needs TWO shared tokens: one shared token (even "price")
+   matched four unrelated price lists in the real 400-name sample.
+
+## 2026-09-15 ~19:20 EDT — ZCode: comms-store cache TTL was the systemic evidence-kill (732bca823)
+
+Follow-up to the "no fresh results" retries: the comms-store cache TTL
+was 5 SECONDS against a ~10s cold reload (7k rows, 340MB metadata) —
+nearly every evidence call reloaded, and reloads exceeding the 15s leg
+waits returned [] (swallowed by fault isolation) → honest-but-useless
+"no fresh results" replies. TTL 5 → 300 (event-driven invalidation
+bounds staleness); evidence-leg waits 15 → 25s; planner-timeout outer
+waits 8 → 20/15. Offline repro before/after: [] → 3 mail-led lines.
+188 passed incl. the concurrent session's new
+test_attachment_evidence_general.py battery (also landed). Backend on
+pid 76925+ (churning with concurrent restarts — end-to-end re-verify on
+a quiet window recommended).
