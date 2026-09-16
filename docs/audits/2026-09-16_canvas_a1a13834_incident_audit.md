@@ -95,7 +95,44 @@ the round log cite 2/5, 4/5 and "all five have passed". All three are true of
 reported separately from here on and a pass that breaches the deadline is
 recorded as a breach.
 
-### 0.2 What this stabilization pass changed
+### 0.1b VALID frozen-build run (2026-09-16, supersedes 0.1 as the current number)
+
+One instance, one frozen build, **no restart mid-run, 0 not-evaluated** — the
+first run of this incident where every case was actually evaluated:
+
+| case | verdict | latency | vs 0.1 |
+|---|---|---|---|
+| quote | PASS | **62.5 s** | was PASS at 187.9 s |
+| directional | PASS | 56.9 s | was FAIL |
+| derivation | **FAIL** (quality) | 71.6 s | was NOT_EVALUATED at 128.6 s |
+| control_unrelated_source | FAIL | 54.8 s | was PASS |
+| control_missing_evidence | PASS | 73.8 s | was PASS |
+
+**3/5, every case inside the 95 s budget, zero deadline breaches** — against
+0.1's run where the passing case took 187.9 s and one case breached.
+
+**Two findings that change the picture:**
+
+1. **A measurement confound, now removed.** The earlier 187–265 s latencies (and
+   the directional failure) were taken with a staging instance pointed at a
+   **stale 215-row memory store** instead of the live 7,391-row store. With the
+   real stores linked, the same cases run 55–74 s. Some of what was attributed to
+   host load and model choice was a depleted fixture: the pipeline worked harder
+   to find nothing. Latency conclusions drawn before this are not trustworthy,
+   and directive 2's warning about inferring cause from correlation applies to
+   the earlier reports as much as to any new experiment.
+2. **The derivation case now completes inside budget and fails on QUALITY, not
+   timing.** It resolves the right workbook, row 235, the listed value, and every
+   asserted equality, and introduces **no fabricated figures** — but states 4 of
+   6 chain steps, missing the `/0.86` dealer-margin step and the ROUNDUP that
+   produces the listed price. That is a substantive answer defect and the next
+   thing to fix; it is no longer an operational failure.
+
+**Where the time goes** (from `[deadline]` traces on this run): the reply leg
+starts at a **turn offset of 33.0 s of a 95 s budget** and takes 22.2 s
+(`remaining=39.8s`). Planning is therefore ~35% of the critical path — the
+largest single consumer, and where the next latency work belongs.
+
 
 | Directive | Change | Evidence |
 |---|---|---|
