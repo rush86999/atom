@@ -28,7 +28,7 @@ def mock_byok_manager():
     manager = MagicMock()
     manager.is_configured = MagicMock(return_value=True)
     manager.get_api_key = MagicMock(
-        side_effect=lambda provider_id, key_name="default": {
+        side_effect=lambda provider_id, key_name="default", tenant_id=None: {
             "opencode-go": "sk-opencode-test",
             "openai": "sk-test-openai-key-12345",
             "anthropic": "sk-ant-test-key-67890",
@@ -37,6 +37,17 @@ def mock_byok_manager():
     )
     manager.get_tenant_api_key = manager.get_api_key
     return manager
+
+
+@pytest.fixture(autouse=True)
+def _clean_provider_cooldowns():
+    """The provider bench is process-wide BY DESIGN (several handlers are
+    built per chat message, so a just-rejected credential must pause all of
+    them) — without a reset, one test's CreditsError benches opencode-go
+    for every later test in the process."""
+    BYOKHandler.invalidate_provider_failures()
+    yield
+    BYOKHandler.invalidate_provider_failures()
 
 CREDITS_ERROR = (
     "Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', "
