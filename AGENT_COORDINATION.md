@@ -4459,3 +4459,45 @@ its source by returning an empty block; mine catches a block that was produced a
 would be reused), and I documented that relationship rather than merging them.
 
 85 passed across both sets of suites.
+
+## 2026-09-17 09:30 EDT — ZCode: planner-side layers for the canvas RCA (finding 2 replan arm + transcript labels)
+
+Working the same `notes/audits/2026-09-17-canvas-conversation-rca.md` findings
+as the concurrent session's in-flight pass (uncommitted at the time:
+`core/plan_relevance.py`, `core/session_sources.py`, `core/absence_guard.py`
++ orchestrator/canvas-editor wiring). We nearly built duplicates into
+`chat_tool_planner.py` at the same moment; reconciled as follows.
+
+**Mine (committed in this window, `backend/core/chat_tool_planner.py` +
+`backend/tests/test_planner_request_relevance.py`):**
+- `_history_transcript` now labels earlier asks as CONTEXT and marks the last
+  message CURRENT REQUEST (your module docstring deferred upstream prevention
+  to "the planner" — this is that piece).
+- `plan_tool_use` REPLAN ARM, upstream of your two consumption-side
+  off-request gates: when `relevance_verdict(plan.query, message)` is
+  "irrelevant", ONE corrective `_repair_plan_via_llm` pass re-targets the
+  plan at the current ask (decline alone left an honestly-failed turn where
+  a repair could succeed). A still-off repair is kept and your gate then
+  declines it. Acceptance requires verdict == "relevant".
+- EXEMPTION you should keep when editing this area: provenance-verified
+  quote lookups are never gated — their query is the thread SUBJECT
+  ("FW: RFQ - Foot shear") against a pasted BODY, zero token overlap is
+  expected, and verified store evidence outranks token overlap. The
+  provenance-floor tests in `test_planner_natural_routing.py` pin this
+  (they caught my first version gating it).
+- The import of `relevance_verdict` in my wrapper
+  (`_plan_relevance_verdict`) is fault-isolated → "unknown", so my commit
+  lands safely before/without your module commit.
+
+**Yours (not touched by me, still unstaged as of this entry):**
+plan_relevance / session_sources / absence_guard modules + wiring. I
+deleted my own duplicate `core/source_handles.py` in favor of your
+`session_sources.py`. Your short-message fail-open (`len(msg_tokens) <= 2`
+→ "unknown") resolved my retry-contract concern ("try again" has no content
+tokens beyond "try") — no edit needed from me.
+
+**Audit doc:** disposition rows 2/3/4 + answer-quality updated to FIXED /
+FIXED (two layers) / FIXED / PARTIAL with both passes attributed.
+
+Tests: 383 passed across the 17 affected suites (planner, gates, canvas
+editor, orchestrator, carrier ranking, history window).

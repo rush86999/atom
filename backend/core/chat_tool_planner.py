@@ -252,14 +252,9 @@ _GROUNDING_RULE = (
     "documents.head / documents.tail); to search EVERY stored message use "
     "documents.grep with path_prefix 'knowledge/conversations'. Only after "
     "that may you say a value is not in the mailbox. "
-    "SCOPE OF A NEGATIVE CLAIM (RCA 2026-09-17): an absence claim may only be "
-    "as wide as the search actually performed. 'None', 'no other', 'nothing "
-    "else' or 'does not exist' assert COMPLETE coverage — do not make them off "
-    "one narrow lookup, and never narrow the user's own scope to reach one: an "
-    "'emails we sent' question includes internal forwards (a member sending is "
-    "outgoing whatever the recipient), and finding one match never shows there "
-    "were no others. If the lookup covered less than the question, say what was "
-    "searched and that the rest is unverified."
+    "An absence claim may only be as wide as the search performed: an "
+    "'emails we sent' question includes internal forwards, and one match never "
+    "shows there were no others."
 )
 
 
@@ -917,18 +912,48 @@ def _catalog_line(connected: List[str]) -> str:
 
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
-    """USER turns only. What tool action the user wants is a function of
-    their requests; assistant replies add nothing here and actively hurt:
-    in a session with several failed attempts the transcript is a wall of
-    refusals, which both bloats the prompt past the timeout budget and
-    biases the planner into agreeing that 'there is nothing to retry'."""
+    """USER turns only, with the CURRENT request marked as the one to plan.
+
+    What tool action the user wants is a function of their requests;
+    assistant replies add nothing here and actively hurt: in a session with
+    several failed attempts the transcript is a wall of refusals, which both
+    bloats the prompt past the timeout budget and biases the planner into
+    agreeing that 'there is nothing to retry'.
+
+    The CURRENT marker is RCA 2026-09-17 finding 2's prompt-side half: a
+    bare list of requests carries no signal about which one to plan for, and
+    on the scorecard turn the planner answered an older ask verbatim
+    (`outlook.search 'PRICE VIPUL price list attachment'` for a request
+    about a vendor scorecard). Earlier asks stay visible — retries and
+    anaphora ("try again", "that email") resolve against them — but they are
+    labelled context, and the last message is labelled as the target."""
     lines: List[str] = []
+    prior: List[str] = []
     for h in (history or [])[-10:]:
         u = str((h or {}).get("message") or "").strip()
         if u:
-            lines.append(f"User: {u[:200]}")
+            prior.append(u[:200])
+    if prior:
+        lines.append(
+            "Earlier requests (CONTEXT only — plan for the CURRENT request "
+            "below, unless the current message explicitly asks to retry one "
+            'of these):')
+        lines.extend(f"User: {u}" for u in prior)
+    lines.append("CURRENT REQUEST (plan for THIS message):")
     lines.append(f"User: {current[:400]}")
     return "\n".join(lines)
+
+
+def _plan_relevance_verdict(query: str, message: str) -> str:
+    """``relevant`` | ``irrelevant`` | ``unknown`` — thin wrapper over
+    core.plan_relevance (the same verdict the consumption-side gates run),
+    fault-isolated so the planner degrades to ungated if that module is
+    momentarily absent (concurrent-session landing order)."""
+    try:
+        from core.plan_relevance import relevance_verdict
+        return relevance_verdict(query, message)
+    except Exception:  # noqa: BLE001 — gate must never break planning
+        return "unknown"
 
 
 async def _structured_with_fallback(
@@ -1189,6 +1214,63 @@ async def plan_tool_use(
                 plan.service, plan.intent = "memory", "search"
                 plan.query = (terms[0] if terms else message[:120])
                 plan.reason = "provenance floor: quoted wording lives in ingested mail"
+
+        # REQUEST-RELEVANCE FLOOR (RCA 2026-09-17 finding 2, the replan
+        # arm). Runs BEFORE execution, upstream of the consumption-side
+        # off-request gates (chat_orchestrator / chat_canvas_editor both
+        # decline an off-target plan via core.plan_relevance): a plan whose
+        # query shares nothing with the current request is answering an
+        # older ask — on the scorecard turn the planner planned
+        # `outlook.search 'PRICE VIPUL price list attachment'` for "search
+        # for this one: reliability score 0.87 from the vendor scorecard
+        # workbook". Decline alone leaves an honestly-failed turn; ONE
+        # corrective pass here can re-target the lookup at the current ask
+        # instead. The latency objection does not apply: this fires only
+        # where the consumption gate would have thrown the execution away,
+        # and the repair replaces that wasted lookup. "unknown" (fail-open:
+        # empty query, or the verdict module absent) never gates — and
+        # neither does a PROVENANCE-VERIFIED QUOTE LOOKUP: when the quoted
+        # wording verifiably lives in the ingested mail, the plan's query is
+        # legitimately the thread SUBJECT ("FW: RFQ - Foot shear") while the
+        # message is the pasted BODY — zero token overlap is expected there,
+        # and the provenance floor just routed this plan on verified store
+        # evidence, which is strictly stronger than token overlap (the
+        # provenance-floor tests pin exactly this shape).
+        _prov_quote_lookup = bool(
+            provenance
+            and "INGESTED MAIL contains" in provenance
+            and _quote_lookup_shape(message))
+        if not _prov_quote_lookup and _plan_relevance_verdict(
+                plan.query or "", message) == "irrelevant":
+            defect = (
+                "the planned query answers an EARLIER request, not the "
+                f"current one: query {plan.query!r} names nothing the "
+                "current message names. Re-plan for the CURRENT request "
+                f"only — its text: {message[:200]}"
+            )
+            repaired = await _repair_plan_via_llm(
+                llm_service, defect, connected, catalog, history, message,
+                canvas=canvas)
+            if (repaired and repaired.use_tool
+                    and repaired.service in allowed
+                    and _plan_relevance_verdict(
+                        repaired.query or "", message) == "relevant"):
+                logger.info(
+                    "tool planner: relevance repair -> "
+                    f"{repaired.service}.{repaired.intent} "
+                    f"query={repaired.query!r}")
+                plan = repaired
+            elif repaired is not None and not repaired.use_tool:
+                # The corrective pass looked at the CURRENT request and
+                # concluded no tool can help — the same contract as the
+                # null-service repair above.
+                logger.info(
+                    "tool planner: relevance repair declined tool use")
+                return None
+            # Otherwise (repair failed or still off-target) keep the
+            # original plan: the consumption-side off-request gate then
+            # declines its execution, so the stale result cannot be
+            # presented as this turn's answer.
     return plan
 
 
@@ -2375,13 +2457,11 @@ def _mail_direction(sender: str, recipient: str, user_id: Optional[str]) -> str:
             "own addresses (mail between its members), so sent-vs-received "
             "depends on WHICH member you mean — attribute it to the sender, and "
             "do not present it as sent or received by the mailbox as a whole. "
-            "For an 'emails we sent' question this still counts: a message a "
-            "member SENT is outgoing regardless of who it went to, and ONE such "
-            "match never establishes that there were no others"
+            "For an 'emails we sent' question this still counts: the message a "
+            "member SENT is outgoing regardless of who it went to"
         )
     if own_sends:
-        who = ("SENT by this mailbox (the sender is one of its own addresses); "
-               "a match here does not license 'no others exist'")
+        who = "SENT by this mailbox (the sender is one of its own addresses)"
     elif own_receives:
         who = "RECEIVED by this mailbox (an own address is a recipient)"
     else:
