@@ -141,6 +141,36 @@ largest single consumer, and where the next latency work belongs.
 | 3 · verification | The citation bypass is **removed**. Claims are checked by **evaluating** the workbook's own formulas: STORED / COMPUTED / UNRESOLVED / CONTRADICTED, with `is_clean` requiring that something was actually checked. `COLUMNS: <name>=<letter>` now bridges rendered column names to the letters formulas use. | **[I][T]** 16 new tests; the five required cases behave correctly |
 | 4 · detector | `_derivation_reply_ignored_the_row` is **NOT** promoted to a model-quality verdict in this pass (see §0.3). | — |
 
+### 0.1c Conversation RCA (2026-09-17) — disposition
+
+The follow-up conversation RCA identified six findings. Disposition:
+
+| Finding | Status |
+|---|---|
+| **6 · formula-claim parser** — `R235 = P235-K235 = 1893.7` attributed to K235 | **FIXED** `6296a2c30` |
+| **1 · successful turns dropped** — `history[-3:]` sliced ENTRIES, so the window could hold no user request; answered work looked unanswered | **FIXED** `ae377b026` |
+| 5 · verification/latency compounding | PARTIAL — the request-entry deadline now bounds the turn end to end (115.2 s against a 115.0 s budget, structured `turn_budget_exceeded`); the provider 401s during verification remain |
+| 3 · evidence not carried across turns | OPEN — no bounded source handles, so a workbook found on one turn is not reopened on the next |
+| 2 · a stale plan reused as this turn's evidence | OPEN — the canvas-edit leg's plan is still accepted without a relevance check |
+| 4 · no relevance gate / corrective retrieval before the reply | OPEN |
+| Answer-quality items (scope narrowed to external, universal absence claims, used-shear framing, `0.87` read as a reliability score) | OPEN — recorded, not addressed |
+
+**Finding 6.** `_LETTER_CLAIM_RE`, scanning left to right over
+`R235 = P235-K235 = 1893.7`, skipped `R235 =` (no number followed) and matched
+`K235 = 1893.7` — reporting a FALSE contradiction ("K235 evaluates to 5625.3, not
+1893.7") against arithmetic that was correct, and handing the model a fabrication
+signal for a right answer. Chains are now parsed structurally FIRST: the leftmost
+cell owns the result, the expression is carried and evaluated over the same
+resolved cells. A claimed assumption (`O235 = 1`) reports unverified rather than
+confirmed, which is the RCA's own caveat.
+
+**Finding 1.** Two defects in the `if _tool_block:` branch: `history[-3:]` slices
+entries (so the "three USER requests" could be three replies), and only user turns
+were included (so answered work read as unanswered). The window is now taken over
+user turns with successful assistant turns preserved and marked; ERROR and REFUSAL
+turns stay excluded, since the original user-only rule was right about its own
+measurement — a transcript of failed attempts anchors weak models into refusing.
+
 ### 0.3 Correction to the round log's "next step"
 
 `2026-09-16_workbook_derivation_round.md` concludes that recording
