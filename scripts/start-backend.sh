@@ -78,14 +78,17 @@ fi
 cd "$ROOT/backend"
 # Activate the venv — Python's venv module uses bin/ on POSIX and Scripts/
 # on Windows. Detect which one exists so the same script works in both
-# Linux CI runners and Git-Bash-on-Windows.
-[[ -d venv ]] || exit 0
-if [[ -f venv/Scripts/activate ]]; then
-    # shellcheck disable=SC1091
-    source venv/Scripts/activate
-else
-    # shellcheck disable=SC1091
-    source venv/bin/activate
+# Linux CI runners and Git-Bash-on-Windows. No venv → keep going with
+# whatever Python is already active (the pre-existing behavior); the
+# backend still starts, just not from a project venv.
+if [[ -d venv ]]; then
+    if [[ -f venv/Scripts/activate ]]; then
+        # shellcheck disable=SC1091
+        source venv/Scripts/activate
+    else
+        # shellcheck disable=SC1091
+        source venv/bin/activate
+    fi
 fi
 export PYTHONPATH="$ROOT:$ROOT/backend"
 export BYPASS_RATE_LIMIT="${BYPASS_RATE_LIMIT:-1}"
