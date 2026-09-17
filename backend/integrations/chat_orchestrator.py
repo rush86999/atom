@@ -4076,9 +4076,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # give grounding without the refusal wall. They remain fully in
             # the DB/UI; only this turn's prompt changes.
             if _tool_block:
-                for h in history[-3:]:
-                    if h.get("message"):
-                        messages.append({"role": "user", "content": h["message"]})
+                # RECENT USER REQUESTS, and the ASSISTANT TURNS THAT SUCCEEDED.
+                #
+                # Two defects here, both RCA 2026-09-17 finding 1:
+                #
+                # (a) `history[-3:]` slices ENTRIES, and in a normal exchange the
+                #     last three entries are assistant turns — so the model could
+                #     be given a window containing NO user request at all. The
+                #     window is now taken over USER turns, so three requests means
+                #     three requests.
+                # (b) only user turns were included, so a turn that had ALREADY
+                #     been answered looked unanswered: the model re-answered the
+                #     earlier attachment/derivation asks (or declared the workbook
+                #     unavailable) because nothing in its context said those were
+                #     done. Successful assistant turns are now preserved — which
+                #     is exactly the anchoring problem the original comment was
+                #     avoiding, so ERROR turns and REFUSAL turns stay excluded
+                #     (a transcript full of failures still anchors weak models
+                #     into refusing again, which is what that comment measured).
+                _user_turns = [h for h in history if h.get("message")][-3:]
+                _answered: List[str] = []
+                for _h in history[-6:]:
+                    if _h.get("error"):
+                        continue  # a failed attempt carries no answer content
+                    _resp = (_h.get("response") or {}).get("message") or ""
+                    if not _resp or _reply_claims_inability(_resp):
+                        continue  # refusal wobble is what anchors a re-refusal
+                    if _resp not in _answered:
+                        _answered.append(_resp)
+                for _h in _user_turns:
+                    messages.append({"role": "user", "content": _h["message"]})
+                # Bounded: enough to show what was answered, not a second
+                # transcript competing with this turn's evidence.
+                for _resp in _answered[-2:]:
+                    messages.append({
+                        "role": "assistant",
+                        "content": "[already answered earlier] " + _resp[:600],
+                    })
             else:
                 for h in history:
                     if h.get("message"):
