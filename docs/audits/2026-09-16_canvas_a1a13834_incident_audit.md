@@ -141,6 +141,46 @@ largest single consumer, and where the next latency work belongs.
 | 3 · verification | The citation bypass is **removed**. Claims are checked by **evaluating** the workbook's own formulas: STORED / COMPUTED / UNRESOLVED / CONTRADICTED, with `is_clean` requiring that something was actually checked. `COLUMNS: <name>=<letter>` now bridges rendered column names to the letters formulas use. | **[I][T]** 16 new tests; the five required cases behave correctly |
 | 4 · detector | `_derivation_reply_ignored_the_row` is **NOT** promoted to a model-quality verdict in this pass (see §0.3). | — |
 
+### 0.1d 5/5 — live run after the RCA fixes (2026-09-17)
+
+Build `679835bbdac0-dirty.adbe889542f0` (the committed deadline/chain/context
+fixes plus the uncommitted relevance-gate edits — one build, not a composite of
+runs), single instance pid 30413, no restart mid-run:
+
+| case | verdict | latency | route |
+|---|---|---|---|
+| quote | **PASS** | 78.5 s | openai/gpt-5-mini |
+| directional | **PASS** | 73.6 s | openai/gpt-5-mini |
+| derivation | **PASS** — 6/6 chain steps | 98.8 s | google/gemini-3-flash-preview |
+| control_unrelated_source | **PASS** | 73.3 s | google/gemini-3-flash-preview |
+| control_missing_evidence | **PASS** | 36.2 s | google/gemini-3-flash-preview |
+
+**5/5 passed, 0 failed, 0 not evaluated.** Every case answered inside the 95 s
+budget.
+
+Read against 0.1b (3/5 on the immediately preceding build) the two cases that
+moved are exactly the two the RCA fixes target:
+
+* **derivation** went FAIL → PASS on **6 of 6 chain steps** (it had stated 4),
+  with 16 asserted equalities matching the workbook, no fabricated figures, and
+  an explicit unresolved statement. The chain fix (finding 6) is what stops a
+  correct chain being reported as contradicted; the context fix (finding 1) is
+  what stops an already-answered derivation being re-litigated.
+* **control_unrelated_source** went FAIL → PASS: the reply now gives an explicit
+  not-found statement about the named source instead of repeating the source name
+  and claiming a value from it — the relevance gate plus the bounded-negative-claim
+  contract.
+
+**Caveats, stated rather than buried.** A 5/5 is one run: the harness's own
+protocol (and directive 7) requires every attempt to be recorded and forbids
+combining successes from different builds, so this is *a* 5/5 on *this* build and
+not a certification. Two of the five cases were served by
+`google/gemini-3-flash-preview` and three by `openai/gpt-5-mini`, so the result
+also does not isolate model quality from the pipeline changes — that needs the
+fixed-route comparison (directive 5), which has not been run. And the earlier
+latency confound (stale 215-row store) means this run's timings are the first
+trustworthy ones for this case set.
+
 ### 0.1c Conversation RCA (2026-09-17) — disposition
 
 The follow-up conversation RCA identified six findings. Disposition:
