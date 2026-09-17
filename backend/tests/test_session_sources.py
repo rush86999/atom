@@ -56,8 +56,32 @@ def test_block_names_sources_and_requires_reuse():
                                         "Sheet1, 240 rows."}}]
     block = conversation_sources_block(history)
     assert "PRICE VIPUL (6).xlsx" in block
-    assert "SOURCES LOCATED EARLIER" in block
+    assert "SOURCES RETRIEVED EARLIER" in block
     assert "instead of searching elsewhere" in block
+
+
+def test_a_mention_is_never_reported_as_retrieved():
+    """R1 (review 2026-09-17): provenance must be earned, not inferred.
+
+    The user asking about a file and the assistant FAILING to find it is not a
+    discovery. The old block called it "already found once" and told the planner
+    to REUSE it — how a nonexistent file becomes asserted fact.
+    """
+    history = [{"message": "Find vendor_scorecard.xlsx",
+                "response": {"message": "I could not locate it."}}]
+    block = conversation_sources_block(history)
+    assert "RETRIEVED EARLIER" not in block
+    assert "NOT CONFIRMED RETRIEVED" in block
+    assert "instead of searching elsewhere" not in block, (
+        "an unconfirmed name must not be described as reusable"
+    )
+
+
+def test_an_openable_path_proves_retrieval():
+    history = [{"message": "open it",
+                "response": {"message": "Opened PRICE VIPUL (6).xlsx (open: "
+                                        "knowledge/documents/ext_1/content.lines)"}}]
+    assert "SOURCES RETRIEVED EARLIER" in conversation_sources_block(history)
 
 
 def test_block_empty_when_nothing_located():

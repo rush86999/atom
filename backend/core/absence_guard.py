@@ -44,6 +44,13 @@ _ABSENCE_RES: List[re.Pattern] = [
         r"attachments?|workbooks?|spreadsheets?|scorecards?|quotes?)\b"
         r"[^.!?]{0,60}?\b(?:exists?|exist|found|in the system|available)\b",
         re.IGNORECASE),
+    # "no OTHER …", "no further …" — an explicit completeness claim about a set.
+    # Review R2 (2026-09-17): "No other email carried it." was not recognised at
+    # all, so the guard never examined it — an absence claim reaching no detector
+    # is indistinguishable from a covered one.
+    re.compile(
+        r"\bno\s+(?:other|further|additional|more)\b",
+        re.IGNORECASE),
     # "None that we sent", "nothing was attached", "neither was received"
     re.compile(
         r"\b(?:none|nothing|neither)\b[^.!?]{0,60}?\b"
@@ -78,18 +85,79 @@ def universal_absence_claims(reply: str) -> List[str]:
     return out
 
 
+#: The lookup did NOT complete, so it cannot support an absence claim at all.
+#: Covering a universal negative requires a search that FINISHED over the whole
+#: scope; these say it did not.
+_INCOMPLETE_COVERAGE_RE = re.compile(
+    r"\b(failed|failure|error|denied|permission|unauthori[sz]ed|forbidden|"
+    r"timed? ?out|timeout|aborted|could not (?:complete|run|search|reach)|"
+    r"unavailable|not attempted|no lookup was attempted)\b",
+    re.IGNORECASE,
+)
+
+#: Evidence says the search was PARTIAL or there is more to read — a page
+#: boundary, truncation, or a next-page cursor. A first page cannot establish
+#: that something exists nowhere.
+_PARTIAL_COVERAGE_RE = re.compile(
+    r"(next_page_token|next page|has_more|more rows matched|first page only|"
+    r"truncated|\.\.\.\s*\d+ more|page \d+ of \d+|partial)",
+    re.IGNORECASE,
+)
+
+#: Evidence contains at least one actual RESULT — a positive hit contradicts an
+#: absence claim about the same subject outright.
+_POSITIVE_HIT_RE = re.compile(
+    r"\b(\d+)\s+(?:result|match|hit|row|message)s?\b", re.IGNORECASE
+)
+
+
 def _claims_covered(claim: str, tool_block: str) -> bool:
-    """True when the delivered evidence block represents an executed
-    lookup whose text plausibly names the claim's subject."""
+    """True only when the evidence SUPPORTS an absence claim over its scope.
+
+    R2 (review 2026-09-17). The previous version accepted any block carrying a
+    coverage marker plus ONE shared content token, so:
+
+      * "The vendor scorecard workbook does not exist" passed against evidence
+        reading "first page only; 1 result; next_page_token=abc" — a POSITIVE hit
+        and an explicitly partial search;
+      * "No file with that name exists in the system." passed against "file search
+        failed with permission denied".
+
+    Sharing a word proves neither absence nor exhaustiveness. Coverage is now
+    derived from what the evidence says about the LOOKUP: it must have produced
+    results without reporting a failure, and must not report itself as partial.
+    Anything else — failed, denied, timed out, truncated, more pages, or nothing
+    that positively establishes completion — is INCONCLUSIVE, which is the safe
+    direction: an inconclusive lookup cannot license a universal negative.
+    """
     if not tool_block:
         return False
     if not any(m in tool_block for m in _COVERAGE_MARKERS):
         return False
+    block = tool_block[:4000]
+    # A failed/denied/timed-out lookup cannot support absence.
+    if _INCOMPLETE_COVERAGE_RE.search(block):
+        return False
+    # A partial page or a continuation cursor cannot support absence.
+    if _PARTIAL_COVERAGE_RE.search(block):
+        return False
     claim_tokens = content_tokens(claim)
     if not claim_tokens:
         return True  # nothing specific asserted; cannot call it uncovered
-    block_tokens = content_tokens(tool_block[:4000])
-    return bool(claim_tokens & block_tokens)
+    block_tokens = content_tokens(block)
+    if not (claim_tokens & block_tokens):
+        return False  # the evidence never speaks to this subject
+    # A positive hit ABOUT THE CLAIM'S SUBJECT contradicts absence. "No other X"
+    # against evidence that found exactly one X is not an over-scope negative —
+    # it is contradicted by the result, so the guard must catch it (review R2).
+    if re.search(r"\bno\s+(?:other|further|additional|more)\b", claim, re.IGNORECASE):
+        return False
+    hit = _POSITIVE_HIT_RE.search(block)
+    if hit and int(hit.group(1)) > 0:
+        # A hit is only exculpatory if the evidence does not speak to this claim's
+        # subject; when the subject matches, a positive result refutes absence.
+        return False
+    return True
 
 
 def uncovered_absence_claims(reply: str, tool_block: str) -> List[str]:

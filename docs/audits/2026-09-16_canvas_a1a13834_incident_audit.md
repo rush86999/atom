@@ -181,6 +181,31 @@ fixed-route comparison (directive 5), which has not been run. And the earlier
 latency confound (stale 215-row store) means this run's timings are the first
 trustworthy ones for this case set.
 
+### 0.1e Review of the RCA fixes (2026-09-17) — disposition of R1–R5
+
+The follow-up review (`notes/audits/2026-09-17-rca-fix-review-and-agent-plan.md`,
+untracked scratch) found four P1 defects in the RCA fixes themselves. Fixed:
+
+| Review finding | Status |
+|---|---|
+| **R1** — source *mentions* promoted to asserted discoveries: the user's own "Find vendor_scorecard.xlsx" plus an assistant "I could not locate it" was reported as "already found once", and the planner was told to REUSE it | **FIXED** — provenance split. Only a reply showing real retrieval (an openable source path, no failure report) yields `SOURCES RETRIEVED`; everything else is `NAMES MENTIONED BUT NOT CONFIRMED`, with wording that forbids reporting it as found |
+| **R2** — absence "coverage" did not check coverage: a claim passed against "first page only; 1 result; next_page_token=abc" and against "search failed with permission denied" | **FIXED** — coverage derived from the LOOKUP: failure/denial/timeout, partial page or continuation cursor, and a positive hit each disqualify it. `no other/further/additional/more` is now recognised at all (it was not) |
+| **R3** — rejected evidence was still passed to the reply; the detector was bypassable by markers | **FIXED** — a rejected reused block is **QUARANTINED before generation**, not merely flagged; the blanket marker pass is gone, and the block's OWN declared query is checked against the request (the metadata bypass) |
+| **R4** — lexical gates rejected valid contextual lookups and accepted a copied number | **PARTIAL** — referential asks are now `unknown` (inspect, not decline) and a strong token alone no longer proves relevance. One case remains: `relevance_verdict("FW: RFQ - Foot shear", "search for this one: $ 5,350.00 - 10 % in stock")` is still `irrelevant` — it shares neither a word nor a 3+ digit run. Fixing it needs the resolved target carried on one verdict (review Step 3), not a wider lexical exception |
+| **R5** — `session_sources.py` could not import on Python 3.11 (`NameError: Dict`) | **FIXED** — `Dict` imported; verified with a real `python3.11 -c "import core.session_sources"` |
+
+Also corrected: **my own test** asserted that arbitrary SQL/dataset/formula blocks are
+accepted regardless of the request — it encoded R3's bypass, and now pins the
+opposite. And a duplicate `conversation_source_names` definition meant the fixed
+version was shadowed by the old one, so the first attempt at R1 appeared to work
+while changing nothing.
+
+**Not claimed.** R4 is partial, and the review's Step 2 (carrying structured
+lookup metadata — status, scope, completeness, next-page state — rather than
+inferring from rendered text) is not built; R2's fix infers from the block's
+wording, which is better than a marker check but still not the structured
+contract. 119 passed across the eleven affected suites.
+
 ### 0.1c Conversation RCA (2026-09-17) — disposition
 
 The follow-up conversation RCA identified six findings. Disposition:

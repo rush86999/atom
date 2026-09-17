@@ -2166,20 +2166,48 @@ def _evidence_addresses_request(tool_block: Optional[str], message: str) -> bool
     if not terms:
         return True  # no distinctive term to mismatch against
     hay = _canon_alnum(block)
+    # THE BLOCK NAMES THE QUERY THAT PRODUCED IT — check that FIRST. A block's own
+    # header words ('query', 'attachment') otherwise satisfy the generic term
+    # check and report a mismatch as relevant: the archived wrong-topic
+    # observation shared the word "attachment" with the scorecard request in its
+    # query METADATA while its CONTENT was unrelated RFQ documents.
+    _declared_first = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
+    if _declared_first:
+        _msg_terms = set(terms)
+        # Compare the block's OWN query against the REQUEST. Comparing it against
+        # the block is vacuous — the header contains the query, so every term
+        # "matches" by construction (my first attempt at this returned True for
+        # every input, including the mismatch it was written to catch).
+        if not any(_msg_terms & set(_distinctive_terms(q)) for q in _declared_first):
+            return False  # it answers a query that is not this request
     if any(t in hay for t in terms):
         return True
-    # Full-message evidence (an openable source the reply must read) is accepted
-    # even without a literal term match: the excerpt that led to it may have been
-    # phrased differently, and the model can open it to check.
+    # THE BLOCK NAMES THE QUERY THAT PRODUCED IT. That is a direct statement of
+    # what it answers, and a far better discriminator than the block's CONTENT:
+    # genuine evidence can legitimately share no term with the request (searching
+    # for a code finds a message that never spells it), while a block whose own
+    # query shares nothing with the current request is answering a different
+    # question. Review R3 found the previous version accepted the archived
+    # wrong-topic observation because ANY openable `full:`/`open:` marker was
+    # enough — the mismatch was in the query header, which nothing inspected.
+    _declared = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
+    if _declared:
+        if not any(
+            _distinctive_terms(q) and any(t in hay for t in _distinctive_terms(q))
+            for q in _declared
+        ):
+            return False  # it answers a query that is not this request
+        return True
+    # No declared query: an openable source may still be the evidence the model
+    # must read, even when the wording differs.
     if "full: knowledge/" in block or "open: knowledge/" in block:
         return True
-    # Structured answers (dataset rows, SQL results, formula blocks) carry their
-    # own provenance and were produced for this turn's ask.
-    if any(marker in block for marker in (
-        "SQL RESULT from", "DATASET CATALOG", "FORMULAS FOR THE MATCHED ROW",
-        "APP DB ANSWER",
-    )):
-        return True
+    # Structured answers get NO blanket pass. Review R3 found an unrelated
+    # inventory SQL block accepted for a vendor-scorecard request merely because
+    # it carried a `SQL RESULT from` marker: a marker says what SHAPE the data is,
+    # never what question it answers. Such a block is relevant only if its own
+    # content (or a declared query) shares a distinctive term with the request —
+    # both checks have already run above and failed, so it is a mismatch.
     return False
 
 
@@ -3948,7 +3976,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 from core.chat_tool_planner import execute_tool_plan, plan_tool_use
                 from core.verify_panel import verify_reply
 
-                if prefetched_tool_block:
+                if prefetched_tool_block and _evidence_rejected(
+                        prefetched_tool_block, message):
+                    # ENFORCEMENT (review R3, 2026-09-17). Flagging the block was
+                    # not enough: the flag added a no-edit note while this branch
+                    # still assigned the block to `_tool_block` and the prompt
+                    # framed it as this turn's freshly executed evidence — so the
+                    # reply answered from an unrelated lookup. The block is now
+                    # QUARANTINED before generation: a mismatched lookup produces
+                    # no evidence, which is the truthful state, and the reply path
+                    # already handles absent evidence.
+                    logger.warning(
+                        "[evidence-gate] quarantined the reused block — it is NOT "
+                        "passed to the reply (this turn has no evidence for it)")
+                elif prefetched_tool_block:
                     # SINGLEFLIGHT/BLACKBOARD: the canvas-edit fresh-data leg
                     # already joined this turn's shared plan task AND executed
                     # the lookup (its steps are already on the trace trail).

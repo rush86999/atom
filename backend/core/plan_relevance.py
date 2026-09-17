@@ -74,7 +74,27 @@ def quoted_phrases(text: str) -> List[str]:
 
 def relevance_verdict(query: str, message: str) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` (fail-open) for a
-    planned lookup query against the current user message."""
+    planned lookup query against the current user message.
+
+    Review R4 (2026-09-17) fixed three defects here. The verdict is consulted by
+    the planner AND re-run by the editor/chat gates, so a wrong ``irrelevant``
+    BLOCKS valid work — the more damaging direction, and the one the rules below
+    are shaped around.
+
+    1. REFERENTIAL REQUESTS. "Open the attachment from that email you just found"
+       names its target by anaphora; the referent is in the conversation, not the
+       sentence, so lexical matching cannot see it and returned ``irrelevant`` —
+       blocking a lookup the planner had already validated by provenance. Such a
+       message is ``unknown`` (inspect/replan), never ``irrelevant``.
+    2. A SHARED NUMBER IS NOT A SHARED SUBJECT. ``strong_tokens`` alone accepted
+       "PRICE VIPUL 0.87" for "what is the vendor scorecard reliability 0.87"
+       purely because both contain 0.87. A strong token now needs corroboration
+       from a content word — unless the message is nothing BUT the identifier
+       ("show me row 235"), where the identifier is the subject.
+    3. Ambiguous lexical signal (some overlap, not enough) is ``unknown`` rather
+       than ``irrelevant``: insufficient evidence to accept is not proof of
+       mismatch.
+    """
     if not query or not str(query).strip():
         return "unknown"
     q_norm = " ".join(str(query).lower().split())
@@ -88,18 +108,71 @@ def relevance_verdict(query: str, message: str) -> str:
             return "relevant"
 
     strong_hits = strong_tokens(message) & query_tokens
-    if strong_hits:
+    overlap = msg_tokens & query_tokens
+
+    # (1) A referential message cannot be judged lexically. Checked BEFORE the
+    # identifier shortcut so an anaphoric ask is never declined for lacking
+    # terms it resolves elsewhere.
+    if _REFERENTIAL_RE.search(str(message or "")):
+        return "unknown"
+
+    # (2) An identifier must be corroborated by a content word.
+    if strong_hits and (overlap - strong_hits):
+        return "relevant"
+    if strong_hits and len(msg_tokens) <= 2:
         return "relevant"
 
-    overlap = msg_tokens & query_tokens
     if len(overlap) >= 2:
         return "relevant"
     # Short asks ("price of WG-350?") share one word legitimately — the
     # hyphenated code may be re-tokenized in the query ("wg 350 price").
-    if len(overlap) >= 1 and len(msg_tokens) <= 4:
+    if len(overlap) >= 1 and len(msg_tokens) <= 4 and not strong_hits:
         return "relevant"
     # A message this short with zero overlap carries too little signal to
     # judge ("hi", "ok thanks") — fail open rather than decline.
     if not overlap and len(msg_tokens) <= 2:
         return "unknown"
+    # (3) Some signal but not enough to accept: hand it back to the caller.
+    if overlap:
+        return "unknown"
+    if strong_hits:
+        # An identifier with no `msg_tokens` branch above means the message had
+        # nothing else to corroborate it with — still inspect rather than decline.
+        return "unknown"
+    # A SHARED FIGURE IS A SHARED TARGET. "FW: RFQ - Foot shear" and "search for
+    # this one: $ 5,350.00 - 10 % in stock" share no WORD, but 5,350 is exactly
+    # what identifies the message — the quoted-body-to-subject mapping the planner
+    # already exempts from its own lexical check. Digit runs are compared, not the
+    # whole decorated token, so "5,350.00" and "5350" agree.
+    if _digit_runs(message) & _digit_runs(query):
+        return "unknown"
+    # NO shared signal at all: the query and the request are about different
+    # subjects, which is the one case lexical evidence can settle.
     return "irrelevant"
+
+
+def _digit_runs(text: str) -> Set[str]:
+    """Digit sequences of 3+ characters (figures and codes)."""
+    return {
+        run for run in re.findall(r"\d{3,}", str(text or "").replace(",", ""))
+    }
+
+
+#: Language that points at something ALREADY IN THE CONVERSATION. Must not match
+#: an ordinary definite article — "what is the weather in Paris" contains a
+#: "the"-noun pair and is not referential (that over-broad first version made
+#: every such message `unknown` and broke nine of the module's own tests).
+_REFERENTIAL_RE = re.compile(
+    # a deictic determiner with a document noun: "that email", "those files"
+    r"\b(?:that|those|these|same|previous|earlier|above|last)\s+"
+    r"(?:email|e-mail|message|thread|attachment|file|document|workbook|sheet|"
+    r"spreadsheet|invoice|quote|record|result|one)s?\b"
+    # "the one/ones" is referential; "the email you just found" too
+    r"|\bthe\s+ones?\b"
+    r"|\b(?:the|that|this)\s+(?:email|e-mail|message|thread|attachment|file|"
+    r"document|workbook|invoice|quote|record|result)s?\s+"
+    r"(?:you|we|i|he|she|they)\b"
+    r"|\b(?:you|we)\s+(?:just\s+)?(?:found|opened|mentioned|sent)\b"
+    r"|\bas\s+(?:above|before|mentioned)\b",
+    re.IGNORECASE,
+)

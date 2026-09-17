@@ -14,7 +14,7 @@ Bounded by design: recent window only, capped count, capped name length.
 """
 
 import re
-from typing import Any, Iterable, List
+from typing import Any, Dict, Iterable, List
 
 #: Body excludes "." and "," so a match cannot cross sentence or list
 #: punctuation ("...chain. See also report_v2.pdf" must not become one
@@ -152,33 +152,105 @@ def extract_source_handles(texts: Iterable[str], cap: int = _CAP) -> List[str]:
     return out
 
 
+#: The reply DID NOT retrieve the file. Detecting these is what separates a
+#: discovery from a mention, and a false negative here is what R1 exposed.
+_RETRIEVAL_FAILURE_RE = re.compile(
+    r"\b(could not|couldn't|cannot|can't|unable to|not able to|failed to|"
+    r"no such file|does not exist|doesn't exist|not found|no file (?:with|named)|"
+    r"nothing (?:matched|found)|returned no|no results?)\b",
+    re.IGNORECASE,
+)
+
+#: A reply that shows an OPENABLE source path retrieved it — `documents.read` /
+#: `documents.cat` paths and the evidence legs' `full:`/`open:` markers are
+#: produced only after a successful read.
+_OPENABLE_RE = re.compile(r"(?:knowledge/(?:documents|conversations|files)/)", re.IGNORECASE)
+
+
+def _reply_evidence_of_retrieval(reply: str) -> bool:
+    """Did this reply actually RETRIEVE the file it mentions?
+
+    R1 (2026-09-17): the previous version treated any filename in any text as a
+    located source, so the USER'S OWN QUESTION ("Find vendor_scorecard.xlsx") was
+    promoted to "already found once" while the assistant's next line said it could
+    not be located — and the planner was then told to REUSE it instead of
+    searching. That is the false-source behaviour the scorecard control exists to
+    prevent.
+
+    A discovery requires positive evidence: an openable source path, or a reply
+    that neither reports failure nor merely echoes the request.
+    """
+    text = str(reply or "")
+    if not text.strip():
+        return False
+    if _OPENABLE_RE.search(text):
+        return True
+    if _RETRIEVAL_FAILURE_RE.search(text):
+        return False
+    return True
+
+
 def conversation_source_names(history: List[Dict[str, Any]],
                               window: int = _WINDOW) -> List[str]:
-    """Handles from the most recent ``window`` exchanges, newest first.
-    Error turns are skipped: a failed attempt never located anything."""
+    """Handles the conversation CONFIRMED, newest first — assistant replies that
+    show a real retrieval and report no failure.
+
+    User messages are deliberately excluded: asking about a file is not finding
+    one. Error turns are skipped, as before."""
     texts: List[str] = []
     for h in reversed(list(history or [])[-window:]):
         h = h or {}
         if h.get("error"):
             continue
-        msg = str(h.get("message") or "")
         resp = str((h.get("response") or {}).get("message") or "")
-        for part in (msg, resp):
-            if part:
-                texts.append(part)
+        if resp and _reply_evidence_of_retrieval(resp):
+            texts.append(resp)
+    return extract_source_handles(texts)
+
+
+def conversation_mentioned_names(history: List[Dict[str, Any]],
+                                 window: int = _WINDOW) -> List[str]:
+    """File names the conversation MENTIONED but did not confirm — the user's own
+    references. Useful as search HINTS; never as provenance."""
+    texts: List[str] = []
+    for h in reversed(list(history or [])[-window:]):
+        h = h or {}
+        msg = str(h.get("message") or "")
+        if msg:
+            texts.append(msg)
     return extract_source_handles(texts)
 
 
 def conversation_sources_block(history: List[Dict[str, Any]]) -> str:
-    """Planner-prompt block naming previously located sources, or "" when
-    the conversation has named none."""
-    handles = conversation_source_names(history)
-    if not handles:
-        return ""
-    return (
-        "SOURCES LOCATED EARLIER IN THIS CONVERSATION: "
-        + "; ".join(handles)
-        + ". A file named here was already found once — plan a lookup that "
-        "REUSES it (documents/datasets) when the current request needs it "
-        "again, instead of searching elsewhere or concluding it is missing."
-    )
+    """Planner-prompt block naming previously located sources, or "".
+
+    States the provenance it actually has. A confirmed source may be reused; a
+    merely MENTIONED name is a search hint and the prompt says so, because
+    instructing the planner to "REUSE" an unconfirmed name is how a nonexistent
+    file becomes asserted fact (R1).
+    """
+    located = conversation_source_names(history)
+    mentioned = [
+        n for n in conversation_mentioned_names(history)
+        if n.lower() not in {x.lower() for x in located}
+    ]
+    parts: List[str] = []
+    if located:
+        parts.append(
+            "SOURCES RETRIEVED EARLIER IN THIS CONVERSATION: "
+            + "; ".join(located)
+            + ". These were actually retrieved — plan a lookup that REUSES one "
+            "(documents/datasets) when the current request needs it again, "
+            "instead of searching elsewhere or concluding it is missing. If a "
+            "retrieved source no longer resolves, say so rather than asserting "
+            "its contents."
+        )
+    if mentioned:
+        parts.append(
+            "NAMES MENTIONED BUT NOT CONFIRMED RETRIEVED: "
+            + "; ".join(mentioned)
+            + ". These were asked about or referenced, NOT shown to exist — "
+            "verify with a lookup before relying on them, and never report them "
+            "as already found."
+        )
+    return " ".join(parts)
