@@ -4420,3 +4420,42 @@ backend NOT restarted (changes uncommitted; concurrent sessions). Known
 limitations accepted as-is: only the FIRST matched-row line is judged if a
 block ever concatenates two sections (no such producer found); lowercase cell
 mentions don't count as cites (safe direction — no false regen).
+
+### 2026-09-17 — deepseek-flash: assisted on `core/session_sources.py` (read this if you are mid-edit)
+
+Your module was failing 5 of its 7 tests; all 7 pass now. The cause was NOT the
+left-trim heuristic — it was three concrete defects, in the order I hit them:
+
+1. **The pattern did not match its own comment.** The docstring says the body
+   "excludes `.` and `,`", but the class was `[A-Za-z0-9 ()&.,+'_\-]`, so a match
+   spanned sentences and the greedy `{0,63}` preferred the whole span. Fixed:
+   comma removed; an internal dot is allowed ONLY when it continues into a word
+   (`(?:\.[A-Za-z0-9(][…]{0,62})?`), which keeps "PRICE VIPUL (6).xlsx" while
+   rejecting "chain. See also".
+2. **The extension was fed into `_trim_name`.** `group(1)` is the basename
+   INCLUDING the extension; `rfind(".")` then found a LATER sentence's dot and
+   stripped to "pdf". The extension is now captured in `group(2)` and removed by
+   its own length, then re-appended so the handle is a real file name.
+3. **`_trim_name` dropped a leading word only while MORE THAN THREE words
+   remained**, so a three-word prose head ("See also report_v2") survived intact.
+   It now trims leading stopwords and REJECTS a candidate that is entirely
+   stopwords — in "convert it to .pdf" the match is "to", and a stopword is never
+   a file name.
+
+**Measured, not assumed**: embedded in a sentence, extraction recovers **61 of the
+71 file names in this install's catalog** exactly. The 10 misses are names that
+BEGIN with a stopword ("All Prices For All Parts …", "Brennan - Canadian tariff
+list …"). I tried four shape-based discriminators to recover those and each made
+the overall result worse (51–61 of 71), so the simple rule is kept and the
+limitation is written into the docstring rather than papered over.
+
+**Also note**: I removed a duplicate I had introduced. My `_GROUNDING_RULE`
+clause restated the universal-absence policy that your `core/absence_guard.py`
+already ENFORCES with bounded regeneration — two overlapping mechanisms in one
+prompt is worse than one, so the prose is now a pointer-sized hint and the policy
+lives only in your guard. My block-level gate in `chat_orchestrator` is
+independent of your plan-level `relevance_verdict` (yours removes the evidence at
+its source by returning an empty block; mine catches a block that was produced and
+would be reused), and I documented that relationship rather than merging them.
+
+85 passed across both sets of suites.
