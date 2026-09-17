@@ -978,7 +978,15 @@ async def fetch_fresh_data_section(
         try:
             from core.plan_relevance import relevance_verdict
 
-            _relevance = relevance_verdict(plan.query, message)
+            # R4 (2026-09-17): the planner STAMPS the verdict of record on
+            # the plan at acceptance — including its provenance-quote
+            # exemption, which this raw recompute cannot see and would
+            # wrongly decline (query = thread SUBJECT, message = pasted
+            # BODY, zero lexical overlap by construction). Plans without a
+            # stamp (SimpleNamespace fixtures, legacy callers) fall back to
+            # the raw verdict, which still governs.
+            _relevance = (getattr(plan, "relevance_verdict", None)
+                          or relevance_verdict(plan.query, message))
         except Exception:  # noqa: BLE001 — a failed gate must not gate
             _relevance = "unknown"
         if _relevance == "irrelevant":

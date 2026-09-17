@@ -85,3 +85,52 @@ def test_strong_tokens_captures_numbers_codes_caps():
     s = strong_tokens("RFQ 7519 and 0.87 with wg-350dsav vendor")
     assert {"7519", "0.87", "wg-350dsav", "rfq"} <= s
     assert "vendor" not in s
+
+
+# --- R4 rules landed in cd0640d33, pinned afterwards (2026-09-17 ZCode):
+# the new semantics shipped without pins in this file; these hold them. ---
+
+def test_referential_message_is_unknown_not_irrelevant():
+    """Review R4 repro 1: 'open that attachment' names its target through
+    the conversation, so a lexical mismatch cannot prove staleness."""
+    assert relevance_verdict(
+        "invoice INV-0042",
+        "Open the attachment from that email you just found") == "unknown"
+
+
+def test_shared_number_alone_is_not_a_confident_relevant():
+    """Review R4 false-accept: 0.87 in both strings is not a shared
+    subject — an identifier needs corroboration, so the verdict drops to
+    unknown (inspect) instead of a confident accept."""
+    assert relevance_verdict("PRICE VIPUL 0.87", SCORECARD_ASK) == "unknown"
+
+
+def test_number_with_content_corroboration_is_relevant():
+    """The corroboration rule must not swallow the legitimate shape: the
+    query names the subject words AND the identifier."""
+    assert relevance_verdict(
+        "vendor scorecard reliability 0.87", SCORECARD_ASK) == "relevant"
+
+
+def test_identifer_only_message_keeps_identifier_relevant():
+    """A message that is nothing BUT the identifier ('show me row 235')
+    keeps the identifier as its subject (cd0640d33 rule 2 carve-out)."""
+    assert relevance_verdict("row 235 values", "show me row 235") == (
+        "relevant")
+
+
+def test_stale_rca_query_still_irrelevant_after_r4_rules():
+    """The original RCA decline must survive the new fail-open rules."""
+    assert relevance_verdict(
+        "PRICE VIPUL price list attachment", SCORECARD_ASK) == "irrelevant"
+
+
+def test_body_figure_subject_query_stays_irrelevant_lexically():
+    """The recorded R4 leftover (cd0640d33): a quoted BODY's figure against
+    the thread SUBJECT query shares neither words nor digit runs. It stays
+    lexically irrelevant BY DESIGN — the fix is the planner's acceptance
+    stamp (relevant / provenance-quote), which the downstream gates honor,
+    not another lexical exception here."""
+    assert relevance_verdict(
+        "FW: RFQ - Foot shear",
+        "search for this one: $ 5,350.00 - 10 % in stock") == "irrelevant"

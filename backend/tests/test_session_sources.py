@@ -71,10 +71,25 @@ def test_a_mention_is_never_reported_as_retrieved():
                 "response": {"message": "I could not locate it."}}]
     block = conversation_sources_block(history)
     assert "RETRIEVED EARLIER" not in block
-    assert "NOT CONFIRMED RETRIEVED" in block
+    assert "NOT CONFIRMED AS RETRIEVED" in block
     assert "instead of searching elsewhere" not in block, (
         "an unconfirmed name must not be described as reusable"
     )
+
+
+def test_mention_handle_strips_the_request_verb():
+    """The handle is the file, not the ask: 'Find vendor_scorecard.xlsx'
+    must yield 'vendor_scorecard.xlsx' (find/search/locate are request
+    verbs, not name fragments — added to _LEADING_STOPWORDS 2026-09-17)."""
+    from core.session_sources import extract_source_handles
+
+    handles = extract_source_handles(
+        ["Find vendor_scorecard.xlsx", "search for the RFQ list.pdf",
+         "locate price_august.xlsx"])
+    assert "vendor_scorecard.xlsx" in handles
+    assert "price_august.xlsx" in handles
+    assert not any(h.split(".")[0].split()[-1] in
+                   ("find", "search", "locate", "try") for h in handles)
 
 
 def test_an_openable_path_proves_retrieval():

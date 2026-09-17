@@ -4116,8 +4116,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # the deterministic mail scan still runs.
                         from core.plan_relevance import relevance_verdict
 
+                        # R4 (2026-09-17): the planner's acceptance stamp is
+                        # the verdict of record — a provenance-verified quote
+                        # lookup is stamped relevant/provenance-quote because
+                        # its query is the thread SUBJECT against a pasted
+                        # BODY (zero lexical overlap by construction), and
+                        # recomputing the raw verdict here re-declined what
+                        # the planner had validated. No stamp (legacy plan,
+                        # or the check never ran) falls back to the raw
+                        # verdict, which still governs.
                         _off_request = (
-                            relevance_verdict(_plan.query, message)
+                            (getattr(_plan, "relevance_verdict", None)
+                             or relevance_verdict(_plan.query, message))
                             == "irrelevant")
                         if _off_request:
                             logger.warning(
@@ -4961,6 +4971,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         try:
                             from core.absence_guard import (
                                 absence_correction_message,
+                                strip_uncovered_absence_claims,
                                 uncovered_absence_claims,
                             )
 
@@ -5000,6 +5011,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get(
                                     "reasoning") or _turn_reasoning
+                            else:
+                                # LAST RESORT (R2, deterministic): the scoped
+                                # regeneration was unavailable or STILL
+                                # over-claims. The final replacement text may
+                                # not carry the unsupported universal absence —
+                                # rewrite the offending sentence(s) in place.
+                                _streamed = strip_uncovered_absence_claims(
+                                    _streamed, _tool_block)
                         # CAPABILITY-HONESTY GUARD: an inability claim with NO
                         # tool block on a message that EXPLICITLY asked for web
                         # research (live 2026-09-08: "web research lead's
@@ -6101,9 +6120,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 try:
                     from core.absence_guard import (
                         absence_correction_message,
+                        strip_uncovered_absence_claims,
                         uncovered_absence_claims,
                     )
-                    from core.session_sources import conversation_sources_block
 
                     _uncovered = uncovered_absence_claims(
                         _content, _tool_block)
@@ -6114,7 +6133,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[absence-guard] uncovered absence claim(s) in "
                         "reply: %s — scoped regeneration",
                         " | ".join(_u[:80] for _u in _uncovered))
+                    # R5 (2026-09-17): session_sources is imported at its USE
+                    # SITE, in its own try — it must not sit in the same
+                    # except as the absence guard, or one broken module
+                    # silently disables a different guard (that coupling is
+                    # what made the whole absence check die on 3.11 when
+                    # session_sources had the Dict NameError).
                     try:
+                        from core.session_sources import (
+                            conversation_sources_block,
+                        )
+
                         _src = conversation_sources_block(history)
                     except Exception:  # noqa: BLE001
                         _src = ""
@@ -6136,6 +6165,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             and not uncovered_absence_claims(
                                 _regenerated, _tool_block)):
                         _content = _regenerated
+                    else:
+                        # LAST RESORT (R2, deterministic): the corrective
+                        # regeneration was unavailable (provider 401/timeout)
+                        # or IT STILL over-claims. The unsupported universal
+                        # absence may not ship as written — rewrite the
+                        # offending sentence(s) in place; the rest of the
+                        # answer passes through untouched.
+                        _content = strip_uncovered_absence_claims(
+                            _content, _tool_block)
                 if _vp_run:
                     _vp_t0 = time.monotonic()
                     # BOUNDED: the panel judges a complete reply, so a judge

@@ -684,6 +684,15 @@ class ToolPlan(BaseModel):
     # call cost. Optional by contract: absent/unparseable -> the regex
     # parser and then plain recency, exactly as before this field existed.
     mentioned_date: Optional[str] = None
+    # REQUEST-RELEVANCE STAMP (R4 2026-09-17): the plan-level verdict of
+    # record, computed ONCE here at acceptance — including the provenance-
+    # quote exemption the raw lexical check cannot see — so the downstream
+    # gates (canvas editor, orchestrator fresh-plan acceptance) CONSUME it
+    # instead of re-running relevance_verdict and re-declining a lookup the
+    # planner already validated. None on paths that never ran the check;
+    # consumers then fall back to the raw verdict.
+    relevance_verdict: Optional[str] = None
+    relevance_basis: Optional[str] = None
 
     @field_validator("mentioned_date", mode="before")
     @classmethod
@@ -954,6 +963,18 @@ def _plan_relevance_verdict(query: str, message: str) -> str:
         return relevance_verdict(query, message)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown"
+
+
+def _plan_relevance_basis(query: str, message: str) -> "tuple[str, str]":
+    """Same fault-isolation contract as :func:`_plan_relevance_verdict`,
+    returning the rule basis alongside the verdict so the acceptance stamp
+    records WHY (basis ``provenance-quote`` is assigned by the caller for
+    the exemption, not by this module)."""
+    try:
+        from core.plan_relevance import relevance_basis
+        return relevance_basis(query, message)
+    except Exception:  # noqa: BLE001 — gate must never break planning
+        return "unknown", "module-unavailable"
 
 
 async def _structured_with_fallback(
@@ -1271,6 +1292,23 @@ async def plan_tool_use(
             # original plan: the consumption-side off-request gate then
             # declines its execution, so the stale result cannot be
             # presented as this turn's answer.
+
+        # STAMP (R4, 2026-09-17): the verdict of record for the FINAL plan,
+        # computed once at acceptance. The provenance-verified quote lookup
+        # above is exempt from the replan because its query is legitimately
+        # the thread SUBJECT against a pasted BODY — zero lexical overlap by
+        # construction — so its stamp is that exemption, NOT the raw
+        # "irrelevant" a downstream recompute would produce (the R4 leftover
+        # recorded in cd0640d33: "FW: RFQ - Foot shear" vs a pasted
+        # "$ 5,350.00" body). Downstream gates honor the stamp; a plan that
+        # never reaches this point carries None and consumers fall back to
+        # the raw verdict.
+        if _prov_quote_lookup:
+            plan.relevance_verdict = "relevant"
+            plan.relevance_basis = "provenance-quote"
+        else:
+            plan.relevance_verdict, plan.relevance_basis = (
+                _plan_relevance_basis(plan.query or "", message))
     return plan
 
 

@@ -39,6 +39,9 @@ _LEADING_STOPWORDS = {
     "this", "that", "these", "those", "its", "it", "was", "is", "are", "as",
     "by", "into", "then", "than", "so", "but", "not", "no", "we", "i", "you",
     "your", "our", "my", "their", "read", "found", "attached", "saved",
+    # request verbs that precede a name the user is ASKING about ("Find
+    # vendor_scorecard.xlsx") — the verb is not part of the handle
+    "find", "search", "locate", "try",
     # narrative connectives that precede a re-mention of the same file
     "later", "earlier", "then", "again", "next", "finally", "also", "same",
     "both", "each", "all", "here", "there", "which", "where", "when",
@@ -247,7 +250,7 @@ def conversation_sources_block(history: List[Dict[str, Any]]) -> str:
         )
     if mentioned:
         parts.append(
-            "NAMES MENTIONED BUT NOT CONFIRMED RETRIEVED: "
+            "NAMES MENTIONED BUT NOT CONFIRMED AS RETRIEVED: "
             + "; ".join(mentioned)
             + ". These were asked about or referenced, NOT shown to exist — "
             "verify with a lookup before relying on them, and never report them "
