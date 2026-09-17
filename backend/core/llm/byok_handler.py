@@ -1842,6 +1842,27 @@ class BYOKHandler:
         self._ollama_probe_cache = (now, "up", expanded)
         return "up", expanded
 
+    def _credential_scope_tenant(self) -> Optional[str]:
+        """The tenant scope for credential lookups, or None when this handler
+        carries no real tenant context.
+
+        ``"default"`` is the constructor sentinel for "no authenticated
+        tenant was threaded in" (module-scoped orchestrators, background
+        jobs, the Settings probe) — nobody stores a key under that scope.
+        Declaring it made the lookup miss the tenant-prefixed entry
+        (``tenant_<uuid>_<provider>_...`` written by the save route) AND
+        skip ``BYOKManager._find_stored_key``'s single-scope resolution,
+        which is the designed personal-edition path (one operator whose
+        every key is tenant-prefixed). Passing None keeps the store's own
+        safety rules: global entry first, else a single-scope store
+        resolves to that scope, and 2+ scopes with no global entry stay
+        ambiguous → None. A real tenant id keeps strict own-scope-first
+        lookup — never another tenant's key.
+        """
+        if self.tenant_id in (None, "", "default"):
+            return None
+        return self.tenant_id
+
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
         import sys
@@ -1966,7 +1987,7 @@ class BYOKHandler:
             # "found" — otherwise the env fallback below is skipped.
             if not api_key:
                 candidate = self.byok_manager.get_api_key(
-                    provider_id, tenant_id=self.tenant_id
+                    provider_id, tenant_id=self._credential_scope_tenant()
                 )
                 if isinstance(candidate, str) and candidate:
                     api_key = candidate
@@ -1976,7 +1997,7 @@ class BYOKHandler:
             if not api_key and provider_id == "gemini":
                 for alt_provider in ["google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5"]:
                     candidate = self.byok_manager.get_api_key(
-                        alt_provider, tenant_id=self.tenant_id
+                        alt_provider, tenant_id=self._credential_scope_tenant()
                     )
                     if isinstance(candidate, str) and candidate:
                         api_key = candidate
@@ -3600,7 +3621,12 @@ class BYOKHandler:
                                 turn_index=turn_index
                             )
 
-                            tenant_key = self.byok_manager.get_tenant_api_key(self.tenant_id, temp_provider_id)
+                            # Key lookup must use the tenant the save route
+                            # wrote under (the resolved row above), not the
+                            # "default" sentinel this handler may still carry
+                            # — the sentinel matches no stored scope, so a
+                            # personal-edition key was invisible here too.
+                            tenant_key = self.byok_manager.get_tenant_api_key(tenant.id, temp_provider_id)
                             if tenant_key:
                                 is_managed = False  # Custom Key = BYOK
                             elif self.env_key_providers:
