@@ -297,6 +297,93 @@ class StripeAdapter:
             logger.error(f"Failed to retrieve Stripe charges: {e}")
             raise
 
+    async def list_charges_paged(
+        self, limit: int = 25, starting_after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve one page of Stripe charges WITH pagination visibility.
+
+        Stripe list responses carry ``has_more`` and page by ``starting_after=<last
+        object id>`` — get_charges drops both, so a 100K-charge account looks
+        exhausted after the first page. Returns
+        ``{"data": [...], "has_more": bool, "next_page_token": str|None}``
+        where ``next_page_token`` is the last charge id to resume from
+        (Stripe's own cursor spelling).
+        """
+        if not self._access_token:
+            raise ValueError("Stripe access token not available")
+
+        try:
+            params: Dict[str, Any] = {"limit": max(1, min(int(limit), 100))}
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/charges",
+                    headers={"Authorization": f"Bearer {self._access_token}"},
+                    params=params,
+                )
+                response.raise_for_status()
+
+                data = response.json()
+                charges = data.get("data", [])
+                has_more = bool(data.get("has_more"))
+                next_token = charges[-1].get("id") if has_more and charges else None
+                return {
+                    "data": charges,
+                    "has_more": has_more,
+                    "next_page_token": next_token,
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to retrieve Stripe charges (paged): {e}")
+            raise
+
+    async def search_charges(
+        self, query: str, limit: int = 25,
+    ) -> Dict[str, Any]:
+        """
+        Server-side Stripe charge search (GET /v1/charges/search).
+
+        Stripe's Search API matches the query server-side (email, customer,
+        amount ranges, free text) over the WHOLE account — the previous
+        pattern (list the newest N charges, filter client-side) could only
+        ever find matches inside that newest page. Query strings with
+        Stripe's ``key:"value"`` syntax pass through; plain terms are
+        matched as free text by Stripe.
+
+        Returns the same paged shape as list_charges_paged
+        (``next_page_token`` is the ``next_page`` cursor from the search
+        response).
+        """
+        if not self._access_token:
+            raise ValueError("Stripe access token not available")
+
+        try:
+            params = {"query": str(query or "").strip(), "limit": max(1, min(int(limit), 100))}
+            if not params["query"]:
+                return {"data": [], "has_more": False, "next_page_token": None}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/charges/search",
+                    headers={"Authorization": f"Bearer {self._access_token}"},
+                    params=params,
+                )
+                response.raise_for_status()
+
+                data = response.json()
+                return {
+                    "data": data.get("data", []),
+                    "has_more": bool(data.get("has_more")),
+                    "next_page_token": data.get("next_page"),
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to search Stripe charges: {e}")
+            raise
+
     async def create_charge(self, amount: int, currency: str, customer: str = None,
                            description: str = None, **metadata) -> Dict[str, Any]:
         """

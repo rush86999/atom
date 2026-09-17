@@ -231,6 +231,9 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("ATOM_OBJECTIVE_LOOP_ENABLED", True, C_AGENT, "Goal-driven loop w/ DoD early exit"),
     B("ATOM_MINIAPP_DB_ENABLED", True, C_AGENT, "Mini-app record store"),
     B("ATOM_REVIEWER_LOOP_ENABLED", False, C_AGENT, "REVIEW strategy re-delegation"),
+    # Tool-catalog bounds (2026-09-16 data-access audit, gap #4)
+    I("ATOM_AGENT_SESSION_TOOLS_CAP", 40, C_AGENT, "Max lazily-loaded tools per session (FIFO beyond; 0 = core only)"),
+    I("ATOM_AGENT_TOOL_PROMPT_CAP", 120, C_AGENT, "Max tool entries rendered per ReAct step (hidden tail via mcp_tool_search)"),
     S("LANCEDB_URI", "./data/atom_memory", C_DB, "Atom memory LanceDB URI"),
     S("LANCEDB_URI_BASE", "./data/atom_memory", C_DB, "Base URI for per-workspace stores"),
     S("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5", C_DB, "Embedding model id"),

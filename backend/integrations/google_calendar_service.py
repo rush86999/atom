@@ -164,67 +164,76 @@ class GoogleCalendarService(IntegrationService):
             return []
 
     async def get_events(
-        self, 
+        self,
         calendar_id: str = 'primary',
         time_min: Optional[datetime] = None,
         time_max: Optional[datetime] = None,
         max_results: int = 100,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        q: Optional[str] = None
     ) -> List[Dict]:
         """
         Get events from Google Calendar
-        
+
         Args:
-            calendar_id: Calendar ID (default: 'primary')
+            calendar_id: Calendar ID (default to 'primary')
             time_min: Start time filter
             time_max: End time filter
             max_results: Maximum number of events to return
-            
+            q: Server-side text filter — Calendar's events.list ``q``
+                matches title/description/attendees/locations, so a named
+                event is found WITHOUT pulling the window and filtering
+                client-side (the client-side path caps at max_results
+                BEFORE the filter, burying the match).
+
         Returns:
             List of events in unified format
         """
         if not GOOGLE_APIS_AVAILABLE:
             logger.warning("Google APIs not available - cannot get events")
             return []
-        
+
         service = self._get_service_with_token(token)
         if not service:
             return []
-        
+
         try:
             # Default to next 7 days if not specified
             if not time_min:
                 time_min = datetime.now(timezone.utc)
             if not time_max:
                 time_max = time_min + timedelta(days=7)
-            
+
             # Format times for API - Google expects UTC with Z suffix, not +00:00
             # If datetime is timezone-aware, convert to UTC and remove tz info before adding Z
             if time_min.tzinfo is not None:
                 time_min_str = time_min.astimezone(timezone.utc).replace(tzinfo=None).isoformat() + 'Z'
             else:
                 time_min_str = time_min.isoformat() + 'Z'
-                
+
             if time_max.tzinfo is not None:
                 time_max_str = time_max.astimezone(timezone.utc).replace(tzinfo=None).isoformat() + 'Z'
             else:
                 time_max_str = time_max.isoformat() + 'Z'
-            
+
             # Call the Calendar API
-            events_result = service.events().list(
+            list_kwargs = dict(
                 calendarId=calendar_id,
                 timeMin=time_min_str,
                 timeMax=time_max_str,
                 maxResults=max_results,
                 singleEvents=True,
                 orderBy='startTime'
-            ).execute()
-            
+            )
+            if q:
+                list_kwargs['q'] = q
+            events_result = service.events().list(**list_kwargs).execute()
+
             events = events_result.get('items', [])
-            
+
             # Convert to unified format
             return [self._convert_google_to_unified(event) for event in events]
-            
+
         except HttpError as error:
             logger.error(f"Google Calendar API error: {error}")
             return []

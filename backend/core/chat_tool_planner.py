@@ -980,6 +980,7 @@ async def _repair_plan_via_llm(
     catalog: str,
     history: List[Dict[str, Any]],
     message: str,
+    canvas: Optional[Dict[str, Any]] = None,
 ) -> Optional[ToolPlan]:
     """Second structured LLM pass that FIXES routing instead of guessing it
     from surface patterns. Regex repair (service-name matching, file nouns,
@@ -987,12 +988,20 @@ async def _repair_plan_via_llm(
     that justify a route ("the file", "try again") don't reliably name the
     service, and only the model sees the context that does (live 2026-09-03:
     "check consolidated price list file" regex-routed to the mailbox). One
-    corrective call, then deterministic handoff; returns None on failure."""
+    corrective call, then deterministic handoff; returns None on failure.
+
+    ``canvas`` is the open canvas, for the same reason plan_tool_use takes
+    it (2026-09-14 mis-route: "this one"/"the file" resolves against what is
+    on screen). The null-service repair call site has passed it since that
+    fix — before this param existed the call raised TypeError and the whole
+    repair rung silently degraded to the memory fallback."""
     if llm_service is None:
         return None
+    canvas_block = _planner_canvas_block(canvas)
     prompt = (
         f"{_REPAIR_SYSTEM.format(defect=defect, catalog=catalog, transcript=_history_transcript(history, message))}\n\n"
-        "Return the corrected plan."
+        + (f"{canvas_block}\n\n" if canvas_block else "")
+        + "Return the corrected plan."
     )
     try:
         return await _structured_with_fallback(

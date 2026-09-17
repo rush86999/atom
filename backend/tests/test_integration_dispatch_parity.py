@@ -36,7 +36,11 @@ from core.chat_tool_planner import _SERVICE_DESCRIPTIONS
 from integrations.universal_integration_service import UniversalIntegrationService
 
 # Pseudo-services: no integration dispatch behind them.
-PLATFORM_SERVICES = {"web_search", "web_fetch", "memory"}
+# datasets/documents are planner-internal lanes (sheet-dataset service and
+# the knowledge VFS action registry — see chat_tool_planner's own
+# _datasets_search_block / documents lane), not UIS integrations; the
+# registry has no service class for them by design.
+PLATFORM_SERVICES = {"web_search", "web_fetch", "memory", "datasets", "documents"}
 
 # Services whose search() entry routes through _search_storage (the MCP
 # no-platform search_files fan-out path).
@@ -142,14 +146,21 @@ def _patch_integrations(root):
     Tape sharing `root`, in both the source module's namespace and the
     universal module's. Derived from the AST, so new branch imports are
     covered automatically."""
+    # Dispatch-SUPPORT modules, not provider services — the read-shape layer
+    # (ReadQuery.from_params / read.limit / cached_read_async ...) is not a
+    # provider call; taping it misattributed from_params/limit/page_token to
+    # every service class as AttributeError candidates.
+    SUPPORT_MODULES = {"integrations.read_query", "integrations.read_cache"}
+
     source = Path(inspect.getfile(UniversalIntegrationService))
     tree = ast.parse(source.read_text())
     names = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
             if node.module.startswith("integrations.") or node.module == "integrations":
-                for alias in node.names:
-                    names.add((node.module, alias.name))
+                if node.module not in SUPPORT_MODULES:
+                    for alias in node.names:
+                        names.add((node.module, alias.name))
     patchers = []
     for module_name, name in sorted(names):
         try:

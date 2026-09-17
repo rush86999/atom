@@ -2046,7 +2046,10 @@ class TestUniversalExecuteBranches:
                 ctx["registry"] = reg_cls.return_value
                 with _mock_imports({
                     "integrations.slack_service_unified": MagicMock(slack_unified_service=MagicMock(
-                        make_request=AsyncMock(return_value={"r": 1}))),
+                        # 2026-09-16: the branch calls search_messages (page
+                        # param) instead of raw make_request.
+                        search_messages=AsyncMock(return_value={
+                            "messages": {"matches": [{"r": 1}], "pagination": {}}}))),
                     "integrations.atom_google_chat_integration": MagicMock(atom_google_chat_integration=MagicMock(
                         unified_search=AsyncMock(return_value=[{"g": 1}]))),
                     "integrations.atom_telegram_integration": MagicMock(atom_telegram_integration=MagicMock(
@@ -2057,7 +2060,11 @@ class TestUniversalExecuteBranches:
                         search_messages=MagicMock(return_value=[{"m": 1}])))),
                     "integrations.outlook_service": MagicMock(
                         sanitize_graph_kql=lambda q: q,
-                        outlook_service=MagicMock(search_emails=AsyncMock(return_value=[{"o": 1}])),
+                        # 2026-09-16: paged search (nextLink following +
+                        # continuation token) replaces the single-page call.
+                        outlook_service=MagicMock(search_emails_paged=AsyncMock(
+                            return_value={"emails": [{"o": 1}], "next_page_token": None,
+                                          "has_more": False, "pages_fetched": 1})),
                     ),
                 }):
                     r = await service.search("slack", "q", None, ctx)
@@ -2087,9 +2094,17 @@ class TestUniversalExecuteBranches:
                  patch("core.integration_registry.IntegrationRegistry") as reg_cls:
                 sl.return_value.__enter__.return_value = MagicMock()
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=MagicMock())
+                # 2026-09-16: get_events is awaited (it always was async —
+                # the old dispatch passed the coroutine straight into the
+                # client filter) and the query now rides down as the
+                # provider's own ``q`` filter instead of filtering the first
+                # page client-side.
+                async def _events(q=None, **kwargs):
+                    if q == "meeting":
+                        return [{"title": "Meeting", "description": "d"}]
+                    return []
                 with _mock_imports({"integrations.google_calendar_service": MagicMock(
-                    google_calendar_service=MagicMock(get_events=MagicMock(return_value=[
-                        {"title": "Meeting", "description": "d"}])))}):
+                    google_calendar_service=MagicMock(get_events=AsyncMock(side_effect=_events)))}):
                     r = await service.search("google_calendar", "meeting", None, ctx)
                     assert r["status"] == "success"
                     assert len(r["data"]) == 1
@@ -2435,7 +2450,10 @@ class TestUniversalExecuteBranches:
                         r = await service.search("salesforce", "q", None, ctx)
                         assert r["status"] == "success"
                         r = await service.search("hubspot", "q", None, ctx)
-                        assert r == [{"id": 1}]
+                        # 2026-09-16: hubspot search returns its {status, data}
+                        # envelope (bare list dropped the paging cursor).
+                        assert r["status"] == "success"
+                        assert r["data"] == [{"id": 1}]
                         r = await service.search("zendesk", "q", None, ctx)
                         assert r["status"] == "success"
                         r = await service.search("freshdesk", "q", None, ctx)
@@ -2511,16 +2529,19 @@ class TestUniversalExecuteBranches:
         with patch.object(mod, "circuit_breaker") as cb:
             cb.is_enabled = AsyncMock(return_value=True)
             cb.record_failure = AsyncMock()
+            # Unimplemented native/ads/review-reply paths refuse honestly:
+            # a success envelope with no data is what let an agent answer
+            # from its priors (or from invented ad metrics).
             r = await service._execute_generic_native("tableau", "x", {}, {})
-            assert r["status"] == "success"
+            assert r["status"] == "error"
             r = await service._execute_marketing_reviews("google_reviews", "list_reviews", {}, {"user_id": "u"})
             assert r["status"] == "success"
             r = await service._execute_marketing_reviews("google_reviews", "reply_to_review", {"review_id": "1"}, {})
-            assert r["status"] == "success"
+            assert r["status"] == "error"
             r = await service._execute_marketing_reviews("google_reviews", "unknown", {}, {})
             assert r["status"] == "error"
             r = await service._execute_marketing_ads("meta_ads", "run", {}, {})
-            assert r["status"] == "success"
+            assert r["status"] == "error"
             with patch("core.external_integration_service.external_integration_service") as ext:
                 ext.execute_integration_action = AsyncMock(return_value={"e": 1})
                 r = await service._execute_activepieces("custom", "act", {}, {})
@@ -2625,7 +2646,10 @@ class TestUniversalCoverageWave3:
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=sf)
                 ctx = {"user_id": "u", "tenant_id": "t"}
                 r = await service.search("salesforce", "bob", "contact", ctx)
-                assert r == {"status": "success", "data": [{"Id": 1}]}
+                # 2026-09-16: search() now appends the read-shape `page`
+                # block — assert the payload fields, not whole-dict equality.
+                assert r["status"] == "success"
+                assert r["data"] == [{"Id": 1}]
                 r = await service.search("salesforce", "bob", "account", ctx)
                 assert r["status"] == "success"
                 r = await service.search("salesforce", "bob", "lead", ctx)
@@ -2702,10 +2726,13 @@ class TestUniversalCoverageWave3:
                 get_user_repositories=MagicMock(return_value=[{"name": "R"}])))),
             "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
                 search_projects=AsyncMock(return_value=[{"id": 1}])))),
-            # _search_communication outlook leg imports the module singleton.
+            # _search_communication outlook leg imports the module singleton
+            # (paged search since 2026-09-16 — nextLink following + token).
             "integrations.outlook_service": MagicMock(
                 sanitize_graph_kql=lambda q: q,
-                outlook_service=MagicMock(search_emails=AsyncMock(return_value=[{"o": 1}])),
+                outlook_service=MagicMock(search_emails_paged=AsyncMock(
+                    return_value={"emails": [{"o": 1}], "next_page_token": None,
+                                  "has_more": False, "pages_fetched": 1})),
             ),
             "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                 get_leads=AsyncMock(return_value=[{"Last_Name": "X"}])))),
@@ -2772,12 +2799,15 @@ class TestUniversalCoverageWave3:
                 assert r["status"] == "success"
                 r = await service._execute_zoho("zoho_crm", "nope", {}, ctx)
                 assert "default zoho" in r["message"]
-                # search default fallbacks — the _search_* helpers return raw
-                # lists (the search() ENTRY wraps them in {status, data}).
+                # search default fallbacks — salesforce returns the raw list;
+                # hubspot returns its {status, data} envelope (2026-09-16:
+                # the bare list dropped HubSpot's paging cursor before the
+                # read envelope could surface it).
                 r = await service._search_crm("salesforce", "q", ctx)
                 assert r == [{"id": 1}]
                 r = await service._search_crm("hubspot", "q", ctx)
-                assert r == [{"id": 1}]
+                assert r["status"] == "success"
+                assert r["data"] == [{"id": 1}]
                 r = await service._search_crm("zoho_crm", "x", ctx)
                 # zoho_crm search wraps list-and-filter in a status envelope.
                 assert r["status"] == "success"
