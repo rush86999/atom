@@ -330,6 +330,24 @@ class DerivationVerification:
 #: meaningful: without it a row number (235) or an input constant (700) reads as
 #: a "derivation step" and gets contradicted by an unrelated formula (caught in
 #: testing before this shipped).
+#: A CHAIN: "R235 = P235-K235 = 1893.7". The leftmost cell owns the result, and
+#: the middle is the arithmetic that produced it. This must be tried BEFORE the
+#: simple pattern: the simple one, scanning left to right, skipped "R235 ="
+#: (no number followed), then matched "K235 = 1893.7" and attributed the result
+#: to K235 — reporting a false contradiction ("K235 evaluates to 5625.3, not
+#: 1893.7") against a reply that was right (RCA 2026-09-17 finding 6, reproduced
+#: by running the regex alone).
+#: The expression must be ARITHMETIC — a cell ref or number, an operator, then
+#: more operands — or the rule is too greedy and swallows prose between two
+#: unrelated claims. `G235 = 4815 and K235 = 7000` was matched as the chain
+#: `G235 = "4815 and K235" = 7000`, which broke most ordinary replies the moment
+#: it was added (caught by the existing five-case suite).
+_OPERAND = r"(?:[A-Za-z]{1,3}\d{1,7}|\d+(?:\.\d+)?)"
+_CHAIN_CLAIM_RE = re.compile(
+    r"\b([A-Za-z]{1,3})(\d{1,7})\b\s*=\s*"
+    rf"(?P<expr>{_OPERAND}(?:\s*[+\-*/^]\s*{_OPERAND})+)"
+    r"\s*=\s*\$?\s*(?P<value>[\d][\d,\s]*(?:\.\d+)?)",
+)
 _LETTER_CLAIM_RE = re.compile(
     r"\b([A-Za-z]{1,3})(\d{1,7})\b\s*(?:=|==|->|→|:|yields|gives|becomes|is)\s*"
     r"\$?\s*([\d][\d,\s]*(?:\.\d+)?)",
@@ -352,6 +370,10 @@ class Claim:
     cell: str
     claimed: float
     raw: str = ""
+    #: For a chain ("R235 = P235-K235 = 1893.7") the arithmetic between the cell
+    #: and the result, so the claim can be checked as arithmetic rather than as
+    #: a bare assertion.
+    expression: str = ""
 
 
 def _resolve_label(label: str, row: str, column_letters: Dict[str, str]) -> Optional[str]:
@@ -378,10 +400,26 @@ def extract_claims(reply: str, column_letters: Optional[Dict[str, str]] = None) 
     seen: set = set()
     text = reply or ""
     letters = column_letters or {}
+    # CHAINS FIRST, so the leftmost output cell owns the result and the middle
+    # expression is not mistaken for the subject of the claim.
+    chain_spans: List[tuple] = []
+    for m in _CHAIN_CLAIM_RE.finditer(text):
+        cell = f"{m.group(1).upper()}{m.group(2)}"
+        value = _to_number(m.group("value"))
+        if value is None or (cell, value) in seen:
+            continue
+        seen.add((cell, value))
+        chain_spans.append(m.span())
+        out.append(
+            Claim(cell=cell, claimed=value, raw=m.group(0)[:60],
+                  expression=" ".join(m.group("expr").split()))
+        )
     for m in _LETTER_CLAIM_RE.finditer(text):
         # Reject the label-form's "row 235 is 7519" — "row" is not a column.
         if m.group(1).upper() == "ROW":
             continue
+        if any(a <= m.start() < b for a, b in chain_spans):
+            continue  # already attributed by the chain rule
         value = _to_number(m.group(3))
         cell = f"{m.group(1).upper()}{m.group(2)}"
         if value is None or (cell, value) in seen:
@@ -456,6 +494,31 @@ def verify_derivation_claims(
                 )
                 continue
             if _close(figure, produced):
+                # A CHAIN CARRIES ITS ARITHMETIC: "R235 = P235-K235 = 1893.7"
+                # must also be checked as arithmetic, since the right-hand side
+                # could be attached to a cell whose formula says otherwise. The
+                # expression is evaluated over the same resolved cells.
+                if claim.expression:
+                    expr_value = ev.eval_formula(claim.expression)
+                    if expr_value is None:
+                        result.unresolved_cells.append(cell)
+                        result.verdicts.append(
+                            FigureVerdict(
+                                figure, UNRESOLVED,
+                                f"{cell}: expression '{claim.expression}' has "
+                                "unavailable dependencies",
+                            )
+                        )
+                        continue
+                    if not _close(figure, expr_value):
+                        result.verdicts.append(
+                            FigureVerdict(
+                                figure, CONTRADICTED,
+                                f"{cell}: '{claim.expression}' evaluates to "
+                                f"{expr_value:g}, not {figure:g}",
+                            )
+                        )
+                        continue
                 result.verdicts.append(
                     FigureVerdict(figure, VERIFIED_COMPUTED, f"{cell} = {produced:g}")
                 )

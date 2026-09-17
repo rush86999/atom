@@ -147,3 +147,64 @@ class TestEvaluationIsBounded:
             f"FORMULAS FOR THE MATCHED ROW(S): M235==7518.44 | N235=={fn}",
         )
         assert any(fv.status == VERIFIED_COMPUTED for fv in v.verdicts), v.summary()
+
+
+class TestChainClaims:
+    """A chain attributes its result to the LEFTMOST cell, and checks its arithmetic.
+
+    RCA 2026-09-17 finding 6, reproduced by running the regex alone: the simple
+    pattern, scanning left to right over "R235 = P235-K235 = 1893.7", skipped
+    "R235 =" (no number followed) and then matched "K235 = 1893.7" — attributing
+    the result to K235 and reporting a FALSE contradiction ("K235 evaluates to
+    5625.3, not 1893.7") against a reply whose arithmetic was correct
+    (7519 - 5625.3 = 1893.7 is R235's value).
+    """
+
+    BLOCK = (
+        "R235 | LIST Price=7519.0 | Factory Price=5350 | Warehouse=5625.3\n"
+        "COLUMNS: LIST Price=P | Factory Price=F | Warehouse=K\n"
+        "FORMULAS FOR THE MATCHED ROW(S): P235==7519.0 | K235==5625.3 | R235==P235-K235"
+    )
+
+    def test_a_chain_belongs_to_its_leftmost_cell(self):
+        from core.derivation_verification import extract_claims
+
+        claims = extract_claims("R235 = P235-K235 = 1893.7")
+        assert [(c.cell, c.claimed) for c in claims] == [("R235", 1893.7)], (
+            "the result must be attributed to the leftmost cell, not the last "
+            "cell named before the equals sign"
+        )
+        assert claims[0].expression.replace(" ", "") == "P235-K235"
+
+    def test_a_correct_chain_is_verified_not_contradicted(self):
+        v = verify_derivation_claims("R235 = P235-K235 = 1893.7", self.BLOCK)
+        assert v.is_clean, v.summary()
+        assert not v.contradicted, "a correct chain must not be called false"
+
+    def test_a_chain_with_a_wrong_result_is_contradicted(self):
+        v = verify_derivation_claims("R235 = P235-K235 = 9999", self.BLOCK)
+        assert [fv.figure for fv in v.contradicted] == [9999.0]
+
+    def test_a_chain_with_an_unavailable_dependency_is_unresolved(self):
+        """Not wrong — unverifiable. The distinction the contract exists for."""
+        v = verify_derivation_claims("R235 = P235-Z235 = 1893.7", self.BLOCK)
+        assert not v.contradicted
+        assert not v.is_clean
+        assert "Z235" in v.verdicts[0].detail or "unavailable" in v.verdicts[0].detail
+
+    def test_attributing_a_result_to_the_wrong_cell_is_caught(self):
+        """The mirror case: K235 is 5625.3, so 1893.7 there IS wrong."""
+        v = verify_derivation_claims("K235 = 1893.7", self.BLOCK)
+        assert [fv.figure for fv in v.contradicted] == [1893.7]
+        assert "5625.3" in v.contradicted[0].detail
+
+    def test_a_claimed_assumption_is_not_reported_as_computed(self):
+        """RCA finding 6: "O235 acts as a 1x multiplier" was never established.
+
+        An unreferenced cell cannot be confirmed from the delivered window, so a
+        reply resting on it must not come back clean.
+        """
+        v = verify_derivation_claims(
+            "P235 = N235*O235 = 7519 and O235 = 1", self.BLOCK
+        )
+        assert not v.is_clean
