@@ -2136,6 +2136,16 @@ def _evidence_addresses_request(tool_block: Optional[str], message: str) -> bool
     different document, and the model then denied having evidence it had held one
     turn earlier. The system had no relevance gate and no corrective retrieval.
 
+    COMPLEMENTS the plan-level gate: `core.chat_canvas_editor` runs
+    `core.plan_relevance.relevance_verdict` on the planned QUERY and, when it is
+    irrelevant, returns an empty block — so that check removes the evidence at its
+    SOURCE, while this one catches a block that was produced and would otherwise
+    be reused. Neither subsumes the other, and they are independent on purpose:
+    the planner's semantic verdict and this rule-based block check fail in
+    different ways, and a block that slips past one is still caught by the other.
+    Verified to reject the RCA's mismatched block while accepting every genuine
+    evidence block on the live store (0 false rejections observed).
+
     Deliberately conservative, because a wrongly-rejected block is worse than a
     wrongly-accepted one (it would throw away the turn's evidence):
 
@@ -2744,6 +2754,22 @@ class ChatOrchestrator:
                         prov = await asyncio.wait_for(_prov_task, timeout=6)
                     except Exception:  # noqa: BLE001 — menu is best-effort
                         prov = ""
+                    # SOURCE HANDLES (RCA 2026-09-17 finding 3): files the
+                    # conversation already located, re-extracted from the
+                    # transcript itself (no second store to go stale). The
+                    # planner plans a lookup that REUSES a found workbook
+                    # instead of routing elsewhere and concluding it is
+                    # missing. Fault-isolated: the plan proceeds without it.
+                    try:
+                        from core.session_sources import (
+                            conversation_sources_block,
+                        )
+
+                        _src = conversation_sources_block(_plan_history)
+                        if _src:
+                            prov = f"{prov}\n\n{_src}" if prov else _src
+                    except Exception:  # noqa: BLE001
+                        pass
                     return await plan_tool_use(
                         message, _plan_history, user_id, self.llm_service,
                         canvas=_canvas_ctx, provenance=prov,
@@ -4012,6 +4038,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                         except Exception as _prov_err:  # noqa: BLE001
                             logger.debug(f"provenance menu skipped: {_prov_err}")
+                        # Same source-handles append as the shared-task path.
+                        try:
+                            from core.session_sources import (
+                                conversation_sources_block,
+                            )
+
+                            _src = conversation_sources_block(
+                                planner_history or history)
+                            if _src:
+                                _prov = f"{_prov}\n\n{_src}" if _prov else _src
+                        except Exception:  # noqa: BLE001
+                            pass
                         _plan = await asyncio.wait_for(
                             plan_tool_use(
                                 message, planner_history or history, user_id,
@@ -4027,6 +4065,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                         await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
                                      f"Planned live lookup: {_planned}")
+                        # OFF-REQUEST GATE (RCA 2026-09-17 finding 2): a plan
+                        # whose query names nothing the CURRENT message names
+                        # is the OLD ask's plan — the final scorecard turn
+                        # executed the previous turn's PRICE VIPUL mailbox
+                        # search and its result was accepted as this turn's
+                        # evidence. The lookup is NOT executed; the block
+                        # becomes an explicit retrieval failure below, while
+                        # the deterministic mail scan still runs.
+                        from core.plan_relevance import relevance_verdict
+
+                        _off_request = (
+                            relevance_verdict(_plan.query, message)
+                            == "irrelevant")
+                        if _off_request:
+                            logger.warning(
+                                "[plan-relevance] %s declined: the planned "
+                                "query does not address the current request",
+                                _planned)
+                            await _trace(
+                                "observation",
+                                {"tool": _plan.service,
+                                 "params": {"query": _plan.query or ""}},
+                                "plan declined — query does not address the "
+                                "current request; lookup not executed")
                         # DETERMINISTIC MAIL EVIDENCE, INDEPENDENT OF THE PLAN.
                         # A distinctive figure/model code in the user's message
                         # that exists verbatim in the ingested mailbox IS the
@@ -4050,38 +4112,55 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     _plan, "mentioned_date", None),
                             )
                         )
-                        _exec_t0 = time.monotonic()
-                        try:
-                            _live_block = await asyncio.wait_for(
-                                execute_tool_plan(
-                                    _plan, user_id, self.tenant_id,
-                                    context={
-                                        "agent_id": agent_id,
-                                        # The current ask, ahead of session
-                                        # history (which is written only
-                                        # after the response): the stated-
-                                        # date window and the identifier
-                                        # net read it from here.
-                                        "message": message,
-                                        "history": (planner_history or history or [])[-6:],
-                                        "canvas": {
-                                            "title": canvas_context.get("title"),
-                                            **((canvas_context.get("content") or {})
-                                               if isinstance(canvas_context, dict) else {}),
-                                        } if isinstance(canvas_context, dict) else None,
-                                    },
-                                    llm_service=self.llm_service,
-                                ),
-                                timeout=45,
+                        if _off_request:
+                            # Explicit retrieval failure — honest about what
+                            # did NOT run. Consumed by _compose_lookup_evidence
+                            # (and by the evidence framing below).
+                            _live_block = (
+                                "NO LIVE LOOKUP EXECUTED: the planned lookup "
+                                f"({_plan.service}.{_plan.intent} "
+                                f"{(_plan.query or '')[:80]!r}) does not name "
+                                "anything in the user's CURRENT request, so "
+                                "it was not run. If the current request needs "
+                                "live data, say plainly that it could not be "
+                                "retrieved this turn and what you would need "
+                                "— do not answer from memory, and do not "
+                                "claim any file or record exists or does not "
+                                "exist."
                             )
-                        except Exception as _live_err:
-                            # The live leg failed/timed out. Mail evidence (when
-                            # present) still answers the question, so it must LEAD
-                            # the block and the failure is demoted to a note.
-                            logger.warning(
-                                f"planned live lookup failed ({_planned}): {_live_err!r}"
-                            )
-                            _live_block = None
+                        else:
+                            _exec_t0 = time.monotonic()
+                            try:
+                                _live_block = await asyncio.wait_for(
+                                    execute_tool_plan(
+                                        _plan, user_id, self.tenant_id,
+                                        context={
+                                            "agent_id": agent_id,
+                                            # The current ask, ahead of session
+                                            # history (which is written only
+                                            # after the response): the stated-
+                                            # date window and the identifier
+                                            # net read it from here.
+                                            "message": message,
+                                            "history": (planner_history or history or [])[-6:],
+                                            "canvas": {
+                                                "title": canvas_context.get("title"),
+                                                **((canvas_context.get("content") or {})
+                                                   if isinstance(canvas_context, dict) else {}),
+                                            } if isinstance(canvas_context, dict) else None,
+                                        },
+                                        llm_service=self.llm_service,
+                                    ),
+                                    timeout=45,
+                                )
+                            except Exception as _live_err:
+                                # The live leg failed/timed out. Mail evidence (when
+                                # present) still answers the question, so it must LEAD
+                                # the block and the failure is demoted to a note.
+                                logger.warning(
+                                    f"planned live lookup failed ({_planned}): {_live_err!r}"
+                                )
+                                _live_block = None
                         try:
                             _mail_lines = await _mail_task
                         except Exception as _mail_err:  # noqa: BLE001
@@ -4093,8 +4172,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                         await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                      _first_line or "no results")
-                        logger.info(
-                            f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
+                        if not _off_request:
+                            logger.info(
+                                f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
                     elif _plan is not None:
                         await _trace("thought", {"tool": "tool_planner", "params": {}},
                                      f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
@@ -4394,7 +4474,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "tool-call, XML, or protocol syntax, and do not attempt to call "
                     "tools yourself — the harness handles tools. Answer the user's "
                     "current message in plain language using this fresh result:")
-                if "FORMULAS FOR THE MATCHED ROW" in _tool_block:
+                if "NO LIVE LOOKUP EXECUTED" in _tool_block:
+                    # OFF-REQUEST FRAMING (RCA 2026-09-17 finding 2): this
+                    # block is an explicit retrieval failure, not fresh
+                    # results — the success framing below would convert a
+                    # declined lookup into fabricated confidence.
+                    _evidence_instruction = (
+                        "PLANNED LOOKUP DECLINED — the harness did NOT run a "
+                        "live lookup this turn because the planned query did "
+                        "not address the user's CURRENT request. Any mailbox "
+                        "lines in the block are historical correspondence "
+                        "only. Answer the current message plainly: say what "
+                        "could not be retrieved this turn and what you would "
+                        "need. Do not claim any file, record, or email "
+                        "exists or does not exist on this basis, and do not "
+                        "emit tool-call, XML, or protocol syntax:")
+                elif "FORMULAS FOR THE MATCHED ROW" in _tool_block:
                     # DERIVATION FRAMING. The matched row and its formulas ARE
                     # the answer to a derivation ask, but a model can read a
                     # large evidence block as "background" and answer from
@@ -4419,6 +4514,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "ask the user to share or upload it, and do NOT claim "
                         "no cells were retrieved: every value you need is in "
                         "this block."
+                        # BUSINESS MEANING (RCA 2026-09-17 answer-quality): a
+                        # bare constant was narrated as a "reliability score"
+                        # with no source. A number's meaning must come from a
+                        # label, not from narrative convenience.
+                        "\nA bare constant in a formula (a 0.87 divisor, a "
+                        "rounding factor) carries NO business meaning on its "
+                        "own — call something a reliability score, a rating, "
+                        "or a discount only when a label or documentation in "
+                        "this block says so."
                         # ANSWER SHAPE — and therefore answer COST. The
                         # generation is the turn's dominant cost (57–115 s under
                         # load for a chain): the earlier framing produced ~3000
@@ -4806,6 +4910,55 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # ABSENCE COVERAGE GUARD (RCA 2026-09-17 finding 4 +
+                        # answer-quality): a universal absence claim the
+                        # turn's lookups do not cover ("No file with that
+                        # name exists in the system", "None that we sent")
+                        # ships as fabricated certainty. Regeneration keeps
+                        # the answer but scopes the claim to what was
+                        # actually checked.
+                        try:
+                            from core.absence_guard import (
+                                absence_correction_message,
+                                uncovered_absence_claims,
+                            )
+
+                            _uncovered = uncovered_absence_claims(
+                                _streamed, _tool_block)
+                        except Exception:  # noqa: BLE001 — guard must not gate
+                            _uncovered = []
+                        if _uncovered:
+                            logger.warning(
+                                "[absence-guard] uncovered absence claim(s) "
+                                "in streamed reply: %s — scoped regeneration",
+                                " | ".join(_u[:80] for _u in _uncovered))
+                            try:
+                                from core.session_sources import (
+                                    conversation_sources_block,
+                                )
+
+                                _src = conversation_sources_block(history)
+                            except Exception:  # noqa: BLE001
+                                _src = ""
+                            messages.append({"role": "system", "content": (
+                                absence_correction_message(
+                                    _uncovered, _src))})
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
+                            )
+                            _fixed = _strip_protocol_tags(
+                                (_fix or {}).get("content"))
+                            if (_fixed
+                                    and not uncovered_absence_claims(
+                                        _fixed, _tool_block)):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get(
+                                    "reasoning") or _turn_reasoning
                         # CAPABILITY-HONESTY GUARD: an inability claim with NO
                         # tool block on a message that EXPLICITLY asked for web
                         # research (live 2026-09-08: "web research lead's
@@ -5898,6 +6051,50 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                         if _regenerated:
                             _content = _regenerated
+                # ABSENCE COVERAGE GUARD (RCA 2026-09-17 finding 4 + the
+                # answer-quality list): the exact shipped turn asserted
+                # "No file with that name exists in the system" on the
+                # strength of an unrelated mailbox search. A universal
+                # absence claim the turn's evidence does not cover is
+                # regenerated with the claim scoped to what was checked.
+                try:
+                    from core.absence_guard import (
+                        absence_correction_message,
+                        uncovered_absence_claims,
+                    )
+                    from core.session_sources import conversation_sources_block
+
+                    _uncovered = uncovered_absence_claims(
+                        _content, _tool_block)
+                except Exception:  # noqa: BLE001 — guard must not gate
+                    _uncovered = []
+                if _uncovered:
+                    logger.warning(
+                        "[absence-guard] uncovered absence claim(s) in "
+                        "reply: %s — scoped regeneration",
+                        " | ".join(_u[:80] for _u in _uncovered))
+                    try:
+                        _src = conversation_sources_block(history)
+                    except Exception:  # noqa: BLE001
+                        _src = ""
+                    messages.append({"role": "system", "content": (
+                        absence_correction_message(_uncovered, _src))})
+                    _guard_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
+                    )
+                    if _guard_fix:
+                        response_data = _guard_fix
+                    _regenerated = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                    if (_regenerated
+                            and not uncovered_absence_claims(
+                                _regenerated, _tool_block)):
+                        _content = _regenerated
                 if _vp_run:
                     _vp_t0 = time.monotonic()
                     # BOUNDED: the panel judges a complete reply, so a judge
