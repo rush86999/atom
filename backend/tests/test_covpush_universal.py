@@ -1046,36 +1046,42 @@ class TestSearch:
             r = await uis.search("google_calendar", "alpha", None, {"user_id": "u1"})
         assert r["data"] == [{"title": "Alpha"}]
         r = await uis.search("outlook_calendar", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_project_management_search(self, env, uis):
         svc = make_service({"get_issues": [{"title": "Alpha"}, {"title": "Beta"}],
                             "search_items": [], "get_tasks": [{"name": "Gamma"}],
                             "search_issues": []})
         set_service(env, svc)
+        # search() answers with the standardized envelope; the record set is
+        # under "data" (see test_storage_search for why).
         r = await uis.search("linear", "alpha", None, {"user_id": "u1"})
-        assert r == [{"title": "Alpha"}]
+        assert r["data"] == [{"title": "Alpha"}]
         r = await uis.search("monday", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("asana", "gamma", None, {"user_id": "u1"})
-        assert r == [{"name": "Gamma"}]
+        assert r["data"] == [{"name": "Gamma"}]
         r = await uis.search("jira", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("trello", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_storage_search(self, env, uis):
         svc = make_service({"search_files": {"status": "success", "data": {"files": [{"id": "1"}]}},
                             "search": {"results": []}})
         set_service(env, svc)
+        # search() returns the standardized envelope (its own docstring's
+        # contract): {"status", "data", "page"}. Production callers normalize
+        # both shapes (see drive_tree_ingestion._extract_records), and the
+        # envelope is what carries the page/truncation signal.
         r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r == [{"id": "1"}]
+        assert r["data"] == [{"id": "1"}]
         r = await uis.search("dropbox", "q", None, {"user_id": "u1"})
-        assert r == {"results": []}
+        assert r["data"] == {"results": []}  # bare provider envelope is wrapped, not flattened
         r = await uis.search("notion", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("box", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_crm_search_zoho(self, env, uis):
         crm = MagicMock()
@@ -1173,7 +1179,7 @@ class TestSearch:
         set_service(env, svc)
         with patch("integrations.universal_integration_service.governance_middleware", gk):
             r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r == [{"id": "1", "access_token": "***"}]
+        assert r["data"] == [{"id": "1", "access_token": "***"}]
 
 
 # ============================================================================

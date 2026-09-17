@@ -423,3 +423,120 @@ class TestReadCache:
             for i in range(10):
                 cache.set(f"k{i}", i)
             assert cache.stats()["size"] == 3
+
+
+# ===========================================================================
+# 6. The search() fan-out entry shares the read shape
+# ===========================================================================
+
+
+class TestSearchEntryReadShape:
+    """`search()` is the fan-out entry (global_search walks every platform),
+    so it must honour the same cursor/projection/envelope contract as
+    execute() — otherwise half the agent surface silently truncates."""
+
+    async def test_search_returns_the_page_envelope(self, env, uis):
+        svc = make_service()
+        svc.get_issues = AsyncMock(return_value=[
+            {"title": f"T{i}", "description": "d"} for i in range(10)])
+        env.IR.return_value.get_service_instance = AsyncMock(return_value=svc)
+
+        result = await uis.search("linear", "T", context={"user_id": "u1"},
+                                  limit=3)
+        assert result["status"] == "success"
+        assert len(result["data"]) == 3
+        assert result["page"]["truncated"] is True
+        assert result["page"]["next_page_token"]
+
+    async def test_search_applies_field_projection(self, env, uis):
+        svc = make_service()
+        svc.get_issues = AsyncMock(return_value=[
+            {"title": "T1", "description": "secret", "extra": "noise"}])
+        env.IR.return_value.get_service_instance = AsyncMock(return_value=svc)
+
+        result = await uis.search("linear", "T", context={"user_id": "u1"},
+                                  fields=["title"])
+        assert result["data"] == [{"title": "T1"}]
+
+    async def test_identical_search_is_served_from_cache(self, env, uis):
+        from integrations import read_cache
+        read_cache.integration_read_cache.clear()
+        svc = make_service()
+        svc.get_issues = AsyncMock(return_value=[{"title": "T1"}])
+        env.IR.return_value.get_service_instance = AsyncMock(return_value=svc)
+
+        with patch.dict("os.environ", {"ATOM_INTEGRATION_READ_CACHE_ENABLED": "true"}):
+            await uis.search("linear", "same", context={"user_id": "u1"})
+            await uis.search("linear", "same", context={"user_id": "u1"})
+
+        assert svc.get_issues.await_count == 1
+
+    async def test_different_queries_do_not_share_a_cache_entry(self, env, uis):
+        from integrations import read_cache
+        read_cache.integration_read_cache.clear()
+        svc = make_service()
+        svc.get_issues = AsyncMock(return_value=[{"title": "T1"}])
+        env.IR.return_value.get_service_instance = AsyncMock(return_value=svc)
+
+        with patch.dict("os.environ", {"ATOM_INTEGRATION_READ_CACHE_ENABLED": "true"}):
+            await uis.search("linear", "one", context={"user_id": "u1"})
+            await uis.search("linear", "two", context={"user_id": "u1"})
+
+        assert svc.get_issues.await_count == 2
+
+
+# ===========================================================================
+# 7. Agent-facing tool schemas advertise the read shape
+# ===========================================================================
+
+
+class TestToolSchemaReadShape:
+    """The audit's sharpest finding: NO tool schema carried a cursor, so the
+    agent could not ask for page two even in principle."""
+
+    def test_read_tools_advertise_limit_cursor_and_fields(self):
+        from integrations.mcp_service import (
+            MCPService,
+            READ_SHAPED_LOCAL_TOOLS,
+        )
+
+        tools = asyncio.run(MCPService().get_server_tools("local-tools"))
+        by_name = {t["name"]: t for t in tools}
+        for name in sorted(READ_SHAPED_LOCAL_TOOLS):
+            params = by_name[name]["parameters"]
+            assert "page_token" in params, name
+            assert "limit" in params, name
+            assert "fields" in params, name
+
+    def test_mutating_tools_do_not_advertise_a_cursor(self):
+        from integrations.mcp_service import MCPService
+
+        tools = asyncio.run(MCPService().get_server_tools("local-tools"))
+        by_name = {t["name"]: t for t in tools}
+        for name in ("send_email", "create_task", "update_task",
+                     "send_message", "post_channel_message"):
+            assert "page_token" not in by_name[name]["parameters"], name
+
+    def test_injection_is_idempotent_and_never_overwrites(self):
+        from integrations.mcp_service import _with_read_shape_params
+
+        tools = [{"name": "search_contacts", "parameters": {"query": "string"}}]
+        once = _with_read_shape_params(tools)
+        twice = _with_read_shape_params(once)
+        assert once == twice
+
+        custom = [{"name": "search_contacts",
+                   "parameters": {"limit": "string (my own spelling)"}}]
+        out = _with_read_shape_params(custom)
+        assert out[0]["parameters"]["limit"] == "string (my own spelling)"
+
+    def test_declared_read_tools_exist_in_the_catalog(self):
+        """A typo in the read-shaped set would silently drop the contract."""
+        from integrations.mcp_service import (
+            MCPService,
+            READ_SHAPED_LOCAL_TOOLS,
+        )
+
+        names = {t["name"] for t in
+                 asyncio.run(MCPService().get_server_tools("local-tools"))}
+        assert set(READ_SHAPED_LOCAL_TOOLS) <= names

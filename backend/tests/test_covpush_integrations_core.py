@@ -2176,16 +2176,18 @@ class TestUniversalExecuteBranches:
                 pm.search_issues = MagicMock(return_value={"issues": [{"key": "1"}]})
                 pm.search = MagicMock(return_value=[])
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=pm)
+                # search() answers with the standardized envelope
+                # ({"status","data","page"}); the record set is under "data".
                 r = await service.search("linear", "fix", None, ctx)
-                assert len(r) == 1
+                assert len(r["data"]) == 1
                 r = await service.search("monday", "q", None, ctx)
-                assert r == [{"name": "x"}]
+                assert r["data"] == [{"name": "x"}]
                 r = await service.search("asana", "task", None, ctx)
-                assert len(r) == 1
+                assert len(r["data"]) == 1
                 r = await service.search("jira", "q", None, ctx)
-                assert r == [{"key": "1"}]
+                assert r["data"] == [{"key": "1"}]
                 r = await service.search("trello", "q", None, ctx)
-                assert r == []
+                assert r["data"] == []
 
     async def test_storage_all(self):
         import integrations.universal_integration_service as mod
@@ -2247,19 +2249,23 @@ class TestUniversalExecuteBranches:
                 st.search_files = AsyncMock(return_value={"status": "success", "data": {"files": [{"id": 1}]}})
                 st.search = AsyncMock(return_value=[{"name": "x"}])
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=st)
+                # search() -> {"status","data","page"}; see
+                # test_search_project_management for the contract note. A
+                # bare provider envelope ({"results": [...]}) is wrapped
+                # under "data" rather than flattened.
                 r = await service.search("google_drive", "q", None, ctx)
-                assert r == [{"id": 1}]
+                assert r["data"] == [{"id": 1}]
                 r = await service.search("dropbox", "q", None, ctx)
-                assert r == [{"name": "x"}]
+                assert r["data"] == [{"name": "x"}]
                 st2 = MagicMock()
                 st2.access_token = "tok"
                 st2.search = AsyncMock(return_value={"results": [{"id": 2}]})
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=st2)
                 r = await service.search("notion", "q", None, ctx)
-                assert r == [{"id": 2}]
+                assert r["data"] == [{"id": 2}]
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=st)
                 r = await service.search("box", "q", None, ctx)
-                assert r == []
+                assert r["data"] == []
 
     async def test_support_dev_marketing_finance_zoho_analytics(self):
         import integrations.universal_integration_service as mod
@@ -2487,8 +2493,13 @@ class TestUniversalExecuteBranches:
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=inst)
                 r = await service.search("intercom", "q", None, ctx)
                 assert r["status"] == "success"
+                assert r["data"] == [{"id": 1}]
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=None)
-                r = await service.search("intercom", "q", None, ctx)
+                # A DIFFERENT query: identical reads are served from the TTL
+                # cache by design, so re-issuing "q" would answer from the
+                # cached success instead of exercising the unavailable-service
+                # path this assertion is about.
+                r = await service.search("intercom", "q2", None, ctx)
                 assert r["status"] == "error"
 
     async def test_dispatch_system_agent_and_errors(self):

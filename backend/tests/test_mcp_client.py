@@ -149,3 +149,100 @@ class TestRegisterServerRevived:
         result = await svc.call_external_tool("ext-svc", "ext_tool", {"x": 1})
         assert "ext_tool" in result
         assert "x" in result
+
+
+class TestToolsListPagination:
+    """The MCP spec paginates tools/list with an opaque nextCursor and says a
+    missing cursor means end-of-results. Fetching only page one silently hid
+    every tool past the server's page size — an external server with 400
+    tools looked like it had 50, and the agent reported a capability missing
+    while it sat on page two."""
+
+    @pytest.mark.asyncio
+    async def test_all_pages_are_walked(self, monkeypatch):
+        from core.mcp_client import MCPClient
+
+        pages = {
+            None: {"tools": [{"name": "a"}], "nextCursor": "c1"},
+            "c1": {"tools": [{"name": "b"}], "nextCursor": "c2"},
+            "c2": {"tools": [{"name": "c"}]},  # no cursor = end of results
+        }
+        calls = []
+
+        async def fake_post(client_self, method, params=None):
+            assert method == "tools/list"
+            cursor = (params or {}).get("cursor")
+            calls.append(cursor)
+            return pages[cursor]
+
+        monkeypatch.setattr(MCPClient, "_rpc", fake_post)
+        client = MCPClient("ext", {"transport": "http", "url": "http://x"})
+        tools = await client.list_tools()
+
+        assert [t["name"] for t in tools] == ["a", "b", "c"]
+        assert calls == [None, "c1", "c2"]
+
+    @pytest.mark.asyncio
+    async def test_single_page_makes_one_call(self, monkeypatch):
+        from core.mcp_client import MCPClient
+
+        calls = []
+
+        async def fake_post(client_self, method, params=None):
+            calls.append((params or {}).get("cursor"))
+            return {"tools": [{"name": "only"}]}
+
+        monkeypatch.setattr(MCPClient, "_rpc", fake_post)
+        client = MCPClient("ext", {"transport": "http", "url": "http://x"})
+        tools = await client.list_tools()
+        assert [t["name"] for t in tools] == ["only"]
+        assert calls == [None]
+
+    @pytest.mark.asyncio
+    async def test_non_advancing_cursor_cannot_loop_forever(self, monkeypatch):
+        from core.mcp_client import MCPClient
+
+        calls = []
+
+        async def fake_post(client_self, method, params=None):
+            calls.append((params or {}).get("cursor"))
+            # A broken server that always returns the same cursor — the
+            # documented real-world bug that inflates catalogs.
+            return {"tools": [{"name": "x"}], "nextCursor": "stuck"}
+
+        monkeypatch.setattr(MCPClient, "_rpc", fake_post)
+        client = MCPClient("ext", {"transport": "http", "url": "http://x"})
+        tools = await client.list_tools()
+        assert len(calls) <= 3
+        assert len(tools) < 10
+
+    @pytest.mark.asyncio
+    async def test_max_pages_bounds_a_changing_cursor(self, monkeypatch):
+        from core.mcp_client import MCPClient
+
+        counter = {"n": 0}
+
+        async def fake_post(client_self, method, params=None):
+            counter["n"] += 1
+            return {"tools": [{"name": f"t{counter['n']}"}],
+                    "nextCursor": f"c{counter['n']}"}
+
+        monkeypatch.setattr(MCPClient, "_rpc", fake_post)
+        client = MCPClient("ext", {"transport": "http", "url": "http://x"})
+        tools = await client.list_tools(max_pages=3)
+        assert len(tools) == 3
+
+    @pytest.mark.asyncio
+    async def test_input_schema_is_normalized_on_every_page(self, monkeypatch):
+        from core.mcp_client import MCPClient
+
+        async def fake_post(client_self, method, params=None):
+            if not (params or {}).get("cursor"):
+                return {"tools": [{"name": "a", "inputSchema": {"type": "object"}}],
+                        "nextCursor": "c1"}
+            return {"tools": [{"name": "b", "inputSchema": {"type": "string"}}]}
+
+        monkeypatch.setattr(MCPClient, "_rpc", fake_post)
+        client = MCPClient("ext", {"transport": "http", "url": "http://x"})
+        tools = await client.list_tools()
+        assert all("parameters" in t for t in tools)

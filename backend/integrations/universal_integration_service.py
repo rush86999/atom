@@ -7,6 +7,8 @@ from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
 from core.identifier_search import filter_by_terms
 from integrations.read_cache import (
+    cache_lookup,
+    cache_store,
     cached_read_async,
     invalidate_after_write,
     is_read_action,
@@ -539,6 +541,24 @@ class UniversalIntegrationService:
         synthesized offset token is only offered for providers whose
         pagination IS an offset (declared in ``SERVICE_CAPABILITIES``).
         """
+        # Normalize the two non-standard shapes the family helpers return
+        # into the ONE shape search()/execute() promise:
+        #   - a bare list (the search() branches assign the helper's list
+        #     straight to `result`);
+        #   - a bare provider envelope with no status key (Dropbox/Box style
+        #     `{"results": [...]}`).
+        # Without this, `search()` answered with a list for Linear, a raw
+        # provider dict for Dropbox and `{"status","data"}` for Salesforce —
+        # three shapes for one operation, and the page block reached only
+        # the third. Error envelopes are left untouched so callers keep
+        # seeing the key they check for.
+        if isinstance(result, (list, tuple)):
+            result = {"status": "success", "data": list(result)}
+        elif isinstance(result, dict) and "status" not in result:
+            if "error" in result:
+                return result
+            result = {"status": "success", "data": result}
+
         if not isinstance(result, dict) or result.get("status") != "success":
             return result
         if result.get("data") is None:
@@ -1003,6 +1023,20 @@ class UniversalIntegrationService:
         read = ReadQuery.from_params(read_params)
         context["read_query"] = read
 
+        # `search()` is the FAN-OUT entry (global_search walks every
+        # connected platform), so duplicate provider reads concentrate here
+        # inside one turn. Same cache contract as execute(): read actions
+        # only, errors never cached, any write to the service invalidates.
+        _, _cached = cache_lookup(
+            service=service, action="search", tenant_id=tenant_id,
+            workspace_id=workspace_id, query=read,
+            params={"query": query, "entity_type": entity_type},
+            user_id=user_id,
+        )
+        if _cached is not None:
+            return self._mask_response(
+                service, self._apply_read_shape(service, "search", read, _cached))
+
         try:
             with SessionLocal() as db:
                 registry = IntegrationRegistry(db)
@@ -1072,6 +1106,13 @@ class UniversalIntegrationService:
                 # notice). `_next_page_token` set by a _search_* branch rides
                 # the result dict into the envelope here.
                 result = self._apply_read_shape(service, "search", read, result)
+
+                cache_store(
+                    service=service, action="search", tenant_id=tenant_id,
+                    workspace_id=workspace_id, query=read, result=result,
+                    params={"query": query, "entity_type": entity_type},
+                    user_id=user_id,
+                )
 
                 # Gatekeeper response field masking (P3) — strip credentials
                 # (access_token, refresh_token, ...) from search results too.

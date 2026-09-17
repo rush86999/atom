@@ -201,10 +201,34 @@ class MCPClient:
         self._initialized = True
         return result or {"protocolVersion": "2024-11-05", "capabilities": {}}
 
-    async def list_tools(self) -> List[Dict[str, Any]]:
-        """Return the server's tool definitions (from tools/list)."""
-        result = await self._rpc("tools/list", {})
-        tools = (result or {}).get("tools", [])
+    async def list_tools(self, max_pages: int = 50) -> List[Dict[str, Any]]:
+        """Return the server's tool definitions (``tools/list``), ALL pages.
+
+        The MCP spec paginates ``tools/list`` with an opaque ``nextCursor``
+        and says a missing cursor means end-of-results. Fetching only the
+        first page (the previous behavior) silently hid every tool past the
+        provider's page size — the same first-page-truncation bug we fixed
+        on the provider side, one layer out: an external server exposing
+        400 tools would look like it had 50, and the agent would report a
+        capability as missing while it sat on page two.
+
+        ``max_pages`` bounds the walk, and a non-advancing cursor stops it,
+        so a misbehaving server cannot spin us forever.
+        """
+        tools: List[Dict[str, Any]] = []
+        cursor: Optional[str] = None
+        seen_cursors = set()
+        for _ in range(max(1, max_pages)):
+            params: Dict[str, Any] = {}
+            if cursor:
+                params["cursor"] = cursor
+            result = await self._rpc("tools/list", params)
+            result = result or {}
+            tools.extend(result.get("tools", []) or [])
+            cursor = result.get("nextCursor")
+            if not cursor or cursor in seen_cursors:
+                break
+            seen_cursors.add(cursor)
         # Normalize: MCP servers may expose inputSchema (camel) or parameters.
         for t in tools:
             if "inputSchema" in t and "parameters" not in t:

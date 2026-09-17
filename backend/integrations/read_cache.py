@@ -247,6 +247,56 @@ def params_fingerprint(params: Any) -> str:
 integration_read_cache = IntegrationReadCache()
 
 
+def cache_lookup(
+    *,
+    service: str,
+    action: str,
+    tenant_id: Optional[str],
+    workspace_id: Optional[str],
+    query: Any,
+    params: Any = None,
+    user_id: Optional[str] = None,
+) -> Tuple[bool, Any]:
+    """(hit, value) for a read. The ONE place the cache key is composed.
+
+    Both ``cached_read*`` and the universal service's ``search()`` entry
+    (which cannot delegate to a callable-wrapping helper without
+    restructuring its dispatch chain) go through this, so the scope rules —
+    tenant, workspace, user, service, action, read shape, params — can never
+    drift between the two entry points.
+    """
+    key = integration_read_cache.make_key(
+        service, action, tenant_id, workspace_id,
+        getattr(query, "cache_key", lambda: str(query))(),
+        params_fingerprint(params),
+        user_id,
+    )
+    return integration_read_cache.get(key)
+
+
+def cache_store(
+    *,
+    service: str,
+    action: str,
+    tenant_id: Optional[str],
+    workspace_id: Optional[str],
+    query: Any,
+    result: Any,
+    params: Any = None,
+    user_id: Optional[str] = None,
+) -> None:
+    """Store a read result, unless it is an error envelope."""
+    if isinstance(result, dict) and result.get("status") == "error":
+        return
+    key = integration_read_cache.make_key(
+        service, action, tenant_id, workspace_id,
+        getattr(query, "cache_key", lambda: str(query))(),
+        params_fingerprint(params),
+        user_id,
+    )
+    integration_read_cache.set(key, result)
+
+
 def cached_read(
     *,
     service: str,
@@ -266,20 +316,19 @@ def cached_read(
     if not is_read_action(action) or not integration_read_cache.enabled:
         return fetch()
 
-    key = integration_read_cache.make_key(
-        service, action, tenant_id, workspace_id,
-        getattr(query, "cache_key", lambda: str(query))(),
-        params_fingerprint(params),
-        user_id,
+    hit, value = cache_lookup(
+        service=service, action=action, tenant_id=tenant_id,
+        workspace_id=workspace_id, query=query, params=params, user_id=user_id,
     )
-    hit, value = integration_read_cache.get(key)
     if hit:
         return value
 
     result = fetch()
-    if isinstance(result, dict) and result.get("status") == "error":
-        return result
-    integration_read_cache.set(key, result)
+    cache_store(
+        service=service, action=action, tenant_id=tenant_id,
+        workspace_id=workspace_id, query=query, result=result,
+        params=params, user_id=user_id,
+    )
     return result
 
 
@@ -302,20 +351,19 @@ async def cached_read_async(
     if not is_read_action(action) or not integration_read_cache.enabled:
         return await fetch()
 
-    key = integration_read_cache.make_key(
-        service, action, tenant_id, workspace_id,
-        getattr(query, "cache_key", lambda: str(query))(),
-        params_fingerprint(params),
-        user_id,
+    hit, value = cache_lookup(
+        service=service, action=action, tenant_id=tenant_id,
+        workspace_id=workspace_id, query=query, params=params, user_id=user_id,
     )
-    hit, value = integration_read_cache.get(key)
     if hit:
         return value
 
     result = await fetch()
-    if isinstance(result, dict) and result.get("status") == "error":
-        return result
-    integration_read_cache.set(key, result)
+    cache_store(
+        service=service, action=action, tenant_id=tenant_id,
+        workspace_id=workspace_id, query=query, result=result,
+        params=params, user_id=user_id,
+    )
     return result
 
 
