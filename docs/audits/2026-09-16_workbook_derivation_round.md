@@ -1161,6 +1161,81 @@ new), `test_fabrication_accounting.py` (43), `test_derivation_lane_independence.
 `test_named_file_probe.py`, `test_stream_connect_bound.py`.
 `check_undefined_names.py`: clean.
 
+## The objective's acceptance criterion, met on one verified build
+
+Two consecutive full runs, each on a FROZEN tree (clean `cf766a4110bf` + the
+round-8/9/10 files), single serving instance, no restart, every case attributed
+to the instance header:
+
+| case | run `…f46ae7bb3545` | run `…c9711c0ae022` |
+|---|---|---|
+| quote | **PASS** 63.0 s — `openrouter/z-ai/glm-5.3-flash` | **PASS** 53.9 s — `openrouter/z-ai/glm-5.3-flash` |
+| directional | **PASS** 61.0 s — `openrouter/openai/gpt-5-mini` | **PASS** 35.0 s — `openrouter/z-ai/glm-5.3-flash` |
+| derivation | **PASS** 45.4 s — `openrouter/google/gemini-3-flash-preview`, 6/6 chain, 11 verified equalities | **PASS** 99.2 s — same route, 6/6 chain, 13 verified equalities |
+| control_unrelated_source | **PASS** 71.1 s | **PASS** 33.5 s |
+| control_missing_evidence | **PASS** 44.3 s | **PASS** 24.3 s |
+| **total** | **5/5** | **5/5** |
+
+Per-case evidence ids: `session 96959f83…`, executions `92dfce58` (quote),
+`298dca81` (directional), `d32d8f3c` (derivation), `1afcf792`
+(control_unrelated), `52860f24` (control_missing) in the `…f46ae7bb3545` run;
+`GET /api/chat/trace/{session_id}` carries the per-stage timings
+(planning/retrieval/derivation/final generation) the acceptance records
+alongside delivery and quality.
+
+The derivation criteria, scored by the instrument's INDEPENDENT read-back of the
+workbook (Parquet + formula sidecar, no LLM): workbook named, row identified by
+product and value, sheet `Sheet1`, **6/6 chain steps**, every asserted figure
+traced to a stored value, **13 asserted equalities** matching the store, and the
+unresolved multiplier cell reported.
+
+**Tests, final build:** **302 passed** across the twelve affected suites
+(`test_fabrication_bench` 22, `test_legacy_fallback_deadline` 21,
+`test_reply_leg_bounds` 20, `test_evidence_ignored_verdict` 40,
+`test_fabrication_accounting` 43, `test_derivation_lane_independence` 36,
+`test_model_route_identity` 44, `test_acceptance_criteria` 39,
+`test_attachment_carrier_ranking` 14, `test_named_file_probe` 3,
+`test_stream_connect_bound` 5, `test_independent_corpus_api_boundary` 15);
+`check_undefined_names.py` clean. Four `test_fabrication_bench` cases still
+asserted the pre-provenance behaviour (unstamped verdicts benching, the feature
+payload without a rule) and were re-contracted to the documented contract —
+including that the same rows do NOT bench a different provider's route.
+*(Review pass, later 2026-09-16: two per-suite counts above were mis-transcribed
+and corrected against a fresh run; the guard's multi-row TIE-BREAK was fixed —
+it sorted row keys as strings, so a tie was decided lexicographically against
+the documented block-order rule — and pinned by two new
+`test_legacy_fallback_deadline` cases, taking the total to 304.)*
+
+**Isolation harness re-run on the same build:** `verify_isolated_api_boundary.py`
+— **14/14**, including "verdict annotations do not add rows (5 rows for 5
+generations)", "generation accounting counts generations, not rows
+(rows=5 generations=5 fabricated=2)", "fabrication rate uses the generation
+denominator (rate=0.4)", the 15-attack SQL containment set and the scratch-store
+isolation. Its accounting fixture had drifted from the module's documented
+semantics (it wrote bare quality scores and expected them in the denominator;
+a score with no grounding provenance is `unevaluated` by design) — corrected to
+write `grounding_ok`, which is also what makes the check meaningful.
+
+## Budget investigation: what the 118.5-second control was really made of
+
+Item 8 of the objective asked for the slow control to be investigated against
+the intended turn budget rather than treated as irrelevant. The answer, in the
+order the evidence surfaced:
+
+| where the time went | measured | fix |
+|---|---|---|
+| verification panel after a complete reply | reply 5.6 s/9.6 s, POST 180.0 s; later 74 s spent for NO verdict | `_bounded_verify` + `ATOM_VERIFY_PANEL_MAX_SECONDS` (30 s) |
+| SC fan-out never ranked (TypeError swallowed) | every judged turn | complexity passed from the prompt |
+| panel's own corrective regeneration | ~150 s of route walking after an 8.5 s verdict | wrapped in `_guarded_regen` |
+| legacy intent-router fallback | +120 s past the budget (run D, 230.2 s total) | deadline gate + bounded feature routing |
+| canvas edit/action legs (ordinary asks) | 54.7 s of a 95 s budget, reply left 38.8 s | bounded for every class, `_REPLY_LEG_MIN_SECONDS` reserved |
+| every post-reply corrective regeneration | bare awaits | all through `_guarded_regen` |
+
+Result: the same case set that ran 95–230 s per case across rounds 7–9 now
+answers in **24–99 s with all five cases passing**, and a turn that cannot answer
+says so (`turn_budget_exceeded`, quality not evaluated) instead of returning a
+late template.
+
 ## Still open after round 8 (each with its evidence)
 
 1. **The legacy intent-router fallback is unbounded** and becomes the critical
@@ -1278,9 +1353,44 @@ carried `_reply_token_cap()` without its lazy import of
 `check_undefined_names.py` flagged it, the import is restored, and the checker
 exists precisely for this class).
 
-**Tests:** 271 passed across the eleven affected suites, including the new
-`tests/test_legacy_fallback_deadline.py` (12) and the re-contracted canvas-bound
+**Tests:** 277 passed across the eleven affected suites, including the new
+`tests/test_legacy_fallback_deadline.py` (20) and the re-contracted canvas-bound
 tests.
+
+## 11. The derivation guard learns COMPLETENESS (and why scope matters)
+
+Round-10's full run (`…071123c13d4b`) failed the derivation on completeness
+alone: workbook named, row identified with the listed value, sheet named, every
+asserted figure traced to the store, no fabrication — and **3/6 chain steps**,
+missing exactly the `/0.87` margin, `/0.86` dealer-margin and `ROUNDUP` steps
+that produce the price the reply had just quoted. A partly-walked chain is a
+partial answer, so the guard is now deterministic about it:
+`_missing_chain_cells(reply, tool_block)` compares the cells the reply states
+against the cells the evidence offers, and one bounded regeneration names the
+missing ones (once per turn, on both legs, through `_guarded_regen`).
+
+**The first live attempt proved the scope bug it was written to avoid.** A run
+at `…36e830d39959` logged
+
+```
+[derivation] reply states only part of the row's formula chain — missing
+             R235, S235, D2, G2, H2, I2
+```
+
+on a turn whose matched row was 235: those cells came from OTHER sections of the
+same 34 KB evidence block (`FORMULAS FOR ROW 2`, a totals line, another file's
+chain). The guard was demanding cells that are not part of the answer, and no
+reply could ever satisfy it — so the retry was always discarded. The offered set
+is now taken from the `FORMULAS FOR THE MATCHED ROW(S)` line alone (both
+renderers: the probe path's `cell==formula` and the SQL path's `cell=formula`),
+with a test that keeps other rows' cells and the totals line out.
+
+Also worth recording about that run: the same turn's routes starved —
+`openai/gpt-5-mini`, `deepseek/deepseek-v4-flash-0731` and `deepseek-v4-pro` all
+returned `no visible content (finish_reason=length)` and
+`opencode-go/gpt-5.3-codex-spark` 401'd — so the reply the acceptance scored had
+come from a fallback route that never named the workbook. Route starvation on
+reasoning-heavy models remains the largest single source of derivation variance.
 
 **One pre-existing failure, reproduced on a pristine HEAD worktree**
 (`/tmp/atom-head`, c31316004) so it is not chased as a regression:

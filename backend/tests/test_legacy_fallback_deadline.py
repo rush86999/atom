@@ -117,3 +117,122 @@ class TestEveryReplyLegGenerationIsBounded:
     def test_the_non_streaming_derivation_retry_is_wrapped(self):
         src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
         assert "_fix_response = await _guarded_regen(" in src
+
+
+class TestChainCompletenessGuard:
+    """A derivation that walks PART of the chain has not answered the ask.
+
+    Measured 2026-09-16 (frozen run `…071123c13d4b`, route
+    `openai/gpt-5-mini`): the reply named the workbook, the row, the sheet and
+    the discount/exchange/freight steps, every figure it stated matched the
+    store, no fabricated value — and it omitted the margin and ROUNDUP steps
+    that PRODUCE the listed price it had just quoted (3/6 chain steps). The case
+    failed on completeness alone, so the guard is deterministic about exactly
+    that: which of the row's formula cells the reply never states.
+    """
+
+    # A REALISTIC block: the matched-row section, another row's chain, and a
+    # totals line. Only the MATCHED row's cells may be demanded — an earlier
+    # revision scanned the whole block and asked for "R235, S235, D2, G2, H2,
+    # I2" on a turn whose matched row was 235, which no reply can satisfy.
+    BLOCK = ("SQL RESULT from 'PRICE VIPUL (6).xlsx' sheet 'Sheet1'\n"
+             "R235 | Product Name=F-52\"x16G | LIST Price=7519.0\n"
+             "FORMULAS FOR THE MATCHED ROW(S): G235==F235*0.9 | H235==G235 | "
+             "I235==H235+700 | J235==I235 | K235==J235*1.02 | L235==K235/0.87 | "
+             "M235==L235/0.86 | N235==ROUNDUP(M235,0)\n"
+             "FORMULAS FOR ROW 2 (a computing row of this sheet): D2=P2 | G2=F2*0.9\n"
+             "TOTALS ROW: R235==P235-K235 | S235==R235/P235")
+
+    def test_partial_chain_is_detected_in_block_order(self):
+        missing = co._missing_chain_cells(
+            "Row 235 of Sheet1: G235 = 4815, H235 = 4815, I235 = 5515",
+            self.BLOCK)
+        assert missing == ["J235", "K235", "L235", "M235", "N235"]
+
+    def test_a_complete_chain_is_not_flagged(self):
+        reply = ("G235 4815 H235 4815 I235 5515 J235 5515 K235 5625.3 "
+                 "L235 6465.86 M235 7518.44 N235 7519")
+        assert co._missing_chain_cells(reply, self.BLOCK) == []
+
+    def test_a_reply_that_cites_nothing_is_left_to_the_other_guard(self):
+        """No cell at all is `_derivation_reply_ignored_the_row`'s case — the
+        two guards must not both fire on one reply."""
+        assert co._missing_chain_cells("I could not read the workbook", self.BLOCK) == []
+
+    def test_one_missing_cell_is_not_worth_a_regeneration(self):
+        reply = ("G235 H235 I235 J235 K235 L235 M235")   # N235 missing
+        assert co._missing_chain_cells(reply, self.BLOCK) == []
+
+    def test_a_block_without_a_chain_never_fires(self):
+        assert co._missing_chain_cells("G235 = 1", "MAIL ONLY: - a message") == []
+
+    def test_only_the_matched_row_is_demanded(self):
+        """Other rows' chains and the totals line are not part of the answer."""
+        missing = co._missing_chain_cells(
+            "Row 235: G235 = 4815, H235 = 4815, I235 = 5515", self.BLOCK)
+        assert missing == ["J235", "K235", "L235", "M235", "N235"]
+        assert "R235" not in missing and "S235" not in missing
+        assert "D2" not in missing and "G2" not in missing
+
+    def test_the_sql_renderer_spelling_also_counts(self):
+        """The SQL path writes `cell=formula`; the probe path writes
+        `cell==formula`. Both are chain steps."""
+        block = ("FORMULAS FOR THE MATCHED ROW(S) — the derivation the original "
+                 "workbook computes (cell=formula): G235=F235*0.9 | H235=G235 | "
+                 "I235=H235+700 | J235=I235")
+        assert co._missing_chain_cells("G235 4815 H235 4815", block) == \
+            ["I235", "J235"]
+
+    def test_both_legs_carry_the_guard_and_only_once_per_turn(self):
+        src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+        assert src.count("_missing_chain_cells(") >= 4      # 2 calls + 2 asserts
+        assert "and not _chain_retry_done" in src
+        assert src.count("_chain_retry_done = True") == 2
+        assert "_chain_retry_done = False" in src
+        # The common chain runs for streamed replies too — it must not repeat.
+        assert "elif (_streamed is None and _is_derivation_ask and _tool_block" in src
+
+    def test_the_demand_is_scoped_to_the_row_the_reply_answers(self):
+        """A multi-row section must not push the regeneration at another row.
+
+        Live 2026-09-16: `missing D169, G169, H169, I169, J169, K169` on a turn
+        whose reply — and the acceptance's independent read-back — were about
+        row 235.
+        """
+        block = ("R235 | LIST Price=7519.0\n"
+                 "FORMULAS FOR THE MATCHED ROW(S): G235==F235*0.9 | H235==G235 | "
+                 "I235==H235+700 | J235==I235 | K235==J235*1.02 | "
+                 "D169==P169 | G169==F169*0.9 | H169==G169 | I169==H169+700")
+        assert co._missing_chain_cells(
+            "Row 235: G235 = 4815, H235 = 4815, I235 = 5515", block) == [
+                "J235", "K235"]
+        # The row-169 reply is judged against ITS row, not row 235's cells.
+        assert co._missing_chain_cells(
+            "Row 169: D169 = 100, G169 = 90, H169 = 100", block) == []
+
+    def test_a_tie_keeps_the_row_the_block_led_with(self):
+        """Equal cite counts fall back to the section's own order.
+
+        Found in the 2026-09-16 review pass: the tie-break ran ``max`` over
+        ``sorted(by_row)``, which sorts row keys as STRINGS — so a tie was
+        decided lexicographically (row 169 over a block that leads with 235;
+        `1000` before `999`), against the "block order breaks ties" intent.
+        Dict keys iterate in insertion order, which IS block order.
+        """
+        block = ("FORMULAS FOR THE MATCHED ROW(S): G235==F235*0.9 | H235==G235 | "
+                 "I235==H235+700 | D169==P169 | G169==F169*0.9 | H169==G169")
+        # One cite each way — a tie. The block led with row 235, so row 235's
+        # cells are what may be demanded, not row 169's.
+        assert co._missing_chain_cells(
+            "H235 = 4815, H169 = 100", block) == ["G235", "I235"]
+
+    def test_a_winning_row_with_fewer_than_three_cells_never_fires(self):
+        """Row scoping can shrink the offered set below the 3-cell floor.
+
+        The reply is judged against the row it cites most — even when that
+        row's slice of the section is too short to demand anything.
+        """
+        block = ("FORMULAS FOR THE MATCHED ROW(S): G235==F235*0.9 | H235==G235 | "
+                 "I235==H235+700 | D169==P169 | G169==F169*0.9")
+        assert co._missing_chain_cells(
+            "Row 169: D169 = 100, G169 = 90", block) == []

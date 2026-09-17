@@ -61,13 +61,18 @@ class TestFabricationBench:
 
         h = _make_handler()
         monkeypatch.delenv("ATOM_FABRICATION_BENCH", raising=False)
-        # Re-contracted to verdict provenance: stamped fabrication rows
+        # Re-contracted to verdict provenance: a fabrication verdict counts as
+        # exclusion evidence only when it names the rule that produced it AND
+        # was recorded for THIS provider (route attribution) — the stamp is
+        # what a route-scoped exclusion is built from.
+        _stamped = _json.dumps({
+            "verdict": "unsupported_figures", "verdict_rule": "figures_v2",
+            "route_provider": "p"})
         _patch_db(monkeypatch, [
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.7, None)])
+            (0.1, _stamped), (0.1, _stamped), (0.1, _stamped), (0.7, None)])
         assert h._fabrication_benched("p", "m") is True
+        # ...and the SAME rows do not bench a different provider's route.
+        assert h._fabrication_benched("other", "m") is False
 
     def test_below_min_events_not_benched(self, monkeypatch):
         h = _make_handler()
@@ -100,7 +105,9 @@ class TestFabricationBench:
             calls["n"] += 1
             import json as _json
             chain = _Chain([
-                (0.1, _json.dumps({"verdict": "unsupported_figures"}))] * 4)
+                (0.1, _json.dumps({"verdict": "unsupported_figures",
+                                   "verdict_rule": "figures_v2",
+                                   "route_provider": "p"}))] * 4)
             class _S:
                 def __enter__(self): return chain
                 def __exit__(self, *a): return False
@@ -331,9 +338,15 @@ class TestVerdictProvenanceSeparation:
 
         h = _make_handler()
         rows = [
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.15, _json.dumps({"verdict": "ungrounded_claims"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
+            (0.1, _json.dumps({"verdict": "unsupported_figures",
+                               "verdict_rule": "figures_v2",
+                               "route_provider": "p"})),
+            (0.15, _json.dumps({"verdict": "ungrounded_claims",
+                                "verdict_rule": "panel_v1",
+                                "route_provider": "p"})),
+            (0.1, _json.dumps({"verdict": "unsupported_figures",
+                               "verdict_rule": "figures_v2",
+                               "route_provider": "p"})),
             (0.7, None),
         ]
         chain = _Chain(rows)
@@ -382,7 +395,11 @@ class TestVerdictProvenanceSeparation:
         ok = asyncio.run(reg.record_fabrication_signal(
             model_id="p/m", unsupported_figures=["$1"]))
         assert ok is True
-        assert written["feats"] == {"verdict": "unsupported_figures"}
+        # The payload carries the RULE as well: a verdict is only usable as
+        # exclusion evidence when a consumer can see which rule produced it
+        # (core.llm.fabrication_accounting.CURRENT_VERDICT_RULES).
+        assert written["feats"] == {
+            "verdict": "unsupported_figures", "verdict_rule": "figures_v2"}
         # The verdict carries the generation identity when the caller knows it,
         # so the corrective row ANNOTATES that generation instead of creating a
         # second one (review item 3).

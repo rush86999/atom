@@ -819,6 +819,80 @@ def _cross_route_retry_route(
 
 
 
+#: The MATCHED-ROW formula section of a dataset block, ONE line — which is
+#: what scopes the chain to the row the question is about. The renderer
+#: (``sheet_dataset_service.render_dataset_answer``) writes ``FORMULAS FOR THE
+#: MATCHED ROW(S) — the derivation the original workbook computes
+#: (cell=formula): G235=F235*0.9 | ...``; the double-= spelling
+#: (``G235==F235*0.9``, verification fixtures and replay scripts) is tolerated.
+_CHAIN_SECTION_RE = re.compile(r"FORMULAS FOR THE MATCHED ROW\(S\)[^\n]*")
+#: Cell references inside such a section (``G235==F235*0.9`` / ``G235=F235*0.9``).
+_CHAIN_CELL_RE = re.compile(r"\b([A-Z]{1,3})(\d{1,5})\s*==?")
+#: Cell references anywhere in a reply: "G235 = ...", "row 235 has F235".
+_CELL_MENTION_RE = re.compile(r"\b([A-Z]{1,3}\d{1,5})\b")
+
+
+def _missing_chain_cells(reply: str, tool_block: Optional[str],
+                         min_missing: int = 2) -> list:
+    """Formula cells of the MATCHED ROW that the reply never states.
+
+    The derivation lane delivers the row's WHOLE formula chain and the ask is
+    "how was this derived", so a reply that walks three cells and stops has
+    answered a different question — partly. Measured 2026-09-16 (frozen run
+    `…071123c13d4b`): the reply named the workbook, the row, the sheet and the
+    discount/exchange/freight steps, every figure it stated matched the store,
+    no fabricated value — and it omitted the margin and ROUNDUP steps that
+    PRODUCE the listed price it had just quoted (3/6 chain steps).
+
+    SCOPED TO THE MATCHED ROW. The block also carries other rows' formulas
+    (``FORMULAS FOR ROW 2`` sections, other files' chains, TOTALS rows), and an
+    earlier revision scanned the whole block: it then demanded cells that are
+    not part of the answer at all (`missing R235, S235, D2, G2, H2, I2` on a
+    turn whose matched row was 235) and no reply could ever satisfy it. Only the
+    ``FORMULAS FOR THE MATCHED ROW(S)`` line counts.
+
+    Deterministic and narrow: only a reply that already cites at least one of
+    those cells can be "incomplete" — a reply citing none is judged by
+    ``_derivation_reply_ignored_the_row`` instead. Returns the missing cells in
+    block order; fewer than ``min_missing`` is not worth a regeneration.
+    """
+    if not reply or not tool_block:
+        return []
+    section = _CHAIN_SECTION_RE.search(tool_block)
+    if not section:
+        return []
+    offered: List[str] = []
+    for col, row in _CHAIN_CELL_RE.findall(section.group(0)):
+        cell = f"{col}{row}"
+        if cell not in offered:
+            offered.append(cell)
+    if len(offered) < 3:
+        return []
+    cited = set(_CELL_MENTION_RE.findall(reply))
+    if not (cited & set(offered)):
+        return []
+    # ONE ROW AT A TIME. The section lists the cells of every row the probe
+    # matched, which can be several (measured 2026-09-16: a live turn logged
+    # `missing D169, G169, H169, I169, J169, K169` while the reply — and the
+    # acceptance's independent read-back — were about row 235). Demanding a
+    # different row's cells is at best noise and at worst pushes the
+    # regeneration toward the wrong row, so the demand is scoped to the row the
+    # reply is ALREADY answering: the one whose cells it cites most (ties keep
+    # block order).
+    by_row: Dict[str, List[str]] = {}
+    for cell in offered:
+        by_row.setdefault(cell.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), []).append(cell)
+    if len(by_row) > 1:
+        row_key = max(
+            by_row,          # keys iterate in insertion order = block order; max
+            key=lambda r: sum(1 for c in by_row[r] if c in cited))
+        offered = by_row[row_key]
+        if len(offered) < 3:
+            return []
+    missing = [c for c in offered if c not in cited]
+    return missing if len(missing) >= max(1, int(min_missing)) else []
+
+
 def _reply_is_unsourced_derivation(reply: str, message: str) -> bool:
     """Derivation-shaped ASK + multi-step arithmetic presented in the reply
     + no source citation anywhere in it → one grounded regeneration."""
@@ -4371,6 +4445,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # can offer the same bounded cross-route retry instead of raising
             # (or, worse, silently retrying the route that just failed).
             _fb_routes: List[tuple] = []
+            # One completeness regeneration per turn, whichever leg runs the
+            # guard chain (streaming first; the common chain only when the reply
+            # did not stream).
+            _chain_retry_done = False
             if (
                 os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
@@ -4688,6 +4766,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _derivation_reply_ignored_the_row(
+                                    _fixed, _tool_block):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        elif (_is_derivation_ask and _tool_block
+                              and not _chain_retry_done
+                              and _missing_chain_cells(_streamed, _tool_block)):
+                            _missing_cells = _missing_chain_cells(
+                                _streamed, _tool_block)
+                            _chain_retry_done = True
+                            logger.warning(
+                                "[derivation] reply states only part of the row's "
+                                "formula chain — missing "
+                                + ", ".join(_missing_cells[:6])
+                                + "; one bounded completeness regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply states only PART of the "
+                                "matched row's formula chain. The DERIVATION "
+                                "EVIDENCE block above lists every formula cell for "
+                                "that row: state ALL of them, in column order, each "
+                                "as `<cell> = <formula> = <value>`, and END with "
+                                "the step that produces the listed price. Cells "
+                                "you did not state: "
+                                + ", ".join(_missing_cells[:8]) + "."
+                            )})
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _missing_chain_cells(
                                     _fixed, _tool_block):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -5180,6 +5292,41 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _fixed, _tool_block):
                             _content = _fixed
                             response_data = {**_fix_response, "content": _fixed}
+                # DERIVATION COMPLETENESS GUARD (non-streaming path): same
+                # deterministic check as the streaming leg — the row's formula
+                # chain is in the evidence and the reply stated only part of it.
+                elif (_streamed is None and _is_derivation_ask and _tool_block
+                      and not _chain_retry_done
+                      and _missing_chain_cells(_content, _tool_block)):
+                    _missing_cells = _missing_chain_cells(_content, _tool_block)
+                    _chain_retry_done = True
+                    logger.warning(
+                        "[derivation] reply states only part of the row's formula "
+                        "chain — missing " + ", ".join(_missing_cells[:6])
+                        + "; one bounded completeness regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply states only PART of the matched row's "
+                        "formula chain. The DERIVATION EVIDENCE block above lists "
+                        "every formula cell for that row: state ALL of them, in "
+                        "column order, each as `<cell> = <formula> = <value>`, and "
+                        "END with the step that produces the listed price. Cells "
+                        "you did not state: " + ", ".join(_missing_cells[:8]) + "."
+                    )})
+                    _complete_fix = await _guarded_regen(
+                        self.llm_service.generate_completion(
+                            messages=messages,
+                            model=forced_model,
+                            tenant_id=self.tenant_id,
+                            **extra_kwargs,
+                        )
+                    )
+                    if _complete_fix:
+                        _completed = _strip_protocol_tags(
+                            (_complete_fix or {}).get("content"))
+                        if _completed and not _missing_chain_cells(
+                                _completed, _tool_block):
+                            _content = _completed
+                            response_data = {**_complete_fix, "content": _completed}
                 # NON-RESPONSIVE GUARD (non-streaming path): same short
                 # zero-overlap reply detection as the streaming path.
                 elif (_tool_block

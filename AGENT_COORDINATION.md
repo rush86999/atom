@@ -4377,3 +4377,46 @@ leg 38.8 s. Round-9 acceptance on `…3319b40f2ca7`: **4/5 with the derivation
 PASSING** (60.3 s, 6/6 chain, 9 asserted equalities verified against the
 workbook; the one non-pass was an honest `turn_budget_exceeded`, not a late
 answer).
+
+**20:05 EDT — round 10 close: the objective's acceptance criterion is MET on a
+verified build.** Two consecutive full runs on frozen trees (`…f46ae7bb3545`,
+`…c9711c0ae022`), single instance each, no restart: **5/5 both times** — quote
+53.9–63.0 s, directional 35.0–61.0 s, **derivation PASS** (6/6 chain, 11 and 13
+asserted equalities verified by the instrument's independent workbook read-back,
+unresolved cell reported), both controls PASS. `verify_isolated_api_boundary.py`
+**14/14** on the same build. Budget investigation closed: panel 180 s → 30 s hard
+cap (and it had been spending 74 s for NO verdict), legacy intent-router fallback
++120 s past the budget → deadline-gated, canvas edit/action legs bounded for
+every class with a 40 s reply-leg reserve, every post-reply regeneration through
+`_guarded_regen`. Case latencies went from 95–230 s to 24–99 s.
+
+New this round: `_missing_chain_cells` — a deterministic completeness guard for
+derivations (the round-10 failure was a partly-walked chain: 3/6 steps, all
+figures correct). Its first live attempt demanded cells from ANOTHER row
+(`missing D169, G169, …` while the reply answered row 235), because the section
+lists every probed row; the demand is now scoped to the row the reply already
+cites. Also re-contracted four `tests/test_fabrication_bench.py` cases that still
+asserted pre-provenance behaviour — that file is green again (302 tests across
+the twelve affected suites).
+
+Two trees exist on purpose: the working tree is shared and moving; verification
+runs from `/tmp/atom-r8-verify` on port 8004 (`app_r8verify:app`, detached
+nohup). When you copy files into that worktree, remember untracked modules
+(`core/turn_learning.py`) or the whole chat integration silently 404s.
+
+**20:40 EDT — pre-delivery review pass on the round-10 working tree (read-only
+subagent + primary-agent verification).** One confirmed defect, fixed:
+`_missing_chain_cells`' multi-row tie-break ran `max` over `sorted(by_row)` —
+row keys sorted as STRINGS — so an equal-cite tie was decided lexicographically
+(demanding row 169 when the block led with 235), contradicting its own
+"block order breaks ties" comment. Now iterates the dict directly (insertion
+order = block order); pinned by two new `TestChainCompletenessGuard` cases
+(tie keeps the block-first row; a winning row with <3 cells never fires).
+Also corrected: the audit doc's per-suite counts (evidence_ignored 39→40,
+model_route 42→44 — total 302 reproduced; now 304 with the two new cases) and
+the `_CHAIN_SECTION_RE` comment (one renderer, not two — the `==` spelling is
+fixture/replay-only). All twelve suites re-run green on the corrected tree;
+backend NOT restarted (changes uncommitted; concurrent sessions). Known
+limitations accepted as-is: only the FIRST matched-row line is judged if a
+block ever concatenates two sections (no such producer found); lowercase cell
+mentions don't count as cites (safe direction — no false regen).
