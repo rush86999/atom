@@ -461,10 +461,18 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         setActiveExecution(data);
         setIsExecutionModalOpen(true);
       } else {
-        const message =
+        // Backend error bodies vary (FastAPI `detail` can be a string, an
+        // object, or a validation-error array) — coerce to a readable
+        // string so the toast never shows "[object Object]".
+        const raw =
           (data && typeof data === "object" && (data.detail || data.message)) ||
-          (data && typeof data.error === "string" && data.error) ||
-          (data && typeof data.error === "object" && (data.error.message || data.error.type)) ||
+          (typeof data?.error === "string" && data.error) ||
+          (data && typeof data.error === "object" &&
+            (data.error.message || data.error.type)) ||
+          null;
+        const message =
+          (typeof raw === "string" && raw) ||
+          (raw != null ? JSON.stringify(raw) : null) ||
           `Request failed (${response.status})`;
         throw new Error(message);
       }
