@@ -93,3 +93,39 @@ class TestDomainEqualityIsNotDirection:
         assert "internal" in out
         assert "SENT by this mailbox" not in out
         assert "RECEIVED by this mailbox" not in out
+
+
+class TestScopeOfANegativeClaim:
+    """An absence claim may only be as wide as the search actually performed.
+
+    RCA 2026-09-17: "None that we sent" narrowed the user's own scope to external
+    recipients — but an internal forward is still sent by its sender, and finding
+    one internal email never proves there were no other outgoing matches.
+    """
+
+    def test_an_own_send_does_not_license_no_others(self, mailbox):
+        out = planner._mail_direction(
+            "chandrakant@brennan.ca", "kurt@neimanmachinery.com", mailbox
+        )
+        assert "SENT by this mailbox" in out
+        assert "no others" in out, (
+            "a match must not be presented as proof of completeness"
+        )
+
+    def test_member_to_member_evidence_still_counts_as_outgoing(self, mailbox):
+        """The exact conflation behind 'None that we sent'."""
+        out = planner._mail_direction(
+            "rish@brennan.ca", "chandrakant@brennan.ca", mailbox
+        )
+        assert "internal" in out
+        assert "still counts" in out and "outgoing" in out, (
+            "an internal message a member SENT is outgoing regardless of "
+            "recipient; without this the model narrows scope to reach 'none'"
+        )
+
+    def test_the_grounding_rule_bounds_negative_claims(self):
+        from core.chat_tool_planner import _GROUNDING_RULE
+
+        assert "COMPLETE coverage" in _GROUNDING_RULE
+        assert "never narrow the user's own scope" in _GROUNDING_RULE
+        assert "unverified" in _GROUNDING_RULE

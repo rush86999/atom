@@ -251,7 +251,15 @@ _GROUNDING_RULE = (
     "message. Open it with documents.cat(path + '/content.lines') (skim with "
     "documents.head / documents.tail); to search EVERY stored message use "
     "documents.grep with path_prefix 'knowledge/conversations'. Only after "
-    "that may you say a value is not in the mailbox."
+    "that may you say a value is not in the mailbox. "
+    "SCOPE OF A NEGATIVE CLAIM (RCA 2026-09-17): an absence claim may only be "
+    "as wide as the search actually performed. 'None', 'no other', 'nothing "
+    "else' or 'does not exist' assert COMPLETE coverage — do not make them off "
+    "one narrow lookup, and never narrow the user's own scope to reach one: an "
+    "'emails we sent' question includes internal forwards (a member sending is "
+    "outgoing whatever the recipient), and finding one match never shows there "
+    "were no others. If the lookup covered less than the question, say what was "
+    "searched and that the rest is unverified."
 )
 
 
@@ -2366,10 +2374,14 @@ def _mail_direction(sender: str, recipient: str, user_id: Optional[str]) -> str:
             f" | DIRECTION: internal relationship; both ends are this mailbox's "
             "own addresses (mail between its members), so sent-vs-received "
             "depends on WHICH member you mean — attribute it to the sender, and "
-            "do not present it as sent or received by the mailbox as a whole"
+            "do not present it as sent or received by the mailbox as a whole. "
+            "For an 'emails we sent' question this still counts: a message a "
+            "member SENT is outgoing regardless of who it went to, and ONE such "
+            "match never establishes that there were no others"
         )
     if own_sends:
-        who = "SENT by this mailbox (the sender is one of its own addresses)"
+        who = ("SENT by this mailbox (the sender is one of its own addresses); "
+               "a match here does not license 'no others exist'")
     elif own_receives:
         who = "RECEIVED by this mailbox (an own address is a recipient)"
     else:

@@ -2106,6 +2106,103 @@ _LIVE_LOOKUP_FAILED_NOTE = (
 )
 
 
+def _evidence_rejected(tool_block: Optional[str], message: str) -> bool:
+    """True when the block must not stand as this turn's evidence.
+
+    Logs the rejection (with the request it failed to address) so the reason is
+    visible in the trace instead of the turn quietly answering from the wrong
+    source. An empty block is NOT a rejection here — that is "no evidence", which
+    the caller already handles.
+    """
+    block = tool_block or ""
+    if not block.strip():
+        return False
+    if _evidence_addresses_request(block, message):
+        return False
+    logger.warning(
+        "[evidence-gate] REJECTED a tool block that shares no distinctive term "
+        f"with the request ({len(block)} chars); request={message[:110]!r} "
+        f"block_head={block[:110]!r}"
+    )
+    return True
+
+
+def _evidence_addresses_request(tool_block: Optional[str], message: str) -> bool:
+    """Does this evidence block actually address the request?
+
+    RCA 2026-09-17 findings 2 and 4: a plan built for an OLDER request was reused
+    as this turn's evidence without any check, so the reply answered from an
+    unrelated search — a PRICE VIPUL mailbox result became a claim about a
+    different document, and the model then denied having evidence it had held one
+    turn earlier. The system had no relevance gate and no corrective retrieval.
+
+    Deliberately conservative, because a wrongly-rejected block is worse than a
+    wrongly-accepted one (it would throw away the turn's evidence):
+
+    * an EMPTY block addresses nothing, so it can never be "relevant";
+    * a block whose own text repeats a distinctive term from the request (a code,
+      a figure, a name) plainly addresses it;
+    * blocks dominated by full message bodies are the `full:`/`open:` evidence
+      the reply is expected to read, so they are accepted;
+    * a block of EXCERPTS with no shared distinctive term is what the RCA
+      describes, and is reported as not addressing the request.
+
+    Returns True when the block may stand as this turn's evidence.
+    """
+    block = tool_block or ""
+    if not block.strip():
+        return False
+    terms = _distinctive_terms(message)
+    if not terms:
+        return True  # no distinctive term to mismatch against
+    hay = _canon_alnum(block)
+    if any(t in hay for t in terms):
+        return True
+    # Full-message evidence (an openable source the reply must read) is accepted
+    # even without a literal term match: the excerpt that led to it may have been
+    # phrased differently, and the model can open it to check.
+    if "full: knowledge/" in block or "open: knowledge/" in block:
+        return True
+    # Structured answers (dataset rows, SQL results, formula blocks) carry their
+    # own provenance and were produced for this turn's ask.
+    if any(marker in block for marker in (
+        "SQL RESULT from", "DATASET CATALOG", "FORMULAS FOR THE MATCHED ROW",
+        "APP DB ANSWER",
+    )):
+        return True
+    return False
+
+
+def _distinctive_terms(text: str) -> List[str]:
+    """Distinctive request terms: codes, figures, and 5+ char content words."""
+    import re as _re
+
+    out: List[str] = []
+    for raw in _re.findall(r"[A-Za-z0-9][A-Za-z0-9.\-]{3,}", text or ""):
+        tok = raw.strip(".-")
+        if len(tok) < 4:
+            continue
+        low = tok.lower()
+        if low in _STOPWORDS:
+            continue
+        out.append(tok.lower())
+    return out[:12]
+
+
+_STOPWORDS = {
+    "this", "that", "with", "from", "have", "what", "which", "when", "where",
+    "there", "their", "about", "would", "could", "should", "please", "thanks",
+    "email", "emails", "send", "sent", "search", "find", "show", "give", "list",
+    "file", "files", "does", "exist", "system", "again", "still", "just",
+}
+
+
+def _canon_alnum(text: str) -> str:
+    import re as _re
+
+    return _re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
 def _compose_lookup_evidence(
     message: str, plan: Any, live_block: Optional[str], mail_lines: List[str],
 ) -> Optional[str]:
@@ -2854,8 +2951,20 @@ class ChatOrchestrator:
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
                     prefetched_tool_block=_shared_tool.get("block"),
+                    # RELEVANCE GATE (RCA findings 2 and 4). A block produced by a
+                    # plan built for an OLDER request must not stand as this
+                    # turn's evidence: the reply would answer from an unrelated
+                    # search (a PRICE VIPUL mailbox result became a claim about a
+                    # different document, and the model then denied holding
+                    # evidence it had one turn earlier). When the block shares no
+                    # distinctive term with the request, it is treated exactly as
+                    # missing evidence — the existing provenance guard then
+                    # forbids asserting an answer from it — and the rejection is
+                    # logged with the reason rather than passing silently.
                     canvas_evidence_unavailable=bool(
-                        _shared_tool.get("canvas_evidence_unavailable")),
+                        _shared_tool.get("canvas_evidence_unavailable"))
+                    or _evidence_rejected(
+                        _shared_tool.get("block"), message),
                     canvas_planning_unavailable=bool(
                         _shared_tool.get("canvas_planning_unavailable")),
                     mission_critical=bool((context or {}).get("mission_critical")),

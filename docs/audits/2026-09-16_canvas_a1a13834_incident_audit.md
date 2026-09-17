@@ -150,10 +150,11 @@ The follow-up conversation RCA identified six findings. Disposition:
 | **6 · formula-claim parser** — `R235 = P235-K235 = 1893.7` attributed to K235 | **FIXED** `6296a2c30` |
 | **1 · successful turns dropped** — `history[-3:]` sliced ENTRIES, so the window could hold no user request; answered work looked unanswered | **FIXED** `ae377b026` |
 | 5 · verification/latency compounding | PARTIAL — the request-entry deadline now bounds the turn end to end (115.2 s against a 115.0 s budget, structured `turn_budget_exceeded`); the provider 401s during verification remain |
-| 3 · evidence not carried across turns | OPEN — no bounded source handles, so a workbook found on one turn is not reopened on the next |
-| 2 · a stale plan reused as this turn's evidence | OPEN — the canvas-edit leg's plan is still accepted without a relevance check |
-| 4 · no relevance gate / corrective retrieval before the reply | OPEN |
-| Answer-quality items (scope narrowed to external, universal absence claims, used-shear framing, `0.87` read as a reliability score) | OPEN — recorded, not addressed |
+| 3 · evidence not carried across turns | **PARTIAL** — the openable `full:`/`open: knowledge/…` handles travel in the evidence and count as relevant on reuse; a bounded per-session source registry that would REOPEN a prior workbook unprompted is not built |
+| 2 · a stale plan reused as this turn's evidence | **FIXED** — a block sharing no distinctive term with the request is rejected and logged; treated as missing evidence so the provenance guard forbids answering from it |
+| 4 · no relevance gate / corrective retrieval before the reply | **PARTIAL** — the gate now blocks a mismatched block; true corrective RETRIEVAL (replanning mid-turn) is not built, deliberately: it adds a planner round-trip to the critical path, which the trace shows is already ~35% of the budget |
+| Answer-quality: scope narrowed to external, universal absence claims | **FIXED in the contract** — the DIRECTION line states that an internal member send is outgoing and that one match never proves "no others", and `_GROUNDING_RULE` now bounds a negative claim to the coverage actually performed |
+| Answer-quality: used-shear framing; `0.87` read as a reliability score | OPEN — these are reply-content judgements with no deterministic signal; recorded for the detector work rather than guessed at |
 
 **Finding 6.** `_LETTER_CLAIM_RE`, scanning left to right over
 `R235 = P235-K235 = 1893.7`, skipped `R235 =` (no number followed) and matched
