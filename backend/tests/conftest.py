@@ -447,6 +447,30 @@ def db_session(worker_database):
 
 
 @pytest.fixture(autouse=True)
+def reset_integration_read_cache():
+    """Clear the process-wide integration read cache between tests.
+
+    ``integrations.read_cache`` is a module singleton with a real TTL (it
+    exists so two identical provider reads inside one agent turn do not
+    burn provider quota twice). Across a test session that turns into
+    cross-test pollution: a Salesforce list cached by one test makes the
+    next test's ``list_contacts.assert_awaited_once()`` see zero calls.
+    Same isolation contract as ``reset_agent_task_registry``.
+    """
+    try:
+        from integrations.read_cache import integration_read_cache
+        integration_read_cache.clear()
+    except Exception:
+        pass
+    yield
+    try:
+        from integrations.read_cache import integration_read_cache
+        integration_read_cache.clear()
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
 def reset_agent_task_registry(request):
     """
     Reset agent task registry before each test for isolation.

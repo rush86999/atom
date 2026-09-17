@@ -6,6 +6,22 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
 from core.identifier_search import filter_by_terms
+from integrations.read_cache import (
+    cached_read_async,
+    invalidate_after_write,
+    is_read_action,
+)
+from integrations.read_query import (
+    DEFAULT_READ_LIMIT,
+    MAX_READ_LIMIT,
+    ReadQuery,
+    capabilities_for,
+    decode_offset_token,
+    offset_token,
+    page_meta,
+    project_records,
+    truncation_notice,
+)
 from integrations.salesforce_service import SalesforceService
 from integrations.hubspot_service import get_hubspot_service
 from integrations.shopify_service import ShopifyService
@@ -475,6 +491,146 @@ class UniversalIntegrationService:
             data if isinstance(data, (list, tuple)) else [data],
             query, text_of=str, limit=limit)
 
+    # --- Read shape (pagination / projection) ---------------------------
+    #
+    # The audit's P1 finding: at 100K records the agent got the FIRST
+    # provider page and a bare ``status: success``, so it answered from a
+    # partial record set without knowing it. These two helpers are the
+    # general fix — every service, every family, one implementation.
+    # Cursor semantics per the MCP pagination spec: opaque token,
+    # provider-owns-page-size, missing next cursor = end of results.
+
+    @staticmethod
+    def _records_container(data: Any):
+        """(list_of_records, container_key) for the shapes integrations return."""
+        if isinstance(data, list):
+            return data, None
+        if isinstance(data, dict):
+            for key in ("records", "results", "value", "data", "items",
+                        "issues", "entries", "messages", "tickets",
+                        "conversations", "documents", "rows"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    return value, key
+        return None, None
+
+    def _apply_read_shape(
+        self,
+        service: str,
+        action: str,
+        read: ReadQuery,
+        result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Narrow + annotate a read result before it reaches the agent.
+
+        Two transforms, both driven by the normalized :class:`ReadQuery`:
+
+        1. **Projection** — when the caller named ``fields``, only those
+           columns survive (works for every integration; the ones whose
+           provider accepts a native projection also get it pushed down by
+           :func:`provider_read_params`).
+        2. **Pagination envelope** — a ``page`` block stating what was
+           returned, whether more exists, and the opaque token to continue.
+           Whenever ``has_more`` is not provably ``False`` the response also
+           carries a PARTIAL PAGE notice, because silence is what let an
+           agent present page one of a 100K-row object as the whole set.
+
+        Never touches non-success envelopes, and never invents a cursor: a
+        synthesized offset token is only offered for providers whose
+        pagination IS an offset (declared in ``SERVICE_CAPABILITIES``).
+        """
+        if not isinstance(result, dict) or result.get("status") != "success":
+            return result
+        if result.get("data") is None:
+            return result
+
+        # Copy before annotating: this object may be a cache entry, and
+        # popping the private cursor off it would make the SECOND identical
+        # read silently lose its continuation token.
+        result = dict(result)
+
+        caps = capabilities_for(service)
+        data = result["data"]
+        records, container_key = self._records_container(data)
+        total = len(records) if records is not None else None
+
+        # The provider cursor a handler recovered from its response envelope
+        # (Graph @odata.nextLink, Slack next_cursor, HubSpot paging.next.after
+        # ...). Private key so it is never mistaken for payload.
+        provider_token = result.pop("_next_page_token", None)
+        if not provider_token:
+            provider_token = result.pop("next_page_token", None)
+        if isinstance(provider_token, (dict, list)):
+            provider_token = None
+
+        # --- clamp to the requested page size ---
+        truncated_by_slice = False
+        if (read.explicit_limit and records is not None and total is not None
+                and total > read.limit):
+            records = records[:read.limit]
+            truncated_by_slice = True
+            total = len(records)
+            if container_key is None:
+                data = records
+            else:
+                data = dict(data)
+                data[container_key] = records
+            result["data"] = data
+
+        # --- projection (after slicing so we never project dropped rows) ---
+        if read.has_projection:
+            result["data"] = project_records(result["data"], read.fields)
+            result["projected"] = {"fields": list(read.fields),
+                                   "side": "server" if caps.server_side_projection
+                                   else "client"}
+
+        if records is None:
+            return result
+
+        # --- next-page token ---
+        next_token: Optional[str] = None
+        if isinstance(provider_token, str) and provider_token.strip():
+            next_token = provider_token.strip()
+        elif truncated_by_slice:
+            base = decode_offset_token(read.page_token)
+            next_token = offset_token(base + read.limit)
+        elif caps.pagination in ("offset", "page") and read.explicit_limit:
+            base = decode_offset_token(read.page_token)
+            next_token = offset_token(base + read.limit)
+
+        # has_more is TRI-state on purpose:
+        #   True  — we know more exist (we sliced, or the provider said so)
+        #   False — the provider returned fewer than the page we asked for
+        #   None  — no evidence either way; never claim completeness
+        if next_token:
+            has_more: Optional[bool] = True
+        elif read.explicit_limit and total is not None and total < read.limit:
+            has_more = False
+        elif caps.pagination == "none":
+            has_more = False
+        else:
+            has_more = None
+
+        meta = page_meta(read, total or 0, next_token)
+        meta["has_more"] = has_more
+        meta["truncated"] = True if has_more is True else False
+        if has_more is None:
+            meta["note"] = (
+                "one provider page; the provider reported no next-page "
+                "cursor, so completeness is UNVERIFIED — narrow the query or "
+                "request explicit fields before treating this as the full set"
+            )
+            result["page"] = meta
+            return result
+
+        result["page"] = meta
+        notice = truncation_notice(meta)
+        if notice:
+            # Surfaced on `message` too: a model that reads only the summary
+            # line still learns the answer is drawn from a partial set.
+            result["message"] = notice
+        return result
+
     async def execute(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Execute an action against a specific integration service via IntegrationRegistry.
@@ -638,8 +794,43 @@ class UniversalIntegrationService:
                 context["registry"] = registry
                 context["tenant_id"] = tenant_id
 
+                # Normalized read shape for THIS call: every provider
+                # spelling of limit/cursor/fields collapses to one object.
+                # Handlers that can push a limit, cursor or projection down
+                # to the provider read it off the context; everyone else
+                # gets the response-boundary layer in _apply_read_shape.
+                read = ReadQuery.from_params(params)
+                context["read_query"] = read
+
                 # Pipeline 2: Standard Integration Logic
-                result = await self._dispatch_execution(service, action, params, context)
+                #
+                # Idempotent READS go through the TTL cache (gap #6): the
+                # same list/search inside one agent turn must not burn
+                # provider quota twice, and can never return different data.
+                # A mutating action is never cached and invalidates the
+                # service's cached reads, so a list after a create is fresh.
+                if is_read_action(action):
+                    result = await cached_read_async(
+                        service=service,
+                        action=action,
+                        tenant_id=tenant_id,
+                        workspace_id=workspace_id,
+                        query=read,
+                        # params + user_id are part of the cache IDENTITY:
+                        # without them `list entity=contact` and
+                        # `list entity=deal` share one entry.
+                        params=params,
+                        user_id=user_id,
+                        fetch=lambda: self._dispatch_execution(
+                            service, action, params, context),
+                    )
+                else:
+                    result = await self._dispatch_execution(
+                        service, action, params, context)
+                    invalidate_after_write(service)
+
+                # --- Read shape: projection + pagination envelope ---
+                result = self._apply_read_shape(service, action, read, result)
 
                 # --- Gatekeeper response field masking (P3) ---
                 # Never return credentials/secret-shaped fields to callers.
@@ -777,10 +968,18 @@ class UniversalIntegrationService:
         else:
             return await self._execute_activepieces(service, action, params, context)
 
-    async def search(self, service: str, query: str, entity_type: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def search(self, service: str, query: str, entity_type: str = None,
+                     context: Dict[str, Any] = None,
+                     limit: int = None, page_token: str = None,
+                     fields: List[str] = None) -> Dict[str, Any]:
         """
         Search for entities within an integration via IntegrationRegistry.
         Returns a standardized {"status": "success", "data": [...]} object.
+
+        ``limit`` / ``page_token`` / ``fields`` normalize into the same
+        ReadQuery the execute() path uses, so both entries share one read
+        shape (clamped page size, opaque provider cursor, projection) and
+        both get the pagination envelope from ``_apply_read_shape``.
         """
         from core.database import SessionLocal
         from core.integration_registry import IntegrationRegistry
@@ -793,7 +992,17 @@ class UniversalIntegrationService:
         user_id = context.get("user_id")
         workspace_id = context.get("workspace_id") or self.workspace_id
         tenant_id = context.get("tenant_id") or workspace_id
-        
+
+        read_params: Dict[str, Any] = {"query": query}
+        if limit is not None:
+            read_params["limit"] = limit
+        if page_token:
+            read_params["page_token"] = page_token
+        if fields:
+            read_params["fields"] = fields
+        read = ReadQuery.from_params(read_params)
+        context["read_query"] = read
+
         try:
             with SessionLocal() as db:
                 registry = IntegrationRegistry(db)
@@ -846,14 +1055,23 @@ class UniversalIntegrationService:
                     result = await self.execute(
                         service, "search_items", {"query": query, "limit": 8}, context)
                 elif service in ("stripe", "quickbooks", "xero", "zoho_books"):
-                    # Finance list endpoints have no server-side search param —
-                    # pull the recent list and filter client-side (same pattern
-                    # as _search_dev). Single implementation in _search_finance,
-                    # shared with the execute-path search bridge.
-                    result = {"status": "success",
-                              "data": await self._search_finance(service, query, context)}
+                    # Finance: Stripe searches server-side when it can; the
+                    # others pull the recent list and filter client-side
+                    # (single implementation in _search_finance, shared with
+                    # the execute-path search bridge).
+                    inner = await self._search_finance(service, query, context)
+                    if isinstance(inner, dict) and inner.get("status") == "success":
+                        result = inner
+                    else:
+                        result = {"status": "success", "data": inner}
                 else:
                     raise ValueError(f"Service '{service}' not supported for search.")
+
+                # Same read-shape contract as execute(): projection + page
+                # envelope (opaque next-page token, has_more, PARTIAL PAGE
+                # notice). `_next_page_token` set by a _search_* branch rides
+                # the result dict into the envelope here.
+                result = self._apply_read_shape(service, "search", read, result)
 
                 # Gatekeeper response field masking (P3) — strip credentials
                 # (access_token, refresh_token, ...) from search results too.
@@ -965,14 +1183,38 @@ class UniversalIntegrationService:
         token = getattr(hs_service, 'access_token', None) or os.getenv("HUBSPOT_ACCESS_TOKEN")
         
         entity = params.get("entity")
-        
+        # Read shape for this call (limit / opaque cursor / projection).
+        # Handlers that CAN push these to the provider do; the general layer
+        # still applies the response-boundary fallback for the rest.
+        read = context.get("read_query") or ReadQuery.from_params(params)
+
         if action == "list":
+            # HubSpot's list API pages with the OPAQUE `after` cursor from
+            # the previous response (`paging.next.after`), NOT a numeric
+            # offset — the service used to send `after=<int>` and silently
+            # discard the real cursor, so page two was unreachable.
+            kwargs = {
+                "token": token,
+                "limit": read.limit,
+                "page_token": read.page_token,
+            }
+            if read.fields:
+                kwargs["properties"] = list(read.fields)
             if entity == "contact":
-                return {"status": "success", "data": await hs_service.get_contacts(token=token)}
+                return {"status": "success",
+                        "data": await hs_service.get_contacts(**kwargs),
+                        "_next_page_token": getattr(
+                            hs_service, "last_next_page_token", None)}
             elif entity == "deal":
-                return {"status": "success", "data": await hs_service.get_deals(token=token)}
+                return {"status": "success",
+                        "data": await hs_service.get_deals(**kwargs),
+                        "_next_page_token": getattr(
+                            hs_service, "last_next_page_token", None)}
             elif entity == "company":
-                return {"status": "success", "data": await hs_service.get_companies(token=token)}
+                return {"status": "success",
+                        "data": await hs_service.get_companies(**kwargs),
+                        "_next_page_token": getattr(
+                            hs_service, "last_next_page_token", None)}
                 
         elif action == "create" or action in ("create_company", "create_deal", "create_contact"):
             data = params.get("data", params) 
@@ -1007,12 +1249,35 @@ class UniversalIntegrationService:
     async def _search_hubspot(self, query: str, entity_type: str, context: Dict[str, Any] = None) -> List[Dict]:
         registry = context.get("registry")
         tenant_id = context.get("tenant_id", "system")
-        
+
         hs_service = await registry.get_service_instance("hubspot", tenant_id)
         token = getattr(hs_service, 'access_token', None) or os.getenv("HUBSPOT_ACCESS_TOKEN")
-        
-        res = await hs_service.search_content(query, object_type=entity_type or "contact", token=token)
-        return res.get("results", [])
+
+        # search_content now takes token/limit/after — before, the token=
+        # kwarg TypeError'd on every universal-path HubSpot search, and the
+        # paging cursor HubSpot returns was dropped along with the envelope.
+        read = context.get("read_query")
+        after: Optional[int] = None
+        if read is not None and read.page_token:
+            try:
+                after = int(str(read.page_token).strip())
+            except ValueError:
+                after = None
+        res = await hs_service.search_content(
+            query, object_type=entity_type or "contact", token=token,
+            limit=(read.limit if read is not None and read.explicit_limit else 50),
+            after=after,
+        )
+        # Envelope (was a bare list — the search() docstring promises
+        # {status, data} and every other family returns it; a raw list also
+        # dropped HubSpot's paging cursor before it could reach the read
+        # envelope). _next_page_token is HubSpot's opaque paging.next.after.
+        result = {"status": "success", "data": res.get("results", [])}
+        paging_after = ((res.get("paging") or {}).get("next") or {}).get("after")
+        if paging_after is not None:
+            result["_next_page_token"] = str(paging_after)
+            result["_has_more"] = True
+        return result
 
     # --- Shopify Implementation ---
     async def _execute_shopify(self, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -1026,13 +1291,24 @@ class UniversalIntegrationService:
             return {"status": "error", "message": "access_token and shop are required"}
         
         entity = params.get("entity", "product")
+        read = context.get("read_query") or ReadQuery.from_params(params)
+        page_info = read.page_token if isinstance(read.page_token, str) else None
+        meta: Dict[str, Any] = {}
 
         if action == "search":
-            # Client-side filter over the entity's list — ShopifyService has
-            # no server-side search; without this branch a planner "search"
-            # intent fell through to the generic routed message with no
-            # data while the catalog advertised "search orders, products,
-            # customers".
+            # Customers search server-side (customers/search.json?query=) —
+            # the REST endpoint matches name/email/phone at the provider, so
+            # a match beyond the first page is reachable. Products/orders
+            # REST has no search param, so they keep the client-side filter
+            # but now page with Shopify's opaque page_info cursor (Link
+            # header) instead of silently ending at page one.
+            query = params.get("query") or ""
+            if entity == "customer" and query:
+                items = await shopify.search_customers(
+                    access_token, shop, query,
+                    limit=(read.limit if read.explicit_limit else 20))
+                result = {"status": "success", "data": items or []}
+                return result
             fetch = {
                 "product": shopify.get_products,
                 "order": shopify.get_orders,
@@ -1040,16 +1316,34 @@ class UniversalIntegrationService:
             }.get(entity)
             if fetch is None:
                 return {"status": "error", "message": f"Unsupported shopify entity: {entity}"}
-            items = await fetch(access_token, shop)
-            return {"status": "success", "data": self._filter_by_query(items or [], params.get("query") or "")}
+            items = await fetch(
+                access_token, shop,
+                limit=(read.limit if read.explicit_limit else 20),
+                page_info=page_info, meta_out=meta,
+            )
+            result = {"status": "success",
+                      "data": self._filter_by_query(items or [], query)}
+            if meta.get("next_page_info"):
+                result["_next_page_token"] = meta["next_page_info"]
+                result["_has_more"] = True
+            return result
 
         if action == "list":
             if entity == "product":
-                return {"status": "success", "data": await shopify.get_products(access_token, shop)}
+                return {"status": "success", "data": await shopify.get_products(
+                    access_token, shop, limit=(read.limit if read.explicit_limit else 20),
+                    page_info=page_info, meta_out=meta),
+                    **({"_next_page_token": meta["next_page_info"]} if meta.get("next_page_info") else {})}
             elif entity == "order":
-                return {"status": "success", "data": await shopify.get_orders(access_token, shop)}
+                return {"status": "success", "data": await shopify.get_orders(
+                    access_token, shop, limit=(read.limit if read.explicit_limit else 20),
+                    page_info=page_info, meta_out=meta),
+                    **({"_next_page_token": meta["next_page_info"]} if meta.get("next_page_info") else {})}
             elif entity == "customer":
-                return {"status": "success", "data": await shopify.get_customers(access_token, shop)}
+                return {"status": "success", "data": await shopify.get_customers(
+                    access_token, shop, limit=(read.limit if read.explicit_limit else 20),
+                    page_info=page_info, meta_out=meta),
+                    **({"_next_page_token": meta["next_page_info"]} if meta.get("next_page_info") else {})}
         elif action == "create" and entity == "fulfillment":
             return {"status": "success", "data": await shopify.create_fulfillment(
                 access_token, shop, params.get("order_id"), params.get("location_id"),
@@ -1327,10 +1621,27 @@ class UniversalIntegrationService:
 
     async def _search_communication(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Global search parity for communication platforms"""
+        read = context.get("read_query")
         if service == "slack":
             from integrations.slack_service_unified import slack_unified_service
-            res = await slack_unified_service.make_request("GET", "search.messages", params={"query": query}, token=context.get("access_token"))
-            return {"status": "success", "data": res}
+            # search_messages carries Slack's 1-based `page` — the read shape's
+            # opaque token is that page number as a string.
+            page = 1
+            if read is not None and read.page_token:
+                try:
+                    page = max(1, int(str(read.page_token).strip()))
+                except ValueError:
+                    page = 1
+            res = await slack_unified_service.search_messages(
+                token=context.get("access_token"), query=query,
+                count=(read.limit if read is not None and read.explicit_limit else 100),
+                page=page,
+            )
+            pagination = ((res or {}).get("messages") or {}).get("pagination") or {}
+            result: Dict[str, Any] = {"status": "success", "data": res}
+            if pagination.get("page_count") and int(pagination["page_count"]) > page:
+                result["_next_page_token"] = str(page + 1)
+            return result
         elif service == "google_chat":
             from integrations.atom_google_chat_integration import atom_google_chat_integration
             return {"status": "success", "data": await atom_google_chat_integration.unified_search(query)}
@@ -1364,32 +1675,40 @@ class UniversalIntegrationService:
             # planner-planned outlook searches through the universal path
             # previously had no branch at all and errored into the memory
             # fallback while the mailbox was never queried.
+            # search_emails_paged follows @odata.nextLink (short Graph pages
+            # no longer truncate the result silently) and exposes the
+            # continuation token the read-shape envelope surfaces as
+            # page.next_page_token.
             from integrations.outlook_service import (
                 outlook_service,
                 sanitize_graph_kql,
             )
             kql = sanitize_graph_kql(query) or query
-            emails = await outlook_service.search_emails(
+            paged = await outlook_service.search_emails_paged(
                 user_id=context.get("user_id"), query=kql,
-                max_results=10, quote=False,
+                max_results=(read.limit if read is not None and read.explicit_limit else 10),
+                quote=False,
+                page_token=(read.page_token if read is not None else None),
             )
-            return {"status": "success", "data": emails or []}
+            result = {"status": "success", "data": paged.get("emails") or []}
+            if paged.get("next_page_token"):
+                result["_next_page_token"] = paged["next_page_token"]
+                result["_has_more"] = True
+            return result
         # Add more search handlers...
         return {"status": "success", "data": []}
 
     async def _search_calendar(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Search calendar events"""
-        # Calendar search usually involves listing events in a range and filtering
-        # For parity, we list upcoming events and filter by title/description
+        # Google Calendar's events.list takes a server-side ``q`` (matches
+        # title/description/attendees/locations) — pushing it down searches
+        # the WHOLE window instead of filtering the first max_results events
+        # client-side, which buried the named event under whatever the
+        # window's first page happened to be.
         if service == "google_calendar":
             from integrations.google_calendar_service import google_calendar_service
-            events = google_calendar_service.get_events()
-            return {"status": "success",
-                    "data": filter_by_terms(
-                        events, query,
-                        text_of=lambda e: " ".join([
-                            e.get("title") or "", e.get("description") or "",
-                        ]))}
+            events = await google_calendar_service.get_events(q=query or None)
+            return {"status": "success", "data": events or []}
         return []
 
     # --- Project Management ---
@@ -2166,8 +2485,19 @@ class UniversalIntegrationService:
         if service == "github":
             from integrations.github_service import GitHubService
             github_service = GitHubService()
-            # Generic repo search or issue search — any-term ranked, same
-            # identifier-tolerant filter as the other client-side families.
+            # GitHub has a real search API (/search/repositories?q=) that
+            # reaches every repo the token can see — listing the user's own
+            # repos and filtering client-side can only ever match owned
+            # repos (and only the first page of them). Server search first;
+            # the client-side filter stays as the unauthenticated fallback.
+            query = (query or "").strip()
+            if query:
+                try:
+                    hits = github_service.search_repositories(query)
+                    if hits:
+                        return {"status": "success", "data": hits}
+                except Exception as search_err:  # noqa: BLE001 — fall back below
+                    logger.warning(f"github server search failed, falling back to repo list: {search_err}")
             repos = github_service.get_user_repositories()
             return {"status": "success",
                     "data": filter_by_terms(repos, query,
@@ -2197,15 +2527,34 @@ class UniversalIntegrationService:
 
     # --- Finance Platforms ---
     async def _search_finance(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
-        """Search across finance platforms — finance list endpoints have no
-        server-side search param, so pull the recent list and filter
-        client-side (same pattern as _search_dev). Shared by the search()
-        entry and the execute-path search bridge."""
+        """Search across finance platforms.
+
+        Stripe has a real server-side Search API (charges/search) reaching
+        the WHOLE account; the other finance providers expose list endpoints
+        only, so those keep the pull-recent-list-and-filter shape (the read
+        envelope's page block now marks those results as one unverified
+        page). Shared by the search() entry and the execute-path search
+        bridge."""
         fin_service = await context["registry"].get_service_instance(service, context.get("tenant_id", "system"))
         token = getattr(fin_service, "access_token", None) or context.get("access_token")
         if not fin_service:
             return {"status": "error", "message": f"{service} service unavailable"}
+        read = context.get("read_query")
         if service == "stripe":
+            query = (query or "").strip()
+            if query and hasattr(fin_service, "search_charges"):
+                # Server-side search over every charge — the client-side
+                # filter below could only ever match the newest 25.
+                try:
+                    paged = await fin_service.search_charges(
+                        query, limit=(read.limit if read is not None and read.explicit_limit else 25))
+                    result: Dict[str, Any] = {"status": "success", "data": paged.get("data", [])}
+                    if paged.get("next_page_token"):
+                        result["_next_page_token"] = paged["next_page_token"]
+                        result["_has_more"] = True
+                    return result
+                except Exception as search_err:  # noqa: BLE001 — fall back below
+                    logger.warning(f"stripe server search failed, falling back to recent list: {search_err}")
             # StripeAdapter.get_charges — the branch used to call
             # list_payments, a method that exists on no stripe class
             # (AttributeError on the first live finance search).
@@ -2400,9 +2749,31 @@ class UniversalIntegrationService:
 
     # --- Generic Native Handler ---
     async def _execute_generic_native(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Fallback handler for other native integrations"""
-        logger.info(f"Generic native handler for {service}.{action}")
-        return {"status": "success", "message": f"Action {action} routed to {service} (generic handler)"}
+        """Refuse honestly for a native service with no implemented action.
+
+        This used to return ``{"status": "success", "message": "Action X
+        routed to Y (generic handler)"}`` with NO data. An agent that
+        planned a real question onto that path saw a success envelope, had
+        nothing to ground on, and answered from the model's priors — the
+        fabrication class this repo has a test history for. An explicit
+        error is strictly better: the agent learns the capability is
+        missing and can say so, and the tool-error signal feeds the
+        evolution harness instead of being lost.
+        """
+        logger.info(f"Generic native handler refused {service}.{action}")
+        return {
+            "status": "error",
+            "error": "unsupported_action",
+            "service": service,
+            "action": action,
+            "message": (
+                f"'{action}' is not implemented for {service} in the native "
+                f"integration layer — no data was fetched. Do not assume a "
+                f"result. Use a supported action for {service} (list / search "
+                f"/ get) or the dedicated tool for this platform."
+            ),
+            "supported_actions": ["list", "search", "get", "create", "update"],
+        }
 
     # --- Activepieces Fallback ---
     async def _execute_activepieces(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -2431,24 +2802,43 @@ class UniversalIntegrationService:
         if action == "list_reviews":
             return {"status": "success", "data": await marketing_skills_service.manage_reviews(self.workspace_id, service)}
         elif action == "reply_to_review":
-            # Real implementation would call the integration API
+            # No review platform API call is implemented here. This used to
+            # return "Successfully replied to review X" — a fabricated
+            # confirmation for a message that was never sent, which the
+            # agent then reported to the user as done.
             return {
-                "status": "success", 
-                "message": f"Successfully replied to review {params.get('review_id')} on {service}."
+                "status": "error",
+                "error": "unsupported_action",
+                "service": service,
+                "action": action,
+                "message": (
+                    f"Posting a reply to a {service} review is not implemented "
+                    f"— nothing was sent to the platform. Tell the user the "
+                    f"reply could not be posted rather than confirming it."
+                ),
             }
         return {"status": "error", "message": f"Unknown review action: {action}"}
 
     async def _execute_marketing_ads(self, service, action, params, context):
+        """Honest refusal for the Ads platforms (Meta, Google, LinkedIn).
+
+        The previous body returned ``{"data": {"count": 10, "insights":
+        "Performance trending positive."}}`` for EVERY action — invented ad
+        metrics that an agent presented as the user's campaign performance.
+        No fabricated numbers, ever: an unimplemented read must look
+        unimplemented.
         """
-        Generic handler for Ads platforms (Meta, Google, LinkedIn).
-        """
-        logger.info(f"Executing Ads action {action} on {service}")
-        # Placeholder for real Ads API calls
+        logger.info(f"Ads action {action} requested on {service} (unimplemented)")
         return {
-            "status": "success",
+            "status": "error",
+            "error": "unsupported_action",
             "service": service,
             "action": action,
-            "data": {"count": 10, "insights": "Performance trending positive."}
+            "message": (
+                f"The {service} advertising API is not connected in this "
+                f"build — no insights were retrieved. Do NOT report campaign "
+                f"numbers; tell the user ads reporting is unavailable."
+            ),
         }
 
 # Singleton instance for platform-wide usage
