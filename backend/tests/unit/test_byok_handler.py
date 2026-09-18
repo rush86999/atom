@@ -30,7 +30,7 @@ def mock_byok_manager():
     """Mock BYOKManager for provider key management"""
     manager = MagicMock()
     manager.is_configured = MagicMock(return_value=True)
-    manager.get_api_key = MagicMock(side_effect=lambda provider_id, key_name="default": {
+    manager.get_api_key = MagicMock(side_effect=lambda provider_id, key_name="default", tenant_id=None: {
         "openai": "sk-test-openai-key-12345",
         "anthropic": "sk-ant-test-key-67890",
         "deepseek": "sk-deepseek-test-key",
@@ -928,7 +928,8 @@ class TestClientInitializationExtended:
         """Test multiple providers can be initialized."""
         mock_byok_manager = MagicMock()
         mock_byok_manager.is_configured.return_value = True
-        mock_byok_manager.get_api_key.side_effect = lambda p, k=None: f"key-{p}"
+        mock_byok_manager.get_api_key.side_effect = (
+            lambda p, k=None, tenant_id=None: f"key-{p}")
 
         with patch('core.llm.byok_handler.OpenAI') as mock_openai:
             with patch('core.llm.byok_handler.AsyncOpenAI'):

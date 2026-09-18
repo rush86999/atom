@@ -115,6 +115,107 @@ def _is_question(text: str) -> bool:
     return text.rstrip().endswith("?")
 
 
+# MID-MESSAGE directive channel. The opening-anchored rule above misses the way
+# people actually teach while working: the rule arrives AFTER the request that
+# prompted it — "open PRICE VIPUL (6).xlsx and show the derivation. use the above
+# formula as a backup for figuring out the list price from a dealer's used
+# machine" (live 2026-09-16; that instruction was neither stored nor even
+# suggested, so the next turn answered as if it had never been said). This
+# detects the directive anywhere in the message and offers THAT CLAUSE as the
+# lesson, still confirm-first — detection never writes.
+_MID_TEACH_RE = re.compile(
+    r"(?:^|(?<=[.!?;])\s+|\n)\s*"
+    r"(?P<cue>"
+    r"from now on\b|going forward\b|"
+    r"(?:please\s+)?(?:always|never)\b|"
+    r"remember(?:\s+that)?\b|keep in mind(?:\s+that)?\b|"
+    r"use\s+(?:the\s+)?(?:above|following|this)\b|"
+    r"as\s+a\s+(?:backup|back-up|fallback|secondary\s+option|default)\b|"
+    r"(?:this|that)\s+is\s+how\s+we\b|"
+    r"the\s+rule\s+is\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def detect_mid_message_cue(message: Any) -> Optional[str]:
+    """The directive clause when teaching appears MID-message.
+
+    Returns the sentence carrying the directive (not the whole message, which
+    usually also contains the request), or None. Confirm-first like the opening
+    channel: this only ever produces a suggestion.
+    """
+    text = " ".join(str(message or "").split())
+    if not text:
+        return None
+    # A directive that is itself a question ("should I always…?") is not teaching.
+    for match in _MID_TEACH_RE.finditer(text):
+        start = match.start("cue")
+        # "never mind" / "always the case" are conversational idiom, not
+        # directives — the `never` branch matched "never mind, that is fine"
+        # (caught by a test before it shipped a suggestion for it).
+        if re.match(r"(?:never|always)\s+(?:mind|the\s+case|hurt)\b",
+                    text[start:start + 24], re.IGNORECASE):
+            continue
+        # Sentence containing the cue, including any lead-in clause before it.
+        head = max(
+            text.rfind(".", 0, start) + 1,
+            text.rfind("!", 0, start) + 1,
+            text.rfind("?", 0, start) + 1,
+        )
+        tail = len(text)
+        for stop in (".", "!", "?"):
+            idx = text.find(stop, start)
+            if idx != -1:
+                tail = min(tail, idx + 1)
+        # CARRY THE ELABORATION. The rule is often stated in one sentence and
+        # EXPLAINED in the next: "use the above formula as a backup for pricing a
+        # used machine. Used machinery price is calculated from the new retail
+        # price depreciated to the machine's age." Returning only the first
+        # sentence suggested a lesson that omitted the actual method (live
+        # 2026-09-16). Continue through following sentences while they read as
+        # elaboration, stopping at a question or at the length bound.
+        while True:
+            nxt = _next_sentence_span(text, tail)
+            if nxt is None:
+                break
+            s_start, s_end, s_text = nxt
+            if s_text.rstrip().endswith("?"):
+                break
+            if _MID_TEACH_RE.search(s_text) or _TEACHING_CUE_RE.match(s_text):
+                break  # a new directive starts; do not merge two rules
+            if len(text[head:s_end].strip()) > _MAX_LESSON_CHARS:
+                break
+            tail = s_end
+        clause = text[head:tail].strip(" \t\n:,-\u2013\u2014")
+        clause = _LEAD_IN_RE.sub("", clause).strip(" \t\n:,-\u2013\u2014")
+        if not clause or clause.rstrip().endswith("?"):
+            continue
+        if len(clause) < _MIN_LESSON_CHARS or len(clause) > _MAX_LESSON_CHARS:
+            continue
+        return clause
+    return None
+
+
+def _next_sentence_span(text: str, after: int):
+    """``(start, end, sentence)`` of the next non-empty sentence after ``after``."""
+    i = after
+    n = len(text)
+    while i < n and text[i] in " \t\n":
+        i += 1
+    if i >= n:
+        return None
+    end = n
+    for stop in (".", "!", "?"):
+        idx = text.find(stop, i)
+        if idx != -1:
+            end = min(end, idx + 1)
+    sentence = text[i:end].strip()
+    if not sentence:
+        return None
+    return i, end, sentence
+
+
 def detect_teaching_cue(message: Any) -> Optional[str]:
     """The lesson text when a message OPENS with a teaching directive.
 

@@ -154,25 +154,53 @@ class TestProviderServing:
         h = make_handler()
         assert h._provider_serves_model("openai", "") is True
 
-    def test_local_providers_always_serve(self):
+    def test_local_providers_serve_runtime_advertised_models(self, tmp_path, monkeypatch):
+        """Local runtimes answer from the runtime probe, not from a catalog:
+        ollama serves what its /api/tags advertises; a runtime with no probe
+        data advertises nothing, so nothing is assumed."""
         h = make_handler()
-        for pid in ("ollama", "vllm", "lmstudio", "local", "local_abc"):
-            assert h._provider_serves_model(pid, "anything") is True
+        monkeypatch.setattr(h, "_ollama_runtime_state", lambda: ("up", ["llama3"]))
+        assert h._provider_serves_model("ollama", "llama3") is True
+        for pid in ("vllm", "lmstudio", "local", "local_abc"):
+            assert h._provider_serves_model(pid, "anything") is False
 
-    def test_gateway_providers_serve(self):
+    def test_gateway_providers_serve_from_discovered_catalog(self, tmp_path, monkeypatch):
+        """Gateways answer from DISCOVERY, never gateway-accepts-anything:
+        the old behavior made every catalog identifier eligible for every
+        gateway, which is how a ladder of three providers failed on all
+        three rungs. Never-discovered is UNKNOWN — support is not assumed."""
+        import core.llm.model_route_registry as mrr
+
+        catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+        monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
         h = make_handler()
         for pid in ("opencode-go", "opencode", "zen", "openrouter"):
-            assert h._provider_serves_model(pid, "any-model") is True
+            assert h._provider_serves_model(pid, "any-model") is False
+        catalog.record_discovery("openrouter", ["meta-llama/llama-3"])
+        catalog.record_discovery("opencode-go", ["deepseek-v4-flash"])
+        assert h._provider_serves_model("openrouter", "meta-llama/llama-3") is True
+        assert h._provider_serves_model("opencode-go", "deepseek-v4-flash") is True
+        assert h._provider_serves_model("zen", "any-model") is False
 
-    def test_family_prefixes(self):
+    def test_family_prefixes(self, tmp_path, monkeypatch):
+        """Identity comes from the provider's DISCOVERED catalogue, not from
+        name-family prefixes: deepseek serving 'deepseek-chat' is a fact of
+        its catalogue, not of its name."""
+        import core.llm.model_route_registry as mrr
+
+        catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+        monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
         h = make_handler()
+        catalog.record_discovery("deepseek", ["deepseek-chat"])
+        catalog.record_discovery("anthropic", ["claude-3-5-sonnet"])
+        catalog.record_discovery("openai", ["gpt-4o"])
+        catalog.record_discovery("moonshot", ["kimi-k2"])
         assert h._provider_serves_model("deepseek", "deepseek-chat") is True
         assert h._provider_serves_model("anthropic", "claude-3-5-sonnet") is True
         assert h._provider_serves_model("openai", "gpt-4o") is True
         assert h._provider_serves_model("openai", "claude-x") is False
         assert h._provider_serves_model("moonshot", "kimi-k2") is True
-        assert h._provider_serves_model("unknown_provider", "model-x") is False
-        assert h._provider_serves_model("qwen", "qwen-plus") is True
+        assert h._provider_serves_model("qwen", "qwen-plus") is False
 
 
 class TestFallbackOrder:

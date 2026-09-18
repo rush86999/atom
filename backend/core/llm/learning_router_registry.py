@@ -306,6 +306,9 @@ async def record_fabrication_signal(
     tenant_id: str = "default",
     unsupported_figures: Optional[list] = None,
     ungrounded_claims: Optional[list] = None,
+    routing_result_id: Optional[str] = None,
+    provider_id: Optional[str] = None,
+    rule: Optional[str] = None,
 ) -> bool:
     """Tell the learning router that this MODEL FABRICATED on a real turn.
 
@@ -323,7 +326,15 @@ async def record_fabrication_signal(
     raises) when the learning router is off, so the flag stays the only switch.
 
     ``model_id`` should be the model that PRODUCED the reply (the resolved
-    model), not the one that was requested."""
+    model), not the one that was requested.
+
+    ``routing_result_id`` is the GENERATION this verdict judges — the id the
+    generation path published in its result payload (``LLMService`` surfaces it
+    as ``routing_result_id``). Supplying it makes the verdict annotate the
+    outcome row that generation already wrote, so the ledger stays one row per
+    generation and repeated corrections stay idempotent. Omit it only when no
+    outcome row exists; the verdict is then its own generation, which the
+    accounting counts honestly instead of merging into somebody else's."""
     # NO SIGNAL, NO OBSERVATION. `assess_response_quality(content="")` reports
     # an "empty" issue, so calling it unconditionally would write a bogus
     # fabrication row for every clean turn — the guard must require an actual
@@ -346,12 +357,25 @@ async def record_fabrication_signal(
         import uuid
 
         routed_task = task_type or "general"
+        # Join the generation that produced the reply when the caller knows it;
+        # otherwise this verdict is a generation of its own (see docstring).
+        generation_id = (str(routing_result_id).strip()
+                         if routing_result_id else str(uuid.uuid4()))
+        # WHICH RULE judged: stamped on the row so a consumer that EXCLUDES a
+        # route on verdict evidence can require a rule able to tell "computed
+        # from the delivered formulas" apart from "invented" (see
+        # ``fabrication_accounting.CURRENT_VERDICT_RULES``). Defaults to the
+        # deterministic figure check, which is this entry point's caller.
+        from core.llm.fabrication_accounting import FIGURE_VERDICT_RULE
+
         feedback = LearningBasedRouter.build_feedback(
-            routing_result_id=str(uuid.uuid4()),
+            routing_result_id=generation_id,
             tenant_id=tenant_id or "default",
             model_id=model_id,
             task_type=routed_task,
             quality=quality,
+            provider_id=provider_id,
+            verdict_rule=rule or FIGURE_VERDICT_RULE,
         )
         # OBSERVATION IS ALWAYS RECORDED, even with the learning router's
         # routing switch off. The flag gates whether BPC RE-RANKS by the
@@ -361,20 +385,39 @@ async def record_fabrication_signal(
         # is the audit trail ("which model fabricated what, when").
         from core.learning_llm_router import LearningBasedRouter
 
-        writer = LearningBasedRouter.__new__(LearningBasedRouter)
-        try:
-            writer._persist_feedback(feedback, {"verdict": (
-                "unsupported_figures" if unsupported_figures
-                else "ungrounded_claims")})
-            _persisted = True
-        except Exception as persist_err:  # noqa: BLE001
-            logger.debug(f"fabrication row persist skipped: {persist_err}")
-            _persisted = False
+        verdict = ("unsupported_figures" if unsupported_figures
+                   else "ungrounded_claims")
 
+        # ONE WRITE PER VERDICT. This used to write the row here AND let
+        # ``record_feedback`` write it again (with ``recovered_features=None``),
+        # so a single fabrication produced TWO rows — one carrying the verdict,
+        # one carrying none (measured 2026-09-16: one verdict -> two
+        # ``_persist_feedback`` calls, and two identical live rows sharing
+        # routing_result_id ad1fa3e1-…).
+        #
+        # The verdict travels on ``feedback.verdict`` — a FIRST-CLASS field, not
+        # a key inside ``_prompt_features``. That dict is replaced wholesale when
+        # ``record_feedback`` recovers the stashed decision features, so a
+        # verdict riding there was silently lost and the annotation became a
+        # second row (reproduced 2026-09-16 through this entry point). The
+        # manual write is kept only for the flag-off path, where no router
+        # exists to do it.
+        feedback.verdict = verdict
         router = get_learning_router_instance()
+        _persisted = False
         if router is not None:
-            # Flag on: also feed the in-memory preference set + retrain.
             await router.record_feedback(feedback)
+            _persisted = True
+        else:
+            writer = LearningBasedRouter.__new__(LearningBasedRouter)
+            try:
+                writer._persist_feedback(
+                    feedback,
+                    {"verdict": verdict,
+                     "verdict_rule": feedback.verdict_rule})
+                _persisted = True
+            except Exception as persist_err:  # noqa: BLE001
+                logger.debug(f"fabrication row persist skipped: {persist_err}")
         logger.info(
             "[LearningRouter] fabrication observed for %s (%s): %s%s",
             model_id, routed_task, ", ".join(quality.issues),
@@ -383,6 +426,158 @@ async def record_fabrication_signal(
         return bool(_persisted or router is not None)
     except Exception as e:  # noqa: BLE001 — telemetry must never break a turn
         logger.debug(f"fabrication signal skipped: {e}")
+        return False
+
+
+async def record_evidence_ignored(
+    model_id: str,
+    task_type: Optional[str] = None,
+    tenant_id: str = "default",
+    routing_result_id: Optional[str] = None,
+    provider_id: Optional[str] = None,
+    detail: Optional[list] = None,
+) -> bool:
+    """Tell the learning router this MODEL WAS HANDED THE ANSWER AND DID NOT USE IT.
+
+    The deterministic derivation guard fires when the delivered evidence block
+    carried the matched workbook row and its formulas and the reply cites no
+    row. Measured 2026-09-16 with byte-identical evidence: one model walked the
+    chain (row 235, six formulas, unresolved O235) while another answered "the
+    required live-data lookup failed" or asked the user to confirm which record
+    they meant. Wording-based inability guards catch only some of those
+    phrasings; this records the FACT.
+
+    Distinct from ``record_fabrication_signal``: nothing was invented, so the
+    row is scored 0.25 (above the fabrication band, below a refusal) and its
+    verdict (``evidence_ignored``) is counted in its own class — never as a
+    fabrication and never as a grounding pass (see
+    ``core.llm.fabrication_accounting``). What it gives the router is the thing
+    the incident needed: a per-model, per-route observation that refusing
+    delivered evidence is a low-satisfaction outcome, so the per-model
+    predictor down-ranks it on later turns.
+
+    ``provider_id`` is the provider half of the route that produced the reply.
+    Without it a judgement cannot be attributed to a route (model identifiers
+    collide across gateways), so callers that know the serving provider must
+    pass it.
+
+    ``routing_result_id`` annotates the generation that produced the reply, so
+    the ledger stays one row per generation and repeats are idempotent.
+    Best-effort: returns False (never raises) when the signal cannot be
+    recorded.
+    """
+    if not model_id:
+        return False
+    try:
+        from core.learning_llm_router import LearningBasedRouter
+        from core.llm.response_quality import assess_response_quality
+
+        quality = assess_response_quality(
+            # Non-empty placeholder: the verdict IS the signal — this call must
+            # not re-judge content the caller already judged (same rule as the
+            # fabrication signal, which would otherwise report "empty" and
+            # write a bogus row for every clean turn).
+            content="[guarded reply]",
+            evidence_ignored=detail or ["delivered evidence was not used"],
+        )
+        import uuid
+
+        routed_task = task_type or "general"
+        generation_id = (str(routing_result_id).strip()
+                         if routing_result_id else str(uuid.uuid4()))
+        feedback = LearningBasedRouter.build_feedback(
+            routing_result_id=generation_id,
+            tenant_id=tenant_id or "default",
+            model_id=model_id,
+            task_type=routed_task,
+            quality=quality,
+            provider_id=provider_id,
+        )
+        feedback.verdict = "evidence_ignored"
+
+        # OBSERVATION IS NOT GATED by the routing flag — same rule as the
+        # fabrication and grounding signals: the row is the audit trail and the
+        # data supply the auto-mode readiness check flips on.
+        router = get_learning_router_instance(observe_only=True)
+        _persisted = False
+        if router is not None:
+            await router.record_feedback(feedback)
+            _persisted = True
+        else:
+            writer = LearningBasedRouter.__new__(LearningBasedRouter)
+            try:
+                writer._persist_feedback(
+                    feedback, {"verdict": "evidence_ignored"})
+                _persisted = True
+            except Exception as persist_err:  # noqa: BLE001
+                logger.debug(f"evidence-ignored row persist skipped: {persist_err}")
+        logger.info(
+            "[LearningRouter] evidence ignored by %s/%s (%s): delivered "
+            "evidence was not used%s",
+            provider_id or "?", model_id, routed_task,
+            "" if router is not None else " [routing flag off — recorded, not routed]",
+        )
+        return bool(_persisted or router is not None)
+    except Exception as e:  # noqa: BLE001 — telemetry must never break a turn
+        logger.debug(f"evidence-ignored signal skipped: {e}")
+        return False
+
+
+
+async def record_grounding_pass(
+    model_id: str,
+    task_type: Optional[str] = None,
+    tenant_id: str = "default",
+    routing_result_id: Optional[str] = None,
+    provider_id: Optional[str] = None,
+) -> bool:
+    """Record that the grounding check RAN on this generation and passed.
+
+    The NEGATIVE signal already existed (``record_fabrication_signal``); what
+    was missing is the positive one. Without it, a generation with no
+    fabrication verdict is indistinguishable from one that was never checked —
+    and ``user_satisfaction`` cannot tell them apart either, because it is the
+    heuristic assessment (truncation / refusal / schema / empty), not a
+    grounding result. The incident's confidently wrong replies scored well.
+
+    Fabrication accounting therefore requires this marker to place a
+    generation in the denominator (``grounding_ok``). Emitting it is the only
+    way the rate becomes a real measurement instead of "1.0 by construction".
+
+    Annotates the generation's existing outcome row when
+    ``routing_result_id`` is supplied (one UPDATE, no new row); a caller that
+    cannot supply one writes a standalone marker row, which the accounting
+    counts as its own generation. Best-effort: never raises.
+    """
+    if not model_id:
+        return False
+    try:
+        import uuid as _uuid
+
+        from core.learning_llm_router import LearningBasedRouter
+        from core.llm.response_quality import assess_response_quality
+
+        generation_id = (str(routing_result_id).strip()
+                         if routing_result_id else str(_uuid.uuid4()))
+        feedback = LearningBasedRouter.build_feedback(
+            routing_result_id=generation_id,
+            tenant_id=tenant_id or "default",
+            model_id=model_id,
+            task_type=task_type or "general",
+            quality=assess_response_quality(content="[grounding check ran]"),
+            provider_id=provider_id,
+        )
+        feedback.verdict = "grounding_ok"
+
+        router = get_learning_router_instance(observe_only=True)
+        if router is not None:
+            await router.record_feedback(feedback)
+            return True
+        writer = LearningBasedRouter.__new__(LearningBasedRouter)
+        writer._persist_feedback(feedback, {"verdict": "grounding_ok"})
+        return True
+    except Exception as e:  # noqa: BLE001 — telemetry must never break a turn
+        logger.debug(f"grounding-pass signal skipped: {e}")
         return False
 
 

@@ -631,13 +631,18 @@ class GenericAgent:
 
                         # Special handling for Tool Search
                         if tool_name == "mcp_tool_search" and "Found" in str(observation):
-                            # The tool execution itself returns the text, but we need to fetch the objects 
-                            # to add to session_tools. 
+                            # The tool execution itself returns the text, but we need to fetch the objects
+                            # to add to session_tools.
                             # Re-running search here efficiently (or could parse the Text, but re-running is safer)
                             query = tool_args.get("query", "")
                             found_tools = await self.mcp.search_tools(query, limit=5)
                             self.session_tools.extend(found_tools)
-                            logger.info(f"Agent {self.name} lazy-loaded {len(found_tools)} tools for next step.")
+                            # Bounded accumulation (2026-09-16 audit, gap #4):
+                            # nothing evicted before, so a long session carried
+                            # every stale lazy-load in every later prompt.
+                            from core.agent_tool_budget import trim_session_tools
+                            self.session_tools = trim_session_tools(self.session_tools)
+                            logger.info(f"Agent {self.name} lazy-loaded {len(found_tools)} tools for next step (session tools: {len(self.session_tools)}).")
 
                         
                         if step_callback:
@@ -1171,7 +1176,16 @@ class GenericAgent:
                     "parameters": {},
                 })
 
-        tool_descriptions = json.dumps([{"name": t["name"], "description": t.get("description", "")} for t in unique_active_tools], indent=2)
+        # Bounded render (2026-09-16 audit, gap #4): over the cap the model
+        # sees the first ATOM_AGENT_TOOL_PROMPT_CAP entries plus this
+        # pointer — a hidden tool it can't see must at least be discoverable.
+        from core.agent_tool_budget import render_tool_catalog
+        tool_descriptions, hidden_tool_count = render_tool_catalog(unique_active_tools)
+        if hidden_tool_count:
+            tool_descriptions += (
+                f"\n(+{hidden_tool_count} more tools exist but are not listed — "
+                "call mcp_tool_search with what you need to surface them.)"
+            )
         
         optimization = context.get("optimization", {})
         agent_model_tier = optimization.get("model") or "auto"
@@ -2069,6 +2083,10 @@ What is your next step?"""
                     act.params.get("query", ""), limit=5
                 )
                 self.session_tools.extend(found_tools)
+                # Bounded accumulation (2026-09-16 audit, gap #4) — same rule
+                # as the single-action path above.
+                from core.agent_tool_budget import trim_session_tools
+                self.session_tools = trim_session_tools(self.session_tools)
                 observation = (
                     f"Found {len(found_tools)} new tools (total: "
                     f"{len(self.session_tools)}). They have been added to your "

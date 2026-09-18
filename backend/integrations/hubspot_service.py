@@ -34,6 +34,48 @@ class HubSpotService(IntegrationService):
         # IntegrationHTTP wrapper for resilient API calls (circuit breaker,
         # rate limiting, retries, health monitoring).
         self.http = IntegrationHTTP(client=self.client)
+        #: Cursor the provider returned with the last list response
+        #: (``paging.next.after``). The universal service reads this to hand
+        #: the agent a continuation token — HubSpot's cursor is OPAQUE and
+        #: must be echoed back verbatim; it is NOT a numeric offset.
+        self.last_next_page_token: Optional[str] = None
+
+    @staticmethod
+    def _extract_next_cursor(payload: Dict[str, Any]) -> Optional[str]:
+        """``paging.next.after`` from a HubSpot list envelope, else None."""
+        paging = (payload or {}).get("paging") or {}
+        nxt = paging.get("next") or {}
+        cursor = nxt.get("after") or nxt.get("link")
+        return str(cursor) if cursor else None
+
+    def _list_params(
+        self,
+        limit: int,
+        default_properties: str,
+        page_token: Optional[str] = None,
+        offset: int = 0,
+        properties: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Query params for a HubSpot v3 list call.
+
+        ``page_token`` is the opaque cursor from the previous response and
+        wins over the legacy numeric ``offset``.
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if properties:
+            params["properties"] = (
+                ",".join(properties)
+                if isinstance(properties, (list, tuple, set))
+                else str(properties)
+            )
+        else:
+            params["properties"] = default_properties
+        if page_token:
+            params["after"] = str(page_token)
+        elif offset:
+            # Legacy callers only, kept working for parity.
+            params["after"] = str(offset)
+        return params
 
     async def close(self):
         await self.client.aclose()
@@ -205,8 +247,15 @@ class HubSpotService(IntegrationService):
             logger.error(f"Unexpected error during HubSpot authentication: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def get_contacts(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get HubSpot contacts"""
+    async def get_contacts(self, limit: int = 100, offset: int = 0, token: Optional[str] = None,
+                           page_token: Optional[str] = None,
+                           properties: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """Get HubSpot contacts (one page).
+
+        ``page_token`` continues from the previous response's opaque
+        ``paging.next.after`` cursor; ``properties`` narrows the columns the
+        provider returns (server-side projection).
+        """
         try:
             # Use provided token or fall back to instance token or env
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -215,13 +264,13 @@ class HubSpotService(IntegrationService):
                  raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {"Authorization": f"Bearer {active_token}"}
-            params = {
-                "limit": limit,
-                "properties": "email,firstname,lastname,company,phone,createdate,lastmodifieddate,lifecyclestage,hs_lead_status",
-            }
-
-            if offset > 0:
-                params["after"] = offset
+            params = self._list_params(
+                limit,
+                "email,firstname,lastname,company,phone,createdate,lastmodifieddate,lifecyclestage,hs_lead_status",
+                page_token=page_token,
+                offset=offset,
+                properties=properties,
+            )
 
             response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/contacts",
@@ -231,6 +280,7 @@ class HubSpotService(IntegrationService):
             response.raise_for_status()
 
             data = response.json()
+            self.last_next_page_token = self._extract_next_cursor(data)
             return data.get("results", [])
 
         except httpx.HTTPError as e:
@@ -239,21 +289,23 @@ class HubSpotService(IntegrationService):
                 status_code=400, detail="Internal error"
             )
 
-    async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get HubSpot companies"""
+    async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None,
+                            page_token: Optional[str] = None,
+                            properties: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """Get HubSpot companies (one page)."""
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {"Authorization": f"Bearer {active_token}"}
-            params = {
-                "limit": limit,
-                "properties": "name,domain,industry,city,state,country,createdate,lastmodifieddate",
-            }
-
-            if offset > 0:
-                params["after"] = offset
+            params = self._list_params(
+                limit,
+                "name,domain,industry,city,state,country,createdate,lastmodifieddate",
+                page_token=page_token,
+                offset=offset,
+                properties=properties,
+            )
 
             response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/companies",
@@ -263,6 +315,7 @@ class HubSpotService(IntegrationService):
             response.raise_for_status()
 
             data = response.json()
+            self.last_next_page_token = self._extract_next_cursor(data)
             return data.get("results", [])
 
         except httpx.HTTPError as e:
@@ -271,21 +324,23 @@ class HubSpotService(IntegrationService):
                 status_code=400, detail="Internal error"
             )
 
-    async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get HubSpot deals"""
+    async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None,
+                        page_token: Optional[str] = None,
+                        properties: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """Get HubSpot deals (one page)."""
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {"Authorization": f"Bearer {active_token}"}
-            params = {
-                "limit": limit,
-                "properties": "dealname,amount,dealstage,pipeline,closedate,createdate,lastmodifieddate,hubspot_owner_id",
-            }
-
-            if offset > 0:
-                params["after"] = offset
+            params = self._list_params(
+                limit,
+                "dealname,amount,dealstage,pipeline,closedate,createdate,lastmodifieddate,hubspot_owner_id",
+                page_token=page_token,
+                offset=offset,
+                properties=properties,
+            )
 
             response = await self.http.get("hubspot", 
                 f"{self.base_url}/crm/v3/objects/deals", headers=headers, params=params
@@ -293,6 +348,7 @@ class HubSpotService(IntegrationService):
             response.raise_for_status()
 
             data = response.json()
+            self.last_next_page_token = self._extract_next_cursor(data)
             return data.get("results", [])
 
         except httpx.HTTPError as e:
@@ -330,24 +386,40 @@ class HubSpotService(IntegrationService):
                 status_code=400, detail="Internal error"
             )
 
-    async def search_content(self, query: str, object_type: str = "contact") -> Dict[str, Any]:
-        """Search HubSpot content"""
-        try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+    async def search_content(
+        self,
+        query: str,
+        object_type: str = "contact",
+        token: Optional[str] = None,
+        limit: int = 50,
+        after: Optional[int] = None,
+        properties: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Search HubSpot content (server-side CRM search API).
 
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+        ``token`` is honored explicitly — the universal integration service
+        resolves the tenant token and passes it here, and before this kwarg
+        existed every universal-path HubSpot search TypeError'd into the
+        error envelope. ``after`` is HubSpot's opaque ``paging.next.after``
+        cursor; ``properties`` narrows returned fields.
+        """
+        try:
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {active_token}"}
 
             search_url = (
                 f"{self.base_url}/crm/v3/objects/{object_type}/search"
             )
             payload = {
                 "query": query,
-                "limit": 50,
-                "properties": ["email", "firstname", "lastname", "company", "phone"],
+                "limit": max(1, min(int(limit), 100)),
+                "properties": properties or ["email", "firstname", "lastname", "company", "phone"],
             }
+            if after is not None:
+                payload["after"] = int(after)
 
             response = await self.http.post("hubspot", search_url, headers=headers, json=payload)
             response.raise_for_status()

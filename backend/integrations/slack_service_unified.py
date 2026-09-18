@@ -467,20 +467,30 @@ class SlackUnifiedService:
         query: str,
         sort: str = "timestamp",
         sort_dir: str = "desc",
-        count: int = 100
+        count: int = 100,
+        page: int = 1
     ) -> Dict[str, Any]:
-        """Search messages"""
+        """Search messages (paged).
+
+        Slack's ``search.messages`` pages with a 1-based ``page`` alongside
+        ``count``; the response carries ``pagination.total`` /
+        ``pagination.page_count`` so callers can tell a complete result set
+        from page one of many. The old signature dropped ``page`` entirely,
+        so every caller was pinned to page 1 while believing it had the
+        whole match set.
+        """
         try:
             params = {
                 'query': query,
                 'sort': sort,
                 'sort_dir': sort_dir,
-                'count': min(count, 1000)
+                'count': min(count, 1000),
+                'page': max(1, int(page))
             }
-            
+
             result = await self.make_request('GET', 'search.messages', params=params, token=token)
             return result
-            
+
         except Exception as e:
             raise SlackServiceError(f"Failed to search messages: {str(e)}")
     

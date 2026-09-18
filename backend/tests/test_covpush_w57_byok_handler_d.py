@@ -145,7 +145,12 @@ class TestChatCompletionSuccess:
                 [{"role": "user", "content": "hi"}], "gpt-4o", "openai")
         assert result["choices"][0]["message"]["content"] == "ok"
 
-    async def test_fallback_after_failure(self):
+    async def test_fallback_after_failure(self, tmp_path, monkeypatch):
+        import core.llm.model_route_registry as mrr
+
+        catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+        monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
+        catalog.record_discovery("deepseek", ["deepseek-chat"])
         bad = Mock()
         bad.chat.completions.create = AsyncMock(side_effect=RuntimeError("boom"))
         good = Mock()

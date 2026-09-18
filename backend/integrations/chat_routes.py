@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 # Add parent directory to path to import from backend
 import sys
 from typing import Any, Dict, Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Response, APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -53,6 +53,50 @@ def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
         or not str(owner).strip()
         or str(owner) in LEGACY_PLACEHOLDER_USER_IDS
     )
+
+
+def _context_canvas_id(context: Any) -> Optional[str]:
+    """The canvas a chat turn belongs to, from EITHER shape the clients send.
+
+    The canvas panel posts ``context={"canvas": {"id": ..., "canvas_type": ...,
+    "name": ...}}`` (the id NESTED under "canvas"), while this module read
+    ``context["canvas_id"]``. The key was therefore always absent for real panel
+    turns, so canvas agent resolution, the provenance hydration, the teaching
+    target and the session binding all silently no-opped — the logs showed
+    ``[CHATCTX] request.agent_id=None`` with the canvas plainly present in the
+    context (live 2026-09-16). Consequences: the canvas's own hire was never
+    attached (so every lesson taught to it was invisible in the panel the
+    operator was actually typing into), provenance questions could not be
+    answered, and the per-user thread binding never persisted.
+
+    Accepts both spellings so older callers keep working. Fault-isolated.
+    """
+    if not isinstance(context, dict):
+        return None
+    direct = context.get("canvas_id")
+    if direct:
+        return str(direct)
+    canvas = context.get("canvas")
+    if isinstance(canvas, dict):
+        nested = canvas.get("id") or canvas.get("canvas_id")
+        if nested:
+            return str(nested)
+    if isinstance(canvas, str) and canvas:
+        return canvas
+    return None
+
+
+def _context_canvas_type(context: Any) -> Optional[str]:
+    """The canvas KIND from either shape (see _context_canvas_id)."""
+    if not isinstance(context, dict):
+        return None
+    direct = context.get("canvas_type")
+    if direct:
+        return str(direct)
+    canvas = context.get("canvas")
+    if isinstance(canvas, dict) and canvas.get("canvas_type"):
+        return str(canvas["canvas_type"])
+    return None
 
 
 def _resolve_canvas_agent_id(canvas_id: str, tenant_id: Optional[str]) -> Optional[str]:
@@ -1141,12 +1185,28 @@ async def get_session_details(
 async def send_chat_message(
     request: ChatMessageRequest,
     http_request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: _Session = Depends(get_db),
 ) -> ChatMessageResponse:
     """
     Send a chat message to the ATOM chat orchestrator (authenticated with optional dev fallback)
     """
+    # Attribute THIS response to the instance that served it. A separate
+    # GET /api/health made beforehand can describe a different process — the
+    # first acceptance run was confounded exactly that way (cases 1-3 answered
+    # by one pid, cases 4-5 by a dead socket, one identity reported for all).
+    # The headers are set on the injected Response, so every return path below
+    # carries them.
+    try:
+        from core.runtime_identity import get_runtime_identity
+
+        _identity = get_runtime_identity()
+        for _name, _value in _identity.headers().items():
+            response.headers[_name] = _value
+    except Exception as _ident_err:  # noqa: BLE001 — attribution is best-effort
+        logger.debug(f"serving-instance headers skipped: {_ident_err}")
+
     try:
         # Resolve active user ID
         active_user_id = str(current_user.id) if current_user else (request.user_id or "demo-user")
@@ -1183,7 +1243,7 @@ async def send_chat_message(
         # then canvas provenance (audit rows carry the creating/editing
         # agent). Everything downstream (persona, role-scoped memory, tier
         # behavior, audit attribution, learning loop) keys off agent_id.
-        _canvas_id_for_agent = (request.context or {}).get("canvas_id")
+        _canvas_id_for_agent = _context_canvas_id(request.context)
         if not getattr(request, "agent_id", None) and _canvas_id_for_agent:
             _resolved = _resolve_canvas_agent_id(
                 str(_canvas_id_for_agent),
@@ -1227,7 +1287,7 @@ async def send_chat_message(
             _effective_agent_id = getattr(request, "agent_id", None) or (
                 request.context or {}
             ).get("agent_id")
-            _teaching_canvas_id = (request.context or {}).get("canvas_id")
+            _teaching_canvas_id = _context_canvas_id(request.context)
             _teaching_workspace_id = (
                 getattr(current_user, "workspace_id", None) or "default"
             )
@@ -1257,9 +1317,21 @@ async def send_chat_message(
             # Detected cue → confirm-first suggestion attached to the reply.
             _teaching_suggestion: Optional[Dict[str, Any]] = None
             try:
-                from core.chat_teaching import detect_teaching_cue, suggest_lesson
+                from core.chat_teaching import (
+                    detect_mid_message_cue,
+                    detect_teaching_cue,
+                    suggest_lesson,
+                )
 
-                _cue_lesson = detect_teaching_cue(request.message)
+                # Opening directive first; otherwise a directive that arrived
+                # MID-message ("…show the derivation. use the above formula as a
+                # backup for pricing a used machine"). The second channel exists
+                # because that is how instructions actually arrive while working,
+                # and without it the rule was neither stored nor even offered
+                # (live 2026-09-16). Still confirm-first — detection never writes.
+                _cue_lesson = detect_teaching_cue(request.message) or detect_mid_message_cue(
+                    request.message
+                )
                 if _cue_lesson:
                     _teaching_suggestion = suggest_lesson(
                         db,
@@ -1311,8 +1383,8 @@ async def send_chat_message(
         # across refreshes AND devices — localStorage only ever worked
         # per-browser. Latest turn wins, which is the panel's own behavior.
         _bind_canvas_chat_session(
-            canvas_id=(request.context or {}).get("canvas_id"),
-            canvas_type=(request.context or {}).get("canvas_type") or "generic",
+            canvas_id=_context_canvas_id(request.context),
+            canvas_type=_context_canvas_type(request.context) or "generic",
             user_id=active_user_id,
             tenant_id=getattr(current_user, "tenant_id", None),
             agent_id=getattr(request, "agent_id", None),

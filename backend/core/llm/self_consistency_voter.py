@@ -234,7 +234,7 @@ class SelfConsistencyVoter:
         overlays = self.diversity_overlays(n, enabled=is_moa_diversity_enabled())
 
         # R83 #1: same fan-out pins as vote_with_consensus.
-        fanout = self._resolve_fanout_targets(n)
+        fanout = self._resolve_fanout_targets(n, prompt=prompt)
 
         async def _one(temp: float, idx: int) -> T | None:
             overlay = overlays[idx] if idx < len(overlays) else ""
@@ -324,7 +324,7 @@ class SelfConsistencyVoter:
 
         # R83 #1: per-sample (provider, model) pins across available handlers
         # (all-None when fan-out is off / unavailable — silent degradation).
-        fanout = self._resolve_fanout_targets(n)
+        fanout = self._resolve_fanout_targets(n, prompt=prompt)
         fanout_labels = [f"{t[0]}/{t[1]}" if t else None for t in fanout]
 
         async def _one(temp: float, idx: int) -> T | None:
@@ -577,7 +577,7 @@ class SelfConsistencyVoter:
                 return 1.0
         return 1.0
 
-    def _resolve_fanout_targets(self, n: int) -> list[tuple | None]:
+    def _resolve_fanout_targets(self, n: int, prompt: str = "") -> list[tuple | None]:
         """R83 #1: per-sample (provider, model) pins across AVAILABLE handlers.
 
         Candidates come from the handler's own ranking
@@ -585,6 +585,16 @@ class SelfConsistencyVoter:
         resolution failure, a single candidate, or an unrankable handler
         returns all-``None`` pins: every sample runs through the handler's
         normal routing (silent single-handler degradation, one INFO log).
+
+        ``get_ranked_providers`` REQUIRES the query complexity (it is the first
+        positional parameter). This used to call ``ranked()`` with no
+        arguments, so every fan-out raised ``TypeError: missing 1 required
+        positional argument: 'complexity'`` and silently degraded to unpinned
+        samples — visible live as "SC fan-out: ranking failed … samples
+        unpinned" on every judged turn. The complexity is derived from the
+        prompt with the handler's own analyzer so the pins match the routing the
+        samples would otherwise get; a handler without an analyzer falls back to
+        MODERATE rather than to no ranking at all.
         """
         from core.hallucination_config import is_sc_fanout_enabled
 
@@ -599,8 +609,24 @@ class SelfConsistencyVoter:
             )
             return [None] * n
 
+        complexity = None
+        analyzer = getattr(self.handler, "analyze_query_complexity", None)
+        if callable(analyzer) and prompt:
+            try:
+                complexity = analyzer(prompt)
+            except Exception as exc:  # noqa: BLE001 — fall back to MODERATE
+                logger.debug(f"SC fan-out: complexity probe failed ({exc})")
+        if complexity is None:
+            try:
+                from core.llm.byok_handler import QueryComplexity
+
+                complexity = QueryComplexity.MODERATE
+            except Exception as exc:  # noqa: BLE001 — ranking needs no probe
+                logger.info(f"SC fan-out: ranking unavailable ({exc}); samples unpinned")
+                return [None] * n
+
         try:
-            candidates = list(ranked())  # AwaitableResult is sync-iterable
+            candidates = list(ranked(complexity))
         except Exception as exc:
             logger.info(f"SC fan-out: ranking failed ({exc}); samples unpinned")
             return [None] * n

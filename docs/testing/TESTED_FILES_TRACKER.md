@@ -42,6 +42,152 @@ EVERY clean turn. `record_fabrication_signal` now returns early when neither
 signal is present, and uses a non-empty placeholder so the content is not
 re-judged.
 
+### 15p: stabilization pass — one deadline, verified derivations, direction dimensions
+
+Three of the audit's seven directives landed (1, 3, 6) plus the instrumentation
+half of 2. Incident REMAINS OPEN: acceptance is still 3/5 (§0.1 of the audit).
+
+**1 · ONE END-TO-END DEADLINE.** `TurnDeadline` is established as the FIRST
+statement of `process_chat_message` — before session load, provenance hydration,
+planning or any provider call — and threaded into the reply leg. The defect it
+replaces: the budget was anchored at `_plan_t0` (already past planner + tools) and
+every downstream stage called the helper again for a FRESH allowance, so stages
+accumulated and a 115 s budget produced a 209 s reply. Now per-leg constants are
+upper bounds (`deadline.slice`), the first-visible bound is capped to what is
+left, and the reply leg refuses to start when the turn is already out of time.
+`_cancel_and_confirm` cancels owned work and REPORTS SURVIVORS — verified by
+probe, which correctly flagged `survived: 1` for a task that swallows
+`CancelledError`; cancelling a coroutine awaiting a provider read does not stop
+the work behind it. Each stage logs its own duration AND its turn offset, so
+concurrent work is separable from critical-path time (the measurement half of
+directive 2; the controlled A/B experiments are still to run).
+
+**3 · DERIVED FIGURES VERIFIED BY EVALUATION.** The citation bypass is gone: the
+orchestrator used to skip figure-grounding when the evidence carried a formula
+marker AND the reply contained any row citation, so an invented chain passed by
+writing "row 235". `core/derivation_verification` now classifies every
+CELL-ANCHORED claim — STORED / COMPUTED / UNRESOLVED / CONTRADICTED — evaluating
+the workbook's own formulas through a whitelisted AST (no eval of untrusted
+text; circular refs and division by zero resolve to UNRESOLVED, not wrong).
+`is_clean` requires that something was actually CHECKED, so silence can never
+read as approval, and a CORRECT UNCITED answer is reported unverified rather
+than fabricated. The enabling bridge: the evidence now carries
+`COLUMNS: <name>=<letter>`, because rows render by column NAME while formulas
+address cells by LETTER — nothing could previously connect "Factory Price=5350"
+to "=F235*0.9". Five required cases verified; two tests asserting the old
+bypass shape were re-contracted.
+
+**6 · DIRECTION HAS TWO DIMENSIONS.** Internal/external (domain equality) and
+sent/received (this mailbox) were collapsed, so a same-domain message never
+answered the sent-vs-received question the directional fixture asks. Membership
+is derived from the store's dominant traffic domain (the signed-in account is an
+administrative address on a different domain from the shared inbox, so keying on
+it found nothing). Member-to-member mail is reported as depending on WHICH
+member — not mislabelled — and unrelated-both-ends asserts nothing.
+
+**Also**: the audit's §0 status block now carries the single coherent 3/5 result,
+reconciles the 2/5 · 4/5 · "all five" counts (each true of a different build or
+sweep, none an acceptance result), records the 187.9 s PASS as an operational
+failure, and corrects the round log's proposed next step — promoting
+`_derivation_reply_ignored_the_row` to a routing input is wrong as written,
+since it infers "ignored the evidence" from the absence of citation syntax.
+
+### 15o: the REAL root cause — the canvas id arrives NESTED, so the panel's agent was never attached
+
+**Owner correction**: "it should be the same sales agent as i was chatting in the
+canvas right panel". Verification confirmed the owner: canvas `a1a13834` resolves
+to **Sales Agent** (`9837ec71-…`) via `CanvasContext`, and Sales Agent holds the
+lessons. So per-agent retrieval was working — 15n's sibling recall was treating a
+symptom.
+
+**Root cause**: the canvas panel posts
+`context = {"canvas": {"id": "a1a13834…", "canvas_type": "email", "name": …}}` —
+the id **NESTED** under `canvas` — while four readers looked up
+`context["canvas_id"]`, which is always absent for real panel turns. The live log
+proves it: `[CHATCTX] request.agent_id=None context={'canvas': {'id':
+'a1a13834-7bb3-4b3b-91cf-e83a2287daf0', …}}` — the canvas plainly present, the
+agent unresolved. Downstream:
+
+* **canvas agent resolution never ran** → `request.agent_id` stayed None, so
+  `[MEMCTX] agent_id=None` and `assemble_memory_context` skipped the lessons leg
+  entirely (`_agent_lessons` returns [] without an agent id). Every lesson taught
+  to that canvas's hire was invisible in the panel the owner was typing into —
+  which is exactly the reported "agent should be learning from my instructions in
+  the agent chat";
+* the provenance hydration no-opped (the "why was this draft written this way?"
+  provenance leg);
+* the per-user canvas↔session binding never persisted;
+* and in `chat_orchestrator._resolve_canvas_ctx` the same key mismatch meant the
+  canvas context was **None** — the editor ran blind on the very canvas on screen.
+
+**Fix**: one normalizer per module (`chat_routes._context_canvas_id` /
+`_context_canvas_type`, `chat_orchestrator._canvas_id_from_context`) accepting
+both shapes — flat `canvas_id` (legacy/API clients) and nested
+`canvas.id` (the panel) — wired into all four reads. No behaviour changes for
+clients already sending the flat key.
+
+**Verified live**: the real panel context now resolves to
+`9837ec71-4f1b-41db-b014-119862362d44` = Sales Agent, and that agent's lessons for
+a pricing question return the used-machine depreciation rule and the 40-50%
+margin fallback. `_resolve_canvas_ctx` returns the canvas with type `email` and
+its content. 93 passed across four suites; new
+`tests/test_canvas_context_id_shapes.py` (11), asserted structurally where the
+behaviour depends on the store (the test DB is isolated).
+
+**Lesson recorded**: 15n fixed retrieval without first proving the agent identity
+was reaching the turn. The log line that would have shown it in one query
+(`[MEMCTX] agent_id=None`) was already being written on every turn.
+
+### 15n: the agent must learn from instructions given in chat (root cause)
+
+**Owner report**: "agent should be learning from my instructions in the agent
+chat". The instruction was *"use the above formula as a backup for figuring out
+the list price from a dealer's used machine. Used machinery price is actually
+calculated from retail listed of a new one and depreciating as per market trends
+until the age of the machine is reached."* The agent acknowledged it and the next
+turn answered as if it had never been said.
+
+**Root cause — TWO independent gaps, both verified:**
+
+1. **The rule was stored against the wrong agent.** It WAS captured (4 relevant
+   entries in the Sales Agent's learning log), but retrieval was strictly
+   per-agent and the chat was being served by a different agent with zero
+   lessons. The operator cannot know which agent a chat turn routes to, and the
+   knowledge ("how we price used machines") is workspace truth rather than one
+   hire's quirk. `get_agent_lessons` now merges relevant lessons from SIBLING
+   agents in the same workspace, tagged `_source_agent_id` and labelled in the
+   block as taught to a different agent; own lessons keep priority on a
+   relevance tie. Workspace matching treats an unset `workspace_id` as
+   compatible, because most shipped agents here carry none — requiring an exact
+   match would exclude precisely the agents the operator teaches from the ones
+   they talk to.
+2. **The instruction was never even suggested.** Both teaching channels required
+   the message to OPEN with a directive ("always …", "/teach …"). This one
+   arrived mid-message, appended to the request that prompted it, so nothing was
+   stored *and nothing was offered*. Added `detect_mid_message_cue`, which
+   returns the sentence carrying the directive (not the whole request) and is
+   wired into the same confirm-first suggestion path — detection still never
+   writes, preserving the lesson-poisoning guard.
+
+**A third bug, mine, caught by running it**: the sibling merge capped at `limit`
+BEFORE ranking, so it kept the newest siblings and discarded the highest-scoring
+one — the 5-token match on "list price for a used machine" lost to four
+unrelated recent notes. Collect-all → rank → cap.
+
+**And a false positive caught by a test**: `never mind, that is fine` matched the
+`never` directive; conversational idioms ("never mind", "always the case") are now
+excluded.
+
+**Also recorded**: the pricing rule itself, in the owner's own words, as a
+permanent lesson via `deliver_teacher_lesson` — primary method (depreciate the
+new list price to the machine's age), secondary/backup (the workbook ladder
+F235*0.9 → +700 → *1.02 → /0.87 → /0.86 → ROUNDUP, ~40-50% margin rule of thumb).
+
+**Verified live**: the Chat Assistant (0 own lessons) now receives the pricing
+rule for "price a used 52 inch foot shear for a dealer", labelled as taught to a
+different agent. 149 passed across six suites; new
+`tests/test_workspace_lesson_recall.py` (12).
+
 ### 15m: "fix all gaps" — probe correctness, named files, and scan budgets (pushed 7e1995ac9 + budget round)
 
 **Gap: the derivation ask reached the WRONG FILE.** Chasing it found three
@@ -9625,3 +9771,63 @@ network flakes (identical at HEAD worktree). Live end-to-end after
 restart_backend.sh: the incident message on canvas a1a13834 returns the grounded
 Seguin email reply (no timeout narrative); one earlier probe turn hit transient
 OpenRouter 429s (qwen3.8-flash upstream capacity) — environmental, unrelated.
+
+## 2026-09-16 — audit follow-up round (verification session)
+
+| Date | File | Status | Evidence |
+|---|---|---|---|
+| 2026-09-16 | `backend/core/app_db_query.py` | FIXED | Added `_db_authorizer` (SQLite authorizer) as the authoritative execution-time table/column boundary; `Connection.interrupt()` on the caller timeout; `WITH…SELECT` accepted and CTE names excluded from the allowlist walk. Reproduced FIRST on a scratch DB: `SELECT id FROM canvases WHERE (SELECT count(*) FROM 'users') > 0` and the `EXISTS (…'user_sessions'…) canvases` variant both RETURNED ROWS under the parse-time + result-column checks alone. Coverage: `tests/test_app_db_execution_boundary.py` (9), `tests/test_app_db_query.py`, `tests/test_app_db_nl2sql_envelope.py`; red-team `scripts/redteam_app_db_boundary.py` 15/15 contained, inference suite 5/5 contained |
+| 2026-09-16 | `backend/core/llm/learning_router_registry.py` | FIXED | `record_fabrication_signal` wrote TWO feedback rows per verdict (verdict-stamped + `None`); live DB showed two identical rows sharing `routing_result_id ad1fa3e1-…`. Now stamps the verdict on `feedback._prompt_features` so `record_feedback`'s single write carries it; manual persist only on the flag-off path. Verified: both paths → exactly 1 row with the verdict. Coverage: `tests/test_fabrication_bench.py` (22) |
+| 2026-09-16 | `backend/core/sheet_dataset_service.py` | FIXED | `_probe_cached` returned the cached dict by reference and keyed on `content_hash or external_id or ""` — identity-less rows collided and consumer mutation corrupted the cache. Now deep-copies on store and hit, keys on `(content_hash, external_id, parquet_path, file_name)`, bypasses the cache for anonymous entries, and purges expired entries before the >512 overflow clear. Coverage: `tests/test_sheet_probe_cache_boundaries.py` (7) |
+| 2026-09-16 | `backend/core/auto_document_ingestion.py` | FIXED | `.doc`/`.ppt` (OLE2) yielded `skipped: no_text`, indistinguishable from a readable empty document. Now `unsupported_format` + `extraction_supported: False` + `file_ext`. `LEGACY_BINARY_OFFICE_EXTS` declared. Coverage: `tests/test_legacy_doc_ingestion_boundary.py` (6) |
+| 2026-09-16 | `backend/tests/test_verbatim_evidence_generalization.py` | FIXED (test) | `TestNLSQLLayerWiring`'s fake pinned arity (6 args) while production passes 8 → every real call became a swallowed `TypeError` and the lane read as "returned nothing". Re-contracted to `*args, **kwargs` |
+| 2026-09-16 | `backend/scripts/router_evidence_report.py` | NEW | Reproducible router-evidence reconciliation; 170 rows / 168 generations / 2 duplicate generations / 67 rows without prompt features / 0 rows with verdict provenance. Artifact: `docs/audits/2026-09-16_router_evidence_reconciliation.md` |
+| 2026-09-16 | `backend/scripts/provider_reliability_replay.py` | NEW | Bounded replay + topology check. Topology: 9/9 candidates from `openrouter`; all 3 fallbacks share the primary upstream. Separates congestion / prompt size / turn-budget outcomes |
+| 2026-09-16 | `backend/scripts/redteam_app_db_boundary.py` | NEW | 15-attack scratch-DB red-team; exit≠0 on any escape |
+| 2026-09-16 | `backend/core/byok_endpoints.py` | FIXED | `get_api_key` built an unprefixed id while every stored key is tenant-prefixed → the whole local key store was unreachable; `openrouter` survived only via env. New `_find_stored_key` matches by `(provider_id, key_name, environment)`. Verified live: 3 BYOK clients initialize (was 1); ladder 9 candidates/1 provider → 118/3. Coverage: `tests/test_byok_key_store_resolution.py` (8); zero-regression via HEAD worktree + `comm -13` |
+| 2026-09-16 | `backend/core/llm/prompt_budget.py` | NEW | Token accounting for the whole prompt (instructions+history+canvas+evidence) + per-model output reservation + `trim_to_tokens` keeping rows/formulas/units/dates/attribution + `relevant_window`. Measured: 18k chars = 4,510/7,128/8,208 tokens by content shape. Coverage: `tests/test_prompt_budget_accounting.py` (11) |
+| 2026-09-16 | `backend/integrations/chat_orchestrator.py` | FIXED | `_auto_open_top_citation` blind head/tail → query-centred window with an explicit "NOT a targeted match" statement on a miss; call site passes `message`. Coverage: `tests/test_auto_open_relevant_window.py` (5) |
+| 2026-09-16 | `backend/tests/test_office_file_ownership_boundary.py` | NEW | Pins the office-file boundary: authenticated surface + path containment hold; ownership is NOT enforced (flat `ATOM_OFFICE_DIR`, no owner parameter). Characterization so a per-user migration flips it deliberately |
+
+---
+
+## Session 2026-09-16f (external review round 2 — gap closure)
+
+**Context**: review of `docs/audits/2026-09-16_verification_and_corrections.md`
+found eight places where conclusions exceeded the evidence. Matrix:
+`docs/audits/2026-09-16_gap_closure_matrix.md`. Live process at verification:
+pid 11051, `git_commit a3aa31ba4`.
+
+| Date | File | Status | Notes |
+|---|---|---|---|
+| 2026-09-16 | `backend/core/byok_endpoints.py` | FIXED | Scope-aware resolution: identity is `(scope, provider, key_name, env)`; the in-flight `_find_stored_key` matched fields only and returned the FIRST hit, so tenant `globex` was served tenant `acme`'s key and an unscoped lookup was promoted a scoped credential. Two scopes now REFUSE. `APIKey.tenant_id` round-trips; `is_configured` is defined as the getter. Coverage: `tests/test_byok_key_store_resolution.py` (34), `scripts/redteam_byok_scope_resolution.py` (9/9, 6 reassigned). Live: deepseek/opencode-go/openrouter authenticate in-process |
+| 2026-09-16 | `backend/api/byok_routes.py` | FIXED | Same resolver; unscoped lookups stay global-only (a tenant key must not answer for another); `get_provider_status(tenant_id=)` + `/api/ai/health` count for the caller's scope. Live: `{total 37, active 3, with_keys 3}` (was 0/0 while per-tenant status said active) |
+| 2026-09-16 | `backend/core/llm_credential_service.py`, `backend/core/llm/byok_handler.py` | FIXED | Guard-then-getter replaced by ONE scoped resolution call (the pair asked about different key names — a silent credential-loss path). Coverage: `tests/unit/test_byok_handler.py` = pristine-HEAD baseline exactly (4F/193P) |
+| 2026-09-16 | `backend/core/llm/fabrication_accounting.py` | NEW | Turn/attempt/generation/verdict identities; rate = fabricated generations / EVALUATED generations; JSON `null` is absent (67 live rows were mis-reported malformed), arrays/truncated/garbage are per-row; low score without provenance is UNKNOWN, never clean. Coverage: `tests/test_fabrication_accounting.py` (38) |
+| 2026-09-16 | `backend/core/llm/byok_handler.py` | FIXED | Bench divides generations, not rows (one fabrication among four evaluated generations read as 1/5 = 0.20 and stayed un-benched); publishes the generation id for later corrective verdicts. Live: 379 rows → 244 generations, 0 fabricated, 134 unknown, 0 malformed |
+| 2026-09-16 | `backend/core/learning_llm_router.py`, `backend/core/llm/learning_router_registry.py`, `backend/core/llm_service.py`, `backend/integrations/chat_orchestrator.py` | FIXED | Verdict writes are idempotent per generation (same verdict → no new row; different → annotate the same row); the corrective signal joins the generation it judged via the id published in the result payload. Isolated: 5 rows for 5 generations, rate 0.4 |
+| 2026-09-16 | `backend/scripts/verify_isolated_api_boundary.py` | NEW | Isolated uvicorn + scratch SQLite: boots, logs in, 56 RPC actions expose no raw app-DB SQL, 15/15 attacks contained, verdict lifecycle asserted from a fresh session. 14/14 |
+| 2026-09-16 | `backend/integrations/chat_orchestrator.py` | FIXED | Evidence budget is now a HARD bound: decisive lines claim the budget first (bounded, with their `full:`/`open:` attribution and neighbour), then everything else, and the elision note names what was dropped. `_account_turn_prompt` measures the whole prompt against the selected model's window minus its output reservation and re-trims on overflow. Coverage: `tests/test_verbatim_evidence_generalization.py` + `tests/test_prompt_budget_accounting.py` (53), incl. protected-rows-over-budget and unprefixed-prose cases |
+| 2026-09-16 | `backend/scripts/router_evidence_report.py` | FIXED | Runs the REAL rankers over an identical candidate set (BPC vs `_rerank_with_learning`); the two descriptive statistics are renamed, cost is per ANSWER with its denominator, no totals compared. 21/24 profiles reorder. Coverage: `tests/test_router_evidence_report.py` (29). Read-only proven by DB digest |
+| 2026-09-16 | `backend/scripts/redteam_byok_scope_resolution.py` | NEW | Two-tenant collision / insertion order / scoped→global promotion red team against both the in-flight and the corrected resolver |
+| 2026-09-16 | `backend/tests/test_fabrication_bench.py` | RE-CONTRACTED | Fake result set reshaped to the identity columns; two tests made hermetic (they read the shared `test_integration.db`, so they passed only while it was empty) |
+
+## Session 2026-09-16 (ZCode) — agent data-access at scale: service-layer pagination/pushdown + agent tool-catalog bounds
+
+**Why**: the 2026-09-16 data-access audit's six gaps (research: MCP pagination spec opaque cursors; Anthropic code-execution/preview+handle pattern; Speakeasy/Lunar tool-overload). UIS-boundary envelope/projection/cache landed by the concurrent session (`read_query.py`/`read_cache.py`); this session landed the service-layer halves those branches call + gap #4.
+
+**Files**: `core/identifier_search.py` (filter_by_terms_meta → matched-count-aware truncation), `integrations/outlook_service.py` (search_emails_paged: @odata.nextLink following ≤3 pages, Graph-prefixed-token SSRF guard, search_emails list contract kept; _make_graph_request full_url), `integrations/slack_service_unified.py` (search_messages 1-based page), `integrations/google_calendar_service.py` (get_events server-side `q` — also fixes the unawaited-coroutine-into-filter bug at the UIS call site), `integrations/shopify_service.py` (page_info cursor via Link header + server-side customers/search), `core/integrations/adapters/stripe.py` (charges/search server-side + list_charges_paged has_more/starting_after), `integrations/hubspot_service.py` (search_content token/limit/after/properties — UIS passed token= since forever → TypeError), `integrations/universal_integration_service.py` (branch wiring: outlook/slack/stripe/github/calendar/shopify/hubspot + search() entry read_query/_apply_read_shape), `core/agent_tool_budget.py` (NEW: session FIFO cap 40 + prompt render cap 120, env-tunable), `core/generic_agent.py`+`core/atom_meta_agent.py` (both session_tools.extend sites + render seam), `core/settings_catalog.py` (2 rows), `core/chat_tool_planner.py` (_repair_plan_via_llm canvas param — call site passed 7 args to a 6-param signature, TypeError on every null-service repair rung since 2026-09-15), `integrations/read_cache.py` (missing `import hashlib` — NameError on every cached read), test re-contracts: `test_covpush_universal.py`, `test_covpush_w85_universal_workflow.py`, `test_covpush_integrations_core.py` (14 stale bare-list/no-await/make_request contracts superseded), `tests/test_integration_dispatch_parity.py` (tape harness skips read_query/read_cache support modules; datasets/documents → PLATFORM_SERVICES with reason), `tests/test_integration_read_gaps.py` (py3.14 asyncio.get_event_loop removal).
+
+**Verification**: NEW tests/test_agent_data_access_at_scale.py 19/19; read_gaps+parity+planner+identifier+hubspot+w87+workspace_context batch 198/198; covpush trio: 0 new failures vs clean-HEAD baseline (52 pre-existing failures measured via /tmp worktree — now 34, i.e. 18 pre-existing fixed as a side effect). Incident: a concurrent blanket-revert at 21:43 EDT destroyed both sessions' uncommitted work (logged in AGENT_COORDINATION); mine recreated, theirs re-landed via their own restore.
+
+## Session 2026-09-16 (DSH/DeepSeek) — MCP-protocol half of gap #4 + search()/tool-schema read shape
+
+**Why**: the same data-access audit, the parts of gap #1/#4 that live at the MCP boundary rather than in a provider client. `tools/list` returned the whole catalog in one response with no `nextCursor`, and no agent-facing tool schema carried a cursor — so the agent could not ask for page two even in principle. Research basis: MCP pagination spec (opaque cursors, server-owned page size, missing cursor = end-of-results, invalid cursor = -32602).
+
+**Files**: `core/mcp_server/handler.py` (`tools/list` paginated: opaque base64 cursor carrying offset + catalog fingerprint, `nextCursor` only while more remain, -32602 on foreign/garbage cursor, graceful empty-cursor-as-first-page), `core/mcp_client.py` (`list_tools` walks ALL pages, `max_pages` bound, non-advancing cursor stops the walk — an external 400-tool server no longer looks like a 50-tool one), `integrations/mcp_service.py` (NEW `_with_read_shape_params`: limit/page_token/fields injected per-KEY into the 12 read-shaped local tools that actually route through UniversalIntegrationService; mutating tools untouched; local-state tools deliberately excluded), `integrations/universal_integration_service.py` (`_apply_read_shape` now normalizes bare lists and status-less provider envelopes into ONE `{"status","data","page"}` contract; `search()` fan-out entry wired to the read cache via new `cache_lookup`/`cache_store`), `integrations/read_cache.py` (`cache_lookup`/`cache_store` extracted so both entry points share one key composition).
+
+**Bugs the new tests caught during development (all fixed in-session)**: (1) `_with_read_shape_params` skipped a tool entirely if it already had ANY read-shape key — `list_finance_invoices` ships its own `limit` and so never got a cursor; now injects per missing key. (2) `_apply_read_shape` silently skipped the page block for every `search()` family branch that returns a bare list, and for bare provider envelopes (Dropbox `{"results": []}`) — the envelope only ever reached the Salesforce-shaped branch. (3) `search()` had no cache while `execute()` did.
+
+**Deliberately NOT done** (left to ZCode per the agreed split, recorded in `notes/AGENT_COORDINATION.md`): `settings_catalog.py` rows for `ATOM_INTEGRATION_READ_CACHE_ENABLED` / `ATOM_INTEGRATION_READ_CACHE_TTL` (env vars work today; only the admin-UI toggle is missing).
+
+**Verification**: `test_integration_read_gaps.py` (37) + `test_mcp_tools_list_pagination.py` (13) + `test_mcp_client.py` (11) + `test_mcp_server.py` = 86 passed. Regression: `covpush_universal` + `covpush_w85_universal_workflow` + `covpush_integrations_core` + `integration_dispatch_parity` = 0 new failures vs the clean-HEAD baseline (33 pre-existing remain). NOTE for the next operator: `test_chat_tool_planner_comms_supplement.py` and `test_chat_tools_universal_generalization.py` each break 39 `test_covpush_mcp_svc.py` tests when batched (reproduced at clean HEAD in an isolated worktree — pre-existing cross-file pollution, not a regression); run `test_covpush_mcp_svc.py` alone.

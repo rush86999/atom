@@ -37,6 +37,50 @@ class ShopifyService(IntegrationService):
             "Content-Type": "application/json"
         }
 
+    @staticmethod
+    def _next_page_info(response: httpx.Response) -> Optional[str]:
+        """Cursor for the NEXT page from Shopify's Link header.
+
+        Shopify REST pages with an opaque ``page_info`` cursor (rel="next"
+        Link header) — NOT page numbers. The cursor must be passed back as
+        (nearly) the ONLY query param; other filters are rejected with it.
+        """
+        next_url = (response.links or {}).get("next", {}).get("url")
+        if not next_url:
+            return None
+        from urllib.parse import urlparse, parse_qs
+        return parse_qs(urlparse(next_url).query).get("page_info", [None])[0]
+
+    async def get_products(
+        self, access_token: str, shop: str, limit: int = 20,
+        page_info: Optional[str] = None,
+        meta_out: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of products (cursor-paged via ``page_info``).
+
+        When ``meta_out`` is a dict it receives ``{"next_page_info": str|None}``
+        so callers can continue pagination; the return stays a plain list to
+        keep every existing call site unchanged.
+        """
+        try:
+            url = f"{self._get_base_url(shop)}/products.json"
+            headers = self._get_headers(access_token)
+            if page_info:
+                params: Dict[str, Any] = {"limit": limit, "page_info": page_info}
+            else:
+                params = {"limit": limit}
+
+            response = await self.http.get("shopify", url, headers=headers, params=params)
+            response.raise_for_status()
+
+            if meta_out is not None:
+                meta_out["next_page_info"] = self._next_page_info(response)
+            data = response.json()
+            return data.get("products", [])
+        except Exception as e:
+            logger.error(f"Failed to get products: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
     async def exchange_token(self, code: str, shop: str) -> Dict[str, Any]:
         """Exchange authorization code for access token"""
         try:
@@ -159,16 +203,30 @@ class ShopifyService(IntegrationService):
             logger.error(f"Failed to create article: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
-    async def get_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get list of orders"""
+    async def get_orders(
+        self, access_token: str, shop: str, limit: int = 20,
+        page_info: Optional[str] = None,
+        meta_out: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of orders (cursor-paged via ``page_info``).
+
+        ``page_info`` must ride alone with ``limit`` — Shopify rejects
+        ``status``/other filters combined with a cursor, so the status
+        window only applies to fresh first pages.
+        """
         try:
             url = f"{self._get_base_url(shop)}/orders.json"
             headers = self._get_headers(access_token)
-            params = {"limit": limit, "status": "any"}
-            
+            if page_info:
+                params: Dict[str, Any] = {"limit": limit, "page_info": page_info}
+            else:
+                params = {"limit": limit, "status": "any"}
+
             response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
-            
+
+            if meta_out is not None:
+                meta_out["next_page_info"] = self._next_page_info(response)
             data = response.json()
             return data.get("orders", [])
         except Exception as e:
@@ -257,16 +315,24 @@ class ShopifyService(IntegrationService):
     # ==================== FULL BUSINESS LIFECYCLE ====================
 
     # --- CUSTOMERS ---
-    async def get_customers(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get list of customers"""
+    async def get_customers(
+        self, access_token: str, shop: str, limit: int = 20,
+        page_info: Optional[str] = None,
+        meta_out: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of customers (cursor-paged via ``page_info``)."""
         try:
             url = f"{self._get_base_url(shop)}/customers.json"
             headers = self._get_headers(access_token)
-            params = {"limit": limit}
-            
+            params: Dict[str, Any] = {"limit": limit}
+            if page_info:
+                params["page_info"] = page_info
+
             response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
-            
+
+            if meta_out is not None:
+                meta_out["next_page_info"] = self._next_page_info(response)
             return response.json().get("customers", [])
         except Exception as e:
             logger.error(f"Failed to get customers: {e}")
@@ -286,16 +352,16 @@ class ShopifyService(IntegrationService):
             logger.error(f"Failed to get customer {customer_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
-    async def search_customers(self, access_token: str, shop: str, query: str) -> List[Dict[str, Any]]:
-        """Search customers by email, name, etc."""
+    async def search_customers(self, access_token: str, shop: str, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search customers by email, name, etc. (server-side provider search)."""
         try:
             url = f"{self._get_base_url(shop)}/customers/search.json"
             headers = self._get_headers(access_token)
-            params = {"query": query}
-            
+            params = {"query": query, "limit": limit}
+
             response = await self.http.get("shopify", url, headers=headers, params=params)
             response.raise_for_status()
-            
+
             return response.json().get("customers", [])
         except Exception as e:
             logger.error(f"Failed to search customers: {e}")

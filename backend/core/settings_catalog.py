@@ -231,6 +231,9 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("ATOM_OBJECTIVE_LOOP_ENABLED", True, C_AGENT, "Goal-driven loop w/ DoD early exit"),
     B("ATOM_MINIAPP_DB_ENABLED", True, C_AGENT, "Mini-app record store"),
     B("ATOM_REVIEWER_LOOP_ENABLED", False, C_AGENT, "REVIEW strategy re-delegation"),
+    # Tool-catalog bounds (2026-09-16 data-access audit, gap #4)
+    I("ATOM_AGENT_SESSION_TOOLS_CAP", 40, C_AGENT, "Max lazily-loaded tools per session (FIFO beyond; 0 = core only)"),
+    I("ATOM_AGENT_TOOL_PROMPT_CAP", 120, C_AGENT, "Max tool entries rendered per ReAct step (hidden tail via mcp_tool_search)"),
     S("LANCEDB_URI", "./data/atom_memory", C_DB, "Atom memory LanceDB URI"),
     S("LANCEDB_URI_BASE", "./data/atom_memory", C_DB, "Base URI for per-workspace stores"),
     S("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5", C_DB, "Embedding model id"),
@@ -342,6 +345,18 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "AUTO mode: minimum distinct models with enough observations."),
     I("ATOM_LEARNING_ROUTER_AUTO_MIN_PER_MODEL", 8, C_LEARN,
       "AUTO mode: observations per model for the model to 'qualify'."),
+    SettingSpec("ATOM_LEARNING_ROUTER_PROMOTION", "str", "shadow", C_LEARN,
+      "Learned-router promotion stage. 'shadow' (default — re-ranking runs "
+      "but disagreement logging records what static BPC would have chosen; "
+      "promote only after the criteria below are met). 'canary' (learned "
+      "ordering applies to 25% of turns, static for the rest — rollback "
+      "automatic on quality regression). 'primary' (learned ordering always). "
+      "'off' (never). PROMOTION CRITERIA (research-based, no calendar trust "
+      "horizon — see TOOL_PLANNER_ROUTING.md §9): promote shadow→canary when "
+      ">=2 full weekly traffic cycles AND >=200 shadow observations AND "
+      "learned-vs-static disagreement rate stable over 48h AND no quality "
+      "regression in the disagreement log; canary→primary after 3 clean days "
+      "at 25% with rollback triggers wired."),
     I("ATOM_LEARNING_ROUTER_AUTO_WINDOW_DAYS", 7, C_LEARN,
       "AUTO mode: observation window in days."),
     SettingSpec("ATOM_LEARNING_ROUTER", "str", "auto", C_LEARN,

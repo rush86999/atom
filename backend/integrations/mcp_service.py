@@ -18,6 +18,82 @@ from core.operator.legacy_bridge import LEGACY_BROWSER_TOOL_NAMES
 
 logger = logging.getLogger(__name__)
 
+
+# --- Agent-facing read shape (gap #1/#2 of the 2026-09 data-access audit) ---
+#
+# The audit's sharpest finding: no agent-facing tool schema carried a cursor
+# parameter, so at 100K records the agent could not ask for page two even in
+# principle — and, seeing `status: success`, answered from page one as if it
+# were the whole record set. Two more knobs belong on the same surface:
+# `limit` (page size) and `fields` (projection — the dominant token waste on
+# wide CRM objects).
+#
+# Declared ONCE here and injected into every read-shaped local tool, so a new
+# read tool inherits the contract instead of re-spelling it (and drifting).
+
+_READ_SHAPE_PARAMS: Dict[str, str] = {
+    "limit": "integer (optional) — max records in this page (default 25, max 200)",
+    "page_token": (
+        "string (optional) — OPAQUE cursor copied verbatim from a previous "
+        "call's page.next_page_token; pass it to fetch the NEXT page"
+    ),
+    "fields": (
+        "array of string (optional) — return only these fields per record, "
+        "e.g. ['id','name']; use it whenever a record is wide or you need "
+        "one column across many rows"
+    ),
+}
+
+#: Local tools whose backing integration read returns a record set AND
+#: routes through UniversalIntegrationService (so the limit/cursor/
+#: projection contract is actually honored end to end). Tools that read
+#: local state (discover_connections, list_integrations), the formula
+#: index (search_formulas), or a service that ignores the read shape are
+#: deliberately EXCLUDED — advertising a cursor a tool cannot honor is the
+#: same class of lie as reporting success with no data.
+READ_SHAPED_LOCAL_TOOLS = frozenset({
+    "search_contacts", "get_sales_pipeline", "list_projects", "get_tasks",
+    "search_tasks", "search_emails", "unified_communication_search",
+    "search_files", "list_files", "query_financial_metrics",
+    "list_finance_invoices", "global_search",
+})
+
+
+def _with_read_shape_params(
+    tools: List[Dict[str, Any]],
+    names: Optional[frozenset] = None,
+) -> List[Dict[str, Any]]:
+    """Add limit/page_token/fields to the read-shaped tools in ``tools``.
+
+    Additive, idempotent, and per-KEY: a tool that already spells its own
+    ``limit`` keeps that spelling and still gains ``page_token``/``fields``
+    (``list_finance_invoices`` ships its own ``limit: number`` — skipping the
+    whole tool would leave it with no cursor, which is the bug this set
+    exists to close). Calling twice is a no-op. Tools that only mutate state
+    are left alone — a ``page_token`` on ``send_email`` is schema noise.
+    """
+    wanted = READ_SHAPED_LOCAL_TOOLS if names is None else names
+    out: List[Dict[str, Any]] = []
+    for tool in tools:
+        if not isinstance(tool, dict) or tool.get("name") not in wanted:
+            out.append(tool)
+            continue
+        params = tool.get("parameters")
+        if not isinstance(params, dict):
+            out.append(tool)
+            continue
+        missing = {k: v for k, v in _READ_SHAPE_PARAMS.items() if k not in params}
+        if not missing:
+            out.append(tool)
+            continue
+        merged = dict(params)
+        merged.update(missing)
+        enriched = dict(tool)
+        enriched["parameters"] = merged
+        out.append(enriched)
+    return out
+
+
 class MCPService(IntegrationService):
     """
     Model Context Protocol (MCP) Service.
@@ -148,7 +224,7 @@ class MCPService(IntegrationService):
                 {"name": "fetch_page", "description": "Fetch the content of a specific URL", "parameters": {"url": "string"}}
             ]
         elif server_id == "local-tools":
-            return [
+            local_tools = [
                 # --- Common & Discovery ---
                 {
                     "name": "discover_connections",
@@ -881,6 +957,7 @@ class MCPService(IntegrationService):
                     "parameters": {"run_id": "string"}
                 }
             ]
+            return _with_read_shape_params(local_tools)
         return self.active_servers.get(server_id, {}).get("tools", [])
 
     async def get_all_tools(self) -> List[Dict[str, Any]]:

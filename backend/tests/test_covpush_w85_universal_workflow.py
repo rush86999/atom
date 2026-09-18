@@ -178,7 +178,10 @@ class TestExecutePlumbing:
             sl.return_value.__enter__.return_value = MagicMock()
             res = asyncio.run(svc.search("salesforce", "acme", "contact",
                                          {"user_id": "u1"}))
-        assert res == {"status": "success", "data": [{"Id": "1"}]}
+        # 2026-09-16: search() appends the read-shape `page` block — assert
+        # payload fields, not whole-dict equality.
+        assert res["status"] == "success"
+        assert res["data"] == [{"Id": "1"}]
 
     def test_search_unsupported_service(self, svc):
         with patch.object(uis, "governance_middleware", None), \
@@ -432,7 +435,9 @@ class TestHubspot:
     def test_search(self, svc):
         res = asyncio.run(svc._search_hubspot("q", "contact",
                                               ctx(make_registry(self._hs()))))
-        assert res == [1]
+        # 2026-09-16: envelope with paging cursor instead of a bare list.
+        assert res["status"] == "success"
+        assert res["data"] == [1]
 
 
 class TestShopify:
@@ -607,9 +612,15 @@ class TestSearchCommunication:
 
     def test_calendar_search(self, svc):
         with patch("integrations.google_calendar_service.google_calendar_service") as cal:
-            cal.get_events = MagicMock(return_value=[
-                {"title": "Budget Q", "description": ""},
-                {"title": "other", "description": "budget talk"}])
+            # 2026-09-16: get_events is awaited and the query rides down as
+            # the provider's ``q`` (server-side filter).
+            async def _events(q=None, **kwargs):
+                if q == "budget":
+                    return [
+                        {"title": "Budget Q", "description": ""},
+                        {"title": "other", "description": "budget talk"}]
+                return []
+            cal.get_events = AsyncMock(side_effect=_events)
             res = asyncio.run(svc._search_calendar("google_calendar", "budget", ctx()))
         assert res["status"] == "success" and len(res["data"]) == 2
         assert asyncio.run(svc._search_calendar("outlook_calendar", "q", ctx())) == []
@@ -847,6 +858,9 @@ class TestDev:
     def test_search_dev(self, svc):
         with patch("integrations.github_service.GitHubService") as gh, \
              patch("integrations.gitlab_service.GitLabService") as gl:
+            # 2026-09-16: server-side repo search preferred over list+filter.
+            gh.return_value.search_repositories = MagicMock(
+                return_value=[{"name": "alpha"}])
             gh.return_value.get_user_repositories = MagicMock(
                 return_value=[{"name": "alpha"}, {"name": "beta"}])
             gl.return_value.search_projects = AsyncMock(return_value=[{"name": "x"}])
@@ -950,8 +964,11 @@ class TestAnalyticsAndFallbacks:
             assert asyncio.run(svc._search_analytics("tableau", "q", c))["status"] == "error"
 
     def test_generic_native(self, svc):
-        assert asyncio.run(svc._execute_generic_native(
-            "zoom", "x", {}, ctx()))["status"] == "success"
+        # An unimplemented action refuses honestly instead of returning a
+        # success envelope with no data (the fabrication surface).
+        res = asyncio.run(svc._execute_generic_native("zoom", "x", {}, ctx()))
+        assert res["status"] == "error"
+        assert res["error"] == "unsupported_action"
 
     def test_activepieces_success_and_failure(self, svc):
         ext = MagicMock()
@@ -970,13 +987,15 @@ class TestAnalyticsAndFallbacks:
             assert asyncio.run(svc._execute_marketing_reviews(
                 "google_reviews", "list_reviews", {}, ctx()))["status"] == "success"
         assert asyncio.run(svc._execute_marketing_reviews(
-            "google_reviews", "reply_to_review", {"review_id": "r1"}, ctx()))["status"] == "success"
+            "google_reviews", "reply_to_review", {"review_id": "r1"}, ctx()))["status"] == "error"
         assert asyncio.run(svc._execute_marketing_reviews(
             "google_reviews", "moderate", {}, ctx()))["status"] == "error"
 
     def test_marketing_ads(self, svc):
         res = asyncio.run(svc._execute_marketing_ads("meta_ads", "insights", {}, ctx()))
-        assert res["status"] == "success"
+        assert res["status"] == "error"
+        assert res["error"] == "unsupported_action"
+        assert not res.get("data")
 
 
 # ============================================================================

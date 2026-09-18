@@ -251,7 +251,10 @@ _GROUNDING_RULE = (
     "message. Open it with documents.cat(path + '/content.lines') (skim with "
     "documents.head / documents.tail); to search EVERY stored message use "
     "documents.grep with path_prefix 'knowledge/conversations'. Only after "
-    "that may you say a value is not in the mailbox."
+    "that may you say a value is not in the mailbox. "
+    "An absence claim may only be as wide as the search performed: an "
+    "'emails we sent' question includes internal forwards, and one match never "
+    "shows there were no others."
 )
 
 
@@ -909,18 +912,48 @@ def _catalog_line(connected: List[str]) -> str:
 
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
-    """USER turns only. What tool action the user wants is a function of
-    their requests; assistant replies add nothing here and actively hurt:
-    in a session with several failed attempts the transcript is a wall of
-    refusals, which both bloats the prompt past the timeout budget and
-    biases the planner into agreeing that 'there is nothing to retry'."""
+    """USER turns only, with the CURRENT request marked as the one to plan.
+
+    What tool action the user wants is a function of their requests;
+    assistant replies add nothing here and actively hurt: in a session with
+    several failed attempts the transcript is a wall of refusals, which both
+    bloats the prompt past the timeout budget and biases the planner into
+    agreeing that 'there is nothing to retry'.
+
+    The CURRENT marker is RCA 2026-09-17 finding 2's prompt-side half: a
+    bare list of requests carries no signal about which one to plan for, and
+    on the scorecard turn the planner answered an older ask verbatim
+    (`outlook.search 'PRICE VIPUL price list attachment'` for a request
+    about a vendor scorecard). Earlier asks stay visible — retries and
+    anaphora ("try again", "that email") resolve against them — but they are
+    labelled context, and the last message is labelled as the target."""
     lines: List[str] = []
+    prior: List[str] = []
     for h in (history or [])[-10:]:
         u = str((h or {}).get("message") or "").strip()
         if u:
-            lines.append(f"User: {u[:200]}")
+            prior.append(u[:200])
+    if prior:
+        lines.append(
+            "Earlier requests (CONTEXT only — plan for the CURRENT request "
+            "below, unless the current message explicitly asks to retry one "
+            'of these):')
+        lines.extend(f"User: {u}" for u in prior)
+    lines.append("CURRENT REQUEST (plan for THIS message):")
     lines.append(f"User: {current[:400]}")
     return "\n".join(lines)
+
+
+def _plan_relevance_verdict(query: str, message: str) -> str:
+    """``relevant`` | ``irrelevant`` | ``unknown`` — thin wrapper over
+    core.plan_relevance (the same verdict the consumption-side gates run),
+    fault-isolated so the planner degrades to ungated if that module is
+    momentarily absent (concurrent-session landing order)."""
+    try:
+        from core.plan_relevance import relevance_verdict
+        return relevance_verdict(query, message)
+    except Exception:  # noqa: BLE001 — gate must never break planning
+        return "unknown"
 
 
 async def _structured_with_fallback(
@@ -980,6 +1013,7 @@ async def _repair_plan_via_llm(
     catalog: str,
     history: List[Dict[str, Any]],
     message: str,
+    canvas: Optional[Dict[str, Any]] = None,
 ) -> Optional[ToolPlan]:
     """Second structured LLM pass that FIXES routing instead of guessing it
     from surface patterns. Regex repair (service-name matching, file nouns,
@@ -987,12 +1021,20 @@ async def _repair_plan_via_llm(
     that justify a route ("the file", "try again") don't reliably name the
     service, and only the model sees the context that does (live 2026-09-03:
     "check consolidated price list file" regex-routed to the mailbox). One
-    corrective call, then deterministic handoff; returns None on failure."""
+    corrective call, then deterministic handoff; returns None on failure.
+
+    ``canvas`` is the open canvas, for the same reason plan_tool_use takes
+    it (2026-09-14 mis-route: "this one"/"the file" resolves against what is
+    on screen). The null-service repair call site has passed it since that
+    fix — before this param existed the call raised TypeError and the whole
+    repair rung silently degraded to the memory fallback."""
     if llm_service is None:
         return None
+    canvas_block = _planner_canvas_block(canvas)
     prompt = (
         f"{_REPAIR_SYSTEM.format(defect=defect, catalog=catalog, transcript=_history_transcript(history, message))}\n\n"
-        "Return the corrected plan."
+        + (f"{canvas_block}\n\n" if canvas_block else "")
+        + "Return the corrected plan."
     )
     try:
         return await _structured_with_fallback(
@@ -1172,6 +1214,63 @@ async def plan_tool_use(
                 plan.service, plan.intent = "memory", "search"
                 plan.query = (terms[0] if terms else message[:120])
                 plan.reason = "provenance floor: quoted wording lives in ingested mail"
+
+        # REQUEST-RELEVANCE FLOOR (RCA 2026-09-17 finding 2, the replan
+        # arm). Runs BEFORE execution, upstream of the consumption-side
+        # off-request gates (chat_orchestrator / chat_canvas_editor both
+        # decline an off-target plan via core.plan_relevance): a plan whose
+        # query shares nothing with the current request is answering an
+        # older ask — on the scorecard turn the planner planned
+        # `outlook.search 'PRICE VIPUL price list attachment'` for "search
+        # for this one: reliability score 0.87 from the vendor scorecard
+        # workbook". Decline alone leaves an honestly-failed turn; ONE
+        # corrective pass here can re-target the lookup at the current ask
+        # instead. The latency objection does not apply: this fires only
+        # where the consumption gate would have thrown the execution away,
+        # and the repair replaces that wasted lookup. "unknown" (fail-open:
+        # empty query, or the verdict module absent) never gates — and
+        # neither does a PROVENANCE-VERIFIED QUOTE LOOKUP: when the quoted
+        # wording verifiably lives in the ingested mail, the plan's query is
+        # legitimately the thread SUBJECT ("FW: RFQ - Foot shear") while the
+        # message is the pasted BODY — zero token overlap is expected there,
+        # and the provenance floor just routed this plan on verified store
+        # evidence, which is strictly stronger than token overlap (the
+        # provenance-floor tests pin exactly this shape).
+        _prov_quote_lookup = bool(
+            provenance
+            and "INGESTED MAIL contains" in provenance
+            and _quote_lookup_shape(message))
+        if not _prov_quote_lookup and _plan_relevance_verdict(
+                plan.query or "", message) == "irrelevant":
+            defect = (
+                "the planned query answers an EARLIER request, not the "
+                f"current one: query {plan.query!r} names nothing the "
+                "current message names. Re-plan for the CURRENT request "
+                f"only — its text: {message[:200]}"
+            )
+            repaired = await _repair_plan_via_llm(
+                llm_service, defect, connected, catalog, history, message,
+                canvas=canvas)
+            if (repaired and repaired.use_tool
+                    and repaired.service in allowed
+                    and _plan_relevance_verdict(
+                        repaired.query or "", message) == "relevant"):
+                logger.info(
+                    "tool planner: relevance repair -> "
+                    f"{repaired.service}.{repaired.intent} "
+                    f"query={repaired.query!r}")
+                plan = repaired
+            elif repaired is not None and not repaired.use_tool:
+                # The corrective pass looked at the CURRENT request and
+                # concluded no tool can help — the same contract as the
+                # null-service repair above.
+                logger.info(
+                    "tool planner: relevance repair declined tool use")
+                return None
+            # Otherwise (repair failed or still off-target) keep the
+            # original plan: the consumption-side off-request gate then
+            # declines its execution, so the stale result cannot be
+            # presented as this turn's answer.
     return plan
 
 
@@ -2103,7 +2202,10 @@ def _file_name_tokens(name: str) -> set:
     }
 
 
-def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> List[str]:
+def _messages_carrying_file(
+    file_name: str, query: str = "", limit: int = 2,
+    user_id: Optional[str] = None,
+) -> List[str]:
     """Rendered lines for the message(s) that carried ``file_name``.
 
     Closes the loop a pure text search cannot: the identifier may live in the
@@ -2119,8 +2221,21 @@ def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> 
     target = _file_name_tokens(file_name)
     if not target:
         return []
+    _reverse = _mail_attachment_reverse_index()
+    # Rank by how INFORMATIVE the shared tokens are, not by dict order. Asked
+    # "which emails carried the PRICE VIPUL price list", the query's tokens are
+    # {price, vipul, list}; every vendor price list shares {price, list}, and
+    # iteration order put two of them first, so the real carrier — the only
+    # name sharing "vipul", the decisive token — was cut by `limit` and the
+    # reply said no such email existed (measured 2026-09-16, acceptance case 2).
+    # A token appearing in ONE attachment name discriminates; one appearing in
+    # fifty does not, so weight each shared token by 1/df.
+    _df: Dict[str, int] = {}
+    for _name in _reverse:
+        for _tok in _file_name_tokens(_name):
+            _df[_tok] = _df.get(_tok, 0) + 1
     matches: List[tuple] = []
-    for known_name, carriers in _mail_attachment_reverse_index().items():
+    for known_name, carriers in _reverse.items():
         known = _file_name_tokens(known_name)
         if not known:
             continue
@@ -2133,26 +2248,48 @@ def _messages_carrying_file(file_name: str, query: str = "", limit: int = 2) -> 
         # drift case ("PRICE VIPUL (6).xlsx" vs "PRICE VIPUL.xlsx") and rejected
         # all four. Tolerance must not exceed what the evidence supports.
         if len(overlap) >= 2:
+            _score = sum(1.0 / max(1, _df.get(t, 1)) for t in overlap)
             for carrier in carriers:
-                matches.append((known_name, carrier[0], carrier[1]))
+                matches.append((_score, known_name, carrier[0], carrier[1]))
     if not matches:
         return []
+    # Most-informative overlap first; name as a stable tie-break.
+    matches.sort(key=lambda m: (-m[0], m[1]))
     by_id = {str(r.get("id") or ""): r for r in _comms_store_records()}
     out: List[str] = []
     seen_ids = set()
-    for known_name, msg_id, doc_id in matches:
+    for _score, known_name, msg_id, doc_id in matches:
         if msg_id in seen_ids:
             continue
         row = by_id.get(msg_id)
         if row is None:
             continue
         seen_ids.add(msg_id)
+        # DIRECTION, STATED — never left for the reader to infer. Asked "which
+        # emails did WE SEND that carried X", the reply described the carrier as
+        # "an inbound email from chandrakant to me"; the acceptance criterion
+        # derives direction from the addresses and read the same message as
+        # sent by this mailbox, so the two disagreed about a fact the evidence
+        # never stated (measured 2026-09-16). An INTERNAL message (both ends on
+        # one domain) is neither an inbound customer mail nor a send to a
+        # counterparty, and saying so removes the ambiguity instead of picking
+        # a side.
+        # DIRECTION, both dimensions, stated (see _mail_direction). Domain
+        # equality is the ORGANIZATIONAL relationship; sent-vs-received comes
+        # from the mailbox identity. Collapsing the two is what left an internal
+        # forwarded attachment with no answer to "did we send it".
+        _direction = _mail_direction(
+            str(row.get("sender") or row.get("from") or ""),
+            str(row.get("recipient") or row.get("to") or ""),
+            user_id,
+        )
         out.append(
             _ingested_line_from_row(
                 row, with_body=False, anchors=[], body_cap=None
             )
             + f" | CARRIED THE FILE: {known_name}"
             + (f" (open: knowledge/documents/{doc_id}/content.lines)" if doc_id else "")
+            + _direction
         )
         if len(out) >= limit:
             break
@@ -2172,8 +2309,172 @@ def _doc_to_message_index() -> Dict[str, tuple]:
     return out
 
 
+#: user_id -> (monotonic_ts, own addresses) for mail-direction resolution.
+_OWN_ADDRESSES_CACHE: Dict[str, Any] = {}
+_OWN_ADDRESSES_TTL_S = 60.0
+
+
+def _own_addresses(user_id: Optional[str]) -> List[str]:
+    """The mailbox identity's OWN addresses (lowercased), [] when unknown.
+
+    Direction must be decided from the authenticated identity, not from domain
+    equality: an INTERNAL message (both ends on one domain) can be SENT by the
+    operator or RECEIVED by them, and treating "same domain" as the answer is
+    what left the acceptance fixture's directional question unanswerable —
+    the evidence said "internal" and never said whether the mailbox sent it
+    (audit directive 6, 2026-09-16).
+
+    Returns the user's own address plus any alias addresses the same local part
+    appears under in the store, so a team alias still resolves. Fault-isolated:
+    [] means "cannot determine", which is reported as such rather than guessed.
+    """
+    import time as _time
+
+    if not user_id:
+        return []
+    now = _time.monotonic()
+    hit = _OWN_ADDRESSES_CACHE.get(user_id)
+    if hit and now - hit[0] < _OWN_ADDRESSES_TTL_S:
+        return hit[1]
+    out: List[str] = []
+    try:
+        from core.database import get_db_session
+        from core.models import User
+
+        with get_db_session() as db:
+            email = db.query(User.email).filter(User.id == user_id).scalar()
+        if email:
+            out.append(str(email).strip().lower())
+    except Exception as e:  # noqa: BLE001 — identity lookup is best-effort
+        logger.debug(f"own-address resolve skipped: {e}")
+    _OWN_ADDRESSES_CACHE[user_id] = (now, out)
+    return out
+
+
+def _addresses_in(field: Any) -> List[str]:
+    """Every address in a sender/recipient field, lowercased."""
+    import re as _re
+
+    return [a.lower() for a in _re.findall(r"[\w.+-]+@[\w.-]+", str(field or ""))]
+
+
+def _mailbox_addresses(*fields: Any) -> List[str]:
+    """Addresses belonging to THIS mailbox, learned from the store's own traffic.
+
+    Per-install identity is DATA, never a hardcoded roster (CLAUDE.md invariant
+    #4), so membership is derived from the mailbox itself rather than from the
+    signed-in account: on this install the operator's login is a separate
+    administrative address and the mailbox is a shared team inbox, so keying on
+    the account's domain found nothing and every message read "cannot determine"
+    (measured 2026-09-16).
+
+    The mailbox domain is the one carrying the bulk of the store's mail — it is
+    both the most common sender and the most common recipient domain by a wide
+    margin (brennan.ca: 3,802 sent / 6,528 received here, vs ~250 for the next
+    sender domain). Addresses on it are the mailbox's own; machine-generated
+    local parts (exchange routing noise) are excluded so they cannot be mistaken
+    for a principal.
+
+    Fault-isolated: [] means "cannot determine", which the caller reports as
+    such rather than guessing.
+    """
+    import collections
+    import re as _re
+
+    try:
+        rows = _comms_store_records()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"mailbox discovery skipped: {e}")
+        return []
+    volume: "collections.Counter[str]" = collections.Counter()
+    own_addrs: set = set()
+    for row in rows:
+        for field in (row.get("sender") or "", row.get("recipient") or ""):
+            for addr in _re.findall(r"[\w.+-]+@[\w.-]+", str(field)):
+                addr = addr.lower()
+                volume[addr.rsplit("@", 1)[-1]] += 1
+                own_addrs.add(addr)
+    if not volume:
+        return []
+    domain, hits = volume.most_common(1)[0]
+    if hits < 3:  # too little traffic to call any domain the mailbox
+        return []
+    out: List[str] = []
+    for addr in own_addrs:
+        if not addr.endswith("@" + domain):
+            continue
+        local = addr.split("@", 1)[0]
+        # Machine-generated routing/mailer local parts are not principals.
+        if _re.search(r"(exchange[0-9a-f]{8,}|no-?reply|do-?not-reply|mailer|bounce)", local):
+            continue
+        out.append(addr)
+    # The signed-in account's own address is an own address too, whatever domain
+    # it lives on (an operator mailboxing from a second domain).
+    for addr in _own_addresses(None) if False else []:
+        if addr not in out:
+            out.append(addr)
+    return out
+
+
+def _mail_direction(sender: str, recipient: str, user_id: Optional[str]) -> str:
+    """SENT / RECEIVED by this mailbox, or an explicit cannot-determine.
+
+    Two independent dimensions, kept separate:
+
+    * sent vs received — decided by the authenticated mailbox identity against
+      the sender/recipient fields;
+    * internal vs external — an organizational relationship (domain equality),
+      which says NOTHING about who sent it.
+
+    The previous logic collapsed them: a same-domain message was labelled
+    "internal — neither an inbound customer message nor a send to a counterparty"
+    and the sent/received question was never answered. Stating the relationship
+    AND the direction removes the ambiguity instead of choosing a side.
+    """
+    own = set(_own_addresses(user_id))
+    senders = _addresses_in(sender)
+    recipients = _addresses_in(recipient)
+    same_domain = bool(
+        senders and recipients
+        and senders[0].rsplit("@", 1)[-1] == recipients[0].rsplit("@", 1)[-1]
+    )
+    relation = "internal" if same_domain else "external"
+    # THE MAILBOX is the subject, not one human. This install reads a shared
+    # team inbox in which several members send and receive as principals (the
+    # earlier "NOT ADDRESSED TO YOU" verdict was removed for exactly that
+    # reason), so "sent by this mailbox" means the SENDER is one of the
+    # mailbox's own addresses — not that it equals the signed-in user's address.
+    mailbox = set(own) | set(_mailbox_addresses(sender, recipient))
+    own_sends = bool(mailbox & set(senders))
+    own_receives = bool(mailbox & set(recipients))
+    if own_sends and own_receives:
+        # BOTH ends are the mailbox's own addresses: this is mail BETWEEN its
+        # members, so "did this mailbox send it" has no single answer. Reporting
+        # SENT here would mislabel a colleague's message the operator merely
+        # received — the failure mode this whole dimension exists to prevent.
+        return (
+            f" | DIRECTION: internal relationship; both ends are this mailbox's "
+            "own addresses (mail between its members), so sent-vs-received "
+            "depends on WHICH member you mean — attribute it to the sender, and "
+            "do not present it as sent or received by the mailbox as a whole. "
+            "For an 'emails we sent' question this still counts: the message a "
+            "member SENT is outgoing regardless of who it went to"
+        )
+    if own_sends:
+        who = "SENT by this mailbox (the sender is one of its own addresses)"
+    elif own_receives:
+        who = "RECEIVED by this mailbox (an own address is a recipient)"
+    else:
+        return (
+            f" | DIRECTION: {relation} relationship; neither end is one of this "
+            "mailbox's own addresses, so sent-vs-received cannot be determined "
+            "from these fields — do not assert either"
+        )
+    return f" | DIRECTION: {relation} relationship; {who}"
+
+
 def _attachment_content_hits(
-    phrases: List[str], limit: int = 3
+    phrases: List[str], limit: int = 3, user_id: Optional[str] = None
 ) -> List[str]:
     """Messages whose ATTACHED FILE CONTENT contains every phrase.
 
@@ -3311,7 +3612,8 @@ async def _ingested_mailbox_lines(
     if _att_phrases and len(store_lines) < cap:
         try:
             _att_lines = await asyncio.wait_for(
-                asyncio.to_thread(_attachment_content_hits, _att_phrases, 2),
+                # user_id carries the mailbox identity for DIRECTION (see _mail_direction)
+                asyncio.to_thread(_attachment_content_hits, _att_phrases, 2, user_id),
                 timeout=_ATTACHMENT_LEG_TIMEOUT_S,
             )
         except Exception as e:  # noqa: BLE001 — timeout/absence is not an error
@@ -4262,7 +4564,8 @@ async def _datasets_evidence(
                 seen_files.append(fname)
         carried: List[str] = []
         for fname in seen_files[:3]:
-            carried.extend(_messages_carrying_file(fname, query=query, limit=2))
+            carried.extend(_messages_carrying_file(
+                fname, query=query, limit=2, user_id=user_id))
         if carried:
             lines.append(
                 "MESSAGE(S) THAT CARRIED THESE FILES — the email thread to cite:"

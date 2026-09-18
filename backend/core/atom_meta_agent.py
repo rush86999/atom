@@ -825,11 +825,18 @@ class AtomMetaAgent:
                  })
 
             try:
-                tool_descriptions = json.dumps(
-                    [{"name": t["name"], "description": t["description"]} for t in unique_active_tools],
-                    indent=2,
-                    default=str  # Fallback for non-serializable objects
-                )
+                # Bounded render (2026-09-16 audit, gap #4) — same rule as
+                # generic_agent: cap the block, point at mcp_tool_search for
+                # the hidden tail.
+                from core.agent_tool_budget import render_tool_catalog
+                tool_descriptions, hidden_tool_count = render_tool_catalog(
+                    unique_active_tools)
+                if hidden_tool_count:
+                    tool_descriptions += (
+                        f"\n(+{hidden_tool_count} more tools exist but are not "
+                        "listed — call mcp_tool_search with what you need to "
+                        "surface them.)"
+                    )
             except (TypeError, ValueError) as e:
                 logger.error(f"Failed to serialize tool descriptions: {e}")
                 tool_descriptions = json.dumps([])  # Fallback to empty list
@@ -1261,6 +1268,10 @@ class AtomMetaAgent:
                         new_tools = [t for t in found_tools if t["name"] not in existing_names]
 
                         self.session_tools.extend(new_tools)
+                        # Bounded accumulation (2026-09-16 audit, gap #4) —
+                        # mirrors generic_agent: newest survive, oldest drop.
+                        from core.agent_tool_budget import trim_session_tools
+                        self.session_tools = trim_session_tools(self.session_tools)
                         observation = f"Found {len(new_tools)} new tools (total: {len(self.session_tools)}). They have been added to your toolkit for the next step: {[t['name'] for t in new_tools]}"
                     
                         step_record["output"] = str(observation)
@@ -2935,6 +2946,10 @@ Provide your Mentorship Guidance:"""
                 existing_names = {t["name"] for t in self.session_tools}
                 new_tools = [t for t in found_tools if t["name"] not in existing_names]
                 self.session_tools.extend(new_tools)
+                # Bounded accumulation (2026-09-16 audit, gap #4) — same rule
+                # as the single-action path above.
+                from core.agent_tool_budget import trim_session_tools
+                self.session_tools = trim_session_tools(self.session_tools)
                 observation = (
                     f"Found {len(new_tools)} new tools (total: "
                     f"{len(self.session_tools)}). They have been added to your "

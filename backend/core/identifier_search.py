@@ -163,22 +163,21 @@ def _texts_of(record: Any, text_of: Optional[Callable[[Any], str]]) -> str:
     return str(record)
 
 
-def filter_by_terms(
+def filter_by_terms_meta(
     records: Sequence[Any],
     query: str,
     text_of: Optional[Callable[[Any], str]] = None,
     limit: int = 8,
-) -> List[Any]:
-    """Client-side relevance filter for list endpoints that lack a
-    server-side search param. ANY query term (>=3 chars; falls back to the
-    whole query) matches, and matches are RANKED by the total length of the
-    terms they hit — a record containing the model code outranks one that
-    merely shares a prose word — with recency (original) order preserved
-    for ties. Unranked first-N filtering buried the identifier the question
-    was about (live 2026-09-04)."""
+) -> Tuple[List[Any], int]:
+    """filter_by_terms, but also returns how many records matched in total.
+
+    A capped result set is only honest when the caller can say "showing 8 of
+    41 matches" — without the matched count the agent reads a truncated list
+    as the complete answer (the 100K-record mail/store class: the first page
+    looks exhaustive). Returns (top-``limit`` records, total_matched)."""
     query = (query or "").strip()
     if not query:
-        return []
+        return [], 0
     terms = [t.lower() for t in query.split() if len(t) >= 3] or [query.lower()]
     scored: List[Tuple[int, int, Any]] = []
     for idx, record in enumerate(records):
@@ -187,7 +186,23 @@ def filter_by_terms(
         if weight:
             scored.append((-weight, idx, record))
     scored.sort(key=lambda entry: (entry[0], entry[1]))
-    return [record for _w, _i, record in scored[:limit]]
+    return [record for _w, _i, record in scored[:limit]], len(scored)
+
+
+def filter_by_terms(
+    records: Sequence[Any],
+    query: str,
+    text_of: Optional[Callable[[Any], str]] = None,
+    limit: int = 8,
+) -> List[Any]:
+    """Client-side relevance filter for list endpoints that lack a
+    server-side search param. ANY query term (>=3 chars; falls back to
+    the whole query) matches, and matches are RANKED by the total length of
+    the terms they hit — a record containing the model code outranks one
+    that merely shares a prose word — with recency (original) order preserved
+    for ties. Unranked first-N filtering buried the identifier the question
+    was about (live 2026-09-04)."""
+    return filter_by_terms_meta(records, query, text_of=text_of, limit=limit)[0]
 
 
 def rank_records(

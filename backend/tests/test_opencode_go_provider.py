@@ -43,6 +43,17 @@ def byok_handler(mock_byok_manager):
         return handler
 
 
+@pytest.fixture(autouse=True)
+def _clean_provider_cooldowns():
+    """The provider bench is process-wide BY DESIGN (several handlers are
+    built per chat message, so a just-rejected credential must pause all of
+    them) — without a reset, one test's CreditsError benches opencode-go
+    for every later test in the process."""
+    BYOKHandler.invalidate_provider_failures()
+    yield
+    BYOKHandler.invalidate_provider_failures()
+
+
 # ============================================================================
 # Provider registration
 # ============================================================================
@@ -100,9 +111,22 @@ class TestOpenCodeGoRegistration:
             kwargs = mock_openai.call_args.kwargs
             assert kwargs["base_url"] == "https://zen.example.com/v1"
 
-    def test_provider_serves_any_gateway_model(self, byok_handler):
+    def test_provider_serves_from_discovered_catalog(self, byok_handler, tmp_path, monkeypatch):
+        """Serving is answered from the DISCOVERED catalogue, not from
+        gateway-accepts-anything: the old behavior made every catalog
+        identifier eligible for every gateway, which is how a ranked ladder
+        failed on every rung (openrouter "not a valid model ID", opencode-go
+        401). A provider never discovered is UNKNOWN — support is not
+        assumed, and not vetoed for an explicit request (callers dispatch
+        the provider the user named regardless of this gate)."""
+        import core.llm.model_route_registry as mrr
+
+        catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+        monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
+        catalog.record_discovery("opencode-go", ["deepseek-v4-flash", "kimi-k2.7-code"])
         assert byok_handler._provider_serves_model("opencode-go", "deepseek-v4-flash")
         assert byok_handler._provider_serves_model("opencode-go", "kimi-k2.7-code")
+        assert not byok_handler._provider_serves_model("opencode-go", "gpt-4o")
 
     def test_fallback_order_includes_opencode(self, byok_handler):
         byok_handler.clients = {"opencode-go": Mock(), "deepseek": Mock(), "openai": Mock()}

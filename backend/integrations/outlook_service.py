@@ -47,6 +47,10 @@ _GRAPH_HTTP_TIMEOUT_SECONDS = float(
 # 2026-09-13 review).
 _SEARCH_LADDER_MAX_FAILURES = 3
 _AUTH_FAILURE_STATUSES = (401, 403)
+# Graph pages followed per search_emails_paged call when the first page
+# comes back short. Bounded so a pathological nextLink chain can't loop a
+# mailbox scan forever; the continuation token keeps deeper pages reachable.
+_SEARCH_MAX_PAGES = 3
 
 # ``sender=`` is interpolated into a quoted KQL clause — only a plainly
 # shaped address may enter it (quotes, colons and control characters in a
@@ -438,8 +442,14 @@ class OutlookService(IntegrationService):
         method: str = "GET",
         data: Optional[Dict[str, Any]] = None,
         access_token: Optional[str] = None,
+        full_url: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated request to Microsoft Graph API
+
+        ``full_url=True`` sends ``endpoint`` verbatim (Graph ``@odata.nextLink``
+        continuation URLs — they already carry the $skiptoken and point at
+        this same base_url; callers must validate the prefix, see
+        ``_validated_next_link``).
 
         Every request carries an explicit ``aiohttp.ClientTimeout``: a bare
         ``ClientSession()`` rides aiohttp's 300s default, so one hung Graph
@@ -460,7 +470,7 @@ class OutlookService(IntegrationService):
             "Content-Type": "application/json",
         }
 
-        url = f"{self.base_url}{endpoint}"
+        url = endpoint if full_url else f"{self.base_url}{endpoint}"
         self.last_graph_status = None
 
         try:
@@ -1746,36 +1756,98 @@ class OutlookService(IntegrationService):
             logger.error(f"Error getting unread emails: {e}")
             return []
 
-    async def search_emails(
+    @staticmethod
+    def _graph_message_dicts(result: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Map one Graph /me/messages page to OutlookEmail dicts."""
+        emails = []
+        for email_data in (result or {}).get("value", []):
+            emails.append(asdict(OutlookEmail(
+                id=email_data.get("id"),
+                subject=email_data.get("subject", "No Subject"),
+                body_preview=email_data.get("bodyPreview", ""),
+                body=email_data.get("body"),
+                sender=email_data.get("sender"),
+                from_field=email_data.get("from"),
+                to_recipients=email_data.get("toRecipients", []),
+                cc_recipients=email_data.get("ccRecipients", []),
+                bcc_recipients=email_data.get("bccRecipients", []),
+                received_date_time=email_data.get("receivedDateTime"),
+                sent_date_time=email_data.get("sentDateTime"),
+                has_attachments=email_data.get("hasAttachments", False),
+                importance=email_data.get("importance", "normal"),
+                is_read=email_data.get("isRead", False),
+                web_link=email_data.get("webLink"),
+                conversation_id=email_data.get("conversationId"),
+                parent_folder_id=email_data.get("parentFolderId"),
+            )))
+        return emails
+
+    # Continuation tokens must point at the Graph messages endpoint family —
+    # a caller-supplied token is agent/HTTP-facing input, so an arbitrary URL
+    # would be an SSRF vector, not just a malformed cursor.
+    _NEXT_LINK_PREFIXES = (
+        "https://graph.microsoft.com/v1.0/",
+        "https://graph.microsoft.com/beta/",
+    )
+
+    @classmethod
+    def _validated_next_link(cls, raw: Optional[str]) -> Optional[str]:
+        if not raw:
+            return None
+        candidate = str(raw)
+        if not candidate.startswith(cls._NEXT_LINK_PREFIXES):
+            return None
+        if "\\.." in candidate or "/.." in candidate:
+            return None
+        return candidate
+
+    async def search_emails_paged(
         self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None,
         quote: bool = True, sender: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """Search emails across all folders.
+        page_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """search_emails with pagination visibility (MCP opaque-cursor shape).
 
-        ``quote=True`` wraps the query as an exact phrase; ``quote=False``
-        passes it through as raw KQL (space-separated terms) — what the chat
-        path wants for "find this email … Name : Mark, Kellam", where the
-        phrase form would never match the body's punctuation. ``sender``
-        (an email address) prepends a ``from:`` property-scoped clause —
-        live 2026-09-12: 'from:joelseguin@seguinmach.com' returns the whole
-        thread that relevance-ranked free-text buried under newer mail.
+        Two silent-truncation fixes over the historical single-page search
+        (2026-09-16, the 100K-record mailbox class):
 
-        A 400 no longer silently empties the search. Queries mixing
-        addresses, quoted amounts and KQL operators 400 in several forms
-        (live 2026-09-12: 'joelseguin@seguinmach.com "$5,350.00"' failed
-        raw AND failed its sanitized retry because the sanitizer gutted the
-        quoted phrase). The query now climbs a ladder — raw → sanitized
-        (phrases preserved) → decomposed bare tokens — and the first form
-        Graph accepts wins; only ladder exhaustion returns []. The ladder
-        is budgeted (2026-09-13 review): after a few consecutive rejected
-        forms it gives up, and an auth-class failure (401/403 — expired or
-        insufficient token) aborts IMMEDIATELY, because no rung can fix
-        credentials; previously an expired token burned the whole ladder.
-        ``sender`` is validated against a plain address shape before it
-        enters the quoted clause (it is caller-supplied and reaches here
-        from HTTP routes and the universal integration service too).
+        - ``@odata.nextLink`` is FOLLOWED (up to ``_SEARCH_MAX_PAGES`` Graph
+          calls) while fewer than ``max_results`` emails have been collected,
+          so a ``$top=50`` request actually returns up to 50 messages instead
+          of the first relevance page Graph chose to send.
+        - the response reports ``has_more``/``next_page_token`` so the agent
+          can request the continuation instead of reading a truncated page
+          as the complete answer. ``next_page_token`` is the Graph nextLink
+          URL (endpoint + $search + $skiptoken — no credentials in it);
+          passing it back as ``page_token`` resumes exactly there.
+
+        Returns ``{"emails": [...], "has_more": bool, "next_page_token":
+        str|None, "pages_fetched": int}``; ``emails`` shape is identical to
+        search_emails.
         """
         try:
+            if page_token:
+                next_link = self._validated_next_link(page_token)
+                if not next_link:
+                    return {"emails": [], "has_more": False, "next_page_token": None,
+                            "pages_fetched": 0, "error": "invalid page_token"}
+                emails: List[Dict[str, Any]] = []
+                pages = 0
+                current: Optional[str] = next_link
+                while current and len(emails) < max_results and pages < _SEARCH_MAX_PAGES:
+                    page = await self._make_graph_request(
+                        user_id, current, access_token=token, full_url=True)
+                    emails.extend(self._graph_message_dicts(page))
+                    pages += 1
+                    current = self._validated_next_link(
+                        (page or {}).get("@odata.nextLink"))
+                return {
+                    "emails": emails[:max_results],
+                    "has_more": bool(current) and len(emails) >= max_results,
+                    "next_page_token": current,
+                    "pages_fetched": pages,
+                }
+
             if sender and not _SENDER_ADDRESS_RE.match(str(sender).strip()):
                 logger.warning(
                     "search_emails: ignoring malformed sender filter %r",
@@ -1808,7 +1880,6 @@ class OutlookService(IntegrationService):
                     attempts.append(decomposed)
 
             result = None
-            used = None
             consecutive_failures = 0
             for attempt in attempts:
                 # Graph rejects $orderby combined with $search on
@@ -1822,7 +1893,6 @@ class OutlookService(IntegrationService):
                 endpoint = f"/me/messages?{query_string}"
                 result = await self._make_graph_request(user_id, endpoint, access_token=token)
                 if result is not None:
-                    used = attempt
                     break
                 status = getattr(self, "last_graph_status", None)
                 if status in _AUTH_FAILURE_STATUSES:
@@ -1848,35 +1918,47 @@ class OutlookService(IntegrationService):
                     query, attempts,
                 )
 
-            if result and "value" in result:
-                emails = []
-                for email_data in result["value"]:
-                    email = OutlookEmail(
-                        id=email_data.get("id"),
-                        subject=email_data.get("subject", "No Subject"),
-                        body_preview=email_data.get("bodyPreview", ""),
-                        body=email_data.get("body"),
-                        sender=email_data.get("sender"),
-                        from_field=email_data.get("from"),
-                        to_recipients=email_data.get("toRecipients", []),
-                        cc_recipients=email_data.get("ccRecipients", []),
-                        bcc_recipients=email_data.get("bccRecipients", []),
-                        received_date_time=email_data.get("receivedDateTime"),
-                        sent_date_time=email_data.get("sentDateTime"),
-                        has_attachments=email_data.get("hasAttachments", False),
-                        importance=email_data.get("importance", "normal"),
-                        is_read=email_data.get("isRead", False),
-                        web_link=email_data.get("webLink"),
-                        conversation_id=email_data.get("conversationId"),
-                        parent_folder_id=email_data.get("parentFolderId"),
-                    )
-                    emails.append(asdict(email))
-                return emails
+            emails = self._graph_message_dicts(result)
+            pages = 1
+            next_link = self._validated_next_link((result or {}).get("@odata.nextLink"))
+            # Short first page + a nextLink = Graph held results back; follow
+            # it (bounded) until the caller's max_results is satisfied.
+            while (next_link and len(emails) < max_results
+                   and pages < _SEARCH_MAX_PAGES):
+                page = await self._make_graph_request(
+                    user_id, next_link, access_token=token, full_url=True)
+                if page is None:
+                    break
+                emails.extend(self._graph_message_dicts(page))
+                pages += 1
+                next_link = self._validated_next_link(page.get("@odata.nextLink"))
 
-            return []
+            return {
+                "emails": emails[:max_results],
+                "has_more": bool(next_link) and len(emails) >= max_results,
+                "next_page_token": next_link,
+                "pages_fetched": pages,
+            }
         except Exception as e:
             logger.error(f"Error searching emails: {e}")
-            return []
+            return {"emails": [], "has_more": False, "next_page_token": None,
+                    "pages_fetched": 0}
+
+    async def search_emails(
+        self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None,
+        quote: bool = True, sender: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search emails across all folders (multi-page; list contract).
+
+        See search_emails_paged for the KQL ladder, the ``from:`` scoping
+        and the nextLink-following behavior — this wrapper keeps the
+        historical plain-list return for existing callers.
+        """
+        paged = await self.search_emails_paged(
+            user_id, query, max_results=max_results, token=token,
+            quote=quote, sender=sender,
+        )
+        return paged.get("emails", [])
 
     async def list_recent_emails(
         self, user_id: str, max_results: int = 50, token: Optional[str] = None,

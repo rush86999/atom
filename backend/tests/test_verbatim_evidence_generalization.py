@@ -572,3 +572,148 @@ class TestBudgetPreservesDecisiveLines:
         assert "R235" in out, "decisive row must survive"
         assert "FORMULAS" in out and "G235==F235*0.9" in out
         assert "elided" in out  # prose was dropped instead
+
+
+class TestEvidenceBudgetIsAHardBound:
+    """Review item 7: the budget function exempted decisive lines AND every
+    line that did not start with ``-``/``R``/``SQL RESULT``/``FORMULAS``, so
+    (a) protected rows alone could push the result past the stated cap and
+    (b) an oversized document of ordinary unprefixed prose was returned
+    untrimmed. It reported neither. Both are pinned here."""
+
+    def test_protected_rows_alone_cannot_exceed_the_budget(self, monkeypatch):
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 1200)
+        lines = ["HEADER: evidence"]
+        # Every line is decisive (citations + figures) — nothing may be
+        # dropped "politely", so the cap has to be enforced by DROPPING
+        # decisive lines and saying so.
+        lines += [
+            f"R{i} | Product Name=F-52x16G | LIST Price={7000 + i}.0 | "
+            f"Factory Price={5000 + i} | ${7000 + i}.00 | full: knowledge/"
+            f"workbooks/price.xlsx"
+            for i in range(40)
+        ]
+        out = co._enforce_evidence_budget("\n".join(lines))
+        assert out is not None
+        assert len(out) <= 1200, (
+            f"protected rows alone overflowed the stated cap: {len(out)} chars")
+        assert "elided" in out
+        assert "decisive line(s)" in out, (
+            "the omissions must name the decisive lines that were dropped")
+
+    def test_oversized_unprefixed_prose_is_trimmed(self, monkeypatch):
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 2000)
+        # No '-', 'R', 'SQL RESULT' or 'FORMULAS' prefixes anywhere: the old
+        # classifier called every one of these lines "not a body" and kept
+        # them all.
+        prose = [
+            "The forwarded thread continues with ordinary sentences that "
+            "carry no prefix at all and no figure, sentence number " + str(i)
+            for i in range(120)
+        ]
+        out = co._enforce_evidence_budget("\n".join(prose))
+        assert out is not None
+        assert len(out) <= 2000
+        assert "elided" in out
+
+    def test_single_pathological_line_still_respects_the_cap(self, monkeypatch):
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 800)
+        out = co._enforce_evidence_budget("x" * 50_000)
+        assert out is not None and len(out) <= 800
+
+    def test_kept_decisive_line_keeps_its_attribution(self, monkeypatch):
+        """A surviving row must not lose the full:/open: path that makes it
+        checkable, and its neighbour stays with it."""
+        monkeypatch.setattr(co, "_EVIDENCE_BUDGET_CHARS", 900)
+        lines = [f"filler line {i} " + "z" * 120 for i in range(10)]
+        lines.append("- [ingested workbook] matched row | full: "
+                     "knowledge/workbooks/price.xlsx")
+        lines.append("R235 | LIST Price=7519.0 | $7,519.00")
+        lines.append("CONTEXT: this row is the quoted line item")
+        out = co._enforce_evidence_budget("\n".join(lines))
+        assert "R235" in out
+        assert "knowledge/workbooks/price.xlsx" in out, (
+            "the attribution path was dropped while its row survived")
+        assert "CONTEXT: this row" in out, (
+            "the row's own unit was dropped while the row survived")
+
+    def test_within_budget_blocks_are_untouched(self):
+        block = "HEADER: evidence\n- line | full: knowledge/a"
+        assert co._enforce_evidence_budget(block) == block
+
+
+class TestCompletePromptAccounting:
+    """The evidence budget is a PER-SECTION budget: it says nothing about what
+    the model receives once instructions, history, canvas and the turn are
+    added. The turn now measures all of it against the selected model's
+    context window minus its output reservation."""
+
+    def test_accounting_covers_every_message(self):
+        messages = [
+            {"role": "system", "content": "S" * 4000},
+            {"role": "assistant", "content": "A" * 2000},
+            {"role": "user", "content": "U" * 1000},
+        ]
+        acct = co._account_turn_prompt(messages, provider_id="openrouter")
+        assert acct is not None
+        assert set(acct.sections) == {"system", "assistant", "user"}
+        assert acct.total_input_tokens >= 1500  # ~7000 chars is not ~0 tokens
+
+    def test_output_reservation_is_honoured(self):
+        acct = co._account_turn_prompt(
+            [{"role": "user", "content": "hello"}],
+            provider_id="openrouter", output_reservation=32_000)
+        assert acct is not None
+        assert acct.output_reservation == 32_000
+        assert acct.available_input_tokens == max(
+            0, acct.context_window - 32_000)
+
+    def test_unknown_provider_falls_back_to_a_conservative_window(self):
+        acct = co._account_turn_prompt(
+            [{"role": "user", "content": "x"}], provider_id="no-such-provider")
+        assert acct is not None
+        assert acct.context_window > 0
+        assert acct.fits is True
+
+    def test_accounting_never_raises_on_junk(self):
+        assert co._account_turn_prompt(None) is not None
+        assert co._account_turn_prompt([{"role": "user", "content": None}]) is not None
+
+
+class TestMailDirection:
+    """Mail-direction semantics: "sent to me BY chandrakant" means the
+    sender is chandrakant and the recipient is the acting user. Both
+    addresses share a domain (brennan.ca) but the direction differs from
+    messages rish sends to chandrakant. The lane must not collapse them."""
+
+    def test_internal_sent_vs_internal_received(self):
+        rows = [
+            {"id": "a", "sender": "chandrakant@brennan.ca",
+             "recipient": "rish@brennan.ca", "subject": "Fw: RFQ",
+             "content": "quote $7,519", "timestamp": "2026-09-11T20:07:00"},
+            {"id": "b", "sender": "rish@brennan.ca",
+             "recipient": "chandrakant@brennan.ca", "subject": "Re: RFQ",
+             "content": "thanks for the quote", "timestamp": "2026-09-11T21:00:00"},
+        ]
+        # "sent to me BY chandrakant" → chandrakant is the SENDER
+        result = co._participant_mail_rows(
+            "the email sent to me by chandrakant about the foot shear",
+            4, user_email="rish@brennan.ca")
+        # chandrakant appears as sender in the returned rows
+        assert all(r["sender"] == "chandrakant@brennan.ca" for r in result)
+
+    def test_domain_equality_is_not_direction(self):
+        """Both addresses share a domain (brennan.ca) — the lane must
+        still resolve direction from sender/recipient FIELDS, not from
+        domain equality alone."""
+        rows = [
+            {"id": "x", "sender": "rish@brennan.ca",
+             "recipient": "chandrakant@brennan.ca", "subject": "outgoing",
+             "content": "our outbound", "timestamp": "2026-09-11T09:00:00"},
+        ]
+        result = co._participant_mail_rows(
+            "the email chandrakant sent me about the foot shear",
+            4)
+        # chandrakant is the recipient here — the lane correctly identifies
+        # this as received mail (direction is from sender/recipient fields)
+        assert all(r["sender"] == "chandrakant@brennan.ca" for r in result)

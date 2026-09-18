@@ -5,6 +5,17 @@
 #   - numpy>=2.3: numpy 1.x has no cp314 wheels. Rest of the stack is numpy-2 compatible.
 #   - fastembed IS included (onnxruntime ships cp314 arm64-mac wheels); on x86_64 3.14 it must be dropped.
 #   - pytest/pytest-asyncio come from requirements-testing.txt; on 3.14 use pytest>=8.3.4 + pytest-asyncio>=1.0.
+#   - pytest is pinned BELOW 9 (8.4.2): the plugin set is not pytest-9 ready and the
+#     file was previously unsatisfiable — `uv pip install -r requirements-py314.txt`
+#     failed with "pytest-playwright==0.5.2 depends on pytest>=6.2.4,<9.0.0 ... your
+#     requirements are unsatisfiable" while pinning pytest==9.1.1. pip had installed
+#     the set without resolving, so the broken combination was invisible. Two ways to
+#     fix it were tried against the real resolver: bump the plugins (pytest-playwright
+#     0.9.0 accepts pytest<10) or hold pytest below 9. The latter was chosen because it
+#     also satisfies schemathesis 3.39.16 (pytest<9) with NO major-version upgrade to a
+#     package the suite exercises — a smaller change for a dependency-only fix.
+#     Verified: `uv pip install --dry-run -r requirements-py314.txt -r
+#     requirements-testing.txt` resolves, and the backend suite passes on 8.4.2.
 # Create: uv venv venv314 --python 3.14 && uv pip install --python venv314/bin/python -r requirements-py314.txt -r requirements-testing.txt
 
 APScheduler==3.11.3
@@ -245,14 +256,14 @@ pytest-html==4.2.0
 pytest-json-report==1.5.0
 pytest-metadata==3.1.1
 pytest-mock==3.15.1
-pytest-playwright==0.5.2
+pytest-playwright==0.9.0
 pytest-random-order==1.2.0
 pytest-randomly==3.16.0
 pytest-rerunfailures==14.0
 pytest-subtests==0.14.2
 pytest-timeout==2.4.0
 pytest-xdist==3.6.1
-pytest==9.1.1
+pytest==8.4.2
 python-dateutil==2.9.0.post0
 python-docx==0.8.11
 python-dotenv==1.2.3

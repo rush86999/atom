@@ -137,6 +137,34 @@ class RoutingFeedback:
     actual_cost: Optional[float] = None
     actual_latency_ms: Optional[float] = None
     canvas_type: Optional[str] = None  # Which canvas type the model output to (for canvas-aware learning)
+    #: Corrective provenance for THIS generation ("unsupported_figures",
+    #: "ungrounded_claims", "timeout", …).
+    #:
+    #: Deliberately NOT carried inside ``_prompt_features``: that dict is
+    #: REPLACED by the stashed decision features during ``record_feedback``
+    #: (``consume_decision`` does not delete the stash), so a verdict riding
+    #: there was silently overwritten — the annotation never happened and a
+    #: second row was inserted for the same generation (reproduced 2026-09-16
+    #: through the real entry point). A first-class field cannot be clobbered
+    #: by feature recovery.
+    verdict: Optional[str] = None
+    #: The PROVIDER half of the route that produced the generation
+    #: (``(provider_id, model_id)``). Model identifiers are not globally unique
+    #: — an OpenRouter id carries a vendor namespace (``z-ai/glm-5.3-flash``)
+    #: that another gateway may also serve under the same string — so a
+    #: per-route judgement needs both halves to be attributable. Persisted as
+    #: ``prompt_features["route_provider"]`` beside the verdict (the row has no
+    #: provider column). ``None`` for rows written before route provenance
+    #: existed: consumers must read that as "provider unknown", never as a
+    #: match for whatever provider is being asked about.
+    provider_id: Optional[str] = None
+    #: WHICH RULE produced ``verdict`` (see
+    #: ``core.llm.fabrication_accounting.CURRENT_VERDICT_RULES``). A verdict is
+    #: only as good as the rule behind it: the deterministic figure check
+    #: provably mis-fired on derivation turns, so a route may only be EXCLUDED
+    #: on verdict evidence whose rule is known-good. Persisted as
+    #: ``prompt_features["verdict_rule"]`` beside the verdict.
+    verdict_rule: Optional[str] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -1546,7 +1574,36 @@ class LearningBasedRouter:
             if feedback_key not in self._preference_data:
                 self._preference_data[feedback_key] = []
 
-            self._preference_data[feedback_key].append(feedback)
+            # ONE GENERATION, ONE LEARNING EVENT. A corrective verdict judges a
+            # generation that already has an outcome event in memory. Appending
+            # it as a SECOND event left the router holding one "good" and one
+            # "bad" observation of the same output, while the database kept a
+            # single row — so a restart changed the router's opinion of the
+            # model (reproduced 2026-09-16: memory said 0.1, the row said 0.8).
+            # The correction SUPERSEDES the generation's quality instead.
+            superseded = None
+            if feedback.verdict:
+                for prior in self._preference_data[feedback_key]:
+                    if (prior.routing_result_id == feedback.routing_result_id
+                            and prior.model_id == feedback.model_id
+                            and not prior.verdict):
+                        superseded = prior
+                        break
+            if superseded is not None:
+                superseded.success = feedback.success
+                superseded.quality_satisfied = feedback.quality_satisfied
+                superseded.user_satisfaction = feedback.user_satisfaction
+                superseded.verdict = feedback.verdict
+                superseded.actual_cost = (
+                    feedback.actual_cost
+                    if feedback.actual_cost is not None
+                    else superseded.actual_cost)
+                superseded.actual_latency_ms = (
+                    feedback.actual_latency_ms
+                    if feedback.actual_latency_ms is not None
+                    else superseded.actual_latency_ms)
+            else:
+                self._preference_data[feedback_key].append(feedback)
 
             # Bound memory: keep only the most recent feedback per key (R17-2).
             if len(self._preference_data[feedback_key]) > self._max_preference_data_per_key:
@@ -1562,7 +1619,7 @@ class LearningBasedRouter:
             self._persist_feedback(feedback, recovered_features)
 
             # Update EMA scores in memory
-            self._update_ema_scores(feedback)
+            self._update_ema_scores(superseded or feedback)
 
             # Trigger retraining once there's enough feedback for a per-model
             # predictor (the lowest learning threshold). _retrain_router internally
@@ -1647,9 +1704,142 @@ class LearningBasedRouter:
         Uses a short-lived session (not the long-lived ``self.db``) per the
         codebase session-management guidance. Failures are logged and swallowed
         so a DB issue never breaks the hot routing path.
+
+        VERDICT ROWS ARE IDEMPOTENT PER GENERATION (review item 3). A
+        FABRICATION verdict ANNOTATES the generation it judged, which already
+        has an outcome row whenever the caller supplies the same
+        ``routing_result_id``. Repeating a correction therefore updates that
+        row instead of inserting another one.
+
+        The verdict is read from ``feedback.verdict`` (a first-class field),
+        falling back to the legacy ``prompt_features["verdict"]`` slot for
+        callers that still pass it there. The field exists because feature
+        recovery replaces ``_prompt_features`` wholesale — a verdict riding
+        there was lost and the row duplicated (reproduced 2026-09-16).
+
+        An annotation updates the row's QUALITY fields too, not just its
+        provenance: a row reading ``quality_satisfied=True, score=0.8,
+        verdict=unsupported_figures`` is self-contradictory, and in-memory
+        learning would hold the corrected quality while the database held the
+        old one — so a restart flipped the router's view of the model.
+
+        AVAILABILITY verdicts never annotate: they describe an attempt that
+        produced no output (a timed-out planning call), which is not a
+        judgement on some other attempt's reply that happens to share the turn.
         """
         try:
+            from core.llm.fabrication_accounting import (
+                GROUNDING_EVALUATED_VERDICTS,
+                JUDGEMENT_VERDICTS,
+                coerce_features,
+                verdict_rank,
+            )
+
+            features, _malformed = coerce_features(prompt_features)
+            verdict = getattr(feedback, "verdict", None) or (
+                features.get("verdict") if features else None)
+            # Verdicts about THIS OUTPUT annotate its row; availability
+            # verdicts (a timed-out planning call) describe an attempt that
+            # produced nothing, and must not annotate some other attempt that
+            # happens to share the turn.
+            annotates = (
+                verdict in JUDGEMENT_VERDICTS
+                or verdict in GROUNDING_EVALUATED_VERDICTS
+            ) and bool(feedback.routing_result_id)
+            # Provider half of the route, when the caller knows it. Stored
+            # beside the verdict so a later per-route consumer can tell WHICH
+            # gateway produced the judged generation (the row itself has no
+            # provider column).
+            route_provider = getattr(feedback, "provider_id", None)
+
             with get_db_session() as db:
+                if annotates:
+                    existing = (
+                        db.query(LLMRoutingFeedback)
+                        .filter(
+                            LLMRoutingFeedback.routing_result_id
+                            == feedback.routing_result_id,
+                            LLMRoutingFeedback.model_id == feedback.model_id,
+                        )
+                        .order_by(LLMRoutingFeedback.created_at.asc())
+                        .first()
+                    )
+                    if existing is not None:
+                        stored, _ = coerce_features(existing.prompt_features)
+                        # ONE VERDICT SLOT, ORDERED BY SEVERITY. A weaker
+                        # judgement never replaces a stronger one, and a repeat
+                        # is a no-op: an invention outranks "ignored the
+                        # evidence", which outranks the positive marker that the
+                        # grounding check ran. The previous pairwise checks
+                        # (fabrication > grounding) left the new middle class
+                        # unguarded, so a grounding pass arriving after an
+                        # ignored-evidence judgement would have erased it.
+                        if verdict_rank(verdict) <= verdict_rank(stored.get("verdict")):
+                            return
+                        # Reassign a NEW mapping: mutating the dict in place
+                        # leaves SQLAlchemy's JSON column clean and the verdict
+                        # would silently never reach the database.
+                        updated = dict(stored)
+                        updated["verdict"] = verdict
+                        if route_provider:
+                            updated["route_provider"] = str(route_provider)
+                        verdict_rule = getattr(feedback, "verdict_rule", None) or (
+                            (features or {}).get("verdict_rule"))
+                        if verdict_rule:
+                            updated["verdict_rule"] = str(verdict_rule)
+                        existing.prompt_features = updated
+                        # QUALITY FIELDS follow the verdict only when the
+                        # verdict is a JUDGEMENT ON THE OUTPUT. A grounding
+                        # pass is a statement about the CHECK, not a new score
+                        # for the reply — overwriting the outcome's real
+                        # measurement with the marker's placeholder score would
+                        # corrupt the training signal.
+                        if verdict in JUDGEMENT_VERDICTS:
+                            existing.quality_satisfied = feedback.quality_satisfied
+                            existing.user_satisfaction = feedback.user_satisfaction
+                            existing.success = feedback.success
+                        return
+
+                if not annotates:
+                    # A SECOND outcome row for the same (turn, model) is a
+                    # RETRY that reused the routing decision — a DISTINCT
+                    # generation, not a duplicate of the first. Generation
+                    # accounting keys on (routing_result_id, model_id), so
+                    # sharing the id merged two real outputs into one and the
+                    # second output's fabrication could be hidden (closure
+                    # item 3: "must not merge separate outputs when retries
+                    # reuse a routing decision"). Give the later attempt its
+                    # own id; the handler publishes the EFFECTIVE id after this
+                    # write, so a corrective verdict for that attempt targets
+                    # the row it actually wrote.
+                    prior = (
+                        db.query(LLMRoutingFeedback.id)
+                        .filter(
+                            LLMRoutingFeedback.routing_result_id
+                            == feedback.routing_result_id,
+                            LLMRoutingFeedback.model_id == feedback.model_id,
+                        )
+                        .count()
+                    )
+                    if prior:
+                        feedback.routing_result_id = (
+                            f"{feedback.routing_result_id}#a{prior + 1}")
+
+                verdict_rule = getattr(feedback, "verdict_rule", None) or (
+                    (features or {}).get("verdict_rule"))
+                if route_provider or verdict_rule:
+                    # Same rule for a standalone row: its provenance travels
+                    # with it, so a route-scoped consumer can attribute it and
+                    # tell which rule judged it.
+                    row_features = dict(coerce_features(prompt_features)[0])
+                    if route_provider:
+                        row_features["route_provider"] = str(route_provider)
+                    if verdict_rule:
+                        row_features["verdict_rule"] = str(verdict_rule)
+                    if verdict:
+                        row_features["verdict"] = verdict
+                    prompt_features = row_features
+
                 row = LLMRoutingFeedback(
                     routing_result_id=feedback.routing_result_id,
                     tenant_id=feedback.tenant_id,
@@ -1679,6 +1869,8 @@ class LearningBasedRouter:
         quality: "ResponseQuality",
         actual_cost: Optional[float] = None,
         actual_latency_ms: Optional[float] = None,
+        provider_id: Optional[str] = None,
+        verdict_rule: Optional[str] = None,
     ) -> RoutingFeedback:
         """Build a RoutingFeedback from a ResponseQuality assessment.
 
@@ -1699,6 +1891,8 @@ class LearningBasedRouter:
             user_satisfaction=quality.quality_score,
             actual_cost=actual_cost,
             actual_latency_ms=actual_latency_ms,
+            provider_id=provider_id,
+            verdict_rule=verdict_rule,
         )
 
     def resolve_feedback_context(

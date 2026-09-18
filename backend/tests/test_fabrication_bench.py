@@ -18,11 +18,29 @@ def _make_handler():
 
 
 class _Chain:
+    """Fake result set for the bench's row query.
+
+    The query now selects the generation's IDENTITY columns (``id,
+    routing_result_id, model_id, user_satisfaction, prompt_features``) because
+    the bench counts EVALUATED GENERATIONS, not rows. Callers may still pass a
+    bare score or a ``(score, features)`` pair: each becomes its own generation
+    (distinct ``routing_result_id``), which is what those callers always meant.
+    A full 5-tuple passes through untouched, so a test can express "two rows,
+    one generation".
+    """
+
     def __init__(self, satisfactions):
-        self.sat = [
-            (s, None) if not isinstance(s, tuple) else s
-            for s in satisfactions
-        ]
+        self.sat = []
+        for index, item in enumerate(satisfactions):
+            if isinstance(item, tuple) and len(item) == 5:
+                self.sat.append(item)
+            elif isinstance(item, tuple):
+                score, features = item
+                self.sat.append(
+                    (f"id{index}", f"turn{index}", "p/m", score, features))
+            else:
+                self.sat.append(
+                    (f"id{index}", f"turn{index}", "p/m", item, None))
     def filter(self, *a, **k): return self
     def query(self, *a, **k): return self
     def all(self): return self.sat
@@ -43,13 +61,18 @@ class TestFabricationBench:
 
         h = _make_handler()
         monkeypatch.delenv("ATOM_FABRICATION_BENCH", raising=False)
-        # Re-contracted to verdict provenance: stamped fabrication rows
+        # Re-contracted to verdict provenance: a fabrication verdict counts as
+        # exclusion evidence only when it names the rule that produced it AND
+        # was recorded for THIS provider (route attribution) — the stamp is
+        # what a route-scoped exclusion is built from.
+        _stamped = _json.dumps({
+            "verdict": "unsupported_figures", "verdict_rule": "figures_v2",
+            "route_provider": "p"})
         _patch_db(monkeypatch, [
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.7, None)])
+            (0.1, _stamped), (0.1, _stamped), (0.1, _stamped), (0.7, None)])
         assert h._fabrication_benched("p", "m") is True
+        # ...and the SAME rows do not bench a different provider's route.
+        assert h._fabrication_benched("other", "m") is False
 
     def test_below_min_events_not_benched(self, monkeypatch):
         h = _make_handler()
@@ -82,7 +105,9 @@ class TestFabricationBench:
             calls["n"] += 1
             import json as _json
             chain = _Chain([
-                (0.1, _json.dumps({"verdict": "unsupported_figures"}))] * 4)
+                (0.1, _json.dumps({"verdict": "unsupported_figures",
+                                   "verdict_rule": "figures_v2",
+                                   "route_provider": "p"}))] * 4)
             class _S:
                 def __enter__(self): return chain
                 def __exit__(self, *a): return False
@@ -121,10 +146,20 @@ class TestLearningRouterAuto:
             assert reg.learning_router_mode() == want, raw
 
     def test_auto_thin_history_stays_off(self, monkeypatch):
+        import core.database
         import core.llm.learning_router_registry as reg
         monkeypatch.delenv("ATOM_LEARNING_ROUTER", raising=False)
         monkeypatch.setattr(reg, "_lr_ready_cache",
                             {"ts": 0.0, "ready": False, "logged": None})
+        # HERMETIC: readiness reads llm_routing_feedback through
+        # core.database.get_db_session. Without this the assertion depended on
+        # whatever the shared test database had accumulated — a "cold table"
+        # test that passes only while nobody else has written a row.
+        chain = _Chain([])
+        class _S:
+            def __enter__(self): return chain
+            def __exit__(self, *a): return False
+        monkeypatch.setattr(core.database, "get_db_session", lambda: _S())
         # cold table (0 rows) — readiness fail-closed
         assert reg.learning_history_ready() is False
         # but mode is still auto and observation instances exist
@@ -257,14 +292,18 @@ class TestTimeoutOutcomeRecording:
 
         written = {}
 
-        class _Router:
-            def _persist_feedback(self, fb, feats):
-                written["fb"] = fb
+        def _record(_self, fb, feats):
+            written["fb"] = fb
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(
-            lrouter.LearningBasedRouter, "__new__",
-            lambda cls: _Router())
+        # Patch the METHOD, not __new__: monkeypatch restores a patched
+        # __new__ as an OWN class attribute, after which type.__call__ stops
+        # treating it as the default and hands the constructor args to
+        # object.__new__ — "object.__new__() takes exactly one argument" in
+        # every LATER test that builds a LearningBasedRouter. Reproduced at
+        # HEAD in a pristine worktree (this file + test_router_round2_fixes).
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
 
         ok = _aio.run(reg.record_timeout_outcome(
             "p/m", task_type="planning", elapsed_s=25.0))
@@ -299,9 +338,15 @@ class TestVerdictProvenanceSeparation:
 
         h = _make_handler()
         rows = [
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
-            (0.15, _json.dumps({"verdict": "ungrounded_claims"})),
-            (0.1, _json.dumps({"verdict": "unsupported_figures"})),
+            (0.1, _json.dumps({"verdict": "unsupported_figures",
+                               "verdict_rule": "figures_v2",
+                               "route_provider": "p"})),
+            (0.15, _json.dumps({"verdict": "ungrounded_claims",
+                                "verdict_rule": "panel_v1",
+                                "route_provider": "p"})),
+            (0.1, _json.dumps({"verdict": "unsupported_figures",
+                               "verdict_rule": "figures_v2",
+                               "route_provider": "p"})),
             (0.7, None),
         ]
         chain = _Chain(rows)
@@ -328,18 +373,41 @@ class TestVerdictProvenanceSeparation:
 
         written = {}
 
-        class _W:
-            def _persist_feedback(self, fb, feats):
-                written["fb"] = fb
-                written["feats"] = feats
+        def _record(_self, fb, feats):
+            written["fb"] = fb
+            written["feats"] = feats
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(lrouter.LearningBasedRouter, "__new__",
-                            lambda cls: _W())
+        # Patch the METHOD, not __new__: monkeypatch restores a patched
+        # __new__ as an own class attribute, after which type.__call__ stops
+        # treating it as the default and passes the constructor args to
+        # object.__new__ -> "object.__new__() takes exactly one argument" in
+        # every LATER test that instantiates LearningBasedRouter. Reproduced at
+        # HEAD in a pristine worktree (this file + test_router_round2_fixes).
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
+        # HERMETIC: pin the flag-off path deterministically. Otherwise a
+        # self-activated router (auto mode + any accumulated history) takes the
+        # `router is not None` branch and this fake writer is bypassed, so the
+        # test's outcome depended on the shared database's contents.
+        monkeypatch.setattr(reg, "get_learning_router_instance",
+                            lambda *a, **k: None)
         ok = asyncio.run(reg.record_fabrication_signal(
             model_id="p/m", unsupported_figures=["$1"]))
         assert ok is True
-        assert written["feats"] == {"verdict": "unsupported_figures"}
+        # The payload carries the RULE as well: a verdict is only usable as
+        # exclusion evidence when a consumer can see which rule produced it
+        # (core.llm.fabrication_accounting.CURRENT_VERDICT_RULES).
+        assert written["feats"] == {
+            "verdict": "unsupported_figures", "verdict_rule": "figures_v2"}
+        # The verdict carries the generation identity when the caller knows it,
+        # so the corrective row ANNOTATES that generation instead of creating a
+        # second one (review item 3).
+        written.clear()
+        asyncio.run(reg.record_fabrication_signal(
+            model_id="p/m", unsupported_figures=["$1"],
+            routing_result_id="turn-42"))
+        assert written["fb"].routing_result_id == "turn-42"
 
     def test_timeout_signal_stamps_timeout_verdict(self, monkeypatch):
         import asyncio
@@ -348,13 +416,12 @@ class TestVerdictProvenanceSeparation:
 
         written = {}
 
-        class _W:
-            def _persist_feedback(self, fb, feats):
-                written["feats"] = feats
+        def _record(_self, fb, feats):
+            written["feats"] = feats
 
         import core.learning_llm_router as lrouter
-        monkeypatch.setattr(lrouter.LearningBasedRouter, "__new__",
-                            lambda cls: _W())
+        monkeypatch.setattr(lrouter.LearningBasedRouter, "_persist_feedback",
+                            _record)
         asyncio.run(reg.record_timeout_outcome(
             "p/m", task_type="planning", elapsed_s=25.0))
         assert written["feats"] == {"verdict": "timeout"}

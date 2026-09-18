@@ -44,6 +44,23 @@ BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
 )
 
 
+def _invalidate_provider_route_state(provider_id: Optional[str] = None) -> None:
+    """Clear cached route knowledge after a credential change.
+
+    A key the provider rejected five minutes ago may be valid now, and a model
+    catalogue fetched with the old key may not describe the new one. Recovery
+    must not wait for a cooldown TTL: storing or deleting a key re-opens the
+    provider (and its discovery) immediately. Best-effort — never blocks the
+    operator's request.
+    """
+    try:
+        from core.llm.byok_handler import BYOKHandler
+
+        BYOKHandler.invalidate_provider_failures(provider_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("provider route state not invalidated: %s", exc)
+
+
 def _is_usable_api_key(key: Optional[str]) -> bool:
     """True when a resolved key exists AND is not a known placeholder.
 
@@ -606,21 +623,27 @@ class BYOKManager:
 
         self.api_keys[key_id] = api_key_obj
         self._save_configuration()
+        _invalidate_provider_route_state(provider_id)
 
         return key_id
 
     def is_configured(self, tenant_id_or_workspace: str, provider_id: str) -> bool:
-        """Check if BYOK is configured for a specific tenant/workspace and provider"""
-        # 1. Check if we have a global key (fallback/dev)
-        if self.get_api_key(provider_id):
+        """Check if BYOK is configured for a specific tenant/workspace and provider.
+
+        Must agree with what can actually be RETRIEVED for the same caller:
+        the global/named key first, then this tenant's own scoped entry — the
+        same resolution ``get_api_key``/``get_tenant_api_key`` perform. The
+        old exact-id check returned True for rows whose ciphertext could not
+        be decrypted at all, so "configured" and "retrievable" disagreed.
+        """
+        # 1. Global (or named) key, then this caller's own scoped entry.
+        if self.get_api_key(provider_id, tenant_id=tenant_id_or_workspace):
             return True
-            
-        # 2. Check if we have a tenant-specific key
-        # We try both tenant_id and workspace_id as they are sometimes used interchangeably in lookups
-        tenant_key_id = f"tenant_{tenant_id_or_workspace}_{provider_id}_default_production"
-        if tenant_key_id in self.api_keys:
+
+        # 2. Tenant-scoped key for this caller.
+        if self.get_tenant_api_key(tenant_id_or_workspace, provider_id):
             return True
-            
+
         return False
 
     def get_api_key(
@@ -628,14 +651,22 @@ class BYOKManager:
         provider_id: str,
         key_name: str = "default",
         environment: str = "production",
+        tenant_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Retrieve and decrypt an API key"""
-        key_id = f"{provider_id}_{key_name}_{environment}"
+        """Retrieve and decrypt an API key.
 
-        if key_id not in self.api_keys:
+        This manager serves per-tenant HTTP requests, so an UNSCOPED lookup
+        stays global: a tenant's scoped credential must never be reported as
+        the installation's global key (that is exactly the leak the
+        single-operator carve-out in ``core/byok_endpoints`` must not open
+        here). Pass ``tenant_id`` to resolve a specific owner's credential —
+        own scope first, then global, never another tenant's.
+        """
+        api_key_obj = self._find_stored_key(
+            provider_id, key_name, environment, tenant_id=tenant_id
+        )
+        if api_key_obj is None:
             return None
-
-        api_key_obj = self.api_keys[key_id]
 
         # Update usage stats
         api_key_obj.last_used = datetime.now()
@@ -645,8 +676,89 @@ class BYOKManager:
             decrypted_key = self.decrypt_api_key(api_key_obj.encrypted_key)
             return decrypted_key
         except Exception as e:
-            logger.error(f"Failed to decrypt API key {key_id}: {e}")
+            logger.error(
+                "Failed to decrypt API key %s/%s/%s: %s",
+                provider_id, key_name, environment, e,
+            )
             return None
+
+    @staticmethod
+    def _entry_scope(key_id: str, obj: "APIKey") -> Optional[str]:
+        """Owning tenant of a stored entry, or ``None`` when it is global.
+
+        Shared contract with ``core.byok_endpoints.BYOKManager._entry_scope``:
+        the recorded field wins, otherwise the tenant is recovered from the id
+        the tenant-scoped writer itself constructed. Recovered from the tail,
+        because key names may contain underscores and spaces.
+        """
+        recorded = getattr(obj, "tenant_id", None)
+        if isinstance(recorded, str) and recorded.strip():
+            return recorded.strip()
+
+        prefix = "tenant_"
+        suffix = f"{obj.provider_id}_{obj.key_name}_{obj.environment}"
+        if (
+            key_id.startswith(prefix)
+            and len(key_id) > len(prefix) + len(suffix) + 1
+            and key_id.endswith(f"_{suffix}")
+        ):
+            scope = key_id[len(prefix):-(len(suffix) + 1)]
+            return scope or None
+        return None
+
+    def _find_stored_key(
+        self,
+        provider_id: str,
+        key_name: str,
+        environment: str,
+        tenant_id: Optional[str] = None,
+    ) -> Optional["APIKey"]:
+        """Resolve a stored key by IDENTITY: ``(scope, provider, name, env)``.
+
+        Match by FIELDS, never by the dict id (id shapes differ per writer).
+        ``tenant_id`` binds the lookup to that owner; without it, only global
+        entries are candidates — see :meth:`get_api_key`.
+        """
+        global_entry: Optional[APIKey] = None
+        scoped: Dict[str, APIKey] = {}
+        for key_id, obj in self.api_keys.items():
+            if not isinstance(obj, APIKey):
+                continue
+            if not getattr(obj, "is_active", True):
+                continue
+            if (
+                str(getattr(obj, "provider_id", "")) != provider_id
+                or str(getattr(obj, "key_name", "")) != key_name
+                or str(getattr(obj, "environment", "")) != environment
+            ):
+                continue
+            scope = self._entry_scope(key_id, obj)
+            if scope is None:
+                if global_entry is None:
+                    global_entry = obj
+            elif scope not in scoped:
+                scoped[scope] = obj
+
+        # Fast path for entries addressed by the id their writer constructed
+        # but carrying no usable identity fields — the same anchor the core
+        # resolver keeps. The id is what the writers build for these values.
+        def _by_id(key_id):
+            if not key_id:
+                return None
+            obj = self.api_keys.get(key_id)
+            if obj is None or not getattr(obj, "is_active", True):
+                return None
+            return obj
+
+        if tenant_id:
+            own = scoped.get(str(tenant_id)) or _by_id(
+                f"tenant_{tenant_id}_{provider_id}_{key_name}_{environment}"
+            )
+            if own is not None:
+                return own
+            return global_entry or _by_id(
+                f"{provider_id}_{key_name}_{environment}")
+        return global_entry or _by_id(f"{provider_id}_{key_name}_{environment}")
 
     def track_usage(self, tenant_id: str, provider_id: str, success: bool = True, tokens_used: int = 0):
         """Track provider usage for a specific tenant"""
@@ -744,13 +856,24 @@ class BYOKManager:
 
         return suitable_providers[0][0] if suitable_providers else None
 
-    def get_provider_status(self, provider_id: str) -> Dict[str, Any]:
-        """Get comprehensive status for a provider (global status)"""
+    def get_provider_status(
+        self, provider_id: str, tenant_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get comprehensive status for a provider (global status).
+
+        ``tenant_id`` asks the question for a specific caller. Without it the
+        answer is about GLOBAL keys only, which on a store whose every entry is
+        tenant-scoped reads as "no keys configured" while the same provider
+        resolves fine for its owner — the health summary said 0 of 37 providers
+        had keys while the per-tenant endpoint reported all three configured
+        (verified live 2026-09-16).
+        """
         provider = self.providers.get(provider_id)
         usage = self.get_tenant_usage("global").get(
             provider_id, ProviderUsage(provider_id=provider_id)
         )
-        has_keys = _is_usable_api_key(self.get_api_key(provider_id))
+        has_keys = _is_usable_api_key(
+            self.get_api_key(provider_id, tenant_id=tenant_id))
 
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
@@ -841,6 +964,7 @@ class BYOKManager:
 
         self.api_keys[key_id] = api_key_obj
         self._save_configuration()
+        _invalidate_provider_route_state(provider_id)
 
         # 2. Sync with tenant_settings table for frontend compatibility.
         # R81: store the Fernet-encrypted value, not the plaintext — the
@@ -902,13 +1026,14 @@ class BYOKManager:
                     # them readable instead of bricking stored credentials.
                     return str(setting.setting_value)
 
-        # 2. Fallback to BYOKManager storage
-        key_id = f"tenant_{tenant_id}_{provider_id}_{key_name}_{environment}"
+        # 2. Fallback to BYOKManager storage — same identity-based resolver as
+        # get_api_key, bound to this tenant's scope.
+        api_key_obj = self._find_stored_key(
+            provider_id, key_name, environment, tenant_id=tenant_id
+        )
 
-        if key_id not in self.api_keys:
+        if api_key_obj is None:
             return None
-
-        api_key_obj = self.api_keys[key_id]
 
         # Update usage stats
         api_key_obj.last_used = datetime.now()
@@ -918,7 +1043,7 @@ class BYOKManager:
             decrypted_key = self.decrypt_api_key(api_key_obj.encrypted_key)
             return decrypted_key
         except Exception as e:
-            logger.error(f"Failed to decrypt Tenant API key {key_id}: {e}")
+            logger.error(f"Failed to decrypt Tenant API key {provider_id}/{tenant_id}: {e}")
             return None
 
 
@@ -1218,6 +1343,11 @@ async def delete_api_key(
 
     if not removed:
         raise HTTPException(status_code=404, detail="API key not found")
+
+    # Deleting a key changes what this provider can do: drop any cached
+    # cooldown/catalogue so the next turn re-evaluates instead of serving a
+    # stale verdict about a credential that no longer exists.
+    _invalidate_provider_route_state(provider_id)
 
     return ApiResponse(success=True, message=f"API key {provider_id}/{key_name} deleted", data={"removed": removed})
 
@@ -1523,13 +1653,22 @@ async def optimize_pdf_processing(
 
 @router.get("/api/ai/health")
 async def byok_health_check(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
-    """Health check for BYOK system"""
+    """Health check for BYOK system.
+
+    Counts keys for the CALLER's scope, not global-only: on a single-operator
+    install every stored key is tenant-prefixed, so a global-only count
+    reported ``with_keys: 0`` for a system that resolves three providers.
+    """
     try:
+        from core.personal_scope import resolve_tenant_id
+
+        tenant_id = resolve_tenant_id(current_user)
         active_providers = 0
         providers_with_keys = 0
 
         for provider_id in byok_manager.providers:
-            status = byok_manager.get_provider_status(provider_id)
+            status = byok_manager.get_provider_status(
+                provider_id, tenant_id=tenant_id)
             if status["status"] == "active":
                 active_providers += 1
             if status["has_api_keys"]:

@@ -148,6 +148,7 @@ def get_agent_lessons(
     query: Optional[str] = None,
     limit: int = WORK_TIME_LESSON_LIMIT,
     goal_id: Optional[str] = None,
+    include_workspace: bool = True,
 ) -> List[Dict[str, Any]]:
     """The agent's permanent lessons, newest first, for injection at work time.
 
@@ -171,6 +172,28 @@ def get_agent_lessons(
         e for e in _permanent_lessons(db, agent_id)
         if _lesson_in_scope(e, goal_id)
     ]
+    # SIBLING LESSONS. Teaching is addressed to "the agent I am talking to", but
+    # the knowledge usually is not: a pricing rule taught to the Sales Agent is
+    # equally true for the Chat Assistant, and the operator has no way to know
+    # which agent a given chat turn is routed to. Retrieval was strictly
+    # per-agent, so the same rule surfaced or vanished depending on the routing
+    # (live 2026-09-16: "depreciate a used machine's price from the new list
+    # price" was taught and stored, then the very next turn answered as if it had
+    # never been said). Lessons taught to THIS agent keep priority; relevant ones
+    # from sibling agents in the same workspace fill the remaining slots, tagged
+    # with their source so the model can attribute them.
+    if include_workspace and query:
+        # COLLECT ALL candidates, then rank, then cap. Capping here (the first cut)
+        # kept the newest `limit` siblings and dropped the highest-SCORING ones,
+        # so a 5-token match on "list price for a used machine" was discarded in
+        # favour of four unrelated recent lessons — the pool is small and local,
+        # so there is no reason to truncate before scoring.
+        _own = {id(e) for e in lessons}
+        for entry in _workspace_lessons(db, agent_id):
+            if id(entry) in _own:
+                continue
+            if _lesson_in_scope(entry, goal_id):
+                lessons.append(entry)
 
     if query:
         q_tokens = {
@@ -190,11 +213,53 @@ def get_agent_lessons(
                 str(canvas.get("digest") or ""),
             )).lower()
             return sum(1 for t in q_tokens if t in haystack)
-        # Relevance first, recency as the tie-break (reverse() above made
-        # the list newest-first, and sort is stable, so equal scores keep it).
-        lessons.sort(key=_score, reverse=True)
+
+        # Relevance first, then OWN lessons ahead of sibling ones, then recency
+        # (the list is newest-first and sort is stable, so equal keys keep it).
+        # A sibling rule must never displace the agent's own guidance on a tie.
+        lessons.sort(
+            key=lambda e: (_score(e), 0 if not e.get("_source_agent_id") else 1),
+            reverse=True,
+        )
 
     return lessons[:max(0, limit)]
+
+
+def _workspace_peers(db: Session, agent_id: str) -> List[str]:
+    """Other agent ids whose lessons may apply to this agent's work.
+
+    Workspace-scoped, with one deliberate exception: agents whose
+    ``workspace_id`` is unset are treated as compatible with every workspace.
+    In this single-tenant app most shipped agents carry no workspace at all
+    (only the chat agent did), so requiring an exact match would exclude exactly
+    the agents the operator teaches from the ones they talk to — which is the
+    failure this exists to fix. Fault-isolated → []."""
+    try:
+        me = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        my_ws = str(getattr(me, "workspace_id", None) or "") if me else ""
+        peers: List[str] = []
+        for other in db.query(AgentRegistry).all():
+            oid = str(getattr(other, "id", "") or "")
+            if not oid or oid == str(agent_id):
+                continue
+            o_ws = str(getattr(other, "workspace_id", None) or "")
+            if not o_ws or not my_ws or o_ws == my_ws:
+                peers.append(oid)
+        return peers
+    except Exception as e:  # noqa: BLE001 — sibling recall is additive
+        logger.debug(f"workspace lesson peers unavailable: {e}")
+        return []
+
+
+def _workspace_lessons(db: Session, agent_id: str) -> List[Dict[str, Any]]:
+    """Permanent lessons from sibling agents, newest first, source-tagged."""
+    out: List[Dict[str, Any]] = []
+    for peer_id in _workspace_peers(db, agent_id):
+        for entry in _permanent_lessons(db, peer_id):
+            tagged = dict(entry)
+            tagged["_source_agent_id"] = peer_id
+            out.append(tagged)
+    return out
 
 
 def _permanent_lessons(db: Session, agent_id: str) -> List[Dict[str, Any]]:
@@ -624,6 +689,12 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
         if canvas.get("name"):
             label = str(canvas.get("label") or canvas.get("canvas_type") or "").strip()
             line += f" — taught on canvas \"{canvas['name']}\"" + (f" ({label})" if label else "")
+        # SIBLING LESSON: taught to another agent in this workspace, injected
+        # here because it applies to the work regardless of which agent the
+        # operator happened to address. Labelled so the model can attribute it
+        # instead of presenting another hire's instruction as its own.
+        if entry.get("_source_agent_id"):
+            line += " — taught to a DIFFERENT agent in this workspace; applies here too"
         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
             break
         lines.append(line)

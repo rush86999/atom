@@ -373,12 +373,18 @@ class TestDispatchHubspot:
     async def test_list_entities(self, env, uis):
         svc = make_service({"get_contacts": [], "get_deals": [], "get_companies": []})
         set_service(env, svc)
+        # The universal layer pushes the normalized read shape (page size +
+        # opaque cursor) down to the provider — a bare `token=` call is the
+        # old signature that could not page at all.
         await uis.execute("hubspot", "list", {"entity": "contact"}, {"user_id": "u1"})
-        svc.get_contacts.assert_awaited_once_with(token="tok")
+        svc.get_contacts.assert_awaited_once_with(
+            token="tok", limit=25, page_token=None)
         await uis.execute("hubspot", "list", {"entity": "deal"}, {"user_id": "u1"})
-        svc.get_deals.assert_awaited_once_with(token="tok")
+        svc.get_deals.assert_awaited_once_with(
+            token="tok", limit=25, page_token=None)
         await uis.execute("hubspot", "list", {"entity": "company"}, {"user_id": "u1"})
-        svc.get_companies.assert_awaited_once_with(token="tok")
+        svc.get_companies.assert_awaited_once_with(
+            token="tok", limit=25, page_token=None)
 
     async def test_create_deal_converts_amount_to_float(self, env, uis):
         svc = make_service({"create_deal": {"id": "d1"}})
@@ -418,7 +424,10 @@ class TestDispatchHubspot:
         with patch("integrations.hubspot_service.get_hubspot_service", return_value=fallback):
             result = await uis.execute("hubspot", "list", {"entity": "contact"}, {"user_id": "u1"})
         assert result["status"] == "success"
-        fallback.get_contacts.assert_awaited_once_with(token="tok")
+        # 2026-09-16: the list branch forwards the read shape (clamped limit,
+        # opaque cursor) alongside the token.
+        fallback.get_contacts.assert_awaited_once()
+        assert fallback.get_contacts.call_args.kwargs["token"] == "tok"
 
 
 class TestDispatchShopify:
@@ -946,17 +955,23 @@ class TestDispatchAnalyticsGeneric:
         with patch("core.marketing_skills_service.marketing_skills_service", skills):
             r = await uis.execute("google_reviews", "list_reviews", {}, {"user_id": "u1"})
             assert r["status"] == "success"
+            # reply_to_review has no platform call behind it — it must NOT
+            # report a reply it never posted (fabricated confirmation).
             r = await uis.execute("google_reviews", "reply_to_review", {"review_id": 7},
                                   {"user_id": "u1"})
-            assert r["status"] == "success"
-            assert "7" in r["message"]
+            assert r["status"] == "error"
+            assert r["error"] == "unsupported_action"
             r = await uis.execute("google_reviews", "bogus", {}, {"user_id": "u1"})
             assert r["status"] == "error"
 
     async def test_marketing_ads(self, env, uis):
+        # No Ads API is implemented; the handler used to return invented
+        # metrics ({"count": 10, "insights": "Performance trending
+        # positive."}) that an agent presented as real campaign performance.
         r = await uis.execute("meta_ads", "get_insights", {}, {"user_id": "u1"})
-        assert r["status"] == "success"
-        assert r["data"]["count"] == 10
+        assert r["status"] == "error"
+        assert r["error"] == "unsupported_action"
+        assert not r.get("data")
 
 
 # ============================================================================
@@ -989,14 +1004,20 @@ class TestSearch:
         svc = make_service({"search_content": {"results": [{"id": "1"}]}})
         set_service(env, svc)
         r = await uis.search("hubspot", "q", "contact", {"user_id": "u1"})
-        assert r == [{"id": "1"}]
-        svc.search_content.assert_awaited_once_with("q", object_type="contact", token="tok")
+        # 2026-09-16: envelope (was a bare list) — the cursor HubSpot returns
+        # rides on it for the read-shape page block.
+        assert r["status"] == "success"
+        assert r["data"] == [{"id": "1"}]
+        svc.search_content.assert_awaited_once_with(
+            "q", object_type="contact", token="tok", limit=50, after=None)
 
     async def test_communication_slack(self, env, uis):
-        slack = make_service({"make_request": {"messages": []}})
+        # 2026-09-16: the branch calls search_messages (1-based page param)
+        # instead of raw make_request.
+        slack = make_service({"search_messages": {"messages": {"matches": [], "pagination": {}}}})
         with patch("integrations.slack_service_unified.slack_unified_service", slack):
             r = await uis.search("slack", "q", None, {"user_id": "u1", "access_token": "t"})
-        assert r["data"] == {"messages": []}
+        assert r["data"]["messages"] == {"matches": [], "pagination": {}}
 
     async def test_communication_others(self, env, uis):
         gc = MagicMock(); gc.unified_search = AsyncMock(return_value=[])
@@ -1015,41 +1036,52 @@ class TestSearch:
 
     async def test_calendar_search(self, env, uis):
         gc = MagicMock()
-        gc.get_events = Mock(return_value=[{"title": "Alpha"}, {"title": "Beta"}])
+        # 2026-09-16: get_events is awaited (async coroutine, previously
+        # passed unawaited into the client filter) with the query pushed
+        # down as the provider's ``q``.
+        async def _events(q=None, **kwargs):
+            return [{"title": "Alpha"}] if q == "alpha" else []
+        gc.get_events = AsyncMock(side_effect=_events)
         with patch("integrations.google_calendar_service.google_calendar_service", gc):
             r = await uis.search("google_calendar", "alpha", None, {"user_id": "u1"})
         assert r["data"] == [{"title": "Alpha"}]
         r = await uis.search("outlook_calendar", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_project_management_search(self, env, uis):
         svc = make_service({"get_issues": [{"title": "Alpha"}, {"title": "Beta"}],
                             "search_items": [], "get_tasks": [{"name": "Gamma"}],
                             "search_issues": []})
         set_service(env, svc)
+        # search() answers with the standardized envelope; the record set is
+        # under "data" (see test_storage_search for why).
         r = await uis.search("linear", "alpha", None, {"user_id": "u1"})
-        assert r == [{"title": "Alpha"}]
+        assert r["data"] == [{"title": "Alpha"}]
         r = await uis.search("monday", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("asana", "gamma", None, {"user_id": "u1"})
-        assert r == [{"name": "Gamma"}]
+        assert r["data"] == [{"name": "Gamma"}]
         r = await uis.search("jira", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("trello", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_storage_search(self, env, uis):
         svc = make_service({"search_files": {"status": "success", "data": {"files": [{"id": "1"}]}},
                             "search": {"results": []}})
         set_service(env, svc)
+        # search() returns the standardized envelope (its own docstring's
+        # contract): {"status", "data", "page"}. Production callers normalize
+        # both shapes (see drive_tree_ingestion._extract_records), and the
+        # envelope is what carries the page/truncation signal.
         r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r == [{"id": "1"}]
+        assert r["data"] == [{"id": "1"}]
         r = await uis.search("dropbox", "q", None, {"user_id": "u1"})
-        assert r == {"results": []}
+        assert r["data"] == {"results": []}  # bare provider envelope is wrapped, not flattened
         r = await uis.search("notion", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
         r = await uis.search("box", "q", None, {"user_id": "u1"})
-        assert r == []
+        assert r["data"] == []
 
     async def test_crm_search_zoho(self, env, uis):
         crm = MagicMock()
@@ -1079,12 +1111,16 @@ class TestSearch:
 
     async def test_dev_search(self, env, uis):
         gh = MagicMock()
+        # 2026-09-16: server-side /search/repositories is preferred; the
+        # owned-repo list + client filter is only the fallback.
+        gh.search_repositories = Mock(return_value=[{"name": "RepoAlpha"}])
         gh.get_user_repositories = Mock(return_value=[{"name": "RepoAlpha"}, {"name": "other"}])
         gl = MagicMock(); gl.search_projects = AsyncMock(return_value=[])
         with patch("integrations.github_service.GitHubService", return_value=gh), \
                 patch("integrations.gitlab_service.GitLabService", return_value=gl):
             r = await uis.search("github", "alpha", None, {"user_id": "u1"})
             assert r["data"] == [{"name": "RepoAlpha"}]
+            gh.search_repositories.assert_called_once_with("alpha")
             r = await uis.search("gitlab", "q", None, {"user_id": "u1", "access_token": "t"})
             assert r["data"] == []
         r = await uis.search("figma", "q", None, {"user_id": "u1"})
@@ -1143,7 +1179,7 @@ class TestSearch:
         set_service(env, svc)
         with patch("integrations.universal_integration_service.governance_middleware", gk):
             r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r == [{"id": "1", "access_token": "***"}]
+        assert r["data"] == [{"id": "1", "access_token": "***"}]
 
 
 # ============================================================================

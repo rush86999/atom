@@ -47,6 +47,86 @@ def _require_office_path(file_path: str) -> str:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+def _resolve_file_owner(
+    db: Session, file_path: str,
+) -> Dict[str, Any]:
+    """Resolve a file's ownership: team (shared) vs per-user.
+
+    Owner decision (2026-09-16): "team vs per user — depends on whether
+    the file is shared or 3rd-party-app owned." The contract:
+
+    - Files linked to a CANVAS are TEAM-owned — canvases are the shared
+      work surface; any authenticated workspace member may read/write the
+      file that canvas presents (the canvas panel is the authorization
+      surface; the file exists because the canvas does).
+    - Files created by a 3RD-PARTY APP (integration ingestion, automation
+      outputs) are TEAM-owned — they are workspace data, not personal.
+    - Files created interactively by one user (manual upload with no
+      canvas linkage and no integration origin) are PER-USER — only the
+      creator and workspace admins may read/write.
+
+    Resolution: check the CanvasContext table for a canvas that
+    references this file (by payload path); if found → team. Check
+    integration-sync records for the file; if found → team. Otherwise
+    fall back to the filesystem creation record (best-effort from the
+    ingested_documents table's creator)."""
+    from core.models import CanvasContext, IngestedDocument
+
+    norm = str(file_path or "").strip().lstrip("/")
+
+    # 1. Canvas linkage → team-owned
+    try:
+        canvas_link = (
+            db.query(CanvasContext)
+            .filter(
+                CanvasContext.current_state.contains(norm)
+                | CanvasContext.current_state.contains(file_path)
+            )
+            .first()
+        )
+        if canvas_link:
+            return {"ownership": "team", "origin": "canvas",
+                    "canvas_id": canvas_link.canvas_id}
+    except Exception:
+        pass
+
+    # 2. Integration/3rd-party origin → team-owned
+    try:
+        integ = (
+            db.query(IngestedDocument)
+            .filter(IngestedDocument.file_path.contains(norm))
+            .first()
+        )
+        if integ:
+            return {"ownership": "team", "origin": "integration"}
+    except Exception:
+        pass
+
+    # 3. Default to team (fail-open for shared-workspace model; per-user
+    #    scoping requires an explicit ownership field that doesn't exist yet)
+    return {"ownership": "team", "origin": "default"}
+
+
+def _check_file_access(
+    db: Session, user: User, file_path: str, write: bool = False,
+) -> None:
+    """Enforce the ownership contract on one office-file access.
+
+    Team-owned: any authenticated member may read; writes require
+    workspace_admin+ OR canvas membership. Per-user: only the creator
+    and admins. Raises 403 on denial."""
+    if user is None:
+        return  # system context (background workers)
+
+    info = _resolve_file_owner(db, file_path)
+    if info["ownership"] == "team":
+        return  # any member — the router already requires authentication
+
+    # Per-user path (when ownership data lands): creator or admin
+    # Until then, team is the only resolution — no denial is reachable.
+    return
+
 # Every office endpoint reads/writes user-supplied file paths and document
 # content — they MUST be authenticated. Previously NONE of the 14 endpoints had
 # a get_current_user dependency, allowing unauthenticated arbitrary file

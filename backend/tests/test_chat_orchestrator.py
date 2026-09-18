@@ -98,12 +98,27 @@ def test_planner_timeout_injects_deterministic_mailbox_evidence(monkeypatch):
     import asyncio
 
     import core.chat_tool_planner as ctp
+    from integrations import chat_orchestrator as co
     from integrations.chat_orchestrator import _planner_timeout_evidence
 
     async def fake_lines(user_id, query, context=None, **kw):
         return ["- [ingested mailbox] From: joel@seguinmach.example | quote | $ 5,350.00"]
 
+    # PATCH WHERE THE CODE LOOKS IT UP. `chat_orchestrator` imports
+    # `_ingested_mailbox_lines` INTO ITS OWN NAMESPACE, so patching the planner
+    # module had no effect here: the scan ran for real and the assertions only
+    # held when the environment happened to contain a matching mailbox row. The
+    # test passed against a populated store and failed on a fresh clone —
+    # proving it was testing the data, not the code (found by fresh-clone
+    # verification 2026-09-16).
+    monkeypatch.setattr(co, "_ingested_mailbox_lines", fake_lines, raising=False)
     monkeypatch.setattr(ctp, "_ingested_mailbox_lines", fake_lines)
+    # The handle-led leg runs FIRST and would otherwise answer from the real
+    # store; this test is about the deterministic-scan fallback.
+    async def _no_handle(*_a, **_k):
+        return []
+
+    monkeypatch.setattr(co, "_verbatim_mail_evidence", _no_handle, raising=False)
 
     block = asyncio.run(
         _planner_timeout_evidence(
@@ -118,8 +133,16 @@ def test_planner_timeout_injects_deterministic_mailbox_evidence(monkeypatch):
     # evidence instead of a vacuum; the handle-led block is the stronger one.
     assert block and "LIVE TOOL RESULTS" in block
     assert "ingested mailbox" in block
-    assert "could not complete in time" in block
     assert "GROUNDING RULE" in block, "evidence must carry the grounding contract"
+    # THIS IS THE DETERMINISTIC-SCAN FALLBACK, so assert ITS wording. "could not
+    # complete in time" belongs to _LIVE_LOOKUP_FAILED_NOTE, which the MAIL-LED
+    # composer emits (the verbatim/handle leg) — a different branch, covered by
+    # the handle-led tests. Asserting it here pinned the wrong path's string and
+    # only appeared to hold while the real mailbox supplied the mail-led leg.
+    assert "did not finish in time" in block
+    assert "no live integration lookup was attempted" in block, (
+        "the scan must state that no live lookup ran"
+    )
 
 
 def test_planner_timeout_without_evidence_says_nothing_ran(monkeypatch):
@@ -407,9 +430,14 @@ def test_fabrication_signal_records_even_with_routing_flag_off(monkeypatch):
             written["row"] = feedback
 
     monkeypatch.setattr(reg, "get_learning_router_instance", lambda: None)
+    # Patch the METHOD, not __new__: monkeypatch restores a patched __new__ as
+    # an OWN class attribute, after which type.__call__ stops treating it as
+    # the default and passes the constructor args to object.__new__ — every
+    # LATER test that builds a LearningBasedRouter then dies with
+    # "object.__new__() takes exactly one argument". Reproduced at HEAD.
     monkeypatch.setattr(
-        "core.learning_llm_router.LearningBasedRouter.__new__",
-        lambda cls: _Router(),
+        "core.learning_llm_router.LearningBasedRouter._persist_feedback",
+        lambda _self, feedback, features: written.__setitem__("row", feedback),
     )
 
     ok = asyncio.run(reg.record_fabrication_signal(
@@ -430,9 +458,8 @@ def test_clean_reply_records_no_fabrication_signal(monkeypatch):
 
     writes = []
     monkeypatch.setattr(
-        "core.learning_llm_router.LearningBasedRouter.__new__",
-        lambda cls: type("R", (), {"_persist_feedback":
-                                   lambda self, fb, feats: writes.append(fb)})(),
+        "core.learning_llm_router.LearningBasedRouter._persist_feedback",
+        lambda _self, fb, feats: writes.append(fb),
     )
 
     ok = asyncio.run(reg.record_fabrication_signal(model_id="m"))

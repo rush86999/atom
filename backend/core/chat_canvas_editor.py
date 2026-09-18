@@ -897,6 +897,17 @@ async def fetch_fresh_data_section(
                     _provenance_menu(message, {"history": history}), timeout=6)
             except Exception:  # noqa: BLE001 — menu is best-effort
                 prov = ""
+            # SOURCE HANDLES (RCA 2026-09-17 finding 3): files the
+            # conversation already located, re-extracted from the transcript.
+            # Same append the chat path makes to its planner provenance.
+            try:
+                from core.session_sources import conversation_sources_block
+
+                _src = conversation_sources_block(history)
+                if _src:
+                    prov = f"{prov}\n\n{_src}" if prov else _src
+            except Exception:  # noqa: BLE001 — best-effort
+                pass
             return await plan_tool_use(
                 message, history, user_id, llm_service,
                 canvas=canvas, provenance=prov)
@@ -954,6 +965,36 @@ async def fetch_fresh_data_section(
 
         if not plan or not plan.use_tool:
             return FreshDataResult("", False, True)
+
+        # OFF-REQUEST GATE (RCA 2026-09-17 finding 2): this is the exact
+        # leg that executed the stale query — the final scorecard turn's
+        # canvas-edit evidence ran the PREVIOUS turn's "PRICE VIPUL price
+        # list attachment" mailbox search (source canvas_edit_fresh_data)
+        # and its result was handed to the reply as this turn's evidence.
+        # A plan whose query names nothing the current message names is
+        # declined as an explicit retrieval failure: the edit leg declines
+        # (no data-dependent edit without its evidence) and the block is
+        # never written to the blackboard for the reply leg to reuse.
+        try:
+            from core.plan_relevance import relevance_verdict
+
+            _relevance = relevance_verdict(plan.query, message)
+        except Exception:  # noqa: BLE001 — a failed gate must not gate
+            _relevance = "unknown"
+        if _relevance == "irrelevant":
+            logger.warning(
+                "canvas edit evidence declined: planned %s.%s query %r does "
+                "not address the current request",
+                plan.service, plan.intent, (plan.query or "")[:80])
+            await _record(
+                "observation",
+                {"tool": "fresh_data",
+                 "params": {"source": "canvas_edit_fresh_data",
+                            "query": plan.query}},
+                f"planned lookup {plan.service}.{plan.intent} "
+                f"{plan.query!r} does not address the current request — "
+                "not executed; data-dependent edit declines")
+            return FreshDataResult("", True, False)
 
         await _record(
             "tool_planner",
