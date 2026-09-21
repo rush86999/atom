@@ -1,10 +1,11 @@
 # Evolving-Environment Curriculum — EnvHarness Adoption Plan
 
-> **Status:** Phases 1–3 IMPLEMENTED (2026-09-21, this revision); Phase 4
-> awaits pre-registration sign-off + provider budget; Phase 5 gated on
-> Phase 4. Rev 2 narrowed the original proposal after a code-level review;
-> rev 3 records the build. Log a window in `notes/AGENT_COORDINATION.md`
-> before extending any phase.
+> **Status:** Phases 1–3 IMPLEMENTED; Phase 4 EXECUTED per the registered
+> design — registered decision **STOP** (delta +12.5pp < +15pp threshold;
+> see Results). Phase 5 (designer loop) NOT justified at this budget with
+> this pin; the Phase 1 hardening is retained as durable value. Rev 2
+> narrowed the original proposal after a code-level review; rev 3 records
+> the build + the run.
 > **Added:** Sep 21, 2026 (ZCode, from VentureBeat coverage + upstream repo read)
 > **Sources:** google-research/envharness (Apache 2.0, arXiv:2608.19880) —
 > [GitHub](https://github.com/google-research/envharness),
@@ -394,3 +395,59 @@ All numbers below are from that window's test runs.
   failure; the exact class a procedure brief should fix). Per-task success
   rates are therefore expected in a low-to-mid band — suitable for the
   band protocol, and confirmation that the test cannot trivially saturate.
+
+## Results (2026-09-21, run completed 13:48 EDT — decision: STOP)
+
+Full registered run executed as designed: 64 rollouts + 16 distillation
+calls, **zero harness errors**, both arms 8/16 at train, wall clock ~52 min
+(well under the 3.5h cap). Checkpoint: `tests/operator_eval/results/`
+(gitignored; kept locally).
+
+| | test_A (static) | test_B (curriculum) |
+|---|---|---|
+| **Total** | **6/16 = 37.5%** | **8/16 = 50.0%** |
+| find_code | 2/2 | 2/2 |
+| search_and_click | 0/2 | 0/2 |
+| scroll_find | 2/2 | 2/2 |
+| login_flow | 0/2 | 0/2 |
+| form_validation | 0/2 | 0/2 |
+| extract_headline | 2/2 | 2/2 |
+| form_fill | 0/2 | 0/2 |
+| ordered_navigation | **0/2** | **2/2** |
+
+**Delta +12.5pp — below the registered +15pp threshold → STOP.** The
+designer loop (Phase 5) is not justified at this budget with this pin.
+
+Reading the result honestly:
+
+- **The entire delta is one family.** `ordered_navigation` is the cleanest
+  signal in the dataset FOR the hypothesis: arm A passed both train rollouts
+  on base titles, then failed both title-rotated test instances (its brief
+  had memorized base-value-dependent navigation), while arm B — trained on a
+  rotated instance — passed both. That is memorization-vs-transfer behaving
+  exactly as theorized, but on n=2; it is anecdote, not a demonstration.
+- **Floor families dominate the pooled rate.** Four of eight families
+  (form_fill, form_validation, login_flow, search_and_click) went 0/4 per
+  arm across train+test: `glm-5.3-flash` cannot reliably ground clicks/keys
+  on this viewport. Strategy briefs cannot fix an execution deficit — the
+  bottleneck there is the model's actuation, not its knowledge. With half
+  the families floored, the pooled delta mathematically cannot reach the
+  threshold even if the curriculum effect is real on knowledge-limited
+  families.
+- **Where the model already has grounding, ceiling effects dominate**
+  (find_code/scroll_find/extract_headline 2/2 for both arms — nothing for a
+  brief to add).
+
+Verdict for the record: the registered experiment ran clean and produced a
+directionally positive but under-threshold result whose whole signal sits in
+one n=2 family. That is evidence the *mechanism* (mutated-instance training
+→ value-agnostic briefs) works, and equally that it cannot show through a
+pooled rate when the pinned model floors on actuation-limited families. A
+future attempt — new registration, not a modification of this one — should
+pin a stronger-grounding computer-use model and/or restrict families to
+knowledge-limited ones, and pre-register per-family scoring as primary.
+
+What stands regardless of the verdict: the Phase 1 hardening (fail-closed
+sandbox, world/evidence split, strengthened verifiers, the pinned-decider
+harness, the two-stage admission math) is durable infrastructure, exactly as
+the registered decision rule anticipated.
