@@ -2874,6 +2874,26 @@ class BYOKHandler:
                         "BPC executable-routes gate: %d provider(s) fully "
                         "benched (401/reasoning memo) — excluded before "
                         "ranking", _before - len(available_providers))
+            # PROVIDER-scoped benches (invalid credential, exhausted quota,
+            # rate limit — written by _bench_provider) must demote ranking
+            # too. The pair-level check above cannot see them, so the ranker
+            # kept crowning a dead provider cheapest and every call re-paid
+            # its skip/401/402 before reaching the healthy rung (live
+            # 2026-09-21: opencode-go CreditsError + openrouter 402 led
+            # every ladder while deepseek sat three rungs down). Fail-open:
+            # if EVERY provider is benched, ranking proceeds anyway — the
+            # cascade's own skips still order attempts, and a cooldown expiry
+            # or credential fix recovers without a restart.
+            _benched = [p for p in available_providers
+                        if self._provider_cooldown_active(p)]
+            if _benched and len(_benched) < len(available_providers):
+                available_providers = [
+                    p for p in available_providers
+                    if p not in _benched]
+                logger.info(
+                    "BPC executable-routes gate: %d provider(s) on "
+                    "provider-level cooldown — excluded before ranking: %s",
+                    len(_benched), ", ".join(sorted(_benched)))
             candidates = []
 
             # When a capability filter is active, bulk-load the capability index
@@ -5335,6 +5355,18 @@ class BYOKHandler:
                 provider_id, model = cascade_options[cascade_idx]
                 cascade_idx += 1
                 if provider_id in failed_providers:
+                    continue
+                if not self.clients.get(provider_id):
+                    # SILENT before 2026-09-20: this skip made a ladder die
+                    # with "Last error: None" and no attempt warnings — the
+                    # visible symptom was an unattributable all-providers-
+                    # failed. A handler whose client build dropped a provider
+                    # (transient credential-store read) must SAY so.
+                    logger.warning(
+                        "structured cascade skips %s/%s: no client built "
+                        "for this provider in this handler", provider_id,
+                        model)
+                    failed_providers.add(provider_id)
                     continue
                 if (provider_id, model) != _pinned_pair \
                         and self._ranked_model_is_known_unserved(

@@ -68,3 +68,18 @@ def test_structured_gate_vetoes_only_positive_absence():
 
     assert h._ranked_model_is_known_unserved("never-seen-prov", "some-model") \
         is False, "unknown catalogue must not veto"
+
+
+def test_ranking_gate_demotes_provider_benched_providers():
+    """Ranking must exclude providers on a PROVIDER-level cooldown (written
+    by _bench_provider on auth failure / quota) — otherwise the ladder kept
+    crowning a dead provider cheapest and every call re-paid its failure
+    before reaching the healthy rung. Fail-open: never excludes ALL
+    providers (recovery must not need a restart)."""
+    import inspect
+    import core.llm.byok_handler as bh
+
+    src = inspect.getsource(bh.BYOKHandler)
+    assert "provider-level cooldown" in src
+    assert "len(_benched) < len(available_providers)" in src, (
+        "the demotion must be fail-open when every provider is benched")
