@@ -1071,6 +1071,38 @@ class BYOKHandler:
 
     _provider_models_cache: Dict[str, List[str]] = {}
 
+    def _ranked_model_is_known_unserved(self, provider_id: str,
+                                         model: str) -> bool:
+        """True only when the discovered catalogue POSITIVELY excludes the
+        model — the structured cascade's dispatch gate.
+
+        Deliberately narrower than :meth:`_provider_serves_model`: an
+        UNKNOWN catalogue (discovery never succeeded) must NOT veto
+        dispatch, or an environment without a successful discovery would
+        lose its whole structured path. The veto fires only on
+        ``not_in_provider_catalog`` — discovery ran, and the identifier is
+        not in what the provider serves ('tencent/deepseek-v4-pro' sent to
+        direct deepseek; the stale 'deepseek-v3-2-251201'), which is a
+        doomed 400 round trip the cascade should skip, not pay.
+        """
+        try:
+            from core.llm.model_route_registry import (
+                REASON_NOT_IN_CATALOG, evaluate_route,
+            )
+
+            decision = evaluate_route(
+                provider_id, model,
+                configured_providers=sorted(self.clients.keys()),
+            )
+            if decision.reason == REASON_NOT_IN_CATALOG:
+                logger.info(
+                    "structured gate: %s/%s excluded — %s (%s, %s)",
+                    provider_id, model, decision.reason, decision.freshness,
+                    decision.detail[:80])
+            return decision.reason == REASON_NOT_IN_CATALOG
+        except Exception:  # noqa: BLE001 — gate must never break dispatch
+            return False
+
     def _provider_models_cached(self, provider_id: str) -> List[str]:
         """Models the pricing cache knows for one provider (cached 60s).
         Used by the executable-routes gate to check whether ALL of a
@@ -4207,7 +4239,16 @@ class BYOKHandler:
                     except Exception:
                         pass  # Don't let health monitoring errors affect primary flow
 
-                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
+                    if ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
+                            # QUOTA (2026-09-20): a credits-exhausted account
+                            # (openrouter 402 "can only afford N tokens") fails
+                            # IDENTICALLY for every model on the provider —
+                            # without this each cascade paid one 402 round
+                            # trip per openrouter model on every call while
+                            # the balance was zero.
+                            or "402" in err_str
+                            or "more credits" in err_str.lower()
+                            or "quota" in err_str.lower()):
                         failed_providers.add(provider_id)
                         continue
 
@@ -5278,11 +5319,35 @@ class BYOKHandler:
             cascade_idx = 0
             primary_provider = cascade_options[0][0] if cascade_options else None
             failed_providers = set()
+            # A pinned pair (MoA recursion guard above) is the caller's
+            # explicit choice — the serves-model gate must not veto it. Every
+            # OTHER candidate is BPC-ranked, and a ranked name the provider's
+            # own API rejects ('tencent/deepseek-v4-pro' sent to direct
+            # deepseek, the stale 'deepseek-v3-2-251201') is a doomed round
+            # trip: the two completion cascades already gate this way (6255/
+            # 6958); the structured path was the one path that didn't, which
+            # is why it burned its whole budget on 400s (live 2026-09-20).
+            _pinned_pair = tuple(provider_model) if (
+                provider_model is not None
+                and cascade_options == [tuple(provider_model)]) else None
 
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
                 cascade_idx += 1
                 if provider_id in failed_providers:
+                    continue
+                if (provider_id, model) != _pinned_pair \
+                        and self._ranked_model_is_known_unserved(
+                            provider_id, model):
+                    continue
+                if self._provider_cooldown_active(provider_id):
+                    # Same skip the other cascades apply (see 6247/6946): a
+                    # provider benched process-wide (dead credential, rate
+                    # limit) must not re-enter THIS cascade either — the
+                    # structured path is where a benched opencode-go kept
+                    # re-paying a doomed 401 round trip on every call (live
+                    # 2026-09-17 acceptance logs: ~700 wasted 401s across
+                    # five same-key models, 32 exhausted chains).
                     continue
                 try:
                     # Get the client and wrap with instructor
@@ -5588,12 +5653,17 @@ class BYOKHandler:
 
                     err_str = str(attempt_err)
                     # AUTH-FAILURE MEMO: a 401 for this (provider, model)
-                    # means the credential is rejected for the pair —
-                    # every later model on the same provider would fail
-                    # identically. Memoize so ranking skips the pair (see
-                    # the _AUTH_FAILED gate in get_ranked_providers) and
-                    # this provider stops eating the turn budget before a
-                    # working route is reached. Cleared on success.
+                    # means the credential is rejected for the PROVIDER —
+                    # every other model on it would fail identically. Two
+                    # layers, matching _record_attempt_failure's design:
+                    # the pair memo keeps RANKING from re-picking the pair,
+                    # and the process-wide provider bench stops every other
+                    # handler and cascade from paying the same doomed round
+                    # trip (the pair-only memo is why five opencode-go
+                    # models each re-paid a 401 per call window before the
+                    # provider was effectively out — live 2026-09-17). Both
+                    # clear on success / credential change / cooldown
+                    # expiry: a pause, never a decommission.
                     if "401" in err_str or "autherror" in err_str.lower() \
                             or "invalid api key" in err_str.lower():
                         _pair = f"{provider_id}/{model}"
@@ -5604,6 +5674,15 @@ class BYOKHandler:
                                 "401 AuthError — credential rejected; "
                                 "ranking will skip this pair until a "
                                 "successful call clears it")
+                        try:
+                            self._bench_provider(
+                                provider_id,
+                                cause="invalid_credential",
+                                detail=err_str[:200])
+                        except Exception as bench_err:  # noqa: BLE001
+                            logger.debug(
+                                f"provider bench after auth failure skipped: "
+                                f"{bench_err}")
                     # Record failed structured call for health monitoring.
                     # The structured cascade never fed the health monitor, so
                     # connection-dead providers stayed optimistically healthy,
@@ -5621,7 +5700,16 @@ class BYOKHandler:
                         )
                     except Exception:
                         pass  # Don't let health monitoring errors affect primary flow
-                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
+                    if ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
+                            # QUOTA (2026-09-20): a credits-exhausted account
+                            # (openrouter 402 "can only afford N tokens") fails
+                            # IDENTICALLY for every model on the provider —
+                            # without this each cascade paid one 402 round
+                            # trip per openrouter model on every call while
+                            # the balance was zero.
+                            or "402" in err_str
+                            or "more credits" in err_str.lower()
+                            or "quota" in err_str.lower()):
                         failed_providers.add(provider_id)
                         continue
                     # Phase 2 cascade classification. Instructor wraps the

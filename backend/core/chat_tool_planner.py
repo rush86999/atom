@@ -215,13 +215,17 @@ _SERVICE_DESCRIPTIONS = {
     # SQL-queryable dataset catalog: every ingested spreadsheet materialized
     # into per-sheet tables (core/sheet_dataset_service). Answers WHERE a
     # value lives and returns the exact rows — the user should never have to
-    # name the file.
-    "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
+    # name the file. Also the OPEN lane for a NAMED spreadsheet (live
+    # 2026-09-17 acceptance: 'open PRICE VIPUL (6).xlsx and check R235'
+    # routed to documents.grep, which found nothing — the workbook's rows
+    # live HERE; the planner had no signal that filename asks route to
+    # datasets).
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
     # truncated excerpt, or regex-search every stored email/file.
-    "documents": "workspace files & FULL email threads — `cat` intent: query is the VFS path cited on evidence lines ('full: knowledge/conversations/<id>/content.lines') and returns the COMPLETE line-numbered message; `grep` intent: query is an exact string/regex ('5,350', 'F-5216'), optionally ' … in knowledge/conversations', scanning EVERY stored message and file; `read` intent: query is a VFS path, optionally with start_line=/max_lines= (every grep citation hint carries them), for a BOUNDED line window with paging metadata — prefer it when the artifact may be huge; `head`/`tail`/`ls` skim. Use when a search excerpt is truncated or a value hides mid-thread; for open questions prefer memory/datasets",
+    "documents": "workspace files & FULL email threads — `cat` intent: query is the VFS path cited on evidence lines ('full: knowledge/conversations/<id>/content.lines') and returns the COMPLETE line-numbered message; `grep` intent: query is an exact string/regex ('5,350', 'F-5216'), optionally ' … in knowledge/conversations', scanning EVERY stored message and file; `read` intent: query is a VFS path, optionally with start_line=/max_lines= (every grep citation hint carries them), for a BOUNDED line window with paging metadata — prefer it when the artifact may be huge; `head`/`tail`/`ls` skim. SPREADSHEET rows are NOT here — they live in datasets (this lane sees a workbook only as a stored file, not as rows). Use when a search excerpt is truncated or a value hides mid-thread; for open questions prefer memory/datasets",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
@@ -254,7 +258,16 @@ _GROUNDING_RULE = (
     "that may you say a value is not in the mailbox. "
     "An absence claim may only be as wide as the search performed: an "
     "'emails we sent' question includes internal forwards, and one match never "
-    "shows there were no others."
+    "shows there were no others. "
+    "If the evidence shows a source the user asked for was NOT found: state "
+    "what was searched (which store, which query) and what came back — scoped, "
+    "not global. NEVER promise an action in this reply ('I will open it now') "
+    "— the lookups above already ran; you cannot run more mid-reply. And do "
+    "not ask permission for something the user's current message already "
+    "authorized: if they told you to open or check a source and it was not "
+    "retrieved, say exactly that and offer the NEXT concrete search (a "
+    "different store or query), not a repeat of their instruction as a "
+    "question."
 )
 
 
