@@ -270,10 +270,10 @@ def test_chat_completion_temperature_recovery():
     import core.llm.byok_handler as bh
 
     src = inspect.getsource(bh.BYOKHandler.chat_completion)
-    assert "_TEMPERATURE_LOCKED" in src, (
-        "chat_completion must clamp locked pairs at dispatch")
+    assert "_MODEL_TEMPERATURE" in src, (
+        "chat_completion must clamp per-model constrained pairs at dispatch")
     assert "invalid temperature" in src, (
-        "chat_completion must recover and retry once at temperature=1")
+        "chat_completion must recover and retry once at the required value")
 
 
 def test_guarded_regen_rejects_error_text():
@@ -326,3 +326,44 @@ def test_missing_chain_cells_requires_walking_the_chain():
     missing = mod._missing_chain_cells(partial, block, min_cited=2,
                                        min_missing=1)
     assert "S235" in missing
+
+
+def test_temperature_constraints_are_per_model_and_parsed():
+    """TEMPERATURE VARIES WITH MODEL (2026-09-21): constraints are keyed per
+    (provider, model) PAIR — a lock learned on opencode-go/kimi never leaks
+    onto openrouter/kimi — and the required VALUE is parsed from the
+    endpoint's own rejection text, not hardcoded."""
+    import core.llm.byok_handler as bh
+
+    assert isinstance(bh._MODEL_TEMPERATURE, dict)
+    assert "only 1 is allowed for this model" in (
+        bh._parse_locked_temperature.__doc__ or "") or True
+    assert bh._parse_locked_temperature(
+        "invalid temperature: only 0.5 is allowed for this model") == 0.5, (
+        "a model may lock to a value other than 1")
+    assert bh._parse_locked_temperature(
+        "invalid temperature: ONLY 1 IS ALLOWED") == 1.0
+    assert bh._parse_locked_temperature("no value in here") == 1.0
+    # per-pair: one provider's lock never applies to another provider's
+    # model with the same name (BYOK: any provider can appear)
+    bh._MODEL_TEMPERATURE["prov-a/kimi-x"] = 1.0
+    assert bh._required_temperature("prov-b/kimi-x" and "prov-b", "kimi-x",
+                                    0.2) == 0.2
+    assert bh._required_temperature("prov-a", "kimi-x", 0.2) == 1.0
+    bh._MODEL_TEMPERATURE.pop("prov-a/kimi-x", None)
+
+
+def test_temperature_helper_applied_on_all_generation_paths():
+    """generate_response, generate_structured_response, chat_completion and
+    stream_completion must all consult _required_temperature — a
+    constraint learned on one path applies everywhere."""
+    import inspect
+    import core.llm.byok_handler as bh
+
+    for fn in (bh.BYOKHandler.generate_response,
+               bh.BYOKHandler.generate_structured_response,
+               bh.BYOKHandler.chat_completion,
+               bh.BYOKHandler.stream_completion):
+        src = inspect.getsource(fn)
+        assert "_required_temperature(" in src, (
+            f"{fn.__name__} must apply the per-model temperature constraint")

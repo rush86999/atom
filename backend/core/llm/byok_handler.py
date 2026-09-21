@@ -91,7 +91,35 @@ _REASONING_MANDATORY: set = set()
 # "invalid temperature: only 1 is allowed for this model" against the
 # structured calls' temperature=0.2). Memoized so later calls send
 # temperature=1 from the start — mirrors _TOOLCHOICE_UNSUPPORTED above.
-_TEMPERATURE_LOCKED: set = set()
+# (provider, model) pairs whose endpoint accepts ONLY a specific temperature
+# (live 2026-09-21 on the OpenCode Go endpoint: kimi-k2.7-code answers 400
+# "invalid temperature: only 1 is allowed for this model" against the
+# structured calls' temperature=0.2). TEMPERATURE VARIES WITH MODEL — the
+# value is parsed from each model's own rejection text ("only X is allowed")
+# and stored per pair; _required_temperature applies it on every generation
+# path. Memoized so the doomed call is paid ONCE per process.
+_MODEL_TEMPERATURE: Dict[str, float] = {}
+
+
+def _parse_locked_temperature(err_text: str) -> float:
+    """The temperature an endpoint's own rejection demands
+    ('only 1 is allowed for this model' -> 1.0); 1.0 when unparseable —
+    every known lock so far is a thinking-style model requiring 1."""
+    import re as _re
+    m = _re.search(r"only\s+([0-9.]+)\s+is\s+allowed", err_text or "",
+                   _re.IGNORECASE)
+    try:
+        return float(m.group(1)) if m else 1.0
+    except Exception:  # noqa: BLE001
+        return 1.0
+
+
+def _required_temperature(provider_id: str, model: str,
+                          requested: float) -> float:
+    """The temperature to actually send: the per-model constraint when the
+    endpoint has announced one, otherwise the requested value."""
+    required = _MODEL_TEMPERATURE.get(f"{provider_id}/{model}")
+    return requested if required is None else required
 
 # (provider, model) pairs whose endpoint answered 401 AuthError — the
 # credential is wrong for THAT pair. A rejected credential must not be
@@ -4098,7 +4126,10 @@ class BYOKHandler:
                     _req_kwargs = {
                         "model": model,
                         "messages": messages,
-                        "temperature": temperature,
+                        # per-model temperature constraint (provider-general:
+                        # learned from each endpoint's own rejection)
+                        "temperature": _required_temperature(
+                            provider_id, model, temperature),
                         "max_tokens": _cap,
                     }
                     # Same bounded-reasoning rule as the streaming path.
@@ -4253,6 +4284,41 @@ class BYOKHandler:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
 
+                    # TEMPERATURE-LOCKED recovery (provider-general,
+                    # 2026-09-21): endpoints announce their single allowed
+                    # value in their own 400 ("invalid temperature: only 1 is
+                    # allowed"). Memoize per (provider, model) — value parsed
+                    # from the error — and retry ONCE immediately, before any
+                    # fallback logic, so a first-encounter lock does not fail
+                    # the whole turn (live: the completeness regen died here
+                    # and its apology replaced a good answer).
+                    if ("invalid temperature" in str(attempt_err).lower()
+                            and f"{provider_id}/{model}" not in _MODEL_TEMPERATURE):
+                        _locked_value = _parse_locked_temperature(
+                            str(attempt_err))
+                        _MODEL_TEMPERATURE[f"{provider_id}/{model}"] = (
+                            _locked_value)
+                        logger.warning(
+                            f"{provider_id}/{model} locks temperature to "
+                            f"{_locked_value} — retrying once and memoizing "
+                            f"the pair")
+                        try:
+                            _t_kwargs = dict(_req_kwargs)
+                            _t_kwargs["temperature"] = _locked_value
+                            response = await _to_thread_safe(
+                                client.chat.completions.create, **_t_kwargs)
+                            self._capture_echoed_model(response)
+                            self._stash_last_reasoning(response)
+                            result = response.choices[0].message.content
+                            if not _visible_content_missing(result):
+                                self._last_used_model = model
+                                self._last_used_provider = provider_id
+                                return result
+                        except Exception as _temp_retry_err:
+                            logger.warning(
+                                f"temperature={_locked_value} retry also "
+                                f"failed: {_temp_retry_err}")
+
                     err_str = str(attempt_err)
 
                     # Round 80w2: insufficient-balance → model fallback before
@@ -4280,7 +4346,9 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     model=fallback_model,
                                     messages=messages,
-                                    temperature=temperature,
+                                    temperature=_required_temperature(
+                                        provider_id, fallback_model,
+                                        temperature),
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
@@ -4356,7 +4424,8 @@ class BYOKHandler:
                             heal_kwargs = {
                                 "model": model,
                                 "messages": messages,
-                                "temperature": temperature,
+                                "temperature": _required_temperature(
+                                    provider_id, model, temperature),
                                 "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
                             }
                             if image_payload and isinstance(messages[-1].get("content"), list):
@@ -4435,7 +4504,8 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     model=paid_model,
                                     messages=messages,
-                                    temperature=temperature,
+                                    temperature=_required_temperature(
+                                        provider_id, paid_model, temperature),
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
@@ -5478,10 +5548,12 @@ class BYOKHandler:
                         instructor_client = instructor.from_openai(
                             client, mode=instructor.Mode.JSON)
                     # TEMPERATURE-LOCKED pairs (OpenCode Go: kimi-k2.7-code et
-                    # al. accept only temperature=1) send 1 from the start —
-                    # the memo below means the doomed 0.2 call is paid ONCE
+                    # al. accept only ONE temperature value each) send their
+                    # required value from the start — the memo below means the
+                    # doomed call at the requested temperature is paid ONCE
                     # per process, never again.
-                    _temp_locked = f"{provider_id}/{model}" in _TEMPERATURE_LOCKED
+                    _effective_temperature = _required_temperature(
+                        provider_id, model, temperature)
                     
                     # Truncate prompts to fit context window
                     context_window = self.get_context_window(model)
@@ -5559,7 +5631,7 @@ class BYOKHandler:
                         model=model,
                         response_model=response_model,
                         messages=messages,
-                        temperature=1 if _temp_locked else temperature,
+                        temperature=_effective_temperature,
                         max_tokens=_structured_max_tokens,
                     )
                     # Key for the three per-(provider, model) capability memos
@@ -5647,12 +5719,16 @@ class BYOKHandler:
                                 "invalid temperature" in _err_txt
                                 and "_temp_locked" not in _recovered
                             ):
+                                _locked_value = _parse_locked_temperature(
+                                    str(_attempt_err))
                                 _recovered.add("_temp_locked")
-                                _TEMPERATURE_LOCKED.add(_logprobs_key)
-                                _create_kwargs["temperature"] = 1
+                                _MODEL_TEMPERATURE[_logprobs_key] = (
+                                    _locked_value)
+                                _create_kwargs["temperature"] = _locked_value
                                 logger.warning(
                                     f"{provider_id}/{model} locks temperature "
-                                    f"to 1 — retrying and memoizing the pair"
+                                    f"to {_locked_value} — retrying and "
+                                    f"memoizing the pair"
                                 )
                                 continue
 
@@ -6584,7 +6660,8 @@ class BYOKHandler:
                 create_kwargs: Dict[str, Any] = {
                     "model": model,
                     "messages": messages,
-                    "temperature": temperature,
+                    "temperature": _required_temperature(
+                        attempt_provider_id, model, temperature),
                     "max_tokens": _attempt_max_tokens,
                     "stream": True,
                 }
@@ -6861,7 +6938,8 @@ class BYOKHandler:
                         heal_kwargs = {
                             "model": model,
                             "messages": messages,
-                            "temperature": temperature,
+                            "temperature": _required_temperature(
+                                attempt_provider_id, model, temperature),
                             "max_tokens": max_tokens,
                             "stream": True,
                         }
@@ -6955,7 +7033,8 @@ class BYOKHandler:
                             retry_kwargs: Dict[str, Any] = {
                                 "model": paid_model,
                                 "messages": messages,
-                                "temperature": temperature,
+                                "temperature": _required_temperature(
+                                    provider_id, paid_model, temperature),
                                 "max_tokens": max_tokens,
                                 "stream": True,
                             }
@@ -7308,14 +7387,17 @@ class BYOKHandler:
                 continue
 
             logger.info(f"Attempting completion with provider: {attempt_provider_id} (requested: {provider_id})")
-            # TEMPERATURE-LOCKED pairs (OpenCode Go: kimi-k2.7-code et al.
-            # accept ONLY temperature=1 — live 2026-09-21: the completeness
-            # regen 400'd here). Clamp instead of paying the doomed 400; the
-            # memo below records pairs discovered by an in-flight failure.
+            # TEMPERATURE-LOCKED pairs (OpenCode Go models announce their one
+            # allowed value via their own 400): clamp instead of paying the
+            # doomed request; the map records pairs discovered in-flight.
             _attempt_kwargs = base_kwargs
-            if base_kwargs.get("temperature") not in (None, 1) and (
-                    f"{attempt_provider_id}/{model}" in _TEMPERATURE_LOCKED):
-                _attempt_kwargs = {**base_kwargs, "temperature": 1}
+            _base_temperature = base_kwargs.get("temperature")
+            if _base_temperature is not None:
+                _attempt_temperature = _required_temperature(
+                    attempt_provider_id, model, _base_temperature)
+                if _attempt_temperature != _base_temperature:
+                    _attempt_kwargs = {**base_kwargs,
+                                       "temperature": _attempt_temperature}
             try:
                 request_start = datetime.now()
                 response = await client.chat.completions.create(**_attempt_kwargs)
@@ -7415,12 +7497,15 @@ class BYOKHandler:
                 # the pair and retry ONCE at temperature=1 before the ladder
                 # moves on. Same contract as the structured path's arm.
                 if ("invalid temperature" in str(e).lower()
-                        and f"{attempt_provider_id}/{model}" not in _TEMPERATURE_LOCKED):
-                    _TEMPERATURE_LOCKED.add(f"{attempt_provider_id}/{model}")
+                        and f"{attempt_provider_id}/{model}" not in _MODEL_TEMPERATURE):
+                    _locked_value = _parse_locked_temperature(str(e))
+                    _MODEL_TEMPERATURE[f"{attempt_provider_id}/{model}"] = (
+                        _locked_value)
                     logger.warning(
                         f"{attempt_provider_id}/{model} locks temperature to "
-                        "1 — retrying once and memoizing the pair")
-                    _retry_at_1 = {**base_kwargs, "temperature": 1}
+                        f"{_locked_value} — retrying once and memoizing the "
+                        f"pair")
+                    _retry_at_1 = {**base_kwargs, "temperature": _locked_value}
                     try:
                         response = await client.chat.completions.create(
                             **_retry_at_1)
