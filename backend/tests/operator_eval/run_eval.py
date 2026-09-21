@@ -6,6 +6,12 @@ eval site for every task, per model, and prints a success/steps/seconds
 table. Numbers belong in the commit/PR message when the model pool or
 loop changes.
 
+Rev 2 (ENV_HARNESS_ADOPTION_PLAN): one isolated EvalSite instance per run
+(no module-global state), each task starts from /control/reset, and
+verifiers read (result, site). For curriculum work (mutations, multi-arm
+runs, screen/confirm batches) prefer adapter.run_rollout — this CLI stays
+the one-command human baseline.
+
 Usage (from backend/):
     BROWSER_ALLOW_PRIVATE_ADDRESSES=1 python tests/operator_eval/run_eval.py \
         --model gpt-6-astra [--max-steps 15] [--only form_fill,login_flow]
@@ -27,24 +33,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_site import start_site                      # noqa: E402
-from tasks import TASKS, _reset_state                 # noqa: E402
+from tasks import BASE_TASKS as TASKS, _reset_site    # noqa: E402
 
 
-async def run_task(base_url, task, model, max_steps):
+async def run_task(site, stop_unused, task, model, max_steps):
     from core.operator.loop import OperatorLoop, JsonVisionDecider
     from core.operator.session import OperatorSession
 
-    _reset_state()
+    _reset_site(site)
     backend = OperatorSession(user_id="operator-eval")
     try:
-        await backend.start(start_url=base_url + task["start_url"])
+        await backend.start(start_url=site.base_url + task["start_url"])
         loop = OperatorLoop(backend=backend,
                             decider=JsonVisionDecider(),
                             max_steps=max_steps)
         started = time.monotonic()
         result = await loop.run(task["goal"])
         elapsed = time.monotonic() - started
-        passed = bool(task["verify"](result))
+        passed = bool(task["verify"](result, site))
         return {
             "task": task["id"],
             "passed": passed,
@@ -73,15 +79,16 @@ async def main():
         wanted = {t.strip() for t in args.only.split(",")}
         tasks = [t for t in TASKS if t["id"] in wanted]
 
-    base_url, stop = start_site()
-    print(f"# operator eval — model={args.model} tasks={len(tasks)}")
+    site, stop = start_site()   # ephemeral port, fresh instance + token
+    print(f"# operator eval — model={args.model} tasks={len(tasks)} "
+          f"site={site.base_url}")
     print(f"| {'task':<22} | pass | done | steps | sec |")
     print(f"|{'-' * 24}:|:----:|:----:|:-----:|:----:|")
     results = []
     try:
         for task in tasks:
             try:
-                row = await run_task(base_url, task, args.model,
+                row = await run_task(site, stop, task, args.model,
                                      args.max_steps)
             except Exception as exc:
                 row = {"task": task["id"], "passed": False, "done": False,
