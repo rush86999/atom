@@ -202,37 +202,83 @@ def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
 def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
     """Resolve a DB template (``WorkflowTemplate``) into an executable definition.
 
-    The UI lists templates from the template store and executes them via
-    ``/workflows/{id}/execute``; templates are not in ``workflows.json``, so
-    the durable-store lookup alone 404s. Fall back to the template's step
-    schema on the fly.
+    The UI lists templates from template stores and executes them via
+    ``/workflows/{id}/execute``; neither store's rows live in
+    ``workflows.json``, so the durable-store lookup alone 404s. Two
+    resolvers run in order:
+
+    * the DB ``WorkflowTemplate`` table (editor/imported templates keyed
+      on the UUID ``id`` column);
+    * the file-backed template system — the rows ``GET
+      /api/workflow-templates`` serves, with ids like
+      ``template_personal_candidate_pipeline``. This is the store the
+      Workflows page's "Use Template → Execute" flow posts, which 404'd
+      here (issue #618).
     """
     try:
         from core.models import WorkflowTemplate
 
         db = next(get_db())
         try:
-            # The ORM WorkflowTemplate keys on `id` (a UUID PK). The frontend
-            # template ids come from this column (get_templates → template.id),
-            # so match on it only — `template_id` lives on the in-memory
-            # template system, not this model.
+            # The ORM WorkflowTemplate keys on `id` (a UUID PK) —
+            # `template_id` lives on the file-backed template system, not
+            # this model.
             template = (
                 db.query(WorkflowTemplate)
                 .filter(WorkflowTemplate.id == workflow_id)
                 .first()
             )
-            if template is None:
-                return None
-            return {
-                "id": template.id,
-                "name": template.name,
-                "description": template.description or "",
-                "steps": template.steps or [],
-            }
+            if template is not None:
+                return {
+                    "id": template.id,
+                    "name": template.name,
+                    "description": template.description or "",
+                    "steps": template.steps or [],
+                }
         finally:
             db.close()
     except Exception as e:
         logger.error(f"Failed to resolve template definition '{workflow_id}': {e}")
+
+    # File-backed template system. Steps carry the engine's execution
+    # contract natively (service/action/parameters — see
+    # WorkflowEngine._execute_step). Declared (list-shaped) parameters bind
+    # to the execution's input_data through the engine's ${input.<name>}
+    # convention, preferring the declared default when one exists.
+    try:
+        from core.workflow_template_system import WorkflowTemplateManager
+
+        template = WorkflowTemplateManager().get_template(workflow_id)
+        if template is None:
+            return None
+        steps = []
+        for step in template.steps or []:
+            params = step.parameters
+            if isinstance(params, list):
+                params = {
+                    p.name: p.default_value
+                    if p.default_value is not None
+                    else f"${{input.{p.name}}}"
+                    for p in params
+                }
+            steps.append({
+                "id": step.step_id,
+                "name": step.name,
+                "service": step.service or "default",
+                "action": step.action or "default",
+                "type": step.step_type or "action",
+                "parameters": params or {},
+                "depends_on": step.depends_on or [],
+                "condition": step.condition,
+            })
+        return {
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description or "",
+            "steps": steps,
+        }
+    except Exception as e:
+        logger.error(f"Failed to resolve file-backed template '{workflow_id}': {e}")
         return None
 
 
