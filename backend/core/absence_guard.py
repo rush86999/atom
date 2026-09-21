@@ -27,6 +27,10 @@ _COVERAGE_MARKERS = (
     "HISTORICAL CORRESPONDENCE",
     "FRESH DATA",
     "ingested mailbox",
+    # datasets.find_all: an EXACT-COUNT scan over every cell — the strongest
+    # scoped-absence evidence the catalog can produce (0 matches over a
+    # complete scan proves the value is in no cell of what was scanned).
+    "FIND ALL RESULTS",
 )
 
 #: Universal absence phrasings. Each pattern captures nothing; the
@@ -37,6 +41,14 @@ _COVERAGE_MARKERS = (
 _ABSENCE_RES: List[re.Pattern] = [
     # "No file with that name exists in the system", "no matching records"
     re.compile(r"\bno\s+(?:\w+\s+){0,4}?(?:such|matching)\b", re.IGNORECASE),
+    # "no spreadsheet cell contains X" / "no cells hold that value" — the
+    # find_all phrasing (2026-09-20): absence asserted through a verb, which
+    # none of the exist/found forms catch.
+    re.compile(
+        r"\bno\s+(?:\w+\s+){0,3}?cells?\b[^.!?]{0,60}?"
+        r"\b(?:contain|contains|held|hold|holds|has|have|mention|mentions|"
+        r"include|includes)\b",
+        re.IGNORECASE),
     # "no emails/documents/files/records ... (exist|found|in the system)"
     re.compile(
         r"\bno\s+(?:\w+\s+){0,3}?"
@@ -100,7 +112,7 @@ _INCOMPLETE_COVERAGE_RE = re.compile(
 #: that something exists nowhere.
 _PARTIAL_COVERAGE_RE = re.compile(
     r"(next_page_token|next page|has_more|more rows matched|first page only|"
-    r"truncated|\.\.\.\s*\d+ more|page \d+ of \d+|partial)",
+    r"truncated|\.\.\.\s*\d+ more|page \d+ of \d+|partial|incomplete)",
     re.IGNORECASE,
 )
 
@@ -144,7 +156,16 @@ def _claims_covered(claim: str, tool_block: str) -> bool:
     claim_tokens = content_tokens(claim)
     if not claim_tokens:
         return True  # nothing specific asserted; cannot call it uncovered
-    block_tokens = content_tokens(block)
+    # content_tokens keeps _TOKEN_RE's edge characters, so a sentence-final
+    # subject arrives as "rfq." while the evidence names "rfq" — an honest,
+    # covered answer would be flagged purely on punctuation. Strip token-EDGE
+    # punctuation on both sides (internal dots/dashes — "0.87", "wg-350" —
+    # are untouched).
+    claim_tokens = {t.strip("._+-") for t in claim_tokens}
+    claim_tokens.discard("")
+    block_tokens = {t.strip("._+-")
+                    for t in content_tokens(block)}
+    block_tokens.discard("")
     if not (claim_tokens & block_tokens):
         return False  # the evidence never speaks to this subject
     # A positive hit ABOUT THE CLAIM'S SUBJECT contradicts absence. "No other X"
@@ -165,6 +186,42 @@ def uncovered_absence_claims(reply: str, tool_block: str) -> List[str]:
     reply may not ship as written."""
     return [c for c in universal_absence_claims(reply)
             if not _claims_covered(c, tool_block)]
+
+
+#: The deterministic last resort. It must itself be honest AND must not trip
+#: the absence detectors (checked against every _ABSENCE_RES pattern), or the
+#: guard would re-flag its own fallback and loop.
+_SCOPED_LIMITATION = (
+    "I did not find one in what this turn actually searched, and I can't "
+    "rule out places that were not searched.")
+
+
+def strip_uncovered_absence_claims(reply: str, tool_block: str) -> str:
+    """Deterministic last resort: replace each uncovered universal absence
+    sentence with a scoped limitation.
+
+    The corrective regeneration is best-effort — the provider can 401,
+    time out, or RETURN ANOTHER over-claim. The invariant (no unsupported
+    universal absence ships) must not depend on the model cooperating, so
+    when the regenerated text still carries uncovered claims (or there was
+    no regeneration), this rewrites the offending sentences in place and
+    leaves everything else untouched. Each sentence is tested individually,
+    so the _MAX_CLAIMS cap of :func:`universal_absence_claims` does not
+    leak into here.
+    """
+    if not reply:
+        return reply
+    out: List[str] = []
+    changed = False
+    for sentence in _SENTENCE_SPLIT_RE.split(reply):
+        if sentence.strip() and uncovered_absence_claims(sentence, tool_block):
+            out.append(_SCOPED_LIMITATION)
+            changed = True
+        else:
+            out.append(sentence)
+    if not changed:
+        return reply
+    return " ".join(part.strip() for part in out if part.strip())
 
 
 def absence_correction_message(claims: List[str],

@@ -121,6 +121,14 @@ class TestOpenCodeGoRegistration:
         the provider the user named regardless of this gate)."""
         import core.llm.model_route_registry as mrr
 
+        # ENV-INDEPENDENCE (2026-09-20): with real credentials in
+        # backend/.env (any developer machine; CI has none) the handler
+        # builds a non-empty clients set that does not include opencode-go,
+        # and evaluate_route's configured-providers veto — a DIFFERENT
+        # concern from catalog discovery — made this test red locally while
+        # CI stayed green. Pin the configured set empty so the assertion
+        # tests exactly what its name says: catalog-driven serving.
+        byok_handler.clients = {}
         catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
         monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
         catalog.record_discovery("opencode-go", ["deepseek-v4-flash", "kimi-k2.7-code"])

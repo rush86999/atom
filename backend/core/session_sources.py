@@ -39,6 +39,9 @@ _LEADING_STOPWORDS = {
     "this", "that", "these", "those", "its", "it", "was", "is", "are", "as",
     "by", "into", "then", "than", "so", "but", "not", "no", "we", "i", "you",
     "your", "our", "my", "their", "read", "found", "attached", "saved",
+    # request verbs that precede a name the user is ASKING about ("Find
+    # vendor_scorecard.xlsx") — the verb is not part of the handle
+    "find", "search", "locate", "try",
     # narrative connectives that precede a re-mention of the same file
     "later", "earlier", "then", "again", "next", "finally", "also", "same",
     "both", "each", "all", "here", "there", "which", "where", "when",
@@ -208,6 +211,85 @@ def conversation_source_names(history: List[Dict[str, Any]],
     return extract_source_handles(texts)
 
 
+#: An openable VFS path as evidence lines and replies cite it — the durable
+#: identity of a retrieved source (the display name is not: two stores can
+#: hold same-named files, and the review's Step-2 row was exactly that
+#: collision). Captures the path itself, not just its branch.
+_SOURCE_PATH_RE = re.compile(
+    r"\b(?:full|open|read):\s*"
+    r"(knowledge/[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)*)",
+    re.IGNORECASE,
+)
+
+
+def _reply_source_paths(reply: str) -> List[str]:
+    """Distinct openable VFS paths a reply cites, in order, deduped."""
+    out: List[str] = []
+    seen: set = set()
+    for m in _SOURCE_PATH_RE.finditer(str(reply or "")):
+        p = m.group(1).rstrip(".")
+        key = p.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
+def conversation_source_refs(history: List[Dict[str, Any]],
+                             window: int = _WINDOW) -> "List[Dict[str, str]]":
+    """``[{"name": …, "path": …}]`` for sources the conversation CONFIRMED —
+    the Step-2 durable-identity layer over :func:`conversation_source_names`.
+
+    The openable ``knowledge/…`` path is what a reopen actually resolves
+    against, so it — not the display name — disambiguates same-named files:
+    two different paths under one name BOTH survive as separate refs (the
+    name-collision acceptance row). Pairing is deliberately conservative: a
+    path is attached only when the reply names exactly one file and cites
+    exactly one distinct path — a wrong (name, path) pairing would reopen
+    the WRONG file, which is worse than a name-only hint (the module's own
+    principle). Newest first, bounded by the window and cap.
+    """
+    refs: "List[Dict[str, str]]" = []
+    seen: set = set()
+    for h in reversed(list(history or [])[-window:]):
+        h = h or {}
+        if h.get("error"):
+            continue
+        resp = str((h.get("response") or {}).get("message") or "")
+        if not resp or not _reply_evidence_of_retrieval(resp):
+            continue
+        handles = extract_source_handles([resp])
+        paths = _reply_source_paths(resp)
+        for name in handles:
+            path = ""
+            if (len(handles) == 1 and len(paths) == 1
+                    and _single_clean_file(name)):
+                path = paths[0]
+            key = (name.lower(), path.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            refs.append({"name": name, "path": path})
+            if len(refs) >= _CAP:
+                return refs
+    return refs
+
+
+def _single_clean_file(name: str) -> bool:
+    """The handle is one stem + one extension, nothing else.
+
+    The extractor's prose-spanning is a documented limitation: "Opened
+    price list.xlsx and notes.docx" yields the GLUED handle "price
+    list.xlsx and notes.docx" (an interior extension dot). Attaching a
+    path to such a handle would reopen one specific file under a name
+    covering two — refuse pairing there; the handle still serves as a
+    name-only hint.
+    """
+    stem = str(name or "").rsplit(".", 1)[0]
+    return "." not in stem
+
+
 def conversation_mentioned_names(history: List[Dict[str, Any]],
                                  window: int = _WINDOW) -> List[str]:
     """File names the conversation MENTIONED but did not confirm — the user's own
@@ -227,27 +309,39 @@ def conversation_sources_block(history: List[Dict[str, Any]]) -> str:
     States the provenance it actually has. A confirmed source may be reused; a
     merely MENTIONED name is a search hint and the prompt says so, because
     instructing the planner to "REUSE" an unconfirmed name is how a nonexistent
-    file becomes asserted fact (R1).
+    file becomes asserted fact (R1). A confirmed source WITH an openable path
+    is reopened BY THE PATH (the durable identity — same-named files in
+    different stores are distinct refs, listed with their paths).
     """
-    located = conversation_source_names(history)
+    refs = conversation_source_refs(history)
+    located = [r["name"] for r in refs]
     mentioned = [
         n for n in conversation_mentioned_names(history)
         if n.lower() not in {x.lower() for x in located}
     ]
     parts: List[str] = []
-    if located:
+    if refs:
+        rendered = []
+        for r in refs:
+            if r.get("path"):
+                rendered.append(
+                    f"{r['name']} [reopen by path: {r['path']} via "
+                    "documents.read; or datasets.search its filename]")
+            else:
+                rendered.append(r["name"])
         parts.append(
             "SOURCES RETRIEVED EARLIER IN THIS CONVERSATION: "
-            + "; ".join(located)
+            + "; ".join(rendered)
             + ". These were actually retrieved — plan a lookup that REUSES one "
             "(documents/datasets) when the current request needs it again, "
-            "instead of searching elsewhere or concluding it is missing. If a "
-            "retrieved source no longer resolves, say so rather than asserting "
-            "its contents."
+            "instead of searching elsewhere or concluding it is missing. When a "
+            "path is shown, target THAT path — the display name alone can be "
+            "ambiguous. If a retrieved source no longer resolves, say so "
+            "rather than asserting its contents."
         )
     if mentioned:
         parts.append(
-            "NAMES MENTIONED BUT NOT CONFIRMED RETRIEVED: "
+            "NAMES MENTIONED BUT NOT CONFIRMED AS RETRIEVED: "
             + "; ".join(mentioned)
             + ". These were asked about or referenced, NOT shown to exist — "
             "verify with a lookup before relying on them, and never report them "

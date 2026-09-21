@@ -94,3 +94,100 @@ def test_claims_capped():
         f"Claim number {i}: no matching records exist in the system."
         for i in range(6))
     assert len(universal_absence_claims(reply)) <= 3
+
+
+# --- R2 coverage rules landed in cd0640d33, pinned afterwards (2026-09-17
+# ZCode): the new coverage semantics shipped without pins here. ---
+
+def test_failed_or_denied_lookup_never_covers():
+    """A permission-denied 'file search' proves nothing about existence —
+    review R2 repro 2, previously accepted via one shared token."""
+    assert uncovered_absence_claims(
+        "No file with that name exists in the system.",
+        "LIVE TOOL RESULTS: file search failed with permission denied.")
+
+
+def test_partial_page_or_cursor_never_covers():
+    """A first page with a continuation cursor cannot establish that
+    something exists nowhere — review R2 repro 1."""
+    assert uncovered_absence_claims(
+        "The vendor scorecard workbook does not exist.",
+        "LIVE TOOL RESULTS: outlook.search query=vendor scorecard; "
+        "first page only; 1 result; next_page_token=abc")
+
+
+def test_positive_hit_never_covers_absence():
+    """Evidence reporting a match on the claim's subject refutes the
+    absence claim outright."""
+    assert uncovered_absence_claims(
+        "No emails from joel were found.",
+        "LIVE TOOL RESULTS: outlook.search joel emails -> 3 messages "
+        "matched")
+
+
+def test_no_other_claim_is_recognised_as_absence():
+    """'No other email carried it' was invisible to the detector before
+    cd0640d33 — an unseen claim is indistinguishable from a covered one."""
+    claims = universal_absence_claims("No other email carried that price list.")
+    assert len(claims) == 1
+
+
+def test_completed_empty_search_over_the_subject_covers():
+    """The honest shape must keep passing: a finished search that names the
+    subject and reports nothing, no failure, no cursor."""
+    assert uncovered_absence_claims(
+        "The mailbox scan found no messages about that RFQ.",
+        "LIVE TOOL RESULTS: outlook.search 'RFQ foot shear' -> 0 results "
+        "(scan complete)") == []
+
+
+def test_sentence_final_subject_still_covered():
+    """content_tokens glues the sentence-final period to the token
+    ('RFQ.' != 'rfq') — an honest, covered answer must not be flagged
+    purely on punctuation (strip fix, 2026-09-17)."""
+    assert uncovered_absence_claims(
+        "The ingested documents hold no such sheet for RFQ.",
+        "LIVE TOOL RESULTS (memory.search): RFQ 7519 workbook index — "
+        "0 matching sheets (search complete)") == []
+
+
+# --- Deterministic last resort (strip), added 2026-09-17 (ZCode): the
+# invariant must hold even when the corrective regeneration fails or
+# over-claims again. ---
+
+def test_strip_replaces_only_uncovered_sentences():
+    from core.absence_guard import strip_uncovered_absence_claims
+
+    reply = ("No file with that name exists in the system. "
+             "Your draft was saved unchanged. "
+             "None that we sent carried that price list.")
+    block = "LIVE TOOL RESULTS: outlook.search failed with permission denied."
+    out = strip_uncovered_absence_claims(reply, block)
+    assert "does not exist" not in out
+    assert "None that we sent" not in out
+    assert "draft was saved unchanged" in out
+
+
+def test_strip_passes_covered_reply_through_untouched():
+    from core.absence_guard import strip_uncovered_absence_claims
+
+    reply = "PRICE VIPUL contains no scorecard sheet."
+    block = ("LIVE TOOL RESULTS (memory.search):\n"
+             "- [document: ingested] PRICE VIPUL (6).xlsx | WORKBOOK INDEX")
+    assert strip_uncovered_absence_claims(reply, block) == reply
+
+
+def test_strip_limitation_is_itself_not_an_uncovered_claim():
+    """The fallback sentence must not re-trip the guard (no loops, no
+    second regeneration)."""
+    from core.absence_guard import (
+        _SCOPED_LIMITATION,
+        strip_uncovered_absence_claims,
+        uncovered_absence_claims,
+    )
+
+    out = strip_uncovered_absence_claims(
+        "No file with that name exists in the system.",
+        "LIVE TOOL RESULTS: file search failed with permission denied.")
+    assert out == _SCOPED_LIMITATION
+    assert uncovered_absence_claims(out, "") == []

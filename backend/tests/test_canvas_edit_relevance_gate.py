@@ -105,3 +105,69 @@ async def test_missing_query_fails_open(monkeypatch):
     )
     assert res.needed is True
     assert res.ok is True
+
+
+# --- R4 stamp consumption, pinned 2026-09-17 (ZCode): the planner stamps
+# the verdict of record at acceptance; this gate must CONSUME it instead of
+# re-running the raw lexical verdict and re-declining a provenance-verified
+# lookup. ---
+
+BODY_ASK = "search for this one: $ 5,350.00 - 10 % in stock, then update the draft"
+
+
+@pytest.mark.asyncio
+async def test_provenance_stamped_plan_is_not_redeclined(monkeypatch):
+    """The recorded R4 leftover: query = thread SUBJECT ('FW: RFQ - Foot
+    shear'), message = pasted BODY ('$ 5,350.00') — zero lexical overlap by
+    construction, raw verdict irrelevant. The planner validated it by
+    provenance and stamped it; the gate honors the stamp and executes."""
+    executed = {"n": 0}
+
+    async def plan():
+        return SimpleNamespace(use_tool=True, service="memory",
+                               intent="search", query="FW: RFQ - Foot shear",
+                               relevance_verdict="relevant",
+                               relevance_basis="provenance-quote")
+
+    async def spy_lookup(*args, **kwargs):
+        executed["n"] += 1
+        return "RFQ foot shear message text"
+
+    monkeypatch.setattr("core.chat_tool_planner.execute_tool_plan",
+                        spy_lookup)
+
+    res = await ed.fetch_fresh_data_section(
+        BODY_ASK, [], MagicMock(), "user-1",
+        plan_task=asyncio.create_task(plan()),
+    )
+    assert res.needed is True
+    assert res.ok is True
+    assert executed["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_stamped_irrelevant_still_declines(monkeypatch):
+    """The stamp cuts both ways: a plan the planner shipped stamped
+    irrelevant (repair failed) is still declined before execution — the
+    stamp must never become a blanket bypass."""
+    called = {"exec": 0}
+
+    async def plan():
+        return SimpleNamespace(use_tool=True, service="outlook",
+                               intent="search", query=STALE_QUERY,
+                               relevance_verdict="irrelevant",
+                               relevance_basis="no-overlap")
+
+    async def spy_lookup(*args, **kwargs):
+        called["exec"] += 1
+        return "should never run"
+
+    monkeypatch.setattr("core.chat_tool_planner.execute_tool_plan",
+                        spy_lookup)
+
+    res = await ed.fetch_fresh_data_section(
+        SCORECARD_ASK, [], MagicMock(), "user-1",
+        plan_task=asyncio.create_task(plan()),
+    )
+    assert (res.needed, res.ok) == (True, False)
+    assert called["exec"] == 0

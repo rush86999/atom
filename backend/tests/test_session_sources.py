@@ -71,10 +71,25 @@ def test_a_mention_is_never_reported_as_retrieved():
                 "response": {"message": "I could not locate it."}}]
     block = conversation_sources_block(history)
     assert "RETRIEVED EARLIER" not in block
-    assert "NOT CONFIRMED RETRIEVED" in block
+    assert "NOT CONFIRMED AS RETRIEVED" in block
     assert "instead of searching elsewhere" not in block, (
         "an unconfirmed name must not be described as reusable"
     )
+
+
+def test_mention_handle_strips_the_request_verb():
+    """The handle is the file, not the ask: 'Find vendor_scorecard.xlsx'
+    must yield 'vendor_scorecard.xlsx' (find/search/locate are request
+    verbs, not name fragments — added to _LEADING_STOPWORDS 2026-09-17)."""
+    from core.session_sources import extract_source_handles
+
+    handles = extract_source_handles(
+        ["Find vendor_scorecard.xlsx", "search for the RFQ list.pdf",
+         "locate price_august.xlsx"])
+    assert "vendor_scorecard.xlsx" in handles
+    assert "price_august.xlsx" in handles
+    assert not any(h.split(".")[0].split()[-1] in
+                   ("find", "search", "locate", "try") for h in handles)
 
 
 def test_an_openable_path_proves_retrieval():
@@ -89,3 +104,83 @@ def test_block_empty_when_nothing_located():
                 "response": {"message": "Hi! How can I help?"}}]
     assert conversation_sources_block(history) == ""
     assert conversation_sources_block([]) == ""
+
+
+# --- Step-2 durable source refs (2026-09-20): the openable path is the
+# identity; the display name is not. ---
+
+def test_ref_pairs_name_with_openable_path():
+    from core.session_sources import conversation_source_refs
+
+    history = [{"message": "open it",
+                "response": {"message": (
+                    "Opened PRICE VIPUL (6).xlsx (open: "
+                    "knowledge/documents/ext_1/content.lines) — Sheet1, "
+                    "240 rows.")}}]
+    refs = conversation_source_refs(history)
+    assert refs == [{"name": "PRICE VIPUL (6).xlsx",
+                     "path": "knowledge/documents/ext_1/content.lines"}]
+
+
+def test_ref_block_carries_the_reopen_instruction():
+    from core.session_sources import conversation_sources_block
+
+    history = [{"message": "open it",
+                "response": {"message": (
+                    "Opened PRICE VIPUL (6).xlsx (open: "
+                    "knowledge/documents/ext_1/content.lines) — Sheet1, "
+                    "240 rows.")}}]
+    block = conversation_sources_block(history)
+    assert "reopen by path: knowledge/documents/ext_1/content.lines" in block
+    assert "documents.read" in block
+
+
+def test_same_name_different_paths_both_survive():
+    """The acceptance matrix's display-name collision row: two stores hold
+    same-named files — the PATH disambiguates, both refs are listed."""
+    from core.session_sources import conversation_source_refs
+
+    history = [
+        {"message": "open it",
+         "response": {"message": (
+             "Opened price list.xlsx (open: "
+             "knowledge/documents/ext_9/content.lines) — older copy.")}},
+        {"message": "open it again",
+         "response": {"message": (
+             "Opened price list.xlsx (open: "
+             "knowledge/documents/ext_2/content.lines) — the one from the "
+             "email.")}},
+    ]
+    refs = conversation_source_refs(history)
+    paths = {r["path"] for r in refs}
+    assert paths == {"knowledge/documents/ext_9/content.lines",
+                     "knowledge/documents/ext_2/content.lines"}
+    assert all(r["name"] == "price list.xlsx" for r in refs)
+
+
+def test_no_pairing_when_reply_names_two_files():
+    """A wrong (name, path) pairing reopens the wrong file. The extractor's
+    documented prose-spanning yields a GLUED handle for two-file sentences
+    ("price list.xlsx and notes.docx" — interior extension dot); such a
+    handle must never receive a path."""
+    from core.session_sources import conversation_source_refs
+
+    history = [{"message": "open both",
+                "response": {"message": (
+                    "Opened price list.xlsx and notes.docx (open: "
+                    "knowledge/documents/ext_1/content.lines).")}}]
+    refs = conversation_source_refs(history)
+    assert refs, "the glued handle is still a name-only hint"
+    assert all(r["path"] == "" for r in refs)
+
+
+def test_no_pairing_when_two_paths_one_name():
+    history = [{"message": "open it",
+                "response": {"message": (
+                    "Opened price list.xlsx — see "
+                    "full: knowledge/documents/a/content.lines and "
+                    "open: knowledge/documents/b/content.lines.")}}]
+    from core.session_sources import conversation_source_refs
+
+    refs = conversation_source_refs(history)
+    assert refs and refs[0]["path"] == ""

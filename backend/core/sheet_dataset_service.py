@@ -1186,6 +1186,292 @@ def search_all_datasets_sync(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# FIND ALL (Excel-style): every cell containing a value, with addresses
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _find_all_value_variants(value: str) -> List[str]:
+    """Search variants of a Find-All value: the raw text plus the
+    comma-stripped form, so '5,350' also hits cells stored as 5350.
+    Case is handled by ILIKE / lower()."""
+    raw = " ".join(str(value or "").split())
+    if not raw:
+        return []
+    out = [raw]
+    stripped = raw.replace(",", "")
+    if stripped and stripped != raw:
+        out.append(stripped)
+    return out
+
+
+def _cell_str(v: Any) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        # cells render 5350.0 as '5350' — the workbook shows no decimal
+        return str(int(v))
+    return str(v)
+
+
+def find_all_occurrences_sync(
+    value: str,
+    user_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    *,
+    file_name: Optional[str] = None,
+    max_matches: int = 50,
+    max_files: int = 200,
+    deadline: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Excel-style Find All across the ingested-spreadsheet catalog.
+
+    Every CELL containing ``value`` (contains-match, case-insensitive —
+    Excel's Find All defaults), with file, sheet, cell ADDRESS (letter +
+    workbook row), the cell's rendered value and its formula when the
+    sidecar has one. Counts are EXACT (a COUNT scan per sheet), so a
+    zero-match result licenses a scoped absence claim over the whole
+    catalog; the rendered match list is capped with a truncation flag.
+
+    ``file_name`` scopes the scan to catalogued files whose name contains
+    it (Excel's 'Within: Workbook' equivalent). ``deadline`` (monotonic)
+    marks the result ``incomplete`` instead of silently vanishing — the
+    same degradation contract as :func:`search_all_datasets_sync`.
+    """
+    variants = _find_all_value_variants(value)
+    result: Dict[str, Any] = {
+        "value": str(value or ""),
+        "variants": variants,
+        "file_filter": file_name or None,
+        "files_scanned": 0,
+        "sheets_scanned": 0,
+        "total_matches": 0,
+        "per_file": {},
+        "matches": [],
+        "truncated": False,
+        "incomplete": False,
+        "error": "",
+    }
+    if not variants:
+        result["error"] = "no searchable value"
+        return result
+
+    def _out_of_time() -> bool:
+        return deadline is not None and time.monotonic() > deadline
+
+    entries = find_entries_sync("", user_id, workspace_id, 500)
+    files: Dict[tuple, List[Dict[str, Any]]] = {}
+    order: List[tuple] = []
+    for e in entries:
+        key = (e["source"], e["external_id"])
+        if key not in files:
+            files[key] = []
+            order.append(key)
+        files[key].append(e)
+    if file_name:
+        needle = str(file_name).lower()
+        order = [k for k in order
+                 if needle in str((files[k][0] or {}).get("file_name")
+                                  or "").lower()]
+    order = order[:max_files]
+
+    try:
+        import duckdb as _duckdb
+    except ImportError:  # noqa: F401 — pandas fallback below
+        _duckdb = None
+    con = None
+    if _duckdb is not None:
+        try:
+            con = _duckdb.connect()
+        except Exception:  # noqa: BLE001
+            con = None
+
+    lowered = [v.lower() for v in variants]
+    matches: List[Dict[str, Any]] = []
+    total = 0
+    per_file: Dict[str, int] = {}
+    try:
+        for key in order:
+            if _out_of_time():
+                result["incomplete"] = True
+                break
+            sheet_entries = files[key]
+            fname = str((sheet_entries[0] or {}).get("file_name") or "")
+            file_hit = 0
+            for e in sheet_entries:
+                if _out_of_time():
+                    result["incomplete"] = True
+                    break
+                result["sheets_scanned"] += 1
+                sheet_rows = _find_all_rows(
+                    con, e, lowered,
+                    row_limit=max_matches - len(matches))
+                if not sheet_rows:
+                    continue
+                n_rows, rows = sheet_rows
+                total += n_rows
+                file_hit += n_rows
+                if len(matches) < max_matches and rows is not None:
+                    _append_cells(matches, e, rows, lowered,
+                                  max_matches - len(matches))
+            result["files_scanned"] += 1
+            if file_hit:
+                per_file[fname] = per_file.get(fname, 0) + file_hit
+    finally:
+        if con is not None:
+            try:
+                con.close()
+            except Exception:  # noqa: BLE001
+                pass
+    result["total_matches"] = total
+    result["per_file"] = per_file
+    result["matches"] = matches
+    result["truncated"] = total > len(matches)
+    return result
+
+
+def _find_all_rows(con, entry: Dict[str, Any],
+                   lowered_variants: List[str],
+                   row_limit: int = 0) -> Optional[tuple]:
+    """(exact_match_count, rows_or_None) for one sheet. ``rows`` is fetched
+    only while ``row_limit`` (the caller's remaining display budget) is
+    positive — counting is exact via COUNT(*), so truncation never lies."""
+    columns = [str(c) for c in (entry.get("columns") or [])]
+    columns = [c for c in columns if c != SHEET_ROW_COL]
+    if not columns:
+        return None
+    path = str(entry.get("parquet_path", "")).replace("'", "''")
+    cols_sql = ", ".join(
+        f'CAST("{c.replace(chr(34), chr(34) * 2)}" AS VARCHAR)' for c in columns
+    )
+    predicate = " OR ".join(
+        f"concat_ws('|', {cols_sql}) ILIKE ?" for _ in lowered_variants)
+    params = [f"%{v}%" for v in lowered_variants]
+    if con is not None:
+        try:
+            n = con.execute(
+                f"SELECT COUNT(*) FROM read_parquet('{path}') "
+                f"WHERE {predicate}", params).fetchone()[0]
+            if not n:
+                return None
+            if row_limit <= 0:
+                return int(n), None
+            rows = con.execute(
+                f"SELECT * FROM read_parquet('{path}') "
+                f"WHERE {predicate} LIMIT {int(row_limit)}",
+                params).df()
+            return int(n), rows
+        except Exception:  # noqa: BLE001 — pandas fallback below
+            pass
+    # pandas path (or DuckDB row fetch): count + rows together
+    import pandas as pd
+
+    try:
+        df = pd.read_parquet(entry["parquet_path"])
+    except Exception:  # noqa: BLE001
+        return None
+    data_cols = [c for c in df.columns if c != SHEET_ROW_COL]
+    if not data_cols:
+        return None
+    strs = df[data_cols].astype(str)
+    mask = strs.apply(
+        lambda col: col.str.lower().apply(
+            lambda s: any(v in s for v in lowered_variants)))
+    hit_mask = mask.any(axis=1)
+    n = int(hit_mask.sum())
+    if not n:
+        return None
+    return n, df[hit_mask]
+
+
+def _append_cells(matches: List[Dict[str, Any]], entry: Dict[str, Any],
+                  rows, lowered_variants: List[str], budget: int) -> None:
+    """Flatten matched ROWS into per-CELL matches (Excel lists each cell),
+    with letter+row addresses and sidecar formulas."""
+    from pandas import DataFrame
+
+    if not isinstance(rows, DataFrame):
+        return
+    letters = _column_letters([c for c in rows.columns if c != SHEET_ROW_COL])
+    formulas: Dict[str, str] = {}
+    try:
+        formulas = load_formulas_for_parquet(
+            str(entry.get("parquet_path") or ""), max_cells=20000) or {}
+    except Exception:  # noqa: BLE001 — formulas are decoration, not the answer
+        formulas = {}
+    for _, row in rows.iterrows():
+        sheet_row = row.get(SHEET_ROW_COL)
+        row_ref = str(int(sheet_row)) if str(sheet_row).isdigit() else ""
+        for col in rows.columns:
+            if col == SHEET_ROW_COL:
+                continue
+            cell_text = _cell_str(row.get(col)).lower()
+            if not any(v in cell_text for v in lowered_variants):
+                continue
+            addr = f"{letters.get(str(col), '?')}{row_ref}"
+            matches.append({
+                "file": entry.get("file_name") or "",
+                "sheet": entry.get("entity_name") or "",
+                "cell": addr,
+                "column": str(col),
+                "value": _cell_str(row.get(col)),
+                "formula": formulas.get(addr, ""),
+            })
+            budget -= 1
+            if budget <= 0:
+                return
+
+
+def render_find_all_result(result: Dict[str, Any]) -> str:
+    """Evidence block for a Find-All scan. Zero-match phrasing is deliberately
+    scoped-absence ('no cell of any ingested spreadsheet'), and an incomplete
+    scan says so — the absence guard reads both."""
+    value = result.get("value") or ""
+    head = f"FIND ALL RESULTS (datasets.find_all, value='{value}'"
+    if result.get("file_filter"):
+        head += f", within files matching '{result['file_filter']}'"
+    head += "):"
+    lines = [head]
+    if result.get("error"):
+        lines.append(f"  {result['error']}")
+        return "\n".join(lines)
+    scope = (f"complete scan: {result.get('files_scanned', 0)} file(s), "
+             f"{result.get('sheets_scanned', 0)} sheet(s)")
+    if result.get("incomplete"):
+        scope = ("INCOMPLETE scan (time budget hit): "
+                 f"{result.get('files_scanned', 0)} file(s), "
+                 f"{result.get('sheets_scanned', 0)} sheet(s) of the catalog "
+                 "— absence cannot be concluded from this")
+    lines.append(f"  {scope}")
+    total = result.get("total_matches", 0)
+    if not total:
+        lines.append(
+            "  0 cell matches — the value appears in no cell of the "
+            "spreadsheet(s) scanned above."
+        )
+        return "\n".join(lines)
+    per_file = result.get("per_file") or {}
+    files_summary = ", ".join(f"'{f}': {n}" for f, n in
+                              sorted(per_file.items(), key=lambda kv: -kv[1]))
+    lines.append(f"  {total} cell match(es). Per file: {files_summary}")
+    current_fs = None
+    for m in result.get("matches") or []:
+        fs = f"{m['file']} / {m['sheet']}"
+        if fs != current_fs:
+            lines.append(f"{fs}:")
+            current_fs = fs
+        cell = f"{m['cell']} = {m['value']}"
+        if m.get("formula"):
+            cell += f"  (formula {m['formula']})"
+        lines.append(f"  {cell}")
+    if result.get("truncated"):
+        lines.append(
+            f"  … showing first {len(result.get('matches') or [])} of "
+            f"{total} matches (exact count above; narrow with a file name "
+            "for the rest)")
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Freshness gate
 # ─────────────────────────────────────────────────────────────────────────────
 
