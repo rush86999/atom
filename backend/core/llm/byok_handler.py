@@ -2111,6 +2111,58 @@ class BYOKHandler:
         except Exception as _disc_err:  # noqa: BLE001 — never block init
             logger.debug(f"provider model discovery skipped: {_disc_err}")
 
+        self._seed_provider_auth_state(self.clients)
+
+    def _seed_provider_auth_state(self, providers: Dict[str, Any]) -> None:
+        """Seed the provider cooldown from persisted auth probes.
+
+        AUTH-PROBE SEEDING (2026-09-21): the catalog persists whether each
+        provider's last real completion AUTHENTICATED (auth_ok) — a fact
+        nothing consumed. Seed the provider cooldown from it so a restart
+        does not re-pay a dead workspace's round trip (the 2026-09-20/21
+        opencode-go CreditsError loop). Freshness-bounded: a probe older
+        than 1h is ignored — credentials change, and the first natural call
+        re-probes and re-records either way. Successes clear the persisted
+        fact (recorded in the cascade's success path).
+        """
+        try:
+            from core.llm.model_route_registry import get_provider_model_catalog
+
+            observations = getattr(
+                get_provider_model_catalog(), "_observations", {}) or {}
+            now = time.time()
+            for provider_id, obs in observations.items():
+                if obs.auth_ok is not False:
+                    continue
+                checked = getattr(obs, "auth_checked_at", None)
+                if checked is None:
+                    continue
+                try:
+                    # auth_checked_at is an epoch float; accept ISO strings
+                    # defensively in case the format ever changes.
+                    checked_val = float(checked)
+                except (TypeError, ValueError):
+                    try:
+                        from datetime import datetime as _dt, timezone as _tz
+                        checked_val = _dt.fromisoformat(
+                            str(checked).replace("Z", "+00:00")).timestamp()
+                    except Exception:  # noqa: BLE001 — unparseable: ignore
+                        continue
+                age = now - checked_val
+                if 0 <= age <= 3600 and provider_id in providers:
+                    with _PROVIDER_COOLDOWN_LOCK:
+                        _PROVIDER_COOLDOWN_UNTIL[provider_id] = now + (
+                            _PROVIDER_COOLDOWN_SECONDS)
+                        _PROVIDER_COOLDOWN_REASON[provider_id] = (
+                            "invalid_credential", "persisted auth probe")
+                    logger.info(
+                        "provider %s starts on cooldown: persisted auth "
+                        "probe failed %.0f min ago (credential/billing "
+                        "state; clears on first success or expiry)",
+                        provider_id, age / 60)
+        except Exception as _seed_err:  # noqa: BLE001 — never block init
+            logger.debug(f"auth-probe seeding skipped: {_seed_err}")
+
     def _refresh_provider_catalog(
         self, providers: Optional[List[str]] = None, force: bool = False,
     ) -> Dict[str, Any]:
@@ -5073,6 +5125,8 @@ class BYOKHandler:
         disable_reasoning: bool = False,         # tiny planning calls: skip hidden thinking
         max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
+        force_value_ranking: bool = False,  # last-resort sweep: rank by value, not cost
+        _sweep_depth: int = 0,                   # internal: sweep recursion guard
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -5218,7 +5272,11 @@ class BYOKHandler:
                 # into cost-priority ranking via their task_type — see the
                 # _cost_priority block in get_ranked_providers. A pinned
                 # provider_model still overrides the list entirely below.
-                cost_priority=False if provider_model is not None else None,
+                # The last-resort sweep forces VALUE ranking: its whole point
+                # is reaching the healthy paid rung the cost ladder missed.
+                cost_priority=(
+                    False if (provider_model is not None or force_value_ranking)
+                    else None),
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
@@ -5678,6 +5736,18 @@ class BYOKHandler:
                         routing_result_id=structured_decision_id,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
+                    # A success is also an auth fact: it clears the persisted
+                    # auth_ok=False a dead-workspace period may have recorded,
+                    # so the next restart does not seed a stale cooldown.
+                    try:
+                        from core.llm.model_route_registry import (
+                            get_provider_model_catalog,
+                        )
+
+                        get_provider_model_catalog().record_auth_probe(
+                            provider_id, True, "structured call succeeded")
+                    except Exception:  # noqa: BLE001
+                        pass
                     return result
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
@@ -5715,6 +5785,18 @@ class BYOKHandler:
                             logger.debug(
                                 f"provider bench after auth failure skipped: "
                                 f"{bench_err}")
+                        # Persist the auth fact so a restart does not re-pay
+                        # the same dead workspace's round trip (cleared by
+                        # the next successful call to this provider).
+                        try:
+                            from core.llm.model_route_registry import (
+                                get_provider_model_catalog,
+                            )
+
+                            get_provider_model_catalog().record_auth_probe(
+                                provider_id, False, err_str[:200])
+                        except Exception:  # noqa: BLE001
+                            pass
                     # Record failed structured call for health monitoring.
                     # The structured cascade never fed the health monitor, so
                     # connection-dead providers stayed optimistically healthy,
@@ -5818,6 +5900,42 @@ class BYOKHandler:
                         )
                         cascade_attempted = True
                         cascade_options.insert(cascade_idx, (provider_id, frontier))
+
+            if not _sweep_depth:
+                # LAST-RESORT SWEEP (2026-09-21): the cost-priority planning
+                # ladder is capped and learned-order-sensitive — with two
+                # providers dead it could end on a 402 without ever reaching
+                # the healthy paid rung (live: deepseek served every
+                # evidence leg while the planner died on openrouter 402s).
+                # ONE recursive attempt ranked by VALUE instead of cost:
+                # benched providers are demoted by the gate above, so the
+                # healthy provider leads. Depth-guarded — the sweep itself
+                # never sweeps.
+                logger.warning(
+                    "structured cascade exhausted on cost-priority rungs — "
+                    "one value-ranked sweep over untried healthy providers")
+                try:
+                    _swept = await self.generate_structured_response(
+                        prompt=prompt,
+                        system_instruction=system_instruction,
+                        response_model=response_model,
+                        temperature=temperature,
+                        task_type=task_type,
+                        agent_id=agent_id,
+                        chain_id=chain_id,
+                        image_payload=image_payload,
+                        cascade=cascade,
+                        allow_moa=False,
+                        disable_reasoning=disable_reasoning,
+                        max_tokens=max_tokens,
+                        stage_decision_id=stage_decision_id,
+                        force_value_ranking=True,
+                        _sweep_depth=_sweep_depth + 1,
+                    )
+                    if _swept is not None:
+                        return _swept
+                except Exception as sweep_err:  # noqa: BLE001
+                    logger.warning(f"value-ranked sweep failed: {sweep_err}")
 
             logger.error(f"All structured providers failed. Last error: {last_error}")
             return None
@@ -6906,6 +7024,66 @@ class BYOKHandler:
         try:
             logger.error(f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}")
 
+            # LAST-RESORT LADDER SWEEP (2026-09-21): the caller's fallback
+            # list was ranked BEFORE this turn's failures benched anything —
+            # with two providers dying mid-turn (credits, auth), a 2-route
+            # list is exhausted while a healthy provider three rungs down
+            # was never tried (live: opencode CreditsError + openrouter 402
+            # exhausted the ladder; deepseek served every other leg). The
+            # sweep does NOT re-rank — ranking (BPC + the learning router)
+            # is exactly what kept crowning dead rungs; instead it walks the
+            # untried providers' catalog-served models directly, cooldown-
+            # and client-checked, capped.
+            try:
+                from core.llm.model_route_registry import (
+                    get_provider_model_catalog,
+                )
+
+                _catalog = get_provider_model_catalog()
+                _sweep: List[tuple] = []
+                for p in self.clients.keys():
+                    if self._provider_cooldown_active(p):
+                        continue
+                    # A provider in provider_order may still be untried for
+                    # ITS OWN models: the fan-out dispatches ONE fixed model
+                    # across gateways, and a gateway skipped as unserved for
+                    # that model (live: qwen3.8-flash skipped on deepseek)
+                    # must not exclude the provider's healthy catalogue from
+                    # the sweep. The DISCOVERED catalog is the authoritative
+                    # served-set; the pricing-cache helper parses slash-names
+                    # only and misses direct providers.
+                    _served = sorted(_catalog.served(p) or [])
+                    if not _served:
+                        _served = self._provider_models_cached(p)
+                    for m in _served[:2]:
+                        if self._ranked_model_is_known_unserved(p, m):
+                            continue
+                        _sweep.append((p, m))
+                _sweep = _sweep[:4]
+            except Exception as _sweep_err:  # noqa: BLE001 — best-effort
+                logger.debug(f"last-resort ladder sweep skipped: {_sweep_err}")
+                _sweep = []
+            if _sweep:
+                logger.warning(
+                    "stream ladder exhausted the caller's fallbacks — one "
+                    "catalog-driven sweep over untried healthy providers: %s",
+                    ", ".join(f"{p}/{m_}" for p, m_ in _sweep))
+                async for _fb_tok in self.stream_completion(
+                    messages=messages,
+                    model=_sweep[0][1],
+                    provider_id=_sweep[0][0],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    agent_id=agent_id,
+                    db=db,
+                    task_type=task_type,
+                    extra_kwargs=extra_kwargs,
+                    reasoning_sink=reasoning_sink,
+                    fallback_routes=_sweep[1:],
+                ):
+                    yield _fb_tok
+                return
+
             if agent_execution and governance_enabled and db:
                 try:
                     agent_execution.status = "failed"
@@ -6945,6 +7123,7 @@ class BYOKHandler:
         task_type: Optional[str] = "chat",
         agent_id: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, Any]] = None,
+        _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
     ) -> Dict[str, Any]:
         """Non-streaming chat completion with fallback + self-heal (gateway).
 
@@ -7387,6 +7566,49 @@ class BYOKHandler:
                     success=False, cost=None, latency_ms=0.0,
                     exception=e, routing_result_id=decision_id,
                 )
+
+        # LAST-RESORT SWEEP (2026-09-21): provider_order was computed before
+        # this turn's failures benched anything. When every rung in it is
+        # dead, walk the untried providers' catalog-served models directly
+        # (no re-ranking — BPC + the learning router were what kept dead
+        # rungs on top). One pass, no nested sweeps.
+        if _allow_ladder_sweep:
+            try:
+                from core.llm.model_route_registry import (
+                    get_provider_model_catalog,
+                )
+
+                _catalog = get_provider_model_catalog()
+                _sweep: List[tuple] = []
+                for p in self.clients.keys():
+                    if self._provider_cooldown_active(p):
+                        continue
+                    # same rule as stream_completion: provider_order members
+                    # are tried for the FIXED model only; their own served
+                    # models remain sweep candidates
+                    _served = sorted(_catalog.served(p) or [])
+                    if not _served:
+                        _served = self._provider_models_cached(p)
+                    for m in _served[:2]:
+                        if not self._ranked_model_is_known_unserved(p, m):
+                            _sweep.append((p, m))
+                _sweep = _sweep[:4]
+            except Exception as _sweep_err:  # noqa: BLE001 — best-effort
+                logger.debug(f"chat ladder sweep skipped: {_sweep_err}")
+                _sweep = []
+            for _p, _m in _sweep:
+                logger.warning(
+                    "chat ladder exhausted — catalog-driven sweep trying "
+                    "%s/%s", _p, _m)
+                try:
+                    return await self.chat_completion(
+                        messages=messages, model=_m, provider_id=_p,
+                        temperature=temperature, max_tokens=max_tokens,
+                        task_type=task_type, agent_id=agent_id,
+                        extra_kwargs=extra_kwargs, _allow_ladder_sweep=False,
+                    )
+                except Exception as _sweep_call_err:
+                    last_error = _sweep_call_err
 
         raise AllProvidersFailedError(
             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"
