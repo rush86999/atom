@@ -831,9 +831,31 @@ _CHAIN_CELL_RE = re.compile(r"\b([A-Z]{1,3})(\d{1,5})\s*==?")
 #: Cell references anywhere in a reply: "G235 = ...", "row 235 has F235".
 _CELL_MENTION_RE = re.compile(r"\b([A-Z]{1,3}\d{1,5})\b")
 
+#: Provider-layer failures that reach the reply path as ORDINARY TEXT — the
+#: streaming ladder yields "[Error: …]" and generate_completion returns the
+#: "check your API key" apology as content. Validators that count cell
+#: citations read either shape as "an answer with no missing cells", which is
+#: how a failed regeneration replaced a good answer (2026-09-21, canvas
+#: CAD-purchase turn). One detector, used wherever regenerated text is
+#: accepted.
+_LLM_ERROR_TEXT_RE = re.compile(
+    r"\[Error:|all (?:structured |llm )?providers failed|"
+    r"couldn't generate a response|check your api key|"
+    r"no live lookup executed|api key configuration",
+    re.IGNORECASE,
+)
+
+
+def _is_llm_error_text(text: Optional[str]) -> bool:
+    """True when ``text`` is a provider/router failure surfaced as reply
+    content — never a real answer, never acceptable as a replacement."""
+    if not text:
+        return False
+    return bool(_LLM_ERROR_TEXT_RE.search(str(text)))
+
 
 def _missing_chain_cells(reply: str, tool_block: Optional[str],
-                         min_missing: int = 2) -> list:
+                         min_missing: int = 2, min_cited: int = 1) -> list:
     """Formula cells of the MATCHED ROW that the reply never states.
 
     The derivation lane delivers the row's WHOLE formula chain and the ask is
@@ -851,8 +873,11 @@ def _missing_chain_cells(reply: str, tool_block: Optional[str],
     turn whose matched row was 235) and no reply could ever satisfy it. Only the
     ``FORMULAS FOR THE MATCHED ROW(S)`` line counts.
 
-    Deterministic and narrow: only a reply that already cites at least one of
-    those cells can be "incomplete" — a reply citing none is judged by
+    Deterministic and narrow: only a reply that already cites enough of those
+    cells to be WALKING the chain can be "incomplete" (``min_cited`` — a
+    currency clarification that mentions one cell in passing is not a partial
+    derivation, and demanding the full chain for it replaced a good answer
+    with an apology on 2026-09-21); a reply citing none is judged by
     ``_derivation_reply_ignored_the_row`` instead. Returns the missing cells in
     block order; fewer than ``min_missing`` is not worth a regeneration.
     """
@@ -869,7 +894,7 @@ def _missing_chain_cells(reply: str, tool_block: Optional[str],
     if len(offered) < 3:
         return []
     cited = set(_CELL_MENTION_RE.findall(reply))
-    if not (cited & set(offered)):
+    if len(cited & set(offered)) < max(1, int(min_cited)):
         return []
     # ONE ROW AT A TIME. The section lists the cells of every row the probe
     # matched, which can be several (measured 2026-09-16: a live turn logged
@@ -3894,6 +3919,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 original (already complete) reply is shipped rather than
                 blowing the client's timeout. Returns None when skipped or
                 when the regeneration itself does not finish in time.
+
+                A regeneration that fails at the provider layer returns the
+                handler's error text as ordinary content ("check your API
+                key…"). Shipping THAT over a usable answer is how the
+                2026-09-21 canvas turn replaced a good CAD-purchase
+                explanation with an apology (live: the completeness regen
+                400'd on opencode-go/kimi temperature, the apology cited no
+                chain cells so it passed the "no missing cells" acceptance).
+                Error-shaped content is therefore treated as a failed
+                regeneration — None, so every arm keeps the original reply.
                 """
                 _left = _remaining_budget(_plan_t0, _turn_budget)
                 if _left <= 0:
@@ -3903,13 +3938,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     return None
                 try:
-                    return await asyncio.wait_for(_coro, timeout=_left)
+                    _out = await asyncio.wait_for(_coro, timeout=_left)
                 except asyncio.TimeoutError:
                     logger.warning(
                         "guard regeneration timed out on the turn budget — "
                         "shipping the current reply"
                     )
                     return None
+                if isinstance(_out, dict) and _is_llm_error_text(
+                        _out.get("content")):
+                    logger.warning(
+                        "guard regeneration produced a provider error, not "
+                        "an answer — shipping the current reply (%s)",
+                        str(_out.get("content"))[:120])
+                    return None
+                return _out
 
             async def _bounded_verify(_coro):
                 """Run the verification panel inside a HARD cap, never longer.
@@ -5127,9 +5170,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         elif (_is_derivation_ask and _tool_block
                               and not _chain_retry_done
-                              and _missing_chain_cells(_streamed, _tool_block)):
+                              and _missing_chain_cells(_streamed, _tool_block,
+                                                       min_cited=2)):
                             _missing_cells = _missing_chain_cells(
-                                _streamed, _tool_block)
+                                _streamed, _tool_block, min_cited=2)
                             _chain_retry_done = True
                             logger.warning(
                                 "[derivation] reply states only part of the row's "

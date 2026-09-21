@@ -4488,7 +4488,17 @@ class BYOKHandler:
                     continue # Try next provider
             
             logger.error(f"All providers failed. Last error: {last_error}")
-            return "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
+            # TRUTHFUL FALLBACK (2026-09-21): the generic "check your API key"
+            # text misattributed a temperature-rejection (400) and — worse —
+            # was accepted by downstream validators as an answer. Name the
+            # actual last error; keep the failure recognizable as failure
+            # text (the reply path's error detector matches
+            # "couldn't generate a response").
+            _cause = str(last_error or "no provider attempted")[:200]
+            return (
+                "I couldn't generate a response — every configured provider "
+                f"failed. Last error: {_cause}. Check provider status or "
+                "credentials in Settings and try again.")
 
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
@@ -7298,9 +7308,17 @@ class BYOKHandler:
                 continue
 
             logger.info(f"Attempting completion with provider: {attempt_provider_id} (requested: {provider_id})")
+            # TEMPERATURE-LOCKED pairs (OpenCode Go: kimi-k2.7-code et al.
+            # accept ONLY temperature=1 — live 2026-09-21: the completeness
+            # regen 400'd here). Clamp instead of paying the doomed 400; the
+            # memo below records pairs discovered by an in-flight failure.
+            _attempt_kwargs = base_kwargs
+            if base_kwargs.get("temperature") not in (None, 1) and (
+                    f"{attempt_provider_id}/{model}" in _TEMPERATURE_LOCKED):
+                _attempt_kwargs = {**base_kwargs, "temperature": 1}
             try:
                 request_start = datetime.now()
-                response = await client.chat.completions.create(**base_kwargs)
+                response = await client.chat.completions.create(**_attempt_kwargs)
                 self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 
@@ -7391,6 +7409,56 @@ class BYOKHandler:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
+                # TEMPERATURE-LOCKED recovery (OpenCode Go, 2026-09-21):
+                # "invalid temperature: only 1 is allowed for this model" is
+                # a request-shape rejection, not a provider failure — memoize
+                # the pair and retry ONCE at temperature=1 before the ladder
+                # moves on. Same contract as the structured path's arm.
+                if ("invalid temperature" in str(e).lower()
+                        and f"{attempt_provider_id}/{model}" not in _TEMPERATURE_LOCKED):
+                    _TEMPERATURE_LOCKED.add(f"{attempt_provider_id}/{model}")
+                    logger.warning(
+                        f"{attempt_provider_id}/{model} locks temperature to "
+                        "1 — retrying once and memoizing the pair")
+                    _retry_at_1 = {**base_kwargs, "temperature": 1}
+                    try:
+                        response = await client.chat.completions.create(
+                            **_retry_at_1)
+                        _choice = (response.choices[0]
+                                   if getattr(response, "choices", None)
+                                   else None)
+                        _content = (getattr(_choice.message, "content", "") or ""
+                                    if _choice else "")
+                        last_error = None
+                        self._last_used_model = model
+                        self._last_used_provider = attempt_provider_id
+                        _usage = getattr(response, "usage", None)
+                        return {
+                            "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                            "object": "chat.completion",
+                            "created": int(datetime.now().timestamp()),
+                            "model": model,
+                            "provider": attempt_provider_id,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {"role": "assistant",
+                                                "content": _content},
+                                    "finish_reason": (
+                                        getattr(_choice, "finish_reason", None)
+                                        or "stop"),
+                                    "logprobs": None,
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": getattr(_usage, "prompt_tokens", 0) or 0,
+                                "completion_tokens": getattr(_usage, "completion_tokens", 0) or 0,
+                                "total_tokens": getattr(_usage, "total_tokens", 0) or 0,
+                            },
+                        }
+                    except Exception as _t1_err:
+                        logger.warning(
+                            f"temperature=1 retry also failed: {_t1_err}")
                 try:
                     self._record_attempt_failure(
                         attempt_provider_id, model, e,

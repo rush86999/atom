@@ -259,3 +259,70 @@ def test_opencode_client_identifies_per_zen_docs():
     src = inspect.getsource(bh.BYOKHandler)
     assert '"User-Agent": "atom-agent/1.0"' in src
     assert '"x-opencode-session"' in src
+
+
+def test_chat_completion_temperature_recovery():
+    """The 2026-09-21 canvas failure: a completeness regen via
+    generate_completion 400'd on opencode-go/kimi-k2.7-code
+    ('invalid temperature: only 1 is allowed') — the structured cascade's
+    temperature-locked recovery did not cover the completion paths."""
+    import inspect
+    import core.llm.byok_handler as bh
+
+    src = inspect.getsource(bh.BYOKHandler.chat_completion)
+    assert "_TEMPERATURE_LOCKED" in src, (
+        "chat_completion must clamp locked pairs at dispatch")
+    assert "invalid temperature" in src, (
+        "chat_completion must recover and retry once at temperature=1")
+
+
+def test_guarded_regen_rejects_error_text():
+    """The 2026-09-21 canvas failure: the handler's apology text passed the
+    'no missing cells' acceptance and REPLACED a good answer. The detector
+    must catch every error shape the ladders emit, and the guard must treat
+    such content as a failed regeneration."""
+    import importlib
+    import sys
+
+    import pytest as _pytest
+
+    mod = sys.modules.get("integrations.chat_orchestrator")
+    if mod is None:
+        _pytest.skip("orchestrator not imported in this suite")
+    for text in (
+        "[Error: All LLM providers failed. Please check your API key "
+        "configuration and try again.]",
+        "I couldn't generate a response — every configured provider failed. "
+        "Last error: 400 invalid temperature.",
+        "I'm sorry, I couldn't generate a response. Please check your API "
+        "key configuration in Settings or try again.",
+    ):
+        assert mod._is_llm_error_text(text), text[:50]
+    assert not mod._is_llm_error_text(
+        "K235 = 5625.3 (formula =J235*1.02) in PRICE VIPUL (6).xlsx")
+
+
+def test_missing_chain_cells_requires_walking_the_chain():
+    """A currency clarification citing ONE cell in passing is not a partial
+    derivation — min_cited=2 keeps the completeness regen off it."""
+    import importlib
+    import sys
+
+    mod = sys.modules.get("integrations.chat_orchestrator")
+    if mod is None:
+        import integrations.chat_orchestrator as mod  # noqa: F401
+    # real shape: the section regex captures the header's own LINE, so the
+    # chain cells ride on it
+    block = ("FORMULAS FOR THE MATCHED ROW(S): "
+             "D235 = 1 | R235 = M235/F235 | S235 = (M235-J235)/M235")
+    clarification = "That price is in CAD — R235 is the converted figure."
+    # 1 cell cited, 2 missing: below the walking bar -> no regeneration
+    assert mod._missing_chain_cells(clarification, block, min_cited=2) == []
+    # a reply genuinely walking the chain still triggers completion
+    partial = "D235 = 1 and R235 = M235/F235, so the margin follows."
+    assert mod._missing_chain_cells(partial, block, min_cited=2) == [], (
+        "the default min_missing=2 floor: one missing cell is not worth "
+        "a regeneration")
+    missing = mod._missing_chain_cells(partial, block, min_cited=2,
+                                       min_missing=1)
+    assert "S235" in missing
