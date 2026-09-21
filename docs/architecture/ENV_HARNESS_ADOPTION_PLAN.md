@@ -334,38 +334,63 @@ All numbers below are from that window's test runs.
   harness had); per-family rules can `block_path /state`, and the Phase 4
   design decides this per task family.
 
-## Phase 4 pre-registration template (fill BEFORE running; do not tune after)
+## Phase 4 pre-registration (REGISTERED 2026-09-21, ZCode — best estimates per user directive; frozen before first experiment rollout)
 
-> Copy this section, fill every blank, and commit the filled copy before
-> the first rollout. Any change after results are seen invalidates the run.
+> Registered with best estimates as directed. Any change after results are
+> seen invalidates the run.
 
-- **Date registered / registrant:** ____
-- **Model pin:** ____ (single model id; frozen `ATOM_COMPUTER_USE_MODEL`)
-- **Routing freeze:** provider catalog snapshot file+hash: ____
-  (ladder/bench drift invalidates arms mid-experiment; resume, don't mix)
-- **Families:** parameterizations of the 8 base tasks via
-  `mutations.SETUP_ROTATIONS`-style world updates. Instance pools: train
-  ____ per family, validation ____, test ____ (disjoint values; test pool
-  sealed until scoring). Pool generator seed: ____
-- **Arms:** A = static base env; B = mutated curriculum (library stacks
-  sequenced: ____). Equal TOTAL rollout budget per arm: ____ rollouts.
-- **Learned-artifact isolation:** per-arm namespaces for patterns/playbooks
-  (arm tag on every synthetic episode; no cross-arm reads). Synthetic
-  episodes: barred from graduation evidence; supervisor-rating gate NOT
-  satisfied by verifier passes.
-- **Distillation config:** evolver consumes arm-B synthetic corpus in a
-  separate namespace; sampling caps unchanged (≤5 fail / ≤3 pass per
-  cycle). Step-level traces attached from the adapter log, keyed by
-  episode id.
-- **Primary metric:** test-family success rate (verifier-based), scored
-  once, after training completes.
-- **Minimum useful improvement (arm B − arm A on test families):** ____ pp
-  absolute. **Maximum cost multiple vs arm A:** ____×.
-  **Minimum instances per family for the result to count:** ____.
-  **Harness-error budget:** rerun indefinitely excluded; abort if > ____%
-  of a stage's rollouts are harness errors.
-- **Decision rule:** B ≥ threshold on test families within cost → Phase 5
-  designer loop is justified. Otherwise stop, record numbers here, keep
-  the Phase 1 hardening.
-- **Prior baseline (pre-registration sanity, from run_eval.py):** model
-  ____ on the 8 base tasks: ____ /8 (raw table under results/, gitignored).
+- **Date registered / registrant:** 2026-09-21 ~16:40 EDT / ZCode
+- **Model pin:** `glm-5.3-flash` on opencode-go, called DIRECTLY via the
+  handler's opencode-go client (`PinnedVisionDecider`, temperature 0.1,
+  max_tokens 1024, one bounded parse-retry). Feasibility probe (2026-09-21):
+  the LLMService ladder vision-gate-vetoes explicit opencode-go picks
+  (pricing cache lacks vision flags for glm/qwen) and falls through to a
+  402-dead openrouter rung — so a direct pinned client is also the only way
+  to honor "frozen routing"; it is registered as such, not chosen as a
+  workaround. Direct-call probe: glm-5.3-flash, deepseek-v4-flash-vision-exp,
+  kimi-k3, mimo-v2.5 all accepted image content-parts; glm-5.3-flash pinned
+  (fastest of the verified set).
+- **Routing freeze:** by construction — one provider client, one model, no
+  ladder. `OPENCODE_BASE_URL` = zen go endpoint (backend/.env, gitignored);
+  catalog snapshot `data/provider_model_catalog.json` @ commit 510680552.
+- **Families:** the 8 base tasks, each parameterized by its world knob
+  (api_code / secret_word / longpage_code / creds / form_error_message /
+  headline / form labels / doc titles). Value pools hardcoded in the runner,
+  seed 20260921: train pool disjoint from test pool; both disjoint from base
+  values (base answers are the memorization trap). Pools: train 2 values,
+  test 2 values per family.
+- **Instances:** per family — arm A train: base ×2 (16 rollouts); arm B
+  train: base + train-rotated (16 rollouts). Test: train-rotation-disjoint
+  rotated values, same instances both arms (16 rollouts/arm). Total 64
+  rollouts + 16 distillation calls. `max_steps` 15 (smoke showed 12 too
+  tight for scroll-heavy tasks; 15 = run_eval default).
+- **Arms:** A = static base env (status quo); B = mutated curriculum
+  (train-rotated instances from the Phase 3 Setup vocabulary).
+- **Learned artifact + application:** per family per arm, ONE strategy
+  brief (≤1200 chars) distilled by the same pinned model from that arm's 2
+  train trajectories (text-only call; distiller instruction: "transferable
+  procedure, not one-off answers — values change between instances",
+  identical for both arms). Applied at test as a goal prefix marked
+  "[Strategy notes from an earlier practice session — values may differ]".
+  No DB writes anywhere in the experiment (nothing enters episodes/
+  graduation evidence; synthetic-corpus separation satisfied vacuously and
+  by construction).
+- **Primary metric:** test-family success rate (frozen verifier), arm B −
+  arm A on the pooled 16 test rollouts per arm.
+- **Minimum useful improvement:** +15pp absolute (≥ 2.4/16 → in integer
+  terms ≥ 3 rollouts). **Maximum cost multiple vs arm A:** 1.0× by design
+  (equal rollout counts; marginal cash ≈ 0 on the Go-plan subscription —
+  the spend is quota). **Minimum instances for the result to count:** 16
+  test rollouts per arm (2/family × 8).
+- **Harness-error budget:** each harness error rerun up to 2× (reruns don't
+  consume budget slots); abort the stage if > 25% of its rollouts remain
+  harness errors after reruns. **Wall-clock cap:** 3.5h total; checkpoint
+  results to disk after every rollout.
+- **Decision rule:** B ≥ A + 15pp on test families → Phase 5 designer loop
+  is justified. Else stop, record numbers here, keep the Phase 1 hardening.
+- **Pre-registration sanity (observed before registration):** pinned smoke
+  on `find_code` base env — agent_fail, 12 steps, 64.1s: the trace shows
+  the model looping on a nonexistent `/docs` index URL (genuine agent
+  failure; the exact class a procedure brief should fix). Per-task success
+  rates are therefore expected in a low-to-mid band — suitable for the
+  band protocol, and confirmation that the test cannot trivially saturate.

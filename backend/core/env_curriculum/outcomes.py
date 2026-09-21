@@ -39,6 +39,7 @@ class RolloutOutcome:
     error: str = ""                  # populated for HARNESS_ERROR
     evidence: dict[str, Any] = field(default_factory=dict)
     arm: str = ""                    # experiment arm (A/B), free-form
+    actions: list[dict[str, Any]] = field(default_factory=list)  # step trace
 
     @property
     def counts_for_rate(self) -> bool:

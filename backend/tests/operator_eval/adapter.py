@@ -90,13 +90,18 @@ async def run_rollout(
     env_label: str = "base",
     loop_factory: Callable[[Any, int], Any] | None = None,
     session_factory: Callable[[], Any] | None = None,
+    decider_factory: Callable[[], Any] | None = None,
+    stack: "MutationStack | None" = None,
 ) -> RolloutOutcome:
     """One task rollout against `instance`. Mechanical classification per
-    the module docstring; `loop_factory`/`session_factory` are injection
-    points for deterministic tests (default: real Chromium + vision decider).
-    """
+    the module docstring; `loop_factory`/`session_factory`/`decider_factory`
+    are injection points for deterministic tests or a pinned-model decider
+    (default: real Chromium + vision decider). `stack` is applied AFTER the
+    adapter's reset so the rollout runs against the mutated environment."""
     try:
         instance.reset()
+        if stack is not None:
+            instance.apply_stack(stack)   # apply_stack resets again first — idempotent
         if model:
             os.environ["ATOM_COMPUTER_USE_MODEL"] = model
         from core.operator.loop import OperatorLoop, JsonVisionDecider
@@ -108,7 +113,8 @@ async def run_rollout(
             await session.start(start_url=instance.base_url + task["start_url"])
             loop = loop_factory(session, max_steps) if loop_factory else \
                 OperatorLoop(backend=session,
-                             decider=JsonVisionDecider(),
+                             decider=decider_factory() if decider_factory
+                             else JsonVisionDecider(),
                              max_steps=max_steps)
             started = time.monotonic()
             result = await loop.run(task["goal"])
@@ -138,4 +144,5 @@ async def run_rollout(
         seconds=round(seconds, 1),
         summary=(result.get("summary") or "")[:200],
         evidence=dict(instance.site.evidence),
+        actions=result.get("actions") or [],
     )
