@@ -247,3 +247,15 @@ def test_stream_sweep_reaches_untried_provider_own_models():
         assert ("deepseek", "qwen/qwen3.8-flash") not in swept
         # ollama has no catalog entry -> no candidates
         assert not any(p == "ollama" for p, _ in swept)
+
+
+def test_opencode_client_identifies_per_zen_docs():
+    """Zen's third-party client contract (docs/go): a custom user agent and
+    a stable x-opencode-session. Without them the Go endpoint 400s
+    (MissingSessionID) and abuse monitoring flags generic SDK clients."""
+    import inspect
+    import core.llm.byok_handler as bh
+
+    src = inspect.getsource(bh.BYOKHandler)
+    assert '"User-Agent": "atom-agent/1.0"' in src
+    assert '"x-opencode-session"' in src

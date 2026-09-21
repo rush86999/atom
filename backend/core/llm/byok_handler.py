@@ -86,6 +86,13 @@ _TOOLCHOICE_UNSUPPORTED: set = set()
 # and openrouter/openai/gpt-5-mini; the retry meant to handle it never fired).
 _REASONING_MANDATORY: set = set()
 
+# (provider, model) pairs whose endpoint accepts ONLY temperature=1 (live
+# 2026-09-21 on the OpenCode Go endpoint: kimi-k2.7-code answers 400
+# "invalid temperature: only 1 is allowed for this model" against the
+# structured calls' temperature=0.2). Memoized so later calls send
+# temperature=1 from the start — mirrors _TOOLCHOICE_UNSUPPORTED above.
+_TEMPERATURE_LOCKED: set = set()
+
 # (provider, model) pairs whose endpoint answered 401 AuthError — the
 # credential is wrong for THAT pair. A rejected credential must not be
 # retried across every model on the provider (each retry re-pays a full
@@ -2083,6 +2090,16 @@ class BYOKHandler:
                         client_kwargs["default_headers"] = {
                             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", "https://atom.ai"),
                             "X-Title": "Atom",
+                        }
+                    if provider_id in ("opencode-go", "opencode"):
+                        # OpenCode Zen docs require third-party API clients to
+                        # identify with a custom user agent (not a generic SDK
+                        # name) and send a stable x-opencode-session per
+                        # conversation. Derived from the workspace so it is
+                        # stable across handler instances.
+                        client_kwargs["default_headers"] = {
+                            "User-Agent": "atom-agent/1.0",
+                            "x-opencode-session": f"atom-{self.workspace_id or 'default'}",
                         }
                     self.clients[provider_id] = OpenAI(**client_kwargs)
                     if AsyncOpenAI:
@@ -5450,6 +5467,11 @@ class BYOKHandler:
                     if _json_mode:
                         instructor_client = instructor.from_openai(
                             client, mode=instructor.Mode.JSON)
+                    # TEMPERATURE-LOCKED pairs (OpenCode Go: kimi-k2.7-code et
+                    # al. accept only temperature=1) send 1 from the start —
+                    # the memo below means the doomed 0.2 call is paid ONCE
+                    # per process, never again.
+                    _temp_locked = f"{provider_id}/{model}" in _TEMPERATURE_LOCKED
                     
                     # Truncate prompts to fit context window
                     context_window = self.get_context_window(model)
@@ -5527,7 +5549,7 @@ class BYOKHandler:
                         model=model,
                         response_model=response_model,
                         messages=messages,
-                        temperature=temperature,
+                        temperature=1 if _temp_locked else temperature,
                         max_tokens=_structured_max_tokens,
                     )
                     # Key for the three per-(provider, model) capability memos
@@ -5605,6 +5627,25 @@ class BYOKHandler:
                                     client, mode=instructor.Mode.JSON)
                                 continue
 
+                            # (1b) TEMPERATURE-LOCKED endpoints (OpenCode Go,
+                            # 2026-09-21): "invalid temperature: only 1 is
+                            # allowed for this model" against the structured
+                            # calls' temperature=0.2. Retry once with
+                            # temperature=1 and memoize the pair so later
+                            # calls send 1 from the start.
+                            if (
+                                "invalid temperature" in _err_txt
+                                and "_temp_locked" not in _recovered
+                            ):
+                                _recovered.add("_temp_locked")
+                                _TEMPERATURE_LOCKED.add(_logprobs_key)
+                                _create_kwargs["temperature"] = 1
+                                logger.warning(
+                                    f"{provider_id}/{model} locks temperature "
+                                    f"to 1 — retrying and memoizing the pair"
+                                )
+                                continue
+
                             # (2) Reasoning-mandatory endpoints reject the
                             # disable switch. Drop it, memoize the pair, retry.
                             if (
@@ -5624,13 +5665,19 @@ class BYOKHandler:
 
                             # (3) Soft-SC logprobs unsupported. Deliberately
                             # narrow: ONLY an error that actually names
-                            # logprobs triggers this. A broader match would
-                            # swallow genuine schema/validation failures by
-                            # retrying them once without logprobs.
+                            # logprobs AND says unsupported/not-supported
+                            # triggers this (deepseek: "logprobs are not
+                            # supported"; OpenCode Go: '"logprobs" is not
+                            # supported by this endpoint' — 2026-09-21). A
+                            # broader match would swallow genuine schema/
+                            # validation failures by retrying them once
+                            # without logprobs.
                             if (
                                 _soft_sc_on
                                 and "logprobs" in _create_kwargs
-                                and "logprobs are not supported" in _err_txt
+                                and "logprobs" in _err_txt
+                                and ("not supported" in _err_txt
+                                     or "are not supported" in _err_txt)
                                 and "logprobs" not in _recovered
                             ):
                                 _recovered.add("logprobs")
