@@ -1318,10 +1318,28 @@ class BYOKHandler:
             True if model has capability or no requirement, False otherwise.
             Unknown models and DB errors pass through (conservative: don't drop
             a candidate we can't verify — the caller's quality/health filters
-            still apply).
+            still apply). EXCEPTION: computer_use is evidence-gated and
+            fail-closed — see the check below.
         """
         if not required_capability:
             return True  # No capability requirement
+
+        # Computer-use admission is EVIDENCE-gated on top of the catalog's
+        # self-declared capability flags (2026-09-21, user directive after
+        # web research + the local glm-5.3-flash actuation-floor record):
+        # a vision-capable but grounding-weak model silently burns turns on
+        # computer-use tasks. Only models with an entry in core.benchmarks
+        # .COMPUTER_USE_EVIDENCE (external benchmark citation or local
+        # measurement) may serve task_type=computer_use — fail-closed for
+        # unlisted models. ATOM_COMPUTER_USE_ALLOW_UNVERIFIED=1 is the
+        # documented escape hatch (user-registered local computer-use
+        # models, or a new frontier model awaiting a registry entry).
+        if required_capability == "computer_use":
+            import os
+            if os.getenv("ATOM_COMPUTER_USE_ALLOW_UNVERIFIED") != "1":
+                from core.benchmarks import computer_use_evidence
+                if computer_use_evidence(model_id) is None:
+                    return False
 
         # BYOK composite ids ("openrouter/openai/gpt-4o") — the catalog may
         # key the base name; try progressively stripped variants so a

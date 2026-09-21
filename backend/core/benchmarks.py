@@ -230,13 +230,19 @@ def get_quality_score(model_id: str) -> int:
 # Used for specialized routing when models excel at specific tasks
 MODEL_CAPABILITY_SCORES = {
     "computer_use": {
-        "gpt-6-astra": 97,  # Frontier vision+reasoning flagship; unmeasured
-        # estimate pending an OSWorld-style battery — anchored just above
-        # specialized lux-1.0 per the Sept-2026 user directive to make
-        # astra the computer-use brain.
+        # 2026-09-21 refresh — sources in COMPUTER_USE_EVIDENCE below.
+        # Admission to computer-use routing is EVIDENCE-gated (see
+        # COMPUTER_USE_EVIDENCE); these scores only RANK admitted models.
+        "gpt-6-astra": 97,  # ScreenSpot-Pro leader (92.7, Sep 2026)
         "lux-1.0": 95,  # Specialized for computer use
-        "claude-3.5-sonnet": 85,  # Good but not specialized
-        "gpt-4o": 80,
+        "claude-opus-4-8": 92,  # BenchLM computer-use #1 (85.2)
+        "kimi-k3": 88,  # OSWorld-Verified 84.8
+        "qwen3.8-max": 88,  # OSWorld-Verified leader (86.1)
+        "claude-sonnet-4-6": 88,  # Claude line, OSWorld ~85
+        "claude-opus-4-6": 87,  # Prior-gen Claude line
+        "claude-3.5-sonnet": 85,  # Legacy entry (historical evidence)
+        "glm-5.3": 85,  # OSWorld-V vendor 86.1 / independent ~81
+        "gpt-4o": 80,  # Legacy entry (historical evidence)
     },
     "vision": {
         "gpt-4o": 95,
@@ -250,6 +256,93 @@ MODEL_CAPABILITY_SCORES = {
         "gemini-2.0-flash": 85,
     },
 }
+
+
+# Computer-use evidence registry (2026-09-21). Computer use is the one task
+# type where a vision-capable-but-grounding-weak model silently burns turns:
+# capability flags in the model catalog are SELF-DECLARED, so admission to
+# computer-use routing additionally requires external benchmark evidence (or
+# a local measurement) recorded here. Anything NOT listed is excluded from
+# computer-use candidates by byok_handler._filter_by_capabilities.
+#
+# Sources (web research 2026-09-21): benchlm.ai computer-use leaderboard
+# (Claude Opus 4.8 #1, 85.2; verified Sep 18, 2026); ScreenSpot-Pro via
+# benchlm.ai/llm-stats.com (GPT-6 Astra 92.7 leader); OSWorld-Verified via
+# llm-stats.com/steel leaderboard (Qwen3.8-Max 86.1, Kimi K3 84.8, Claude
+# line ~85; updated Sep 4, 2026); MindStudio independent OSWorld roundup
+# (Aug 2026) for the GLM-5.3 cross-check. Vendor vs independent numbers
+# differ — the registry records the conservative reading.
+#
+# Endpoint reality (measured live 2026-09-21 on the opencode-go fleet,
+# scratch-DB probe): kimi-k3 ACCEPTS image content-parts; glm-5.3 and
+# qwen3.8-max currently REJECT them (400) — they stay evidenced (competence
+# is a property of the model; the vision gate handles servability).
+# glm-5.3-flash is vision-servable but explicitly NOT evidenced: locally
+# measured floors on actuation families (0/4 per arm on form_fill /
+# form_validation / login_flow / search_and_click) with run-to-run flips
+# 0/2<->2/2 — see docs/architecture/ENV_HARNESS_ADOPTION_PLAN.md (Phases
+# 4a/4b record). mimo-*, grok-*, deepseek-*, minimax-*, gpt-5.6-luna: no
+# sourced computer-use number found; excluded until one exists.
+COMPUTER_USE_EVIDENCE: dict = {
+    "gpt-6-astra": {
+        "score": 97,
+        "source": "ScreenSpot-Pro leader 92.7 (benchlm.ai / llm-stats.com, Sep 2026); repo default computer-use brain",
+    },
+    "lux-1.0": {
+        "score": 95,
+        "source": "repo-internal specialized computer-use model (historical)",
+    },
+    "claude-opus-4-8": {
+        "score": 92,
+        "source": "BenchLM computer-use #1 85.2 (Sep 18, 2026); Claude line OSWorld ~85",
+    },
+    "kimi-k3": {
+        "score": 88,
+        "source": "OSWorld-Verified 84.8 (llm-stats, Aug 2026); image-parts verified on opencode-go endpoint 2026-09-21",
+    },
+    "qwen3.8-max": {
+        "score": 88,
+        "source": "OSWorld-Verified leader 86.1 (steel/llm-stats, Sep 2026); endpoint currently rejects image parts (vision gate governs servability)",
+    },
+    "claude-sonnet-4-6": {
+        "score": 88,
+        "source": "Claude line OSWorld ~85 (steel top-3, Sep 2026); sonnet cost tier of the same family",
+    },
+    "claude-opus-4-6": {
+        "score": 87,
+        "source": "prior-gen Claude line (repo-routed for computer use historically)",
+    },
+    "claude-3.5-sonnet": {
+        "score": 85,
+        "source": "legacy entry kept from the original table (historical evidence)",
+    },
+    "glm-5.3": {
+        "score": 85,
+        "source": "OSWorld-Verified vendor 86.1 / MindStudio independent ~81 (Aug 2026); endpoint currently rejects image parts",
+    },
+    "gpt-4o": {
+        "score": 80,
+        "source": "legacy entry kept from the original table (historical evidence)",
+    },
+}
+
+
+def computer_use_evidence(model_id: str) -> Optional[dict]:
+    """Resolve a model id (incl. BYOK composite ids like
+    "opencode-go/kimi-k3") to its COMPUTER_USE_EVIDENCE entry, or None.
+
+    Follows the same progressive-prefix-stripping convention as
+    byok_handler._filter_by_capabilities so router-prefixed ids resolve
+    identically at both layers.
+    """
+    mid = (model_id or "").strip()
+    if mid in COMPUTER_USE_EVIDENCE:
+        return COMPUTER_USE_EVIDENCE[mid]
+    while "/" in mid:
+        mid = mid.split("/", 1)[1]
+        if mid in COMPUTER_USE_EVIDENCE:
+            return COMPUTER_USE_EVIDENCE[mid]
+    return None
 
 
 def get_capability_score(model_id: str, capability: str) -> int:
