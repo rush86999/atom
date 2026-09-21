@@ -27,6 +27,10 @@ _COVERAGE_MARKERS = (
     "HISTORICAL CORRESPONDENCE",
     "FRESH DATA",
     "ingested mailbox",
+    # datasets.find_all: an EXACT-COUNT scan over every cell — the strongest
+    # scoped-absence evidence the catalog can produce (0 matches over a
+    # complete scan proves the value is in no cell of what was scanned).
+    "FIND ALL RESULTS",
 )
 
 #: Universal absence phrasings. Each pattern captures nothing; the
@@ -37,6 +41,14 @@ _COVERAGE_MARKERS = (
 _ABSENCE_RES: List[re.Pattern] = [
     # "No file with that name exists in the system", "no matching records"
     re.compile(r"\bno\s+(?:\w+\s+){0,4}?(?:such|matching)\b", re.IGNORECASE),
+    # "no spreadsheet cell contains X" / "no cells hold that value" — the
+    # find_all phrasing (2026-09-20): absence asserted through a verb, which
+    # none of the exist/found forms catch.
+    re.compile(
+        r"\bno\s+(?:\w+\s+){0,3}?cells?\b[^.!?]{0,60}?"
+        r"\b(?:contain|contains|held|hold|holds|has|have|mention|mentions|"
+        r"include|includes)\b",
+        re.IGNORECASE),
     # "no emails/documents/files/records ... (exist|found|in the system)"
     re.compile(
         r"\bno\s+(?:\w+\s+){0,3}?"
@@ -100,7 +112,7 @@ _INCOMPLETE_COVERAGE_RE = re.compile(
 #: that something exists nowhere.
 _PARTIAL_COVERAGE_RE = re.compile(
     r"(next_page_token|next page|has_more|more rows matched|first page only|"
-    r"truncated|\.\.\.\s*\d+ more|page \d+ of \d+|partial)",
+    r"truncated|\.\.\.\s*\d+ more|page \d+ of \d+|partial|incomplete)",
     re.IGNORECASE,
 )
 

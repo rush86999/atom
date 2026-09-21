@@ -32,6 +32,7 @@ import datetime as _dt_module
 import asyncio
 import logging
 import re
+import time
 from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional, Tuple
@@ -220,7 +221,7 @@ _SERVICE_DESCRIPTIONS = {
     # routed to documents.grep, which found nothing — the workbook's rows
     # live HERE; the planner had no signal that filename asks route to
     # datasets).
-    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -241,6 +242,10 @@ _PLATFORM_SERVICES = ("web_search", "web_fetch")
 # the model immediately "found the exact row" for that too). Same pattern the
 # production harnesses solve with grounded/cited generation: specific values
 # may come ONLY from attached evidence; absence must be reported, not paved.
+# datasets.find_all query scope: "VALUE in FILE.xlsx" names one workbook.
+_FIND_ALL_SCOPE_RE = re.compile(
+    r"^(.+?)\s+in\s+([A-Za-z0-9 ()&+._\-]+\.(?:xlsx|xlsm|xlsb|xls|csv|tsv))\s*$",
+    re.IGNORECASE)
 _GROUNDING_RULE = (
     "GROUNDING RULE: specific facts (names, figures, prices, dates, "
     "quotations) must come from the evidence above. If the exact value the "
@@ -513,6 +518,15 @@ Rules:
   exact rows — the user should never have to say where a value lives.
   Stock/quantity questions still go to the inventory app; when the user
   DOES name a document, keep using the file-storage read.
+- EVERY-OCCURRENCE / WHERE-IS-IT asks ("where does 5350 appear?", "which
+  cells contain WG-350DSAV?", "find all occurrences of 0.87", "does 7519
+  occur anywhere in the workbooks?"): plan service "datasets", intent
+  "find_all", query = the value ALONE, or "VALUE in FILE.xlsx" when the
+  user scoped it to one workbook. This is Excel's Find All across the
+  catalog: every matching cell with its address, exact counts, and a
+  complete zero-match scan that PROVES the value is in no cell — plan it
+  INSTEAD of search whenever the ask is about occurrences/locations
+  rather than the row's other columns.
 - PROVENANCE BEATS WORDING. When a PROVENANCE block is present it was
   resolved from the workspace's own ingested stores BEFORE this call: if it
   says the ingested mail contains the token, the text is a message the
@@ -1193,6 +1207,7 @@ async def plan_tool_use(
         allowed_intents = {"search", "list"}
         if plan.service == "datasets":
             allowed_intents.add("ask")  # NL→SQL over allowlisted app tables
+            allowed_intents.add("find_all")  # Excel-style Find All over cells
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -6154,6 +6169,41 @@ async def execute_tool_plan(
                 )
             except Exception as ask_err:  # noqa: BLE001 — fall through
                 logger.warning(f"datasets.ask failed: {ask_err}")
+        if (plan.intent or "search") == "find_all":
+            # Excel-style Find All: every cell containing the value, across
+            # the whole catalog or one named workbook. Query shape is the
+            # value alone, or "VALUE in FILE.xlsx" (parsed here, planner
+            # prompt documents it).
+            try:
+                from core.sheet_dataset_service import (
+                    find_all_occurrences_sync,
+                    render_find_all_result,
+                    sheet_datasets_enabled,
+                )
+            except ImportError as fa_err:  # noqa: F841
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.find_all, query='{query}'): "
+                    "dataset catalog unavailable — cannot scan cells.")
+            if not sheet_datasets_enabled():
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.find_all, query='{query}'): "
+                    "no dataset catalog configured — cannot scan cells.")
+            m = _FIND_ALL_SCOPE_RE.match(query or "")
+            value, fname = (m.group(1), m.group(2)) if m else (query, None)
+            try:
+                scan = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        find_all_occurrences_sync, value, user_id,
+                        (context or {}).get("workspace_id"),
+                        file_name=fname, max_matches=50,
+                        deadline=time.monotonic() + 20.0),
+                    timeout=25.0)
+            except asyncio.TimeoutError:
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.find_all, value='{value}'): "
+                    "scan timed out — no result; do not conclude the value "
+                    "is absent.")
+            return _with_grounding(render_find_all_result(scan))
         block = await _datasets_search_block(user_id, query, context)
         if block:
             return block
