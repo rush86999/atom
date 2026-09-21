@@ -1,11 +1,14 @@
 # Evolving-Environment Curriculum — EnvHarness Adoption Plan
 
-> **Status:** Phases 1–3 IMPLEMENTED; Phase 4 EXECUTED per the registered
-> design — registered decision **STOP** (delta +12.5pp < +15pp threshold;
-> see Results). Phase 5 (designer loop) NOT justified at this budget with
-> this pin; the Phase 1 hardening is retained as durable value. Rev 2
-> narrowed the original proposal after a code-level review; rev 3 records
-> the build + the run.
+> **Status:** CLOSED 2026-09-21. Phases 1–3 IMPLEMENTED and retained.
+> Phase 4 executed per registered design → STOP (+12.5pp < +15pp). Phase 4b
+> replication of the single variance-family signal FAILED (arm A 6/6 on
+> fresh instances; delta 0pp; ceiling check 12/12 = no drift) → **FINAL
+> STOP** per the 4b rule: the strategy-brief curriculum mechanism is
+> refuted at this pin/budget and is not to be retried as registered. The
+> hardened infrastructure is the durable outcome. Rev 2 narrowed the
+> original proposal after a code-level review; rev 3 records the build +
+> both runs.
 > **Added:** Sep 21, 2026 (ZCode, from VentureBeat coverage + upstream repo read)
 > **Sources:** google-research/envharness (Apache 2.0, arXiv:2608.19880) —
 > [GitHub](https://github.com/google-research/envharness),
@@ -483,3 +486,38 @@ family: ordered_navigation (trainA 2/2, testA 0/2, trainB 2/2, testB 2/2).
   primary result is suspect (record, don't decide).
 - **Everything else** frozen from 4a: rerun discipline, wall-clock cap
   (1.5h here), checkpointing, no DB writes, scratch DATABASE_URL only.
+
+## Phase 4b results (2026-09-21, ~14:20 EDT — decision: FINAL STOP)
+
+The replication **failed, cleanly**: on six fresh rotated test instances of
+ordered_navigation, **arm A passed 6/6** — the arm that had "memorized" in
+4a — while arm B also passed 6/6. Delta 0pp against the ≥34pp bar. The
+registered non-decisional ceiling check passed 12/12 (find_code, scroll_find,
+extract_headline, bare goals), ruling out pin/environment drift: the model
+and harness were healthy and stable throughout.
+
+Conclusion: 4a's ordered_navigation signal — the one family that made the
+mechanism look real — was **run-to-run stochastic variance in the pinned
+model, not a curriculum effect**. Both 4a and 4b are preserved verbatim in
+this record; per the 4b rule ("anything else → final STOP … not retried"),
+the strategy-brief curriculum mechanism is **refuted at this pin/budget**.
+
+What the two runs established, for whoever revisits evolving-environment
+ideas here:
+
+1. The hardening (fail-closed sandbox, world/evidence split, strengthened
+   verifiers, adapter taxonomy, Wilson admission protocol) works and is
+   retained — it made both experiments clean (zero harness errors across 80
+   + 28 rollouts) and is useful for ANY future eval work, not just
+   curricula.
+2. The pipeline (register → mechanize → execute → replicate) works and is
+   cheap: ~80 total rollouts across two days-of-record, ~70 minutes of
+   wall time, marginal cash ≈ 0.
+3. glm-5.3-flash's pass/fail behavior on this site is dominated by
+   run-to-run variance (the same task flips between 0/2 and 2/2 across
+   sessions), so ANY single-small-n agent comparison on this pin is noise.
+   Future work must either pin a more deterministic model, raise n
+   substantially, or measure within-session. That is a property of the
+   subject, not of the curriculum.
+4. Per the original framing: the honest negative is the deliverable. No
+   Phase 5. No further registrations under this design.
