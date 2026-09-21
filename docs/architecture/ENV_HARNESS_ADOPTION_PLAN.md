@@ -451,3 +451,35 @@ What stands regardless of the verdict: the Phase 1 hardening (fail-closed
 sandbox, world/evidence split, strengthened verifiers, the pinned-decider
 harness, the two-stage admission math) is durable infrastructure, exactly as
 the registered decision rule anticipated.
+
+## Phase 4b registration (NEW registration, 2026-09-21 ~14:05 EDT — a replication test; the 4a STOP stands in the record)
+
+This is not a modification of the 4a verdict — it is a separate, narrower
+experiment answering the one question 4a left open at actionable n: does the
+ordered_navigation memorization→transfer result replicate with more
+instances under the same design? Family selection rule (registered): the
+4a variance class (≥1 pass AND ≥1 fail across all 4a rollouts) — computed
+from the 4a checkpoint BEFORE this registration — contains exactly one
+family: ordered_navigation (trainA 2/2, testA 0/2, trainB 2/2, testB 2/2).
+
+- **Pin/routing:** unchanged from 4a (glm-5.3-flash direct client; the only
+  verified vision-capable pin on the healthy fleet — glm-5.3 and qwen3.8-max
+  reject image parts, deepseek is text-only).
+- **Arm A train:** base ×2. **Arm B train:** base + train-rotated (same
+  train pool as 4a). Test: SIX rotated title-sets per arm, disjoint from the
+  train pool (fresh values registered in the runner).
+- **Budget:** 4 train + 12 test rollouts = 16 (ordered_navigation), plus a
+  NON-DECISIONAL ceiling-stability check: the three 4a ceiling families
+  (find_code, scroll_find, extract_headline) run test-only with bare goals,
+  2 instances × 3 families × 2 arms = 12 rollouts. Total 28.
+- **Primary endpoint & decision:** B − A ≥ **34pp** on the 12
+  ordered_navigation test rollouts (≥2-rollout gap of 6) → the 4a result
+  REPLICATES, and the Phase 5 designer loop is justified **narrowly**: for
+  variance-class families only, each gated on a 4a/4b-style variance
+  classification before any run. Anything else → final STOP (the idea is
+  recorded as refuted-at-this-pin, not retried).
+- **Non-decisional check:** ceiling families should stay ≥ 5/6 per arm
+  pooled; a collapse there means the pin/environment drifted and the
+  primary result is suspect (record, don't decide).
+- **Everything else** frozen from 4a: rerun discipline, wall-clock cap
+  (1.5h here), checkpointing, no DB writes, scratch DATABASE_URL only.

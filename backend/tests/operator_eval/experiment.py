@@ -108,12 +108,27 @@ FAMILIES = {
                   {"1": {"title": "Intro"},
                    "2": {"title": "Pricing Docs"},
                    "3": {"title": "Reference Doc"}}],
-        "test": [{"1": {"title": "Welcome"},
-                  "2": {"title": "Rates"},
-                  "3": {"title": "API Notes"}},
-                 {"1": {"title": "Start Here"},
+        # 4b registration: six test title-sets, disjoint from the train pool
+        # (titles render on the doc pages; navigation is by URL, so
+        # solvability is unaffected — titles are the observation-level knob).
+        "test": [{"1": {"title": "Overview"},
+                  "2": {"title": "Tariffs"},
+                  "3": {"title": "Footnotes"}},
+                 {"1": {"title": "Onboarding Walk"},
                   "2": {"title": "Costs"},
-                  "3": {"title": "Glossary"}}],
+                  "3": {"title": "Annex"}},
+                 {"1": {"title": "Hello"},
+                  "2": {"title": "Fees"},
+                  "3": {"title": "Glossary"}},
+                 {"1": {"title": "First Steps"},
+                  "2": {"title": "Billing"},
+                  "3": {"title": "Extras"}},
+                 {"1": {"title": "Welcome Aboard"},
+                  "2": {"title": "Charges"},
+                  "3": {"title": "Index of Terms"}},
+                 {"1": {"title": "Begin Here"},
+                  "2": {"title": "Payment Plans"},
+                  "3": {"title": "Supplement"}}],
     },
 }
 
