@@ -1524,6 +1524,37 @@ _DERIVATION_VALUE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# CANVAS-EDIT SHAPE (RCA 2026-09-22 "rebuild the draft" turn): an edit verb
+# in an OPEN canvas panel. These turns serially need the canvas-edit leg
+# (which waits on the shared planner for its live data) PLUS tool execution
+# PLUS generation — on the ordinary 95s budget the measured chain (45s edit
+# bound + 10s action leg + 38.4s reply leg) ended in turn_budget_exceeded
+# with the edit never applied. Budget-class fix: edit-shaped canvas turns
+# get the same extended budget derivation asks already use (115s, still
+# under the ~120s client abort). Deliberately recall-biased — a false
+# positive only grants a longer budget; a false negative reproduces the
+# measured failure.
+_CANVAS_EDIT_SHAPE_RE = re.compile(
+    r"\b(?:rebuild|rewrite|redraft|revise|reformat|reword|reorder|restore|"
+    r"restructure|rework|update|edit|change|fix|shorten|tighten|polish|"
+    r"add|remove|delete|replace|make it|turn it into)\b",
+    re.IGNORECASE,
+)
+
+
+def _canvas_edit_shaped(
+    message: str, context: Optional[Dict[str, Any]] = None
+) -> bool:
+    """Edit-shaped wording AND an open canvas in the request context. The
+    canvas gate matters most: the same verbs in a plain chat (no panel) are
+    ordinary turns."""
+    if not _CANVAS_EDIT_SHAPE_RE.search(message or ""):
+        return False
+    ctx = context or {}
+    return bool(
+        ctx.get("canvas_id") or ctx.get("canvas") or ctx.get("canvas_type")
+    )
+
 
 def _derivation_ask(
     message: str, context: Optional[Dict[str, Any]] = None,
@@ -2780,6 +2811,21 @@ class ChatOrchestrator:
                 from x-atom-* headers). May contain ``model``, ``tier``,
                 ``intent`` keys. Threaded through to the LLM call.
         """
+        # INTERACTIVE CONTEXT (RCA 2026-09-22): every provider call on
+        # this request's call stack — planner, canvas editor, reply
+        # generation, cascades — is user-facing. The rate-budget reserve
+        # (core.llm.interactive_context) admits background work only
+        # above its fraction, so this turn keeps a slice of every window
+        # no matter what the ingestion/learning loops are doing. Reset in
+        # the finally below so fire-and-forget work spawned at turn end
+        # (fact extraction, dedup indexing) is background again.
+        _interactive_token = None
+        try:
+            from core.llm.interactive_context import mark_interactive_chat
+
+            _interactive_token = mark_interactive_chat()
+        except Exception:  # noqa: BLE001 — classification only, never blocks
+            _interactive_token = None
         try:
             # THE TURN DEADLINE STARTS HERE — the first statement of the request,
             # before session load, provenance hydration, planning or any provider
@@ -2789,7 +2835,14 @@ class ChatOrchestrator:
             # reply.
             _deadline = TurnDeadline(
                 _request_deadline_seconds(
-                    derivation=_derivation_ask(message, {"history": [], "canvas": context})
+                    derivation=(
+                        _derivation_ask(message, {"history": [], "canvas": context})
+                        # Edit-shaped canvas-panel turns share the derivation
+                        # budget CLASS (RCA 2026-09-22): their serial chain
+                        # (edit leg → planner tail → exec → generation) does
+                        # not fit the ordinary budget on a degraded fleet.
+                        or _canvas_edit_shaped(message, context)
+                    )
                 ),
                 label="chat-request",
             )
@@ -3043,6 +3096,7 @@ class ChatOrchestrator:
 
             _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
                                             "block": None}
+            _edit_leg_timed_out = False
             try:
                 if _canvas_ctx:
                     _edit_leg = self._try_canvas_edit(
@@ -3091,6 +3145,15 @@ class ChatOrchestrator:
                                     f"reserved) — falling through to the tool "
                                     "path")
                                 _edit_response = None
+                                # The edit leg died at its BOUND (RCA
+                                # 2026-09-22: 45s spent waiting for a shared
+                                # planner that took 59.5s). Starting a NEW
+                                # structured action-plan call now — on the
+                                # same starved fleet, under a 10s bound — is
+                                # predictable waste; skip it unless an action
+                                # plan is ALREADY in flight (a healthy edit
+                                # leg pre-started one).
+                                _edit_leg_timed_out = True
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -3112,6 +3175,18 @@ class ChatOrchestrator:
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
                     if _shared_tool.get("canvas_planning_unavailable"):
+                        _action_response = None
+                    elif _edit_leg_timed_out and _shared_tool.get(
+                            "action_plan_task") is None:
+                        # RCA 2026-09-22: the edit leg starved waiting for the
+                        # shared planner; a fresh action-plan LLM call on the
+                        # same starved fleet, under a 10s bound, burned 10s of
+                        # the reply share for nothing. An action task already
+                        # in flight (healthy edit leg) is still joined.
+                        logger.info(
+                            "[stage-timing] canvas-action leg skipped — the "
+                            "edit leg died at its bound and no action plan "
+                            "is in flight; the reply leg keeps its share")
                         _action_response = None
                     elif _derivation_ask(message, context):
                         # The ACTION leg is a sibling of the edit leg and was
@@ -3539,6 +3614,16 @@ class ChatOrchestrator:
             except Exception:
                 pass  # Don't let the persistence attempt mask the original error
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
+        finally:
+            if _interactive_token is not None:
+                try:
+                    from core.llm.interactive_context import (
+                        reset_interactive_chat,
+                    )
+
+                    reset_interactive_chat(_interactive_token)
+                except Exception:  # noqa: BLE001
+                    pass
 
     def _dispatch_turn_fact_extraction(
         self, user_request: str, final_answer: str, session_id: Optional[str], user_id: Optional[str]

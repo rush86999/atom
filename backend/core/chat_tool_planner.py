@@ -992,26 +992,40 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     return "\n".join(lines)
 
 
-def _plan_relevance_verdict(query: str, message: str) -> str:
+def _plan_relevance_verdict(
+    query: str, message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` — thin wrapper over
     core.plan_relevance (the same verdict the consumption-side gates run),
     fault-isolated so the planner degrades to ungated if that module is
-    momentarily absent (concurrent-session landing order)."""
+    momentarily absent (concurrent-session landing order).
+
+    2026-09-22: ``history`` is threaded from plan_tool_use so CONVERSATIONAL
+    messages ("yes go ahead", "rebuild the draft with requested quotes…")
+    are judged on their RESOLVED topic/lineage, not their bare wording —
+    the bare judgement fired the corrective repair arm on exactly those
+    turns (RCA: 59.5s planner, two sequential structured calls)."""
     try:
         from core.plan_relevance import relevance_verdict
-        return relevance_verdict(query, message)
+        return relevance_verdict(query, message, history=history)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown"
 
 
-def _plan_relevance_basis(query: str, message: str) -> "tuple[str, str]":
+def _plan_relevance_basis(
+    query: str, message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> "tuple[str, str]":
     """Same fault-isolation contract as :func:`_plan_relevance_verdict`,
     returning the rule basis alongside the verdict so the acceptance stamp
     records WHY (basis ``provenance-quote`` is assigned by the caller for
-    the exemption, not by this module)."""
+    the exemption, not by this module). History-aware for the same reason
+    as the verdict wrapper — the stamp is the verdict of record the
+    downstream editor gate honors."""
     try:
         from core.plan_relevance import relevance_basis
-        return relevance_basis(query, message)
+        return relevance_basis(query, message, history=history)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown", "module-unavailable"
 
@@ -1302,7 +1316,7 @@ async def plan_tool_use(
             and "INGESTED MAIL contains" in provenance
             and _quote_lookup_shape(message))
         if not _prov_quote_lookup and _plan_relevance_verdict(
-                plan.query or "", message) == "irrelevant":
+                plan.query or "", message, history) == "irrelevant":
             defect = (
                 "the planned query answers an EARLIER request, not the "
                 f"current one: query {plan.query!r} names nothing the "
@@ -1315,7 +1329,8 @@ async def plan_tool_use(
             if (repaired and repaired.use_tool
                     and repaired.service in allowed
                     and _plan_relevance_verdict(
-                        repaired.query or "", message) == "relevant"):
+                        repaired.query or "", message,
+                        history) == "relevant"):
                 logger.info(
                     "tool planner: relevance repair -> "
                     f"{repaired.service}.{repaired.intent} "
@@ -1348,7 +1363,7 @@ async def plan_tool_use(
             plan.relevance_basis = "provenance-quote"
         else:
             plan.relevance_verdict, plan.relevance_basis = (
-                _plan_relevance_basis(plan.query or "", message))
+                _plan_relevance_basis(plan.query or "", message, history))
     return plan
 
 

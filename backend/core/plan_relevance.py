@@ -44,10 +44,16 @@ _MAIL_ID_SHAPE_RE = re.compile(r"[A-Za-z0-9_\-=/]{40,}")
 
 def content_tokens(text: str) -> Set[str]:
     """Lowercase content words of ``text`` — minus stopwords, single
-    characters, and bare 1-digit numbers."""
+    characters, and bare 1-digit numbers.
+
+    Sentence-final periods are stripped from token edges (RCA 2026-09-22:
+    "…to those machinery." tokenized to ``machinery.``, which matched nothing
+    — the period is punctuation, not part of the word; INTERNAL dots survive
+    for decimals and file-like codes)."""
     out: Set[str] = set()
     for tok in _TOKEN_RE.findall((text or "").lower()):
-        if tok in _STOPWORDS or len(tok) < 2:
+        tok = tok.strip(".")
+        if not tok or tok in _STOPWORDS or len(tok) < 2:
             continue
         if tok.isdigit() and len(tok) < 2:
             continue
@@ -82,10 +88,29 @@ def relevance_verdict(
     """``relevant`` | ``irrelevant`` | ``unknown`` (fail-open) for a
     planned lookup query against the current user message.
 
-    Review R4 (2026-09-17) fixed three defects here. The verdict is consulted by
-    the planner AND re-run by the editor/chat gates, so a wrong ``irrelevant``
-    BLOCKS valid work — the more damaging direction, and the one the rules below
-    are shaped around.
+    See :func:`relevance_basis` for the rule-by-rule contract; this is its
+    verdict-only view."""
+    return relevance_basis(query, message, history=history)[0]
+
+
+def relevance_basis(
+    query: str, message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> "tuple[str, str]":
+    """``(verdict, basis)`` — the verdict plus the RULE that produced it.
+
+    2026-09-22: this function existed as an import in the planner's stamp
+    wrapper since R4 (2026-09-17) but was never defined — the wrapper's
+    fault-isolation silently stamped every plan ``("unknown",
+    "module-unavailable")``. Unknown is fail-open everywhere, so nothing
+    broke, but the stamp of record carried no information. Now real: the
+    basis strings name the deciding rule, so a stamp can be audited
+    ("why was this plan accepted?").
+
+    Review R4 (2026-09-17) fixed three defects in the rules. The verdict is
+    consulted by the planner AND re-run by the editor/chat gates, so a wrong
+    ``irrelevant`` BLOCKS valid work — the more damaging direction, and the
+    one the rules below are shaped around.
 
     1. REFERENTIAL REQUESTS. "Open the attachment from that email you just found"
        names its target by anaphora; the referent is in the conversation, not the
@@ -114,13 +139,13 @@ def relevance_verdict(
     pre-resolution rules.
     """
     if not query or not str(query).strip():
-        return "unknown"
+        return "unknown", "empty-query"
     # An id-directed lookup names its target EXPLICITLY (opaque message ids
     # carried from conversation handles). Subject-word overlap cannot judge
     # it and must never decline it — this is the completion flow's whole
     # point ("yes go ahead" → read the unresolved messages by id).
     if _MAIL_ID_SHAPE_RE.search(str(query)):
-        return "relevant"
+        return "relevant", "id-directed"
     # Resolution ALWAYS runs: with no history an approval/referential turn is
     # UNRESOLVED (never lexically declined — that is the 2026-09-22 incident
     # shape), and a substantive message resolves to DIRECT with legacy
@@ -133,12 +158,12 @@ def relevance_verdict(
     q_norm = " ".join(str(query).lower().split())
     msg_tokens = content_tokens(judge_text)
     if not msg_tokens:
-        return "unknown"
+        return "unknown", "no-content-tokens"
     query_tokens = content_tokens(q_norm)
 
     for phrase in quoted_phrases(judge_text):
         if phrase in q_norm:
-            return "relevant"
+            return "relevant", "quoted-phrase"
 
     strong_hits = strong_tokens(judge_text) & query_tokens
     overlap = msg_tokens & query_tokens
@@ -149,48 +174,48 @@ def relevance_verdict(
     # referent appended to the judged text, so the shortcut is intentionally
     # skipped there — the missing referent is missing no more.
     if ref.kind != REF_RESOLVED and _REFERENTIAL_RE.search(str(message or "")):
-        return "unknown"
+        return "unknown", "referential-fail-open"
 
     # (2) An identifier must be corroborated by a content word.
     if strong_hits and (overlap - strong_hits):
-        return "relevant"
+        return "relevant", "identifier-corroborated"
     if strong_hits and len(msg_tokens) <= 2:
-        return "relevant"
+        return "relevant", "identifier-only-message"
 
     if len(overlap) >= 2:
-        return "relevant"
+        return "relevant", "token-overlap"
     # Short asks ("price of WG-350?") share one word legitimately — the
     # hyphenated code may be re-tokenized in the query ("wg 350 price").
     if len(overlap) >= 1 and len(msg_tokens) <= 4 and not strong_hits:
-        return "relevant"
+        return "relevant", "short-ask-single-overlap"
     # A message this short with zero overlap carries too little signal to
     # judge ("hi", "ok thanks") — fail open rather than decline.
     if not overlap and len(msg_tokens) <= 2:
-        return "unknown"
+        return "unknown", "content-free-message"
     # (3) Some signal but not enough to accept: hand it back to the caller.
     if overlap:
-        return "unknown"
+        return "unknown", "insufficient-overlap"
     if strong_hits:
         # An identifier with no `msg_tokens` branch above means the message had
         # nothing else to corroborate it with — still inspect rather than decline.
-        return "unknown"
+        return "unknown", "uncorroborated-identifier"
     # A SHARED FIGURE IS A SHARED TARGET. "FW: RFQ - Foot shear" and "search for
     # this one: $ 5,350.00 - 10 % in stock" share no WORD, but 5,350 is exactly
     # what identifies the message — the quoted-body-to-subject mapping the planner
     # already exempts from its own lexical check. Digit runs are compared, not the
     # whole decorated token, so "5,350.00" and "5350" agree.
     if _digit_runs(judge_text) & _digit_runs(query):
-        return "unknown"
+        return "unknown", "digit-runs"
     # An approval/referential turn whose referent could not be resolved names no
     # subject of its own — lexical absence is not proof of mismatch (live
     # 2026-09-22: "yes go ahead" tokenized to {ahead}, zero overlap with the
     # machinery query, hard-"irrelevant", and the lookup was declined). Hand it
     # back to the caller (inspect/replan/clarify), never decline.
     if ref.kind in (REF_UNRESOLVED, REF_AMBIGUOUS):
-        return "unknown"
+        return "unknown", "unresolved-reference"
     # NO shared signal at all: the query and the request are about different
     # subjects, which is the one case lexical evidence can settle.
-    return "irrelevant"
+    return "irrelevant", "zero-overlap"
 
 
 def _digit_runs(text: str) -> Set[str]:
@@ -475,9 +500,28 @@ def resolve_request_reference(
     approval = _is_approval_shaped(msg)
     referential = _is_referential(msg)
     if not approval and not referential:
-        return _direct_reference(msg)
+        # OFFER-REFERENTIAL ARM (RCA 2026-09-22 "rebuild the draft" turn): an
+        # approval may RESTATE the offered task instead of using approval
+        # vocabulary — "rebuild the draft with requested quotes and
+        # alternatives to those machinery" approves the offer "I'll rebuild
+        # the canvas table with the full eight-line list… slitter
+        # alternatives". Lexically DIRECT, referential in meaning: judged
+        # bare, the machinery query looked irrelevant and the planner paid a
+        # second corrective structured call. Grounded below, once the scan
+        # helpers exist: an ACTIVE offer whose own text shares ≥2 content
+        # tokens with the message resolves the exchange. Over-resolving
+        # toward RESOLVED is the safe direction by the gate's own bias (a
+        # wrongly-accepted block beats a wrongly-rejected one).
+        _offer_restatement = True
+    else:
+        _offer_restatement = False
 
     if not entries:
+        if _offer_restatement:
+            # A substantive standalone request with no history is DIRECT —
+            # only conversational (approval/referential) shapes need a
+            # referent to be UNRESOLVED about.
+            return _direct_reference(msg)
         return RequestReference(
             REF_UNRESOLVED, msg, msg, [msg] if msg else [], [], [],
             "no_history")
@@ -493,6 +537,30 @@ def resolve_request_reference(
             if _delivery_confirmed(_turn_texts(later)[1]):
                 fulfilled = True
         return superseded, fulfilled
+
+    if _offer_restatement:
+        # Only the NEWEST ACTIVE offer grounds a restatement: superseded or
+        # fulfilled offers deactivate it (an old "I can…" must not capture a
+        # new task that merely shares its wording).
+        for j in range(newest_idx, -1, -1):
+            offer_text = _turn_texts(entries[j])[1]
+            if not offer_text or not _OFFER_MARKER_RE.search(offer_text):
+                continue
+            superseded, fulfilled = _later_superseded_or_fulfilled(j)
+            if superseded or fulfilled:
+                break
+            if len(content_tokens(msg) & content_tokens(offer_text)) >= 2:
+                referent_request = _turn_texts(entries[j])[0]
+                lineage_requests = [
+                    r2 for r2 in (referent_request, msg) if r2]
+                topic_parts = [p for p in (
+                    msg, referent_request, offer_text[:500]) if p]
+                return RequestReference(
+                    REF_RESOLVED, msg, "\n".join(topic_parts),
+                    lineage_requests, [j, -1],
+                    [offer_text[:200]], "offer_restatement")
+            break
+        return _direct_reference(msg)
 
     candidate: Optional[int] = None
     candidates_text: List[str] = []

@@ -3337,21 +3337,41 @@ class BYOKHandler:
 
                 # Per-model headroom when the model has its own limits; falls
                 # back to the provider headroom otherwise.
+                #
+                # INTERACTIVE RESERVE (RCA 2026-09-22): background calls
+                # (ingestion triggers, extraction, learning loops — anything
+                # outside an interactive chat request) are admitted only
+                # ABOVE the reserve fraction, so the last slice of every
+                # window stays available for user-facing turns. During the
+                # measured incident, background draft/extraction calls
+                # drained the fleet mid-turn; interactive ranking then saw
+                # headroom=0.00 with nothing left to cascade to.
+                from core.llm.interactive_context import (
+                    interactive_rate_reserve,
+                    is_interactive_chat,
+                )
+
+                _reserve = (
+                    0.0 if is_interactive_chat() else interactive_rate_reserve())
                 model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
-                if model_headroom <= 0.0:
+                if model_headroom <= _reserve:
                     logger.info(
                         f"BPC skipped {provider_id}/{model_id} — per-model rate "
-                        f"budget exhausted (headroom={model_headroom:.2f})"
+                        f"budget {'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                        f"(headroom={model_headroom:.2f}"
+                        + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                     )
                     continue
 
                 if provider_id not in _rate_headroom_cache:
                     _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
                 headroom = _rate_headroom_cache[provider_id]
-                if headroom <= 0.0:
+                if headroom <= _reserve:
                     logger.info(
-                        f"BPC skipped {provider_id} — custom rate budget exhausted "
-                        f"(headroom={headroom:.2f})"
+                        f"BPC skipped {provider_id} — custom rate budget "
+                        f"{'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                        f"(headroom={headroom:.2f}"
+                        + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                     )
                     continue
                 c["headroom"] = headroom
@@ -3550,10 +3570,20 @@ class BYOKHandler:
 
                 # Same hard gates as the dynamic ranker's rate-aware pass:
                 # provider/per-model headroom, monthly subscription quota,
-                # and the provider-level context clamp.
-                if self.rate_tracker.get_headroom(provider_id) <= 0.0:
+                # and the provider-level context clamp. Headroom uses the
+                # same INTERACTIVE RESERVE as the dynamic pool (RCA
+                # 2026-09-22): background calls are admitted only above the
+                # reserved fraction.
+                from core.llm.interactive_context import (
+                    interactive_rate_reserve,
+                    is_interactive_chat,
+                )
+
+                _fb_reserve = (
+                    0.0 if is_interactive_chat() else interactive_rate_reserve())
+                if self.rate_tracker.get_headroom(provider_id) <= _fb_reserve:
                     continue
-                if self.rate_tracker.get_model_headroom(provider_id, model) <= 0.0:
+                if self.rate_tracker.get_model_headroom(provider_id, model) <= _fb_reserve:
                     continue
                 if fallback_monthly_tpm_limit and self._monthly_budget_exhausted(
                     provider_id, fallback_monthly_tpm_limit
