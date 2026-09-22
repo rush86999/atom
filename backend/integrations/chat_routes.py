@@ -1530,6 +1530,15 @@ async def cancel_chat(
     continuing unnecessary work (e.g. tool execution, follow-up steps).
     """
     chat_orchestrator.request_cancellation(session_id)
+    # EXPLICIT cancellation also stops any pending background continuation
+    # for the session (the user pressed stop — the whole job stops). A
+    # write that already landed is reported as landed, not cancelled.
+    try:
+        from core.async_turn_continuation import cancel_continuation
+
+        cancel_continuation(session_id)
+    except Exception:  # noqa: BLE001 — best-effort
+        pass
     return {"cancelled": True, "session_id": session_id}
 
 

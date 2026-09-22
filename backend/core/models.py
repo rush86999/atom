@@ -1029,6 +1029,27 @@ class ViewOrchestrationState(Base):
     def __repr__(self):
         return f"<ViewOrchestrationState(id={self.id}, session_id={self.session_id}, layout={self.layout})>"
 
+class AsyncContinuationClaim(Base):
+    """ATOMIC one-in-flight claim for async turn continuations (2026-09-22).
+
+    The durable AgentExecution record alone cannot enforce exclusivity —
+    two workers can both query "is one running?" and then both insert
+    (check-then-act race). This table closes the race with the database
+    itself: ``session_id`` is the PRIMARY KEY, so the claim INSERT is
+    atomic — the second inserter gets an IntegrityError and refuses.
+    Row deleted when the continuation reaps (any terminal outcome); a
+    stale row (process died mid-run) is cleared by the startup
+    reconciliation pass alongside the execution sweep.
+    """
+    __tablename__ = "async_continuation_claims"
+
+    session_id = Column(String, primary_key=True)
+    continuation_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=True)
+    canvas_id = Column(String, nullable=True, index=True)
+    claimed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).

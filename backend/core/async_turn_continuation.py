@@ -121,16 +121,64 @@ _SESSION_IN_FLIGHT: Dict[str, str] = {}
 
 
 def continuation_in_flight(session_id: str) -> Optional[str]:
-    """The continuation id currently running for ``session_id`` (checks the
-    DURABLE record — correct across restarts and workers — with the
-    in-process map as a fast path)."""
+    """The continuation id currently running for ``session_id``. The CLAIM
+    row is the authority (atomic insert; see _claim_session); the
+    in-process map is a fast path."""
     local = _SESSION_IN_FLIGHT.get(session_id)
     if local:
         return local
     try:
-        return _durable_running_id(session_id)
+        return _claimed_id(session_id)
     except Exception:  # noqa: BLE001 — best-effort guard
         return None
+
+
+def _claim_session(cont: AsyncTurnContinuation) -> bool:
+    """ATOMIC one-in-flight claim: INSERT a claim row keyed by session_id.
+    The PRIMARY KEY makes the insert itself the exclusion — two racing
+    workers cannot both succeed (review 2026-09-22: a durable ROW alone is
+    check-then-act, not exclusivity). DB-less harnesses degrade to the
+    in-process map only."""
+    from core.database import get_db_session
+    from core.models import AsyncContinuationClaim
+
+    with get_db_session() as db:
+        db.add(AsyncContinuationClaim(
+            session_id=cont.session_id,
+            continuation_id=cont.continuation_id,
+            user_id=cont.user_id,
+            canvas_id=(cont.canvas or {}).get("canvas_id"),
+        ))
+    return True
+
+
+def _claimed_id(session_id: str) -> Optional[str]:
+    from core.database import get_db_session
+    from core.models import AsyncContinuationClaim
+
+    with get_db_session() as db:
+        row = db.query(AsyncContinuationClaim).filter(
+            AsyncContinuationClaim.session_id == session_id).first()
+        return row.continuation_id if row else None
+
+
+def _release_claim(session_id: str) -> None:
+    try:
+        from core.database import get_db_session
+        from core.models import AsyncContinuationClaim
+
+        with get_db_session() as db:
+            db.query(AsyncContinuationClaim).filter(
+                AsyncContinuationClaim.session_id == session_id
+            ).delete()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"claim release skipped: {e}")
+
+
+def _claim_insert_refused(session_id: str) -> bool:
+    """True when a claim already exists (used by start_continuation's race
+    path: insert-failure = someone else owns the session)."""
+    return _claimed_id(session_id) is not None
 
 
 def get_continuation(continuation_id: str) -> Optional[AsyncTurnContinuation]:
@@ -154,6 +202,7 @@ def _reap(continuation_id: str, session_id: str) -> None:
     _tasks.pop(continuation_id, None)
     if _SESSION_IN_FLIGHT.get(session_id) == continuation_id:
         _SESSION_IN_FLIGHT.pop(session_id, None)
+    _release_claim(session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -255,10 +304,36 @@ def _finish_durable_record(
 
 
 def notify_recovered_continuations() -> Dict[str, int]:
-    """Boot pass (after ``reconcile_orphaned_executions``): continuation rows
-    that crashed with a restart and were never notified get their honest
-    failure notification now. Idempotent via the ``notified`` flag."""
-    out = {"recovered_notified": 0}
+    """Boot pass (after ``reconcile_orphaned_executions``).
+
+    PRECISE POLICY (review 2026-09-22): a restart does NOT resume
+    continuation execution — the durable record survives, the running
+    process did not. The execution sweep marks the record failed
+    ("process restarted"); this pass (a) clears STALE CLAIM rows so the
+    session is not permanently blocked (a claim whose execution is no
+    longer running is garbage), and (b) sends the honest failure
+    notification exactly once per row (``notified`` flag). Resumption, if
+    ever wanted, is a separate mechanism."""
+    out = {"recovered_notified": 0, "stale_claims_cleared": 0}
+
+    # (a) Stale claims: delete any claim whose execution is not running.
+    try:
+        from core.database import get_db_session
+        from core.models import AgentExecution, AsyncContinuationClaim
+
+        with get_db_session() as db:
+            claims = db.query(AsyncContinuationClaim).all()
+            stale = []
+            for claim in claims:
+                ex = db.query(AgentExecution).filter(
+                    AgentExecution.id == claim.continuation_id).first()
+                if ex is None or ex.status != "running":
+                    stale.append(claim)
+            for claim in stale:
+                db.delete(claim)
+        out["stale_claims_cleared"] = len(stale)
+    except Exception as e:  # noqa: BLE001 — boot pass must never fail boot
+        logger.warning(f"stale-claim clearing skipped: {e}")
     try:
         from core.database import get_db_session
         from core.models import AgentExecution
@@ -338,8 +413,8 @@ def _content_hash(canvas: Dict[str, Any]) -> str:
 
 
 def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
-    """(created_at iso, session_id, action_type) of the newest CanvasAudit
-    row, or None."""
+    """(id, created_at iso, session_id, action_type) of the newest
+    CanvasAudit row, or None."""
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
@@ -354,6 +429,7 @@ def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
             if row is None:
                 return None
             return {
+                "id": row.id,
                 "created_at": row.created_at.isoformat()
                 if row.created_at else "",
                 "session_id": row.session_id or "",
@@ -364,21 +440,58 @@ def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _operation_landed(cont: AsyncTurnContinuation) -> bool:
+    """DEFINITIVE idempotency probe: does any CanvasAudit row for the canvas
+    carry THIS continuation's operation_id? The retry stamps every write it
+    makes with ``details_json.operation_id = continuation_id``, so a landed
+    write is a query, not a timestamp inference (review 2026-09-22)."""
+    canvas_id = (cont.canvas or {}).get("canvas_id")
+    if not canvas_id:
+        return False
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from core.sql_json import json_field_equals
+
+        with get_db_session() as db:
+            q = json_field_equals(
+                db, CanvasAudit.details_json, "$.operation_id",
+                cont.continuation_id)
+            rows = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id, *([q] if q is not None else [])
+            ).all()
+            return bool(rows)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"operation-landed probe skipped: {e}")
+        return False
+
+
 def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
     """Idempotency + conflict gate before the retry applies anything.
 
     Returns an OUTCOME_* when the retry must NOT run (already_applied /
-    conflict), else None to proceed. Rules:
-    - The canvas audit advanced past the snapshot AND the advancing row is
-      attributed to THIS session ⇒ the timed-out interactive attempt's
-      write landed after all (the fork retries an unknown-outcome
-      operation) — never apply twice.
-    - The audit advanced from any OTHER source (the user kept editing,
-      another surface) ⇒ conflict; a background write over a moved canvas
-      is never acceptable."""
+    conflict), else None to proceed. Rules, in order:
+    - DEFINTIVE: an audit row carrying THIS continuation's operation_id ⇒
+      a prior retry attempt of this very operation already landed
+      (duplicate execution, cancellation racing the write, a crash after
+      apply) — never apply twice.
+    - HEURISTIC (documented limit): the interactive attempt that timed out
+      cannot stamp an operation_id it did not know; for its unknown-outcome
+      write we fall back to revision attribution — an audit advance past
+      the fork snapshot attributed to the SAME session reads as the timed-
+      out attempt's write having landed (already_applied); any other
+      source's advance is a conflict. The atomic revision door at the
+      write itself (expected_prior_audit_id) is the enforcement layer;
+      this gate is the early honest exit.
+    - The revision token is enforced again AT THE WRITE: the retry captures
+      the latest audit id when it starts and update_canvas_content refuses
+      on mismatch, so an edit arriving DURING the retry cannot be
+      overwritten."""
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
         return None
+    if _operation_landed(cont):
+        return OUTCOME_ALREADY_APPLIED
     latest = _latest_audit(canvas_id)
     if latest and cont.snapshot_audit_ts and (
             latest["created_at"] > cont.snapshot_audit_ts):
@@ -400,11 +513,22 @@ def start_continuation(
     returns ``(outcome, summary)``. Refuses when a continuation is already
     in flight for the session — the DURABLE check makes this correct across
     restarts and workers."""
-    if continuation_in_flight(cont.session_id):
+    if _SESSION_IN_FLIGHT.get(cont.session_id):
         logger.info(
             "[async-continuation] not forked — one already in flight for "
             f"session {cont.session_id}")
         return False
+    try:
+        _claim_session(cont)  # atomic: PK insert; IntegrityError = lost race
+    except Exception as claim_err:  # noqa: BLE001
+        if _claim_insert_refused(cont.session_id):
+            logger.info(
+                "[async-continuation] not forked — claim held for session "
+                f"{cont.session_id}")
+            return False
+        # DB unavailable: degrade to the in-process guard ONLY (documented
+        # weaker mode — no cross-worker exclusivity without the database).
+        logger.debug(f"claim insert degraded: {claim_err}")
 
     _create_durable_record(cont)
     cid = cont.continuation_id
@@ -422,8 +546,24 @@ def start_continuation(
                 outcome = OUTCOME_FAILED
                 summary = "edit did not apply (declined)"
         except asyncio.CancelledError:
+            # CANCELLATION DOES NOT UNDO A COMPLETED WRITE (review
+            # 2026-09-22): if this operation's write already landed, the
+            # honest outcome is applied/already_applied with its effects —
+            # only an un-landed operation reports cancelled.
+            if _operation_landed(cont):
+                cont.outcome = OUTCOME_ALREADY_APPLIED
+                cont.summary = (
+                    "The write had already landed when the cancellation "
+                    "arrived — nothing was undone.")
+                _finish_durable_record(
+                    cont, cont.outcome, cont.summary)
+                try:
+                    await _apply_effects(cont)
+                finally:
+                    _reap(cid, cont.session_id)
+                raise
             cont.outcome = OUTCOME_CANCELLED
-            cont.summary = "superseded by a new instruction or cancelled"
+            cont.summary = "superseded by an edit instruction or cancelled"
             _finish_durable_record(
                 cont, OUTCOME_CANCELLED, cont.summary)
             _reap(cid, cont.session_id)
@@ -583,11 +723,18 @@ async def run_canvas_edit_continuation(
             "canvas.")
 
     blackboard: Dict[str, Any] = {"plan_task": None, "block": None}
+    # The revision token is captured at RETRY start and enforced at the
+    # write door — an edit arriving during the retry is a refusal, not an
+    # overwrite. The operation id stamps whatever this retry writes.
+    prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
+    expected_prior = (prior or {}).get("id")
     response = await orchestrator._try_canvas_edit(
         cont.message, cont.history_snapshot, cont.canvas,
         cont.user_id, cont.session_id, cont.execution_id, cont.agent_id,
         provenance=cont.provenance,
         shared_tool_state=blackboard,
+        operation_id=cont.continuation_id,
+        expected_prior_audit_id=expected_prior,
     )
     if not response:
         return OUTCOME_FAILED, (
@@ -601,6 +748,28 @@ async def run_canvas_edit_continuation(
     if edit_meta.get("learning_mode"):
         return OUTCOME_AWAITING_APPROVAL, summary
     return OUTCOME_APPLIED, summary
+
+
+def supersede_pending_continuation(
+    session_id: str, message: str,
+    context: Optional[Dict[str, Any]],
+) -> bool:
+    """SUPERSEDE — CONDITIONALLY (review 2026-09-22): only a NEW EDIT
+    instruction on the same canvas supersedes a pending continuation.
+    A status question ("did the background update finish?") must NOT
+    cancel the job it asks about; it relies on the continuation's
+    context append to answer. Explicit cancellation flows through the
+    chat cancel route instead."""
+    if not session_id:
+        return False
+    try:
+        from integrations.chat_orchestrator import _canvas_edit_shaped
+
+        if not _canvas_edit_shaped(message, context):
+            return False
+    except Exception:  # noqa: BLE001 — classification is best-effort
+        return False
+    return cancel_continuation(session_id)
 
 
 def fork_canvas_edit_continuation(

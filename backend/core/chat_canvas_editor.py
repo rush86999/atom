@@ -1665,6 +1665,8 @@ async def apply_canvas_edit(
     user_id: str,
     canvas: Dict[str, Any],
     return_reason: bool = False,
+    operation_id: Optional[str] = None,
+    expected_prior_audit_id: Optional[str] = None,
 ):
     """Persist the planned edit through the general canvas CRUD layer
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
@@ -1770,13 +1772,20 @@ async def apply_canvas_edit(
         from tools.canvas_crud_tool import update_canvas_content
 
         result = await update_canvas_content(
-            user_id, canvas_id, new_content, canvas_type, plan.title
+            user_id, canvas_id, new_content, canvas_type, plan.title,
+            operation_id=operation_id,
+            expected_prior_audit_id=expected_prior_audit_id,
         )
     except Exception as e:
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
         return _out(None, f"store_error: {e}")
 
     if not (result or {}).get("success"):
+        if (result or {}).get("conflict"):
+            logger.info(
+                f"canvas edit CONFLICT for {canvas_id}: "
+                f"{(result or {}).get('error')}")
+            return _out(None, "conflict: canvas changed during the edit")
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
         return _out(None, f"store_rejected: {(result or {}).get('error')}")
     return _out(result, None)

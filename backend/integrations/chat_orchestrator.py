@@ -2873,15 +2873,20 @@ class ChatOrchestrator:
                 ),
                 label="chat-request",
             )
-            # SUPERSEDE (2026-09-22): a new user instruction wins over any
-            # pending background continuation for this session — the old
-            # edit retries a stale snapshot otherwise.
+            # CONDITIONAL SUPERSEDE (2026-09-22, per review): only a new
+            # EDIT instruction supersedes a pending background continuation
+            # — a status question ("did it finish?") must not cancel the
+            # job it asks about. Explicit cancellation flows through the
+            # chat cancel route.
             try:
-                from core.async_turn_continuation import cancel_continuation
+                from core.async_turn_continuation import (
+                    supersede_pending_continuation,
+                )
 
-                if cancel_continuation(session_id or ""):
+                if supersede_pending_continuation(
+                        session_id or "", message, context):
                     logger.info(
-                        "[async-continuation] superseded by a new "
+                        "[async-continuation] superseded by a new edit "
                         f"instruction in session {session_id}")
             except Exception:  # noqa: BLE001 — supersede is best-effort
                 pass
@@ -7253,6 +7258,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         agent_id: Optional[str],
         provenance: Optional[Dict[str, Any]] = None,
         shared_tool_state: Optional[Dict[str, Any]] = None,
+        operation_id: Optional[str] = None,
+        expected_prior_audit_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
@@ -7529,7 +7536,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.debug(f"canvas edit governance check skipped: {gov_err}")
 
         applied = await apply_canvas_edit(
-            plan, user_id, canvas, return_reason=True
+            plan, user_id, canvas, return_reason=True,
+            operation_id=operation_id,
+            expected_prior_audit_id=expected_prior_audit_id,
         )
         # Tolerant unpack: tests (and any caller using the default
         # return_reason=False) may hand back the bare result instead of the
