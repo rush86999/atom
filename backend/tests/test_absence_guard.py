@@ -64,6 +64,10 @@ def test_claim_covered_when_search_names_the_subject():
     block = ("LIVE TOOL RESULTS:\n"
              "outlook.search query='vendor scorecard VIPUL' -> 0 result(s)")
     assert uncovered_absence_claims(reply, block) == []
+    # non-vacuity: the sentence IS a claim, and without a block it is
+    # uncovered — before 2026-09-21 'matched' matched no detector, so this
+    # test passed with ANY block, even a failed search
+    assert uncovered_absence_claims(reply, "") == [reply]
 
 
 def test_empty_or_failed_block_covers_nothing():
@@ -132,6 +136,38 @@ def test_no_other_claim_is_recognised_as_absence():
     assert len(claims) == 1
 
 
+# --- 2026-09-21 ZCode: verb-mediated absence shapes shipped unguarded —
+# "PRICE VIPUL contains no scorecard sheet" and "No emails from VIPUL
+# matched ..." matched NO detector, so those over-claims sailed through
+# and the two "covered" tests above passed vacuously. ---
+
+def test_absence_asserted_through_a_data_verb_is_detected():
+    assert universal_absence_claims("PRICE VIPUL contains no scorecard sheet.")
+    assert universal_absence_claims("The workbook holds none of the quoted figures.")
+    assert universal_absence_claims("No emails from VIPUL matched the request.")
+    assert universal_absence_claims("The attachment does not contain any price list.")
+    assert universal_absence_claims("The index doesn't mention that clause.")
+
+
+def test_search_behaviour_verbs_stay_exempt():
+    """These report what the SEARCH did — the honest, scoped form. They
+    must never trip a regeneration (find/match are deliberately absent
+    from the do-support detector)."""
+    assert not universal_absence_claims("I did not find one in the CRM search above.")
+    assert not universal_absence_claims("The search did not match any rows.")
+    assert not universal_absence_claims("I have no idea what happened to it.")
+
+
+def test_verb_mediated_absence_follows_the_same_coverage_rule():
+    claim = "PRICE VIPUL contains no scorecard sheet."
+    covered = ("LIVE TOOL RESULTS (memory.search):\n"
+               "- [document: ingested] PRICE VIPUL (6).xlsx | WORKBOOK INDEX")
+    assert uncovered_absence_claims(claim, covered) == []
+    assert uncovered_absence_claims(claim, "") == [claim]
+    assert uncovered_absence_claims(
+        claim, "LIVE TOOL RESULTS: file search failed with permission denied.")
+
+
 def test_completed_empty_search_over_the_subject_covers():
     """The honest shape must keep passing: a finished search that names the
     subject and reports nothing, no failure, no cursor."""
@@ -175,6 +211,10 @@ def test_strip_passes_covered_reply_through_untouched():
     block = ("LIVE TOOL RESULTS (memory.search):\n"
              "- [document: ingested] PRICE VIPUL (6).xlsx | WORKBOOK INDEX")
     assert strip_uncovered_absence_claims(reply, block) == reply
+    # non-vacuity: without coverage the same sentence IS rewritten — before
+    # 2026-09-21 'contains no' matched no detector, so any reply passed
+    # through untouched whatever the evidence said
+    assert strip_uncovered_absence_claims(reply, "") != reply
 
 
 def test_strip_limitation_is_itself_not_an_uncovered_claim():

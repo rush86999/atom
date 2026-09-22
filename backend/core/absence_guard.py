@@ -33,6 +33,17 @@ _COVERAGE_MARKERS = (
     "FIND ALL RESULTS",
 )
 
+#: Data/document verbs through which absence is asserted (2026-09-21 review
+#: follow-up): "the workbook CONTAINS no sheet", "no email MENTIONS it",
+#: "the attachment DOES NOT CONTAIN any clause". FIND and MATCH are
+#: deliberately absent from the do-support form — "I did not find one" and
+#: "the search did not match any rows" report the SEARCH's own behaviour,
+#: which is the honest, already-scoped form.
+_DATA_VERBS = (
+    r"(?:contain(?:s|ed)?|includ(?:e|es|ed)|mention(?:s|ed)?|"
+    r"holds?|held|shows?|showed|shown|lists?|listed)"
+)
+
 #: Universal absence phrasings. Each pattern captures nothing; the
 #: SENTENCE carrying the match is the claim (that is what the reply must
 #: rescope). Kept to clear universal forms — hedged phrasing ("I could not
@@ -49,12 +60,24 @@ _ABSENCE_RES: List[re.Pattern] = [
         r"\b(?:contain|contains|held|hold|holds|has|have|mention|mentions|"
         r"include|includes)\b",
         re.IGNORECASE),
-    # "no emails/documents/files/records ... (exist|found|in the system)"
+    # "no emails/documents/files/records ... (exist|found|matched|mention...)"
     re.compile(
         r"\bno\s+(?:\w+\s+){0,3}?"
         r"(?:emails?|e-?mails?|files?|documents?|records?|messages?|"
         r"attachments?|workbooks?|spreadsheets?|scorecards?|quotes?)\b"
-        r"[^.!?]{0,60}?\b(?:exists?|exist|found|in the system|available)\b",
+        r"[^.!?]{0,60}?\b(?:exists?|exist|found|in the system|available|"
+        r"match(?:es|ed)?|" + _DATA_VERBS + r")\b",
+        re.IGNORECASE),
+    # "the workbook contains/holds/shows no X", "holds none of ..." —
+    # absence through a data verb BEFORE the 'no' (2026-09-21): "PRICE VIPUL
+    # contains no scorecard sheet" matched none of the no-noun forms above,
+    # so that exact RCA over-claim shape shipped unguarded.
+    re.compile(r"\b" + _DATA_VERBS + r"\s+(?:no|none)\b", re.IGNORECASE),
+    # "the attachment does not contain/mention any X" — the do-support shape
+    # of the same verb-mediated absence (find/match excluded on purpose).
+    re.compile(
+        r"\b(?:does|do|did|has|have|had)\s?(?:not|n'?t)\s+"
+        + _DATA_VERBS + r"\b",
         re.IGNORECASE),
     # "no OTHER …", "no further …" — an explicit completeness claim about a set.
     # Review R2 (2026-09-17): "No other email carried it." was not recognised at

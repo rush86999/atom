@@ -96,36 +96,73 @@ class TestDomainEqualityIsNotDirection:
 
 
 class TestScopeOfANegativeClaim:
-    """An absence claim may only be as wide as the search actually performed.
+    """Negative claims are bounded — by a DETERMINISTIC GUARD, not by prompt prose.
 
     RCA 2026-09-17: "None that we sent" narrowed the user's own scope to external
-    recipients — but an internal forward is still sent by its sender, and finding
-    one internal email never proves there were no other outgoing matches.
+    recipients, and "No file with that name exists in the system" exceeded the
+    lookup that was actually run.
+
+    Division of labour, deliberately split so the same policy is not stated twice
+    (two overlapping mechanisms in one prompt is worse than one):
+
+    * the EVIDENCE supplies the FACT that makes the wrong answer wrong — an
+      internal member send is outgoing, so a scope-narrowed "none" is refuted by
+      the data itself;
+    * ``core.absence_guard`` supplies the ENFORCEMENT — it detects a universal
+      absence claim the delivered evidence does not cover and forces a scoped
+      regeneration. Prompt prose cannot enforce anything; that guard can.
     """
 
-    def test_an_own_send_does_not_license_no_others(self, mailbox):
-        out = planner._mail_direction(
-            "chandrakant@brennan.ca", "kurt@neimanmachinery.com", mailbox
-        )
-        assert "SENT by this mailbox" in out
-        assert "no others" in out, (
-            "a match must not be presented as proof of completeness"
-        )
-
-    def test_member_to_member_evidence_still_counts_as_outgoing(self, mailbox):
-        """The exact conflation behind 'None that we sent'."""
+    def test_the_evidence_states_that_an_internal_send_is_outgoing(self, mailbox):
+        """The fact the model needs, without a second policy paragraph."""
         out = planner._mail_direction(
             "rish@brennan.ca", "chandrakant@brennan.ca", mailbox
         )
         assert "internal" in out
-        assert "still counts" in out and "outgoing" in out, (
-            "an internal message a member SENT is outgoing regardless of "
-            "recipient; without this the model narrows scope to reach 'none'"
-        )
+        assert "still counts" in out and "outgoing" in out
 
-    def test_the_grounding_rule_bounds_negative_claims(self):
+    def test_the_grounding_rule_points_at_coverage_without_restating_policy(self):
         from core.chat_tool_planner import _GROUNDING_RULE
 
-        assert "COMPLETE coverage" in _GROUNDING_RULE
-        assert "never narrow the user's own scope" in _GROUNDING_RULE
-        assert "unverified" in _GROUNDING_RULE
+        assert "as wide as the search performed" in _GROUNDING_RULE
+        # the policy itself lives in one place (the guard), not two
+        assert "COMPLETE coverage" not in _GROUNDING_RULE
+        # (these two pins are deliberately duplicated here from
+        # test_planner_catalog_contracts.py to keep the division-of-labour
+        # story in one file)
+
+    def test_the_guard_enforces_what_the_prose_only_describes(self):
+        """End-to-end: an uncovered universal claim is caught deterministically."""
+        from core.absence_guard import uncovered_absence_claims
+
+        evidence = (
+            "LIVE TOOL RESULTS (deterministic mailbox scan):\n"
+            "- [ingested mailbox] From: joel@seguinmach.com | FW: RFQ | $ 5,350.00"
+        )
+        over_claim = "None that we sent carried that price list."
+        assert uncovered_absence_claims(over_claim, evidence), (
+            "the guard must catch a universal claim the evidence does not cover"
+        )
+        scoped = "The scan found one message carrying that price list."
+        assert not uncovered_absence_claims(scoped, evidence), (
+            "a scoped statement must pass — the guard may not block honest answers"
+        )
+        # hedged honesty is likewise exempt: reporting what THIS search did
+        # must never trip a regeneration
+        assert not uncovered_absence_claims(
+            "I did not find another one in the mailbox scan above.", evidence
+        )
+
+    def test_a_claim_the_evidence_covers_is_allowed(self):
+        from core.absence_guard import uncovered_absence_claims
+
+        evidence = (
+            "LIVE TOOL RESULTS (memory.search):\n"
+            "- [document: ingested] PRICE VIPUL (6).xlsx | WORKBOOK INDEX"
+        )
+        # the RCA sentence itself, verb-mediated ("contains no") — detected
+        # since 2026-09-21; before that it was invisible to every detector
+        # and this test passed with ANY evidence (vacuous)
+        assert not uncovered_absence_claims(
+            "PRICE VIPUL contains no scorecard sheet.", evidence
+        ), "a claim about the subject the evidence names is covered"

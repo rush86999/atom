@@ -86,6 +86,41 @@ _TOOLCHOICE_UNSUPPORTED: set = set()
 # and openrouter/openai/gpt-5-mini; the retry meant to handle it never fired).
 _REASONING_MANDATORY: set = set()
 
+# (provider, model) pairs whose endpoint accepts ONLY temperature=1 (live
+# 2026-09-21 on the OpenCode Go endpoint: kimi-k2.7-code answers 400
+# "invalid temperature: only 1 is allowed for this model" against the
+# structured calls' temperature=0.2). Memoized so later calls send
+# temperature=1 from the start — mirrors _TOOLCHOICE_UNSUPPORTED above.
+# (provider, model) pairs whose endpoint accepts ONLY a specific temperature
+# (live 2026-09-21 on the OpenCode Go endpoint: kimi-k2.7-code answers 400
+# "invalid temperature: only 1 is allowed for this model" against the
+# structured calls' temperature=0.2). TEMPERATURE VARIES WITH MODEL — the
+# value is parsed from each model's own rejection text ("only X is allowed")
+# and stored per pair; _required_temperature applies it on every generation
+# path. Memoized so the doomed call is paid ONCE per process.
+_MODEL_TEMPERATURE: Dict[str, float] = {}
+
+
+def _parse_locked_temperature(err_text: str) -> float:
+    """The temperature an endpoint's own rejection demands
+    ('only 1 is allowed for this model' -> 1.0); 1.0 when unparseable —
+    every known lock so far is a thinking-style model requiring 1."""
+    import re as _re
+    m = _re.search(r"only\s+([0-9.]+)\s+is\s+allowed", err_text or "",
+                   _re.IGNORECASE)
+    try:
+        return float(m.group(1)) if m else 1.0
+    except Exception:  # noqa: BLE001
+        return 1.0
+
+
+def _required_temperature(provider_id: str, model: str,
+                          requested: float) -> float:
+    """The temperature to actually send: the per-model constraint when the
+    endpoint has announced one, otherwise the requested value."""
+    required = _MODEL_TEMPERATURE.get(f"{provider_id}/{model}")
+    return requested if required is None else required
+
 # (provider, model) pairs whose endpoint answered 401 AuthError — the
 # credential is wrong for THAT pair. A rejected credential must not be
 # retried across every model on the provider (each retry re-pays a full
@@ -1283,10 +1318,28 @@ class BYOKHandler:
             True if model has capability or no requirement, False otherwise.
             Unknown models and DB errors pass through (conservative: don't drop
             a candidate we can't verify — the caller's quality/health filters
-            still apply).
+            still apply). EXCEPTION: computer_use is evidence-gated and
+            fail-closed — see the check below.
         """
         if not required_capability:
             return True  # No capability requirement
+
+        # Computer-use admission is EVIDENCE-gated on top of the catalog's
+        # self-declared capability flags (2026-09-21, user directive after
+        # web research + the local glm-5.3-flash actuation-floor record):
+        # a vision-capable but grounding-weak model silently burns turns on
+        # computer-use tasks. Only models with an entry in core.benchmarks
+        # .COMPUTER_USE_EVIDENCE (external benchmark citation or local
+        # measurement) may serve task_type=computer_use — fail-closed for
+        # unlisted models. ATOM_COMPUTER_USE_ALLOW_UNVERIFIED=1 is the
+        # documented escape hatch (user-registered local computer-use
+        # models, or a new frontier model awaiting a registry entry).
+        if required_capability == "computer_use":
+            import os
+            if os.getenv("ATOM_COMPUTER_USE_ALLOW_UNVERIFIED") != "1":
+                from core.benchmarks import computer_use_evidence
+                if computer_use_evidence(model_id) is None:
+                    return False
 
         # BYOK composite ids ("openrouter/openai/gpt-4o") — the catalog may
         # key the base name; try progressively stripped variants so a
@@ -2084,6 +2137,16 @@ class BYOKHandler:
                             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", "https://atom.ai"),
                             "X-Title": "Atom",
                         }
+                    if provider_id in ("opencode-go", "opencode"):
+                        # OpenCode Zen docs require third-party API clients to
+                        # identify with a custom user agent (not a generic SDK
+                        # name) and send a stable x-opencode-session per
+                        # conversation. Derived from the workspace so it is
+                        # stable across handler instances.
+                        client_kwargs["default_headers"] = {
+                            "User-Agent": "atom-agent/1.0",
+                            "x-opencode-session": f"atom-{self.workspace_id or 'default'}",
+                        }
                     self.clients[provider_id] = OpenAI(**client_kwargs)
                     if AsyncOpenAI:
                         self.async_clients[provider_id] = AsyncOpenAI(**client_kwargs)
@@ -2110,6 +2173,58 @@ class BYOKHandler:
                 self._refresh_provider_catalog()
         except Exception as _disc_err:  # noqa: BLE001 — never block init
             logger.debug(f"provider model discovery skipped: {_disc_err}")
+
+        self._seed_provider_auth_state(self.clients)
+
+    def _seed_provider_auth_state(self, providers: Dict[str, Any]) -> None:
+        """Seed the provider cooldown from persisted auth probes.
+
+        AUTH-PROBE SEEDING (2026-09-21): the catalog persists whether each
+        provider's last real completion AUTHENTICATED (auth_ok) — a fact
+        nothing consumed. Seed the provider cooldown from it so a restart
+        does not re-pay a dead workspace's round trip (the 2026-09-20/21
+        opencode-go CreditsError loop). Freshness-bounded: a probe older
+        than 1h is ignored — credentials change, and the first natural call
+        re-probes and re-records either way. Successes clear the persisted
+        fact (recorded in the cascade's success path).
+        """
+        try:
+            from core.llm.model_route_registry import get_provider_model_catalog
+
+            observations = getattr(
+                get_provider_model_catalog(), "_observations", {}) or {}
+            now = time.time()
+            for provider_id, obs in observations.items():
+                if obs.auth_ok is not False:
+                    continue
+                checked = getattr(obs, "auth_checked_at", None)
+                if checked is None:
+                    continue
+                try:
+                    # auth_checked_at is an epoch float; accept ISO strings
+                    # defensively in case the format ever changes.
+                    checked_val = float(checked)
+                except (TypeError, ValueError):
+                    try:
+                        from datetime import datetime as _dt, timezone as _tz
+                        checked_val = _dt.fromisoformat(
+                            str(checked).replace("Z", "+00:00")).timestamp()
+                    except Exception:  # noqa: BLE001 — unparseable: ignore
+                        continue
+                age = now - checked_val
+                if 0 <= age <= 3600 and provider_id in providers:
+                    with _PROVIDER_COOLDOWN_LOCK:
+                        _PROVIDER_COOLDOWN_UNTIL[provider_id] = now + (
+                            _PROVIDER_COOLDOWN_SECONDS)
+                        _PROVIDER_COOLDOWN_REASON[provider_id] = (
+                            "invalid_credential", "persisted auth probe")
+                    logger.info(
+                        "provider %s starts on cooldown: persisted auth "
+                        "probe failed %.0f min ago (credential/billing "
+                        "state; clears on first success or expiry)",
+                        provider_id, age / 60)
+        except Exception as _seed_err:  # noqa: BLE001 — never block init
+            logger.debug(f"auth-probe seeding skipped: {_seed_err}")
 
     def _refresh_provider_catalog(
         self, providers: Optional[List[str]] = None, force: bool = False,
@@ -4029,7 +4144,10 @@ class BYOKHandler:
                     _req_kwargs = {
                         "model": model,
                         "messages": messages,
-                        "temperature": temperature,
+                        # per-model temperature constraint (provider-general:
+                        # learned from each endpoint's own rejection)
+                        "temperature": _required_temperature(
+                            provider_id, model, temperature),
                         "max_tokens": _cap,
                     }
                     # Same bounded-reasoning rule as the streaming path.
@@ -4184,6 +4302,41 @@ class BYOKHandler:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
 
+                    # TEMPERATURE-LOCKED recovery (provider-general,
+                    # 2026-09-21): endpoints announce their single allowed
+                    # value in their own 400 ("invalid temperature: only 1 is
+                    # allowed"). Memoize per (provider, model) — value parsed
+                    # from the error — and retry ONCE immediately, before any
+                    # fallback logic, so a first-encounter lock does not fail
+                    # the whole turn (live: the completeness regen died here
+                    # and its apology replaced a good answer).
+                    if ("invalid temperature" in str(attempt_err).lower()
+                            and f"{provider_id}/{model}" not in _MODEL_TEMPERATURE):
+                        _locked_value = _parse_locked_temperature(
+                            str(attempt_err))
+                        _MODEL_TEMPERATURE[f"{provider_id}/{model}"] = (
+                            _locked_value)
+                        logger.warning(
+                            f"{provider_id}/{model} locks temperature to "
+                            f"{_locked_value} — retrying once and memoizing "
+                            f"the pair")
+                        try:
+                            _t_kwargs = dict(_req_kwargs)
+                            _t_kwargs["temperature"] = _locked_value
+                            response = await _to_thread_safe(
+                                client.chat.completions.create, **_t_kwargs)
+                            self._capture_echoed_model(response)
+                            self._stash_last_reasoning(response)
+                            result = response.choices[0].message.content
+                            if not _visible_content_missing(result):
+                                self._last_used_model = model
+                                self._last_used_provider = provider_id
+                                return result
+                        except Exception as _temp_retry_err:
+                            logger.warning(
+                                f"temperature={_locked_value} retry also "
+                                f"failed: {_temp_retry_err}")
+
                     err_str = str(attempt_err)
 
                     # Round 80w2: insufficient-balance → model fallback before
@@ -4211,7 +4364,9 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     model=fallback_model,
                                     messages=messages,
-                                    temperature=temperature,
+                                    temperature=_required_temperature(
+                                        provider_id, fallback_model,
+                                        temperature),
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
@@ -4287,7 +4442,8 @@ class BYOKHandler:
                             heal_kwargs = {
                                 "model": model,
                                 "messages": messages,
-                                "temperature": temperature,
+                                "temperature": _required_temperature(
+                                    provider_id, model, temperature),
                                 "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
                             }
                             if image_payload and isinstance(messages[-1].get("content"), list):
@@ -4366,7 +4522,8 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     model=paid_model,
                                     messages=messages,
-                                    temperature=temperature,
+                                    temperature=_required_temperature(
+                                        provider_id, paid_model, temperature),
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
@@ -4419,7 +4576,17 @@ class BYOKHandler:
                     continue # Try next provider
             
             logger.error(f"All providers failed. Last error: {last_error}")
-            return "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
+            # TRUTHFUL FALLBACK (2026-09-21): the generic "check your API key"
+            # text misattributed a temperature-rejection (400) and — worse —
+            # was accepted by downstream validators as an answer. Name the
+            # actual last error; keep the failure recognizable as failure
+            # text (the reply path's error detector matches
+            # "couldn't generate a response").
+            _cause = str(last_error or "no provider attempted")[:200]
+            return (
+                "I couldn't generate a response — every configured provider "
+                f"failed. Last error: {_cause}. Check provider status or "
+                "credentials in Settings and try again.")
 
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
@@ -5073,6 +5240,8 @@ class BYOKHandler:
         disable_reasoning: bool = False,         # tiny planning calls: skip hidden thinking
         max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
+        force_value_ranking: bool = False,  # last-resort sweep: rank by value, not cost
+        _sweep_depth: int = 0,                   # internal: sweep recursion guard
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -5218,7 +5387,11 @@ class BYOKHandler:
                 # into cost-priority ranking via their task_type — see the
                 # _cost_priority block in get_ranked_providers. A pinned
                 # provider_model still overrides the list entirely below.
-                cost_priority=False if provider_model is not None else None,
+                # The last-resort sweep forces VALUE ranking: its whole point
+                # is reaching the healthy paid rung the cost ladder missed.
+                cost_priority=(
+                    False if (provider_model is not None or force_value_ranking)
+                    else None),
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
@@ -5392,6 +5565,13 @@ class BYOKHandler:
                     if _json_mode:
                         instructor_client = instructor.from_openai(
                             client, mode=instructor.Mode.JSON)
+                    # TEMPERATURE-LOCKED pairs (OpenCode Go: kimi-k2.7-code et
+                    # al. accept only ONE temperature value each) send their
+                    # required value from the start — the memo below means the
+                    # doomed call at the requested temperature is paid ONCE
+                    # per process, never again.
+                    _effective_temperature = _required_temperature(
+                        provider_id, model, temperature)
                     
                     # Truncate prompts to fit context window
                     context_window = self.get_context_window(model)
@@ -5469,7 +5649,7 @@ class BYOKHandler:
                         model=model,
                         response_model=response_model,
                         messages=messages,
-                        temperature=temperature,
+                        temperature=_effective_temperature,
                         max_tokens=_structured_max_tokens,
                     )
                     # Key for the three per-(provider, model) capability memos
@@ -5547,6 +5727,29 @@ class BYOKHandler:
                                     client, mode=instructor.Mode.JSON)
                                 continue
 
+                            # (1b) TEMPERATURE-LOCKED endpoints (OpenCode Go,
+                            # 2026-09-21): "invalid temperature: only 1 is
+                            # allowed for this model" against the structured
+                            # calls' temperature=0.2. Retry once with
+                            # temperature=1 and memoize the pair so later
+                            # calls send 1 from the start.
+                            if (
+                                "invalid temperature" in _err_txt
+                                and "_temp_locked" not in _recovered
+                            ):
+                                _locked_value = _parse_locked_temperature(
+                                    str(_attempt_err))
+                                _recovered.add("_temp_locked")
+                                _MODEL_TEMPERATURE[_logprobs_key] = (
+                                    _locked_value)
+                                _create_kwargs["temperature"] = _locked_value
+                                logger.warning(
+                                    f"{provider_id}/{model} locks temperature "
+                                    f"to {_locked_value} — retrying and "
+                                    f"memoizing the pair"
+                                )
+                                continue
+
                             # (2) Reasoning-mandatory endpoints reject the
                             # disable switch. Drop it, memoize the pair, retry.
                             if (
@@ -5566,13 +5769,19 @@ class BYOKHandler:
 
                             # (3) Soft-SC logprobs unsupported. Deliberately
                             # narrow: ONLY an error that actually names
-                            # logprobs triggers this. A broader match would
-                            # swallow genuine schema/validation failures by
-                            # retrying them once without logprobs.
+                            # logprobs AND says unsupported/not-supported
+                            # triggers this (deepseek: "logprobs are not
+                            # supported"; OpenCode Go: '"logprobs" is not
+                            # supported by this endpoint' — 2026-09-21). A
+                            # broader match would swallow genuine schema/
+                            # validation failures by retrying them once
+                            # without logprobs.
                             if (
                                 _soft_sc_on
                                 and "logprobs" in _create_kwargs
-                                and "logprobs are not supported" in _err_txt
+                                and "logprobs" in _err_txt
+                                and ("not supported" in _err_txt
+                                     or "are not supported" in _err_txt)
                                 and "logprobs" not in _recovered
                             ):
                                 _recovered.add("logprobs")
@@ -5678,6 +5887,18 @@ class BYOKHandler:
                         routing_result_id=structured_decision_id,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
+                    # A success is also an auth fact: it clears the persisted
+                    # auth_ok=False a dead-workspace period may have recorded,
+                    # so the next restart does not seed a stale cooldown.
+                    try:
+                        from core.llm.model_route_registry import (
+                            get_provider_model_catalog,
+                        )
+
+                        get_provider_model_catalog().record_auth_probe(
+                            provider_id, True, "structured call succeeded")
+                    except Exception:  # noqa: BLE001
+                        pass
                     return result
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
@@ -5715,6 +5936,18 @@ class BYOKHandler:
                             logger.debug(
                                 f"provider bench after auth failure skipped: "
                                 f"{bench_err}")
+                        # Persist the auth fact so a restart does not re-pay
+                        # the same dead workspace's round trip (cleared by
+                        # the next successful call to this provider).
+                        try:
+                            from core.llm.model_route_registry import (
+                                get_provider_model_catalog,
+                            )
+
+                            get_provider_model_catalog().record_auth_probe(
+                                provider_id, False, err_str[:200])
+                        except Exception:  # noqa: BLE001
+                            pass
                     # Record failed structured call for health monitoring.
                     # The structured cascade never fed the health monitor, so
                     # connection-dead providers stayed optimistically healthy,
@@ -5818,6 +6051,42 @@ class BYOKHandler:
                         )
                         cascade_attempted = True
                         cascade_options.insert(cascade_idx, (provider_id, frontier))
+
+            if not _sweep_depth:
+                # LAST-RESORT SWEEP (2026-09-21): the cost-priority planning
+                # ladder is capped and learned-order-sensitive — with two
+                # providers dead it could end on a 402 without ever reaching
+                # the healthy paid rung (live: deepseek served every
+                # evidence leg while the planner died on openrouter 402s).
+                # ONE recursive attempt ranked by VALUE instead of cost:
+                # benched providers are demoted by the gate above, so the
+                # healthy provider leads. Depth-guarded — the sweep itself
+                # never sweeps.
+                logger.warning(
+                    "structured cascade exhausted on cost-priority rungs — "
+                    "one value-ranked sweep over untried healthy providers")
+                try:
+                    _swept = await self.generate_structured_response(
+                        prompt=prompt,
+                        system_instruction=system_instruction,
+                        response_model=response_model,
+                        temperature=temperature,
+                        task_type=task_type,
+                        agent_id=agent_id,
+                        chain_id=chain_id,
+                        image_payload=image_payload,
+                        cascade=cascade,
+                        allow_moa=False,
+                        disable_reasoning=disable_reasoning,
+                        max_tokens=max_tokens,
+                        stage_decision_id=stage_decision_id,
+                        force_value_ranking=True,
+                        _sweep_depth=_sweep_depth + 1,
+                    )
+                    if _swept is not None:
+                        return _swept
+                except Exception as sweep_err:  # noqa: BLE001
+                    logger.warning(f"value-ranked sweep failed: {sweep_err}")
 
             logger.error(f"All structured providers failed. Last error: {last_error}")
             return None
@@ -6409,7 +6678,8 @@ class BYOKHandler:
                 create_kwargs: Dict[str, Any] = {
                     "model": model,
                     "messages": messages,
-                    "temperature": temperature,
+                    "temperature": _required_temperature(
+                        attempt_provider_id, model, temperature),
                     "max_tokens": _attempt_max_tokens,
                     "stream": True,
                 }
@@ -6686,7 +6956,8 @@ class BYOKHandler:
                         heal_kwargs = {
                             "model": model,
                             "messages": messages,
-                            "temperature": temperature,
+                            "temperature": _required_temperature(
+                                attempt_provider_id, model, temperature),
                             "max_tokens": max_tokens,
                             "stream": True,
                         }
@@ -6780,7 +7051,8 @@ class BYOKHandler:
                             retry_kwargs: Dict[str, Any] = {
                                 "model": paid_model,
                                 "messages": messages,
-                                "temperature": temperature,
+                                "temperature": _required_temperature(
+                                    provider_id, paid_model, temperature),
                                 "max_tokens": max_tokens,
                                 "stream": True,
                             }
@@ -6906,6 +7178,66 @@ class BYOKHandler:
         try:
             logger.error(f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}")
 
+            # LAST-RESORT LADDER SWEEP (2026-09-21): the caller's fallback
+            # list was ranked BEFORE this turn's failures benched anything —
+            # with two providers dying mid-turn (credits, auth), a 2-route
+            # list is exhausted while a healthy provider three rungs down
+            # was never tried (live: opencode CreditsError + openrouter 402
+            # exhausted the ladder; deepseek served every other leg). The
+            # sweep does NOT re-rank — ranking (BPC + the learning router)
+            # is exactly what kept crowning dead rungs; instead it walks the
+            # untried providers' catalog-served models directly, cooldown-
+            # and client-checked, capped.
+            try:
+                from core.llm.model_route_registry import (
+                    get_provider_model_catalog,
+                )
+
+                _catalog = get_provider_model_catalog()
+                _sweep: List[tuple] = []
+                for p in self.clients.keys():
+                    if self._provider_cooldown_active(p):
+                        continue
+                    # A provider in provider_order may still be untried for
+                    # ITS OWN models: the fan-out dispatches ONE fixed model
+                    # across gateways, and a gateway skipped as unserved for
+                    # that model (live: qwen3.8-flash skipped on deepseek)
+                    # must not exclude the provider's healthy catalogue from
+                    # the sweep. The DISCOVERED catalog is the authoritative
+                    # served-set; the pricing-cache helper parses slash-names
+                    # only and misses direct providers.
+                    _served = sorted(_catalog.served(p) or [])
+                    if not _served:
+                        _served = self._provider_models_cached(p)
+                    for m in _served[:2]:
+                        if self._ranked_model_is_known_unserved(p, m):
+                            continue
+                        _sweep.append((p, m))
+                _sweep = _sweep[:4]
+            except Exception as _sweep_err:  # noqa: BLE001 — best-effort
+                logger.debug(f"last-resort ladder sweep skipped: {_sweep_err}")
+                _sweep = []
+            if _sweep:
+                logger.warning(
+                    "stream ladder exhausted the caller's fallbacks — one "
+                    "catalog-driven sweep over untried healthy providers: %s",
+                    ", ".join(f"{p}/{m_}" for p, m_ in _sweep))
+                async for _fb_tok in self.stream_completion(
+                    messages=messages,
+                    model=_sweep[0][1],
+                    provider_id=_sweep[0][0],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    agent_id=agent_id,
+                    db=db,
+                    task_type=task_type,
+                    extra_kwargs=extra_kwargs,
+                    reasoning_sink=reasoning_sink,
+                    fallback_routes=_sweep[1:],
+                ):
+                    yield _fb_tok
+                return
+
             if agent_execution and governance_enabled and db:
                 try:
                     agent_execution.status = "failed"
@@ -6945,6 +7277,7 @@ class BYOKHandler:
         task_type: Optional[str] = "chat",
         agent_id: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, Any]] = None,
+        _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
     ) -> Dict[str, Any]:
         """Non-streaming chat completion with fallback + self-heal (gateway).
 
@@ -7072,9 +7405,20 @@ class BYOKHandler:
                 continue
 
             logger.info(f"Attempting completion with provider: {attempt_provider_id} (requested: {provider_id})")
+            # TEMPERATURE-LOCKED pairs (OpenCode Go models announce their one
+            # allowed value via their own 400): clamp instead of paying the
+            # doomed request; the map records pairs discovered in-flight.
+            _attempt_kwargs = base_kwargs
+            _base_temperature = base_kwargs.get("temperature")
+            if _base_temperature is not None:
+                _attempt_temperature = _required_temperature(
+                    attempt_provider_id, model, _base_temperature)
+                if _attempt_temperature != _base_temperature:
+                    _attempt_kwargs = {**base_kwargs,
+                                       "temperature": _attempt_temperature}
             try:
                 request_start = datetime.now()
-                response = await client.chat.completions.create(**base_kwargs)
+                response = await client.chat.completions.create(**_attempt_kwargs)
                 self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 
@@ -7165,6 +7509,59 @@ class BYOKHandler:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
+                # TEMPERATURE-LOCKED recovery (OpenCode Go, 2026-09-21):
+                # "invalid temperature: only 1 is allowed for this model" is
+                # a request-shape rejection, not a provider failure — memoize
+                # the pair and retry ONCE at temperature=1 before the ladder
+                # moves on. Same contract as the structured path's arm.
+                if ("invalid temperature" in str(e).lower()
+                        and f"{attempt_provider_id}/{model}" not in _MODEL_TEMPERATURE):
+                    _locked_value = _parse_locked_temperature(str(e))
+                    _MODEL_TEMPERATURE[f"{attempt_provider_id}/{model}"] = (
+                        _locked_value)
+                    logger.warning(
+                        f"{attempt_provider_id}/{model} locks temperature to "
+                        f"{_locked_value} — retrying once and memoizing the "
+                        f"pair")
+                    _retry_at_1 = {**base_kwargs, "temperature": _locked_value}
+                    try:
+                        response = await client.chat.completions.create(
+                            **_retry_at_1)
+                        _choice = (response.choices[0]
+                                   if getattr(response, "choices", None)
+                                   else None)
+                        _content = (getattr(_choice.message, "content", "") or ""
+                                    if _choice else "")
+                        last_error = None
+                        self._last_used_model = model
+                        self._last_used_provider = attempt_provider_id
+                        _usage = getattr(response, "usage", None)
+                        return {
+                            "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                            "object": "chat.completion",
+                            "created": int(datetime.now().timestamp()),
+                            "model": model,
+                            "provider": attempt_provider_id,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {"role": "assistant",
+                                                "content": _content},
+                                    "finish_reason": (
+                                        getattr(_choice, "finish_reason", None)
+                                        or "stop"),
+                                    "logprobs": None,
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": getattr(_usage, "prompt_tokens", 0) or 0,
+                                "completion_tokens": getattr(_usage, "completion_tokens", 0) or 0,
+                                "total_tokens": getattr(_usage, "total_tokens", 0) or 0,
+                            },
+                        }
+                    except Exception as _t1_err:
+                        logger.warning(
+                            f"temperature=1 retry also failed: {_t1_err}")
                 try:
                     self._record_attempt_failure(
                         attempt_provider_id, model, e,
@@ -7387,6 +7784,49 @@ class BYOKHandler:
                     success=False, cost=None, latency_ms=0.0,
                     exception=e, routing_result_id=decision_id,
                 )
+
+        # LAST-RESORT SWEEP (2026-09-21): provider_order was computed before
+        # this turn's failures benched anything. When every rung in it is
+        # dead, walk the untried providers' catalog-served models directly
+        # (no re-ranking — BPC + the learning router were what kept dead
+        # rungs on top). One pass, no nested sweeps.
+        if _allow_ladder_sweep:
+            try:
+                from core.llm.model_route_registry import (
+                    get_provider_model_catalog,
+                )
+
+                _catalog = get_provider_model_catalog()
+                _sweep: List[tuple] = []
+                for p in self.clients.keys():
+                    if self._provider_cooldown_active(p):
+                        continue
+                    # same rule as stream_completion: provider_order members
+                    # are tried for the FIXED model only; their own served
+                    # models remain sweep candidates
+                    _served = sorted(_catalog.served(p) or [])
+                    if not _served:
+                        _served = self._provider_models_cached(p)
+                    for m in _served[:2]:
+                        if not self._ranked_model_is_known_unserved(p, m):
+                            _sweep.append((p, m))
+                _sweep = _sweep[:4]
+            except Exception as _sweep_err:  # noqa: BLE001 — best-effort
+                logger.debug(f"chat ladder sweep skipped: {_sweep_err}")
+                _sweep = []
+            for _p, _m in _sweep:
+                logger.warning(
+                    "chat ladder exhausted — catalog-driven sweep trying "
+                    "%s/%s", _p, _m)
+                try:
+                    return await self.chat_completion(
+                        messages=messages, model=_m, provider_id=_p,
+                        temperature=temperature, max_tokens=max_tokens,
+                        task_type=task_type, agent_id=agent_id,
+                        extra_kwargs=extra_kwargs, _allow_ladder_sweep=False,
+                    )
+                except Exception as _sweep_call_err:
+                    last_error = _sweep_call_err
 
         raise AllProvidersFailedError(
             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"

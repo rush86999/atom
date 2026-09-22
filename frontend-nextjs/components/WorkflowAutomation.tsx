@@ -138,6 +138,7 @@ interface ServiceInfo {
 }
 
 import WorkflowBuilder from "./Automations/WorkflowBuilder";
+import { extractApiErrorMessage } from "@/lib/api-error";
 
 
 const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) => {
@@ -406,7 +407,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         setSelectedWorkflow(newWorkflow as WorkflowDefinition);
 
       } else {
-        throw new Error(data.detail || data.error || "Failed to save");
+        throw new Error(extractApiErrorMessage(data, "Failed to save"));
       }
     } catch (e) {
       console.error("Save error", e);
@@ -461,20 +462,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         setActiveExecution(data);
         setIsExecutionModalOpen(true);
       } else {
-        // Backend error bodies vary (FastAPI `detail` can be a string, an
-        // object, or a validation-error array) — coerce to a readable
-        // string so the toast never shows "[object Object]".
-        const raw =
-          (data && typeof data === "object" && (data.detail || data.message)) ||
-          (typeof data?.error === "string" && data.error) ||
-          (data && typeof data.error === "object" &&
-            (data.error.message || data.error.type)) ||
-          null;
-        const message =
-          (typeof raw === "string" && raw) ||
-          (raw != null ? JSON.stringify(raw) : null) ||
-          `Request failed (${response.status})`;
-        throw new Error(message);
+        throw new Error(extractApiErrorMessage(data, "Failed to execute workflow", response.status));
       }
     } catch (error) {
       console.error("Error executing workflow:", error);
@@ -505,7 +493,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         });
         await fetchExecutions();
       } else {
-        throw new Error(data.error);
+        throw new Error(extractApiErrorMessage(data, "Failed to cancel execution", response.status));
       }
     } catch (error) {
       console.error("Error cancelling execution:", error);
@@ -544,7 +532,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         setIsResumeModalOpen(false);
         setResumeExecutionId(null);
       } else {
-        throw new Error(data.error);
+        throw new Error(extractApiErrorMessage(data, "Failed to resume execution", response.status));
       }
     } catch (error) {
       console.error("Error resuming execution:", error);
@@ -593,7 +581,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         setIsForkModalOpen(false);
         setIsExecutionModalOpen(false); // Close details
       } else {
-        throw new Error(data.detail || "Fork failed");
+        throw new Error(extractApiErrorMessage(data, "Fork failed", response.status));
       }
     } catch (error) {
       console.error("Fork Error:", error);

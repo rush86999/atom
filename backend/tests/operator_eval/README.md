@@ -5,6 +5,12 @@ deterministic local site — success rate, steps, wall time per task. This
 is the repo-standard evidence base (AGENTS.md §2: "measure, don't guess")
 for model-pool and loop changes; numbers go in the commit/PR message.
 
+Since the EnvHarness adoption (docs/architecture/ENV_HARNESS_ADOPTION_PLAN.md,
+rev 2) this directory is also the first **mutable environment**: the site
+splits mutable WORLD content from verifier-owned EVIDENCE, exposes a
+token-authed control API, and carries a library of hand-authored declarative
+mutations with deterministic solvability canaries.
+
 ## Running
 
 ```bash
@@ -24,24 +30,64 @@ python tests/operator_eval/run_eval.py --model gpt-6-astra
 - `--only task_id,task_id` — subset runs while iterating.
 - `--max-steps N` — step budget per task (default 15).
 
-The runner needs no DB and never touches the live dev world.
+The runner needs no DB and never touches the live dev world. Each run gets
+its own `EvalSite` instance on an ephemeral port (there is no module-global
+state anymore), and every task starts from `POST /control/reset`.
 
 ## Tasks (8)
 
 | id | verifies |
 |---|---|
-| form_fill | real form fill + submit recorded server-side |
+| form_fill | all three requested fields + exactly one submission recorded server-side |
 | find_code | information retrieval: secret code reported in summary |
 | login_flow | credential login → protected dashboard reached |
 | search_and_click | search results navigation + content extraction |
-| ordered_navigation | multi-page link following |
+| ordered_navigation | multi-page link following in order |
 | extract_headline | reading specific content |
 | scroll_find | scrolling to content below the fold |
-| form_validation | reading an error response after partial submit |
+| form_validation | error response read AND its actual message reported |
 
-Verification is server-state-based where possible (the site records what
-actually happened — a lying summary can't pass) and summary-based where
-the deliverable is information.
+Verification reads the site's protected EVIDENCE (append-only execution
+facts: submissions, errors, logins, visit order) plus WORLD ground truth.
+A lying summary can't pass, and `form_validation` requires the agent to
+report the error message the page actually showed.
+
+## Architecture (rev 2 hardening)
+
+- **WORLD vs EVIDENCE** (`test_site.py`): `WORLD` is the mutable content
+  (page copy, codes, credentials, search results, form labels); `EVIDENCE`
+  is append-only and owned by the verifiers. `POST /control/load_world`
+  structurally rejects anything outside `WORLD_SCHEMA` — a mutation cannot
+  manufacture passes through the evidence channel. Enforced by tests.
+- **Control API** (token `X-Run-Token`; agent-facing pages never need it):
+  `/control/reset`, `/control/load_world` (world keys only),
+  `/control/rules` (declarative observation filters + action interceptors),
+  `/control/state` (read-only view). `GET /state` returns world+evidence.
+- **Rules engine**: `hide_link`, `redact_text` (observation side, applied at
+  render time); `block_path`, `fail_first_n` (action side, intercepts before
+  routing — blocked attempts leave no evidence). Unknown kinds/params → 400.
+- **Adapter** (`adapter.py`): one `EnvInstance` (ephemeral site + token) per
+  rollout; drives `OperatorLoop` and classifies every rollout as
+  `pass` / `agent_fail` / `harness_error`. Any machinery exception
+  (provider auth, loop crash, verifier crash) is a HARNESS_ERROR — excluded
+  from rates and rerun, never counted as an agent failure.
+- **Mutations** (`mutations.py`): declarative `MutationStack`s (Setup =
+  world updates; Rules = observation/action specs) validated against the
+  site schema, plus mechanical solutions (scripted solvers reading the same
+  filtered HTML a browser sees) and canaries that assert solvability
+  direction — positive stacks must stay solvable, negative stacks (rules
+  that destroy a task's solution) must be DETECTED as unsolvable. The
+  canary suite runs with no model, no playwright, no DB:
+  `python -c "import sys; sys.path.insert(0,'tests/operator_eval'); from mutations import run_canary_suite; print(run_canary_suite())"`
+
+Test coverage for all of the above: `backend/tests/test_env_curriculum.py`
+(core sandbox/admission primitives) and
+`backend/tests/operator_eval/test_env_site.py` (site, adapter, canaries).
+
+Eval-integrity note: `GET /state` exposes world+evidence to anything that
+can reach the site — the same surface the original harness had. A rules
+stack can `block_path /state` if a task must forbid it; the Phase 4
+experiment design decides this per family.
 
 ## Interpreting
 
@@ -51,3 +97,7 @@ the deliverable is information.
   harness bug usually shows as uniform failures with `done=false`.
 - Compare at least two models before changing the default; record the
   table in the PR.
+- For curriculum work, prefer `adapter.run_rollout` over this CLI: it
+  returns the classified outcome objects the Phase 4 experiment and the
+  screen/confirm admission protocol (`core.env_curriculum.outcomes`)
+  consume.
