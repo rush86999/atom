@@ -564,11 +564,20 @@ ideas here:
    exceptions internally, returning them in `result["error"]` — which the
    adapter then scored through the verifier. Infrastructure failures could
    therefore be recorded as agent failures (or, with a lucky verifier,
-   passes). Fixed: the decider now RAISES on provider failure (the loop
-   records `error=`), and the adapter classifies any error-bearing result
-   as HARNESS_ERROR before the verifier runs — both test-pinned. The 4a/4b
-   "zero harness errors" observations are the pre-fix classifier's output
-   and should be read as "none surfaced", not verified absence.
+   passes). Fixed in two directions so NEITHER over- nor under-counting
+   occurs: (a) the decider now RAISES on provider failure; (b)
+   `OperatorLoop` emits a typed `termination_reason` on every exit path —
+   `exception` / `observation_failed` / `stopped` are infrastructure and
+   classify HARNESS_ERROR, while `no_valid_action` / `unparseable_step` /
+   `repeated_action_failure` / `action_blocked` / `budget_exhausted` /
+   `completed` are agent-attributable and go to the verifier (an early
+   fix that classified every error-bearing result as harness was itself
+   biased — it excluded genuine agent failures like invalid model
+   output). Legacy results without a reason are treated conservatively as
+   harness. Both boundaries are test-pinned, including the loop's reason
+   per exit path. The 4a/4b "zero harness errors" observations are the
+   pre-fix classifier's output and should be read as "none surfaced", not
+   verified absence.
 2. **"Mechanism refuted" overstated the evidence.** 6/6 vs 6/6 at ceiling
    establishes no observed advantage on the replication — nothing about
    WHY the 4a delta appeared or disappeared. The record now says: benefit
@@ -576,13 +585,16 @@ ideas here:
    4a delta is open. The investment decision (FINAL STOP) is unchanged.
 3. **The learner never received full trajectories.** The Phase 4 design
    promised action/observation logs; `_distill()` actually received action
-   types, success flags, navigated URL/title where present in the step
-   detail, and a truncated final summary — no observations, parameters, or
-   intermediate reasoning. These experiments therefore tested *brief
-   induction from lossy summaries*, which narrows the negative result's
-   scope. The runner now feeds the richer trajectory rendering for any
-   future run; the observation-capture gap in the adapter remains open
-   work (it requires loop-side changes and was not built post-STOP).
+   types, success flags, and a truncated final summary — no observations,
+   parameters, or intermediate reasoning. These experiments therefore
+   tested *brief induction from lossy summaries*, which narrows the
+   negative result's scope. Partial remediation shipped: the loop now
+   records action `parameters` on executed entries (coordinates / typed
+   text / selectors) and the distiller renders them alongside navigated
+   URL/title — so parameters are now supplied; true per-step OBSERVATIONS
+   (page text/screenshots) remain uncaptured (loop-side hook does not
+   exist) and any future registration must either add that capture or
+   scope its claims accordingly.
 4. **Chronology (canonical — git commit times and checkpoint mtimes; the
    approximate EDT times in earlier sections and the coordination log are
    superseded):**

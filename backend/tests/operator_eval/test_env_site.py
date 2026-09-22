@@ -354,6 +354,122 @@ def test_rollout_harness_error_on_verifier_crash():
     assert "verifier crashed" in outcome.error
 
 
+def test_rollout_error_bearing_result_with_agent_reason_is_scored():
+    """no_valid_action / unparseable_step / repeated_action_failure /
+    action_blocked / budget_exhausted are AGENT-attributable terminations:
+    they must reach the verifier (-> agent_fail here), never be excluded
+    and rerun as harness errors - that would bias success rates upward."""
+    seen = []
+
+    def loop_reason(termination_reason, error=None):
+        def factory(backend, max_steps):
+            seen.append(termination_reason)
+
+            class FakeLoop:
+                async def run(self, goal):
+                    return {"done": False, "steps": 2, "summary": "",
+                            "actions": [{"step": 1, "action": "click",
+                                         "action_type": "click",
+                                         "success": False}],
+                            "termination_reason": termination_reason,
+                            "error": error}
+            return FakeLoop()
+        return factory
+
+    with EnvInstance() as instance:
+        for reason in ("no_valid_action", "unparseable_step",
+                       "repeated_action_failure", "action_blocked",
+                       "budget_exhausted"):
+            err = ("no action could be decided for the task"
+                   if reason == "no_valid_action" else None)
+            outcome = _run(instance, get_task("find_code"),
+                           loop_reason(reason, error=err))
+            assert outcome.status == RolloutStatus.AGENT_FAIL, reason
+    assert seen == ["no_valid_action", "unparseable_step",
+                    "repeated_action_failure", "action_blocked",
+                    "budget_exhausted"]
+
+
+def test_rollout_infrastructure_terminations_are_harness_errors():
+    def loop_reason(termination_reason, error):
+        def factory(backend, max_steps):
+            class FakeLoop:
+                async def run(self, goal):
+                    return {"done": False, "steps": 0, "summary": "",
+                            "actions": [],
+                            "termination_reason": termination_reason,
+                            "error": error}
+            return FakeLoop()
+    with EnvInstance() as instance:
+        for reason, err in (("exception", "playwright exploded"),
+                            ("observation_failed", "browser died"),
+                            ("stopped", None)):
+            outcome = _run(instance, get_task("find_code"),
+                           loop_reason(reason, err))
+            assert outcome.status == RolloutStatus.HARNESS_ERROR, reason
+            assert not outcome.counts_for_rate, reason
+
+
+def test_rollout_legacy_error_without_reason_stays_conservative():
+    """A foreign/legacy producer returning an error with NO termination
+    reason is treated as harness (conservative), not as agent failure."""
+    def factory(backend, max_steps):
+        class FakeLoop:
+            async def run(self, goal):
+                return {"done": False, "steps": 0, "summary": "",
+                        "actions": [], "error": "unknown producer error"}
+        return FakeLoop()
+    with EnvInstance() as instance:
+        outcome = _run(instance, get_task("find_code"), factory)
+    assert outcome.status == RolloutStatus.HARNESS_ERROR
+    assert "unknown producer error" in outcome.error
+
+
+def test_scorer_exact_boundary_two_of_six_is_met():
+    """The registered 4b-style bar: a 2-rollout gap out of 6 is exactly
+    33⅓pp and must count as met at threshold 1/3 — the pre-fix scorer
+    rounded each rate first (0.833-0.5=0.333) and mis-summed this case."""
+    from experiment import Runner
+    from unittest.mock import patch
+
+    with patch("core.llm_service.LLMService"):
+        runner = Runner.__new__(Runner)  # no heavy init: only scoring tested
+    runner.record = {"rollouts": [], "briefs": {}}
+    runner.families = ["f1"]
+    runner.delta_threshold = 1 / 3
+    runner.out_path = Path("/tmp") / "boundary-test.json"
+
+    def add(stage, arm, status):
+        runner.record["rollouts"].append({
+            "stage": stage, "arm": arm, "task_id": "f1", "status": status})
+
+    # Arm A: 3 passes of 6. Arm B: 5 passes of 6 → gap exactly 2/6 = 1/3.
+    for status in ("pass", "pass", "pass", "agent_fail", "agent_fail",
+                   "agent_fail"):
+        add("test_A", "A", status)
+    for status in ("pass", "pass", "pass", "pass", "pass", "agent_fail"):
+        add("test_B", "B", status)
+    runner._score()
+    assert runner.record["score"]["delta_pp"] == pytest.approx(33.3, abs=0.1)
+    assert "THRESHOLD MET" in runner.record["score"]["decision"]
+
+
+def test_format_actions_includes_parameters_and_detail():
+    from experiment import _format_actions
+    actions = [
+        {"action_type": "click", "success": True,
+         "parameters": {"coordinates": [412, 230]},
+         "detail": {"url": "http://x/docs/3", "title": "Reference"}},
+        {"action_type": "type", "success": False,
+         "parameters": {"text": "hunter2"}, "detail": {}},
+    ]
+    rendered = _format_actions(actions)
+    assert "click" in rendered and "412" in rendered
+    assert "docs/3" in rendered and "Reference" in rendered
+    assert "hunter2" in rendered and "FAIL" in rendered
+    assert _format_actions([]) == "(none)"
+
+
 def test_rollout_starts_from_reset_env():
     with EnvInstance() as instance:
         instance.site.load_world_updates({"headline": "STALE"})

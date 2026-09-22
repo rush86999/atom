@@ -116,6 +116,9 @@ async def run_rollout(
                              decider=decider_factory() if decider_factory
                              else JsonVisionDecider(),
                              max_steps=max_steps)
+            import sys as _sys
+            print("DBG loop_factory:", loop_factory, "file:", __file__,
+                  file=_sys.stderr, flush=True)
             started = time.monotonic()
             result = await loop.run(task["goal"])
             seconds = time.monotonic() - started
@@ -127,16 +130,23 @@ async def run_rollout(
             env_label=env_label, arm=arm, error=f"{type(exc).__name__}: {exc}",
         )
 
-    # OperatorLoop catches its own exceptions and control-blocks internally
-    # and returns them in result["error"] (never raises). A result carrying
-    # an error is machinery/governance/observation failure — infrastructure
-    # signal, not evidence about the agent — so it must NOT reach the
-    # verifier (which could score it agent_fail or even pass).
-    if result.get("error"):
+    # OperatorLoop reports WHY it terminated in result["termination_reason"]
+    # (additive, typed). Only infrastructure terminations are harness
+    # failures: loop-caught exceptions, dead browser/observation failures,
+    # and external stops. Agent-attributable terminations — invalid model
+    # output (no_valid_action / unparseable_step), repeated failed actions,
+    # policy-blocked actions, budget exhaustion, completion — are scored by
+    # the frozen verifier like any other end state; excluding them would
+    # bias success rates upward (review finding, 2026-09-21). A result
+    # WITHOUT a termination reason (legacy/foreign producer) that carries
+    # an error is treated conservatively as harness.
+    _HARNESS_TERMINATIONS = {"exception", "observation_failed", "stopped"}
+    reason = result.get("termination_reason")
+    if reason in _HARNESS_TERMINATIONS or (reason is None and result.get("error")):
         return RolloutOutcome(
             task_id=task["id"], status=RolloutStatus.HARNESS_ERROR,
             env_label=env_label, arm=arm,
-            error=str(result["error"]),
+            error=str(result.get("error") or f"terminated: {reason}"),
             steps=result.get("steps"),
             actions=result.get("actions") or [],
         )
