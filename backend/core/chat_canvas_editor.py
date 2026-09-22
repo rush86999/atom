@@ -136,14 +136,34 @@ async def _plan_structured(
     own failure contract (``CanvasPlanUnavailable`` for an infrastructure
     failure vs ``None`` for a genuine "not an edit").
     """
-    from core.llm.pinned_planning import pinned_structured_call
+    from core.llm.pinned_planning import (
+        build_provider_model_pin,
+        pinned_structured_call,
+    )
+
+    # ASYNC-TIER EDIT-PLAN RUNG (2026-09-22): operator knob pointing the
+    # edit-plan structured call at a schema-capable model for BACKGROUND
+    # retries (ATOM_ASYNC_EDIT_PLAN_MODEL="provider/model"). Rationale: the
+    # interactive cost ladder can land on flash rungs whose outputs fail
+    # CanvasEditPlan schema validation (live: HTTP 200s, "providers failed,
+    # last error: None"), and the async tier — with its relaxed timeout and
+    # backoff — is exactly where a slower, schema-capable rung fits. Empty
+    # or unset = no pin (BPC ranks), byte-identical to before.
+    import os as _os
+
+    _pin = {}
+    _pin_spec = (_os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
+    if _pin_spec and "/" in _pin_spec:
+        _prov, _mod = _pin_spec.split("/", 1)
+        _pin = build_provider_model_pin(llm_service, _prov.strip(),
+                                        _mod.strip())
 
     return await pinned_structured_call(
         llm_service,
         prompt=prompt,
         response_model=response_model,
         system_instruction=system_instruction,
-        call_kwargs=None,  # no pin — BPC ranks the candidates
+        call_kwargs=_pin or None,
         log_label="canvas edit planning",
         task_type="planning",
     )

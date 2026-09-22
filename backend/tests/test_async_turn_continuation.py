@@ -952,3 +952,79 @@ class TestBackoffRetry:
         assert outcome == "conflict"
         assert orch._try_canvas_edit.await_count == 1, (
             "the conflicting second attempt must not run the edit leg")
+
+
+class TestEditPlanRungKnob:
+    """ATOM_ASYNC_EDIT_PLAN_MODEL pins the edit-plan structured call at a
+    schema-capable rung (the async tier's answer to flash-rung schema
+    failures); unset = no pin, byte-identical ranking."""
+
+    async def test_knob_pins_the_planning_call(self, monkeypatch):
+        from core import chat_canvas_editor as ed
+
+        monkeypatch.setenv(
+            "ATOM_ASYNC_EDIT_PLAN_MODEL", "deepseek/deepseek-v4-pro")
+        captured = {}
+
+        async def fake_pinned(llm, *, prompt, response_model,
+                              system_instruction, call_kwargs=None, **kw):
+            captured["call_kwargs"] = call_kwargs
+            return None
+
+        handler = MagicMock()
+        handler.clients = {"deepseek": MagicMock()}
+        llm = MagicMock()
+        llm._get_handler.return_value = handler
+
+        class _RM:  # any response model
+            pass
+
+        with patch("core.llm.pinned_planning.pinned_structured_call",
+                   side_effect=fake_pinned):
+            await ed._plan_structured(
+                llm, prompt="p", response_model=_RM,
+                system_instruction="s")
+        assert captured["call_kwargs"] == {
+            "provider_model": ("deepseek", "deepseek-v4-pro")}
+
+    async def test_unset_knob_leaves_ranking_free(self, monkeypatch):
+        from core import chat_canvas_editor as ed
+
+        monkeypatch.delenv("ATOM_ASYNC_EDIT_PLAN_MODEL", raising=False)
+        captured = {}
+
+        async def fake_pinned(llm, *, prompt, response_model,
+                              system_instruction, call_kwargs=None, **kw):
+            captured["call_kwargs"] = call_kwargs
+            return None
+
+        llm = MagicMock()
+        with patch("core.llm.pinned_planning.pinned_structured_call",
+                   side_effect=fake_pinned):
+            await ed._plan_structured(
+                llm, prompt="p", response_model=type("_RM", (), {}),
+                system_instruction="s")
+        assert captured["call_kwargs"] is None
+
+    async def test_unavailable_provider_yields_no_pin(self, monkeypatch):
+        from core import chat_canvas_editor as ed
+
+        monkeypatch.setenv(
+            "ATOM_ASYNC_EDIT_PLAN_MODEL", "nosuchprov/model-x")
+        captured = {}
+
+        async def fake_pinned(llm, *, prompt, response_model,
+                              system_instruction, call_kwargs=None, **kw):
+            captured["call_kwargs"] = call_kwargs
+            return None
+
+        handler = MagicMock()
+        handler.clients = {}  # provider not configured
+        llm = MagicMock()
+        llm._get_handler.return_value = handler
+        with patch("core.llm.pinned_planning.pinned_structured_call",
+                   side_effect=fake_pinned):
+            await ed._plan_structured(
+                llm, prompt="p", response_model=type("_RM", (), {}),
+                system_instruction="s")
+        assert captured["call_kwargs"] is None

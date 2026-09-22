@@ -2998,6 +2998,7 @@ class BYOKHandler:
         max_quality: Optional[int] = None,  # Stage-router "fast" steering: upper quality bound
         required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
         turn_index: int = 0, # NEW: Deterministic BPC
+        relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs
         cost_priority: Optional[bool] = None,  # Small structured tasks: let price drive
     ) -> List[tuple[str, str]]:
         """
@@ -3683,6 +3684,7 @@ class BYOKHandler:
 
             for c in candidates:
                 allowed_models = (
+                    "*" if relax_tier else
                     MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
                     if _plan_applies(c["provider"]) else "*"
                 )
@@ -3821,6 +3823,7 @@ class BYOKHandler:
                 # Plan gating applies to managed keys only (env keys are the
                 # operator's own — see _plan_applies in the BPC path).
                 allowed_models = (
+                    "*" if relax_tier else
                     MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
                     if (is_managed_service and provider_id not in getattr(self, "env_key_providers", set())) else "*"
                 )
@@ -5468,6 +5471,7 @@ class BYOKHandler:
         max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
         force_value_ranking: bool = False,  # last-resort sweep: rank by value, not cost
+        relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs (user-approved spend)
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
     ) -> Any:
         """
@@ -5619,6 +5623,7 @@ class BYOKHandler:
                 cost_priority=(
                     False if (provider_model is not None or force_value_ranking)
                     else None),
+                relax_tier=relax_tier,
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
@@ -6360,6 +6365,7 @@ class BYOKHandler:
                         max_tokens=max_tokens,
                         stage_decision_id=stage_decision_id,
                         force_value_ranking=True,
+                        relax_tier=True,
                         _sweep_depth=_sweep_depth + 1,
                     )
                     if _swept is not None:
