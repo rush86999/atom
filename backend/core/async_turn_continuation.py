@@ -71,6 +71,17 @@ _ASYNC_CONTINUATION_BUDGET_SECONDS = float(
 _ASYNC_EDIT_PLAN_TIMEOUT_SECONDS = float(
     os.getenv("ATOM_ASYNC_EDIT_PLAN_TIMEOUT", "150") or 150)
 
+#: BACKOFF-AND-RETRY (2026-09-22): the interactive turn that starved the
+#: edit ALSO drains the shared per-model rate budgets — an immediate retry
+#: can find zero dispatchable routes (live: continuation failed in 0s with
+#: every route benched or rate-exhausted, while the same routes served
+#: calls minutes later). Waiting IS the async tier's advantage: retry the
+#: edit after a backoff, bounded by attempts and the total budget.
+_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS = float(
+    os.getenv("ATOM_ASYNC_CONTINUATION_RETRY_DELAY", "45") or 45)
+_ASYNC_CONTINUATION_ATTEMPTS = max(
+    1, int(os.getenv("ATOM_ASYNC_CONTINUATION_ATTEMPTS", "3") or 3))
+
 #: Outcome vocabulary (metadata_json.continuation.outcome). Deliberately
 #: distinct: "awaiting_approval" is a draft ready for review, NOT a
 #: completion; "already_applied" and "conflict" never re-apply.
@@ -717,39 +728,65 @@ async def run_canvas_edit_continuation(
     cont: AsyncTurnContinuation,
 ) -> "tuple[str, str]":
     """Runner for a starved canvas-edit turn: idempotency/conflict gate,
-    then re-run the SAME edit leg with a fresh blackboard and no
-    interactive deadline pressure. Returns ``(outcome, summary)``."""
-    pre = _classify_preapply(cont)
-    if pre == OUTCOME_ALREADY_APPLIED:
-        return pre, (
-            "The canvas edit from your earlier request had already landed "
-            "before the background attempt ran — nothing was applied twice.")
-    if pre == OUTCOME_CONFLICT:
-        return pre, (
-            "The canvas changed while the background update was running "
-            "(newer edits exist), so the update was held back rather than "
-            "overwriting them. Re-ask and it will run against the current "
-            "canvas.")
+    then re-run the SAME edit leg with a fresh blackboard, a relaxed inner
+    timeout, and bounded backoff retries. Returns ``(outcome, summary)``."""
+    # BACKOFF-AND-RETRY: the first attempt often lands while the shared
+    # rate budgets are still drained by the interactive turn (or a provider
+    # is briefly benched) — wait and try again inside the total budget.
+    # The pre-apply gate re-runs each attempt: a revision that advanced
+    # between attempts is honored, never overwritten.
+    last_note = "the edit planner could not complete"
+    for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
+        pre = _classify_preapply(cont)
+        if pre == OUTCOME_ALREADY_APPLIED:
+            return pre, (
+                "The canvas edit from your earlier request had already "
+                "landed before the background attempt ran — nothing was "
+                "applied twice.")
+        if pre == OUTCOME_CONFLICT:
+            return pre, (
+                "The canvas changed while the background update was "
+                "running (newer edits exist), so the update was held back "
+                "rather than overwriting them. Re-ask and it will run "
+                "against the current canvas.")
 
-    blackboard: Dict[str, Any] = {"plan_task": None, "block": None}
-    # The revision token is captured at RETRY start and enforced at the
-    # write door — an edit arriving during the retry is a refusal, not an
-    # overwrite. The operation id stamps whatever this retry writes.
-    prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
-    expected_prior = (prior or {}).get("id")
-    response = await orchestrator._try_canvas_edit(
-        cont.message, cont.history_snapshot, cont.canvas,
-        cont.user_id, cont.session_id, cont.execution_id, cont.agent_id,
-        provenance=cont.provenance,
-        shared_tool_state=blackboard,
-        operation_id=cont.continuation_id,
-        expected_prior_audit_id=expected_prior,
-        edit_plan_timeout=_ASYNC_EDIT_PLAN_TIMEOUT_SECONDS,
-    )
-    if not response:
-        return OUTCOME_FAILED, (
-            "The background edit attempt did not apply (the edit planner "
-            "could not complete).")
+        blackboard: Dict[str, Any] = {"plan_task": None, "block": None}
+        # The revision token is captured per attempt and enforced at the
+        # write door — an edit arriving during the retry is a refusal,
+        # not an overwrite. The operation id stamps whatever lands.
+        prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
+        expected_prior = (prior or {}).get("id")
+        response = await orchestrator._try_canvas_edit(
+            cont.message, cont.history_snapshot, cont.canvas,
+            cont.user_id, cont.session_id, cont.execution_id,
+            cont.agent_id,
+            provenance=cont.provenance,
+            shared_tool_state=blackboard,
+            operation_id=cont.continuation_id,
+            expected_prior_audit_id=expected_prior,
+            edit_plan_timeout=_ASYNC_EDIT_PLAN_TIMEOUT_SECONDS,
+        )
+        if response:
+            edit_meta = ((response.get("data") or {}).get(
+                "canvas_edit") or {})
+            summary = str(response.get("message") or "").strip() or (
+                "Canvas edit applied to "
+                f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
+                f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
+            if edit_meta.get("learning_mode"):
+                return OUTCOME_AWAITING_APPROVAL, summary
+            return OUTCOME_APPLIED, summary
+        if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
+            logger.info(
+                "[async-continuation] %s attempt %d/%d did not apply — "
+                "backing off %.0fs (shared rate budgets recover; the "
+                "canvas re-checked on the next attempt)",
+                cont.continuation_id, attempt, _ASYNC_CONTINUATION_ATTEMPTS,
+                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS)
+            await asyncio.sleep(_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS)
+    return OUTCOME_FAILED, (
+        f"The background edit attempt did not apply after "
+        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts ({last_note}).")
     edit_meta = ((response.get("data") or {}).get("canvas_edit") or {})
     summary = str(response.get("message") or "").strip() or (
         "Canvas edit applied to "

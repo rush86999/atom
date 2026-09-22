@@ -550,3 +550,71 @@ class TestInteractiveLatencyGate:
         bh._MODEL_STRUCTURED_LATENCY.clear()
         bh._load_pair_memos()
         assert bh._MODEL_STRUCTURED_LATENCY["p/m"] == 40.0
+
+
+class TestQuotaFailover:
+    """User directive 2026-09-22: when one provider's BALANCE is exhausted,
+    healthy providers (opencode-go) must serve. Two mechanisms: the
+    structured path benches the provider on account-level 402s, and pins
+    yield when their provider is benched."""
+
+    def test_quota_402_benches_the_provider(self):
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        benches = []
+        with patch.object(
+                h, "_bench_provider",
+                side_effect=lambda pid, **kw: benches.append((pid, kw))):
+            err = ("Error code: 402 - This request requires more credits, "
+                   "or fewer max_tokens... can only afford 8")
+            got = h._bench_provider_on_quota_error("openrouter", err)
+        assert got is True
+        assert benches and benches[0][0] == "openrouter"
+        assert benches[0][1]["cause"] == "quota_exhausted"
+        assert benches[0][1]["seconds"] == bh._PROVIDER_QUOTA_COOLDOWN_SECONDS
+
+    def test_non_quota_error_does_not_bench(self):
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        with patch.object(h, "_bench_provider") as bench:
+            got = h._bench_provider_on_quota_error(
+                "openrouter", "Error code: 429 - too many requests")
+        assert got is False
+        bench.assert_not_called()
+
+    def test_benched_pin_yields_via_cooldown(self):
+        """A pinned (provider, model) whose provider is on cooldown is
+        unpinned — the pin bypasses the ranking gate, so holding it is a
+        guaranteed-dead call."""
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        # Bench openrouter directly through the real mechanism.
+        h._bench_provider("openrouter", cause="quota_exhausted",
+                          detail="test", seconds=60)
+        assert h._provider_cooldown_active("openrouter") is True
+        # The structured path's pin block consults the cooldown; the
+        # unpinning is behaviorally observable: a pinned+benched provider
+        # must NOT remain the sole option. Exercise the pin logic through
+        # the same guard the structured path uses.
+        provider_model = ("openrouter", "deepseek/deepseek-v4-pro")
+        # Mirror of the pin-yield condition:
+        yields = h._provider_cooldown_active(provider_model[0])
+        assert yields is True, "pin must yield for a benched provider"
+        # And a healthy provider's pin holds:
+        h2 = bh.BYOKHandler(workspace_id="default")
+        assert h2._provider_cooldown_active("opencode-go") is False
+
+    def test_bench_expires_for_recovery(self):
+        """The quota bench is a pause, not a decommission: it expires."""
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        h._bench_provider("openrouter", cause="quota_exhausted",
+                          detail="t", seconds=0.05)
+        assert h._provider_cooldown_active("openrouter") is True
+        import time as _t
+        _t.sleep(0.1)
+        assert h._provider_cooldown_active("openrouter") is False

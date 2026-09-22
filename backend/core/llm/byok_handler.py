@@ -683,6 +683,13 @@ _PROVIDER_COOLDOWN_SECONDS = float(
     os.getenv("ATOM_PROVIDER_FAILURE_COOLDOWN_SECONDS", "600") or 600)
 _PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = float(
     os.getenv("ATOM_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS", "60") or 60)
+#: Credit/quota exhaustion is ACCOUNT-level and persists until a top-up,
+#: but the top-up can land any minute — bench long enough that one 402
+#: stops costing every subsequent call a round trip, short enough that a
+#: refill recovers without a restart (user directive 2026-09-22: healthy
+#: providers like opencode-go must serve while another's balance is low).
+_PROVIDER_QUOTA_COOLDOWN_SECONDS = float(
+    os.getenv("ATOM_PROVIDER_QUOTA_COOLDOWN_SECONDS", "300") or 300)
 _PROVIDER_COOLDOWN_UNTIL: Dict[str, float] = {}
 _PROVIDER_COOLDOWN_REASON: Dict[str, tuple] = {}
 _PROVIDER_COOLDOWN_LOCK = threading.Lock()
@@ -1967,6 +1974,34 @@ class BYOKHandler:
                 else _PROVIDER_COOLDOWN_SECONDS)
             _PROVIDER_COOLDOWN_REASON[provider_id] = (
                 cause, sanitize_error_text(detail))
+
+    def _bench_provider_on_quota_error(
+        self, provider_id: str, err_text: str
+    ) -> bool:
+        """Bench a provider whose ACCOUNT-level balance/quota failed.
+
+        Mirrors _record_attempt_failure's PROVIDER_SCOPED handling for the
+        inline structured-classification path that bypasses it: a 402
+        credits/quota failure rejects every model on the provider
+        identically, so the provider pauses for the quota cooldown and
+        healthy providers take over (user directive 2026-09-22: opencode-go
+        must serve while openrouter's balance is low)."""
+        try:
+            low = (err_text or "").lower()
+            if not ("402" in (err_text or "") or "more credits" in low
+                    or "quota" in low):
+                return False
+            self._bench_provider(
+                provider_id, cause="quota_exhausted", detail=err_text,
+                seconds=_PROVIDER_QUOTA_COOLDOWN_SECONDS)
+            logger.warning(
+                f"{provider_id} benched for "
+                f"{_PROVIDER_QUOTA_COOLDOWN_SECONDS:.0f}s — account-level "
+                "credit exhaustion; healthy providers take over")
+            return True
+        except Exception as bench_err:  # noqa: BLE001
+            logger.debug(f"quota bench skipped: {bench_err}")
+            return False
 
     def _provider_cooldown_active(self, provider_id: str) -> bool:
         with _PROVIDER_COOLDOWN_LOCK:
@@ -5593,7 +5628,20 @@ class BYOKHandler:
             # used to bypass every context check, and a learning-heavy prompt
             # overflowed it where the ranker would have chosen a bigger model.
             if provider_model is not None:
-                if not self._pinned_model_fits(
+                if self._provider_cooldown_active(provider_model[0]):
+                    # A pinned provider on cooldown (rejected credential,
+                    # exhausted balance) fails exactly as unpinned — and the
+                    # pin BYPASSES the ranking gate where cooldowns are
+                    # enforced, so holding it means a guaranteed-dead call
+                    # while healthy providers sit idle. Unpin and re-rank;
+                    # the ranking gate excludes the benched provider.
+                    logger.warning(
+                        f"Unpinning {provider_model[0]}/{provider_model[1]} — "
+                        "provider benched (cooldown active); re-ranking "
+                        "across healthy providers"
+                    )
+                    provider_model = None
+                elif not self._pinned_model_fits(
                     provider_model[1],
                     estimated_input_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
                 ):
@@ -6188,6 +6236,14 @@ class BYOKHandler:
                             f"max_tokens={_create_kwargs['max_tokens']}"
                         )
                         continue
+                    # BENCH the provider (user directive 2026-09-22): an
+                    # account-level balance failure rejects every model on
+                    # the provider identically — without the bench, each
+                    # later structured call re-pays a 402 round trip on the
+                    # same dead rung while healthy providers (opencode-go)
+                    # sit idle.
+                    self._bench_provider_on_quota_error(
+                        provider_id, err_str)
                     if ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
                             # QUOTA (2026-09-20): a credits-exhausted account
                             # (openrouter 402 "can only afford N tokens") fails

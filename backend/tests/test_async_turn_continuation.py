@@ -880,3 +880,75 @@ async def test_planner_unavailable_forks_for_edit_shaped_turns(monkeypatch):
     assert len(forks) == 1, (
         f"edit-shaped planner-unavailable must fork exactly once, "
         f"questions never; got {len(forks)}")
+
+
+class TestBackoffRetry:
+    async def test_recovers_on_later_attempt(self, monkeypatch):
+        """First attempt hits drained budgets (planner returns None), the
+        backoff attempt succeeds — the async tier waits instead of dying."""
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS", 0.01)
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 3)
+        cont = _cont("s-bo")
+        calls = {"n": 0}
+
+        async def edit_attempt(*a, **k):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return None  # drained/benched routes
+            return {"message": "Canvas updated.",
+                    "data": {"canvas_edit": {"updated": True}}}
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(side_effect=edit_attempt)
+        with patch.object(atc, "_latest_audit", return_value=None):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+        assert outcome == "applied"
+        assert calls["n"] == 2
+
+    async def test_gives_up_after_bounded_attempts(self, monkeypatch):
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS", 0.01)
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 2)
+        cont = _cont("s-bo2")
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value=None)
+        with patch.object(atc, "_latest_audit", return_value=None):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+        assert outcome == "failed"
+        assert "after 2 attempts" in summary
+        assert orch._try_canvas_edit.await_count == 2
+
+    async def test_revision_conflict_between_attempts_holds_back(
+            self, monkeypatch):
+        """The pre-apply gate re-runs each attempt: an edit that lands
+        between attempts is honored (conflict), never overwritten."""
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS", 0.01)
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 3)
+        cont = _cont("s-bo3")
+        cont.snapshot_audit_ts = "2026-09-22T10:00:00"
+        # _latest_audit is consulted twice per attempt (gate + revision
+        # token): return the pre-advance state for attempt 1, the advanced
+        # (other-session) state from attempt 2's gate onward.
+        seq = [
+            {"id": "a1", "created_at": "2026-09-22T10:00:00",
+             "session_id": "s-bo3", "action_type": "update"},   # gate @a1
+            {"id": "a1", "created_at": "2026-09-22T10:00:00",
+             "session_id": "s-bo3", "action_type": "update"},   # token @a1
+            {"id": "a2", "created_at": "2026-09-22T10:05:00",
+             "session_id": "someone-else", "action_type": "update"},  # gate @a2
+        ]
+        calls = {"n": 0}
+
+        def audit(_cid):
+            i = min(calls["n"], len(seq) - 1)
+            calls["n"] += 1
+            return seq[i]
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value=None)
+        with patch.object(atc, "_latest_audit", side_effect=audit):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "conflict"
+        assert orch._try_canvas_edit.await_count == 1, (
+            "the conflicting second attempt must not run the edit leg")
