@@ -7260,6 +7260,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         shared_tool_state: Optional[Dict[str, Any]] = None,
         operation_id: Optional[str] = None,
         expected_prior_audit_id: Optional[str] = None,
+        edit_plan_timeout: float = 30.0,
     ) -> Optional[Dict[str, Any]]:
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
@@ -7406,7 +7407,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     playbooks=playbooks,
                     fresh_data=fresh_data,
                 ),
-                timeout=30,
+                timeout=edit_plan_timeout,
             )
         except (CanvasPlanUnavailable, asyncio.TimeoutError) as e:
             if shared_tool_state is not None:

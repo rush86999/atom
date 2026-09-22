@@ -62,6 +62,15 @@ logger = logging.getLogger(__name__)
 _ASYNC_CONTINUATION_BUDGET_SECONDS = float(
     os.getenv("ATOM_ASYNC_CONTINUATION_BUDGET", "300") or 300)
 
+#: The retry's EDIT-PLAN timeout. The interactive leg's 30s inner bound is
+#: calibrated for the interactive tier; a slow-but-healthy provider rung
+#: (deepseek-v4-pro thinking latency) routinely exceeds it — without this
+#: scaling the async tier's 300s budget cannot rescue the very turns it
+#: exists for (live 2026-09-22: continuations died at exactly dur=30s with
+#: "edit planner could not complete" while the fleet served other calls).
+_ASYNC_EDIT_PLAN_TIMEOUT_SECONDS = float(
+    os.getenv("ATOM_ASYNC_EDIT_PLAN_TIMEOUT", "150") or 150)
+
 #: Outcome vocabulary (metadata_json.continuation.outcome). Deliberately
 #: distinct: "awaiting_approval" is a draft ready for review, NOT a
 #: completion; "already_applied" and "conflict" never re-apply.
@@ -735,6 +744,7 @@ async def run_canvas_edit_continuation(
         shared_tool_state=blackboard,
         operation_id=cont.continuation_id,
         expected_prior_audit_id=expected_prior,
+        edit_plan_timeout=_ASYNC_EDIT_PLAN_TIMEOUT_SECONDS,
     )
     if not response:
         return OUTCOME_FAILED, (
