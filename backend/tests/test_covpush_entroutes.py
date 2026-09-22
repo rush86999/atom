@@ -44,6 +44,7 @@ from core.models import (
     Workspace,
 )
 
+from core.security.rbac import require_role  # moved here in 62a17e7f2 (RBAC batch 2)
 from api.enterprise_auth_endpoints import (
     ChangePasswordRequest,
     UserLogin,
@@ -51,7 +52,6 @@ from api.enterprise_auth_endpoints import (
     _verify_enterprise_credentials,
     _verify_enterprise_credentials_new,
     require_permission,
-    require_role,
     router as auth_router,
 )
 from api.social_media_routes import (
@@ -509,20 +509,33 @@ class TestTestAuthAndDeps:
         assert resp.status_code == 401
 
     async def test_require_role_allowed(self):
-        @require_role(["admin", "member"])
-        async def handler(current_user):
-            return current_user
+        """2026-09-22: require_role moved to core.security.rbac with a
+        HIERARCHICAL contract — one UserRole minimum; the checker reads
+        ``current_user.role`` and passes at-or-above that level."""
+        from core.security.rbac import require_role as _rr
+        from core.models import UserRole
 
-        result = await handler(current_user={"roles": ["member"]})
-        assert result["roles"] == ["member"]
+        # require_role(...) IS the FastAPI dependency (never a decorator):
+        # call the returned checker with an explicit user.
+        checker = _rr(UserRole.MEMBER)
+
+        class _User:
+            role = UserRole.MEMBER
+            id = "u-test"
+        result = await checker(current_user=_User())
+        assert result.role == UserRole.MEMBER
 
     async def test_require_role_denied(self):
-        @require_role(["admin"])
-        async def handler(current_user):
-            return current_user
+        from core.security.rbac import require_role as _rr
+        from core.models import UserRole
 
+        checker = _rr(UserRole.ADMIN)
+
+        class _User:
+            role = UserRole.MEMBER
+            id = "u-test"
         with pytest.raises(Exception):
-            await handler(current_user={"roles": ["member"]})
+            await checker(current_user=_User())
 
     async def test_require_permission_all_wildcard(self):
         @require_permission("social_media_post")
@@ -622,6 +635,12 @@ class TestVerifyEnterpriseCredentialsHelpers:
 
 
 class TestWorkflowDebuggingRoutes:
+    @pytest.fixture(autouse=True)
+    def _elevate_to_team_lead(self, auth_user):
+        """RBAC batch 2 (62a17e7f2) requires workflow:manage for
+        breakpoint routes — team_lead holds it; member no longer does."""
+        auth_user.role = "team_lead"
+        yield
     def _create_session(self, auth_user_client, workflow_id="wf-1", session_name=None):
         payload = {"workflow_id": workflow_id}
         if session_name:
@@ -741,7 +760,8 @@ class TestWorkflowDebuggingRoutes:
             "hit_limit": 3,
             "log_message": "hit",
         })
-        assert resp.status_code == 200
+        assert resp.status_code == 200, (
+            f"status={resp.status_code} body={resp.text[:300]}")
         bp = resp.json()
         assert bp["node_id"] == "node-a"
         assert bp["is_active"] is True
