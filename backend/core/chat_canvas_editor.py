@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 from pydantic import BaseModel
@@ -794,6 +795,12 @@ class FreshDataResult(NamedTuple):
     needed: bool
     ok: bool
     block: str = ""
+    # 2026-09-22: distinguishes a planner-level OFF-REQUEST decline (the
+    # planned lookup did not address the current request, so nothing ran)
+    # from a genuine lookup failure. Both decline the edit, but the reply
+    # must not tell the user a lookup "failed" when none executed — that
+    # false report is the live incident's second defect.
+    declined_irrelevant: bool = False
 
 
 async def fetch_fresh_data_section(
@@ -1002,7 +1009,8 @@ async def fetch_fresh_data_section(
                 f"planned lookup {plan.service}.{plan.intent} "
                 f"{plan.query!r} does not address the current request — "
                 "not executed; data-dependent edit declines")
-            return FreshDataResult("", True, False)
+            return FreshDataResult(
+                "", True, False, declined_irrelevant=True)
 
         await _record(
             "tool_planner",
@@ -1113,6 +1121,118 @@ def canvas_no_edit_note(evidence_unavailable: bool) -> str:
         "you changed, fixed, updated or reformatted the canvas; state plainly "
         "that nothing was changed and invite the user to retry."
     )
+
+
+class CanvasEvidenceStatus(str, Enum):
+    """The ONE typed outcome channel for a turn's canvas-edit evidence leg.
+
+    Replaces the former independent booleans (``canvas_evidence_unavailable``
+    and the OR-ed gate rejection): separate bools allowed contradictory states
+    and conflated "evidence was judged unrelated" with "the lookup failed" —
+    which is how the live 2026-09-22 incident shipped a false "a required
+    live-data lookup failed" reply after a SUCCESSFUL mailbox search.
+
+    OK                  — evidence stands; nothing to disclaim.
+    PLANNER_UNAVAILABLE — edit planning failed/timeout; no lookup conclusion.
+    LOOKUP_FAILED       — a live-data need existed and the lookup failed.
+    FETCH_DECLINED      — the planned lookup did not address the request, so
+                          NO lookup ran (never report one as failed).
+    RELEVANCE_UNPROVEN  — evidence was retrieved but could not be confirmed to
+                          address the request; withheld, retrieval outcome
+                          NOT characterized.
+    MISMATCH            — evidence provenance traces OUTSIDE the resolved
+                          lineage (a different request); withheld, retrieval
+                          outcome NOT characterized.
+    """
+
+    OK = "ok"
+    PLANNER_UNAVAILABLE = "planner_unavailable"
+    LOOKUP_FAILED = "lookup_failed"
+    FETCH_DECLINED = "fetch_declined"
+    RELEVANCE_UNPROVEN = "relevance_unproven"
+    MISMATCH = "mismatch"
+
+
+def canvas_evidence_status(
+    shared_tool: Optional[Dict[str, Any]], gate_relevance: str = "addresses"
+) -> CanvasEvidenceStatus:
+    """The ONLY place turn flags become a CanvasEvidenceStatus.
+
+    Explicit precedence, so conflicting blackboard flags resolve by rule
+    instead of by whichever boolean the caller OR-ed in:
+
+    1. PLANNER_UNAVAILABLE (planning down — its note also forbids claiming a
+       search failed merely because edit planning failed, so it outranks the
+       failure flag that is set alongside it);
+    2. LOOKUP_FAILED;
+    3. FETCH_DECLINED;
+    4. gate verdict: MISMATCH, then RELEVANCE_UNPROVEN (a non-``addresses``
+       gate verdict cannot outrank a genuine retrieval failure — an unrelated
+       block does not make a failed lookup a success);
+    5. OK.
+    """
+    shared = shared_tool or {}
+    if shared.get("canvas_planning_unavailable"):
+        return CanvasEvidenceStatus.PLANNER_UNAVAILABLE
+    if shared.get("canvas_evidence_unavailable"):
+        return CanvasEvidenceStatus.LOOKUP_FAILED
+    if shared.get("canvas_evidence_declined"):
+        return CanvasEvidenceStatus.FETCH_DECLINED
+    if gate_relevance == "mismatch":
+        return CanvasEvidenceStatus.MISMATCH
+    if gate_relevance == "unproven":
+        return CanvasEvidenceStatus.RELEVANCE_UNPROVEN
+    return CanvasEvidenceStatus.OK
+
+
+def canvas_evidence_note(status: CanvasEvidenceStatus) -> str:
+    """The system directive for each non-OK status, in one vocabulary.
+
+    Withheld statuses (RELEVANCE_UNPROVEN / MISMATCH) deliberately make NO
+    retrieval-outcome claim: a nonempty rejected block may be partial, stale,
+    or an error payload — uncertainty stays uncertainty. Accepts the enum or
+    its string value."""
+    if not isinstance(status, CanvasEvidenceStatus):
+        status = CanvasEvidenceStatus(str(status))
+    if status is CanvasEvidenceStatus.OK:
+        return ""
+    if status is CanvasEvidenceStatus.PLANNER_UNAVAILABLE:
+        return (
+            "The canvas edit planner was unavailable. NO CANVAS EDIT OR "
+            "ACTION WAS APPLIED. Answer the user's information request "
+            "from the retrieved evidence normally. If they requested a "
+            "change, explain that it was not applied. Do not claim a "
+            "search failed merely because edit planning failed."
+        )
+    if status is CanvasEvidenceStatus.LOOKUP_FAILED:
+        return canvas_no_edit_note(True)
+    if status is CanvasEvidenceStatus.FETCH_DECLINED:
+        return (
+            "NO CANVAS EDIT WAS APPLIED THIS TURN — no live-data lookup ran "
+            "for this request (the planned lookup did not address it), so "
+            "the open canvas is unchanged. Do NOT claim or imply that you "
+            "changed the canvas, and do NOT report a lookup failure — none "
+            "ran. If the user asked for a change, say plainly that it was "
+            "not applied."
+        )
+    if status is CanvasEvidenceStatus.RELEVANCE_UNPROVEN:
+        return (
+            "The evidence retrieved this turn could not be confirmed to "
+            "address the current request and was WITHHELD from this reply. "
+            "It is NOT established whether the lookup succeeded or failed — "
+            "do NOT characterize it either way, and do NOT answer from the "
+            "withheld content. Say the retrieved results could not be "
+            "matched to this request and offer to refine the search."
+        )
+    if status is CanvasEvidenceStatus.MISMATCH:
+        return (
+            "The evidence retrieved this turn traces to a DIFFERENT request "
+            "than the current one and was WITHHELD. Do NOT answer from it, "
+            "and do not characterize the lookup as failed or succeeded; say "
+            "the retrieved material belonged to another request and offer "
+            "to run the current one."
+        )
+    return ""
 
 
 async def plan_canvas_edit(

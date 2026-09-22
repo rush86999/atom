@@ -348,3 +348,43 @@ def conversation_sources_block(history: List[Dict[str, Any]]) -> str:
             "as already found."
         )
     return " ".join(parts)
+
+
+def pending_mail_handles_block(handles: List[Dict[str, Any]]) -> str:
+    """Planner-prompt block for mailbox messages located but NOT yet read in
+    full (2026-09-22). Handles arrive STRUCTURED (persisted per-turn result
+    metadata, already topic-isolated by the caller) — never parsed from reply
+    prose, so an email body mentioning "message_id:" cannot inject a handle.
+
+    The instruction is id-directed: reading by id fetches EXACTLY the
+    unresolved messages with a larger per-body budget, instead of re-running
+    the search and hoping the same hits rank top again. Handles stay pending
+    until a read completes IN FULL (excerpts remain pending)."""
+    clean: List[Dict[str, Any]] = []
+    seen: set = set()
+    for h in handles or []:
+        if not isinstance(h, dict) or not h.get("id"):
+            continue
+        hid = str(h["id"])
+        if hid in seen:
+            continue
+        seen.add(hid)
+        clean.append(h)
+        if len(clean) >= 8:
+            break
+    if not clean:
+        return ""
+    rendered = []
+    for h in clean:
+        subject = str(h.get("subject") or "").strip() or "(no subject)"
+        origin = str(h.get("origin_query") or "").strip()
+        suffix = f" (found by: {origin[:60]})" if origin else ""
+        rendered.append(f'"{subject}"{suffix} — message_id: {h["id"]}')
+    return (
+        "MAIL MESSAGES LOCATED EARLIER BUT NOT YET READ IN FULL: "
+        + "; ".join(rendered)
+        + ". These are real messages this conversation found; their FULL "
+        "bodies have NOT been read, so never cite their contents. If the "
+        "current request needs them, plan outlook with intent=read and the "
+        "message_id in the query — that reads exactly those messages in full."
+    )

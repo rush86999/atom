@@ -37,7 +37,7 @@ from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, PrivateAttr, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -479,6 +479,10 @@ Rules:
   forwarded thread ("open that email, get the full thread below the
   signature" → outlook read — its search already carries full bodies for
   the top hits; read extends that to the rest and to longer bodies).
+  When earlier evidence lists `message_id:` values for messages NOT yet read
+  in full, plan outlook read with those ids in the query — that reads exactly
+  those messages (complete, with a much larger per-body budget) instead of
+  re-running the search and hoping the same hits rank top again.
   For the `documents` service, OPENING a cited thread/message is intent
   `cat` with the cited VFS path as the whole query
   ('knowledge/conversations/<id>/content.lines' — the 'full:' path from an
@@ -720,6 +724,14 @@ class ToolPlan(BaseModel):
     # consumers then fall back to the raw verdict.
     relevance_verdict: Optional[str] = None
     relevance_basis: Optional[str] = None
+    # STRUCTURED RESULT METADATA (2026-09-22): unread-mail handles and
+    # per-ID read outcomes the executor reports back. A PrivateAttr, NOT a
+    # field — the planning LLM can never set it (it is not in the structured
+    # schema), and the orchestrator reads it after execute_tool_plan to
+    # persist conversation mail handles. Deliberately structured: handles are
+    # NEVER re-parsed out of the rendered block, whose text embeds email
+    # bodies (a body containing "message_id:" prose would poison parsing).
+    _result_meta: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     @field_validator("mentioned_date", mode="before")
     @classmethod
@@ -4083,6 +4095,22 @@ _OUTLOOK_SEARCH_HYDRATE = 3     # full bodies fetched on every search
 _OUTLOOK_READ_HYDRATE = 4      # intent=read: more hits, larger caps
 _OUTLOOK_SEARCH_BODY_CAP = 3500
 _OUTLOOK_READ_BODY_CAP = 5000
+# EXPLICIT id-directed reads (2026-09-22): the user/planner asked for THESE
+# messages by id, so a much larger per-body budget applies than for search
+# listings — the middle of a long quoted thread (product links, prices) is
+# exactly what an id-directed read is FOR. Truncation is still marked.
+_OUTLOOK_DIRECT_READ_BODY_CAP = 20000
+# Per-ID fetch waves: bounded batches with a real per-wave timeout. An email
+# body can take seconds; a slow wave must not eat the whole leg budget, and
+# must not lose the outcomes of IDs that DID finish (asyncio.wait on
+# individual tasks, never wait_for around a gather).
+_OUTLOOK_READ_WAVE = 6
+#: A Graph message id is 60+ base64url chars and MAY contain '=' padding.
+#: The renderer emits ids verbatim; this parser only matches tokens of that
+#: shape and then validates them against conversation handles or the user's
+#: own message — an unrelated long token fails validation, never a fetch.
+_MAIL_ID_TOKEN_RE = re.compile(r"[A-Za-z0-9_\-=/]{40,}")
+_MAIL_ID_STRIP = ".,;:)\"'»"
 # Ingested-store listing lines: how many of the top ranked rows carry a
 # FULL body, and the per-body cap (head+tail). The store is the
 # deterministic source Graph's relevance ranking keeps failing to be.
@@ -4121,11 +4149,15 @@ _INGESTED_BODY_CAP_FULL = int(
 _GRAPH_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{60,}$")
 
 
-def _graph_body_text(msg: Dict[str, Any], cap: int) -> str:
-    """Plain text of a full Graph message, head+tail capped. Long bodies
-    keep BOTH ends: quoted originals sit BELOW the newest text in
+def _graph_body_text_capped(msg: Dict[str, Any], cap: int) -> "tuple[str, bool]":
+    """(plain text, truncated) of a full Graph message, head+tail capped.
+
+    Long bodies keep BOTH ends: quoted originals sit BELOW the newest text in
     top-posted replies, so a head-only clip would re-create the exact
-    blindness the hydration exists to fix. Never raises."""
+    blindness the hydration exists to fix. The truncated flag is HONEST
+    rendering state — a capped body is an EXCERPT, never a complete fetch,
+    and callers must mark it as such (the 2026-09-22 guardrail: lineage
+    acceptance establishes relevance, never completeness). Never raises."""
     from core.communication_styling import html_to_text
 
     body = (msg or {}).get("body") or {}
@@ -4140,15 +4172,25 @@ def _graph_body_text(msg: Dict[str, Any], cap: int) -> str:
             + "\n[…middle of this quoted thread elided…]\n"
             + content[-(cap - head):]
         )
-    return content
+        return content, True
+    return content, False
+
+
+def _graph_body_text(msg: Dict[str, Any], cap: int) -> str:
+    """Plain text only — compatibility wrapper over
+    :func:`_graph_body_text_capped` for callers that don't need the
+    truncation flag."""
+    text, _truncated = _graph_body_text_capped(msg, cap)
+    return text
 
 
 async def _outlook_full_bodies(
     user_id: Optional[str], emails: List[Dict[str, Any]], top_n: int, cap: int
-) -> Dict[str, str]:
-    """id → plain-text full body for the top-ranked search hits, fetched
-    with the documented per-message GET. Fetch failures degrade that
-    message to a preview line; the block's tail hint offers intent=read."""
+) -> Dict[str, Dict[str, Any]]:
+    """id → {"text", "truncated", "outcome"} for the top-ranked search hits,
+    fetched with the documented per-message GET. Fetch failures degrade that
+    message to a preview line (which carries its message_id, so the read can
+    be retried by id); the block's tail reports what remains unread."""
     from integrations.outlook_service import outlook_service
 
     async def _one(eid: str):
@@ -4159,13 +4201,146 @@ async def _outlook_full_bodies(
                 f"outlook body hydration failed (id {str(eid)[:24]}…): {body_err}"
             )
             return eid, None
-        text = _graph_body_text(msg, cap)
-        return eid, (text or None)
+        text, truncated = _graph_body_text_capped(msg, cap)
+        return eid, ({"text": text, "truncated": truncated} if text else None)
 
     pairs = await asyncio.gather(
         *(_one(e["id"]) for e in emails[:top_n] if e.get("id"))
     )
-    return {eid: text for eid, text in pairs if text}
+    return {eid: meta for eid, meta in pairs if meta}
+
+
+def _extract_mail_ids(query: str) -> List[str]:
+    """Message-id tokens in a read query, order-preserving, deduped.
+
+    The charset INCLUDES '=' (Graph ids carry base64 padding — live 2026-09-22
+    observation) and '/'. Trailing punctuation is stripped so prose around an
+    id never corrupts it. Shape alone does NOT authorize a fetch — callers
+    validate against conversation handles or the user's own message."""
+    ids: List[str] = []
+    for m in _MAIL_ID_TOKEN_RE.finditer(query or ""):
+        token = m.group(0).rstrip(_MAIL_ID_STRIP)
+        if token and token not in ids:
+            ids.append(token)
+    return ids
+
+
+def _validate_mail_ids(
+    ids: List[str], context: Optional[Dict[str, Any]]
+) -> "tuple[List[str], Dict[str, str]]":
+    """Split ids into (allowed, rejected{id: reason}).
+
+    Enforced only when the caller identifies the chat lane — ``context``
+    carrying the user's message or the conversation's known handles. Bare
+    harnesses (context={} / None) keep the legacy accept behaviour, which the
+    dedicated validation tests cover separately. Allowed = conversation
+    handles (pending ∪ read) ∪ ids verbatim in the CURRENT user message (a
+    user-pasted id is explicit authorization, and the provider call stays
+    user-scoped regardless)."""
+    if not ids:
+        return [], {}
+    message = str((context or {}).get("message") or "")
+    known = (context or {}).get("known_mail_handles") or []
+    if not message and not known:
+        return list(ids), {}
+    allowed_set = {str(h.get("id") or h) for h in known if isinstance(h, dict)} | {
+        str(h) for h in known if not isinstance(h, dict)
+    }
+    allowed: List[str] = []
+    rejected: Dict[str, str] = {}
+    for eid in ids:
+        if eid in allowed_set or eid in message:
+            allowed.append(eid)
+        else:
+            rejected[eid] = (
+                "not among this conversation's message handles and not in "
+                "your message — not fetched")
+    return allowed, rejected
+
+
+async def _outlook_read_by_ids(
+    user_id: Optional[str],
+    ids: List[str],
+    cap: int,
+    *,
+    budget_seconds: float = 20.0,
+    context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Per-ID direct reads with honest, structured outcomes.
+
+    Validation happens BEFORE any provider call (rejected ids cost nothing).
+    Fetches run in bounded WAVES of :data:`_OUTLOOK_READ_WAVE`: each ID is an
+    individual task writing its outcome into a shared dict, awaited with
+    ``asyncio.wait`` under a REAL per-wave timeout — a slow wave cannot eat
+    the leg budget, and the outcomes of IDs that finished before the timeout
+    survive cancellation (wait_for around a gather would discard them).
+
+    Outcome vocabulary (structured, never inferred from prose):
+      full | excerpt | failed | timed_out (started, didn't finish) |
+      not_attempted (never scheduled — budget) | rejected (validation)."""
+    from integrations.outlook_service import outlook_service
+
+    outcomes: Dict[str, Dict[str, Any]] = {}
+    allowed, rejected = _validate_mail_ids(ids, context)
+    for eid, reason in rejected.items():
+        outcomes[eid] = {"outcome": "rejected", "text": "", "detail": reason}
+
+    deduped: List[str] = []
+    for eid in allowed:
+        if eid not in deduped and eid not in outcomes:
+            deduped.append(eid)
+
+    async def _one(eid: str) -> "tuple[str, Dict[str, Any]]":
+        try:
+            msg = await outlook_service.get_email_by_id(
+                user_id=user_id, email_id=eid)
+        except Exception as fetch_err:  # noqa: BLE001 — per-ID fault isolation
+            return eid, {"outcome": "failed", "text": "",
+                         "detail": f"fetch error: {str(fetch_err)[:160]}"}
+        if not msg:
+            return eid, {"outcome": "failed", "text": "",
+                         "detail": "message not retrievable (deleted, "
+                                   "moved, or no access)"}
+        text, truncated = _graph_body_text_capped(msg, cap)
+        if not text:
+            return eid, {"outcome": "failed", "text": "",
+                         "detail": "message retrieved but body empty"}
+        return eid, {
+            "outcome": "excerpt" if truncated else "full",
+            "text": text, "detail": "",
+        }
+
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + max(1.0, float(budget_seconds))
+    pending = list(deduped)
+    while pending:
+        wave, pending = pending[:_OUTLOOK_READ_WAVE], pending[_OUTLOOK_READ_WAVE:]
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            for eid in wave:
+                outcomes[eid] = {
+                    "outcome": "not_attempted", "text": "",
+                    "detail": "budget exhausted before this fetch started"}
+            continue
+        tasks = {eid: asyncio.ensure_future(_one(eid)) for eid in wave}
+        done, unfinished = await asyncio.wait(
+            tasks.values(), timeout=min(remaining, 15.0))
+        for t in unfinished:
+            t.cancel()
+        if unfinished:
+            # Reap cancellations so nothing leaks; outcomes already written
+            # by finished tasks are unaffected.
+            await asyncio.gather(*unfinished, return_exceptions=True)
+        for eid, task in tasks.items():
+            if task in done and not task.cancelled() and task.exception() is None:
+                outcomes[eid] = task.result()[1]
+            elif eid not in outcomes:
+                # The task was STARTED (scheduled + fetch begun) — a timeout,
+                # never a "not attempted".
+                outcomes[eid] = {
+                    "outcome": "timed_out", "text": "",
+                    "detail": "fetch did not finish within the wave budget"}
+    return outcomes
 
 
 _HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
@@ -6236,29 +6411,54 @@ async def execute_tool_plan(
             tool_label = "outlook.read_emails" if read_mode else "outlook.search_emails"
             body_cap = _OUTLOOK_READ_BODY_CAP if read_mode else _OUTLOOK_SEARCH_BODY_CAP
 
-            # intent=read with a bare Graph message id fetches that message
-            # directly: an id is not searchable text (the per-term search
-            # below would 400 or empty the result set on it).
-            if read_mode and _GRAPH_ID_RE.match(query):
-                direct = await outlook_service.get_email_by_id(
-                    user_id=user_id, email_id=query
+            # intent=read with Graph message id(s) in the query fetches them
+            # DIRECTLY: an id is not searchable text (the per-term search
+            # below would 400 or empty the result set on it). Multiple ids
+            # are fetched in bounded waves with per-ID outcomes, so a partial
+            # failure names exactly which messages need a retry.
+            _query_ids = _extract_mail_ids(query) if read_mode else []
+            if _query_ids:
+                outcomes = await _outlook_read_by_ids(
+                    user_id, _query_ids, _OUTLOOK_DIRECT_READ_BODY_CAP,
+                    budget_seconds=20.0, context=context,
                 )
-                if not direct:
-                    return _with_grounding(
-                        f"LIVE TOOL RESULTS (outlook.read_emails, id='{query[:40]}…'): "
-                        "message not retrievable (deleted, moved, or no access)."
-                    )
-                direct_from = (
-                    ((direct.get("from_field") or {}).get("emailAddress") or {}).get("address")
-                    or "?"
-                )
+                lines: List[str] = []
+                meta_outcomes: List[Dict[str, Any]] = []
+                for eid in _query_ids:
+                    res = outcomes.get(eid) or {
+                        "outcome": "not_attempted", "text": "",
+                        "detail": "not scheduled"}
+                    outcome = res["outcome"]
+                    meta_outcomes.append({"id": eid, "outcome": outcome})
+                    short_id = eid[:24] + "…"
+                    if outcome in ("full", "excerpt"):
+                        mark = ("FULL BODY" if outcome == "full"
+                                else "FULL BODY (EXCERPT — middle elided)")
+                        lines.append(
+                            f"- READ OK ({mark}) | message_id: {eid}\n{res['text']}")
+                    elif outcome == "failed":
+                        lines.append(
+                            f"- READ FAILED | message_id: {short_id}… — "
+                            f"{res.get('detail') or 'not retrievable'}")
+                    elif outcome == "rejected":
+                        lines.append(
+                            f"- READ REJECTED | {short_id} — {res.get('detail')}")
+                    elif outcome == "timed_out":
+                        lines.append(
+                            f"- READ TIMED OUT | message_id: {short_id} — the "
+                            "fetch started but did not finish; plan outlook "
+                            "read again with this id to retry")
+                    else:
+                        lines.append(
+                            f"- READ NOT ATTEMPTED | message_id: {short_id} — "
+                            f"{res.get('detail') or 'budget exhausted'}")
+                plan._result_meta["read_outcomes"] = meta_outcomes
+                _ok = sum(
+                    1 for m in meta_outcomes if m["outcome"] in ("full", "excerpt"))
                 return _with_grounding(
-                    f"LIVE TOOL RESULTS (outlook.read_emails, id='{query[:40]}…') — "
-                    f"FULL body; use it to answer:\n"
-                    f"- From: {direct_from} | "
-                    f"{str(direct.get('subject') or '(no subject)')[:120]} | "
-                    f"received: {str(direct.get('received_date_time'))[:19]}\n"
-                    + _graph_body_text(direct, body_cap)
+                    f"LIVE TOOL RESULTS (outlook.read_emails, query='{query[:60]}') — "
+                    f"direct reads: {_ok}/{len(_query_ids)} retrieved; use the "
+                    "bodies to answer:\n" + "\n".join(lines)
                 )
 
             tokens = [
@@ -6487,17 +6687,29 @@ async def execute_tool_plan(
                     ((e.get("from_field") or {}).get("emailAddress") or {}).get("address")
                     or "?"
                 )
+                eid = e.get("id")
                 head = (
                     f"- From: {frm} | {str(e.get('subject') or '(no subject)')[:120]} | "
                     f"received: {str(e.get('received_date_time'))[:19]}"
                 )
-                text = full_bodies.get(e.get("id"))
+                meta = full_bodies.get(eid) or {}
+                text = meta.get("text")
                 if text:
-                    return head + " | FULL BODY:\n" + text
-                # Hydration miss: keep the Graph preview (≤255 chars) so the
-                # line still says something, and the tail hint below flags
-                # the read-intent follow-up.
-                return head + f" | preview: {str(e.get('body_preview') or '')[:200]}"
+                    # Truncation is RENDERED, never papered over: an excerpt
+                    # says so (the guardrail — lineage/relevance never
+                    # upgrades completeness).
+                    mark = ":" if not meta.get("truncated") else (
+                        " (EXCERPT — middle elided):")
+                    return (head + f" | FULL BODY{mark}\n" + text
+                            + f"\n(message_id: {eid})")
+                # Not read in full: keep the Graph preview (≤255 chars) so
+                # the line still says something, and label the EXACT id so a
+                # follow-up can read THIS message directly (structured
+                # handles travel via plan result metadata; the label here is
+                # for the reply model and the user).
+                return head + (
+                    f" | preview: {str(e.get('body_preview') or '')[:200]}"
+                    f" | message_id: {eid}")
 
             # EXACT-FIGURE pointer: the deterministic store lines match the
             # query's amount verbatim (with MATCH windows and '--- Attachments
@@ -6519,11 +6731,50 @@ async def execute_tool_plan(
             graph_listing = "\n".join(_graph_line(e) for e in emails[:6])
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
-            if emails and len(full_bodies) < min(len(emails), 6):
+            # HONEST COMPLETION STATE (2026-09-22): rendered hits without a
+            # full body are NOT read. Structured handles travel via plan
+            # result metadata (never parsed back out of this prose — bodies
+            # can contain "message_id:" text); the labels here let the reply
+            # model offer the reads and the user act on them.
+            _unread_mail = [
+                {"id": e.get("id"), "subject": str(e.get("subject") or "")[:120],
+                 "origin_query": query}
+                for e in emails[:6] if e.get("id") and e.get("id") not in full_bodies
+            ]
+            if _unread_mail:
                 listing += (
-                    "\n(preview-only lines above: plan outlook again with "
-                    "intent=read and the same query to pull those full bodies)"
+                    f"\n({len(_unread_mail)} of the retrieved candidates are "
+                    "NOT read in full — preview-only above. Do NOT claim you "
+                    "reviewed every message. Read any of them in full by "
+                    "planning outlook again with intent=read and that "
+                    "message's `message_id:` in the query.)"
                 )
+            _has_excerpt = any(
+                (full_bodies.get(e.get("id")) or {}).get("truncated")
+                for e in emails[:6])
+            if _has_excerpt:
+                listing += (
+                    "\n(EXCERPT bodies above are truncated. The omitted "
+                    "middle IS retrievable: plan outlook ingest with that "
+                    "message's message_id to store the COMPLETE thread in "
+                    "memory, then documents.read its knowledge/conversations "
+                    "path with start_line=/max_lines= for the missing "
+                    "section.)"
+                )
+            if _unread_mail:
+                plan._result_meta["unread_mail"] = _unread_mail
+            # Hydrated hits were READ this turn (full or excerpt): record the
+            # outcome so the durable handle store flips them out of pending —
+            # otherwise a message read via a later search's hydration stays
+            # advertised as unread forever.
+            _read_now = [
+                {"id": eid, "outcome": "excerpt" if meta.get("truncated")
+                 else "full"}
+                for e in emails[:6]
+                if (eid := e.get("id")) and (meta := full_bodies.get(eid))
+            ]
+            if _read_now:
+                plan._result_meta["read_outcomes"] = _read_now
             listing += ingest_note
             if read_mode:
                 return _with_grounding(

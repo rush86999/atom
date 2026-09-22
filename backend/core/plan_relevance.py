@@ -16,7 +16,7 @@ documents.read can carry their target in kwargs rather than the query.
 """
 
 import re
-from typing import List, Set
+from typing import Any, Dict, List, NamedTuple, Optional, Set
 
 #: Pure function words only — content words (price, scorecard, vendor) must
 #: survive or the overlap test has nothing to overlap.
@@ -36,6 +36,10 @@ _STOPWORDS = frozenset({
 _TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9._+\-]*")
 _QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{3,80})[\"'“”‘’]")
 _ALLCAPS_RE = re.compile(r"\b[A-Z]{2,}\d*\b")
+#: Opaque message-id shape (Graph ids are 40+ base64url chars, may carry '='
+#: padding). An id NAMES its target explicitly — it is not subject vocabulary,
+#: so lexical subject matching never applies to an id-directed lookup.
+_MAIL_ID_SHAPE_RE = re.compile(r"[A-Za-z0-9_\-=/]{40,}")
 
 
 def content_tokens(text: str) -> Set[str]:
@@ -72,7 +76,9 @@ def quoted_phrases(text: str) -> List[str]:
             for m in _QUOTED_RE.finditer(text or "")]
 
 
-def relevance_verdict(query: str, message: str) -> str:
+def relevance_verdict(
+    query: str, message: str, history: Optional[List[Dict[str, Any]]] = None
+) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` (fail-open) for a
     planned lookup query against the current user message.
 
@@ -94,26 +100,55 @@ def relevance_verdict(query: str, message: str) -> str:
     3. Ambiguous lexical signal (some overlap, not enough) is ``unknown`` rather
        than ``irrelevant``: insufficient evidence to accept is not proof of
        mismatch.
+
+    2026-09-22 (request-reference resolution): when ``history`` is supplied the
+    caller gets referent resolution first (:func:`resolve_request_reference`).
+    A RESOLVED approval/referential ("yes go ahead") is judged against the
+    resolved TOPIC — current message plus the exchange it points at — and the
+    referential shortcut no longer fires, because the referent is no longer
+    missing; the shortcut stays in force for UNRESOLVED/AMBIGUOUS/DIRECT
+    messages. An UNRESOLVED or AMBIGUOUS approval can never be declined
+    lexically (the terminal ``irrelevant`` becomes ``unknown``): a bare
+    "yes go ahead" names no subject, and lexical absence is not proof of
+    mismatch. Without ``history`` the behaviour is byte-identical to the
+    pre-resolution rules.
     """
     if not query or not str(query).strip():
         return "unknown"
+    # An id-directed lookup names its target EXPLICITLY (opaque message ids
+    # carried from conversation handles). Subject-word overlap cannot judge
+    # it and must never decline it — this is the completion flow's whole
+    # point ("yes go ahead" → read the unresolved messages by id).
+    if _MAIL_ID_SHAPE_RE.search(str(query)):
+        return "relevant"
+    # Resolution ALWAYS runs: with no history an approval/referential turn is
+    # UNRESOLVED (never lexically declined — that is the 2026-09-22 incident
+    # shape), and a substantive message resolves to DIRECT with legacy
+    # behaviour byte-identical.
+    ref = resolve_request_reference(message, history or [])
+    if ref.kind in (REF_UNRESOLVED, REF_AMBIGUOUS, REF_RESOLVED):
+        judge_text = ref.topic_text
+    else:
+        judge_text = message
     q_norm = " ".join(str(query).lower().split())
-    msg_tokens = content_tokens(message)
+    msg_tokens = content_tokens(judge_text)
     if not msg_tokens:
         return "unknown"
     query_tokens = content_tokens(q_norm)
 
-    for phrase in quoted_phrases(message):
+    for phrase in quoted_phrases(judge_text):
         if phrase in q_norm:
             return "relevant"
 
-    strong_hits = strong_tokens(message) & query_tokens
+    strong_hits = strong_tokens(judge_text) & query_tokens
     overlap = msg_tokens & query_tokens
 
     # (1) A referential message cannot be judged lexically. Checked BEFORE the
     # identifier shortcut so an anaphoric ask is never declined for lacking
-    # terms it resolves elsewhere.
-    if _REFERENTIAL_RE.search(str(message or "")):
+    # terms it resolves elsewhere. A RESOLVED reference has already had its
+    # referent appended to the judged text, so the shortcut is intentionally
+    # skipped there — the missing referent is missing no more.
+    if ref.kind != REF_RESOLVED and _REFERENTIAL_RE.search(str(message or "")):
         return "unknown"
 
     # (2) An identifier must be corroborated by a content word.
@@ -144,7 +179,14 @@ def relevance_verdict(query: str, message: str) -> str:
     # what identifies the message — the quoted-body-to-subject mapping the planner
     # already exempts from its own lexical check. Digit runs are compared, not the
     # whole decorated token, so "5,350.00" and "5350" agree.
-    if _digit_runs(message) & _digit_runs(query):
+    if _digit_runs(judge_text) & _digit_runs(query):
+        return "unknown"
+    # An approval/referential turn whose referent could not be resolved names no
+    # subject of its own — lexical absence is not proof of mismatch (live
+    # 2026-09-22: "yes go ahead" tokenized to {ahead}, zero overlap with the
+    # machinery query, hard-"irrelevant", and the lookup was declined). Hand it
+    # back to the caller (inspect/replan/clarify), never decline.
+    if ref.kind in (REF_UNRESOLVED, REF_AMBIGUOUS):
         return "unknown"
     # NO shared signal at all: the query and the request are about different
     # subjects, which is the one case lexical evidence can settle.
@@ -176,3 +218,347 @@ _REFERENTIAL_RE = re.compile(
     r"|\bas\s+(?:above|before|mentioned)\b",
     re.IGNORECASE,
 )
+
+
+# ---------------------------------------------------------------------------
+# REQUEST-REFERENCE RESOLUTION (2026-09-22)
+# ---------------------------------------------------------------------------
+# Live incident: a mailbox search for "Steve Macisaac machinery requested"
+# SUCCEEDED, but the user's "yes go ahead" follow-up was validated against that
+# bare phrase — tokenized to the single distinctive term "ahead" — so the
+# evidence gate rejected the block, the rejection was reported as "a required
+# live-data lookup failed", and the agent told the user the lookup had failed.
+#
+# This section resolves WHAT a conversational turn points at, so every
+# relevance gate judges the resolved TOPIC instead of the bare follow-up.
+#
+# SCOPE CONTRACT (deliberate, do not widen): the resolver resolves the topic
+# FOR VALIDATION ONLY. It never rewrites what the turn asks the system to DO —
+# the current instruction stays authoritative for execution (query construction,
+# actions, filters). Appending the referent to ``topic_text`` lets lexical gates
+# recognize the subject; it does NOT make them enforce constraints ("excluding
+# the slitter", "only September") — constraint enforcement belongs to the
+# instruction, which downstream consumers keep reading verbatim.
+
+REF_DIRECT = "direct"          # standalone substantive request
+REF_RESOLVED = "resolved"      # approval/referential with a resolvable referent
+REF_UNRESOLVED = "unresolved"  # approval/referential, no active referent
+REF_AMBIGUOUS = "ambiguous"    # referent cannot be uniquely grounded (ordinal etc.)
+
+_REQUEST_REF_WINDOW = 12  # turns inspected, aligned with session_sources._WINDOW
+
+
+class RequestReference(NamedTuple):
+    """What the current turn points at, for the relevance gates.
+
+    kind              — DIRECT | RESOLVED | UNRESOLVED | AMBIGUOUS
+    message           — the raw current turn (never rewritten)
+    topic_text        — text the gates may judge evidence against: the current
+                        message FIRST (authoritative), then the resolved
+                        referent. EMPTY segments are skipped.
+    lineage_requests  — request texts of the allowed provenance: the current
+                        message plus the resolved exchange's request. A block
+                        whose provenance traces here addresses THIS task even
+                        with zero lexical overlap ("yes go ahead" consuming the
+                        offer it approves). Lineage establishes RELEVANCE ONLY —
+                        never freshness, completeness, or success.
+    lineage_turn_indices — positions (in the ``history`` list passed to the
+                        resolver) of the lineage turns; -1 is the current turn.
+    candidates        — human-readable referent options, for clarify prompts.
+    clarify_reason    — "" | no_history | superseded | fulfilled | ungrounded_ordinal | no_topic
+    """
+
+    kind: str
+    message: str
+    topic_text: str
+    lineage_requests: List[str]
+    lineage_turn_indices: List[int]
+    candidates: List[str]
+    clarify_reason: str = ""
+
+
+def _direct_reference(message: str) -> RequestReference:
+    """Reference for callers that pass no history — legacy behaviour."""
+    msg = (message or "").strip()
+    return RequestReference(
+        REF_DIRECT, msg, msg, [msg] if msg else [], [], [], "")
+
+
+# An OFFER is an assistant reply announcing a pending action the user can
+# approve. Markers kept deliberately explicit; the modal forms carry a
+# negation lookahead so "I can't pull that" is not an offer.
+_OFFER_MARKER_RE = re.compile(
+    r"\b(?:want me to|shall i|should i|would you like(?: me to)?|"
+    r"do you want me to|ready to|"
+    r"\bi[\s']*(?:can|could|will|ll)\b(?!['’]?(?:t|not)\b))",
+    re.IGNORECASE,
+)
+
+# Approval-shaped turns: an approval phrase AND (almost) nothing else. A
+# message that carries its own subject ("yes go ahead on the September list")
+# still resolves — its tokens ride along in topic_text — but a QUESTION or a
+# substantive request is its own ask and must never enter the approval path.
+_APPROVAL_PHRASE_RE = re.compile(
+    r"\b(?:yes|yeah|yep|yup|sure|ok|okay|go ahead|proceed|continue|go on|"
+    r"do it|do so|carry on|sounds good|that works|please do|affirmative)\b",
+    re.IGNORECASE,
+)
+_QUESTION_RE = re.compile(r"\bwhat about\b|\bhow about\b", re.IGNORECASE)
+_APPROVAL_VOCABULARY = {
+    "yes", "yeah", "yep", "yup", "sure", "ok", "okay", "go", "ahead",
+    "proceed", "continue", "sounds", "good", "great", "fine", "works",
+    "cool", "affirmative", "do", "it", "that", "one", "please", "thanks",
+    "thank", "carry", "on", "then", "also", "and",
+    # constraint markers: a QUALIFIED approval ("yes, excluding the slitter",
+    # "only September") stays approval-shaped — the qualification tokens ride
+    # into topic_text and the instruction stays authoritative downstream.
+    "excluding", "except", "without", "only", "besides", "minus",
+    "ignoring", "skipping", "regarding", "with",
+}
+
+# Referential WITHOUT a document noun ("read it again", "check them again"):
+# a bare follow-up marker plus a pronoun, or "again" on its own.
+_FOLLOWUP_RE = re.compile(
+    r"\b(?:it|them|that|this)\b[^\n]{0,40}?\bagain\b|\bagain\b",
+    re.IGNORECASE,
+)
+
+_ORDINAL_RE = re.compile(
+    r"\b(the\s+)?(first|second|third|fourth|fifth|last|latest|other|"
+    r"second one|third one)\b(?=\s+(?:one|list|offer|email|message|result))?",
+    re.IGNORECASE,
+)
+_ORDINAL_INDEX = {
+    "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
+    "last": -1, "latest": -1,
+}
+_NUMBERED_ITEM_RE = re.compile(
+    r"(?:^|\n)\s*(\d)[\.\)]\s*([^\n]+)", re.MULTILINE)
+
+
+def _turn_texts(entry: Dict[str, Any]) -> "tuple[str, str]":
+    """(user_text, assistant_text) of one history entry, tolerating legacy
+    string responses and missing halves."""
+    user_text = str((entry or {}).get("message") or "").strip()
+    resp = (entry or {}).get("response")
+    if isinstance(resp, dict):
+        assistant_text = str(resp.get("message") or "").strip()
+    else:
+        assistant_text = str(resp or "").strip()
+    return user_text, assistant_text
+
+
+def _is_substantive_request(text: str) -> bool:
+    """A user turn that starts a NEW exchange: carries its own subject and
+    neither approves nor refers back. Approval/referential shapes are exactly
+    the non-boundary continuations."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _APPROVAL_PHRASE_RE.search(t):
+        return False
+    if _REFERENTIAL_RE.search(t) or _FOLLOWUP_RE.search(t):
+        return False
+    return bool(content_tokens(t))
+
+
+def _is_approval_shaped(message: str) -> bool:
+    """Approval phrase AND little else. Questions are never approvals; a
+    message carrying its own subject stays approval-shaped ONLY when the
+    subject is a single token ("yes go ahead with the September one") — two
+    content tokens mean the turn names its own request and needs no
+    resolution ("ok so what about the price" is a question anyway)."""
+    t = (message or "").strip()
+    if not t or "?" in t or _QUESTION_RE.search(t):
+        return False
+    if not _APPROVAL_PHRASE_RE.search(t):
+        return False
+    remaining = [
+        tok for tok in content_tokens(t) if tok not in _APPROVAL_VOCABULARY
+    ]
+    return len(remaining) <= 1
+
+
+def _is_referential(message: str) -> bool:
+    return bool(
+        _REFERENTIAL_RE.search(message or "") or _FOLLOWUP_RE.search(message or "")
+    )
+
+
+_DELIVERY_WORD_RE = re.compile(
+    r"(?:sent|delivered|shared|attached|forwarded|drafted|created|pulled|"
+    r"exported|uploaded|listed|compiled|completed|done|here)'?(?:s)?",
+    re.IGNORECASE,
+)
+_DELIVERY_BLOCKERS = {
+    "not", "never", "no", "cant", "can't", "cannot", "won't", "wont",
+    "don't", "dont", "didn't", "didnt",
+    "can", "could", "will", "would", "shall", "should", "may", "might",
+    "must", "being", "about",
+}
+
+
+def _delivery_confirmed(text: str) -> bool:
+    """Did an assistant reply DELIVER something (vs offer/announce)?
+
+    Token-scan, not bare substring: the user-pinned failure is "sent" inside
+    "not sent" or "can be sent" deactivating a live offer. A delivery word is
+    confirmed only when no negation and no modality sits within the three
+    tokens before it ("can be sent" → potential, not delivery; "was sent" →
+    delivery; "not sent" → not delivery)."""
+    tokens = re.findall(r"[a-z'’]+", (text or "").lower())
+    for i, tok in enumerate(tokens):
+        if not _DELIVERY_WORD_RE.fullmatch(tok):
+            continue
+        if tok in ("here",):  # "here's/here is" handled by the regex below
+            continue
+        prior = tokens[max(0, i - 3):i]
+        if any(p in _DELIVERY_BLOCKERS for p in prior):
+            continue
+        if "be" in prior and ("to" in prior or any(
+                p in ("can", "could", "will", "would", "shall", "should")
+                for p in prior)):
+            continue
+        return True
+    # "Here's the list you asked for" — delivery by presentation.
+    if re.search(r"\bhere(?:'s|\s+is)\b", (text or ""), re.IGNORECASE):
+        return True
+    return False
+
+
+def _ground_ordinal(message: str, offer_text: str) -> Optional[str]:
+    """Resolve "the second one" against an explicit numbered list in the
+    offer/reply. Returns the item text, or None when the ordinal is
+    ungrounded (the AMBIGUOUS case)."""
+    m = _ORDINAL_RE.search(message or "")
+    if not m:
+        return None
+    word = m.group(2).lower()
+    idx = _ORDINAL_INDEX.get(word)
+    if idx is None:
+        return None
+    items = _NUMBERED_ITEM_RE.findall(offer_text or "")
+    if not items:
+        return None
+    if idx == -1:
+        return items[-1][1].strip()
+    for num, body in items:
+        if int(num) == idx:
+            return body.strip()
+    return None
+
+
+def resolve_request_reference(
+    message: str, history: Optional[List[Dict[str, Any]]] = None
+) -> RequestReference:
+    """Resolve what a conversational turn points at, for the relevance gates.
+
+    ACTIVE-OFFER RULE: the newest offer wins; older offers are inactive by
+    construction. The scan walks newest→oldest and an offer is a candidate
+    only when NOTHING after it supersedes it — a later substantive user
+    message is an exchange boundary (everything before it is a completed
+    exchange), and a delivery-confirmed reply after the offer means the offer
+    was already fulfilled. Both deactivate the candidate; older offers are
+    never resurrected past the boundary, so an old "I can…" can never capture
+    a new approval.
+
+    Referential turns ("read that email again") resolve to the ACTIVE TOPIC —
+    the most recent substantive exchange — without needing an offer marker.
+    Ordinals resolve only against an explicit numbered list in the candidate
+    text; otherwise the reference is AMBIGUOUS (clarify)."""
+    msg = (message or "").strip()
+    entries: List[Dict[str, Any]] = []
+    for h in (history or [])[-_REQUEST_REF_WINDOW:]:
+        if isinstance(h, dict) and not h.get("error"):
+            entries.append(h)
+
+    approval = _is_approval_shaped(msg)
+    referential = _is_referential(msg)
+    if not approval and not referential:
+        return _direct_reference(msg)
+
+    if not entries:
+        return RequestReference(
+            REF_UNRESOLVED, msg, msg, [msg] if msg else [], [], [],
+            "no_history")
+
+    # Newer entries sit closer to the end of the list. Walk newest→oldest.
+    newest_idx = len(entries) - 1
+
+    def _later_superseded_or_fulfilled(j: int) -> "tuple[bool, bool]":
+        superseded = fulfilled = False
+        for later in entries[j + 1:]:
+            if _is_substantive_request(_turn_texts(later)[0]):
+                superseded = True
+            if _delivery_confirmed(_turn_texts(later)[1]):
+                fulfilled = True
+        return superseded, fulfilled
+
+    candidate: Optional[int] = None
+    candidates_text: List[str] = []
+    clarify_reason = ""
+    boundary_reason = ""
+
+    # (1) Approval turns: the newest ACTIVE offer wins. The scan stops at the
+    # first candidate; an exchange boundary (later substantive user message)
+    # or a fulfilled offer stops the scan entirely — older offers are never
+    # resurrected past it, so an old "I can…" can never capture a new
+    # approval.
+    if approval:
+        for j in range(newest_idx, -1, -1):
+            offer_text = _turn_texts(entries[j])[1]
+            if not offer_text or not _OFFER_MARKER_RE.search(offer_text):
+                continue
+            superseded, fulfilled = _later_superseded_or_fulfilled(j)
+            if superseded:
+                boundary_reason = "superseded"
+                break
+            if fulfilled:
+                boundary_reason = "fulfilled"
+                break
+            candidate = j
+            candidates_text = [offer_text[:200]]
+            break
+
+    # (2) Active-topic fallback for BOTH shapes: the most recent substantive
+    # exchange. This is the primary route for referential turns ("read that
+    # email again" needs no offer marker) and the fallback when an approval
+    # has no live offer (an ordinal approving an item of a listed reply, or a
+    # boundary/fulfilled offer — the approval then attaches to the NEWEST
+    # exchange, never to an older one).
+    if candidate is None:
+        for j in range(newest_idx, -1, -1):
+            user_text, reply_text = _turn_texts(entries[j])
+            if _is_substantive_request(user_text):
+                candidate = j
+                candidates_text = [reply_text[:200] or user_text[:200]]
+                break
+        if candidate is None:
+            clarify_reason = boundary_reason or "no_topic"
+
+    if candidate is None:
+        return RequestReference(
+            REF_UNRESOLVED, msg, msg, [msg] if msg else [], [], [],
+            clarify_reason or "no_offer")
+
+    referent_request, offer_text = _turn_texts(entries[candidate])
+    lineage_requests = [r for r in (referent_request, msg) if r]
+    lineage_indices = [candidate, -1]  # -1 = the current turn
+
+    topic_parts = [p for p in (
+        msg, referent_request, (offer_text or "")[:500]) if p]
+
+    # An ordinal approval ("yes, the second one") is grounded ONLY by an
+    # explicit numbered list in the offer/reply; otherwise AMBIGUOUS.
+    if _ORDINAL_RE.search(msg):
+        item = _ground_ordinal(msg, offer_text or "")
+        if item:
+            topic_parts.append(item)
+        else:
+            return RequestReference(
+                REF_AMBIGUOUS, msg, msg, lineage_requests,
+                lineage_indices, candidates_text, "ungrounded_ordinal")
+
+    return RequestReference(
+        REF_RESOLVED, msg, "\n".join(topic_parts), lineage_requests,
+        lineage_indices, candidates_text, "")
