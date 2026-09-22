@@ -151,6 +151,14 @@ def test_latest_styled_ingested_prefers_newest_address_match():
     markup, skipping address non-matches and plain rows."""
     import pandas as pd
 
+    # ISOLATION (documented pre-existing failure, fixed 2026-09-22):
+    # _comms_store_records() caches the REAL store for 300s — a sibling test
+    # that primed it earlier in the same process made this test's lancedb
+    # monkeypatch dead code (the cache answered with live rows and the
+    # assertion failed only when the dev store was present). Invalidate so
+    # THIS test's fake store is what the lookup reads.
+    planner.invalidate_comms_store_cache()
+
     rows = [
         {"sender": "jacob@blumetric.ca", "recipient": "rish@brennan.ca",
          "subject": "old styled", "timestamp": "2026-09-01T10:00:00Z",

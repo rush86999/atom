@@ -68,6 +68,44 @@ class TestCanvasEditShapeBudget:
             or _canvas_edit_shaped(msg, ctx)
         ) == CHAT_DERIVATION_TURN_BUDGET_SECONDS
 
+    def test_canvas_leg_cap_scales_with_budget_class(self):
+        """Gap A follow-up (2026-09-22): raising the total budget alone left
+        the edit leg capped at 45s — the turn answered in CHAT while the
+        canvas never changed. Extended-class budgets get the extended cap."""
+        from integrations.chat_orchestrator import (
+            CHAT_TURN_BUDGET_DEFAULT_SECONDS,
+            TurnDeadline,
+            _CANVAS_LEG_MAX_EXTENDED_SECONDS,
+            _CANVAS_LEG_MAX_SECONDS,
+            _canvas_leg_cap,
+        )
+
+        assert _canvas_leg_cap(TurnDeadline(115)) == (
+            _CANVAS_LEG_MAX_EXTENDED_SECONDS)
+        assert _canvas_leg_cap(
+            TurnDeadline(CHAT_TURN_BUDGET_DEFAULT_SECONDS)
+        ) == _CANVAS_LEG_MAX_SECONDS
+        # Disabled/zero deadlines keep the ordinary cap.
+        assert _canvas_leg_cap(TurnDeadline(0)) == _CANVAS_LEG_MAX_SECONDS
+
+    def test_extended_cap_keeps_the_reply_reserve(self, monkeypatch):
+        monkeypatch.delenv(
+            "ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS", raising=False)
+        monkeypatch.delenv("ATOM_REPLY_LEG_MIN_SECONDS", raising=False)
+        from integrations.chat_orchestrator import (
+            _REPLY_LEG_MIN_SECONDS,
+            TurnDeadline,
+            _canvas_leg_cap,
+            _pre_reply_leg_timeout,
+        )
+
+        # On a 115s budget the edit leg's WAIT must still leave the reply
+        # leg at least its 40s floor.
+        deadline = TurnDeadline(115)
+        wait = _pre_reply_leg_timeout(deadline, _canvas_leg_cap(deadline))
+        assert (deadline.total_seconds - wait
+                >= _REPLY_LEG_MIN_SECONDS - 0.5)
+
 
 # ---------------------------------------------------------------------------
 # Fix 2 — restated approvals resolve; planner verdicts consume history
@@ -370,3 +408,49 @@ class TestBpcAdmissionReserve:
         finally:
             reset_interactive_chat(token)
         assert ranked, "interactive calls are admitted below the reserve"
+
+
+class TestPairMemoPersistence:
+    """Durable per-pair constraint memos: restarts must not re-pay every
+    400 discovery (live 2026-09-22: a fresh boot's first edit turn burned
+    its planner budget rediscovering kimi's temperature lock and
+    tool_choice/thinking conflict)."""
+
+    def test_save_then_reload_round_trips(self, tmp_path, monkeypatch):
+        import json
+
+        memo_path = tmp_path / "pair_memos.json"
+        monkeypatch.setenv("ATOM_PAIR_MEMO_PATH", str(memo_path))
+        import core.llm.byok_handler as bh
+
+        bh._MODEL_TEMPERATURE["prov/tlocked"] = 1.0
+        bh._TOOLCHOICE_UNSUPPORTED.add("prov/thinking")
+        bh._REASONING_MANDATORY.add("prov/rmand")
+        bh._LOGPROBS_UNSUPPORTED.add("prov/logp")
+        bh._AUTH_FAILED.add("prov/badcred")
+        bh._save_pair_memos()
+
+        # Simulate the restart: wipe, reload, verify.
+        bh._MODEL_TEMPERATURE.clear()
+        bh._TOOLCHOICE_UNSUPPORTED.clear()
+        bh._REASONING_MANDATORY.clear()
+        bh._LOGPROBS_UNSUPPORTED.clear()
+        bh._AUTH_FAILED.clear()
+        bh._load_pair_memos()
+        assert bh._MODEL_TEMPERATURE["prov/tlocked"] == 1.0
+        assert bh._TOOLCHOICE_UNSUPPORTED == {"prov/thinking"}
+        assert bh._REASONING_MANDATORY == {"prov/rmand"}
+        assert bh._LOGPROBS_UNSUPPORTED == {"prov/logp"}
+        assert bh._AUTH_FAILED == {"prov/badcred"}
+        # The file on disk is plain JSON (inspectable, hand-editable).
+        payload = json.loads(memo_path.read_text())
+        assert payload["temperature"] == {"prov/tlocked": 1.0}
+
+    def test_missing_file_is_a_cold_start(self, tmp_path, monkeypatch):
+        monkeypatch.setenv(
+            "ATOM_PAIR_MEMO_PATH", str(tmp_path / "nonexistent.json"))
+        import core.llm.byok_handler as bh
+
+        bh._MODEL_TEMPERATURE.clear()
+        bh._load_pair_memos()  # must not raise, must not invent entries
+        assert bh._MODEL_TEMPERATURE == {}

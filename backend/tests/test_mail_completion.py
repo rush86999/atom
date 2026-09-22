@@ -457,10 +457,13 @@ async def test_approval_turn_reads_unresolved_ids_and_answer_names_products():
         result = await orch.process_chat_message(
             "u1", "yes go ahead", "sess-2t", context={})
 
-    # (1) The planner received the EXACT unresolved ids via the sources block.
+    # (1) The planner received the EXACT unresolved ids via the sources block,
+    # and it LEADS the provenance (flash planners anchor on prompt-start; the
+    # ids directive buried last lost to a plain re-search live 2026-09-22).
     prov = planned_kwargs["provenance"]
     assert f"message_id: {ID1}" in prov
     assert f"message_id: {ID2}" in prov
+    assert prov.startswith("MAIL MESSAGES LOCATED EARLIER")
     # (2) The executor read exactly those ids, authorized via handles.
     assert executed_contexts, "executor must run on the approval turn"
     known = {str(h.get("id") if isinstance(h, dict) else h)

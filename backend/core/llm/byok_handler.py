@@ -101,6 +101,73 @@ _REASONING_MANDATORY: set = set()
 _MODEL_TEMPERATURE: Dict[str, float] = {}
 
 
+# ---------------------------------------------------------------------------
+# DURABLE PAIR-CONSTRAINT MEMOS (2026-09-22). The per-(provider, model)
+# constraint sets below were process-memory only: every restart re-paid
+# EVERY discovery — each 400 round trip re-learned, cascades re-drained
+# (live: a fresh boot's first canvas-edit turn burned its planner budget
+# rediscovering kimi-k2.7-code's temperature lock and tool_choice/thinking
+# conflict, and the edit leg died inside its bound). This repo restarts on
+# every code change, so the memos are persisted to a JSON sidecar next to
+# the other LLM caches and reloaded at import. Best-effort by contract: a
+# missing/corrupt file, or a stale memo, only costs one recovered retry —
+# the same first-encounter price the process-memory version already paid.
+# ---------------------------------------------------------------------------
+def _pair_memo_path():
+    from pathlib import Path as _Path
+
+    override = os.getenv("ATOM_PAIR_MEMO_PATH")
+    if override:
+        return _Path(override)
+    # Anchor to backend/data — never CWD (the path-anchoring bug class).
+    return _Path(__file__).resolve().parent.parent.parent / "data" / (
+        "llm_pair_memos.json")
+
+
+_PAIR_MEMO_LOCK = threading.Lock()
+
+
+def _save_pair_memos() -> None:
+    try:
+        with _PAIR_MEMO_LOCK:
+            payload = {
+                "temperature": dict(_MODEL_TEMPERATURE),
+                "toolchoice_unsupported": sorted(_TOOLCHOICE_UNSUPPORTED),
+                "reasoning_mandatory": sorted(_REASONING_MANDATORY),
+                "logprobs_unsupported": sorted(_LOGPROBS_UNSUPPORTED),
+                "auth_failed": sorted(_AUTH_FAILED),
+            }
+        path = _pair_memo_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload))
+    except Exception:  # noqa: BLE001 — persistence is best-effort
+        logger.debug("pair-memo save skipped")
+
+
+def _load_pair_memos() -> None:
+    try:
+        path = _pair_memo_path()
+        if not path.exists():
+            return
+        payload = json.loads(path.read_text() or "{}")
+        _MODEL_TEMPERATURE.update(
+            {str(k): float(v) for k, v in (payload.get("temperature")
+                                           or {}).items()})
+        _TOOLCHOICE_UNSUPPORTED.update(
+            payload.get("toolchoice_unsupported") or [])
+        _REASONING_MANDATORY.update(payload.get("reasoning_mandatory") or [])
+        _LOGPROBS_UNSUPPORTED.update(payload.get("logprobs_unsupported") or [])
+        _AUTH_FAILED.update(payload.get("auth_failed") or [])
+        logger.info(
+            "pair-constraint memos loaded: %d temperature, %d toolchoice, "
+            "%d reasoning, %d logprobs, %d auth",
+            len(_MODEL_TEMPERATURE), len(_TOOLCHOICE_UNSUPPORTED),
+            len(_REASONING_MANDATORY), len(_LOGPROBS_UNSUPPORTED),
+            len(_AUTH_FAILED))
+    except Exception:  # noqa: BLE001 — a corrupt file costs one retry
+        logger.debug("pair-memo load skipped")
+
+
 def _parse_locked_temperature(err_text: str) -> float:
     """The temperature an endpoint's own rejection demands
     ('only 1 is allowed for this model' -> 1.0); 1.0 when unparseable —
@@ -130,6 +197,12 @@ def _required_temperature(provider_id: str, model: str,
 # 120s, and the user saw "Could not reach the agent"). Cleared when a
 # pair succeeds (recovery after configuration changes).
 _AUTH_FAILED: set = set()
+
+
+# Reload the durable pair-constraint memos once every container exists
+# (best-effort: absent file = cold start, exactly the pre-persistence
+# behaviour).
+_load_pair_memos()
 
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
@@ -4346,6 +4419,7 @@ class BYOKHandler:
                             str(attempt_err))
                         _MODEL_TEMPERATURE[f"{provider_id}/{model}"] = (
                             _locked_value)
+                        _save_pair_memos()
                         logger.warning(
                             f"{provider_id}/{model} locks temperature to "
                             f"{_locked_value} — retrying once and memoizing "
@@ -5748,6 +5822,7 @@ class BYOKHandler:
                             ):
                                 _recovered.add("toolchoice")
                                 _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
+                                _save_pair_memos()
                                 logger.warning(
                                     f"{provider_id}/{model} rejects tool_choice "
                                     f"in thinking mode — retrying once in JSON "
@@ -5772,6 +5847,7 @@ class BYOKHandler:
                                 _recovered.add("_temp_locked")
                                 _MODEL_TEMPERATURE[_logprobs_key] = (
                                     _locked_value)
+                                _save_pair_memos()
                                 _create_kwargs["temperature"] = _locked_value
                                 logger.warning(
                                     f"{provider_id}/{model} locks temperature "
@@ -5789,6 +5865,7 @@ class BYOKHandler:
                             ):
                                 _recovered.add("reasoning")
                                 _REASONING_MANDATORY.add(_logprobs_key)
+                                _save_pair_memos()
                                 _create_kwargs.pop("extra_body", None)
                                 logger.warning(
                                     f"{provider_id}/{model} requires reasoning "
@@ -5817,6 +5894,7 @@ class BYOKHandler:
                                 _recovered.add("logprobs")
                                 _create_kwargs.pop("logprobs", None)
                                 _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
+                                _save_pair_memos()
                                 logger.warning(
                                     f"soft-SC logprobs request failed for "
                                     f"{provider_id}/{model} ({_attempt_err}); "
@@ -5917,6 +5995,7 @@ class BYOKHandler:
                         routing_result_id=structured_decision_id,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
+                    _save_pair_memos()
                     # A success is also an auth fact: it clears the persisted
                     # auth_ok=False a dead-workspace period may have recorded,
                     # so the next restart does not seed a stale cooldown.
@@ -5952,6 +6031,7 @@ class BYOKHandler:
                         _pair = f"{provider_id}/{model}"
                         if _pair not in _AUTH_FAILED:
                             _AUTH_FAILED.add(_pair)
+                            _save_pair_memos()
                             logger.warning(
                                 f"AUTH-FAILED memo: {_pair} benched after "
                                 "401 AuthError — credential rejected; "
@@ -7553,6 +7633,7 @@ class BYOKHandler:
                         f"{attempt_provider_id}/{model} locks temperature to "
                         f"{_locked_value} — retrying once and memoizing the "
                         f"pair")
+                    _save_pair_memos()
                     _retry_at_1 = {**base_kwargs, "temperature": _locked_value}
                     try:
                         response = await client.chat.completions.create(

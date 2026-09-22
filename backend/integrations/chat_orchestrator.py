@@ -289,6 +289,26 @@ _CANVAS_EDIT_DERIVATION_WAIT_SECONDS = float(
 _CANVAS_LEG_MAX_SECONDS = float(
     os.getenv("ATOM_CANVAS_LEG_MAX_SECONDS", "45") or 45)
 
+#: Extended-budget turns (derivation asks, edit-shaped canvas turns — the
+#: 115 s class) get a LONGER canvas-leg cap: the RCA 2026-09-22 follow-up
+#: found that raising the total budget alone still killed the edit leg at
+#: 45 s, so the turn answered in CHAT while the user's actual request —
+#: "rebuild the DRAFT" (the canvas) — never applied. 65 s leaves the reply
+#: leg 50 s of a 115 s budget (above the 40 s floor); the slice helper
+#: still clamps to whatever actually remains.
+_CANVAS_LEG_MAX_EXTENDED_SECONDS = float(
+    os.getenv("ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS", "65") or 65)
+
+
+def _canvas_leg_cap(deadline: "TurnDeadline") -> float:
+    """The canvas-leg cap for THIS turn: the extended cap on extended-class
+    budgets, the ordinary cap otherwise (0-budget/disabled deadlines keep
+    the ordinary cap — the slice helper ignores it anyway)."""
+    if deadline.enabled and deadline.total_seconds > (
+            CHAT_TURN_BUDGET_DEFAULT_SECONDS + 0.5):
+        return _CANVAS_LEG_MAX_EXTENDED_SECONDS
+    return _CANVAS_LEG_MAX_SECONDS
+
 #: Minimum share of the request reserved for the REPLY leg. The pre-reply legs
 #: (canvas edit/action, planner, tool execution) may spend everything else, but
 #: never this: answering the user is the point of the turn, and an edit leg that
@@ -3000,6 +3020,10 @@ class ChatOrchestrator:
                     # unresolved messages directly instead of re-searching
                     # and hoping the same hits rank top. Topic-isolated to
                     # the resolved lineage (never keyword overlap alone).
+                    # Placed FIRST in the provenance: flash-tier planners
+                    # anchor on prompt-start, and the ids directive buried
+                    # last was observed losing to a plain re-search (live
+                    # replay 2026-09-22).
                     try:
                         _mail_handles = self._advertise_mail_handles(
                             self._load_conversation_mail_handles(session_id),
@@ -3014,7 +3038,7 @@ class ChatOrchestrator:
                                 _mail_handles)
                             if _mail_block:
                                 prov = (
-                                    f"{prov}\n\n{_mail_block}"
+                                    f"{_mail_block}\n\n{prov}"
                                     if prov else _mail_block)
                     except Exception:  # noqa: BLE001
                         pass
@@ -3126,8 +3150,13 @@ class ChatOrchestrator:
                         # where the reply leg would lose its share (measured:
                         # 54.7 s of a 95 s budget here left 38.8 s for the
                         # answer and the turn ended in turn_budget_exceeded).
+                        # The CAP scales with the budget class (extended
+                        # turns get _CANVAS_LEG_MAX_EXTENDED_SECONDS): a
+                        # 115 s budget with a 45 s cap still starves the
+                        # edit on a slow fleet and the turn answers in chat
+                        # while the canvas never changes (live 2026-09-22).
                         _edit_wait = _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                            _deadline, _canvas_leg_cap(_deadline))
                         if _edit_wait <= 0:
                             logger.warning(
                                 "[stage-timing] canvas-edit leg skipped — the "
@@ -3211,7 +3240,7 @@ class ChatOrchestrator:
                                 _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
                             _action_response = None
                     elif _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS) <= 0:
+                            _deadline, _canvas_leg_cap(_deadline)) <= 0:
                         logger.warning(
                             "[stage-timing] canvas-action leg skipped — the "
                             "reply leg's share of the request is all that "
@@ -3219,7 +3248,7 @@ class ChatOrchestrator:
                         _action_response = None
                     else:
                         _action_wait = _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                            _deadline, _canvas_leg_cap(_deadline))
                         try:
                             _action_response = await asyncio.wait_for(
                                 self._try_canvas_action(
