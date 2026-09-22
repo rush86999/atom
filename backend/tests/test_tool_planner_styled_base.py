@@ -50,6 +50,31 @@ def _fake_outlook_module(emails):
     return mod
 
 
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _restore_injected_modules():
+    """The helpers below REPLACE sys.modules entries
+    (integrations.universal_integration_service / .outlook_service) with
+    MagicMocks. Without restoration the fake leaks to every later test in
+    the process — the cross-file batch failures of 2026-09-22 (storage
+    supplement tests got the mock's "provider relevance hit" data and
+    their real search mocks were never awaited). Restore the real modules
+    at teardown; lancedb restores itself at its call site."""
+    import sys as _sys
+
+    _keys = ("integrations.universal_integration_service",
+             "integrations.outlook_service")
+    saved = {k: _sys.modules.get(k) for k in _keys}
+    yield
+    for k, v in saved.items():
+        if v is not None:
+            _sys.modules[k] = v
+        else:
+            _sys.modules.pop(k, None)
+
+
 def _fake_universal_module(data):
     class _FakeSvc:
         def __init__(self, *a, **kw):

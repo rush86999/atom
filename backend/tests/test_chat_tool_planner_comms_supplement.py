@@ -13,12 +13,29 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("TESTING", "1")
+import pytest
 
 import asyncio
 from unittest.mock import patch, MagicMock
 
 import core.chat_tool_planner as planner
 from core.chat_tool_planner import ToolPlan, execute_tool_plan, _haystack_has_address
+
+
+@pytest.fixture(autouse=True)
+def _restore_injected_universal_module():
+    """Restore the real integrations.universal_integration_service after
+    each test — the module-level fake below is injected into sys.modules
+    and must not leak to other files (2026-09-22 cross-file failures)."""
+    import sys as _sys
+
+    key = "integrations.universal_integration_service"
+    saved = _sys.modules.get(key)
+    yield
+    if saved is not None:
+        _sys.modules[key] = saved
+    else:
+        _sys.modules.pop(key, None)
 
 
 def _fake_universal_module(status="success", data=None):
