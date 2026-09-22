@@ -154,18 +154,21 @@ def _brief_goal(brief: str, goal: str) -> str:
 
 
 class Runner:
-    def __init__(self, out_path: Path, only: set[str] | None = None):
+    def __init__(self, out_path: Path, only: set[str] | None = None,
+                 delta_threshold: float = 0.15):
         from core.llm_service import LLMService
         self.handler = LLMService(tenant_id="default")._get_handler(
             workspace_id="default")
         self.client = self.handler.async_clients["opencode-go"]
         self.decider = lambda: PinnedVisionDecider(self.client, MODEL)
         self.only = only
+        self.delta_threshold = delta_threshold
         self.families = [f for f in FAMILIES if not only or f in only]
         self.out_path = out_path
         self.record: dict = {
             "registered": {
                 "model": MODEL, "seed": SEED, "max_steps": MAX_STEPS,
+                "delta_threshold_pp": round(delta_threshold * 100, 1),
                 "registered_at": "2026-09-21 (plan doc rev, commit 7ff7377cf)",
             },
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -231,12 +234,16 @@ class Runner:
                        train_rows: list[dict]) -> str:
         traj_lines = []
         for i, r in enumerate(train_rows, 1):
-            acts = "; ".join(
-                f"{a['action_type']}({'ok' if a['success'] else 'FAIL'})"
-                for a in r.get("actions", []))
+            act_parts = []
+            for a in r.get("actions", []):
+                detail = a.get("detail") or {}
+                arg = json.dumps(detail, default=str)[:80] if detail else ""
+                act_parts.append(
+                    f"{a['action_type']}({arg}) -> {'ok' if a['success'] else 'FAIL'}")
             traj_lines.append(
                 f"Run {i} (outcome={'pass' if r['status']=='pass' else 'fail'}): "
-                f"goal was: {task['goal']}\n  actions: {acts or '(none)'}\n"
+                f"goal was: {task['goal']}\n  actions (navigated URL / page "
+                f"title where recorded): {'; '.join(act_parts) or '(none)'}\n"
                 f"  final summary: {r.get('summary') or '(none)'}")
         prompt = (f"{BRIEF_INSTRUCTION}\n\nTask family: {family}\n\n"
                   + "\n\n".join(traj_lines)
@@ -358,9 +365,11 @@ class Runner:
         b = summary["totals"]["test_B"]
         delta = (b["rate"] - a["rate"]) if a["n"] and b["n"] else None
         summary["delta_pp"] = round(delta * 100, 1) if delta is not None else None
+        summary["registered_threshold_pp"] = round(self.delta_threshold * 100, 1)
         summary["decision"] = (
-            "PHASE 5 JUSTIFIED" if delta is not None and delta >= 0.15
-            else "STOP — curriculum value not demonstrated at this budget")
+            f"THRESHOLD MET (>= {self.delta_threshold * 100:.1f}pp)"
+            if delta is not None and delta >= self.delta_threshold
+            else "NOT MET at the tested budget — benefit not demonstrated")
         self.record["score"] = summary
         self._checkpoint()
         print(json.dumps(summary, indent=1), flush=True)
@@ -370,6 +379,9 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="",
                         help="comma-separated family ids (dry-run)")
+    parser.add_argument("--delta-threshold", type=float, default=0.15,
+                        help="registered minimum improvement (fraction); "
+                             "recorded in the score output")
     parser.add_argument("--test-only", action="store_true",
                         help="skip training; reuse briefs already in the "
                              "checkpoint (resume path)")
@@ -384,7 +396,8 @@ async def main() -> int:
     out_dir = Path(__file__).parent / "results"
     out_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    runner = Runner(out_dir / f"experiment_{stamp}.json", only=only)
+    runner = Runner(out_dir / f"experiment_{stamp}.json", only=only,
+                    delta_threshold=args.delta_threshold)
 
     if not args.test_only:
         await runner.run()

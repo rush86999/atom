@@ -127,6 +127,20 @@ async def run_rollout(
             env_label=env_label, arm=arm, error=f"{type(exc).__name__}: {exc}",
         )
 
+    # OperatorLoop catches its own exceptions and control-blocks internally
+    # and returns them in result["error"] (never raises). A result carrying
+    # an error is machinery/governance/observation failure — infrastructure
+    # signal, not evidence about the agent — so it must NOT reach the
+    # verifier (which could score it agent_fail or even pass).
+    if result.get("error"):
+        return RolloutOutcome(
+            task_id=task["id"], status=RolloutStatus.HARNESS_ERROR,
+            env_label=env_label, arm=arm,
+            error=str(result["error"]),
+            steps=result.get("steps"),
+            actions=result.get("actions") or [],
+        )
+
     try:
         passed = bool(task["verify"](result, instance.site))
     except Exception as exc:  # noqa: BLE001 — verifier crash is not agent signal

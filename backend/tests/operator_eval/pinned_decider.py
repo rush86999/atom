@@ -77,11 +77,19 @@ class PinnedVisionDecider(JsonVisionDecider):
         for attempt in range(self._attempts):
             try:
                 text = await self._call(messages, max_tokens=1024)
-            except Exception as exc:  # noqa: BLE001 — harness error signal
+            except Exception as exc:
+                # Provider/auth/network failure: infrastructure, not an
+                # agent decision. Re-raise so OperatorLoop records error=
+                # and the adapter classifies HARNESS_ERROR — returning a
+                # synthetic done=True here would launder infra failures
+                # into agent_fail (or worse, into passes via a lucky
+                # verifier). Parse failures below are different: they go
+                # through the loop's own unparseable-step handling.
                 if attempt == self._attempts - 1:
-                    return {"done": True, "action": None,
-                            "reasoning": f"model call failed: {exc}",
-                            "summary": ""}
+                    raise RuntimeError(
+                        f"pinned model call failed after {self._attempts} "
+                        f"attempts: {type(exc).__name__}: {exc}"
+                    ) from exc
                 continue
             data = _extract_json(text)
             if data is not None:

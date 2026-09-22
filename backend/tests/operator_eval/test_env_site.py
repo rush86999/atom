@@ -287,6 +287,61 @@ def test_rollout_harness_error_on_loop_crash():
     assert not outcome.counts_for_rate
 
 
+def test_rollout_harness_error_on_error_bearing_result():
+    """OperatorLoop never raises machinery failures — it returns them in
+    result['error'] (caught exceptions, governance blocks, observation
+    failures, undecidable first steps). Those must classify as
+    HARNESS_ERROR, never reach the verifier as agent_fail/pass."""
+    def loop_with_error(backend, max_steps):
+        class FakeLoop:
+            async def run(self, goal):
+                return {"done": False, "steps": 0, "summary": "",
+                        "actions": [], "error": "observation failed: "
+                        "browser died"}
+        return FakeLoop()
+
+    with EnvInstance() as instance:
+        outcome = _run(instance, get_task("find_code"), loop_with_error)
+    assert outcome.status == RolloutStatus.HARNESS_ERROR
+    assert "browser died" in outcome.error
+    assert not outcome.counts_for_rate
+
+
+def test_rollout_error_free_result_still_scores_via_verifier():
+    # A clean result (no error field) must keep the normal path: verifier
+    # decides pass/agent_fail.
+    with EnvInstance() as instance:
+        outcome = _run(instance, get_task("find_code"),
+                       _fake_loop("I could not find any code."))
+    assert outcome.status == RolloutStatus.AGENT_FAIL
+
+
+def test_pinned_decider_raises_on_provider_failure_instead_of_done():
+    """A provider exhaustion must surface as an exception (which the loop
+    records as error → adapter HARNESS_ERROR), never as a synthetic
+    done=True that the verifier could score as an agent outcome."""
+    import asyncio as _asyncio
+    from pinned_decider import PinnedVisionDecider
+
+    class ExplodingClient:
+        class chat:  # noqa: N801 — mirrors openai SDK shape
+            class completions:  # noqa: N801
+                @staticmethod
+                async def create(**kw):
+                    raise RuntimeError("401 CreditsError")
+
+    decider = PinnedVisionDecider(ExplodingClient(), "glm-5.3-flash",
+                                  attempts=2)
+
+    class Obs:
+        url = "http://x/"; title = "t"; page_text = "p"
+        screenshot_b64 = None
+        viewport = (1280, 720)
+
+    with pytest.raises(RuntimeError, match="model call failed"):
+        _asyncio.run(decider.decide("goal", Obs(), history=[]))
+
+
 def test_rollout_harness_error_on_verifier_crash():
     def bad_verify(result, site):
         raise KeyError("boom")
