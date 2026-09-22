@@ -71,17 +71,19 @@ class TestCanvasEditShapeBudget:
     def test_canvas_leg_cap_scales_with_budget_class(self):
         """Gap A follow-up (2026-09-22): raising the total budget alone left
         the edit leg capped at 45s — the turn answered in CHAT while the
-        canvas never changed. Extended-class budgets get the extended cap."""
+        canvas never changed. Extended-class caps are DERIVED as
+        (budget − reply floor): a fixed 65s then missed by seconds
+        (planner 41.5s + edit-plan ≤30s) while the reply streamed in 11.5s."""
         from integrations.chat_orchestrator import (
             CHAT_TURN_BUDGET_DEFAULT_SECONDS,
+            _REPLY_LEG_MIN_SECONDS,
             TurnDeadline,
-            _CANVAS_LEG_MAX_EXTENDED_SECONDS,
             _CANVAS_LEG_MAX_SECONDS,
             _canvas_leg_cap,
         )
 
-        assert _canvas_leg_cap(TurnDeadline(115)) == (
-            _CANVAS_LEG_MAX_EXTENDED_SECONDS)
+        assert _canvas_leg_cap(TurnDeadline(115)) == 115 - (
+            _REPLY_LEG_MIN_SECONDS)
         assert _canvas_leg_cap(
             TurnDeadline(CHAT_TURN_BUDGET_DEFAULT_SECONDS)
         ) == _CANVAS_LEG_MAX_SECONDS
@@ -423,6 +425,13 @@ class TestPairMemoPersistence:
         monkeypatch.setenv("ATOM_PAIR_MEMO_PATH", str(memo_path))
         import core.llm.byok_handler as bh
 
+        # Hermetic: the import-time load may have populated the tables from
+        # the real backend/data/llm_pair_memos.json — start from empty.
+        for tbl in (bh._MODEL_TEMPERATURE, bh._TOOLCHOICE_UNSUPPORTED,
+                    bh._REASONING_MANDATORY, bh._LOGPROBS_UNSUPPORTED,
+                    bh._AUTH_FAILED):
+            tbl.clear()
+
         bh._MODEL_TEMPERATURE["prov/tlocked"] = 1.0
         bh._TOOLCHOICE_UNSUPPORTED.add("prov/thinking")
         bh._REASONING_MANDATORY.add("prov/rmand")
@@ -451,6 +460,93 @@ class TestPairMemoPersistence:
             "ATOM_PAIR_MEMO_PATH", str(tmp_path / "nonexistent.json"))
         import core.llm.byok_handler as bh
 
-        bh._MODEL_TEMPERATURE.clear()
+        for tbl in (bh._MODEL_TEMPERATURE, bh._TOOLCHOICE_UNSUPPORTED,
+                    bh._REASONING_MANDATORY, bh._LOGPROBS_UNSUPPORTED,
+                    bh._AUTH_FAILED):
+            tbl.clear()
         bh._load_pair_memos()  # must not raise, must not invent entries
         assert bh._MODEL_TEMPERATURE == {}
+
+    def test_import_survives_an_existing_memo_file(self, tmp_path):
+        """The load call must sit below the module logger: placed earlier it
+        raised NameError at import ONLY when the memo file existed (absent
+        file returned before logging) — killing the whole API boot on the
+        second restart after the first discovery (found live 2026-09-22)."""
+        import subprocess
+        import sys
+
+        memo = tmp_path / "memos.json"
+        memo.write_text('{"temperature": {"prov/x": 1.0}}')
+        proc = subprocess.run(
+            [sys.executable, "-c",
+             "import core.llm.byok_handler as bh; "
+             "assert bh._MODEL_TEMPERATURE.get('prov/x') == 1.0"],
+            env={**os.environ, "ATOM_PAIR_MEMO_PATH": str(memo),
+                 "TESTING": "1"},
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=120,
+        )
+        assert proc.returncode == 0, (
+            f"import failed with memo file present:\n{proc.stderr[-800:]}")
+
+class TestInteractiveLatencyGate:
+    """Interactive calls skip pairs whose OBSERVED structured latency cannot
+    fit a turn's serial chain (kimi-k2.7-code served ~50s/call once its
+    constraints were honored — cheap by BPC, unusable interactively)."""
+
+    def test_recorder_ewma_and_admission(self, monkeypatch):
+        from core.llm import byok_handler as bh
+        from core.llm.byok_handler import BYOKHandler, QueryComplexity
+        from core.llm.interactive_context import (
+            mark_interactive_chat,
+            reset_interactive_chat,
+        )
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        for tbl in (bh._MODEL_TEMPERATURE, bh._TOOLCHOICE_UNSUPPORTED,
+                    bh._REASONING_MANDATORY, bh._LOGPROBS_UNSUPPORTED,
+                    bh._AUTH_FAILED):
+            tbl.clear()
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_TEMPERATURE["opencode-go/kimi-k2.7-code"] = 1.0
+        bh._record_structured_latency("opencode-go", "kimi-k2.7-code", 50.0)
+        bh._record_structured_latency("opencode-go", "kimi-k2.7-code", 50.0)
+        assert 45.0 < bh._MODEL_STRUCTURED_LATENCY[
+            "opencode-go/kimi-k2.7-code"] <= 50.0
+
+        handler = BYOKHandler(workspace_id="default")
+        fake = SimpleNamespace(
+            get_model_headroom=lambda p, m: 1.0,
+            get_headroom=lambda p: 1.0,
+            get_model_weight=lambda p, m: 1.0,
+            get_max_context=lambda p, m=200000: 200000,
+        )
+        token = mark_interactive_chat()
+        try:
+            with patch.object(handler, "rate_tracker", fake):
+                ranked = list(handler.get_ranked_providers(
+                    QueryComplexity.MODERATE, "planning", True, "free",
+                    False, requires_tools=True, requires_structured=True,
+                    estimated_tokens=3000))
+            kimi = [r for r in ranked if r[1] == "kimi-k2.7-code"]
+            assert not kimi, "slow pair must be skipped for interactive calls"
+        finally:
+            reset_interactive_chat(token)
+
+    def test_latency_memos_persist(self, tmp_path, monkeypatch):
+        import json
+
+        memo = tmp_path / "m.json"
+        monkeypatch.setenv("ATOM_PAIR_MEMO_PATH", str(memo))
+        from core.llm import byok_handler as bh
+
+        for tbl in (bh._MODEL_TEMPERATURE, bh._TOOLCHOICE_UNSUPPORTED,
+                    bh._REASONING_MANDATORY, bh._LOGPROBS_UNSUPPORTED,
+                    bh._AUTH_FAILED):
+            tbl.clear()
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._record_structured_latency("p", "m", 40.0)
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._load_pair_memos()
+        assert bh._MODEL_STRUCTURED_LATENCY["p/m"] == 40.0

@@ -136,6 +136,9 @@ def _save_pair_memos() -> None:
                 "reasoning_mandatory": sorted(_REASONING_MANDATORY),
                 "logprobs_unsupported": sorted(_LOGPROBS_UNSUPPORTED),
                 "auth_failed": sorted(_AUTH_FAILED),
+                "structured_latency_ewma": {
+                    k: round(v, 2)
+                    for k, v in _MODEL_STRUCTURED_LATENCY.items()},
             }
         path = _pair_memo_path()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -145,6 +148,13 @@ def _save_pair_memos() -> None:
 
 
 def _load_pair_memos() -> None:
+    # Tests stay cold: the auto-load only runs outside TESTING (an explicit
+    # ATOM_PAIR_MEMO_PATH opts back in — the persistence pins rely on it).
+    # Preloading real pair constraints inside test processes shifted module
+    # routing state for unrelated suites (live 2026-09-22: a 17-file batch
+    # flipped 24 storage tests via supplement-gating order effects).
+    if os.getenv("TESTING") and not os.getenv("ATOM_PAIR_MEMO_PATH"):
+        return
     try:
         path = _pair_memo_path()
         if not path.exists():
@@ -158,12 +168,16 @@ def _load_pair_memos() -> None:
         _REASONING_MANDATORY.update(payload.get("reasoning_mandatory") or [])
         _LOGPROBS_UNSUPPORTED.update(payload.get("logprobs_unsupported") or [])
         _AUTH_FAILED.update(payload.get("auth_failed") or [])
+        _MODEL_STRUCTURED_LATENCY.update(
+            {str(k): float(v)
+             for k, v in (payload.get("structured_latency_ewma")
+                          or {}).items()})
         logger.info(
             "pair-constraint memos loaded: %d temperature, %d toolchoice, "
-            "%d reasoning, %d logprobs, %d auth",
+            "%d reasoning, %d logprobs, %d auth, %d latency",
             len(_MODEL_TEMPERATURE), len(_TOOLCHOICE_UNSUPPORTED),
             len(_REASONING_MANDATORY), len(_LOGPROBS_UNSUPPORTED),
-            len(_AUTH_FAILED))
+            len(_AUTH_FAILED), len(_MODEL_STRUCTURED_LATENCY))
     except Exception:  # noqa: BLE001 — a corrupt file costs one retry
         logger.debug("pair-memo load skipped")
 
@@ -198,11 +212,41 @@ def _required_temperature(provider_id: str, model: str,
 # pair succeeds (recovery after configuration changes).
 _AUTH_FAILED: set = set()
 
+# EWMA of OBSERVED structured-call latency per (provider, model) pair —
+# seconds. BPC picks by quality/cost, so the CHEAPEST model can also be the
+# SLOWEST (live 2026-09-22: kimi-k2.7-code served structured calls at ~50s
+# each once its temperature lock was honored; two such calls cannot fit any
+# chat budget under the ~120s client abort, and the canvas-edit leg starved
+# on exactly that). Interactive-context admission skips pairs whose EWMA
+# exceeds ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS; background work is free
+# to keep using them. Persisted with the other pair memos.
+_MODEL_STRUCTURED_LATENCY: Dict[str, float] = {}
+_STRUCTURED_LATENCY_ALPHA = 0.4  # EWMA weight of the newest observation
 
-# Reload the durable pair-constraint memos once every container exists
-# (best-effort: absent file = cold start, exactly the pre-persistence
-# behaviour).
-_load_pair_memos()
+
+def _record_structured_latency(provider_id: str, model: str,
+                               elapsed_seconds: float) -> None:
+    pair = f"{provider_id}/{model}"
+    try:
+        elapsed = max(0.0, float(elapsed_seconds))
+    except (TypeError, ValueError):
+        return
+    prev = _MODEL_STRUCTURED_LATENCY.get(pair)
+    _MODEL_STRUCTURED_LATENCY[pair] = (
+        elapsed if prev is None
+        else prev * (1.0 - _STRUCTURED_LATENCY_ALPHA)
+        + elapsed * _STRUCTURED_LATENCY_ALPHA)
+    _save_pair_memos()
+
+
+def _interactive_structured_max_seconds() -> float:
+    raw = os.getenv("ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS")
+    if raw is not None and str(raw).strip() != "":
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            pass
+    return 25.0
 
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
@@ -334,6 +378,12 @@ from core.models import GovernanceDocument, AgentExecution, Tenant, Workspace, M
 from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
+
+# Reload the durable pair-constraint memos once every container AND the
+# module logger exist (best-effort: absent file = cold start, exactly the
+# pre-persistence behaviour). NOTE: must stay below ``logger`` — an earlier
+# placement raised NameError at import and killed the whole API boot.
+_load_pair_memos()
 
 def _learning_router_enabled() -> bool:
     """Whether RE-RANKING by learned satisfaction is active.
@@ -3426,6 +3476,24 @@ class BYOKHandler:
 
                 _reserve = (
                     0.0 if is_interactive_chat() else interactive_rate_reserve())
+                # LATENCY GATE (interactive only): a pair whose observed
+                # structured latency cannot fit an interactive turn's
+                # serial chain is skipped for interactive calls — background
+                # work may still use it (live 2026-09-22: kimi-k2.7-code at
+                # ~50s/call starved the canvas-edit leg even with every
+                # constraint honored).
+                _lat_max = (
+                    _interactive_structured_max_seconds()
+                    if is_interactive_chat() else 0.0)
+                if _lat_max and _MODEL_STRUCTURED_LATENCY.get(
+                        f"{provider_id}/{model}", 0.0) > _lat_max:
+                    logger.info(
+                        f"BPC skipped {provider_id}/{model} — observed "
+                        f"structured latency "
+                        f"{_MODEL_STRUCTURED_LATENCY[f'{provider_id}/{model}']:.0f}s "
+                        f"> interactive cap {_lat_max:.0f}s"
+                    )
+                    continue
                 model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
                 if model_headroom <= _reserve:
                     logger.info(
@@ -3654,6 +3722,12 @@ class BYOKHandler:
 
                 _fb_reserve = (
                     0.0 if is_interactive_chat() else interactive_rate_reserve())
+                _fb_lat_max = (
+                    _interactive_structured_max_seconds()
+                    if is_interactive_chat() else 0.0)
+                if _fb_lat_max and _MODEL_STRUCTURED_LATENCY.get(
+                        f"{provider_id}/{model}", 0.0) > _fb_lat_max:
+                    continue
                 if self.rate_tracker.get_headroom(provider_id) <= _fb_reserve:
                     continue
                 if self.rate_tracker.get_model_headroom(provider_id, model) <= _fb_reserve:
@@ -5806,6 +5880,9 @@ class BYOKHandler:
                                 instructor_client.chat.completions.create,
                                 **_create_kwargs
                             )
+                            _record_structured_latency(
+                                provider_id, model,
+                                time.time() - _structured_start)
                             break
                         except Exception as _attempt_err:
                             _err_txt = str(_attempt_err).lower()

@@ -48,6 +48,16 @@ def mem_block(monkeypatch):
     return mock
 
 
+# NOTE (2026-09-22, environmental — owner follow-up): this file's
+# supplement/excerpt/net classes gate on LIVE dev-store state through
+# module TTL caches (_PEOPLE_INDEX, _comms_store_cache): in large batches,
+# whichever earlier file primes those caches (and whatever the operator's
+# mailbox ingested that day — the store grew 9.9k→13.6k rows on 2026-09-22)
+# flips their routing assertions. The file passes standalone and in small
+# batches; a hermetic-fixture pass needs a per-test dependency map
+# (patching _comms_store_records alone is bypassed by the cached index).
+
+
 class TestStorageMetadataSupplement:
     async def test_storage_search_gain_ingested_copy(self, mem_block):
         with patch.object(UniversalIntegrationService, "search",

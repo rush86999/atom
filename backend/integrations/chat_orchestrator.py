@@ -289,24 +289,31 @@ _CANVAS_EDIT_DERIVATION_WAIT_SECONDS = float(
 _CANVAS_LEG_MAX_SECONDS = float(
     os.getenv("ATOM_CANVAS_LEG_MAX_SECONDS", "45") or 45)
 
-#: Extended-budget turns (derivation asks, edit-shaped canvas turns — the
-#: 115 s class) get a LONGER canvas-leg cap: the RCA 2026-09-22 follow-up
-#: found that raising the total budget alone still killed the edit leg at
-#: 45 s, so the turn answered in CHAT while the user's actual request —
-#: "rebuild the DRAFT" (the canvas) — never applied. 65 s leaves the reply
-#: leg 50 s of a 115 s budget (above the 40 s floor); the slice helper
-#: still clamps to whatever actually remains.
+#: Operator brake on the extended-class canvas-leg cap. The DEFAULT (0)
+#: DERIVES the cap per turn as (budget − reply floor) — on an edit-shaped
+#: turn the edit IS the answer, and a fixed 65 s cap was measured too tight
+#: (2026-09-22: planner 41.5 s + edit-plan ≤30 s ≈ 71.5 s missed it by
+#: seconds while the reply leg then streamed in 11.5 s, leaving the 40 s
+#: reserve mostly slack). Set a positive value to hard-cap the leg below
+#: the derived bound.
 _CANVAS_LEG_MAX_EXTENDED_SECONDS = float(
-    os.getenv("ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS", "65") or 65)
+    os.getenv("ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS", "0") or 0)
 
 
 def _canvas_leg_cap(deadline: "TurnDeadline") -> float:
-    """The canvas-leg cap for THIS turn: the extended cap on extended-class
-    budgets, the ordinary cap otherwise (0-budget/disabled deadlines keep
-    the ordinary cap — the slice helper ignores it anyway)."""
+    """The canvas-leg cap for THIS turn.
+
+    Extended-class budgets (derivation asks, edit-shaped canvas turns):
+    DERIVED as (budget − reply floor) — the slice helper still enforces the
+    reserve against elapsed time — with ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS
+    as an optional operator brake below it. Ordinary/disabled deadlines
+    keep the ordinary cap."""
     if deadline.enabled and deadline.total_seconds > (
             CHAT_TURN_BUDGET_DEFAULT_SECONDS + 0.5):
-        return _CANVAS_LEG_MAX_EXTENDED_SECONDS
+        derived = deadline.total_seconds - _REPLY_LEG_MIN_SECONDS
+        if _CANVAS_LEG_MAX_EXTENDED_SECONDS > 0:
+            return min(_CANVAS_LEG_MAX_EXTENDED_SECONDS, derived)
+        return derived
     return _CANVAS_LEG_MAX_SECONDS
 
 #: Minimum share of the request reserved for the REPLY leg. The pre-reply legs
