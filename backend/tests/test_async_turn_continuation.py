@@ -817,3 +817,66 @@ class TestRealDatabaseSuccessPath:
             orch._try_canvas_edit.assert_not_awaited()
 
         asyncio.run(_scenario())
+
+
+@pytest.mark.asyncio
+async def test_planner_unavailable_forks_for_edit_shaped_turns(monkeypatch):
+    """A transient edit-planner failure (CanvasPlanUnavailable) forks the
+    background continuation for edit-shaped turns — the async tier's exact
+    purpose. Non-edit turns with the same failure do not fork.
+    NOTE: no deadline shrink — the leg declines instantly, and a shrunk
+    budget would SKIP the edit leg instead of running it."""
+    orch = chat.ChatOrchestrator()
+    canvas = {"canvas_id": "cv1", "canvas_type": "email",
+              "content": {"subject": "Draft", "body": "Unchanged"}}
+
+    forks = []
+
+    def fake_fork(orch_ref, **kwargs):
+        forks.append(kwargs)
+        return "cont-pu"
+
+    async def planner_down_edit(*a, **k):
+        # Simulate the CanvasPlanUnavailable decline: sets the blackboard
+        # flag and returns None quickly (no timeout involved).
+        sts = k.get("shared_tool_state")
+        if sts is not None:
+            sts["canvas_planning_unavailable"] = True
+            sts["canvas_evidence_unavailable"] = True
+        return None
+
+    for sess, msg, expect in (
+        ("sess-pu1", "rebuild the draft with the quotes", 1),
+        ("sess-pu2", "what does the draft say about pricing", 0),
+    ):
+        session = {"id": sess, "history": []}
+        with (
+            patch.object(orch, "_get_or_create_session",
+                         return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_start_chat_execution", return_value="e1"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch.object(orch, "_try_canvas_edit",
+                         side_effect=planner_down_edit),
+            patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                return_value={"content": "ok", "model": "m",
+                              "provider": "p"})),
+            patch("core.chat_tool_planner.plan_tool_use",
+                  new=AsyncMock(return_value=None)),
+            patch("core.chat_tool_planner._provenance_menu",
+                  new=AsyncMock(return_value="")),
+            patch(
+                "core.async_turn_continuation."
+                "fork_canvas_edit_continuation",
+                side_effect=fake_fork),
+        ):
+            await orch.process_chat_message(
+                "u1", msg, sess, context={"canvas_id": "cv1"})
+
+    assert len(forks) == 1, (
+        f"edit-shaped planner-unavailable must fork exactly once, "
+        f"questions never; got {len(forks)}")

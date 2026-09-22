@@ -195,6 +195,20 @@ def _parse_locked_temperature(err_text: str) -> float:
         return 1.0
 
 
+def _parse_affordable_tokens(err_text: str) -> "Optional[int]":
+    """The token budget a PARTIALLY funded account can still afford, from
+    the endpoint's own 402 text ('can only afford 8'); None when absent.
+    Used by the credit-limited retry — honoring the CURRENT balance every
+    time, so deliberately NOT memoized."""
+    import re as _re
+    m = _re.search(r"can only afford\s+([0-9]+)", err_text or "",
+                   _re.IGNORECASE)
+    try:
+        return int(m.group(1)) if m else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _required_temperature(provider_id: str, model: str,
                           requested: float) -> float:
     """The temperature to actually send: the per-model constraint when the
@@ -6152,6 +6166,28 @@ class BYOKHandler:
                         )
                     except Exception:
                         pass  # Don't let health monitoring errors affect primary flow
+                    # CREDIT-LIMITED AFFORDABILITY RECOVERY (2026-09-22):
+                    # a PARTIALLY funded account 402s with its own remedy —
+                    # "You requested up to 6000 tokens, but can only afford
+                    # N... lower max_tokens to fit your remaining balance".
+                    # When N is enough for a structured answer (>=1200),
+                    # retry ONCE at N minus a small margin: the ceiling is a
+                    # cap, not a target, so a smaller request is the same
+                    # call the endpoint says it can serve. Below that floor
+                    # the account genuinely cannot fund the call → provider
+                    # failure as before. Mirrors the temperature-lock
+                    # pattern: parse the endpoint's own remedy, recover once.
+                    _afford = _parse_affordable_tokens(err_str)
+                    if _afford is not None and _afford >= 1200 \
+                            and "_credit_retry" not in _recovered:
+                        _recovered.add("_credit_retry")
+                        _create_kwargs["max_tokens"] = max(512, _afford - 200)
+                        logger.warning(
+                            f"{provider_id}/{model} credit-limited to "
+                            f"{_afford} tokens — retrying once with "
+                            f"max_tokens={_create_kwargs['max_tokens']}"
+                        )
+                        continue
                     if ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
                             # QUOTA (2026-09-20): a credits-exhausted account
                             # (openrouter 402 "can only afford N tokens") fails

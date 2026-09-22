@@ -3268,6 +3268,39 @@ class ChatOrchestrator:
                     _action_t0 = time.monotonic()
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _action_response = None
+                        # ASYNC TIER FORK ON PLANNER-UNAVAILABILITY
+                        # (2026-09-22): a transient edit-planner failure is
+                        # exactly what the background retry exists for — it
+                        # re-runs with a relaxed inner timeout and a fresh
+                        # cascade. One-in-flight claim per session caps the
+                        # churn on persistent outages; the reply stays
+                        # honest (planner-unavailable note + background
+                        # note).
+                        if _canvas_edit_shaped(message, context):
+                            try:
+                                from core.async_turn_continuation import (
+                                    fork_canvas_edit_continuation,
+                                )
+
+                                _cont_id2 = fork_canvas_edit_continuation(
+                                    self,
+                                    message=message,
+                                    history=history,
+                                    canvas=_canvas_ctx or {},
+                                    user_id=user_id,
+                                    session_id=session_id,
+                                    execution_id=_execution_id,
+                                    agent_id=(context or {}).get("agent_id"),
+                                    provenance=(context or {}).get(
+                                        "canvas_provenance"),
+                                )
+                                if _cont_id2:
+                                    _shared_tool[
+                                        "async_continuation_forked"] = True
+                            except Exception as fork_err2:  # noqa: BLE001
+                                logger.debug(
+                                    "async continuation (planner-unavailable) "
+                                    f"not forked: {fork_err2}")
                     elif _edit_leg_timed_out and _shared_tool.get(
                             "action_plan_task") is None:
                         # RCA 2026-09-22: the edit leg starved waiting for the
