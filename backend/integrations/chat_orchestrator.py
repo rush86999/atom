@@ -2873,6 +2873,19 @@ class ChatOrchestrator:
                 ),
                 label="chat-request",
             )
+            # SUPERSEDE (2026-09-22): a new user instruction wins over any
+            # pending background continuation for this session — the old
+            # edit retries a stale snapshot otherwise.
+            try:
+                from core.async_turn_continuation import cancel_continuation
+
+                if cancel_continuation(session_id or ""):
+                    logger.info(
+                        "[async-continuation] superseded by a new "
+                        f"instruction in session {session_id}")
+            except Exception:  # noqa: BLE001 — supersede is best-effort
+                pass
+
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
@@ -3190,6 +3203,44 @@ class ChatOrchestrator:
                                 # plan is ALREADY in flight (a healthy edit
                                 # leg pre-started one).
                                 _edit_leg_timed_out = True
+                                # ASYNC TIER FORK (2026-09-22, research per
+                                # AGENTS.md §3): an edit-shaped turn whose
+                                # edit starved at the interactive bound does
+                                # NOT end as a squeezed chat answer — the
+                                # edit continues in the background under its
+                                # own budget and the user is notified when
+                                # it lands (Nielsen's 10s attention limit;
+                                # async agent workflows decouple submission
+                                # from execution).
+                                if _canvas_edit_shaped(message, context):
+                                    try:
+                                        from core.async_turn_continuation import (
+                                            fork_canvas_edit_continuation,
+                                        )
+
+                                        _cont_id = (
+                                            fork_canvas_edit_continuation(
+                                                self,
+                                                message=message,
+                                                history=history,
+                                                canvas=_canvas_ctx or {},
+                                                user_id=user_id,
+                                                session_id=session_id,
+                                                execution_id=_execution_id,
+                                                agent_id=(context or {}).get(
+                                                    "agent_id"),
+                                                provenance=(context or {}).get(
+                                                    "canvas_provenance"),
+                                            )
+                                        )
+                                        if _cont_id:
+                                            _shared_tool[
+                                                "async_continuation_forked"
+                                            ] = True
+                                    except Exception as fork_err:  # noqa: BLE001
+                                        logger.debug(
+                                            "async continuation not forked: "
+                                            f"{fork_err}")
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -3323,6 +3374,8 @@ class ChatOrchestrator:
                     # never claim a lookup failed.
                     canvas_evidence_status=_canvas_evidence_status,
                     request_reference=_request_reference,
+                    async_continuation_forked=bool(
+                        _shared_tool.get("async_continuation_forked")),
                     session=session,
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
@@ -3823,6 +3876,7 @@ class ChatOrchestrator:
         prefetched_tool_block: Optional[str] = None,
         canvas_evidence_status: Any = None,
         request_reference: Any = None,
+        async_continuation_forked: bool = False,
         session: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
@@ -4066,6 +4120,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as _status_err:  # noqa: BLE001
                     logger.debug(
                         f"canvas evidence note skipped: {_status_err}")
+
+            # ASYNC CONTINUATION NOTE (2026-09-22): the edit this turn
+            # asked for is still RUNNING in the background under its own
+            # budget — the reply must say so honestly (never claim the edit
+            # landed, never apologize as if it failed) and answer what it
+            # can from the readable evidence.
+            if async_continuation_forked:
+                messages.append({"role": "system", "content": (
+                    "BACKGROUND TASK RUNNING: the canvas edit this turn "
+                    "requested did not fit the interactive time budget, so "
+                    "it is being completed in the background now — the user "
+                    "will be notified (and the canvas updated) when it "
+                    "finishes. Do NOT claim the edit is applied yet, and do "
+                    "NOT treat this as a failure: say plainly that the "
+                    "update is being finished in the background, answer any "
+                    "part of the request you can from readable evidence "
+                    "above, and do not ask the user to retry."
+                )})
 
             # CLARIFY turn (2026-09-22): the reference resolver could not pin
             # the referent, and structurally NO lookup ran this turn. Tell the
