@@ -5852,6 +5852,19 @@ class BYOKHandler:
                 cascade_idx += 1
                 if provider_id in failed_providers:
                     continue
+                # DIRECT deepseek serves ONLY its own two model names (live
+                # 2026-09-23: "supported API model names are deepseek-flash,
+                # deepseek-v4-pro" — every other catalog variant 400'd).
+                # Skip candidates the direct API cannot serve instead of
+                # paying the round trip.
+                if provider_id == "deepseek":
+                    _bare = _direct_api_model_name("deepseek", model)
+                    if _bare not in ("deepseek-flash", "deepseek-v4-pro"):
+                        logger.info(
+                            f"structured gate: skipping deepseek/{model} — "
+                            f"direct API does not serve {_bare!r}")
+                        continue
+                    continue
                 if not self.clients.get(provider_id):
                     # SILENT before 2026-09-20: this skip made a ladder die
                     # with "Last error: None" and no attempt warnings — the
@@ -5969,7 +5982,7 @@ class BYOKHandler:
                         os.getenv("ATOM_STRUCTURED_MAX_TOKENS", "6000")
                     )
                     _create_kwargs = dict(
-                        model=model,
+                        model=_direct_api_model_name(provider_id, model),
                         response_model=response_model,
                         messages=messages,
                         temperature=_effective_temperature,

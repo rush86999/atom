@@ -1653,6 +1653,57 @@ _RANK_STOPWORDS = frozenset({
 })
 
 
+def _stem5(token: str) -> str:
+    """Cheap 5-char prefix stem for term matching (2026-09-23): the exact-
+    token intersection missed the quote thread for the query that described
+    it — "machinery" vs subject "machines", "quotes" vs "quote",
+    "requested" vs "request" all failed letter-exact matching and the
+    thread ranked below generic newer mail from the same address. A 5-char
+    prefix collapses those inflections without opening 4-letter noise
+    ("weld" stays exact; "machi" would wrongly join "machine/machinist" —
+    accepted: both are on-topic for a machinery quote search)."""
+    return token[:5] if len(token) >= 5 else token
+
+
+def _lexical_row_score(
+    row: Dict[str, Any], q_stems: "frozenset[str]"
+) -> int:
+    """Field-weighted lexical overlap between one comms row and the query
+    stems — the within-tier re-ranker (BM25-lite; the research-standard
+    second stage for hybrid recall, minus the model dependency).
+
+    Weights: SUBJECT x3 (the row's own headline), participants x2 (who it's
+    addressed to/from), content x1 (quotes and signatures mention
+    everything). Recency stays a separate, weaker key: a same-scored newer
+    row still wins, but a thread whose subject actually MATCHES beats a
+    newer thread that merely shares a participant (live 2026-09-22: the
+    09-18 "Quote for requested machines" thread ranked below three newer
+    "Re: Brennan Machinery" cold-call rows for the query "Chandrakant
+    machinery alternatives" because tier-0 ties broke by timestamp)."""
+    if not q_stems:
+        return 0
+    subj_stems = {
+        _stem5(t)
+        for t in re.findall(r"[a-z0-9]{4,}", str(row.get("subject") or "").lower())
+    }
+    part_stems = {
+        _stem5(t)
+        for t in re.findall(
+            r"[a-z0-9]{4,}",
+            (str(row.get("sender") or "") + " "
+             + str(row.get("recipient") or "")).lower())
+    }
+    content_stems = {
+        _stem5(t)
+        for t in re.findall(r"[a-z0-9]{4,}", str(row.get("content") or "").lower())
+    }
+    return (
+        3 * len(q_stems & subj_stems)
+        + 2 * len(q_stems & part_stems)
+        + len(q_stems & content_stems)
+    )
+
+
 def _rank_address_hits(
     rows: List[Dict[str, Any]],
     addr_l: str,
@@ -1680,7 +1731,8 @@ def _rank_address_hits(
     seen_keys = set()
     scored = []
     q_terms = {
-        t for t in re.findall(r"[a-z0-9]{4,}", (query or "").lower())
+        _stem5(t)
+        for t in re.findall(r"[a-z0-9]{4,}", (query or "").lower())
         if t not in _RANK_STOPWORDS
     }
     for row in rows:
@@ -1710,7 +1762,10 @@ def _rank_address_hits(
             continue
         seen_keys.add(key)
         subject_hit = bool(
-            q_terms & set(re.findall(r"[a-z0-9]{4,}", subj.lower()))
+            q_terms & {
+                _stem5(t)
+                for t in re.findall(r"[a-z0-9]{4,}", subj.lower())
+            }
         )
         if participant and subject_hit:
             tier = 0
@@ -1728,11 +1783,15 @@ def _rank_address_hits(
             tier = 1
         else:
             tier = 2
-        scored.append((tier, ts, row))
-    # Two stable sorts: newest first overall, then tier wins.
-    scored.sort(key=lambda t: t[1], reverse=True)
-    scored.sort(key=lambda t: t[0])
-    return [t[2] for t in scored[:limit]]
+        scored.append((tier, -_lexical_row_score(row, q_terms), ts, row))
+    # Three-key order: tier (subject/participant evidence), then the
+    # lexical score WITHIN the tier (a thread whose subject matches the
+    # query beats a newer participant thread that doesn't), then newest
+    # (two stable sorts: ts descending first, then (tier, -lex) — the
+    # stable sort preserves ts order inside equal (tier, lex)).
+    scored.sort(key=lambda t: t[2], reverse=True)
+    scored.sort(key=lambda t: (t[0], t[1]))
+    return [t[3] for t in scored[:limit]]
 
 
 # ---------------------------------------------------------------------------
@@ -6778,6 +6837,20 @@ async def execute_tool_plan(
                 )
             if _unread_mail:
                 plan._result_meta["unread_mail"] = _unread_mail
+            # SEARCHED THREADS (2026-09-23): descriptors for the threads the
+            # query surfaced — persisted so LATER turns' planner prompt can
+            # name the exact address+subject (a flash planner composing a
+            # query from lineage alone searched generic terms and missed the
+            # thread the conversation had already found).
+            plan._result_meta["searched_threads"] = [
+                {"address": (e.get("from_field") or {}).get(
+                    "emailAddress", {}).get("address", ""),
+                 "subject": str(e.get("subject") or "")[:120],
+                 "origin_query": query}
+                for e in emails[:6]
+                if (e.get("from_field") or {}).get("emailAddress", {}).get(
+                    "address", "")
+            ]
             # Hydrated hits were READ this turn (full or excerpt): record the
             # outcome so the durable handle store flips them out of pending —
             # otherwise a message read via a later search's hydration stays
