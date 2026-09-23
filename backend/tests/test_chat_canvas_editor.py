@@ -743,8 +743,10 @@ async def test_canvas_edit_evidence_failure_flags_turn_as_unedited():
             [], _canvas(), "user-1", "s-1", "exec-1", None,
             shared_tool_state=shared,
         )
-    assert resp is None, "declined edit must fall through to the reply path"
+    assert resp is None, "declined edit must not apply"
     assert shared.get("canvas_evidence_unavailable") is True
+    assert shared.get("canvas_edit_no_apply") is True
+    assert shared.get("canvas_edit_no_apply_reason") == "evidence_unavailable"
     plan.assert_not_awaited()
 
 
@@ -930,6 +932,100 @@ async def test_non_edit_canvas_turn_falls_through_to_normal_path():
     qwen.assert_awaited_once()
     assert qwen.await_args.kwargs["canvas_context"]["canvas_id"] == "c-123"
     assert "draft" in out["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_decline_marks_explicit_no_apply():
+    orch = _orch()
+    action_task = asyncio.get_running_loop().create_future()
+    action_task.set_result(None)
+    shared = {
+        "plan_task": None,
+        "block": None,
+        "action_plan_task": action_task,
+    }
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
+             return_value=CanvasEditPlan(wants_edit=False))), \
+         patch.object(orch, "_sender_identity", new=AsyncMock(return_value=None)):
+        resp = await orch._try_canvas_edit(
+            "update the draft", [], _canvas(), "user-1", "s-no-1",
+            "exec-1", None, shared_tool_state=shared,
+        )
+
+    assert resp is None
+    assert shared["canvas_edit_no_apply"] is True
+    assert shared["canvas_edit_no_apply_reason"] == "planner_declined"
+    assert "canvas_planning_unavailable" not in shared
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_none_marks_retryable_no_apply():
+    orch = _orch()
+    action_task = asyncio.get_running_loop().create_future()
+    action_task.set_result(None)
+    shared = {
+        "plan_task": None,
+        "block": None,
+        "action_plan_task": action_task,
+    }
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
+             return_value=None)), \
+         patch.object(orch, "_sender_identity", new=AsyncMock(return_value=None)):
+        resp = await orch._try_canvas_edit(
+            "update the draft", [], _canvas(), "user-1", "s-no-2",
+            "exec-2", None, shared_tool_state=shared,
+        )
+
+    assert resp is None
+    assert shared["canvas_edit_no_apply"] is True
+    assert shared["canvas_planning_unavailable"] is True
+    assert shared["canvas_planning_outcome"] == "returned_none"
+    assert shared["canvas_edit_no_apply_reason"] == "planner_returned_none"
+
+
+@pytest.mark.asyncio
+async def test_process_edit_no_apply_stops_before_conversation():
+    orch = _orch()
+    session = {"id": "s-no-3", "history": []}
+
+    with patch.object(orch, "_get_or_create_session", return_value=session), \
+         patch.object(orch, "_start_chat_execution", return_value="exec-3"), \
+         patch.object(orch, "_emit_agent_status", new=AsyncMock()), \
+         patch.object(orch, "_try_canvas_edit", new=AsyncMock(
+             return_value=None)), \
+         patch.object(orch, "_try_canvas_action", new=AsyncMock(
+             return_value=None)) as action, \
+         patch.object(orch, "_get_qwen_response", new=AsyncMock()) as qwen, \
+         patch.object(orch, "_analyze_intent", new=AsyncMock()) as analyze, \
+         patch.object(orch, "_route_to_features", new=AsyncMock()) as route, \
+         patch.object(orch, "_dispatch_turn_fact_extraction"), \
+         patch.object(orch, "_update_session") as upd, \
+         patch.object(orch, "_finish_chat_execution") as finish:
+        out = await orch.process_chat_message(
+            user_id="user-1",
+            message="update the draft",
+            session_id="s-no-3",
+            context={
+                "canvas_id": "c-123",
+                "canvas_type": "document",
+                "canvas_content": {"type": "doc", "content": "Old"},
+            },
+        )
+
+    assert out["success"] is True
+    assert out["intent"] == "canvas_edit"
+    assert out["data"]["canvas_edit"]["updated"] is False
+    assert out["data"]["canvas_edit"]["no_apply"] is True
+    assert out["data"]["canvas_edit"]["reason"] == "edit_not_applied"
+    assert "nothing was changed" in out["message"]
+    qwen.assert_not_awaited()
+    analyze.assert_not_awaited()
+    route.assert_not_called()
+    action.assert_not_awaited()
+    upd.assert_called()
+    finish.assert_called()
 
 
 @pytest.mark.asyncio

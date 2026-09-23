@@ -14,7 +14,6 @@ row, so the full lifecycle is auditable and episodes can capture it.
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any, Dict, Optional
 
 from core.chat_session_context import audit_agent_id, audit_session_id
@@ -144,7 +143,9 @@ async def read_canvas(
 
             audit = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
-            ).order_by(desc(CanvasAudit.created_at)).first()
+            ).order_by(
+                desc(CanvasAudit.created_at), desc(CanvasAudit.id),
+            ).first()
 
             if not audit:
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
@@ -153,6 +154,7 @@ async def read_canvas(
             if audit.action_type == "delete":
                 return {"success": False, "error": "Canvas has been deleted", "deleted": True}
 
+            content_audit = audit
             details = audit.details_json or {}
             audit_canvas_type = audit.canvas_type
             # Preserve falsy-but-valid content ("" / [] / 0): the old `or`
@@ -200,6 +202,7 @@ async def read_canvas(
                         **({"type_pinned": details["type_pinned"]} if details.get("type_pinned") else {}),
                     }
                     audit_canvas_type = row.canvas_type
+                    content_audit = row
                     break
             if raw_content is None and "content" not in details and "data" not in details:
                 # No content-bearing row in the recent history either —
@@ -210,6 +213,7 @@ async def read_canvas(
                 canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
                 if canvas_row is not None and canvas_row.content is not None:
                     raw_content = canvas_row.content
+                    content_audit = None
             content = raw_content if raw_content is not None else details
 
             # Email-draft normalization: canvases created before the
@@ -233,11 +237,71 @@ async def read_canvas(
                 "content": content,
                 "title": details.get("title"),
                 "action_type": audit.action_type,
-                "created_at": audit.created_at.isoformat() if audit.created_at else None,
+                "audit_id": content_audit.id if content_audit else None,
+                "operation_id": (details or {}).get("operation_id"),
+                "review_status": (details or {}).get("review_status", "unknown"),
+                "created_at": (
+                    content_audit.created_at.isoformat()
+                    if content_audit and content_audit.created_at else None
+                ),
             }
     except Exception as e:
         logger.error(f"Canvas read failed: {e}")
         return {"success": False, "error": str(e)}
+
+
+def _operation_audit_row(db: Any, canvas_id: str, operation_id: str):
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    try:
+        from core.sql_json import json_field_equals
+
+        predicate = json_field_equals(
+            db, CanvasAudit.details_json, "$.operation_id", operation_id)
+        query = db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id,
+        )
+        if predicate is not None:
+            query = query.filter(predicate)
+        return query.order_by(
+            desc(CanvasAudit.created_at), desc(CanvasAudit.id),
+        ).first()
+    except Exception:
+        try:
+            rows = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).all()
+            for row in rows or []:
+                details = row.details_json or {}
+                if details.get("operation_id") == operation_id:
+                    return row
+        except Exception:
+            return None
+    return None
+
+
+def _mirror_accepted_canvas(
+    db: Any,
+    canvas_id: str,
+    content: Any,
+    canvas_type: str,
+    title: Optional[str],
+    user_id: str,
+) -> None:
+    from datetime import datetime, timezone
+    from core.models import Canvas
+
+    row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if row is None:
+        return
+    row.content = content
+    if canvas_type:
+        row.canvas_type = canvas_type
+    if title:
+        row.name = title
+    row.last_edited_by = user_id
+    row.last_edited_at = datetime.now(timezone.utc)
 
 
 async def update_canvas_content(
@@ -249,6 +313,7 @@ async def update_canvas_content(
     manual_retype: bool = False,
     operation_id: Optional[str] = None,
     expected_prior_audit_id: Optional[str] = None,
+    pending_review: bool = False,
 ) -> Dict[str, Any]:
     """Update the content of an existing canvas.
 
@@ -282,6 +347,9 @@ async def update_canvas_content(
             the caller's planning/retry window and the write is REFUSED
             with a conflict marker instead of overwriting concurrent
             edits.
+        pending_review: Optional review state for an agent proposal. Pending
+            content remains readable from the audit trail but is not mirrored
+            into the accepted ``canvases.content`` snapshot.
     """
     try:
         from core.database import get_db_session
@@ -296,13 +364,40 @@ async def update_canvas_content(
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
-            ).order_by(desc(CanvasAudit.created_at)).first()
+            ).order_by(
+                desc(CanvasAudit.created_at), desc(CanvasAudit.id),
+            ).first()
 
             if not latest:
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
 
             if latest.action_type == "delete":
                 return {"success": False, "error": "Cannot update a deleted canvas"}
+
+            review_status = "pending_review" if pending_review else "accepted"
+            if operation_id:
+                existing = _operation_audit_row(db, canvas_id, operation_id)
+                if existing is not None:
+                    existing_details = existing.details_json or {}
+                    existing_status = existing_details.get("review_status", "unknown")
+                    if existing_status == "accepted":
+                        existing_content = existing_details.get(
+                            "content", existing_details.get("data"))
+                        if existing_content is not None:
+                            _mirror_accepted_canvas(
+                                db, canvas_id, existing_content,
+                                existing.canvas_type,
+                                existing_details.get("title"), user_id,
+                            )
+                    return {
+                        "success": True,
+                        "already_applied": True,
+                        "canvas_id": canvas_id,
+                        "canvas_type": existing.canvas_type,
+                        "audit_id": existing.id,
+                        "review_status": existing_status,
+                        "message": "Canvas update already applied",
+                    }
 
             # ATOMIC REVISION DOOR (2026-09-22): the caller planned against a
             # specific revision; if anything has appended since, refuse — a
@@ -322,6 +417,7 @@ async def update_canvas_content(
             # Merge new content into the existing details.
             details = dict(latest.details_json or {})
             details["content"] = content
+            details["review_status"] = review_status
             if operation_id:
                 details["operation_id"] = operation_id
             if title:
@@ -387,6 +483,11 @@ async def update_canvas_content(
                 details_json=details,
             )
             db.add(new_audit)
+            if review_status == "accepted":
+                _mirror_accepted_canvas(
+                    db, canvas_id, content, canvas_type,
+                    details.get("title"), user_id,
+                )
             db.commit()
             db.refresh(new_audit)
 
@@ -398,7 +499,10 @@ async def update_canvas_content(
             "success": True,
             "canvas_id": canvas_id,
             "canvas_type": canvas_type,
-            "message": f"Canvas updated successfully",
+            "audit_id": str(new_audit.id),
+            "operation_id": operation_id,
+            "review_status": review_status,
+            "message": "Canvas updated successfully",
         }
     except Exception as e:
         logger.error(f"Canvas update failed: {e}")
@@ -624,6 +728,7 @@ async def restore_canvas_version(
             # the provenance.
             new_details = latest_details
             new_details["content"] = content
+            new_details["review_status"] = "accepted"
             if target_details.get("title"):
                 new_details["title"] = target_details["title"]
             new_details["restored_from"] = {
@@ -653,6 +758,10 @@ async def restore_canvas_version(
                 details_json=new_details,
             )
             db.add(new_audit)
+            _mirror_accepted_canvas(
+                db, canvas_id, content, canvas_type,
+                new_details.get("title"), user_id,
+            )
             db.commit()
             db.refresh(new_audit)
 
@@ -668,6 +777,8 @@ async def restore_canvas_version(
             "success": True,
             "canvas_id": canvas_id,
             "canvas_type": canvas_type,
+            "audit_id": str(new_audit.id),
+            "review_status": "accepted",
             "restored_from": audit_id,
             "message": "Version restored (appended as the newest version)",
         }
@@ -1005,7 +1116,7 @@ async def list_canvases(
     try:
         from core.database import get_db_session
         from core.models import Canvas, CanvasAudit
-        from sqlalchemy import desc, func
+        from sqlalchemy import func
         from sqlalchemy.orm import aliased
 
         with get_db_session() as db:

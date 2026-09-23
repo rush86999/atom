@@ -497,6 +497,58 @@ class TestProviderServesModelUsesTheCatalogue:
         assert not handler._provider_serves_model("openrouter", "anything")
 
 
+class TestStructuredRouteTrace:
+    def test_trace_records_catalog_age_auth_and_cooldown_state(
+            self, monkeypatch, catalog, caplog):
+        handler = bh.BYOKHandler.__new__(bh.BYOKHandler)
+        handler.clients = {"deepseek": object(), "opencode-go": object()}
+        handler._provider_models_cache = {}
+        import core.llm.model_route_registry as mrr
+        monkeypatch.setattr(mrr, "_CATALOG", catalog)
+        catalog.freshness_seconds = 0
+        catalog.record_discovery("deepseek", ["deepseek-flash"])
+        catalog.record_discovery("opencode-go", ["deepseek-v4.1-flash"])
+        catalog.record_auth_probe("opencode-go", False, "401 invalid")
+        handler._bench_provider(
+            "opencode-go", cause=FailureCause.INVALID_CREDENTIAL, seconds=60)
+        monkeypatch.setenv("ATOM_LLM_ROUTE_TRACE", "1")
+        with caplog.at_level("INFO", logger="core.llm.byok_handler"):
+            handler._trace_structured_route(
+                "trace-1", "opencode-go", "deepseek-v4.1-flash",
+                "skip", "provider_cooldown")
+        records = [
+            json.loads(r.getMessage().split("] ", 1)[1])
+            for r in caplog.records
+            if "[structured-route-trace]" in r.getMessage()
+        ]
+        assert len(records) == 1
+        record = records[0]
+        assert record["trace_id"] == "trace-1"
+        assert record["reason"] == "provider_cooldown"
+        state = record["state"]
+        assert state["catalog_freshness"] == "stale"
+        assert state["catalog_verified_age_s"] is not None
+        assert state["auth_ok"] is False
+        assert state["auth_checked_age_s"] is not None
+        assert state["provider_cooldown"]["cause"] == FailureCause.INVALID_CREDENTIAL
+        assert state["client_initialized"] is True
+
+    def test_trace_is_opt_in(self, monkeypatch, catalog, caplog):
+        handler = bh.BYOKHandler.__new__(bh.BYOKHandler)
+        handler.clients = {"deepseek": object()}
+        handler._provider_models_cache = {}
+        import core.llm.model_route_registry as mrr
+        monkeypatch.setattr(mrr, "_CATALOG", catalog)
+        monkeypatch.delenv("ATOM_LLM_ROUTE_TRACE", raising=False)
+        with caplog.at_level("INFO", logger="core.llm.byok_handler"):
+            handler._trace_structured_route(
+                "trace-off", "deepseek", "deepseek-flash", "dispatch", "")
+        assert not any(
+            "[structured-route-trace]" in record.getMessage()
+            for record in caplog.records
+        )
+
+
 class TestFallbackPreservesTaskRequirements:
     """Fallback must not silently drop what the caller asked for."""
 

@@ -2373,6 +2373,8 @@ def _evidence_relevance(
     message: str,
     history: Optional[List[Dict[str, Any]]] = None,
     reference: Optional[Any] = None,
+    canvas: Optional[Dict[str, Any]] = None,
+    allow_canvas_target: bool = False,
 ) -> str:
     """Tri-state relevance of an evidence block to the current request:
     ``addresses`` | ``unproven`` | ``mismatch``.
@@ -2414,6 +2416,22 @@ def _evidence_relevance(
     declared = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
     hay = _canon_alnum(block)
     ref_kind = getattr(reference, "kind", "direct")
+
+    if allow_canvas_target and ref_kind in ("direct", "resolved") and declared:
+        from core.plan_relevance import (
+            canvas_topic_text,
+            relevance_basis,
+        )
+
+        topic = canvas_topic_text(canvas)
+        if topic:
+            for query in declared:
+                verdict, _basis = relevance_basis(
+                    query, message, history=history,
+                    extra_topic=topic, allow_canvas_target=True,
+                )
+                if verdict == "relevant":
+                    return "addresses"
 
     # ID-DIRECTED READ BLOCK: its header query is opaque message ids. Those
     # ids are conversation handles the executor validated against the
@@ -2527,6 +2545,8 @@ def _evidence_rejected(
     message: str,
     history: Optional[List[Dict[str, Any]]] = None,
     reference: Optional[Any] = None,
+    canvas: Optional[Dict[str, Any]] = None,
+    allow_canvas_target: bool = False,
 ) -> bool:
     """True when the block must not stand as this turn's evidence.
 
@@ -2541,7 +2561,8 @@ def _evidence_rejected(
         from core.plan_relevance import resolve_request_reference
 
         reference = resolve_request_reference(message, history or [])
-    relevance = _evidence_relevance(block, message, history, reference)
+    relevance = _evidence_relevance(
+        block, message, history, reference, canvas, allow_canvas_target)
     if relevance == "addresses":
         return False
     logger.warning(
@@ -2558,6 +2579,8 @@ def _evidence_addresses_request(
     message: str,
     history: Optional[List[Dict[str, Any]]] = None,
     reference: Optional[Any] = None,
+    canvas: Optional[Dict[str, Any]] = None,
+    allow_canvas_target: bool = False,
 ) -> bool:
     """Does this evidence block actually address the request? (compat bool
     view of :func:`_evidence_relevance` — True only for ``addresses``.)
@@ -2569,7 +2592,9 @@ def _evidence_addresses_request(
     evidence of the exchange it approves ("yes go ahead") instead of being
     declined for lexical absence."""
     return _evidence_relevance(
-        tool_block, message, history, reference) == "addresses"
+        tool_block, message, history, reference, canvas,
+        allow_canvas_target,
+    ) == "addresses"
 
 
 def _distinctive_terms(text: str) -> List[str]:
@@ -3270,6 +3295,8 @@ class ChatOrchestrator:
                     return await plan_tool_use(
                         message, _plan_history, user_id, self.llm_service,
                         canvas=_canvas_ctx, provenance=prov,
+                        allow_canvas_target=_canvas_edit_shaped(
+                            message, {"canvas": _canvas_ctx}),
                     )
 
                 if _clarify_turn:
@@ -3466,6 +3493,14 @@ class ChatOrchestrator:
                         self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
                         return _edit_response
 
+                    if (
+                        _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
+                        and not _edit_leg_timed_out
+                    ):
+                        _shared_tool.setdefault("canvas_edit_no_apply", True)
+                        _shared_tool.setdefault(
+                            "canvas_edit_no_apply_reason", "edit_not_applied")
+
                     # Not an edit — is it an ACTION on the canvas ("send this")?
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
@@ -3479,7 +3514,7 @@ class ChatOrchestrator:
                         # churn on persistent outages; the reply stays
                         # honest (planner-unavailable note + background
                         # note).
-                        if _canvas_edit_shaped(message, context):
+                        if _canvas_edit_shaped(message, {"canvas": _canvas_ctx}):
                             try:
                                 from core.async_turn_continuation import (
                                     fork_canvas_edit_continuation,
@@ -3506,6 +3541,12 @@ class ChatOrchestrator:
                                 logger.debug(
                                     "async continuation (planner-unavailable) "
                                     f"not forked: {fork_err2}")
+                    elif (
+                        _shared_tool.get("canvas_edit_no_apply")
+                        and _canvas_edit_shaped(
+                            message, {"canvas": _canvas_ctx})
+                    ):
+                        _action_response = None
                     elif _edit_leg_timed_out and _shared_tool.get(
                             "action_plan_task") is None:
                         # RCA 2026-09-22: the edit leg starved waiting for the
@@ -3581,6 +3622,80 @@ class ChatOrchestrator:
                         self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
                         return _action_response
 
+                _no_apply_edit = _canvas_edit_shaped(
+                    message, {"canvas": _canvas_ctx}
+                ) and (
+                    _shared_tool.get("canvas_edit_no_apply")
+                    or _shared_tool.get("canvas_planning_unavailable")
+                )
+                if _no_apply_edit:
+                    _background_started = bool(
+                        _shared_tool.get("async_continuation_forked")
+                    )
+                    _no_apply_reason = _shared_tool.get(
+                        "canvas_edit_no_apply_reason"
+                    ) or "planner_unavailable"
+                    if _background_started:
+                        _no_apply_message = (
+                            "The canvas edit is still running in the background, "
+                            "but nothing is confirmed changed yet."
+                        )
+                    elif _no_apply_reason == "planner_declined":
+                        _no_apply_message = (
+                            "I couldn't safely make that canvas change, so "
+                            "nothing was changed. Please clarify the change and "
+                            "try again."
+                        )
+                    elif _no_apply_reason in (
+                        "evidence_declined", "evidence_unavailable"
+                    ):
+                        _no_apply_message = (
+                            "I couldn't make that canvas change because the "
+                            "required information wasn't available, so nothing "
+                            "was changed."
+                        )
+                    else:
+                        _no_apply_message = (
+                            "I couldn't complete the canvas edit, so nothing "
+                            "was changed. Please try again in a moment."
+                        )
+                    _canvas_edit_data = {
+                        "canvas_id": (_canvas_ctx or {}).get("canvas_id"),
+                        "updated": False,
+                        "no_apply": True,
+                        "reason": _no_apply_reason,
+                        "background_started": _background_started,
+                    }
+                    if _shared_tool.get("canvas_planning_unavailable"):
+                        _canvas_edit_data["plan_unavailable"] = True
+                    if _shared_tool.get("canvas_planning_outcome"):
+                        _canvas_edit_data["planner_outcome"] = _shared_tool[
+                            "canvas_planning_outcome"
+                        ]
+                    response = {
+                        "success": True,
+                        "message": _no_apply_message,
+                        "session_id": session_id,
+                        "intent": "canvas_edit",
+                        "confidence": 0.9,
+                        "data": {"canvas_edit": _canvas_edit_data},
+                        "suggested_actions": [],
+                        "requires_confirmation": False,
+                        "next_steps": [],
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    self._update_session(
+                        session, message, response,
+                        {"primary_intent": "canvas_edit", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(
+                        _execution_id, "success", _no_apply_message
+                    )
+                    return response
+
                 # ONE typed evidence status for the reply leg: blackboard flags
                 # and the block-gate verdict merge through the explicit
                 # transition (documented precedence) instead of OR-ed booleans
@@ -3592,7 +3707,9 @@ class ChatOrchestrator:
 
                 _gate_relevance = _evidence_relevance(
                     _shared_tool.get("block"), message, history,
-                    _request_reference)
+                    _request_reference, _canvas_ctx,
+                    _canvas_edit_shaped(message, {"canvas": _canvas_ctx}),
+                )
                 _canvas_evidence_status = _canvas_status_from_flags(
                     _shared_tool, _gate_relevance)
 
@@ -3604,6 +3721,7 @@ class ChatOrchestrator:
                     planner_history=session.get("history", []),
                     session_id=session_id,
                     execution_id=_execution_id,
+                    workspace_id=(context or {}).get("workspace_id"),
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
                     prefetched_tool_block=_shared_tool.get("block"),
@@ -4112,6 +4230,7 @@ class ChatOrchestrator:
         planner_history: Optional[list] = None,
         session_id: Optional[str] = None,
         execution_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
         canvas_context: Optional[Dict[str, Any]] = None,
         mission_critical: bool = False,
         canvas_provenance: Optional[Dict[str, Any]] = None,
@@ -4364,22 +4483,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.debug(
                         f"canvas evidence note skipped: {_status_err}")
 
-            # ASYNC CONTINUATION NOTE (2026-09-22): the edit this turn
-            # asked for is still RUNNING in the background under its own
-            # budget — the reply must say so honestly (never claim the edit
-            # landed, never apologize as if it failed) and answer what it
-            # can from the readable evidence.
+            # ASYNC CONTINUATION NOTE (2026-09-22, reworded 2026-09-23):
+            # the edit this turn asked for is still RUNNING in the
+            # background under its own budget — the reply must say so
+            # honestly. Live 2026-09-23: the instructed phrasing ("being
+            # finished … you'll see it updated shortly") promised a
+            # completion the task then failed to deliver, which reads as
+            # the agent lying. The task has been STARTED; its outcome is
+            # unknown until it reports back (the chat_continuation event).
             if async_continuation_forked:
                 messages.append({"role": "system", "content": (
-                    "BACKGROUND TASK RUNNING: the canvas edit this turn "
-                    "requested did not fit the interactive time budget, so "
-                    "it is being completed in the background now — the user "
-                    "will be notified (and the canvas updated) when it "
-                    "finishes. Do NOT claim the edit is applied yet, and do "
-                    "NOT treat this as a failure: say plainly that the "
-                    "update is being finished in the background, answer any "
-                    "part of the request you can from readable evidence "
-                    "above, and do not ask the user to retry."
+                    "BACKGROUND TASK STARTED (outcome unknown): the canvas "
+                    "edit this turn requested did not fit the interactive "
+                    "time budget, so a background task has been STARTED to "
+                    "complete it. It has NOT finished — it may still fail "
+                    "or need a retry, and its result will be reported when "
+                    "the task reports back. Do NOT claim or imply the edit "
+                    "is applied, 'being finished', or that the canvas will "
+                    "update shortly: say plainly that the update has been "
+                    "started in the background and the outcome will follow. "
+                    "Answer any part of the request you can from readable "
+                    "evidence above, and do not ask the user to retry."
                 )})
 
             # CLARIFY turn (2026-09-22): the reference resolver could not pin
@@ -4657,7 +4781,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
                 if prefetched_tool_block and _evidence_rejected(
                         prefetched_tool_block, message, history,
-                        request_reference):
+                        request_reference, canvas_context,
+                        _canvas_edit_shaped(
+                            message, {"canvas": canvas_context}),
+                ):
                     # ENFORCEMENT (review R3, 2026-09-17). Flagging the block was
                     # not enough: the flag added a no-edit note while this branch
                     # still assigned the block to `_tool_block` and the prompt
@@ -4753,7 +4880,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _provenance_menu(
                                     message,
                                     {"history": planner_history or history,
-                                     "workspace_id": _ctx_workspace_id},
+                                     "workspace_id": workspace_id},
                                 ),
                                 timeout=6,
                             )
@@ -4776,6 +4903,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 message, planner_history or history, user_id,
                                 self.llm_service, canvas=canvas_context,
                                 provenance=_prov,
+                                allow_canvas_target=_canvas_edit_shaped(
+                                    message, {"canvas": canvas_context}),
                             ),
                             timeout=25,
                         )
@@ -4794,7 +4923,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # evidence. The lookup is NOT executed; the block
                         # becomes an explicit retrieval failure below, while
                         # the deterministic mail scan still runs.
-                        from core.plan_relevance import relevance_verdict
+                        from core.plan_relevance import (
+                            canvas_topic_text,
+                            resolved_plan_relevance,
+                        )
 
                         # R4 (2026-09-17): the planner's acceptance stamp is
                         # the verdict of record — a provenance-verified quote
@@ -4805,10 +4937,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # the planner had validated. No stamp (legacy plan,
                         # or the check never ran) falls back to the raw
                         # verdict, which still governs.
-                        _off_request = (
-                            (getattr(_plan, "relevance_verdict", None)
-                             or relevance_verdict(_plan.query, message))
-                            == "irrelevant")
+                        #
+                        # AUDIT (2026-09-23, canvas 0e4defa5): an
+                        # "irrelevant" verdict no longer declines on its
+                        # own — it is re-judged against the resolved
+                        # conversation and the open canvas's subject (the
+                        # canvas-target rule). "update with actual prices
+                        # in the email" shares zero words with the CORRECT
+                        # mailbox query; the products being priced live in
+                        # the canvas. A query naming neither the resolved
+                        # request nor the canvas target still declines.
+                        _off_request = resolved_plan_relevance(
+                            _plan, message,
+                            history=planner_history or history,
+                            extra_topic=(
+                                canvas_topic_text(canvas_context)
+                                if _canvas_edit_shaped(
+                                    message, {"canvas": canvas_context})
+                                else ""
+                            ),
+                            allow_canvas_target=_canvas_edit_shaped(
+                                message, {"canvas": canvas_context}),
+                        )[0] == "irrelevant"
                         if _off_request:
                             logger.warning(
                                 "[plan-relevance] %s declined: the planned "
@@ -4950,7 +5100,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # overwrote the other's evidence). The execution
                             # ID is unique per turn and already flows to the
                             # continuation.
-                            session[f"_ev_{_execution_id}"] = (
+                            session[f"_ev_{execution_id}"] = (
                                 _tool_block or "")
                         except Exception:
                             pass
@@ -5364,6 +5514,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "R235" in _ev_text or "row 235" in _ev_text.lower(),
                         _ev_text[:280])
 
+            forced_model = (routing_overrides or {}).get("model", "auto")
             # MEASURE THE WHOLE PROMPT, not just the evidence section. The 18k
             # char evidence budget is a per-section budget; what the model
             # actually reads is instructions + history + canvas + evidence +
@@ -7611,6 +7762,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             canvas=canvas,
             plan_task=(shared_tool_state or {}).get("plan_task"),
             existing_block=(shared_tool_state or {}).get("block"),
+            allow_canvas_target=_canvas_edit_shaped(
+                message, {"canvas": canvas}),
         )
         if shared_tool_state is not None:
             # Blackboard hand-back: whatever this leg executed belongs to
@@ -7633,8 +7786,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # 2026-09-11, canvas a1a13834).
                 if getattr(fresh, "declined_irrelevant", False):
                     shared_tool_state["canvas_evidence_declined"] = True
+                    no_apply_reason = "evidence_declined"
                 else:
                     shared_tool_state["canvas_evidence_unavailable"] = True
+                    no_apply_reason = "evidence_unavailable"
+                if _canvas_edit_shaped(message, {"canvas": canvas}):
+                    shared_tool_state["canvas_edit_no_apply"] = True
+                    shared_tool_state["canvas_edit_no_apply_reason"] = no_apply_reason
             return None
         fresh_data = fresh.section
 
@@ -7683,6 +7841,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # the planning flag so the reply keeps the retrieval's evidence.
             if shared_tool_state is not None:
                 shared_tool_state["canvas_planning_unavailable"] = True
+                shared_tool_state["canvas_planning_outcome"] = "timeout"
+                shared_tool_state["canvas_edit_no_apply"] = True
+                shared_tool_state["canvas_edit_no_apply_reason"] = "planner_timeout"
                 logger.warning(
                     "canvas edit planner TIMED OUT (retrieval may have "
                     "succeeded); continuing with read-only answer")
@@ -7690,6 +7851,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except CanvasPlanUnavailable as e:
             if shared_tool_state is not None:
                 shared_tool_state["canvas_planning_unavailable"] = True
+                shared_tool_state["canvas_planning_outcome"] = "unavailable"
+                shared_tool_state["canvas_edit_no_apply"] = True
+                shared_tool_state["canvas_edit_no_apply_reason"] = "planner_unavailable"
                 shared_tool_state["canvas_evidence_unavailable"] = True
                 logger.warning(
                     f"canvas edit planner unavailable ({str(e)[:80]}); "
@@ -7728,9 +7892,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
+            if shared_tool_state is not None and _canvas_edit_shaped(
+                    message, {"canvas": canvas}):
+                shared_tool_state["canvas_planning_unavailable"] = True
+                shared_tool_state["canvas_planning_outcome"] = "error"
+                shared_tool_state["canvas_edit_no_apply"] = True
+                shared_tool_state["canvas_edit_no_apply_reason"] = "planner_error"
             logger.warning(f"canvas edit planning skipped: {e}")
             return None
         if plan is None or not plan.wants_edit:
+            if shared_tool_state is not None and _canvas_edit_shaped(
+                    message, {"canvas": canvas}):
+                shared_tool_state["canvas_edit_no_apply"] = True
+                if plan is None:
+                    shared_tool_state["canvas_planning_unavailable"] = True
+                    shared_tool_state["canvas_planning_outcome"] = "returned_none"
+                    shared_tool_state["canvas_edit_no_apply_reason"] = "planner_returned_none"
+                else:
+                    shared_tool_state["canvas_edit_no_apply_reason"] = "planner_declined"
             return None
         # P3 transparency: WHICH company playbooks guided this edit — the
         # chat response carries them (chat_routes maps `data`→`metadata`)
@@ -7816,10 +7995,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             except Exception as gov_err:
                 logger.debug(f"canvas edit governance check skipped: {gov_err}")
 
+        preserve_footer = bool(re.search(
+            r"(?:keep|preserve|unchanged).{0,30}footer|"
+            r"footer.{0,30}(?:keep|preserve|unchanged)",
+            message, re.IGNORECASE,
+        ))
         applied = await apply_canvas_edit(
             plan, user_id, canvas, return_reason=True,
             operation_id=operation_id,
             expected_prior_audit_id=expected_prior_audit_id,
+            request_message=message,
+            history=history,
+            preserve_footer=preserve_footer,
+            pending_review=learning_mode,
         )
         # Tolerant unpack: tests (and any caller using the default
         # return_reason=False) may hand back the bare result instead of the
@@ -7982,6 +8170,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "canvas_edit": {
                     "canvas_id": canvas.get("canvas_id"),
                     "updated": True,
+                    **({"audit_id": result.get("audit_id")}
+                       if result.get("audit_id") else {}),
+                    "review_status": (
+                        result.get("review_status")
+                        or ("pending_review" if learning_mode else "accepted")
+                    ),
                     **({"learning_mode": True} if learning_mode else {}),
                     **({"matched_playbooks": matched_playbooks}
                        if matched_playbooks else {}),
@@ -8034,6 +8228,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             canvas=canvas,
             plan_task=(shared_tool_state or {}).get("plan_task"),
             existing_block=(shared_tool_state or {}).get("block"),
+            allow_canvas_target=False,
         )
         if shared_tool_state is not None:
             shared_tool_state["block"] = fresh.block or None

@@ -61,3 +61,20 @@ def interactive_rate_reserve() -> float:
         except (TypeError, ValueError):
             pass
     return 0.2
+
+
+def mark_background_execution() -> contextvars.Token:
+    """Explicitly mark the current task/context as BACKGROUND execution.
+
+    asyncio tasks COPY the creating context, so a task forked from inside
+    an interactive chat request — the canvas-edit continuation is forked
+    mid-turn by ``async_turn_continuation.start_continuation`` — inherits
+    ``atom_interactive_chat=True`` for its whole life. Two defects follow:
+    the INTERACTIVE-only structured-latency cap (25s) vetoes healthy
+    26–30s rungs inside a background tier whose edit bound is 150s (live
+    2026-09-23, continuation ab86e7bf attempt 1: zero-dispatch exhaustion
+    in 1.3s), and the fork consumes the interactive rate reserve that
+    exists to protect user-facing turns. Background tasks forked from a
+    request call this at their entry; rate, auth and cooldown restrictions
+    are unaffected — only the interactive classification is corrected."""
+    return _interactive_chat_ctx.set(False)

@@ -639,6 +639,104 @@ class TestAtomicRevisionDoor:
         assert details["operation_id"] == "op-1"
 
 
+class TestRevisionAndReviewSemantics:
+    async def test_pending_draft_is_readable_without_being_accepted(self):
+        import uuid
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from tools.canvas_crud_tool import read_canvas, update_canvas_content
+
+        canvas_id = "cv-review-" + uuid.uuid4().hex[:10]
+        user_id = "u-review"
+        with get_db_session() as db:
+            db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).delete()
+            db.query(Canvas).filter(Canvas.id == canvas_id).delete()
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by=user_id,
+                name="Review draft", canvas_type="email",
+                content={"body": "accepted"}, status="active",
+            ))
+            db.add(CanvasAudit(
+                id="seed-" + canvas_id, canvas_id=canvas_id,
+                tenant_id="default", action_type="update", user_id=user_id,
+                canvas_type="email", details_json={
+                    "content": {"body": "accepted"},
+                    "review_status": "accepted",
+                },
+            ))
+
+        pending = await update_canvas_content(
+            user_id, canvas_id, {"body": "draft"}, "email",
+            operation_id="op-pending", pending_review=True,
+        )
+        assert pending["review_status"] == "pending_review"
+        read_pending = await read_canvas(user_id, canvas_id)
+        assert read_pending["content"].get("body") == "draft"
+        assert read_pending["review_status"] == "pending_review"
+        with get_db_session() as db:
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "accepted"
+
+        accepted = await update_canvas_content(
+            user_id, canvas_id, {"body": "accepted update"}, "email",
+            operation_id="op-accepted",
+            expected_prior_audit_id=pending["audit_id"],
+        )
+        assert accepted["review_status"] == "accepted"
+        with get_db_session() as db:
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "accepted update"
+        read_accepted = await read_canvas(user_id, canvas_id)
+        assert read_accepted["content"].get("body") == "accepted update"
+        assert read_accepted["review_status"] == "accepted"
+
+    async def test_exact_operation_replay_does_not_append_another_audit(self):
+        import uuid
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from tools.canvas_crud_tool import update_canvas_content
+
+        canvas_id = "cv-op-" + uuid.uuid4().hex[:10]
+        user_id = "u-op"
+        with get_db_session() as db:
+            db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).delete()
+            db.query(Canvas).filter(Canvas.id == canvas_id).delete()
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by=user_id,
+                name="Operation", canvas_type="email",
+                content={"body": "old"}, status="active",
+            ))
+            db.add(CanvasAudit(
+                id="seed-" + canvas_id, canvas_id=canvas_id,
+                tenant_id="default", action_type="update", user_id=user_id,
+                canvas_type="email", details_json={
+                    "content": {"body": "old"},
+                    "review_status": "accepted",
+                },
+            ))
+
+        first = await update_canvas_content(
+            user_id, canvas_id, {"body": "new"}, "email",
+            operation_id="op-exact",
+        )
+        second = await update_canvas_content(
+            user_id, canvas_id, {"body": "different"}, "email",
+            operation_id="op-exact",
+        )
+        assert first["success"] is True
+        assert second["already_applied"] is True
+        with get_db_session() as db:
+            rows = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).all()
+            stamped = [r for r in rows
+                       if (r.details_json or {}).get("operation_id") == "op-exact"]
+            assert len(stamped) == 1
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "new"
+
+
 class TestConditionalSupersede:
     def test_status_question_does_not_cancel(self):
         cancelled = []
@@ -1109,6 +1207,74 @@ class TestEvidenceIsolation:
         assert atc._latest_turn_evidence(orch, cont) == ""
 
 
+    async def test_delayed_evidence_is_picked_up_after_an_empty_fork(self):
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-late": session}
+        calls = []
+
+        async def edit(*args, **kwargs):
+            calls.append((kwargs.get("shared_tool_state") or {}).get("block"))
+            if len(calls) == 1:
+                session["_ev_exec-late"] = "fresh source evidence"
+                return None
+            return {
+                "message": "applied",
+                "data": {"canvas_edit": {"updated": True}},
+            }
+
+        orch._try_canvas_edit = AsyncMock(side_effect=edit)
+        cont = self._make_cont("s-late", "rebuild", "exec-late")
+        object.__setattr__(cont, "_orchestrator", orch)
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 2), \
+             patch.object(atc, "_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS", 0):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "applied"
+        assert calls[0] is None
+        assert calls[1] == "fresh source evidence"
+
+    async def test_truthy_response_without_updated_is_not_completion(self):
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value={
+            "message": "I updated it",
+            "data": {"canvas_edit": {"updated": False}},
+        })
+        cont = self._make_cont("s-false", "rebuild", "exec-false")
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+        assert outcome == "failed"
+        assert "did not confirm" in summary or "did not apply" in summary
+
+    async def test_completion_requires_audit_and_ui_readback(self):
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value={
+            "message": "applied",
+            "data": {"canvas_edit": {"updated": True, "audit_id": "a-1"}},
+        })
+        cont = self._make_cont("s-readback", "rebuild", "exec-readback")
+        cont.readback_required = True
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_operation_landed", return_value=False), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "failed"
+
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_operation_landed", return_value=True), \
+             patch("tools.canvas_crud_tool.read_canvas", new=AsyncMock(
+                 return_value={"success": True, "audit_id": "a-1"})), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "applied"
+
+
 class TestExactOperationReplay:
     """Review 2026-09-23: invoking the SAME persisted operation ID twice
     produces ONE effective write (not just 'no duplicate on a repeated
@@ -1193,3 +1359,41 @@ class TestFailureReporting:
         assert "continuation error: ValueError" in cont.summary
         assert "<no message>" in cont.summary
         assert cont.error.startswith("ValueError")
+
+
+class TestBackgroundExecutionContext:
+    """2026-09-23: the continuation task is forked from INSIDE the
+    interactive chat request; asyncio copies the creating context, so the
+    background tier inherited atom_interactive_chat=True — the interactive
+    25s structured-latency cap vetoed healthy 26–30s rungs inside a tier
+    whose edit bound is 150s (live: continuation ab86e7bf attempt 1,
+    zero-dispatch exhaustion in 1.3s). The boundary now explicitly
+    establishes background execution; rate/auth/cooldown restrictions are
+    separate mechanisms and unaffected."""
+
+    async def test_fork_inside_interactive_scope_runs_as_background(self):
+        from core.llm.interactive_context import (
+            is_interactive_chat,
+            mark_interactive_chat,
+            reset_interactive_chat,
+        )
+
+        seen = {}
+
+        async def _probe():
+            seen["interactive"] = is_interactive_chat()
+            return "applied", "ok"
+
+        token = mark_interactive_chat()
+        try:
+            assert is_interactive_chat() is True  # enclosing scope intact
+            cont = _cont()
+            with patch.object(atc, "_create_durable_record"), \
+                 patch.object(atc, "_finish_durable_record"), \
+                 patch.object(atc, "_apply_effects", new=AsyncMock()):
+                assert atc.start_continuation(cont, _probe)
+                assert await _wait_terminal(cont) == "applied"
+            assert is_interactive_chat() is True  # fork must not clobber it
+        finally:
+            reset_interactive_chat(token)
+        assert seen["interactive"] is False  # the boundary fix

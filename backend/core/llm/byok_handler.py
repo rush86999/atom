@@ -250,6 +250,12 @@ _AUTH_FAILED: set = set()
 # exceeds ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS; background work is free
 # to keep using them. Persisted with the other pair memos.
 _MODEL_STRUCTURED_LATENCY: Dict[str, float] = {}
+#: When each EWMA sample was last updated — the latency gate's EVIDENCE AGE.
+#: The exclusion record must be able to say whether "observed latency 27s"
+#: is a minute old or a day old (route-exclusion trace, 2026-09-23: the
+#: 17:57 first-attempt skip cited 27s with no age, and nothing could tell
+#: a live measurement from a hours-old one).
+_MODEL_STRUCTURED_LATENCY_AT: Dict[str, float] = {}
 _STRUCTURED_LATENCY_ALPHA = 0.4  # EWMA weight of the newest observation
 
 
@@ -265,6 +271,7 @@ def _record_structured_latency(provider_id: str, model: str,
         elapsed if prev is None
         else prev * (1.0 - _STRUCTURED_LATENCY_ALPHA)
         + elapsed * _STRUCTURED_LATENCY_ALPHA)
+    _MODEL_STRUCTURED_LATENCY_AT[pair] = time.time()
     _save_pair_memos()
 
 
@@ -708,6 +715,32 @@ _PROVIDER_QUOTA_COOLDOWN_SECONDS = float(
 _PROVIDER_COOLDOWN_UNTIL: Dict[str, float] = {}
 _PROVIDER_COOLDOWN_REASON: Dict[str, tuple] = {}
 _PROVIDER_COOLDOWN_LOCK = threading.Lock()
+
+#: ONE-SHOT stale-discovery refresh guard (2026-09-23): provider → epoch of
+#: its last exhaustion-triggered discovery attempt. A provider whose
+#: discovery endpoint is down must not turn every exhausted cascade into a
+#: discovery retry — one attempt per provider per window, then wait.
+_DISCOVERY_REFRESH_ATTEMPTED_AT: Dict[str, float] = {}
+_DISCOVERY_REFRESH_WINDOW_SECONDS = float(
+    os.getenv("ATOM_ROUTE_DISCOVERY_REFRESH_WINDOW_SECONDS", "600") or 600)
+
+
+def _interactive_flag_best_effort() -> Optional[bool]:
+    """Whether the CURRENT call runs under interactive-chat rules.
+
+    Recorded in the exclusion trace because the interactive-only latency
+    cap firing inside a BACKGROUND continuation (forked task inheriting the
+    request's context) is its own defect class: the async tier's 150s edit
+    bound is judged by the 25s interactive cap and a healthy-but-slower
+    route is skipped on the FIRST attempt (live 2026-09-23, continuation
+    ab86e7bf attempt 1: zero dispatches in 1.3s). Recorded, never bypassed
+    here."""
+    try:
+        from core.llm.interactive_context import is_interactive_chat
+
+        return bool(is_interactive_chat())
+    except Exception:  # noqa: BLE001 — diagnostic only
+        return None
 
 
 # Provider tier mapping for cost optimization
@@ -2034,6 +2067,278 @@ class BYOKHandler:
                 for pid, until in _PROVIDER_COOLDOWN_UNTIL.items() if until > now
             }
 
+    def _structured_route_trace_enabled(self) -> bool:
+        return os.getenv("ATOM_LLM_ROUTE_TRACE", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
+
+    def _structured_route_state(
+        self, provider_id: str, model: str,
+    ) -> Dict[str, Any]:
+        from core.llm.model_route_registry import (
+            evaluate_route,
+            get_provider_model_catalog,
+        )
+
+        catalog = get_provider_model_catalog()
+        decision = evaluate_route(
+            provider_id, model, configured_providers=sorted(self.clients))
+        observation = catalog.observe(provider_id)
+        now = time.time()
+
+        def age(value: Any) -> Optional[float]:
+            try:
+                return round(max(0.0, now - float(value)), 1)
+            except (TypeError, ValueError):
+                return None
+
+        cached = getattr(self, "_provider_models_cache", {}).get(provider_id)
+        cache_age = None
+        cache_count = None
+        if cached:
+            cache_age = round(max(0.0, time.monotonic() - cached[0]), 1)
+            cache_count = len(cached[1])
+        cooldown = self._provider_cooldown_state().get(provider_id)
+        return {
+            "catalog_reason": decision.reason,
+            "catalog_freshness": decision.freshness,
+            "catalog_detail": decision.detail[:200],
+            "catalog_verified_age_s": age(observation.verified_at),
+            "catalog_attempt_age_s": age(observation.last_attempt_at),
+            "catalog_served_count": observation.served_count
+            if hasattr(observation, "served_count") else (
+                len(observation.served) if observation.served is not None else None
+            ),
+            "auth_ok": observation.auth_ok,
+            "auth_checked_age_s": age(observation.auth_checked_at),
+            "client_initialized": provider_id in self.clients,
+            "pair_auth_memo": f"{provider_id}/{model}" in _AUTH_FAILED,
+            "provider_cooldown": cooldown,
+            "pricing_cache_age_s": cache_age,
+            "pricing_cache_model_count": cache_count,
+        }
+
+    def _trace_structured_route(
+        self,
+        trace_id: str,
+        provider_id: str,
+        model: str,
+        event: str,
+        reason: str,
+        detail: str = "",
+    ) -> None:
+        if not self._structured_route_trace_enabled():
+            return
+        state = self._structured_route_state(provider_id, model)
+        logger.info(
+            "[structured-route-trace] %s",
+            json.dumps({
+                "trace_id": trace_id,
+                "provider": provider_id,
+                "model": model,
+                "event": event,
+                "reason": reason,
+                "detail": detail[:200],
+                "state": state,
+            }, sort_keys=True, default=str),
+        )
+
+    def _trace_structured_summary(
+        self, trace_id: str, *, examined: int, dispatched: bool,
+        skipped: int, last_error: Any = None,
+    ) -> None:
+        if not self._structured_route_trace_enabled():
+            return
+        logger.info(
+            "[structured-route-trace] %s",
+            json.dumps({
+                "trace_id": trace_id,
+                "event": "summary",
+                "examined": examined,
+                "dispatched": dispatched,
+                "skipped": skipped,
+                "last_error": str(last_error or "")[:240],
+            }, sort_keys=True),
+        )
+
+    def _note_cascade_exclusion(
+        self, out_list: list, provider_id: str, model: str, reason: str,
+    ) -> None:
+        """Record one candidate this structured cascade REFUSED to dispatch,
+        with the AGE of the evidence behind the refusal (2026-09-23).
+
+        The scattered per-skip log lines name reasons but not ages, so the
+        17:57 first-attempt zero-dispatch exhaustion (continuation ab86e7bf,
+        scratch canvas) could not be attributed: was the catalog exclusion
+        fresh or six hours old, was the cooldown a minute from expiry, was
+        the pinned route ever considered. This is the per-candidate half of
+        the correlated record; :meth:`_route_exclusion_trace_and_refresh`
+        emits the tied-together line."""
+        entry: Dict[str, Any] = {
+            "route": f"{provider_id}/{model}", "reason": reason}
+        try:
+            now = time.time()
+            if reason == "provider_cooldown":
+                entry["cooldown"] = self._provider_cooldown_state().get(
+                    provider_id)
+            elif reason == "catalog_not_in_provider":
+                from core.llm.model_route_registry import (
+                    evaluate_route,
+                    get_provider_model_catalog,
+                )
+
+                dec = evaluate_route(
+                    provider_id, model,
+                    configured_providers=sorted(self.clients.keys()))
+                obs = get_provider_model_catalog().observe(provider_id)
+                entry["catalog"] = {
+                    "freshness": dec.freshness,
+                    "verified_age_s": (
+                        round(now - obs.verified_at, 1)
+                        if obs.verified_at else None),
+                    "last_attempt_age_s": (
+                        round(now - obs.last_attempt_at, 1)
+                        if obs.last_attempt_at else None),
+                    "last_error": (obs.last_error or "")[:120],
+                }
+            elif reason == "latency_cap":
+                _pair = f"{provider_id}/{model}"
+                entry["latency"] = {
+                    "observed_s": round(
+                        _MODEL_STRUCTURED_LATENCY.get(_pair, 0.0), 1),
+                    "observed_age_s": (
+                        round(now - _MODEL_STRUCTURED_LATENCY_AT[_pair], 1)
+                        if _pair in _MODEL_STRUCTURED_LATENCY_AT else None),
+                    "interactive": _interactive_flag_best_effort(),
+                }
+        except Exception:  # noqa: BLE001 — the note must never break gating
+            pass
+        out_list.append(entry)
+
+    async def _route_exclusion_trace_and_refresh(
+        self,
+        trace_id: Optional[str],
+        pool_options: list,
+        exclusions: list,
+        *,
+        dispatched: bool,
+    ) -> None:
+        """ONE correlated record per exhausted structured cascade, plus the
+        ONE-SHOT stale-discovery refresh (2026-09-23).
+
+        Emitted unconditionally (INFO, single line) — the env-gated
+        per-route JSON trace stays opt-in, but the zero-dispatch exhaustion
+        is exactly the moment the record must exist: it answers "why was a
+        healthy route skipped on the first attempt?" with evidence AGES
+        (catalog verified_at, cooldown remaining, latency observation age),
+        the pool composition (a pool missing a whole gateway family is a
+        routing-input defect, not a provider failure), and the interactive
+        flag (a background continuation judged by the INTERACTIVE latency
+        cap is its own defect class — recorded here, not bypassed).
+
+        Classification → refresh: only STALE or never-successfully-discovered
+        catalogues are refreshed (once per provider per process window,
+        inline within the caller's existing deadline — discovery is one
+        cheap GET per provider). Cooldowns, auth failures, rate budgets and
+        FRESH catalogue exclusions are legitimate restrictions and are never
+        touched or bypassed."""
+        try:
+            classification: Dict[str, int] = {}
+            refresh_candidates: Dict[str, str] = {}
+            for entry in exclusions:
+                reason = entry.get("reason")
+                if reason == "provider_cooldown":
+                    cls = "cooldown"
+                elif reason == "catalog_not_in_provider":
+                    freshness = ((entry.get("catalog") or {})
+                                 .get("freshness"))
+                    if freshness == "stale":
+                        cls = "catalog_stale"
+                    elif freshness in ("unknown", None):
+                        cls = "catalog_unknown"
+                    else:
+                        cls = "catalog_fresh_excluded"
+                elif reason == "latency_cap":
+                    cls = "latency_cap"
+                elif reason == "direct_api_model_unserved":
+                    cls = "unservable_name"
+                elif reason == "client_not_initialized":
+                    cls = "init_order"
+                else:
+                    cls = "prior_attempt_failed"
+                classification[cls] = classification.get(cls, 0) + 1
+                if cls in ("catalog_stale", "catalog_unknown"):
+                    provider = entry.get("route", "/").split("/", 1)[0]
+                    refresh_candidates[provider] = cls
+
+            cooldowns = self._provider_cooldown_state()
+            # Never refresh discovery for a provider currently restricted:
+            # its catalogue is not the operative exclusion.
+            blocked = set(cooldowns.keys())
+            refresh_providers = sorted(
+                p for p in refresh_candidates
+                if p not in blocked and p in self.clients)
+
+            refresh_outcome: Any = "not_eligible"
+            if refresh_providers and not dispatched:
+                refresh_outcome = await self._refresh_stale_discovery_once(
+                    refresh_providers)
+
+            logger.info(
+                "[route-exclusions] %s",
+                json.dumps({
+                    "trace_id": trace_id,
+                    "event": "structured_cascade_exhausted",
+                    "dispatched": bool(dispatched),
+                    "interactive": _interactive_flag_best_effort(),
+                    "pool": {
+                        "size": len(pool_options),
+                        "families": self._gateway_families(
+                            list(pool_options)),
+                    },
+                    "exclusions": exclusions[:40],
+                    # RANKING-stage skips: why routes were absent from the
+                    # pool in the first place (latency cap / rate budgets).
+                    "pre_pool_skips": getattr(
+                        self, "_last_ranking_skips", [])[:25],
+                    "providers_on_cooldown": cooldowns,
+                    "classification": classification,
+                    "refresh_providers": refresh_providers,
+                    "refresh": refresh_outcome,
+                }, sort_keys=True, default=str),
+            )
+        except Exception as exc:  # noqa: BLE001 — trace must never break routing
+            logger.debug(f"route exclusion trace skipped: {exc}")
+
+    async def _refresh_stale_discovery_once(self, providers: list) -> Any:
+        """Re-run catalog discovery for STALE providers, once per window.
+
+        The window guard is per provider per process: a provider whose
+        discovery endpoint is down must not turn every exhausted cascade
+        into a discovery retry. Never raises; returns a small JSON-able
+        outcome for the correlated record."""
+        now = time.time()
+        due = [
+            p for p in providers
+            if now - _DISCOVERY_REFRESH_ATTEMPTED_AT.get(p, 0.0)
+            >= _DISCOVERY_REFRESH_WINDOW_SECONDS
+        ]
+        if not due:
+            return {"skipped": "window", "providers": providers}
+        for p in due:
+            _DISCOVERY_REFRESH_ATTEMPTED_AT[p] = now
+        try:
+            outcome = await asyncio.to_thread(
+                self._refresh_provider_catalog, list(due))
+            logger.info(
+                "stale-discovery refresh (once per window) for %s: %s",
+                due, outcome)
+            return {"refreshed": due, "outcome": outcome}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "stale-discovery refresh failed for %s: %s", due, exc)
+            return {"error": str(exc)[:200], "providers": due}
+
     @staticmethod
     def invalidate_provider_failures(provider_id: Optional[str] = None) -> None:
         """Forget provider cooldowns and discovered catalogues.
@@ -3198,6 +3503,13 @@ class BYOKHandler:
                     "provider-level cooldown — excluded before ranking: %s",
                     len(_benched), ", ".join(sorted(_benched)))
             candidates = []
+            # 2026-09-23 route-exclusion trace: ranking-stage skips (latency
+            # cap, rate budgets) shrink the candidate pool BEFORE the
+            # structured cascade ever sees it — the 17:57 single-family pool
+            # was shaped here. Recorded (bounded) and surfaced on the
+            # correlated exhaustion record so "why was this healthy route
+            # absent from the initial pool?" is answerable with evidence.
+            ranking_skips: list = []
 
             # When a capability filter is active, bulk-load the capability index
             # ONCE instead of querying the DB per model inside the loop below
@@ -3584,6 +3896,19 @@ class BYOKHandler:
                             f"{_MODEL_STRUCTURED_LATENCY[_lat_key]:.0f}s > "
                             f"interactive cap {_lat_max:.0f}s"
                         )
+                        ranking_skips.append({
+                            "route": _lat_key, "reason": "latency_cap",
+                            "stage": "ranking",
+                            "observed_s": round(
+                                _MODEL_STRUCTURED_LATENCY.get(_lat_key, 0.0), 1),
+                            "observed_age_s": (
+                                round(time.time()
+                                      - _MODEL_STRUCTURED_LATENCY_AT[_lat_key], 1)
+                                if _lat_key in _MODEL_STRUCTURED_LATENCY_AT
+                                else None),
+                            "cap_s": round(_lat_max, 1),
+                            "interactive": True,
+                        })
                         continue
                     model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
                     if model_headroom <= _reserve:
@@ -3593,6 +3918,12 @@ class BYOKHandler:
                             f"(headroom={model_headroom:.2f}"
                             + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                         )
+                        ranking_skips.append({
+                            "route": f"{provider_id}/{model_id}",
+                            "reason": "model_rate_budget", "stage": "ranking",
+                            "headroom": round(float(model_headroom), 3),
+                            "reserve": round(float(_reserve), 3),
+                        })
                         continue
 
                     if provider_id not in _rate_headroom_cache:
@@ -3761,6 +4092,11 @@ class BYOKHandler:
 
             if ranked_options:
                 logger.info(f"BPC Ranking Successful for {getattr(complexity, 'value', complexity)}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
+                # Hand the ranking-stage skips to the correlated exhaustion
+                # record (best-effort attr: concurrent rankings may interleave
+                # — the record is diagnostic, slight cross-talk is acceptable
+                # and the stage field keeps the classes distinguishable).
+                self._last_ranking_skips = ranking_skips[:25]
                 return AwaitableResult(
                     self._reconcile_ranked_routes(ranked_options))
                 
@@ -5551,6 +5887,7 @@ class BYOKHandler:
         force_value_ranking: bool = False,  # last-resort sweep: rank by value, not cost
         relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs (user-approved spend)
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
+        route_trace_id: Optional[str] = None,
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -5812,6 +6149,20 @@ class BYOKHandler:
             # recording feedback. The structured path doesn't re-rank, so without
             # this its feedback trained predictors on constant features (Bug 2).
             structured_decision_id = self._stash_decision_features(prompt, task_type)
+            route_trace_id = route_trace_id or (
+                f"structured-{uuid.uuid4().hex[:12]}"
+            )
+            if self._structured_route_trace_enabled():
+                logger.info(
+                    "[structured-route-trace] %s",
+                    json.dumps({
+                        "trace_id": route_trace_id,
+                        "event": "start",
+                        "task_type": task_type,
+                        "route_count": len(options),
+                        "sweep_depth": _sweep_depth,
+                    }, sort_keys=True),
+                )
 
             # Phase 2 hallucination mitigation — cascade state.
             # Local only; never written to ``self`` (thread-safety).
@@ -5848,11 +6199,23 @@ class BYOKHandler:
                 and cascade_options == [tuple(provider_model)]) else None
             _attempted_any = False
             _attempt_count = 0
+            _structured_skipped = 0
+            # 2026-09-23 route-exclusion trace: every refused candidate with
+            # its reason + evidence age, emitted as ONE correlated line when
+            # the cascade exhausts (see _route_exclusion_trace_and_refresh).
+            _cascade_exclusions: list = []
 
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
                 cascade_idx += 1
                 if provider_id in failed_providers:
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "already_failed_provider")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "already_failed_provider")
+                    _structured_skipped += 1
                     continue
                 # DIRECT deepseek serves ONLY its own two model names (live
                 # 2026-09-23: "supported API model names are deepseek-flash,
@@ -5865,6 +6228,13 @@ class BYOKHandler:
                         logger.info(
                             f"structured gate: skipping deepseek/{model} — "
                             f"direct API does not serve {_bare!r}")
+                        self._trace_structured_route(
+                            route_trace_id, provider_id, model, "skip",
+                            "direct_api_model_unserved", _bare)
+                        self._note_cascade_exclusion(
+                            _cascade_exclusions, provider_id, model,
+                            "direct_api_model_unserved")
+                        _structured_skipped += 1
                         continue
                     # SERVABLE name — fall through to dispatch (the stray
                     # unconditional continue here skipped EVERY deepseek
@@ -5880,11 +6250,25 @@ class BYOKHandler:
                         "structured cascade skips %s/%s: no client built "
                         "for this provider in this handler", provider_id,
                         model)
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "client_not_initialized")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "client_not_initialized")
+                    _structured_skipped += 1
                     failed_providers.add(provider_id)
                     continue
                 if (provider_id, model) != _pinned_pair \
                         and self._ranked_model_is_known_unserved(
                             provider_id, model):
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "catalog_not_in_provider")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "catalog_not_in_provider")
+                    _structured_skipped += 1
                     continue
                 if self._provider_cooldown_active(provider_id):
                     # Same skip the other cascades apply (see 6247/6946): a
@@ -5894,11 +6278,24 @@ class BYOKHandler:
                     # re-paying a doomed 401 round trip on every call (live
                     # 2026-09-17 acceptance logs: ~700 wasted 401s across
                     # five same-key models, 32 exhausted chains).
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "provider_cooldown")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "provider_cooldown")
+                    _structured_skipped += 1
                     continue
+                self._trace_structured_route(
+                    route_trace_id, provider_id, model, "dispatch", "")
                 try:
                     # Get the client and wrap with instructor
                     client = self.clients.get(provider_id)
                     if not client:
+                        self._trace_structured_route(
+                            route_trace_id, provider_id, model, "skip",
+                            "client_not_initialized")
+                        _structured_skipped += 1
                         failed_providers.add(provider_id)
                         continue
                     instructor_client = instructor.from_openai(client)
@@ -6465,6 +6862,18 @@ class BYOKHandler:
                 logger.warning(
                     "structured cascade exhausted on cost-priority rungs — "
                     "one value-ranked sweep over untried healthy providers")
+                # CORRELATED EXCLUSION TRACE + ONE-SHOT STALE-DISCOVERY
+                # REFRESH (2026-09-23): emit the tied-together record of
+                # every refused candidate (reason + evidence AGE, pool
+                # composition, cooldowns, interactive flag), and refresh
+                # discovery — once, inline — for providers whose CATALOGUE
+                # is stale/unknown. The sweep below re-ranks against the
+                # refreshed catalogues, so a route wrongly excluded by stale
+                # discovery gets its first-attempt dispatch here without any
+                # cooldown/auth/rate restriction being bypassed.
+                await self._route_exclusion_trace_and_refresh(
+                    route_trace_id, options, _cascade_exclusions,
+                    dispatched=_attempted_any)
                 try:
                     _swept = await self.generate_structured_response(
                         prompt=prompt,
@@ -6483,6 +6892,7 @@ class BYOKHandler:
                         force_value_ranking=True,
                         relax_tier=True,
                         _sweep_depth=_sweep_depth + 1,
+                        route_trace_id=route_trace_id,
                     )
                     if _swept is not None:
                         return _swept
@@ -6493,6 +6903,13 @@ class BYOKHandler:
             # None" previously meant EITHER no attempt reached a provider
             # (all candidates skipped) OR all attempts returned None. These
             # demand opposite responses — record which happened.
+            self._trace_structured_summary(
+                route_trace_id,
+                examined=len(cascade_options),
+                dispatched=_attempted_any,
+                skipped=_structured_skipped,
+                last_error=last_error,
+            )
             if last_error is None and not _attempted_any:
                 logger.error(
                     "All structured candidates SKIPPED before dispatch "

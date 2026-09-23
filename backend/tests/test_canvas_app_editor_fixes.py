@@ -22,7 +22,10 @@ from core.chat_canvas_editor import (
     CanvasEditPlan,
     CanvasPatchOp,
     _apply_patch_ops,
+    _bounded_email_content,
     _merge_replace_content,
+    _requested_product_count,
+    _validate_scoped_edit,
     _repair_json,
     apply_canvas_edit,
     describe_apply_failure,
@@ -412,3 +415,57 @@ async def test_try_canvas_edit_apply_failure_reply_is_actionable():
     assert resp is not None and resp["data"]["canvas_edit"]["updated"] is False
     assert resp["data"]["canvas_edit"]["reason"] == "not_valid_json"
     assert "TO, CC" in resp["message"] and "set to:" in resp["message"]
+
+
+def test_requested_scope_count_reconciles_named_non_slitter_and_alternatives():
+    assert _requested_product_count([
+        "reconcile four non-slitter machines including No. 622, plus "
+        "SLE24-16 and three alternative slitters"
+    ]) == 8
+    assert _requested_product_count([
+        "four requested machines followed by three alternatives"
+    ]) == 7
+
+
+def test_scoped_update_rejects_placeholders_but_allows_payment_terms_tbd():
+    body = (
+        "<p>Requested equipment and alternatives</p>"
+        "<table><tr><th>#</th><th>Description</th><th>Price</th><th>Delivery</th></tr>"
+        "<tr><td>1</td><td>Roper Whitney No. 381</td><td>$2,902.00</td><td>10-11 weeks</td></tr>"
+        "<tr><td>2</td><td>Linmac U-22</td><td>$1,777.00</td><td>3-4 months</td></tr>"
+        "<tr><td>3</td><td>Manual Flanger</td><td>$1,609.00</td><td>3-4 weeks</td></tr>"
+        "<tr><td>4</td><td>Tennsmith SLE24-16</td><td>$8,880.00</td><td>11-12 weeks</td></tr>"
+        "<tr><td>5</td><td>TK 1624</td><td>$8,040.00</td><td>4-6 weeks</td></tr>"
+        "<tr><td>6</td><td>Tin Knocker Gang Slitter</td><td>$12,838.00</td><td>In Stock</td></tr>"
+        "<tr><td>7</td><td>GSL48-16</td><td>$14,166.00</td><td>6-8 weeks</td></tr>"
+        "<tr><td>8</td><td>Roper Whitney No. 622</td><td>$2,421.00</td><td>In Stock</td></tr>"
+        "</table><p>Regards, Rish M.</p><p>Payment Terms: TBD</p>"
+    )
+    request = (
+        "apply all eight machines with actual prices, distinguish alternatives, "
+        "keep the footer, and use no square brackets"
+    )
+    assert _validate_scoped_edit({"body": "<table></table>"}, {"body": body}, [request]) is None
+    bad = body.replace("$8,880.00", "TBD").replace(
+        "TK 1624", "[Slitter alternative — from email]"
+    )
+    reason = _validate_scoped_edit({"body": "<table></table>"}, {"body": bad}, [request])
+    assert reason and reason.startswith("scope_placeholder")
+
+
+def test_bounded_email_merge_keeps_footer_and_links():
+    old = (
+        "<p>Hi Steve,</p><table><tr><td>old</td></tr></table>"
+        "<p>Regards, Rish M.</p><a href=\"https://brennan.ca/\">Brennan</a>"
+    )
+    new = (
+        "<p>Hi Steve,</p><table><tr><td>new</td></tr><tr><td>alt</td></tr></table>"
+        "<p>Alternative option</p><p>Regards, Someone Else</p>"
+        "<a href=\"https://brennan.ca/\">Brennan</a>"
+    )
+    merged = _bounded_email_content({"body": old}, {"body": new})
+    assert merged is not None
+    assert "new" in merged["body"] and "alt" in merged["body"]
+    assert "Regards, Rish M." in merged["body"]
+    assert "Someone Else" not in merged["body"]
+    assert "https://brennan.ca/" in merged["body"]

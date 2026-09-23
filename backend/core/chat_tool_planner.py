@@ -39,6 +39,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, PrivateAttr, field_validator
 
+try:  # canvas-target text for the relevance judgments below; the module
+      # is fault-isolated at every use site, so absence degrades to "".
+    from core.plan_relevance import canvas_topic_text
+except Exception:  # noqa: BLE001 — planner must import without it
+    def canvas_topic_text(canvas: Optional[Dict[str, Any]]) -> str:
+        return ""
+
 logger = logging.getLogger(__name__)
 
 # Connects provider names as stored in integration_tokens to the service
@@ -995,6 +1002,7 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
 def _plan_relevance_verdict(
     query: str, message: str,
     history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
 ) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` — thin wrapper over
     core.plan_relevance (the same verdict the consumption-side gates run),
@@ -1005,10 +1013,18 @@ def _plan_relevance_verdict(
     messages ("yes go ahead", "rebuild the draft with requested quotes…")
     are judged on their RESOLVED topic/lineage, not their bare wording —
     the bare judgement fired the corrective repair arm on exactly those
-    turns (RCA: 59.5s planner, two sequential structured calls)."""
+    turns (RCA: 59.5s planner, two sequential structured calls).
+
+    2026-09-23: ``extra_topic`` (the open canvas's subject text) rides
+    along for the canvas-target rule — an edit turn's evidence query names
+    the CANVAS's subject, which shares zero words with an instruction like
+    "update with actual prices in the email" (live canvas 0e4defa5: the
+    correct mailbox query was replanned and then declined by both
+    consumption gates on the bare-word judgement)."""
     try:
         from core.plan_relevance import relevance_verdict
-        return relevance_verdict(query, message, history=history)
+        return relevance_verdict(query, message, history=history,
+                                 extra_topic=extra_topic)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown"
 
@@ -1016,16 +1032,19 @@ def _plan_relevance_verdict(
 def _plan_relevance_basis(
     query: str, message: str,
     history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
 ) -> "tuple[str, str]":
     """Same fault-isolation contract as :func:`_plan_relevance_verdict`,
     returning the rule basis alongside the verdict so the acceptance stamp
     records WHY (basis ``provenance-quote`` is assigned by the caller for
     the exemption, not by this module). History-aware for the same reason
     as the verdict wrapper — the stamp is the verdict of record the
-    downstream editor gate honors."""
+    downstream editor gate honors. ``extra_topic``-aware since 2026-09-23
+    (canvas-target rule) for the same reason."""
     try:
         from core.plan_relevance import relevance_basis
-        return relevance_basis(query, message, history=history)
+        return relevance_basis(query, message, history=history,
+                               extra_topic=extra_topic)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown", "module-unavailable"
 
@@ -1129,6 +1148,7 @@ async def plan_tool_use(
     llm_service: Any,
     canvas: Optional[Dict[str, Any]] = None,
     provenance: str = "",
+    allow_canvas_target: bool = False,
 ) -> Optional[ToolPlan]:
     """Decide (via cheap structured LLM output) whether this turn needs live
     integration data, and which connected service to query. Returns None on
@@ -1315,8 +1335,18 @@ async def plan_tool_use(
             provenance
             and "INGESTED MAIL contains" in provenance
             and _quote_lookup_shape(message))
+        # The canvas target rides along on every relevance judgment below:
+        # an edit turn's evidence query names the CANVAS's subject (the
+        # products in the open draft), which shares zero words with the
+        # instruction ("update with actual prices in the email") — live
+        # 2026-09-23, canvas 0e4defa5: the CORRECT mailbox query was
+        # replanned, then declined by both consumption gates.
+        _canvas_topic = (
+            canvas_topic_text(canvas) if allow_canvas_target else ""
+        )
         if not _prov_quote_lookup and _plan_relevance_verdict(
-                plan.query or "", message, history) == "irrelevant":
+                plan.query or "", message, history,
+                extra_topic=_canvas_topic) == "irrelevant":
             defect = (
                 "the planned query answers an EARLIER request, not the "
                 f"current one: query {plan.query!r} names nothing the "
@@ -1330,7 +1360,7 @@ async def plan_tool_use(
                     and repaired.service in allowed
                     and _plan_relevance_verdict(
                         repaired.query or "", message,
-                        history) == "relevant"):
+                        history, extra_topic=_canvas_topic) == "relevant"):
                 logger.info(
                     "tool planner: relevance repair -> "
                     f"{repaired.service}.{repaired.intent} "
@@ -1363,7 +1393,8 @@ async def plan_tool_use(
             plan.relevance_basis = "provenance-quote"
         else:
             plan.relevance_verdict, plan.relevance_basis = (
-                _plan_relevance_basis(plan.query or "", message, history))
+                _plan_relevance_basis(plan.query or "", message, history,
+                                      extra_topic=_canvas_topic))
     return plan
 
 
