@@ -3436,6 +3436,9 @@ class ChatOrchestrator:
                                                     "agent_id"),
                                                 provenance=(context or {}).get(
                                                     "canvas_provenance"),
+                                                evidence_block=(
+                                                    _shared_tool.get("block")
+                                                    or ""),
                                             )
                                         )
                                         if _cont_id:
@@ -3493,6 +3496,8 @@ class ChatOrchestrator:
                                     agent_id=(context or {}).get("agent_id"),
                                     provenance=(context or {}).get(
                                         "canvas_provenance"),
+                                    evidence_block=(
+                                        _shared_tool.get("block") or ""),
                                 )
                                 if _cont_id2:
                                     _shared_tool[
@@ -4932,6 +4937,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = _compose_lookup_evidence(
                             message, _plan, _live_block, _mail_lines,
                         )
+                        # EVIDENCE HANDOFF (review item 2): persist this
+                        # turn's composed evidence on the session so the
+                        # background continuation can refresh its evidence
+                        # on retries (the fork captured the EDIT's search,
+                        # not this reply search that found the prices).
+                        try:
+                            session["_latest_evidence_block"] = (
+                                _tool_block or "")
+                        except Exception:
+                            pass
                         _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                         await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                      _first_line or "no results")

@@ -127,6 +127,12 @@ class AsyncTurnContinuation:
     # Idempotency snapshot, taken at fork time.
     snapshot_content_hash: str = ""
     snapshot_audit_ts: str = ""
+    # EVIDENCE HANDOFF (review item 2): the turn's already-retrieved
+    # evidence block — the reply path's search found data the edit's own
+    # fresh-data search missed (live 2026-09-23: reply had 4/4 slitter
+    # prices; edit applied placeholders). The continuation injects this
+    # as existing_block so the retry REUSES it instead of re-searching.
+    evidence_block: str = ""
     # Terminal state.
     outcome: str = ""
     summary: str = ""
@@ -737,6 +743,20 @@ async def run_canvas_edit_continuation(
     # between attempts is honored, never overwritten.
     last_note = "the edit planner could not complete"
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
+        # EVIDENCE REFRESH: the fork captures the block at fork time (the
+        # edit's own search), but the REPLY's search — which may have found
+        # better evidence — completes after the fork. On retries (after the
+        # 45s backoff) re-read the turn's latest block via the orchestrator's
+        # shared state so the edit uses the best available evidence.
+        if attempt > 1 and cont.evidence_block:
+            _latest = _latest_turn_evidence(orchestrator, cont)
+            if _latest and _latest != cont.evidence_block:
+                logger.info(
+                    "[async-continuation] %s retry %d: refreshed evidence "
+                    "block (%d → %d chars)",
+                    cont.continuation_id, attempt,
+                    len(cont.evidence_block), len(_latest))
+                cont.evidence_block = _latest
         pre = _classify_preapply(cont)
         if pre == OUTCOME_ALREADY_APPLIED:
             return pre, (
@@ -750,7 +770,13 @@ async def run_canvas_edit_continuation(
                 "rather than overwriting them. Re-ask and it will run "
                 "against the current canvas.")
 
-        blackboard: Dict[str, Any] = {"plan_task": None, "block": None}
+        blackboard: Dict[str, Any] = {
+            "plan_task": None,
+            # EVIDENCE HANDOFF: the turn's block becomes the existing_block
+            # the editor's fetch_fresh_data_section reuses without paying
+            # for a second search.
+            "block": (cont.evidence_block or "") or None,
+        }
         # The revision token is captured per attempt and enforced at the
         # write door — an edit arriving during the retry is a refusal,
         # not an overwrite. The operation id stamps whatever lands.
@@ -819,6 +845,24 @@ def supersede_pending_continuation(
     return cancel_continuation(session_id)
 
 
+def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str:
+    """The session's most recent evidence block. The reply path stores its
+    composed evidence on the session dict (session["_latest_evidence_block"])
+    after its search completes; the continuation reads it on retries so the
+    edit uses the best available evidence, not just what the edit's own
+    search found before the fork. Fault-isolated."""
+    try:
+        orch = getattr(cont, "_orchestrator", None)
+        if orch is None:
+            return ""
+        session = orch.conversation_sessions.get(cont.session_id)
+        if not session:
+            return ""
+        return str(session.get("_latest_evidence_block") or "")
+    except Exception:
+        return ""
+
+
 def fork_canvas_edit_continuation(
     orchestrator: Any,
     *,
@@ -830,6 +874,7 @@ def fork_canvas_edit_continuation(
     execution_id: Optional[str],
     agent_id: Optional[str],
     provenance: Optional[Dict[str, Any]] = None,
+    evidence_block: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
     branch. Snapshots the idempotency state at fork time. Returns the
@@ -848,6 +893,7 @@ def fork_canvas_edit_continuation(
         provenance=provenance,
         snapshot_content_hash=_content_hash(canvas or {}),
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
+        evidence_block=evidence_block or "",
     )
     # Dataclass: stash the orchestrator for the in-memory session append
     # (same event loop, same instance that served the forked turn).
