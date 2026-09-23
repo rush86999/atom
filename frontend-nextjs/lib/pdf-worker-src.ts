@@ -8,5 +8,5 @@
  * transform), where pdf.js degrades to its main-thread fake worker.
  */
 export function pdfWorkerSrc(): string {
-    return new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+    return new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
 }
