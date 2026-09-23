@@ -209,6 +209,19 @@ def _parse_affordable_tokens(err_text: str) -> "Optional[int]":
         return None
 
 
+def _direct_api_model_name(provider_id: str, model: str) -> str:
+    """Bare model name for DIRECT single-vendor APIs.
+
+    Vendor-prefixed catalog ids ('tencent/deepseek-v4-pro') are route
+    selectors for GATEWAYS; the direct provider API rejects them (live
+    2026-09-23: api.deepseek.com 400 "supported API model names are
+    deepseek-flash, deepseek-v4-pro"). On the direct API the bare name is
+    the same underlying model."""
+    if provider_id == "deepseek" and "/" in model:
+        return model.split("/", 1)[1]
+    return model
+
+
 def _required_temperature(provider_id: str, model: str,
                           requested: float) -> float:
     """The temperature to actually send: the per-model constraint when the
@@ -4411,7 +4424,7 @@ class BYOKHandler:
                         else _DEFAULT_COMPLETION_MAX_TOKENS
                     )
                     _req_kwargs = {
-                        "model": model,
+                        "model": _direct_api_model_name(provider_id, model),
                         "messages": messages,
                         # per-model temperature constraint (provider-general:
                         # learned from each endpoint's own rejection)
@@ -6999,9 +7012,24 @@ class BYOKHandler:
 
                     logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
 
+                # DIRECT single-vendor APIs reject vendor-prefixed catalog
+                # ids ('tencent/deepseek-v4-pro' sent to api.deepseek.com →
+                # 400 "supported API model names are deepseek-flash,
+                # deepseek-v4-pro"; live 2026-09-23 — the stream ladder's
+                # catalog sweep carries composite ids and burned all three
+                # rungs on that 400). Strip the vendor prefix: the bare
+                # name IS the same underlying model on the direct API.
+                _direct_api_model = _direct_api_model_name(
+                    attempt_provider_id, model)
+                if _direct_api_model != model:
+                    logger.info(
+                        f"direct dispatch: stripped catalog prefix "
+                        f"{model!r} → {_direct_api_model!r} "
+                        f"({attempt_provider_id})")
+
                 # Use async streaming API
                 create_kwargs: Dict[str, Any] = {
-                    "model": model,
+                    "model": _direct_api_model,
                     "messages": messages,
                     "temperature": _required_temperature(
                         attempt_provider_id, model, temperature),
