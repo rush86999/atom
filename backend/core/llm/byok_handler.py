@@ -212,13 +212,15 @@ def _parse_affordable_tokens(err_text: str) -> "Optional[int]":
 def _direct_api_model_name(provider_id: str, model: str) -> str:
     """Bare model name for DIRECT single-vendor APIs.
 
-    Vendor-prefixed catalog ids ('tencent/deepseek-v4-pro') are route
-    selectors for GATEWAYS; the direct provider API rejects them (live
-    2026-09-23: api.deepseek.com 400 "supported API model names are
-    deepseek-flash, deepseek-v4-pro"). On the direct API the bare name is
-    the same underlying model."""
+    Vendor-prefixed catalog ids are route selectors for GATEWAYS; the
+    direct provider API rejects them (live 2026-09-23: api.deepseek.com
+    400 "supported API model names are deepseek-flash, deepseek-v4-pro"
+    for 'tencent/deepseek-v4-pro' AND for multi-segment catalog paths like
+    'fireworks_ai/accounts/fireworks/models/deepseek-v4-pro' — the direct
+    API saw the whole path, not the model). The direct API serves the same
+    underlying model under the LAST path segment, so normalize to that."""
     if provider_id == "deepseek" and "/" in model:
-        return model.split("/", 1)[1]
+        return model.rsplit("/", 1)[1]
     return model
 
 
