@@ -68,9 +68,15 @@ report the error message the page actually showed.
   routing — blocked attempts leave no evidence). Unknown kinds/params → 400.
 - **Adapter** (`adapter.py`): one `EnvInstance` (ephemeral site + token) per
   rollout; drives `OperatorLoop` and classifies every rollout as
-  `pass` / `agent_fail` / `harness_error`. Any machinery exception
-  (provider auth, loop crash, verifier crash) is a HARNESS_ERROR — excluded
-  from rates and rerun, never counted as an agent failure.
+  `pass` / `agent_fail` / `harness_error`. The loop reports WHY it ended
+  via the typed `termination_reason` on its result (2026-09-22):
+  `exception` / `observation_failed` / `stopped` are infrastructure and
+  classify HARNESS_ERROR — excluded from rates and rerun, never counted as
+  an agent failure — while `no_valid_action` / `unparseable_step` /
+  `repeated_action_failure` / `action_blocked` / `budget_exhausted` /
+  `completed` are agent-attributable and are scored by the frozen verifier.
+  Executed entries carry the actual action `parameters` (coordinates, typed
+  text, selectors) plus navigated URL/title.
 - **Mutations** (`mutations.py`): declarative `MutationStack`s (Setup =
   world updates; Rules = observation/action specs) validated against the
   site schema, plus mechanical solutions (scripted solvers reading the same

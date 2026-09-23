@@ -691,6 +691,29 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
             });
         }
 
+        // Background turn continuation landed (edit finished after the
+        // interactive turn ended): refresh history so the late assistant
+        // message + updated canvas state appear, and tell the user.
+        if (msg.type === "chat_continuation" && msg.session_id === sessionId) {
+            const summary: string = msg.summary || "A background task finished.";
+            const status: string = msg.status || "";
+            const titles: Record<string, string> = {
+                applied: "Background update finished",
+                awaiting_approval: "Draft ready for your review",
+                already_applied: "Update had already landed",
+                conflict: "Canvas changed — update held back",
+                cancelled: "Background update cancelled",
+                failed: "Background update could not finish",
+            };
+            const good = status === "applied" || status === "already_applied";
+            toast({
+                title: titles[status] || "Background update finished",
+                description: summary.slice(0, 160),
+                variant: good ? "default" : "warning",
+            });
+            void loadSessionHistory(msg.session_id);
+        }
+
         if (msg.type === "hitl_paused") {
             setPendingApproval({ action_id: msg.action_id, tool: msg.tool, reason: msg.reason });
             setStatusMessage("Waiting for approval...");

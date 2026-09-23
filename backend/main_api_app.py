@@ -648,6 +648,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to run execution recovery sweep: {e}")
 
+        # 5b. Continuation recovery — background turn-continuations orphaned
+        # by the restart were marked failed by the sweep above; their users
+        # get the honest failure notification now (idempotent via the
+        # notified flag on the durable row).
+        try:
+            from core.async_turn_continuation import (
+                notify_recovered_continuations,
+            )
+
+            cont_rec = notify_recovered_continuations()
+            if cont_rec.get("recovered_notified"):
+                logger.info(
+                    "Continuation recovery: %(n)d user(s) notified",
+                    {"n": cont_rec["recovered_notified"]},
+                )
+        except Exception as e:
+            logger.error(f"Failed to run continuation recovery pass: {e}")
+
         # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
         # Auto-sync is on by default (integrations should stay fresh without a
         # manual toggle). Disable explicitly with ENABLE_INGESTION_SYNC=false.

@@ -50,6 +50,31 @@ def _fake_outlook_module(emails):
     return mod
 
 
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _restore_injected_modules():
+    """The helpers below REPLACE sys.modules entries
+    (integrations.universal_integration_service / .outlook_service) with
+    MagicMocks. Without restoration the fake leaks to every later test in
+    the process — the cross-file batch failures of 2026-09-22 (storage
+    supplement tests got the mock's "provider relevance hit" data and
+    their real search mocks were never awaited). Restore the real modules
+    at teardown; lancedb restores itself at its call site."""
+    import sys as _sys
+
+    _keys = ("integrations.universal_integration_service",
+             "integrations.outlook_service")
+    saved = {k: _sys.modules.get(k) for k in _keys}
+    yield
+    for k, v in saved.items():
+        if v is not None:
+            _sys.modules[k] = v
+        else:
+            _sys.modules.pop(k, None)
+
+
 def _fake_universal_module(data):
     class _FakeSvc:
         def __init__(self, *a, **kw):
@@ -150,6 +175,14 @@ def test_latest_styled_ingested_prefers_newest_address_match():
     """The lookup must take the NEWEST matching record that carries styled
     markup, skipping address non-matches and plain rows."""
     import pandas as pd
+
+    # ISOLATION (documented pre-existing failure, fixed 2026-09-22):
+    # _comms_store_records() caches the REAL store for 300s — a sibling test
+    # that primed it earlier in the same process made this test's lancedb
+    # monkeypatch dead code (the cache answered with live rows and the
+    # assertion failed only when the dev store was present). Invalidate so
+    # THIS test's fake store is what the lookup reads.
+    planner.invalidate_comms_store_cache()
 
     rows = [
         {"sender": "jacob@blumetric.ca", "recipient": "rish@brennan.ca",

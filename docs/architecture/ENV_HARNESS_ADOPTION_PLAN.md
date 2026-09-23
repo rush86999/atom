@@ -1,14 +1,16 @@
 # Evolving-Environment Curriculum — EnvHarness Adoption Plan
 
-> **Status:** CLOSED 2026-09-21. Phases 1–3 IMPLEMENTED and retained.
-> Phase 4 executed per registered design → STOP (+12.5pp < +15pp). Phase 4b
-> replication of the single variance-family signal FAILED (arm A 6/6 on
-> fresh instances; delta 0pp; ceiling check 12/12 = no drift) → **FINAL
-> STOP** per the 4b rule: the strategy-brief curriculum mechanism is
-> refuted at this pin/budget and is not to be retried as registered. The
-> hardened infrastructure is the durable outcome. Rev 2 narrowed the
-> original proposal after a code-level review; rev 3 records the build +
-> both runs.
+> **Status:** CLOSED 2026-09-21 (rev 4 corrections applied — see
+> Corrections). Phases 1–3 IMPLEMENTED and retained. Phase 4 executed per
+> registered design → STOP (+12.5pp < +15pp). Phase 4b replication: **no
+> observed advantage** (arm A 6/6 and arm B 6/6 on fresh instances — both
+> arms at ceiling; the 12/12 ceiling check shows the tasks were solvable at
+> test time but does not fully exclude drift) → **FINAL STOP**: benefit not
+> demonstrated at the tested budgets, and no further investment is
+> warranted under this design. The causal story of the 4a delta remains
+> unknown. Rev 2 narrowed the original proposal after a code-level review;
+> rev 3 records the build + both runs; rev 4 corrects the scientific
+> claims, the failure classification, and the audit trail.
 > **Added:** Sep 21, 2026 (ZCode, from VentureBeat coverage + upstream repo read)
 > **Sources:** google-research/envharness (Apache 2.0, arXiv:2608.19880) —
 > [GitHub](https://github.com/google-research/envharness),
@@ -164,9 +166,12 @@ The mutation boundary is real work, not an interface sketch:
   HTML) and on requests (404/redirect an action, inject a tool-visible
   failure).
 - **Agent boundary**: the adapter drives `OperatorLoop` (the existing eval
-  subject — real Chromium, vision decider), passes the run token, and records
-  full action/observation pairs per step (the repo already has the trace
-  shapes: `core/trajectory.py`).
+  subject — real Chromium, vision decider), passes the run token, and
+  records per-step action traces (action type, success, navigated URL /
+  page title where the backend reports them). Observation capture (page
+  text/screenshots per step) is NOT built — flagged as open work, since the
+  loop-side hook for it doesn't exist yet; distillation consumers must not
+  assume observations are present (see Corrections #3).
 - **Concurrency/isolation**: one site instance per run on an ephemeral port
   (STATE is module-global today); no shared process between arms.
 - **Outcome taxonomy**: every rollout returns `pass` | `agent_fail` |
@@ -203,8 +208,9 @@ Pre-registered design, written into this doc **before** any run:
   disjoint instance sets for train / validation / test. Training and
   evaluation never see the same answers — this is the memorization control.
 - **Arms**: (A) static-environment baseline, (B) mutated-environment
-  curriculum (Phase 3 library, sequenced). **Equal total rollout budget**
-  across arms; same pinned model and frozen routing (provider catalog
+  curriculum (Phase 3 library, sequenced). **Equal rollout allocation**
+  across arms (actual cost — steps/tokens — is an outcome, not a
+  construction); same pinned model and frozen routing (provider catalog
   snapshot, no runtime ladder drift); separate isolated stores per arm for
   learned artifacts (namespaced patterns/playbooks, synthetic provenance on
   every episode: env id, mutation stack, arm).
@@ -343,7 +349,10 @@ All numbers below are from that window's test runs.
 > Registered with best estimates as directed. Any change after results are
 > seen invalidates the run.
 
-- **Date registered / registrant:** 2026-09-21 ~16:40 EDT / ZCode
+- **Date registered / registrant:** 2026-09-21, commit `7ff7377cf`
+  (authored 12:29:03 EDT — before the registered run's first rollout at
+  12:56; the "~16:40 EDT" time originally written here was wrong and is
+  superseded by git — see Chronology). Registrant: ZCode.
 - **Model pin:** `glm-5.3-flash` on opencode-go, called DIRECTLY via the
   handler's opencode-go client (`PinnedVisionDecider`, temperature 0.1,
   max_tokens 1024, one bounded parse-retry). Feasibility probe (2026-09-21):
@@ -382,10 +391,13 @@ All numbers below are from that window's test runs.
 - **Primary metric:** test-family success rate (frozen verifier), arm B −
   arm A on the pooled 16 test rollouts per arm.
 - **Minimum useful improvement:** +15pp absolute (≥ 2.4/16 → in integer
-  terms ≥ 3 rollouts). **Maximum cost multiple vs arm A:** 1.0× by design
-  (equal rollout counts; marginal cash ≈ 0 on the Go-plan subscription —
-  the spend is quota). **Minimum instances for the result to count:** 16
-  test rollouts per arm (2/family × 8).
+  terms ≥ 3 rollouts). **Cost control:** equal rollout ALLOCATION (16 test +
+  16 train per arm) — NOT a guaranteed equal cost: step counts, retries, and
+  token usage are per-arm outcomes, not construction. Measured after the
+  run: arm A 301 steps vs arm B 275 across the 32 rollouts each; tokens
+  were not metered per arm (marginal cash ≈ 0 on the Go-plan subscription).
+  **Minimum instances for the result to count:** 16 test rollouts per arm
+  (2/family × 8).
 - **Harness-error budget:** each harness error rerun up to 2× (reruns don't
   consume budget slots); abort the stage if > 25% of its rollouts remain
   harness errors after reruns. **Wall-clock cap:** 3.5h total; checkpoint
@@ -399,12 +411,18 @@ All numbers below are from that window's test runs.
   rates are therefore expected in a low-to-mid band — suitable for the
   band protocol, and confirmation that the test cannot trivially saturate.
 
-## Results (2026-09-21, run completed 13:48 EDT — decision: STOP)
+## Results (2026-09-21, registered run checkpoint `experiment_20260921-125616.json`, final write 13:48 EDT — decision: STOP)
 
 Full registered run executed as designed: 64 rollouts + 16 distillation
-calls, **zero harness errors**, both arms 8/16 at train, wall clock ~52 min
-(well under the 3.5h cap). Checkpoint: `tests/operator_eval/results/`
-(gitignored; kept locally).
+calls, **zero harness errors as classified at the time** — see Corrections:
+the classification in place during this run could not reliably distinguish
+infrastructure failures from agent failures (both the decider's
+provider-failure path and the loop's internal exception handling could
+launder harness problems into agent outcomes), so read this as "no harness
+problems surfaced", not a verified absence. Both arms 8/16 at train; wall
+clock ~52 min (well under the 3.5h cap). Checkpoint:
+`tests/operator_eval/results/experiment_20260921-125616.json` (gitignored;
+kept locally).
 
 | | test_A (static) | test_B (curriculum) |
 |---|---|---|
@@ -441,21 +459,23 @@ Reading the result honestly:
   (find_code/scroll_find/extract_headline 2/2 for both arms — nothing for a
   brief to add).
 
-Verdict for the record: the registered experiment ran clean and produced a
-directionally positive but under-threshold result whose whole signal sits in
-one n=2 family. That is evidence the *mechanism* (mutated-instance training
-→ value-agnostic briefs) works, and equally that it cannot show through a
-pooled rate when the pinned model floors on actuation-limited families. A
-future attempt — new registration, not a modification of this one — should
-pin a stronger-grounding computer-use model and/or restrict families to
-knowledge-limited ones, and pre-register per-family scoring as primary.
+Verdict for the record: the registered experiment produced a directionally
+positive but under-threshold result whose entire signal sits in one n=2
+family — and whose briefs were induced from LOSSY trajectory summaries
+(action types + success flags + truncated final summary; no observations,
+parameters, or intermediate reasoning — see Corrections), so what failed to
+clear the bar here is specifically *brief induction from lossy summaries*.
+A future attempt — new registration, not a modification of this one —
+should pin a stronger-grounding computer-use model, restrict families to
+knowledge-limited ones, pre-register per-family scoring as primary, and
+feed the learner full action/observation trajectories.
 
 What stands regardless of the verdict: the Phase 1 hardening (fail-closed
 sandbox, world/evidence split, strengthened verifiers, the pinned-decider
 harness, the two-stage admission math) is durable infrastructure, exactly as
 the registered decision rule anticipated.
 
-## Phase 4b registration (NEW registration, 2026-09-21 ~14:05 EDT — a replication test; the 4a STOP stands in the record)
+## Phase 4b registration (NEW registration, commit `45248701d`, authored 15:36:45 EDT — a replication test; the 4a STOP stands in the record)
 
 This is not a modification of the 4a verdict — it is a separate, narrower
 experiment answering the one question 4a left open at actionable n: does the
@@ -475,49 +495,130 @@ family: ordered_navigation (trainA 2/2, testA 0/2, trainB 2/2, testB 2/2).
   NON-DECISIONAL ceiling-stability check: the three 4a ceiling families
   (find_code, scroll_find, extract_headline) run test-only with bare goals,
   2 instances × 3 families × 2 arms = 12 rollouts. Total 28.
-- **Primary endpoint & decision:** B − A ≥ **34pp** on the 12
-  ordered_navigation test rollouts (≥2-rollout gap of 6) → the 4a result
-  REPLICATES, and the Phase 5 designer loop is justified **narrowly**: for
-  variance-class families only, each gated on a 4a/4b-style variance
-  classification before any run. Anything else → final STOP (the idea is
-  recorded as refuted-at-this-pin, not retried).
+- **Primary endpoint & decision:** B − A ≥ **33⅓pp** on the 12
+  ordered_navigation test rollouts (a 2-rollout gap out of 6; the
+  "≥34pp" originally written here over-rounded and is corrected) → the 4a
+  result REPLICATES, and the Phase 5 designer loop is justified
+  **narrowly**: for variance-class families only, each gated on a
+  4a/4b-style variance classification before any run. Anything else →
+  final STOP (benefit not demonstrated; no further investment under this
+  design). Registration discrepancy acknowledged: the runner's printed
+  decision at run time still applied the 4a 15pp rule (then hardcoded);
+  the outcome is identical under either rule (observed delta 0pp), and the
+  runner now takes the threshold as an explicit recorded parameter.
 - **Non-decisional check:** ceiling families should stay ≥ 5/6 per arm
   pooled; a collapse there means the pin/environment drifted and the
   primary result is suspect (record, don't decide).
 - **Everything else** frozen from 4a: rerun discipline, wall-clock cap
   (1.5h here), checkpointing, no DB writes, scratch DATABASE_URL only.
 
-## Phase 4b results (2026-09-21, ~14:20 EDT — decision: FINAL STOP)
+## Phase 4b results (commit `191b944bc`; primary checkpoint `experiment_20260921-153650.json`, ceiling-check checkpoint `experiment_20260921-154716.json` — decision: FINAL STOP)
 
-The replication **failed, cleanly**: on six fresh rotated test instances of
-ordered_navigation, **arm A passed 6/6** — the arm that had "memorized" in
-4a — while arm B also passed 6/6. Delta 0pp against the ≥34pp bar. The
-registered non-decisional ceiling check passed 12/12 (find_code, scroll_find,
-extract_headline, bare goals), ruling out pin/environment drift: the model
-and harness were healthy and stable throughout.
+The replication found **no observed advantage**: on six fresh rotated test
+instances of ordered_navigation, arm A — the arm that had failed these in
+4a — passed 6/6, and arm B also passed 6/6 (both arms at ceiling). Delta
+0pp against the 33⅓pp bar. The registered non-decisional ceiling check
+passed 12/12 (find_code, scroll_find, extract_headline, bare goals): this
+shows the tasks were solvable and the pin servable at test time, but it
+cannot fully rule out model/environment drift between and within runs.
 
-Conclusion: 4a's ordered_navigation signal — the one family that made the
-mechanism look real — was **run-to-run stochastic variance in the pinned
-model, not a curriculum effect**. Both 4a and 4b are preserved verbatim in
-this record; per the 4b rule ("anything else → final STOP … not retried"),
-the strategy-brief curriculum mechanism is **refuted at this pin/budget**.
+Conclusion: the 4a ordered_navigation difference did not replicate —
+**no benefit was demonstrated at the tested budget**. Whether the 4a delta
+was stochastic variance, drift, or something else cannot be determined
+from these runs; both recordings are preserved as they were observed. Per
+the 4b rule ("anything else → final STOP"), the investment decision is
+FINAL STOP for this design; the causal attribution of the 4a delta is
+left explicitly open.
 
 What the two runs established, for whoever revisits evolving-environment
 ideas here:
 
 1. The hardening (fail-closed sandbox, world/evidence split, strengthened
-   verifiers, adapter taxonomy, Wilson admission protocol) works and is
-   retained — it made both experiments clean (zero harness errors across 80
-   + 28 rollouts) and is useful for ANY future eval work, not just
-   curricula.
+   verifiers, adapter taxonomy, Wilson admission protocol) is retained and
+   is useful for ANY future eval work, not just curricula. Caveat
+   (Corrections): during these runs the harness-error classifier was
+   partially blind — provider failures could surface as `done=True` from
+   the decider and loop-caught errors scored through the verifier — so
+   the "zero harness errors" observations are not reliable measurements.
+   The classifier has been fixed (decider raises on provider failure; the
+   adapter classifies error-bearing results as HARNESS_ERROR) and is
+   test-pinned for future use.
 2. The pipeline (register → mechanize → execute → replicate) works and is
-   cheap: ~80 total rollouts across two days-of-record, ~70 minutes of
-   wall time, marginal cash ≈ 0.
-3. glm-5.3-flash's pass/fail behavior on this site is dominated by
-   run-to-run variance (the same task flips between 0/2 and 2/2 across
-   sessions), so ANY single-small-n agent comparison on this pin is noise.
+   cheap: 92 rollouts across the registered runs (64 + 16 + 12, excluding
+   distillation calls and the three preliminary find_code dry runs), ~90
+   minutes of wall time, marginal cash ≈ 0.
+3. glm-5.3-flash's pass/fail behavior on this site varies materially
+   across sessions (the same task was observed at 0/2 and 2/2 in
+   different runs), so small-n agent comparisons on this pin are fragile.
    Future work must either pin a more deterministic model, raise n
    substantially, or measure within-session. That is a property of the
    subject, not of the curriculum.
 4. Per the original framing: the honest negative is the deliverable. No
    Phase 5. No further registrations under this design.
+
+## Corrections (rev 4, 2026-09-21 — after external review of the experiment record)
+
+1. **"Zero harness errors" was not a reliable measurement.**
+   `PinnedVisionDecider` converted exhausted provider failures into a
+   synthetic `done=True` decision, and `OperatorLoop` catches its own
+   exceptions internally, returning them in `result["error"]` — which the
+   adapter then scored through the verifier. Infrastructure failures could
+   therefore be recorded as agent failures (or, with a lucky verifier,
+   passes). Fixed in two directions so NEITHER over- nor under-counting
+   occurs: (a) the decider now RAISES on provider failure; (b)
+   `OperatorLoop` emits a typed `termination_reason` on every exit path —
+   `exception` / `observation_failed` / `stopped` are infrastructure and
+   classify HARNESS_ERROR, while `no_valid_action` / `unparseable_step` /
+   `repeated_action_failure` / `action_blocked` / `budget_exhausted` /
+   `completed` are agent-attributable and go to the verifier (an early
+   fix that classified every error-bearing result as harness was itself
+   biased — it excluded genuine agent failures like invalid model
+   output). Legacy results without a reason are treated conservatively as
+   harness. Both boundaries are test-pinned, including the loop's reason
+   per exit path. The 4a/4b "zero harness errors" observations are the
+   pre-fix classifier's output and should be read as "none surfaced", not
+   verified absence.
+2. **"Mechanism refuted" overstated the evidence.** 6/6 vs 6/6 at ceiling
+   establishes no observed advantage on the replication — nothing about
+   WHY the 4a delta appeared or disappeared. The record now says: benefit
+   not demonstrated at the tested budget; the causal attribution of the
+   4a delta is open. The investment decision (FINAL STOP) is unchanged.
+3. **The learner never received full trajectories.** The Phase 4 design
+   promised action/observation logs; `_distill()` actually received action
+   types, success flags, and a truncated final summary — no observations,
+   parameters, or intermediate reasoning. These experiments therefore
+   tested *brief induction from lossy summaries*, which narrows the
+   negative result's scope. Partial remediation shipped: the loop now
+   records action `parameters` on executed entries (coordinates / typed
+   text / selectors) and the distiller renders them alongside navigated
+   URL/title — so parameters are now supplied; true per-step OBSERVATIONS
+   (page text/screenshots) remain uncaptured (loop-side hook does not
+   exist) and any future registration must either add that capture or
+   scope its claims accordingly.
+4. **Chronology (canonical — git commit times and checkpoint mtimes; the
+   approximate EDT times in earlier sections and the coordination log are
+   superseded):**
+   | When (EDT) | What | Identifier |
+   |---|---|---|
+   | 12:01:52 | Phases 1–3 implementation | commit `510680552` |
+   | 12:29:03 | **Phase 4 registration (before any registered rollout)** | commit `7ff7377cf` |
+   | 12:34–12:53 | three preliminary find_code dry runs (unregistered; incl. the stack-typo and empty-brief fixes) | checkpoints `…-123046/-123521/-124415.json` |
+   | 12:56–13:48 | **registered 4a run** (64 rollouts + 16 distills) | checkpoint `…-125616.json` |
+   | 13:55:11 | 4a results recorded | commit `949eb2de5` |
+   | 15:36:45 | **Phase 4b registration (before the 4b run)** | commit `45248701d` |
+   | 15:42 | 4b primary (16 rollouts, ordered_navigation) | checkpoint `…-153650.json` |
+   | 15:50 | 4b ceiling check (12 rollouts, test-only, bare goals) | checkpoint `…-154716.json` |
+   | 15:51:46 | 4b results recorded | commit `191b944bc` |
+   | 16:03:26 | computer-use evidence restriction (separate work, same day) | commit `cc4949377` |
+   Total registered-run rollouts: **92** (64 + 16 + 12); preliminary runs
+   (22 rollouts) and distillation calls are excluded from that total.
+5. **Replication threshold arithmetic:** a 2-rollout gap out of 6 is
+   33⅓pp; the registration's "≥34pp" over-rounded and is corrected above.
+   The runner printed the 4a 15pp rule at 4b run time (then hardcoded);
+   the decision is threshold-invariant here (0pp observed). The runner now
+   takes `--delta-threshold` as an explicit, recorded parameter.
+6. **Equal cost was claimed; equal allocation was delivered.** Equal
+   rollout counts do not equalize step counts, retries, or tokens.
+   Measured: 4a arm A 301 steps vs arm B 275; 4b primary 33 vs 32; ceiling
+   check 15 vs 28. Tokens were not metered per arm. All cost language in
+   this record now reads "equal rollout allocation".

@@ -153,19 +153,41 @@ def _brief_goal(brief: str, goal: str) -> str:
             f"[Current task]\n{goal}")
 
 
+def _format_actions(actions: list[dict]) -> str:
+    """Render a step trace for the distiller: action type, the ACTUAL
+    parameters (coordinates/selector/text — captured on executed entries by
+    core/operator/loop.py), and navigated URL/title where recorded."""
+    parts = []
+    for a in actions:
+        arg = a.get("parameters") or {}
+        detail = a.get("detail") or {}
+        bits = []
+        if arg:
+            bits.append(json.dumps(arg, default=str)[:80])
+        if detail:
+            bits.append(json.dumps(detail, default=str)[:80])
+        suffix = f" ({'; '.join(bits)})" if bits else ""
+        parts.append(f"{a['action_type']}{suffix} -> "
+                     f"{'ok' if a['success'] else 'FAIL'}")
+    return "; ".join(parts) or "(none)"
+
+
 class Runner:
-    def __init__(self, out_path: Path, only: set[str] | None = None):
+    def __init__(self, out_path: Path, only: set[str] | None = None,
+                 delta_threshold: float = 0.15):
         from core.llm_service import LLMService
         self.handler = LLMService(tenant_id="default")._get_handler(
             workspace_id="default")
         self.client = self.handler.async_clients["opencode-go"]
         self.decider = lambda: PinnedVisionDecider(self.client, MODEL)
         self.only = only
+        self.delta_threshold = delta_threshold
         self.families = [f for f in FAMILIES if not only or f in only]
         self.out_path = out_path
         self.record: dict = {
             "registered": {
                 "model": MODEL, "seed": SEED, "max_steps": MAX_STEPS,
+                "delta_threshold_pp": round(delta_threshold * 100, 1),
                 "registered_at": "2026-09-21 (plan doc rev, commit 7ff7377cf)",
             },
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -231,12 +253,11 @@ class Runner:
                        train_rows: list[dict]) -> str:
         traj_lines = []
         for i, r in enumerate(train_rows, 1):
-            acts = "; ".join(
-                f"{a['action_type']}({'ok' if a['success'] else 'FAIL'})"
-                for a in r.get("actions", []))
             traj_lines.append(
                 f"Run {i} (outcome={'pass' if r['status']=='pass' else 'fail'}): "
-                f"goal was: {task['goal']}\n  actions: {acts or '(none)'}\n"
+                f"goal was: {task['goal']}\n  actions (with parameters and "
+                f"navigated URL / page title where recorded): "
+                f"{_format_actions(r.get('actions', []))}\n"
                 f"  final summary: {r.get('summary') or '(none)'}")
         prompt = (f"{BRIEF_INSTRUCTION}\n\nTask family: {family}\n\n"
                   + "\n\n".join(traj_lines)
@@ -337,30 +358,44 @@ class Runner:
         self._score()
 
     def _score(self) -> None:
-        def rate(stage: str, family: str) -> tuple[int, int]:
+        def tally(stage: str, family: str) -> tuple[int, int]:
             rows = [r for r in self.record["rollouts"]
                     if r["stage"] == stage and r["task_id"] == family
                     and r["status"] != "harness_error"]
             return (sum(1 for r in rows if r["status"] == "pass"), len(rows))
 
         summary: dict = {"per_family": {}, "totals": {}}
+        raw_rates: dict = {}
         for stage in ("test_A", "test_B"):
             passes = total = 0
             per = {}
             for family in self.families:
-                p, n = rate(stage, family)
+                p, n = tally(stage, family)
                 per[family] = f"{p}/{n}"
                 passes, total = passes + p, total + n
-            summary["totals"][stage] = {"passes": passes, "n": total,
-                                        "rate": round(passes / max(total, 1), 3)}
+            # Raw fraction for decisions; rounding is display-only.
+            raw = (passes / total) if total else 0.0
+            raw_rates[stage] = raw
+            summary["totals"][stage] = {
+                "passes": passes, "n": total,
+                "rate": round(raw, 3),
+            }
             summary["per_family"][stage] = per
-        a = summary["totals"]["test_A"]
-        b = summary["totals"]["test_B"]
-        delta = (b["rate"] - a["rate"]) if a["n"] and b["n"] else None
+        a, b = summary["totals"]["test_A"], summary["totals"]["test_B"]
+        if a["n"] and b["n"]:
+            delta = raw_rates["test_B"] - raw_rates["test_A"]
+            # Epsilon guards the exact-boundary case (e.g. 2/6 gap vs the
+            # 1/3 threshold) against binary-float underflow.
+            met = delta + 1e-9 >= self.delta_threshold
+        else:
+            delta = None
+            met = False
         summary["delta_pp"] = round(delta * 100, 1) if delta is not None else None
+        summary["registered_threshold_pp"] = round(self.delta_threshold * 100, 1)
         summary["decision"] = (
-            "PHASE 5 JUSTIFIED" if delta is not None and delta >= 0.15
-            else "STOP — curriculum value not demonstrated at this budget")
+            f"THRESHOLD MET (>= {self.delta_threshold * 100:.1f}pp)"
+            if met
+            else "NOT MET at the tested budget — benefit not demonstrated")
         self.record["score"] = summary
         self._checkpoint()
         print(json.dumps(summary, indent=1), flush=True)
@@ -370,6 +405,9 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="",
                         help="comma-separated family ids (dry-run)")
+    parser.add_argument("--delta-threshold", type=float, default=0.15,
+                        help="registered minimum improvement (fraction); "
+                             "recorded in the score output")
     parser.add_argument("--test-only", action="store_true",
                         help="skip training; reuse briefs already in the "
                              "checkpoint (resume path)")
@@ -384,7 +422,8 @@ async def main() -> int:
     out_dir = Path(__file__).parent / "results"
     out_dir.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    runner = Runner(out_dir / f"experiment_{stamp}.json", only=only)
+    runner = Runner(out_dir / f"experiment_{stamp}.json", only=only,
+                    delta_threshold=args.delta_threshold)
 
     if not args.test_only:
         await runner.run()

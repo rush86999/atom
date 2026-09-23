@@ -289,6 +289,33 @@ _CANVAS_EDIT_DERIVATION_WAIT_SECONDS = float(
 _CANVAS_LEG_MAX_SECONDS = float(
     os.getenv("ATOM_CANVAS_LEG_MAX_SECONDS", "45") or 45)
 
+#: Operator brake on the extended-class canvas-leg cap. The DEFAULT (0)
+#: DERIVES the cap per turn as (budget − reply floor) — on an edit-shaped
+#: turn the edit IS the answer, and a fixed 65 s cap was measured too tight
+#: (2026-09-22: planner 41.5 s + edit-plan ≤30 s ≈ 71.5 s missed it by
+#: seconds while the reply leg then streamed in 11.5 s, leaving the 40 s
+#: reserve mostly slack). Set a positive value to hard-cap the leg below
+#: the derived bound.
+_CANVAS_LEG_MAX_EXTENDED_SECONDS = float(
+    os.getenv("ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS", "0") or 0)
+
+
+def _canvas_leg_cap(deadline: "TurnDeadline") -> float:
+    """The canvas-leg cap for THIS turn.
+
+    Extended-class budgets (derivation asks, edit-shaped canvas turns):
+    DERIVED as (budget − reply floor) — the slice helper still enforces the
+    reserve against elapsed time — with ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS
+    as an optional operator brake below it. Ordinary/disabled deadlines
+    keep the ordinary cap."""
+    if deadline.enabled and deadline.total_seconds > (
+            CHAT_TURN_BUDGET_DEFAULT_SECONDS + 0.5):
+        derived = deadline.total_seconds - _REPLY_LEG_MIN_SECONDS
+        if _CANVAS_LEG_MAX_EXTENDED_SECONDS > 0:
+            return min(_CANVAS_LEG_MAX_EXTENDED_SECONDS, derived)
+        return derived
+    return _CANVAS_LEG_MAX_SECONDS
+
 #: Minimum share of the request reserved for the REPLY leg. The pre-reply legs
 #: (canvas edit/action, planner, tool execution) may spend everything else, but
 #: never this: answering the user is the point of the turn, and an edit leg that
@@ -1048,23 +1075,51 @@ _GENERIC_MAILBOX_LOCAL_PARTS = frozenset({
     "office", "marketing", "accounts", "billing", "service", "help",
     "donotreply", "mail", "team", "hello", "enquiries", "inquiries",
     "orders", "shipping", "receiving", "purchasing", "quotes",
+    # Mail-noun locals: "email"/"message" in the user's own question must
+    # never become a participant handle (live 2026-09-23: local part
+    # `email@…` matched the word "emails", then the substring "email" hit
+    # "hello@procuremail.eunasolutions.com" and the lane injected that
+    # vendor's marketing mail as "the messages the user is pointing at").
+    "email", "emails", "mailbox", "inbox", "thread", "message", "messages",
+    "notice", "letter", "reply", "note", "document", "file", "report",
+    "request", "update", "subject", "sender", "recipient", "postmaster",
 })
 # A participant name alone is not a mail ask — "schedule a call with
 # chandrakant" must not lead with his mailbox. The lane fires only when the
-# message also carries a communication referent.
+# message also carries a communication referent. Pluralized nouns count
+# ("re pull the EMAILS" is a mail ask even with no other noun).
 _PARTICIPANT_REFERENT_RE = re.compile(
-    r"\b(?:email|e-mail|mail|thread|message|inbox|forwarded|forward|fw\b|"
-    r"re\b|reply|replied|wrote|written|said|says|say|sent|send|quoted|"
-    r"quote|heard|told)\b",
+    r"\b(?:e-?mails?|mails?|threads?|messages?|inbox(?:es)?|forwarded|"
+    r"forwards?|fw\b|"
+    r"re\b|repl(?:y|ies)|replied|wrote|written|said|says|say|sent|send|"
+    r"quot(?:e|es|ed)|heard|told)\b",
     re.IGNORECASE,
 )
 # Words too generic to rank a participant's rows by subject/content overlap.
+# Live 2026-09-23: "there were a total of 8 machines quoted" ranked three
+# long unrelated CC threads above the actual "Quote for requested machines"
+# thread because those bodies contain "there"/"total"/"lead" — generic
+# English must never outrank topic nouns (machines, slitter, model codes).
 _PARTICIPANT_RANK_STOPWORDS = frozenset({
-    "the", "this", "that", "email", "thread", "message", "about", "from",
-    "forwarded", "forward", "sent", "check", "find", "search", "show",
-    "tell", "what", "when", "were", "was", "how", "why", "and", "for",
-    "with", "calculate", "calculated", "calculation", "please", "just",
-    "said", "quote", "quotes", "price", "list", "me", "you", "your",
+    "the", "this", "that", "these", "those", "email", "emails", "thread",
+    "threads", "message", "messages", "about", "from", "forwarded",
+    "forward", "sent", "check", "find", "search", "show", "tell", "what",
+    "when", "where", "which", "while", "were", "was", "are", "how", "why",
+    "and", "for", "with", "without", "calculate", "calculated",
+    "calculation", "please", "just", "said", "quote", "quotes",
+    "price", "list", "me", "you", "your", "there", "here", "total",
+    # NOTE "quoted" is deliberately NOT a stopword: "8 machines QUOTED"
+    # is the subject of the mail the user is pointing at (live 2026-09-23).
+    "lead", "then", "thats", "than", "also", "only", "even", "back",
+    "well", "over", "into", "some", "have", "been", "will", "would",
+    "could", "should", "after", "before", "once", "again", "pulled",
+    "pull", "added", "related", "content", "generic", "canvas", "eight",
+    "mentioned", "ones", "rebuild", "rebuilt", "draft", "them", "they",
+    "their", "isnt", "doesnt", "give", "take", "make", "made", "want",
+    "need", "like", "look", "see", "any", "all", "our", "out", "get",
+    "contents", "consider", "task", "thing", "things", "part", "parts",
+    "already", "know", "items", "does", "report", "outcome", "background",
+    "continuation", "conversation", "update", "finish", "started",
 })
 
 
@@ -1072,8 +1127,79 @@ _BY_NAME_RE = re.compile(
     r"\bby\s+([A-Za-z][A-Za-z.\-]{2,25}(?:\s+[A-Za-z][A-Za-z.\-]{2,25})?)",
     re.IGNORECASE,
 )
+# Possessive thread ownership: "chandrakant's email thread" names the
+# SENDER/owner exactly like "by chandrakant" does (live 2026-09-23).
+_BY_POSSESSIVE_RE = re.compile(
+    r"\b([A-Za-z][A-Za-z.\-]{2,25})['’]s\s+"
+    r"(?:e-?mail|mail|thread|message|reply|quote)",
+    re.IGNORECASE,
+)
 _TO_ME_RE = re.compile(
     r"\bto\s+(?:me|us)\b", re.IGNORECASE)
+
+
+def _contains_word(text: str, token: str) -> bool:
+    """Word/token-boundary containment (live 2026-09-23): bare `token in
+    text` let the handle "email" match "emails" in the user's question and
+    "procuremail" in an address — substring handles are not names. The
+    token may carry dots/underscores/dashes (a local part); separators are
+    wild so "steve.macisaac" grips "steve macisaac" and "steve.macisaac"."""
+    if not token or not text:
+        return False
+    parts = [re.escape(p) for p in re.split(r"[._\-]+", token) if p]
+    if not parts:
+        return False
+    piece = r"[\s._\-]+".join(parts)
+    return re.search(
+        r"(?<![a-z0-9])" + piece + r"(?![a-z0-9])", text, re.IGNORECASE
+    ) is not None
+
+
+def _overlap_hit(word: str, blob_words: set) -> int:
+    """Topic-overlap score on WORD membership with light stemming: exact
+    is worth 2, a stem ("quoted"→"quote", "machines"→"machine") only 1.
+    Substring matching (or stem-as-equal) gave every "Brennan Machinery"
+    signature full "machines" credit and recency then buried the thread
+    the user meant (live 2026-09-23)."""
+    if word in blob_words:
+        return 2
+    for stem in (word[:-2] if word.endswith("ed") else "",
+                 word[:-1] if word.endswith(("s", "d")) else ""):
+        if len(stem) >= 4 and stem in blob_words:
+            return 1
+    return 0
+
+
+def _blob_words(subject: Any, content: Any) -> set:
+    return set(re.findall(r"[a-z0-9]+", f"{subject or ''} {content or ''}".lower()))
+
+
+def _canvas_topic_text(canvas: Any) -> str:
+    """Plain text of the canvas the user is looking at — the live topic
+    vocabulary (live 2026-09-23: the quote canvas names "Slitter"/"Linmac"
+    and the user's "alternatives to those machinery" can only grip the
+    thread through those words). Fault-isolated: "" on anything, capped so
+    a mega-canvas never becomes a second transcript."""
+    if not canvas:
+        return ""
+    try:
+        parts: List[str] = []
+        if isinstance(canvas, dict):
+            for key in ("title", "name", "subject"):
+                val = canvas.get(key)
+                if val:
+                    parts.append(str(val))
+            content = canvas.get("content")
+            if isinstance(content, dict):
+                parts.extend(str(v) for v in content.values() if v)
+            elif content:
+                parts.append(str(content))
+        else:
+            parts.append(str(canvas))
+        text = re.sub(r"<[^>]+>", " ", " ".join(parts))
+        return text[:1200]
+    except Exception:  # noqa: BLE001 — best-effort topic vocabulary
+        return ""
 
 
 def _resolve_user_email(user_id: Optional[str]) -> Optional[str]:
@@ -1109,6 +1235,7 @@ def _participant_mail_rows(
     message: str, limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
     user_email: Optional[str] = None,
+    topic: str = "",
 ) -> List[Dict[str, Any]]:
     """Comms rows whose PARTICIPANT (sender/recipient) the user just named.
 
@@ -1124,7 +1251,13 @@ def _participant_mail_rows(
     Ranking among one participant's rows: subject/content overlap with the
     message's other distinctive words ("foot shear") first, then newest —
     "the thread about the foot shear" beats the same sender's unrelated
-    traffic. Pure scan of the two short columns; [] on anything."""
+    traffic. Pure scan of the two short columns; [] on anything.
+
+    ``topic`` is the ANAPHORIC referent (live 2026-09-23: "re pull the
+    emails" names nobody — the handle lives in the previous user turn,
+    "only the ones CHANDRAKANT mentioned"). It joins the message for name
+    extraction and ranking only; the referent gate and the instruction's
+    own directionality stay on the current message alone."""
     if not message or not _PARTICIPANT_REFERENT_RE.search(message):
         return []
     try:
@@ -1133,7 +1266,7 @@ def _participant_mail_rows(
         rows = _comms_store_records()
     except Exception:
         return []
-    msg_l = (message or "").lower()
+    msg_l = f"{message or ''} {topic or ''}".lower()
     names: Dict[str, None] = {}
     for row in rows:
         for field in (row.get("sender"), row.get("recipient")):
@@ -1143,7 +1276,7 @@ def _participant_mail_rows(
                 if (
                     len(local) >= 4
                     and local not in _GENERIC_MAILBOX_LOCAL_PARTS
-                    and local.replace(".", "").replace("_", "").replace("-", "") in msg_l.replace(".", " ").replace("_", " ").replace("-", " ")
+                    and _contains_word(msg_l, local)
                 ):
                     names[local] = None
             # Display-name words. The ADDRESS ITSELF is stripped first: the
@@ -1161,45 +1294,90 @@ def _participant_mail_rows(
             disp = re.sub(r"[^\s<>,;()]*@[^\s<>,;()]*", " ", val)
             for part in re.findall(r"[A-Za-z]{4,}", disp):
                 p = part.lower()
-                if p in msg_l:
+                if _contains_word(msg_l, p):
                     names[p] = None
     if not names:
         return []
-    overlap_words = [
+    # Dedupe kept: message+topic joins repeat words and a double-counted
+    # word must not become a phantom weight.
+    overlap_words = list(dict.fromkeys(
         w for w in re.findall(r"[a-z]{4,}", msg_l)
         if w not in _PARTICIPANT_RANK_STOPWORDS
-    ]
+    ))
     # DIRECTIONALITY (live 2026-09-15): "the email that was SENT TO ME on
     # that day BY chandrakant" names the SENDER ("by X") and the RECIPIENT
     # ("to me" -> the acting user's address). The lane used to match the
     # name on EITHER side, so a chandrakant email to a SUPPLIER surfaced as
     # "sent to you" — the reply then built a false theory on it. Signals
     # mis-matching a row add penalty tiers; absent signals change nothing.
+    # Possessive ownership ("chandrakant's email thread") is the same
+    # sender signal as "by chandrakant" (live 2026-09-23).
     by_names: List[str] = []
-    for m in _BY_NAME_RE.finditer(message or ""):
+    dir_text = f"{message or ''} {topic or ''}"
+    for m in _BY_NAME_RE.finditer(dir_text):
         first = m.group(1).split()[0].lower()
+        if first not in ("the", "a", "an", "me", "us", "him", "her", "them"):
+            by_names.append(first)
+    for m in _BY_POSSESSIVE_RE.finditer(dir_text):
+        first = m.group(1).lower()
         if first not in ("the", "a", "an", "me", "us", "him", "her", "them"):
             by_names.append(first)
     to_me = bool(_TO_ME_RE.search(message or "")) and bool(user_email)
     w_start, w_end = date_window or ("", "")
     directional = bool(by_names or to_me or date_window)
-    scored: List[Tuple[int, int, str, Dict[str, Any]]] = []
+    # PASS 1 — candidate rows + document frequency of each overlap word
+    # across them. A word that appears in MOST of one participant's rows
+    # ("machinery" in every "Brennan Machinery" signature, "does"/"report"
+    # in any long English body) cannot discriminate between them and is
+    # dropped from the ranking — the 2026-09-23 failure had generic
+    # conversation words outranking "Quote for requested machines".
+    candidates: List[Tuple[int, str, Dict[str, Any], set, set]] = []
+    seen_ids: set = set()
+    df: Dict[str, int] = {}
     for row in rows:
+        # The store carries each message twice (two ingestion passes); a
+        # duplicate must not consume the evidence limit.
+        rid = row.get("id")
+        if rid and rid in seen_ids:
+            continue
         sender_l = str(row.get("sender") or "").lower()
         recip_l = str(row.get("recipient") or "").lower()
         hay = f"{sender_l} {recip_l}"
-        if not any(n in hay for n in names):
+        if not any(_contains_word(hay, n) for n in names):
             continue
+        if rid:
+            seen_ids.add(rid)
         tier = 0
-        if by_names and not any(b in sender_l for b in by_names):
+        if by_names and not any(_contains_word(sender_l, b) for b in by_names):
             tier += 2  # the named sender is not this row's sender
-        if to_me and user_email not in recip_l:
+        if to_me and not _contains_word(recip_l, user_email or ""):
             tier += 2  # "sent to me" but addressed elsewhere
         ts = str(row.get("timestamp") or "")[:19]
         if date_window and not (w_start <= ts < w_end):
             tier += 1  # outside the stated day
-        blob = f"{row.get('subject') or ''} {row.get('content') or ''}".lower()
-        overlap = sum(1 for w in overlap_words if w in blob)
+        subj_words = _blob_words(row.get("subject"), "")
+        body_words = _blob_words("", row.get("content"))
+        joined = subj_words | body_words
+        for w in overlap_words:
+            if w in joined:  # EXACT only: a stem hit ("machine" for
+                # "machines") is near-universal in a machinery mailbox and
+                # must not make the discriminative plural look common.
+                df[w] = df.get(w, 0) + 1
+        candidates.append((tier, ts, row, subj_words, body_words))
+    # A word carried by a MAJORITY of one participant's rows cannot
+    # discriminate between them ("machinery" in every "Brennan Machinery"
+    # signature, "does"/"report" in any long English body).
+    cutoff = max(2, len(candidates) // 2)
+    rank_words = [w for w in overlap_words if df.get(w, 0) <= cutoff]
+    # PASS 2 — score. SUBJECT hits weigh double: the thread's own title is
+    # what "the thread about X" points at; incidental body mentions of a
+    # common word must not out-rank it.
+    scored: List[Tuple[int, int, str, Dict[str, Any]]] = []
+    for tier, ts, row, subj_words, body_words in candidates:
+        overlap = 0
+        for w in rank_words:
+            overlap += 2 * _overlap_hit(w, subj_words)
+            overlap += _overlap_hit(w, body_words)
         scored.append((tier, -overlap, ts, row))
     # Two stable sorts: newest first overall, then tier (directional +
     # window + overlap folded) wins without disturbing it.
@@ -1209,6 +1387,24 @@ def _participant_mail_rows(
     if not directional and any(t[1] < 0 for t in scored):
         scored = [t for t in scored if t[1] < 0]
     return [row for _t, _o, _ts, row in scored[:limit]]
+
+
+def _recent_user_topic(context: Optional[Dict[str, Any]], window: int = 4) -> str:
+    """The prior USER turns' text — the anaphoric handle source (live
+    2026-09-23: "re pull the EMAILS" names nobody; "only the ones
+    CHANDRAKANT mentioned" two turns up carries the participant). Same
+    shape as the date-inheritance walk, newest first, session- or
+    role-shaped entries both accepted."""
+    out: List[str] = []
+    for h in ((context or {}).get("history") or [])[-24:]:
+        if not isinstance(h, dict):
+            continue
+        if h.get("role") not in (None, "user"):
+            continue
+        text = str(h.get("message") or h.get("content") or "").strip()
+        if text:
+            out.append(text)
+    return "\n".join(out[-window:])
 
 
 def _render_mail_rows(
@@ -1523,6 +1719,37 @@ _DERIVATION_VALUE_RE = re.compile(
     r"cost|result)\b|\bfigure\b(?!\s+out)",
     re.IGNORECASE,
 )
+
+# CANVAS-EDIT SHAPE (RCA 2026-09-22 "rebuild the draft" turn): an edit verb
+# in an OPEN canvas panel. These turns serially need the canvas-edit leg
+# (which waits on the shared planner for its live data) PLUS tool execution
+# PLUS generation — on the ordinary 95s budget the measured chain (45s edit
+# bound + 10s action leg + 38.4s reply leg) ended in turn_budget_exceeded
+# with the edit never applied. Budget-class fix: edit-shaped canvas turns
+# get the same extended budget derivation asks already use (115s, still
+# under the ~120s client abort). Deliberately recall-biased — a false
+# positive only grants a longer budget; a false negative reproduces the
+# measured failure.
+_CANVAS_EDIT_SHAPE_RE = re.compile(
+    r"\b(?:rebuild|rewrite|redraft|revise|reformat|reword|reorder|restore|"
+    r"restructure|rework|update|edit|change|fix|shorten|tighten|polish|"
+    r"add|remove|delete|replace|make it|turn it into)\b",
+    re.IGNORECASE,
+)
+
+
+def _canvas_edit_shaped(
+    message: str, context: Optional[Dict[str, Any]] = None
+) -> bool:
+    """Edit-shaped wording AND an open canvas in the request context. The
+    canvas gate matters most: the same verbs in a plain chat (no panel) are
+    ordinary turns."""
+    if not _CANVAS_EDIT_SHAPE_RE.search(message or ""):
+        return False
+    ctx = context or {}
+    return bool(
+        ctx.get("canvas_id") or ctx.get("canvas") or ctx.get("canvas_type")
+    )
 
 
 def _derivation_ask(
@@ -2087,16 +2314,26 @@ async def _verbatim_mail_evidence(
         if phrases:
             return []
         try:
-            lines = _render_mail_rows(
-                await asyncio.wait_for(
-                    asyncio.to_thread(
-                        _participant_mail_rows, message,
-                        4, date_window,
-                        _resolve_user_email(user_id),
-                    ),
-                    timeout=25,
-                )
+            rows = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _participant_mail_rows, message,
+                    4, date_window,
+                    _resolve_user_email(user_id),
+                    # ANAPHORIC topic (live 2026-09-23): "re pull the
+                    # emails" names nobody and "8 machines quoted" under-
+                    # specifies — the handle and the topic nouns ("chandrakant",
+                    # "requested") live in the prior user turns and the open
+                    # canvas ("Slitter", "Linmac"). Ranking and name
+                    # extraction see them; the referent gate and the current
+                    # instruction stay on the message alone.
+                    "{} {}".format(
+                        _recent_user_topic(context),
+                        _canvas_topic_text((context or {}).get("canvas")),
+                    ).strip(),
+                ),
+                timeout=25,
             )
+            lines = _render_mail_rows(rows)
             if lines:
                 return lines
         except Exception as e:  # noqa: BLE001
@@ -2131,109 +2368,208 @@ _LIVE_LOOKUP_FAILED_NOTE = (
 )
 
 
-def _evidence_rejected(tool_block: Optional[str], message: str) -> bool:
-    """True when the block must not stand as this turn's evidence.
+def _evidence_relevance(
+    tool_block: Optional[str],
+    message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    reference: Optional[Any] = None,
+) -> str:
+    """Tri-state relevance of an evidence block to the current request:
+    ``addresses`` | ``unproven`` | ``mismatch``.
 
-    Logs the rejection (with the request it failed to address) so the reason is
-    visible in the trace instead of the turn quietly answering from the wrong
-    source. An empty block is NOT a rejection here — that is "no evidence", which
-    the caller already handles.
+    2026-09-22 ("yes go ahead" incident). The gate used to validate evidence
+    against the RAW follow-up only: "yes go ahead" tokenized to the single
+    distinctive term "ahead", a SUCCESSFUL mailbox search was rejected, and the
+    rejection was then reported as a failed lookup. Three corrections:
+
+    * RESOLVED references are judged against the resolved TOPIC (current
+      message plus the exchange it points at), so a follow-up consuming the
+      offer it approves passes.
+    * LINEAGE PROVENANCE: a block whose declared query (or content) names a
+      request inside the resolved lineage addresses the task EVEN WITH ZERO
+      lexical overlap with the current message. Lineage establishes relevance
+      ONLY — retrieval outcomes and truncation markers pass through untouched.
+      The CURRENT TURN is always part of the lineage, so fresh results are
+      never "outside the exchange".
+    * All lexical shortfalls are ``unproven`` — no shared term is not proof of
+      contradiction. ``mismatch`` requires an EXPLICIT provenance conflict:
+      the block's declared query byte-identical (normalized) to a recorded
+      request OUTSIDE the lineage while sharing nothing with the topic (the
+      RCA 2026-09-17 stale-plan shape).
+
+    An UNRESOLVED/AMBIGUOUS reference (bare approval, no resolvable referent)
+    loses the empty-terms fail-open: unrelated evidence must not be validated
+    by a turn that names no subject. An EMPTY block is ``unproven`` — that is
+    "no evidence", the caller's own case, never a rejection.
     """
     block = tool_block or ""
     if not block.strip():
+        return "unproven"
+    if reference is None:
+        from core.plan_relevance import resolve_request_reference
+
+        reference = resolve_request_reference(message, history or [])
+    from core.plan_relevance import REF_UNRESOLVED, REF_AMBIGUOUS
+
+    declared = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
+    hay = _canon_alnum(block)
+    ref_kind = getattr(reference, "kind", "direct")
+
+    # ID-DIRECTED READ BLOCK: its header query is opaque message ids. Those
+    # ids are conversation handles the executor validated against the
+    # session's allow-list BEFORE fetching, so provenance is the id chain —
+    # subject-word overlap cannot judge it and must never withhold it (for a
+    # resolved/direct reference; an unresolved bare approval still names no
+    # subject and stays unproven). Checked on the HEADER LINE: the declared-
+    # query capture below is length-capped and would miss a multi-id header.
+    _block_head = block.split("\n", 1)[0]
+    if ref_kind in ("resolved", "direct") and "outlook.read_emails" in _block_head \
+            and _mail_id_shape_search(_block_head):
+        return "addresses"
+
+    # LINEAGE PROVENANCE (RESOLVED references only): relevance from the
+    # resolved exchange, independent of the current message's wording.
+    if ref_kind == "resolved":
+        lineage_tokens: set = set()
+        for req in (getattr(reference, "lineage_requests", None) or []):
+            lineage_tokens |= set(_distinctive_terms(req))
+        if lineage_tokens:
+            for q in declared:
+                if set(_distinctive_terms(q)) & lineage_tokens:
+                    return "addresses"
+            if any(t in hay for t in lineage_tokens):
+                return "addresses"
+
+    # Lexical passes, judged against the resolved topic when there is one.
+    judge_text = (getattr(reference, "topic_text", "") or message) \
+        if ref_kind in ("resolved", REF_UNRESOLVED, REF_AMBIGUOUS) else message
+    terms = _distinctive_terms(judge_text)
+    if not terms:
+        # Empty-terms fail-open is reserved for turns that are NOT unresolved
+        # conversational approvals — a bare "yes go ahead" must not validate
+        # arbitrary evidence by naming no subject (user-pinned, 2026-09-22).
+        if ref_kind in (REF_UNRESOLVED, REF_AMBIGUOUS):
+            return "unproven"
+        return "addresses"
+    msg_terms = set(terms)
+    declared_mismatch = bool(declared) and not any(
+        msg_terms & set(_distinctive_terms(q)) for q in declared)
+    addresses = False
+    if declared_mismatch:
+        # THE BLOCK NAMES THE QUERY THAT PRODUCED IT — and that query is not
+        # this request. The block's header words otherwise satisfy the generic
+        # term check and report a mismatch as relevant (the R3 metadata trap:
+        # an unrelated block shared the word "attachment" with the request in
+        # its query METADATA while its CONTENT was unrelated).
+        addresses = False
+    elif any(t in hay for t in terms):
+        addresses = True
+    elif declared:
+        # The block's own declared query appearing in its body is provenance
+        # that it answers ITS query — acceptable once that query matched the
+        # request above (RCA 2026-09-17 review R3).
+        addresses = any(
+            _distinctive_terms(q) and any(t in hay for t in _distinctive_terms(q))
+            for q in declared
+        )
+    else:
+        # No declared query: an openable source may still be the evidence the
+        # model must read, even when the wording differs.
+        addresses = "full: knowledge/" in block or "open: knowledge/" in block
+    if addresses:
+        return "addresses"
+    if _explicit_provenance_conflict(declared, reference, history):
+        return "mismatch"
+    return "unproven"
+
+
+def _mail_id_shape_search(text: str) -> bool:
+    """True when ``text`` carries an opaque message-id token (40+ base64url
+    chars, '=' allowed). Single shared definition with the planner's flow —
+    the regex lives in core.plan_relevance to avoid import cycles."""
+    from core.plan_relevance import _MAIL_ID_SHAPE_RE
+
+    return bool(_MAIL_ID_SHAPE_RE.search(text or ""))
+
+
+def _explicit_provenance_conflict(
+    declared_queries: List[str],
+    reference: Any,
+    history: Optional[List[Dict[str, Any]]],
+) -> bool:
+    """MISMATCH requires positive provenance, not lexical absence: the block's
+    declared query is byte-identical (normalized) to a recorded request
+    OUTSIDE the resolved lineage AND shares no distinctive term with the
+    resolved topic. A query that merely best-matches an older request is
+    UNPROVEN, never a mismatch."""
+    if not declared_queries:
         return False
-    if _evidence_addresses_request(block, message):
+    lineage_norms = {
+        " ".join(r.lower().split())
+        for r in (getattr(reference, "lineage_requests", None) or [])
+    }
+    topic_tokens = set(_distinctive_terms(getattr(reference, "topic_text", "") or ""))
+    for q in declared_queries:
+        q_norm = " ".join(q.lower().split())
+        if q_norm in lineage_norms:
+            continue
+        if topic_tokens and (set(_distinctive_terms(q)) & topic_tokens):
+            continue
+        for h in (history or []):
+            u = str((h or {}).get("message") or "").strip()
+            if u and " ".join(u.lower().split()) == q_norm:
+                return True
+    return False
+
+
+def _evidence_rejected(
+    tool_block: Optional[str],
+    message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    reference: Optional[Any] = None,
+) -> bool:
+    """True when the block must not stand as this turn's evidence.
+
+    Logs the rejection WITH the resolved reference kind so the reason is
+    visible in the trace instead of the turn quietly answering from the wrong
+    source. An empty block is NOT a rejection here — that is "no evidence",
+    which the caller already handles."""
+    block = tool_block or ""
+    if not block.strip():
+        return False
+    if reference is None:
+        from core.plan_relevance import resolve_request_reference
+
+        reference = resolve_request_reference(message, history or [])
+    relevance = _evidence_relevance(block, message, history, reference)
+    if relevance == "addresses":
         return False
     logger.warning(
-        "[evidence-gate] REJECTED a tool block that shares no distinctive term "
-        f"with the request ({len(block)} chars); request={message[:110]!r} "
+        f"[evidence-gate] WITHHELD (reference={getattr(reference, 'kind', '?')}, "
+        f"relevance={relevance}) a tool block that does not address the request "
+        f"({len(block)} chars); request={message[:110]!r} "
         f"block_head={block[:110]!r}"
     )
     return True
 
 
-def _evidence_addresses_request(tool_block: Optional[str], message: str) -> bool:
-    """Does this evidence block actually address the request?
+def _evidence_addresses_request(
+    tool_block: Optional[str],
+    message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    reference: Optional[Any] = None,
+) -> bool:
+    """Does this evidence block actually address the request? (compat bool
+    view of :func:`_evidence_relevance` — True only for ``addresses``.)
 
     RCA 2026-09-17 findings 2 and 4: a plan built for an OLDER request was reused
     as this turn's evidence without any check, so the reply answered from an
-    unrelated search — a PRICE VIPUL mailbox result became a claim about a
-    different document, and the model then denied having evidence it had held one
-    turn earlier. The system had no relevance gate and no corrective retrieval.
-
-    COMPLEMENTS the plan-level gate: `core.chat_canvas_editor` runs
-    `core.plan_relevance.relevance_verdict` on the planned QUERY and, when it is
-    irrelevant, returns an empty block — so that check removes the evidence at its
-    SOURCE, while this one catches a block that was produced and would otherwise
-    be reused. Neither subsumes the other, and they are independent on purpose:
-    the planner's semantic verdict and this rule-based block check fail in
-    different ways, and a block that slips past one is still caught by the other.
-    Verified to reject the RCA's mismatched block while accepting every genuine
-    evidence block on the live store (0 false rejections observed).
-
-    Deliberately conservative, because a wrongly-rejected block is worse than a
-    wrongly-accepted one (it would throw away the turn's evidence):
-
-    * an EMPTY block addresses nothing, so it can never be "relevant";
-    * a block whose own text repeats a distinctive term from the request (a code,
-      a figure, a name) plainly addresses it;
-    * blocks dominated by full message bodies are the `full:`/`open:` evidence
-      the reply is expected to read, so they are accepted;
-    * a block of EXCERPTS with no shared distinctive term is what the RCA
-      describes, and is reported as not addressing the request.
-
-    Returns True when the block may stand as this turn's evidence.
-    """
-    block = tool_block or ""
-    if not block.strip():
-        return False
-    terms = _distinctive_terms(message)
-    if not terms:
-        return True  # no distinctive term to mismatch against
-    hay = _canon_alnum(block)
-    # THE BLOCK NAMES THE QUERY THAT PRODUCED IT — check that FIRST. A block's own
-    # header words ('query', 'attachment') otherwise satisfy the generic term
-    # check and report a mismatch as relevant: the archived wrong-topic
-    # observation shared the word "attachment" with the scorecard request in its
-    # query METADATA while its CONTENT was unrelated RFQ documents.
-    _declared_first = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
-    if _declared_first:
-        _msg_terms = set(terms)
-        # Compare the block's OWN query against the REQUEST. Comparing it against
-        # the block is vacuous — the header contains the query, so every term
-        # "matches" by construction (my first attempt at this returned True for
-        # every input, including the mismatch it was written to catch).
-        if not any(_msg_terms & set(_distinctive_terms(q)) for q in _declared_first):
-            return False  # it answers a query that is not this request
-    if any(t in hay for t in terms):
-        return True
-    # THE BLOCK NAMES THE QUERY THAT PRODUCED IT. That is a direct statement of
-    # what it answers, and a far better discriminator than the block's CONTENT:
-    # genuine evidence can legitimately share no term with the request (searching
-    # for a code finds a message that never spells it), while a block whose own
-    # query shares nothing with the current request is answering a different
-    # question. Review R3 found the previous version accepted the archived
-    # wrong-topic observation because ANY openable `full:`/`open:` marker was
-    # enough — the mismatch was in the query header, which nothing inspected.
-    _declared = re.findall(r"query\s*=\s*[\"']([^\"']{3,200})[\"']", block)
-    if _declared:
-        if not any(
-            _distinctive_terms(q) and any(t in hay for t in _distinctive_terms(q))
-            for q in _declared
-        ):
-            return False  # it answers a query that is not this request
-        return True
-    # No declared query: an openable source may still be the evidence the model
-    # must read, even when the wording differs.
-    if "full: knowledge/" in block or "open: knowledge/" in block:
-        return True
-    # Structured answers get NO blanket pass. Review R3 found an unrelated
-    # inventory SQL block accepted for a vendor-scorecard request merely because
-    # it carried a `SQL RESULT from` marker: a marker says what SHAPE the data is,
-    # never what question it answers. Such a block is relevant only if its own
-    # content (or a declared query) shares a distinctive term with the request —
-    # both checks have already run above and failed, so it is a mismatch.
-    return False
+    unrelated search. COMPLEMENTS the plan-level gate in core.chat_canvas_editor;
+    since 2026-09-22 a RESOLVED request reference lets a follow-up consume the
+    evidence of the exchange it approves ("yes go ahead") instead of being
+    declined for lexical absence."""
+    return _evidence_relevance(
+        tool_block, message, history, reference) == "addresses"
 
 
 def _distinctive_terms(text: str) -> List[str]:
@@ -2681,6 +3017,21 @@ class ChatOrchestrator:
                 from x-atom-* headers). May contain ``model``, ``tier``,
                 ``intent`` keys. Threaded through to the LLM call.
         """
+        # INTERACTIVE CONTEXT (RCA 2026-09-22): every provider call on
+        # this request's call stack — planner, canvas editor, reply
+        # generation, cascades — is user-facing. The rate-budget reserve
+        # (core.llm.interactive_context) admits background work only
+        # above its fraction, so this turn keeps a slice of every window
+        # no matter what the ingestion/learning loops are doing. Reset in
+        # the finally below so fire-and-forget work spawned at turn end
+        # (fact extraction, dedup indexing) is background again.
+        _interactive_token = None
+        try:
+            from core.llm.interactive_context import mark_interactive_chat
+
+            _interactive_token = mark_interactive_chat()
+        except Exception:  # noqa: BLE001 — classification only, never blocks
+            _interactive_token = None
         try:
             # THE TURN DEADLINE STARTS HERE — the first statement of the request,
             # before session load, provenance hydration, planning or any provider
@@ -2690,10 +3041,35 @@ class ChatOrchestrator:
             # reply.
             _deadline = TurnDeadline(
                 _request_deadline_seconds(
-                    derivation=_derivation_ask(message, {"history": [], "canvas": context})
+                    derivation=(
+                        _derivation_ask(message, {"history": [], "canvas": context})
+                        # Edit-shaped canvas-panel turns share the derivation
+                        # budget CLASS (RCA 2026-09-22): their serial chain
+                        # (edit leg → planner tail → exec → generation) does
+                        # not fit the ordinary budget on a degraded fleet.
+                        or _canvas_edit_shaped(message, context)
+                    )
                 ),
                 label="chat-request",
             )
+            # CONDITIONAL SUPERSEDE (2026-09-22, per review): only a new
+            # EDIT instruction supersedes a pending background continuation
+            # — a status question ("did it finish?") must not cancel the
+            # job it asks about. Explicit cancellation flows through the
+            # chat cancel route.
+            try:
+                from core.async_turn_continuation import (
+                    supersede_pending_continuation,
+                )
+
+                if supersede_pending_continuation(
+                        session_id or "", message, context):
+                    logger.info(
+                        "[async-continuation] superseded by a new edit "
+                        f"instruction in session {session_id}")
+            except Exception:  # noqa: BLE001 — supersede is best-effort
+                pass
+
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
@@ -2772,6 +3148,25 @@ class ChatOrchestrator:
             # Workspace scope for the pre-plan provenance probe (which ingested
             # stores hold the token the user quoted).
             _ctx_workspace_id = (context or {}).get("workspace_id")
+            # REQUEST REFERENCE — resolved ONCE per turn, before anything is
+            # scheduled. "yes go ahead" (live 2026-09-22) used to be validated
+            # against its own bare wording; the resolver identifies the
+            # exchange the turn points at so every gate judges the resolved
+            # topic. When the reference cannot be resolved (bare approval, no
+            # active offer — or an ungrounded ordinal), the turn CLARIFIES:
+            # the tool-plan task is never created, so no lookup can run
+            # speculatively behind a vague approval (structural guarantee,
+            # not a prompt instruction).
+            from core.plan_relevance import (
+                REF_AMBIGUOUS,
+                REF_UNRESOLVED,
+                resolve_request_reference,
+            )
+
+            _request_reference = resolve_request_reference(
+                message, history or [])
+            _clarify_turn = _request_reference.kind in (
+                REF_UNRESOLVED, REF_AMBIGUOUS)
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -2823,12 +3218,76 @@ class ChatOrchestrator:
                             prov = f"{prov}\n\n{_src}" if prov else _src
                     except Exception:  # noqa: BLE001
                         pass
+                    # MAIL HANDLES not yet read in full (2026-09-22):
+                    # structured metadata persisted per turn — the planner
+                    # receives the EXACT ids so an approval turn reads the
+                    # unresolved messages directly instead of re-searching
+                    # and hoping the same hits rank top. Topic-isolated to
+                    # the resolved lineage (never keyword overlap alone).
+                    # Placed FIRST in the provenance: flash-tier planners
+                    # anchor on prompt-start, and the ids directive buried
+                    # last was observed losing to a plain re-search (live
+                    # replay 2026-09-22).
+                    try:
+                        _handles, _threads = (
+                            self._load_conversation_mail_handles(session_id))
+                        _mail_handles = self._advertise_mail_handles(
+                            _handles, message, _request_reference,
+                        )
+                        if _mail_handles:
+                            from core.session_sources import (
+                                pending_mail_handles_block,
+                            )
+
+                            _mail_block = pending_mail_handles_block(
+                                _mail_handles)
+                            if _mail_block:
+                                prov = (
+                                    f"{_mail_block}\n\n{prov}"
+                                    if prov else _mail_block)
+                        # RETRIEVED THREADS (2026-09-23): the conversation's
+                        # own search history, advertised to the planner so
+                        # its query names the exact address/subject — a
+                        # flash planner composing from lineage alone
+                        # searched generic terms and missed the thread the
+                        # conversation had already found.
+                        if _threads:
+                            _thread_block = (
+                                "MAIL THREADS RETRIEVED EARLIER IN THIS "
+                                "CONVERSATION (a mailbox search naming the "
+                                "address or subject re-retrieves the full "
+                                "thread): "
+                                + "; ".join(
+                                    f'"{t["subject"][:80]}" — '
+                                    f'{t["address"][:40]}'
+                                    for t in _threads[:5])
+                            )
+                            prov = (
+                                f"{_thread_block}\n\n{prov}"
+                                if prov else _thread_block)
+                    except Exception:  # noqa: BLE001
+                        pass
                     return await plan_tool_use(
                         message, _plan_history, user_id, self.llm_service,
                         canvas=_canvas_ctx, provenance=prov,
                     )
 
-                _tool_plan_task = asyncio.create_task(_planned_with_provenance())
+                if _clarify_turn:
+                    # STRUCTURAL clarify guarantee: no plan task exists to
+                    # await, so no speculative lookup can execute behind a
+                    # reference the resolver could not pin down (bare
+                    # approval, ungrounded ordinal). The reply leg asks which
+                    # item the user means instead of guessing.
+                    logger.info(
+                        "[request-reference] %s turn (%s) — clarify, no "
+                        "lookup scheduled: request=%r candidates=%r",
+                        _request_reference.kind,
+                        _request_reference.clarify_reason,
+                        message[:110], _request_reference.candidates[:2],
+                    )
+                else:
+                    _tool_plan_task = asyncio.create_task(
+                        _planned_with_provenance())
             except Exception as plan_task_err:
                 logger.debug(f"tool plan task not started: {plan_task_err}")
             sticky_hint = None
@@ -2886,6 +3345,7 @@ class ChatOrchestrator:
 
             _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
                                             "block": None}
+            _edit_leg_timed_out = False
             try:
                 if _canvas_ctx:
                     _edit_leg = self._try_canvas_edit(
@@ -2915,8 +3375,13 @@ class ChatOrchestrator:
                         # where the reply leg would lose its share (measured:
                         # 54.7 s of a 95 s budget here left 38.8 s for the
                         # answer and the turn ended in turn_budget_exceeded).
+                        # The CAP scales with the budget class (extended
+                        # turns get _CANVAS_LEG_MAX_EXTENDED_SECONDS): a
+                        # 115 s budget with a 45 s cap still starves the
+                        # edit on a slow fleet and the turn answers in chat
+                        # while the canvas never changes (live 2026-09-22).
                         _edit_wait = _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                            _deadline, _canvas_leg_cap(_deadline))
                         if _edit_wait <= 0:
                             logger.warning(
                                 "[stage-timing] canvas-edit leg skipped — the "
@@ -2934,6 +3399,53 @@ class ChatOrchestrator:
                                     f"reserved) — falling through to the tool "
                                     "path")
                                 _edit_response = None
+                                # The edit leg died at its BOUND (RCA
+                                # 2026-09-22: 45s spent waiting for a shared
+                                # planner that took 59.5s). Starting a NEW
+                                # structured action-plan call now — on the
+                                # same starved fleet, under a 10s bound — is
+                                # predictable waste; skip it unless an action
+                                # plan is ALREADY in flight (a healthy edit
+                                # leg pre-started one).
+                                _edit_leg_timed_out = True
+                                # ASYNC TIER FORK (2026-09-22, research per
+                                # AGENTS.md §3): an edit-shaped turn whose
+                                # edit starved at the interactive bound does
+                                # NOT end as a squeezed chat answer — the
+                                # edit continues in the background under its
+                                # own budget and the user is notified when
+                                # it lands (Nielsen's 10s attention limit;
+                                # async agent workflows decouple submission
+                                # from execution).
+                                if _canvas_edit_shaped(message, context):
+                                    try:
+                                        from core.async_turn_continuation import (
+                                            fork_canvas_edit_continuation,
+                                        )
+
+                                        _cont_id = (
+                                            fork_canvas_edit_continuation(
+                                                self,
+                                                message=message,
+                                                history=history,
+                                                canvas=_canvas_ctx or {},
+                                                user_id=user_id,
+                                                session_id=session_id,
+                                                execution_id=_execution_id,
+                                                agent_id=(context or {}).get(
+                                                    "agent_id"),
+                                                provenance=(context or {}).get(
+                                                    "canvas_provenance"),
+                                            )
+                                        )
+                                        if _cont_id:
+                                            _shared_tool[
+                                                "async_continuation_forked"
+                                            ] = True
+                                    except Exception as fork_err:  # noqa: BLE001
+                                        logger.debug(
+                                            "async continuation not forked: "
+                                            f"{fork_err}")
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -2955,6 +3467,51 @@ class ChatOrchestrator:
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
                     if _shared_tool.get("canvas_planning_unavailable"):
+                        _action_response = None
+                        # ASYNC TIER FORK ON PLANNER-UNAVAILABILITY
+                        # (2026-09-22): a transient edit-planner failure is
+                        # exactly what the background retry exists for — it
+                        # re-runs with a relaxed inner timeout and a fresh
+                        # cascade. One-in-flight claim per session caps the
+                        # churn on persistent outages; the reply stays
+                        # honest (planner-unavailable note + background
+                        # note).
+                        if _canvas_edit_shaped(message, context):
+                            try:
+                                from core.async_turn_continuation import (
+                                    fork_canvas_edit_continuation,
+                                )
+
+                                _cont_id2 = fork_canvas_edit_continuation(
+                                    self,
+                                    message=message,
+                                    history=history,
+                                    canvas=_canvas_ctx or {},
+                                    user_id=user_id,
+                                    session_id=session_id,
+                                    execution_id=_execution_id,
+                                    agent_id=(context or {}).get("agent_id"),
+                                    provenance=(context or {}).get(
+                                        "canvas_provenance"),
+                                )
+                                if _cont_id2:
+                                    _shared_tool[
+                                        "async_continuation_forked"] = True
+                            except Exception as fork_err2:  # noqa: BLE001
+                                logger.debug(
+                                    "async continuation (planner-unavailable) "
+                                    f"not forked: {fork_err2}")
+                    elif _edit_leg_timed_out and _shared_tool.get(
+                            "action_plan_task") is None:
+                        # RCA 2026-09-22: the edit leg starved waiting for the
+                        # shared planner; a fresh action-plan LLM call on the
+                        # same starved fleet, under a 10s bound, burned 10s of
+                        # the reply share for nothing. An action task already
+                        # in flight (healthy edit leg) is still joined.
+                        logger.info(
+                            "[stage-timing] canvas-action leg skipped — the "
+                            "edit leg died at its bound and no action plan "
+                            "is in flight; the reply leg keeps its share")
                         _action_response = None
                     elif _derivation_ask(message, context):
                         # The ACTION leg is a sibling of the edit leg and was
@@ -2979,7 +3536,7 @@ class ChatOrchestrator:
                                 _CANVAS_EDIT_DERIVATION_WAIT_SECONDS)
                             _action_response = None
                     elif _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS) <= 0:
+                            _deadline, _canvas_leg_cap(_deadline)) <= 0:
                         logger.warning(
                             "[stage-timing] canvas-action leg skipped — the "
                             "reply leg's share of the request is all that "
@@ -2987,7 +3544,7 @@ class ChatOrchestrator:
                         _action_response = None
                     else:
                         _action_wait = _pre_reply_leg_timeout(
-                            _deadline, _CANVAS_LEG_MAX_SECONDS)
+                            _deadline, _canvas_leg_cap(_deadline))
                         try:
                             _action_response = await asyncio.wait_for(
                                 self._try_canvas_action(
@@ -3019,6 +3576,21 @@ class ChatOrchestrator:
                         self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
                         return _action_response
 
+                # ONE typed evidence status for the reply leg: blackboard flags
+                # and the block-gate verdict merge through the explicit
+                # transition (documented precedence) instead of OR-ed booleans
+                # — "evidence judged unrelated" can no longer be reported as
+                # "a required live-data lookup failed" (live 2026-09-22).
+                from core.chat_canvas_editor import (
+                    canvas_evidence_status as _canvas_status_from_flags,
+                )
+
+                _gate_relevance = _evidence_relevance(
+                    _shared_tool.get("block"), message, history,
+                    _request_reference)
+                _canvas_evidence_status = _canvas_status_from_flags(
+                    _shared_tool, _gate_relevance)
+
                 ai_response = await self._get_qwen_response(
                     message, history, routing_overrides,
                     deadline=_deadline,
@@ -3030,22 +3602,19 @@ class ChatOrchestrator:
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
                     prefetched_tool_block=_shared_tool.get("block"),
-                    # RELEVANCE GATE (RCA findings 2 and 4). A block produced by a
-                    # plan built for an OLDER request must not stand as this
-                    # turn's evidence: the reply would answer from an unrelated
-                    # search (a PRICE VIPUL mailbox result became a claim about a
-                    # different document, and the model then denied holding
-                    # evidence it had one turn earlier). When the block shares no
-                    # distinctive term with the request, it is treated exactly as
-                    # missing evidence — the existing provenance guard then
-                    # forbids asserting an answer from it — and the rejection is
-                    # logged with the reason rather than passing silently.
-                    canvas_evidence_unavailable=bool(
-                        _shared_tool.get("canvas_evidence_unavailable"))
-                    or _evidence_rejected(
-                        _shared_tool.get("block"), message),
-                    canvas_planning_unavailable=bool(
-                        _shared_tool.get("canvas_planning_unavailable")),
+                    # RELEVANCE GATE (RCA findings 2 and 4; 2026-09-22
+                    # revision). A block produced by a plan built for an
+                    # OLDER request must not stand as this turn's evidence —
+                    # but a follow-up consuming the exchange it approves
+                    # ("yes go ahead") DOES address its task via the resolved
+                    # lineage. The tri-state verdict feeds the typed status:
+                    # unproven/mismatch withhold with an honest note and
+                    # never claim a lookup failed.
+                    canvas_evidence_status=_canvas_evidence_status,
+                    request_reference=_request_reference,
+                    async_continuation_forked=bool(
+                        _shared_tool.get("async_continuation_forked")),
+                    session=session,
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
@@ -3372,6 +3941,16 @@ class ChatOrchestrator:
             except Exception:
                 pass  # Don't let the persistence attempt mask the original error
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
+        finally:
+            if _interactive_token is not None:
+                try:
+                    from core.llm.interactive_context import (
+                        reset_interactive_chat,
+                    )
+
+                    reset_interactive_chat(_interactive_token)
+                except Exception:  # noqa: BLE001
+                    pass
 
     def _dispatch_turn_fact_extraction(
         self, user_request: str, final_answer: str, session_id: Optional[str], user_id: Optional[str]
@@ -3533,8 +4112,10 @@ class ChatOrchestrator:
         canvas_provenance: Optional[Dict[str, Any]] = None,
         images: Optional[List[str]] = None,
         prefetched_tool_block: Optional[str] = None,
-        canvas_evidence_unavailable: bool = False,
-        canvas_planning_unavailable: bool = False,
+        canvas_evidence_status: Any = None,
+        request_reference: Any = None,
+        async_continuation_forked: bool = False,
+        session: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -3751,26 +4332,76 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as canvas_ctx_err:
                     logger.debug(f"canvas context block skipped: {canvas_ctx_err}")
 
-            # A canvas edit was DECLINED this turn (required live lookup
-            # failed). The fallback reply must not claim the edit happened —
-            # see core.chat_canvas_editor.canvas_no_edit_note.
-            if canvas_planning_unavailable:
-                messages.append({"role": "system", "content": (
-                    "The canvas edit planner was unavailable. NO CANVAS EDIT OR "
-                    "ACTION WAS APPLIED. Answer the user's information request "
-                    "from the retrieved evidence normally. If they requested a "
-                    "change, explain that it was not applied. Do not claim a "
-                    "search failed merely because edit planning failed."
-                )})
-            elif canvas_evidence_unavailable:
+            # Typed canvas-evidence status (2026-09-22): ONE note per outcome,
+            # worded by canvas_evidence_note — a withheld/rejected block is
+            # never reported as "a required live-data lookup failed" (the
+            # incident's false report), and a declined lookup is never called
+            # a failure. The planner-unavailable wording moved into the same
+            # dispatcher so the ladder has a single vocabulary.
+            if canvas_evidence_status is not None:
                 try:
-                    from core.chat_canvas_editor import canvas_no_edit_note
+                    from core.chat_canvas_editor import (
+                        CanvasEvidenceStatus,
+                        canvas_evidence_note,
+                    )
 
-                    _no_edit_note = canvas_no_edit_note(True)
-                    if _no_edit_note:
-                        messages.append({"role": "system", "content": _no_edit_note})
-                except Exception as _no_edit_err:  # noqa: BLE001
-                    logger.debug(f"canvas no-edit note skipped: {_no_edit_err}")
+                    _status = (
+                        canvas_evidence_status
+                        if isinstance(canvas_evidence_status,
+                                      CanvasEvidenceStatus)
+                        else CanvasEvidenceStatus(str(canvas_evidence_status))
+                    )
+                    _status_note = canvas_evidence_note(_status)
+                    if _status_note:
+                        messages.append(
+                            {"role": "system", "content": _status_note})
+                except Exception as _status_err:  # noqa: BLE001
+                    logger.debug(
+                        f"canvas evidence note skipped: {_status_err}")
+
+            # ASYNC CONTINUATION NOTE (2026-09-22): the edit this turn
+            # asked for is still RUNNING in the background under its own
+            # budget — the reply must say so honestly (never claim the edit
+            # landed, never apologize as if it failed) and answer what it
+            # can from the readable evidence.
+            if async_continuation_forked:
+                messages.append({"role": "system", "content": (
+                    "BACKGROUND TASK RUNNING: the canvas edit this turn "
+                    "requested did not fit the interactive time budget, so "
+                    "it is being completed in the background now — the user "
+                    "will be notified (and the canvas updated) when it "
+                    "finishes. Do NOT claim the edit is applied yet, and do "
+                    "NOT treat this as a failure: say plainly that the "
+                    "update is being finished in the background, answer any "
+                    "part of the request you can from readable evidence "
+                    "above, and do not ask the user to retry."
+                )})
+
+            # CLARIFY turn (2026-09-22): the reference resolver could not pin
+            # the referent, and structurally NO lookup ran this turn. Tell the
+            # reply model to ask — with the resolver's candidates — instead of
+            # guessing or apologizing about evidence it never had.
+            _ref_kind = getattr(request_reference, "kind", "")
+            if _ref_kind in ("unresolved", "ambiguous"):
+                _ref_candidates = [
+                    str(c)[:160] for c in
+                    (getattr(request_reference, "candidates", None) or [])
+                    if c
+                ]
+                _candidate_txt = (
+                    " Options seen in this conversation: "
+                    + " | ".join(_ref_candidates) + "."
+                    if _ref_candidates else "")
+                messages.append({"role": "system", "content": (
+                    "CLARIFY BEFORE ACTING: the user's message approves or "
+                    "points back at something earlier, but WHICH item could "
+                    f"not be determined (reason: "
+                    f"{getattr(request_reference, 'clarify_reason', '') or 'unclear'})."
+                    f"{_candidate_txt} Ask ONE short question that names the "
+                    "option(s) so they can pick. Do NOT run or imply any "
+                    "lookup this turn — none was run — and do NOT apologize "
+                    "about missing data; just resolve the ambiguity."
+                )})
 
             # Canvas ORIGIN (provenance): the conversation this canvas was
             # created from, hydrated by chat_routes from the create-audit
@@ -4020,7 +4651,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 from core.verify_panel import verify_reply
 
                 if prefetched_tool_block and _evidence_rejected(
-                        prefetched_tool_block, message):
+                        prefetched_tool_block, message, history,
+                        request_reference):
                     # ENFORCEMENT (review R3, 2026-09-17). Flagging the block was
                     # not enough: the flag added a no-edit note while this branch
                     # still assigned the block to `_tool_block` and the prompt
@@ -4237,6 +4869,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # net read it from here.
                                             "message": message,
                                             "history": (planner_history or history or [])[-6:],
+                                            # Conversation mail handles (pending
+                                            # ∪ read): the allow-list for
+                                            # id-directed outlook reads in this
+                                            # session (2026-09-22).
+                                            "known_mail_handles":
+                                                self._load_conversation_mail_handles(session_id)[0],
                                             "canvas": {
                                                 "title": canvas_context.get("title"),
                                                 **((canvas_context.get("content") or {})
@@ -4247,6 +4885,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     ),
                                     timeout=45,
                                 )
+                                # STRUCTURED handle outcomes ride the plan
+                                # object (never parsed from block prose).
+                                # Stashed on the session; _update_session
+                                # persists them into the assistant row's
+                                # metadata_json (durable, restart-surviving).
+                                # origin_request is stamped here so the
+                                # topic-isolation filter can match handles
+                                # to the resolved lineage by IDENTITY, not
+                                # by keyword overlap.
+                                _mail_meta = getattr(_plan, "_result_meta", None)
+                                if _mail_meta and session is not None:
+                                    session["_pending_mail_meta"] = {
+                                        "unread_mail": [
+                                            {**h, "origin_request": message}
+                                            for h in _mail_meta.get(
+                                                "unread_mail", [])
+                                            if isinstance(h, dict) and h.get("id")
+                                        ],
+                                        "read_outcomes": [
+                                            o for o in _mail_meta.get(
+                                                "read_outcomes", [])
+                                            if isinstance(o, dict) and o.get("id")
+                                        ],
+                                        "searched_threads": [
+                                            {**t, "origin_request": message}
+                                            for t in _mail_meta.get(
+                                                "searched_threads", [])
+                                            if isinstance(t, dict)
+                                            and t.get("subject")
+                                        ],
+                                    }
                             except Exception as _live_err:
                                 # The live leg failed/timed out. Mail evidence (when
                                 # present) still answers the question, so it must LEAD
@@ -4638,6 +5307,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _evidence_msg = {"role": "system",
                                  "content": _evidence_instruction}
                 messages.append(_evidence_msg)
+                # OFFER-TO-READ directive (2026-09-22), placed HERE — after
+                # execution, when this turn's structured meta exists (prompt
+                # assembly above runs BEFORE the tool leg). Structured meta,
+                # never prose parsing: the reply must OFFER the remaining
+                # reads and never claim completeness.
+                _turn_unread = ((session or {}).get("_pending_mail_meta")
+                                or {}).get("unread_mail") or []
+                if _turn_unread:
+                    messages.append({"role": "system", "content": (
+                        "COMPLETION STATE: some mailbox messages located "
+                        "this turn are still UNREAD IN FULL (preview-only; "
+                        "each such line carries its message_id). Do NOT "
+                        "claim you reviewed every message. If the full "
+                        "content would answer the request, OFFER to read "
+                        "them in full (their ids are listed above; the next "
+                        "turn can read them directly by id); answer only "
+                        "from what is actually readable above."
+                    )})
                 logger.info(f"tool plan executed: {_planned}")
                 # ATTRIBUTION for the one question that decides a derivation
                 # case: did the model actually RECEIVE the matched row? Without
@@ -6810,7 +7497,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         agent_id: Optional[str],
         provenance: Optional[Dict[str, Any]] = None,
         shared_tool_state: Optional[Dict[str, Any]] = None,
+        operation_id: Optional[str] = None,
+        expected_prior_audit_id: Optional[str] = None,
+        edit_plan_timeout: float = 30.0,
     ) -> Optional[Dict[str, Any]]:
+        # When the schema-capable edit-plan rung is pinned
+        # (ATOM_ASYNC_EDIT_PLAN_MODEL), the plan needs its full latency —
+        # the default 30 s starves a deepseek-v4-pro-class rung that needs
+        # ~45 s for a multi-row rebuild.
+        _pin_spec = (os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
+        if _pin_spec:
+            edit_plan_timeout = max(edit_plan_timeout, 75.0)
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
         response. Returns None when the turn is NOT a canvas edit (or
@@ -6904,12 +7601,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "lookup failed — falling through to the tool path instead "
                 "of editing without evidence")
             if shared_tool_state is not None:
-                # Hand the failure to the reply path. Without this the
-                # conversational fallback answered "Done — here's what I
-                # changed" for an edit that never landed (live 2026-09-11,
-                # canvas a1a13834): the user cannot tell a declined edit from
-                # an applied one.
-                shared_tool_state["canvas_evidence_unavailable"] = True
+                # Hand the outcome to the reply path THROUGH THE TYPED
+                # STATUS vocabulary. A planner-level OFF-REQUEST decline
+                # (declined_irrelevant) ran NO lookup — reporting it as a
+                # failed lookup is the false "a required live-data lookup
+                # failed" reply from the 2026-09-22 incident. Without either
+                # flag the conversational fallback answered "Done — here's
+                # what I changed" for an edit that never landed (live
+                # 2026-09-11, canvas a1a13834).
+                if getattr(fresh, "declined_irrelevant", False):
+                    shared_tool_state["canvas_evidence_declined"] = True
+                else:
+                    shared_tool_state["canvas_evidence_unavailable"] = True
             return None
         fresh_data = fresh.section
 
@@ -6950,7 +7653,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     playbooks=playbooks,
                     fresh_data=fresh_data,
                 ),
-                timeout=30,
+                timeout=edit_plan_timeout,
             )
         except (CanvasPlanUnavailable, asyncio.TimeoutError) as e:
             if shared_tool_state is not None:
@@ -7080,7 +7783,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.debug(f"canvas edit governance check skipped: {gov_err}")
 
         applied = await apply_canvas_edit(
-            plan, user_id, canvas, return_reason=True
+            plan, user_id, canvas, return_reason=True,
+            operation_id=operation_id,
+            expected_prior_audit_id=expected_prior_audit_id,
         )
         # Tolerant unpack: tests (and any caller using the default
         # return_reason=False) may hand back the bare result instead of the
@@ -8654,6 +9359,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _turn_reasoning = response.get("reasoning") if isinstance(response, dict) else None
                         if _turn_reasoning:
                             _msg_meta["reasoning"] = str(_turn_reasoning)[:20000]
+                        # STRUCTURED mail handles (2026-09-22): this turn's
+                        # unread/keep-read mailbox handles, stashed on the
+                        # session by the tool leg. Persisted HERE — the
+                        # existing durable carrier (metadata_json), no new
+                        # table; the loader reads it back across restarts.
+                        _pending_mail = session.pop("_pending_mail_meta", None)
+                        if _pending_mail:
+                            _msg_meta["mail_handles"] = _pending_mail
                         db.add(ChatMessageModel(
                             conversation_id=session_id,
                             tenant_id=tenant_id,
@@ -8663,6 +9376,131 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
+
+    def _load_conversation_mail_handles(
+        self, session_id: Optional[str],
+    ) -> "tuple[List[Dict[str, Any]], List[Dict[str, Any]]]":
+        """Pending + read mail handles for THIS conversation, aggregated from
+        recent assistant ChatMessage rows' ``metadata_json["mail_handles"]``.
+
+        The existing durable carrier (metadata_json) — no new table, no
+        migration. Restart-surviving by construction: the DB is the source,
+        session reload/restart re-reads it. Authorization: rows are scoped to
+        the conversation (and tenant), matching every other ChatMessage read.
+        Removal is expressed as append-only status: an id that appears under
+        ``read_outcomes`` with outcome ``full`` leaves the pending set
+        (excerpt/failed/timed_out/not_attempted stay pending). Bounded: only
+        the most recent 24 assistant rows are inspected."""
+        if not session_id:
+            return []
+        pending: List[Dict[str, Any]] = []
+        read_ids: set = set()
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "assistant",
+                    )
+                    .order_by(ChatMessageModel.created_at.desc())
+                    .limit(24)
+                    .all()
+                )
+            for row in rows:
+                try:
+                    meta = json.loads(row.metadata_json or "{}")
+                except Exception:
+                    continue
+                handles = meta.get("mail_handles") or {}
+                for h in handles.get("unread_mail") or []:
+                    if isinstance(h, dict) and h.get("id"):
+                        pending.append(h)
+                for o in handles.get("read_outcomes") or []:
+                    if isinstance(o, dict) and o.get("id") and (
+                            o.get("outcome") == "full"):
+                        read_ids.add(o["id"])
+        except Exception as e:  # noqa: BLE001 — handles are best-effort context
+            logger.debug(f"mail-handle load skipped: {e}")
+            return [], []
+        seen: set = set()
+        out: List[Dict[str, Any]] = []
+        for h in pending:
+            hid = h["id"]
+            if hid in read_ids or hid in seen:
+                continue
+            seen.add(hid)
+            out.append(h)
+            if len(out) >= 8:
+                break
+        # SEARCHED THREADS: distinct (address, subject) pairs this
+        # conversation retrieved — advertised to the planner so later
+        # turns can name them (2026-09-23).
+        threads: List[Dict[str, Any]] = []
+        t_seen: set = set()
+        for row2 in rows:
+            try:
+                meta2 = json.loads(row2.metadata_json or "{}")
+            except Exception:
+                continue
+            for t in (meta2.get("mail_handles") or {}).get(
+                    "searched_threads", []):
+                if not isinstance(t, dict):
+                    continue
+                key = (str(t.get("address") or "").lower(),
+                       str(t.get("subject") or "").lower())
+                if not key[0] or key in t_seen:
+                    continue
+                t_seen.add(key)
+                threads.append(t)
+        return out, threads
+
+    def _advertise_mail_handles(
+        self,
+        handles: List[Dict[str, Any]],
+        message: str,
+        reference: Any,
+    ) -> List[Dict[str, Any]]:
+        """TOPIC ISOLATION (2026-09-22): a handle reaches the planner only
+        when its ORIGIN belongs to the exchange the current turn resolves to
+        (identity match against the resolver's lineage requests), or its
+        explicit target identity (id / full subject) appears in the current
+        request. Lexical overlap of the originating query with the current
+        wording is supporting evidence only — two unrelated leads can both
+        say "machinery" — so keyword overlap alone NEVER advertises a
+        handle."""
+        if not handles:
+            return []
+        from core.plan_relevance import RequestReference
+
+        lineage_norms = {
+            " ".join(r.lower().split())
+            for r in (getattr(reference, "lineage_requests", None) or [])
+            if r
+        }
+        ref_kind = getattr(reference, "kind", "direct")
+        if ref_kind in ("unresolved", "ambiguous") and not lineage_norms:
+            lineage_norms = set()
+        out: List[Dict[str, Any]] = []
+        for h in handles:
+            origin = " ".join(str(h.get("origin_request") or "").lower().split())
+            hid = str(h.get("id") or "")
+            subject = str(h.get("subject") or "")
+            if lineage_norms and origin and origin in lineage_norms:
+                out.append(h)
+                continue
+            if ref_kind == "direct":
+                # Explicit target identity: the user names the id or the full
+                # subject themselves.
+                if (hid and hid in message) or (
+                        subject and len(subject) > 8 and subject in message):
+                    out.append(h)
+            if len(out) >= 8:
+                break
+        return out
 
     def _generate_error_response(self, error: str, session_id: str) -> Dict[str, Any]:
         return {

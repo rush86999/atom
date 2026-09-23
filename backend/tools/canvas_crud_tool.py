@@ -247,6 +247,8 @@ async def update_canvas_content(
     canvas_type: str = "generic",
     title: Optional[str] = None,
     manual_retype: bool = False,
+    operation_id: Optional[str] = None,
+    expected_prior_audit_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Update the content of an existing canvas.
 
@@ -267,6 +269,19 @@ async def update_canvas_content(
             (the escape hatch for a wrong classifier guess). Pins the choice
             on the audit row (``details.type_pinned``) and skips email
             coercion so the manual type survives every later read/save.
+        operation_id: Optional stable id for the LOGICAL operation this
+            write belongs to (e.g. a background turn continuation). Stamped
+            into ``details_json.operation_id`` so "did THIS operation
+            already land?" is a definitive audit query, not a timestamp
+            inference (review 2026-09-22: audit timestamps are not
+            idempotency keys).
+        expected_prior_audit_id: Optional optimistic-concurrency token —
+            the audit row id the caller planned against. Checked against
+            the LATEST audit row inside this same DB session, immediately
+            before the append: a mismatch means the canvas moved during
+            the caller's planning/retry window and the write is REFUSED
+            with a conflict marker instead of overwriting concurrent
+            edits.
     """
     try:
         from core.database import get_db_session
@@ -289,9 +304,26 @@ async def update_canvas_content(
             if latest.action_type == "delete":
                 return {"success": False, "error": "Cannot update a deleted canvas"}
 
+            # ATOMIC REVISION DOOR (2026-09-22): the caller planned against a
+            # specific revision; if anything has appended since, refuse — a
+            # background write over a concurrently-edited canvas is never
+            # acceptable. Same DB session as the append below, so the
+            # check-then-write window is the transaction itself.
+            if expected_prior_audit_id and latest.id != expected_prior_audit_id:
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "error": (
+                        "canvas changed since the edit was planned "
+                        f"(expected audit {expected_prior_audit_id[:12]}…, "
+                        f"latest {str(latest.id)[:12]}…) — write refused"),
+                }
+
             # Merge new content into the existing details.
             details = dict(latest.details_json or {})
             details["content"] = content
+            if operation_id:
+                details["operation_id"] = operation_id
             if title:
                 details["title"] = title
 

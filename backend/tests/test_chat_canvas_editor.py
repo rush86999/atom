@@ -772,7 +772,7 @@ async def test_reply_prompt_carries_no_edit_directive_when_flagged():
 
     await orch._get_qwen_response(
         "fix the alternatives price", [], user_id="user-1",
-        canvas_context=_canvas(), canvas_evidence_unavailable=True,
+        canvas_context=_canvas(), canvas_evidence_status="lookup_failed",
     )
     sent = llm.generate_completion.call_args[1]["messages"]
     system_text = " ".join(m["content"] for m in sent if m.get("role") == "system")

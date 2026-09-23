@@ -231,11 +231,21 @@ class OperatorLoop:
         budget_exhausted = False
         error: Optional[str] = None
         consecutive_failures = 0
+        # Typed termination reason (additive result key): lets downstream
+        # consumers separate infrastructure failures (exception /
+        # observation_failed / stopped) from agent-attributable outcomes
+        # (no_valid_action / unparseable_step / repeated_action_failure /
+        # action_blocked / budget_exhausted / completed). Eval harnesses
+        # must NOT count the former as agent failures — a bare result
+        # ["error"] conflates them. Overridden at every break below; the
+        # initialization covers the for-else fall-through.
+        termination_reason = "budget_exhausted"
 
         try:
             for step in range(self.max_steps):
                 if self.stop_event is not None and self.stop_event.is_set():
                     stopped = True
+                    termination_reason = "stopped"
                     break
 
                 observation = await self.backend.observe()
@@ -244,6 +254,7 @@ class OperatorLoop:
                     # Backend broken (browser died, session expired): retrying
                     # the same broken observation is pointless.
                     blocked_reason = f"observation failed: {observation.error}"
+                    termination_reason = "observation_failed"
                     break
 
                 decider = self.decider or JsonVisionDecider()
@@ -252,6 +263,7 @@ class OperatorLoop:
                     decision = await decision
 
                 if decision is None:
+                    termination_reason = "no_valid_action"
                     if not executed:
                         error = "no action could be decided for the task"
                         break
@@ -260,6 +272,7 @@ class OperatorLoop:
 
                 if decision.get("done"):
                     task_done = True
+                    termination_reason = "completed"
                     final_summary = (decision.get("summary")
                                      or decision.get("reasoning") or "")
                     break
@@ -268,6 +281,7 @@ class OperatorLoop:
                 if action is None:
                     consecutive_failures += 1
                     if consecutive_failures >= 3:
+                        termination_reason = "no_valid_action"
                         break
                     continue
 
@@ -279,10 +293,12 @@ class OperatorLoop:
                            or result.get("blocked_by_guardrail"))
                 if blocked:
                     blocked_reason = result.get("error") or "action blocked"
+                    termination_reason = "action_blocked"
                     executed.append({
                         "step": step + 1,
                         "action": action.description or action.action_type,
                         "action_type": action.action_type,
+                        "parameters": action.parameters,
                         "success": False,
                         "blocked": True,
                         "confidence": action.confidence,
@@ -295,6 +311,7 @@ class OperatorLoop:
                     "step": step + 1,
                     "action": action.description or action.action_type,
                     "action_type": action.action_type,
+                    "parameters": action.parameters,
                     "success": success,
                     "confidence": action.confidence,
                     "detail": {k: v for k, v in result.items()
@@ -314,6 +331,7 @@ class OperatorLoop:
                     if consecutive_failures >= 3:
                         logger.warning("three consecutive failed operator "
                                        "actions — aborting task")
+                        termination_reason = "repeated_action_failure"
                         break
 
                 # Let the page settle so the next observation reflects the
@@ -327,12 +345,14 @@ class OperatorLoop:
         except Exception as exc:
             logger.error(f"operator task failed: {exc}")
             error = str(exc)
+            termination_reason = "exception"
 
         # ONE exit point: every terminal state carries the same keys.
         return {
             "success": (task_done or any(a.get("success")
                                          for a in executed)),
             "task": task,
+            "termination_reason": termination_reason,
             "actions": executed,
             "steps": len(executed),
             "done": task_done,

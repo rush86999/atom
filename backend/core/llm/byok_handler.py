@@ -101,6 +101,87 @@ _REASONING_MANDATORY: set = set()
 _MODEL_TEMPERATURE: Dict[str, float] = {}
 
 
+# ---------------------------------------------------------------------------
+# DURABLE PAIR-CONSTRAINT MEMOS (2026-09-22). The per-(provider, model)
+# constraint sets below were process-memory only: every restart re-paid
+# EVERY discovery — each 400 round trip re-learned, cascades re-drained
+# (live: a fresh boot's first canvas-edit turn burned its planner budget
+# rediscovering kimi-k2.7-code's temperature lock and tool_choice/thinking
+# conflict, and the edit leg died inside its bound). This repo restarts on
+# every code change, so the memos are persisted to a JSON sidecar next to
+# the other LLM caches and reloaded at import. Best-effort by contract: a
+# missing/corrupt file, or a stale memo, only costs one recovered retry —
+# the same first-encounter price the process-memory version already paid.
+# ---------------------------------------------------------------------------
+def _pair_memo_path():
+    from pathlib import Path as _Path
+
+    override = os.getenv("ATOM_PAIR_MEMO_PATH")
+    if override:
+        return _Path(override)
+    # Anchor to backend/data — never CWD (the path-anchoring bug class).
+    return _Path(__file__).resolve().parent.parent.parent / "data" / (
+        "llm_pair_memos.json")
+
+
+_PAIR_MEMO_LOCK = threading.Lock()
+
+
+def _save_pair_memos() -> None:
+    try:
+        with _PAIR_MEMO_LOCK:
+            payload = {
+                "temperature": dict(_MODEL_TEMPERATURE),
+                "toolchoice_unsupported": sorted(_TOOLCHOICE_UNSUPPORTED),
+                "reasoning_mandatory": sorted(_REASONING_MANDATORY),
+                "logprobs_unsupported": sorted(_LOGPROBS_UNSUPPORTED),
+                "auth_failed": sorted(_AUTH_FAILED),
+                "structured_latency_ewma": {
+                    k: round(v, 2)
+                    for k, v in _MODEL_STRUCTURED_LATENCY.items()},
+            }
+        path = _pair_memo_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload))
+    except Exception:  # noqa: BLE001 — persistence is best-effort
+        logger.debug("pair-memo save skipped")
+
+
+def _load_pair_memos() -> None:
+    # Tests stay cold: the auto-load only runs outside TESTING (an explicit
+    # ATOM_PAIR_MEMO_PATH opts back in — the persistence pins rely on it).
+    # Preloading real pair constraints inside test processes shifted module
+    # routing state for unrelated suites (live 2026-09-22: a 17-file batch
+    # flipped 24 storage tests via supplement-gating order effects).
+    if os.getenv("TESTING") and not os.getenv("ATOM_PAIR_MEMO_PATH"):
+        return
+    try:
+        path = _pair_memo_path()
+        if not path.exists():
+            return
+        payload = json.loads(path.read_text() or "{}")
+        _MODEL_TEMPERATURE.update(
+            {str(k): float(v) for k, v in (payload.get("temperature")
+                                           or {}).items()})
+        _TOOLCHOICE_UNSUPPORTED.update(
+            payload.get("toolchoice_unsupported") or [])
+        _REASONING_MANDATORY.update(payload.get("reasoning_mandatory") or [])
+        _LOGPROBS_UNSUPPORTED.update(payload.get("logprobs_unsupported") or [])
+        _AUTH_FAILED.update(payload.get("auth_failed") or [])
+        _MODEL_STRUCTURED_LATENCY.update(
+            {str(k): float(v)
+             for k, v in (payload.get("structured_latency_ewma")
+                          or {}).items()})
+        logger.info(
+            "pair-constraint memos loaded: %d temperature, %d toolchoice, "
+            "%d reasoning, %d logprobs, %d auth, %d latency",
+            len(_MODEL_TEMPERATURE), len(_TOOLCHOICE_UNSUPPORTED),
+            len(_REASONING_MANDATORY), len(_LOGPROBS_UNSUPPORTED),
+            len(_AUTH_FAILED), len(_MODEL_STRUCTURED_LATENCY))
+    except Exception:  # noqa: BLE001 — a corrupt file costs one retry
+        logger.debug("pair-memo load skipped")
+
+
 def _parse_locked_temperature(err_text: str) -> float:
     """The temperature an endpoint's own rejection demands
     ('only 1 is allowed for this model' -> 1.0); 1.0 when unparseable —
@@ -112,6 +193,35 @@ def _parse_locked_temperature(err_text: str) -> float:
         return float(m.group(1)) if m else 1.0
     except Exception:  # noqa: BLE001
         return 1.0
+
+
+def _parse_affordable_tokens(err_text: str) -> "Optional[int]":
+    """The token budget a PARTIALLY funded account can still afford, from
+    the endpoint's own 402 text ('can only afford 8'); None when absent.
+    Used by the credit-limited retry — honoring the CURRENT balance every
+    time, so deliberately NOT memoized."""
+    import re as _re
+    m = _re.search(r"can only afford\s+([0-9]+)", err_text or "",
+                   _re.IGNORECASE)
+    try:
+        return int(m.group(1)) if m else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _direct_api_model_name(provider_id: str, model: str) -> str:
+    """Bare model name for DIRECT single-vendor APIs.
+
+    Vendor-prefixed catalog ids are route selectors for GATEWAYS; the
+    direct provider API rejects them (live 2026-09-23: api.deepseek.com
+    400 "supported API model names are deepseek-flash, deepseek-v4-pro"
+    for 'tencent/deepseek-v4-pro' AND for multi-segment catalog paths like
+    'fireworks_ai/accounts/fireworks/models/deepseek-v4-pro' — the direct
+    API saw the whole path, not the model). The direct API serves the same
+    underlying model under the LAST path segment, so normalize to that."""
+    if provider_id == "deepseek" and "/" in model:
+        return model.rsplit("/", 1)[1]
+    return model
 
 
 def _required_temperature(provider_id: str, model: str,
@@ -130,6 +240,42 @@ def _required_temperature(provider_id: str, model: str,
 # 120s, and the user saw "Could not reach the agent"). Cleared when a
 # pair succeeds (recovery after configuration changes).
 _AUTH_FAILED: set = set()
+
+# EWMA of OBSERVED structured-call latency per (provider, model) pair —
+# seconds. BPC picks by quality/cost, so the CHEAPEST model can also be the
+# SLOWEST (live 2026-09-22: kimi-k2.7-code served structured calls at ~50s
+# each once its temperature lock was honored; two such calls cannot fit any
+# chat budget under the ~120s client abort, and the canvas-edit leg starved
+# on exactly that). Interactive-context admission skips pairs whose EWMA
+# exceeds ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS; background work is free
+# to keep using them. Persisted with the other pair memos.
+_MODEL_STRUCTURED_LATENCY: Dict[str, float] = {}
+_STRUCTURED_LATENCY_ALPHA = 0.4  # EWMA weight of the newest observation
+
+
+def _record_structured_latency(provider_id: str, model: str,
+                               elapsed_seconds: float) -> None:
+    pair = f"{provider_id}/{model}"
+    try:
+        elapsed = max(0.0, float(elapsed_seconds))
+    except (TypeError, ValueError):
+        return
+    prev = _MODEL_STRUCTURED_LATENCY.get(pair)
+    _MODEL_STRUCTURED_LATENCY[pair] = (
+        elapsed if prev is None
+        else prev * (1.0 - _STRUCTURED_LATENCY_ALPHA)
+        + elapsed * _STRUCTURED_LATENCY_ALPHA)
+    _save_pair_memos()
+
+
+def _interactive_structured_max_seconds() -> float:
+    raw = os.getenv("ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS")
+    if raw is not None and str(raw).strip() != "":
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            pass
+    return 25.0
 
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
@@ -261,6 +407,12 @@ from core.models import GovernanceDocument, AgentExecution, Tenant, Workspace, M
 from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
+
+# Reload the durable pair-constraint memos once every container AND the
+# module logger exist (best-effort: absent file = cold start, exactly the
+# pre-persistence behaviour). NOTE: must stay below ``logger`` — an earlier
+# placement raised NameError at import and killed the whole API boot.
+_load_pair_memos()
 
 def _learning_router_enabled() -> bool:
     """Whether RE-RANKING by learned satisfaction is active.
@@ -546,6 +698,13 @@ _PROVIDER_COOLDOWN_SECONDS = float(
     os.getenv("ATOM_PROVIDER_FAILURE_COOLDOWN_SECONDS", "600") or 600)
 _PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = float(
     os.getenv("ATOM_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS", "60") or 60)
+#: Credit/quota exhaustion is ACCOUNT-level and persists until a top-up,
+#: but the top-up can land any minute — bench long enough that one 402
+#: stops costing every subsequent call a round trip, short enough that a
+#: refill recovers without a restart (user directive 2026-09-22: healthy
+#: providers like opencode-go must serve while another's balance is low).
+_PROVIDER_QUOTA_COOLDOWN_SECONDS = float(
+    os.getenv("ATOM_PROVIDER_QUOTA_COOLDOWN_SECONDS", "300") or 300)
 _PROVIDER_COOLDOWN_UNTIL: Dict[str, float] = {}
 _PROVIDER_COOLDOWN_REASON: Dict[str, tuple] = {}
 _PROVIDER_COOLDOWN_LOCK = threading.Lock()
@@ -1831,6 +1990,34 @@ class BYOKHandler:
             _PROVIDER_COOLDOWN_REASON[provider_id] = (
                 cause, sanitize_error_text(detail))
 
+    def _bench_provider_on_quota_error(
+        self, provider_id: str, err_text: str
+    ) -> bool:
+        """Bench a provider whose ACCOUNT-level balance/quota failed.
+
+        Mirrors _record_attempt_failure's PROVIDER_SCOPED handling for the
+        inline structured-classification path that bypasses it: a 402
+        credits/quota failure rejects every model on the provider
+        identically, so the provider pauses for the quota cooldown and
+        healthy providers take over (user directive 2026-09-22: opencode-go
+        must serve while openrouter's balance is low)."""
+        try:
+            low = (err_text or "").lower()
+            if not ("402" in (err_text or "") or "more credits" in low
+                    or "quota" in low):
+                return False
+            self._bench_provider(
+                provider_id, cause="quota_exhausted", detail=err_text,
+                seconds=_PROVIDER_QUOTA_COOLDOWN_SECONDS)
+            logger.warning(
+                f"{provider_id} benched for "
+                f"{_PROVIDER_QUOTA_COOLDOWN_SECONDS:.0f}s — account-level "
+                "credit exhaustion; healthy providers take over")
+            return True
+        except Exception as bench_err:  # noqa: BLE001
+            logger.debug(f"quota bench skipped: {bench_err}")
+            return False
+
     def _provider_cooldown_active(self, provider_id: str) -> bool:
         with _PROVIDER_COOLDOWN_LOCK:
             return _PROVIDER_COOLDOWN_UNTIL.get(provider_id, 0) > time.time()
@@ -2826,6 +3013,7 @@ class BYOKHandler:
         max_quality: Optional[int] = None,  # Stage-router "fast" steering: upper quality bound
         required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
         turn_index: int = 0, # NEW: Deterministic BPC
+        relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs
         cost_priority: Optional[bool] = None,  # Small structured tasks: let price drive
     ) -> List[tuple[str, str]]:
         """
@@ -3316,51 +3504,123 @@ class BYOKHandler:
             _rate_headroom_cache: Dict[str, float] = {}
             _monthly_exhausted: Dict[str, bool] = {}
             monthly_tpm_limit = self._monthly_tpm_limit()
-            for c in candidates:
-                provider_id = c["provider"]
-                model_id = c["model"]
+            _lat_gate_relaxed = False
+            _survivors = 0
+            # Two-pass with a clean boundary: pass 0 applies the latency
+            # gate; if NOTHING survives, pass 1 re-ranks without it (a slow
+            # answer inside the deadline beats no answer — live 2026-09-22:
+            # the gate narrowed generation to one rate-drained model and
+            # the cascade died with every healthy-but-slower route gated).
+            _pass_survivors = None
+            for _gate_pass in (0, 1):
+                candidates = list(candidates) if _gate_pass == 0 else candidates
+                _lat_gate_relaxed = _gate_pass == 1
+                if _gate_pass == 1:
+                    logger.warning(
+                        "BPC latency gate excluded EVERY candidate — "
+                        "re-ranking once without it (a slow answer inside "
+                        "the deadline beats no answer)")
+                for c in candidates:
+                    provider_id = c["provider"]
+                    model_id = c["model"]
 
-                # Monthly subscription allowance hard-skip (opt-in via
-                # OPENCODE_MONTHLY_TPM). Weighted against each model's quota
-                # weight, so heavy models drain the allowance faster.
-                if monthly_tpm_limit:
-                    if provider_id not in _monthly_exhausted:
-                        _monthly_exhausted[provider_id] = self._monthly_budget_exhausted(
-                            provider_id, monthly_tpm_limit
-                        )
-                    if _monthly_exhausted[provider_id]:
+                    # Monthly subscription allowance hard-skip (opt-in via
+                    # OPENCODE_MONTHLY_TPM). Weighted against each model's quota
+                    # weight, so heavy models drain the allowance faster.
+                    if monthly_tpm_limit:
+                        if provider_id not in _monthly_exhausted:
+                            _monthly_exhausted[provider_id] = self._monthly_budget_exhausted(
+                                provider_id, monthly_tpm_limit
+                            )
+                        if _monthly_exhausted[provider_id]:
+                            logger.info(
+                                f"BPC skipped {provider_id} — monthly subscription "
+                                f"quota exhausted (limit={monthly_tpm_limit})"
+                            )
+                            continue
+
+                    # Per-model headroom when the model has its own limits; falls
+                    # back to the provider headroom otherwise.
+                    #
+                    # INTERACTIVE RESERVE (RCA 2026-09-22): background calls
+                    # (ingestion triggers, extraction, learning loops — anything
+                    # outside an interactive chat request) are admitted only
+                    # ABOVE the reserve fraction, so the last slice of every
+                    # window stays available for user-facing turns. During the
+                    # measured incident, background draft/extraction calls
+                    # drained the fleet mid-turn; interactive ranking then saw
+                    # headroom=0.00 with nothing left to cascade to.
+                    from core.llm.interactive_context import (
+                        interactive_rate_reserve,
+                        is_interactive_chat,
+                    )
+
+                    _reserve = (
+                        0.0 if is_interactive_chat() else interactive_rate_reserve())
+                    # LATENCY GATE (interactive only): a pair whose observed
+                    # structured latency cannot fit an interactive turn's
+                    # serial chain is skipped for interactive calls — background
+                    # work may still use it (live 2026-09-22: kimi-k2.7-code at
+                    # ~50s/call starved the canvas-edit leg even with every
+                    # constraint honored).
+                    # Two-pass: pass 2 (after the loop found zero candidates)
+                    # drops the latency gate — observed live 2026-09-22: the
+                    # gate narrowed interactive generation to ONE model whose
+                    # rate budget then drained, and the cascade died with every
+                    # healthy-but-slower route gated ("BPC skipped opencode-
+                    # go/... 36×"). A slow answer inside the turn deadline
+                    # beats no answer; the gate stays a PREFERENCE, not a
+                    # hard exclusion at the last resort.
+                    _lat_max = (
+                        _interactive_structured_max_seconds()
+                        if (is_interactive_chat() and not _lat_gate_relaxed)
+                        else 0.0)
+                    _lat_key = f"{provider_id}/{model_id}"
+                    if _lat_max and _MODEL_STRUCTURED_LATENCY.get(
+                            _lat_key, 0.0) > _lat_max:
                         logger.info(
-                            f"BPC skipped {provider_id} — monthly subscription "
-                            f"quota exhausted (limit={monthly_tpm_limit})"
+                            f"BPC skipped {_lat_key} — observed structured "
+                            f"latency "
+                            f"{_MODEL_STRUCTURED_LATENCY[_lat_key]:.0f}s > "
+                            f"interactive cap {_lat_max:.0f}s"
+                        )
+                        continue
+                    model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
+                    if model_headroom <= _reserve:
+                        logger.info(
+                            f"BPC skipped {provider_id}/{model_id} — per-model rate "
+                            f"budget {'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                            f"(headroom={model_headroom:.2f}"
+                            + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                         )
                         continue
 
-                # Per-model headroom when the model has its own limits; falls
-                # back to the provider headroom otherwise.
-                model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
-                if model_headroom <= 0.0:
-                    logger.info(
-                        f"BPC skipped {provider_id}/{model_id} — per-model rate "
-                        f"budget exhausted (headroom={model_headroom:.2f})"
-                    )
-                    continue
+                    if provider_id not in _rate_headroom_cache:
+                        _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
+                    headroom = _rate_headroom_cache[provider_id]
+                    if headroom <= _reserve:
+                        logger.info(
+                            f"BPC skipped {provider_id} — custom rate budget "
+                            f"{'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                            f"(headroom={headroom:.2f}"
+                            + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
+                        )
+                        continue
+                    c["headroom"] = headroom
+                    c["model_headroom"] = model_headroom
+                    c["quota_weight"] = self.rate_tracker.get_model_weight(provider_id, model_id)
+                    _survivors += 1
 
-                if provider_id not in _rate_headroom_cache:
-                    _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
-                headroom = _rate_headroom_cache[provider_id]
-                if headroom <= 0.0:
-                    logger.info(
-                        f"BPC skipped {provider_id} — custom rate budget exhausted "
-                        f"(headroom={headroom:.2f})"
-                    )
-                    continue
-                c["headroom"] = headroom
-                c["model_headroom"] = model_headroom
-                c["quota_weight"] = self.rate_tracker.get_model_weight(provider_id, model_id)
-
-            # Drop exhausted providers entirely so they can't leak into the
-            # ranked output or break the value-score sort below.
-            candidates = [c for c in candidates if "headroom" in c]
+                # Survivors of THIS pass only: drop exhausted providers so
+                # they can't leak into the ranked output or break the
+                # value-score sort below. The ORIGINAL candidate list is
+                # preserved for a possible relaxed second pass.
+                _survivor_pool = [c for c in candidates if "headroom" in c]
+                if _survivor_pool:
+                    candidates = _survivor_pool
+                    break
+                # Pass 0 emptied: loop continues into pass 1 (gate relaxed),
+                # re-iterating the ORIGINAL candidates without the gate.
 
             # Hard price ceiling (P2.3): optional per-Mtok cap so a mis-ranked
             # expensive model can never win by default. 0/empty disables the
@@ -3473,6 +3733,7 @@ class BYOKHandler:
 
             for c in candidates:
                 allowed_models = (
+                    "*" if relax_tier else
                     MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
                     if _plan_applies(c["provider"]) else "*"
                 )
@@ -3550,10 +3811,32 @@ class BYOKHandler:
 
                 # Same hard gates as the dynamic ranker's rate-aware pass:
                 # provider/per-model headroom, monthly subscription quota,
-                # and the provider-level context clamp.
-                if self.rate_tracker.get_headroom(provider_id) <= 0.0:
+                # and the provider-level context clamp. Headroom uses the
+                # same INTERACTIVE RESERVE as the dynamic pool (RCA
+                # 2026-09-22): background calls are admitted only above the
+                # reserved fraction.
+                from core.llm.interactive_context import (
+                    interactive_rate_reserve,
+                    is_interactive_chat,
+                )
+
+                _fb_reserve = (
+                    0.0 if is_interactive_chat() else interactive_rate_reserve())
+                # NOTE: the dynamic pool relaxes this gate at the last
+                # resort (a slow answer beats none — live 2026-09-22); this
+                # static fallback pool keeps the hard gate: its slots are
+                # the cheap/fast COST_EFFICIENT picks that sit under the
+                # cap anyway, and the dynamic relaxation covers callers
+                # that fall through here empty.
+                _fb_lat_max = (
+                    _interactive_structured_max_seconds()
+                    if is_interactive_chat() else 0.0)
+                if _fb_lat_max and _MODEL_STRUCTURED_LATENCY.get(
+                        f"{provider_id}/{model}", 0.0) > _fb_lat_max:
                     continue
-                if self.rate_tracker.get_model_headroom(provider_id, model) <= 0.0:
+                if self.rate_tracker.get_headroom(provider_id) <= _fb_reserve:
+                    continue
+                if self.rate_tracker.get_model_headroom(provider_id, model) <= _fb_reserve:
                     continue
                 if fallback_monthly_tpm_limit and self._monthly_budget_exhausted(
                     provider_id, fallback_monthly_tpm_limit
@@ -3595,6 +3878,7 @@ class BYOKHandler:
                 # Plan gating applies to managed keys only (env keys are the
                 # operator's own — see _plan_applies in the BPC path).
                 allowed_models = (
+                    "*" if relax_tier else
                     MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
                     if (is_managed_service and provider_id not in getattr(self, "env_key_providers", set())) else "*"
                 )
@@ -4026,6 +4310,10 @@ class BYOKHandler:
             last_error = None
             primary_provider = options[0][0] if options else None
             failed_providers = set()
+            # Providers that failed THIS cascade with credit/quota errors —
+            # drives the honest "out of credits" envelope when EVERY route
+            # died the same way (user directive 2026-09-23).
+            _credit_failed_providers = set()
             # Snapshot the caller's transcript ONCE: each provider attempt
             # below rebinds `messages` (attaching the image / current turn),
             # and a fallback attempt must start from the pristine copy —
@@ -4142,7 +4430,7 @@ class BYOKHandler:
                         else _DEFAULT_COMPLETION_MAX_TOKENS
                     )
                     _req_kwargs = {
-                        "model": model,
+                        "model": _direct_api_model_name(provider_id, model),
                         "messages": messages,
                         # per-model temperature constraint (provider-general:
                         # learned from each endpoint's own rejection)
@@ -4301,6 +4589,10 @@ class BYOKHandler:
                 except Exception as attempt_err:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+                    _attempt_str = str(attempt_err)
+                    if ("402" in _attempt_str or "more credits" in _attempt_str.lower()
+                            or "quota" in _attempt_str.lower()):
+                        _credit_failed_providers.add(provider_id)
 
                     # TEMPERATURE-LOCKED recovery (provider-general,
                     # 2026-09-21): endpoints announce their single allowed
@@ -4316,6 +4608,7 @@ class BYOKHandler:
                             str(attempt_err))
                         _MODEL_TEMPERATURE[f"{provider_id}/{model}"] = (
                             _locked_value)
+                        _save_pair_memos()
                         logger.warning(
                             f"{provider_id}/{model} locks temperature to "
                             f"{_locked_value} — retrying once and memoizing "
@@ -4582,6 +4875,21 @@ class BYOKHandler:
             # actual last error; keep the failure recognizable as failure
             # text (the reply path's error detector matches
             # "couldn't generate a response").
+            # CREDIT-EXHAUSTION CLASSIFICATION (user directive 2026-09-23):
+            # when every provider failed the SAME way — account-level
+            # credit/quota exhaustion — say so plainly and give the
+            # actionable remedy; "try again" is false guidance when the
+            # balance has not changed. The recognizable failure prefix is
+            # kept so downstream error detectors still classify it.
+            if _credit_failed_providers:
+                _names = ", ".join(sorted(_credit_failed_providers))
+                return (
+                    "I couldn't generate a response — every configured "
+                    f"provider is out of credits ({_names}). The last "
+                    f"provider error: {str(last_error or '')[:160]} Top up "
+                    "the provider balances in Settings → Providers, then "
+                    "ask again — retrying without a top-up will fail the "
+                    "same way.")
             _cause = str(last_error or "no provider attempted")[:200]
             return (
                 "I couldn't generate a response — every configured provider "
@@ -5241,6 +5549,7 @@ class BYOKHandler:
         max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
         force_value_ranking: bool = False,  # last-resort sweep: rank by value, not cost
+        relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs (user-approved spend)
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
     ) -> Any:
         """
@@ -5392,6 +5701,7 @@ class BYOKHandler:
                 cost_priority=(
                     False if (provider_model is not None or force_value_ranking)
                     else None),
+                relax_tier=relax_tier,
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
@@ -5401,7 +5711,20 @@ class BYOKHandler:
             # used to bypass every context check, and a learning-heavy prompt
             # overflowed it where the ranker would have chosen a bigger model.
             if provider_model is not None:
-                if not self._pinned_model_fits(
+                if self._provider_cooldown_active(provider_model[0]):
+                    # A pinned provider on cooldown (rejected credential,
+                    # exhausted balance) fails exactly as unpinned — and the
+                    # pin BYPASSES the ranking gate where cooldowns are
+                    # enforced, so holding it means a guaranteed-dead call
+                    # while healthy providers sit idle. Unpin and re-rank;
+                    # the ranking gate excludes the benched provider.
+                    logger.warning(
+                        f"Unpinning {provider_model[0]}/{provider_model[1]} — "
+                        "provider benched (cooldown active); re-ranking "
+                        "across healthy providers"
+                    )
+                    provider_model = None
+                elif not self._pinned_model_fits(
                     provider_model[1],
                     estimated_input_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
                 ):
@@ -5529,6 +5852,19 @@ class BYOKHandler:
                 cascade_idx += 1
                 if provider_id in failed_providers:
                     continue
+                # DIRECT deepseek serves ONLY its own two model names (live
+                # 2026-09-23: "supported API model names are deepseek-flash,
+                # deepseek-v4-pro" — every other catalog variant 400'd).
+                # Skip candidates the direct API cannot serve instead of
+                # paying the round trip.
+                if provider_id == "deepseek":
+                    _bare = _direct_api_model_name("deepseek", model)
+                    if _bare not in ("deepseek-flash", "deepseek-v4-pro"):
+                        logger.info(
+                            f"structured gate: skipping deepseek/{model} — "
+                            f"direct API does not serve {_bare!r}")
+                        continue
+                    continue
                 if not self.clients.get(provider_id):
                     # SILENT before 2026-09-20: this skip made a ladder die
                     # with "Last error: None" and no attempt warnings — the
@@ -5646,7 +5982,7 @@ class BYOKHandler:
                         os.getenv("ATOM_STRUCTURED_MAX_TOKENS", "6000")
                     )
                     _create_kwargs = dict(
-                        model=model,
+                        model=_direct_api_model_name(provider_id, model),
                         response_model=response_model,
                         messages=messages,
                         temperature=_effective_temperature,
@@ -5702,6 +6038,9 @@ class BYOKHandler:
                                 instructor_client.chat.completions.create,
                                 **_create_kwargs
                             )
+                            _record_structured_latency(
+                                provider_id, model,
+                                time.time() - _structured_start)
                             break
                         except Exception as _attempt_err:
                             _err_txt = str(_attempt_err).lower()
@@ -5718,6 +6057,7 @@ class BYOKHandler:
                             ):
                                 _recovered.add("toolchoice")
                                 _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
+                                _save_pair_memos()
                                 logger.warning(
                                     f"{provider_id}/{model} rejects tool_choice "
                                     f"in thinking mode — retrying once in JSON "
@@ -5742,6 +6082,7 @@ class BYOKHandler:
                                 _recovered.add("_temp_locked")
                                 _MODEL_TEMPERATURE[_logprobs_key] = (
                                     _locked_value)
+                                _save_pair_memos()
                                 _create_kwargs["temperature"] = _locked_value
                                 logger.warning(
                                     f"{provider_id}/{model} locks temperature "
@@ -5759,6 +6100,7 @@ class BYOKHandler:
                             ):
                                 _recovered.add("reasoning")
                                 _REASONING_MANDATORY.add(_logprobs_key)
+                                _save_pair_memos()
                                 _create_kwargs.pop("extra_body", None)
                                 logger.warning(
                                     f"{provider_id}/{model} requires reasoning "
@@ -5787,6 +6129,7 @@ class BYOKHandler:
                                 _recovered.add("logprobs")
                                 _create_kwargs.pop("logprobs", None)
                                 _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
+                                _save_pair_memos()
                                 logger.warning(
                                     f"soft-SC logprobs request failed for "
                                     f"{provider_id}/{model} ({_attempt_err}); "
@@ -5887,6 +6230,7 @@ class BYOKHandler:
                         routing_result_id=structured_decision_id,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
+                    _save_pair_memos()
                     # A success is also an auth fact: it clears the persisted
                     # auth_ok=False a dead-workspace period may have recorded,
                     # so the next restart does not seed a stale cooldown.
@@ -5922,6 +6266,7 @@ class BYOKHandler:
                         _pair = f"{provider_id}/{model}"
                         if _pair not in _AUTH_FAILED:
                             _AUTH_FAILED.add(_pair)
+                            _save_pair_memos()
                             logger.warning(
                                 f"AUTH-FAILED memo: {_pair} benched after "
                                 "401 AuthError — credential rejected; "
@@ -5965,6 +6310,36 @@ class BYOKHandler:
                         )
                     except Exception:
                         pass  # Don't let health monitoring errors affect primary flow
+                    # CREDIT-LIMITED AFFORDABILITY RECOVERY (2026-09-22):
+                    # a PARTIALLY funded account 402s with its own remedy —
+                    # "You requested up to 6000 tokens, but can only afford
+                    # N... lower max_tokens to fit your remaining balance".
+                    # When N is enough for a structured answer (>=1200),
+                    # retry ONCE at N minus a small margin: the ceiling is a
+                    # cap, not a target, so a smaller request is the same
+                    # call the endpoint says it can serve. Below that floor
+                    # the account genuinely cannot fund the call → provider
+                    # failure as before. Mirrors the temperature-lock
+                    # pattern: parse the endpoint's own remedy, recover once.
+                    _afford = _parse_affordable_tokens(err_str)
+                    if _afford is not None and _afford >= 1200 \
+                            and "_credit_retry" not in _recovered:
+                        _recovered.add("_credit_retry")
+                        _create_kwargs["max_tokens"] = max(512, _afford - 200)
+                        logger.warning(
+                            f"{provider_id}/{model} credit-limited to "
+                            f"{_afford} tokens — retrying once with "
+                            f"max_tokens={_create_kwargs['max_tokens']}"
+                        )
+                        continue
+                    # BENCH the provider (user directive 2026-09-22): an
+                    # account-level balance failure rejects every model on
+                    # the provider identically — without the bench, each
+                    # later structured call re-pays a 402 round trip on the
+                    # same dead rung while healthy providers (opencode-go)
+                    # sit idle.
+                    self._bench_provider_on_quota_error(
+                        provider_id, err_str)
                     if ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
                             # QUOTA (2026-09-20): a credits-exhausted account
                             # (openrouter 402 "can only afford N tokens") fails
@@ -6081,6 +6456,7 @@ class BYOKHandler:
                         max_tokens=max_tokens,
                         stage_decision_id=stage_decision_id,
                         force_value_ranking=True,
+                        relax_tier=True,
                         _sweep_depth=_sweep_depth + 1,
                     )
                     if _swept is not None:
@@ -6674,9 +7050,24 @@ class BYOKHandler:
 
                     logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
 
+                # DIRECT single-vendor APIs reject vendor-prefixed catalog
+                # ids ('tencent/deepseek-v4-pro' sent to api.deepseek.com →
+                # 400 "supported API model names are deepseek-flash,
+                # deepseek-v4-pro"; live 2026-09-23 — the stream ladder's
+                # catalog sweep carries composite ids and burned all three
+                # rungs on that 400). Strip the vendor prefix: the bare
+                # name IS the same underlying model on the direct API.
+                _direct_api_model = _direct_api_model_name(
+                    attempt_provider_id, model)
+                if _direct_api_model != model:
+                    logger.info(
+                        f"direct dispatch: stripped catalog prefix "
+                        f"{model!r} → {_direct_api_model!r} "
+                        f"({attempt_provider_id})")
+
                 # Use async streaming API
                 create_kwargs: Dict[str, Any] = {
-                    "model": model,
+                    "model": _direct_api_model,
                     "messages": messages,
                     "temperature": _required_temperature(
                         attempt_provider_id, model, temperature),
@@ -7523,6 +7914,7 @@ class BYOKHandler:
                         f"{attempt_provider_id}/{model} locks temperature to "
                         f"{_locked_value} — retrying once and memoizing the "
                         f"pair")
+                    _save_pair_memos()
                     _retry_at_1 = {**base_kwargs, "temperature": _locked_value}
                     try:
                         response = await client.chat.completions.create(

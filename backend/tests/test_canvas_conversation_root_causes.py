@@ -116,7 +116,10 @@ async def test_failed_edit_planner_allows_search_without_action_dispatch():
             "isolated", context={"canvas_id": "c1", "agent_id": "a1"})
     assert result["message"] == "Found the source email."
     assert result["data"]["canvas_edit"]["updated"] is False
-    assert answer.await_args.kwargs["canvas_evidence_unavailable"] is True
+    from core.chat_canvas_editor import CanvasEvidenceStatus
+
+    assert answer.await_args.kwargs["canvas_evidence_status"] is (
+        CanvasEvidenceStatus.PLANNER_UNAVAILABLE)
     edit.assert_not_awaited()
     action.assert_not_awaited()
     crm.assert_not_awaited()

@@ -48,6 +48,32 @@ def mem_block(monkeypatch):
     return mock
 
 
+@pytest.fixture(autouse=True)
+def _isolate_planner_module_caches():
+    """Reset EVERY module-level TTL cache the planner consults, around each
+    test (2026-09-22, replaces the in-file NOTE below — kept for history).
+
+    Root cause of the batch-order failures: these tests gate on probe
+    functions backed by process-global caches (_PEOPLE_INDEX,
+    _connected_cache, _OWN_ADDRESSES_CACHE, _COMMS_DIGITS_CACHE,
+    _DOCS_TABLE_CACHE, _comms_store_cache) plus the universal-service read
+    cache — in a large batch, whichever EARLIER file primes them (and
+    whatever the operator's mailbox ingested that day; the store grew
+    9.9k→13.6k rows on 2026-09-22) flips their routing. Clearing all of
+    them per-test makes this file order-independent."""
+    ctp._PEOPLE_INDEX.clear()
+    ctp._connected_cache.clear()
+    ctp._OWN_ADDRESSES_CACHE.clear()
+    ctp._COMMS_DIGITS_CACHE.clear()
+    ctp._DOCS_TABLE_CACHE.clear()
+    ctp._comms_store_cache.clear()
+    yield
+    for c in (ctp._PEOPLE_INDEX, ctp._connected_cache,
+              ctp._OWN_ADDRESSES_CACHE, ctp._COMMS_DIGITS_CACHE,
+              ctp._DOCS_TABLE_CACHE, ctp._comms_store_cache):
+        c.clear()
+
+
 class TestStorageMetadataSupplement:
     async def test_storage_search_gain_ingested_copy(self, mem_block):
         with patch.object(UniversalIntegrationService, "search",
