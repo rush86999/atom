@@ -846,11 +846,12 @@ def supersede_pending_continuation(
 
 
 def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str:
-    """The session's most recent evidence block. The reply path stores its
-    composed evidence on the session dict (session["_latest_evidence_block"])
-    after its search completes; the continuation reads it on retries so the
-    edit uses the best available evidence, not just what the edit's own
-    search found before the fork. Fault-isolated."""
+    """This OPERATION's evidence from the session — operation-scoped, not
+    "latest wins" (review: evidence isolation). The reply path stores its
+    composed evidence under a key derived from the turn's message hash; the
+    continuation reads the SAME key derived from ITS OWN originating message
+    (cont.message), so a later turn's evidence cannot be consumed by this
+    continuation. Fault-isolated."""
     try:
         orch = getattr(cont, "_orchestrator", None)
         if orch is None:
@@ -858,7 +859,11 @@ def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str
         session = orch.conversation_sessions.get(cont.session_id)
         if not session:
             return ""
-        return str(session.get("_latest_evidence_block") or "")
+        import hashlib as _hl
+        _ev_key = "_ev_{}".format(
+            _hl.sha256((cont.message or "")[:200].encode(
+                "utf-8", "ignore")).hexdigest()[:16])
+        return str(session.get(_ev_key) or "")
     except Exception:
         return ""
 

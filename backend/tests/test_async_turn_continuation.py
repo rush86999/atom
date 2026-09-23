@@ -1042,3 +1042,92 @@ class TestEditPlanRungKnob:
         # stays None (no pin). max_tokens rides extra_kwargs regardless.
         assert captured["call_kwargs"] is None
         assert (captured.get("extra_kwargs") or {}).get("max_tokens") == 14000
+
+
+class TestEvidenceIsolation:
+    """Review 2026-09-23: evidence must be operation-scoped, not
+    "latest wins" — a continuation for one topic cannot consume another
+    turn's evidence."""
+
+    def _make_cont(self, session_id, message):
+        cont = atc.AsyncTurnContinuation(
+            continuation_id="op-" + session_id, user_id="u1",
+            session_id=session_id, message=message,
+            canvas={"canvas_id": "cv"}, execution_id="e",
+            agent_id=None, history_snapshot=[])
+        return cont
+
+    def test_topic_changing_turn_does_not_leak(self):
+        import hashlib
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-iso": session}
+        cont = self._make_cont("s-iso", "rebuild the draft with 8 machines")
+        object.__setattr__(cont, "_orchestrator", orch)
+        own_key = "_ev_" + hashlib.sha256(
+            cont.message[:200].encode()).hexdigest()[:16]
+        session[own_key] = "EVIDENCE: 8 machines"
+        other_key = "_ev_" + hashlib.sha256(
+            "weather forecast".encode()).hexdigest()[:16]
+        session[other_key] = "EVIDENCE: weather"
+        session["_latest_evidence_block"] = "EVIDENCE: weather"
+
+        got = atc._latest_turn_evidence(orch, cont)
+        assert "8 machines" in got
+        assert "weather" not in got
+
+    def test_delayed_retrieval_returns_empty(self):
+        orch = MagicMock()
+        orch.conversation_sessions = {"s-del": {}}
+        cont = self._make_cont("s-del", "rebuild with quotes")
+        object.__setattr__(cont, "_orchestrator", orch)
+        assert atc._latest_turn_evidence(orch, cont) == ""
+
+    def test_restart_session_gone_returns_empty(self):
+        orch = MagicMock()
+        orch.conversation_sessions = {}
+        cont = self._make_cont("s-gone", "rebuild")
+        object.__setattr__(cont, "_orchestrator", orch)
+        assert atc._latest_turn_evidence(orch, cont) == ""
+
+
+class TestExactOperationReplay:
+    """Review 2026-09-23: invoking the SAME persisted operation ID twice
+    produces ONE effective write (not just 'no duplicate on a repeated
+    user message')."""
+
+    async def test_same_op_id_no_duplicate_write(self):
+        calls = []
+
+        async def edit_fn(*args, **kwargs):
+            calls.append(kwargs.get("operation_id"))
+            return {"message": "Rebuilt.",
+                    "data": {"canvas_edit": {"updated": True}}}
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(side_effect=edit_fn)
+        orch.conversation_sessions = {"s-replay": {}}
+
+        cont1 = atc.AsyncTurnContinuation(
+            continuation_id="op-exact-001", user_id="u1",
+            session_id="s-replay",
+            message="rebuild with 8 machines",
+            canvas={"canvas_id": "cv", "canvas_type": "email",
+                    "content": {"body": "4-row"}},
+            execution_id="e", agent_id=None, history_snapshot=[])
+        r1 = await atc.run_canvas_edit_continuation(orch, cont1)
+        assert r1[0] == "applied"
+
+        # EXACT replay: SAME continuation_id (same persisted op)
+        cont2 = atc.AsyncTurnContinuation(
+            continuation_id="op-exact-001",  # SAME ID
+            user_id="u1", session_id="s-replay",
+            message="rebuild with 8 machines",
+            canvas={"canvas_id": "cv", "canvas_type": "email",
+                    "content": {"body": "8-row now"}},
+            execution_id="e", agent_id=None, history_snapshot=[])
+        with patch.object(atc, "_operation_landed", return_value=True):
+            r2 = await atc.run_canvas_edit_continuation(orch, cont2)
+
+        assert r2[0] == "already_applied"
+        assert len(calls) == 1, f"duplicate write: {len(calls)} calls"
