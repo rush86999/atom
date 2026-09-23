@@ -618,3 +618,104 @@ class TestQuotaFailover:
         import time as _t
         _t.sleep(0.1)
         assert h._provider_cooldown_active("openrouter") is False
+
+
+class TestLatencyGateLastResortFailOpen:
+    """Live 2026-09-22: the interactive latency gate narrowed generation to
+    ONE model whose rate budget then drained — every healthy-but-slower
+    opencode route was gated and the turn died ("BPC skipped ... 36x").
+    The gate must RELAX when it would exclude every candidate: a slow
+    answer inside the turn deadline beats no answer."""
+
+    def test_gate_relaxes_when_it_empties_the_pool(self, monkeypatch):
+        from core.llm import byok_handler as bh
+        from core.llm.byok_handler import BYOKHandler, QueryComplexity
+        from core.llm.interactive_context import (
+            mark_interactive_chat, reset_interactive_chat,
+        )
+        from types import SimpleNamespace
+
+        for tbl in (bh._MODEL_TEMPERATURE, bh._TOOLCHOICE_UNSUPPORTED,
+                    bh._REASONING_MANDATORY, bh._LOGPROBS_UNSUPPORTED,
+                    bh._AUTH_FAILED):
+            tbl.clear()
+        # Reproduce the live shape: EVERY model rate-drained except ONE,
+        # and that one is observed-slow (latency-gated) — the gate must
+        # relax at the last resort rather than return nothing.
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY.update({
+            "opencode-go/kimi-k2.7-code": 46.0,
+        })
+        monkeypatch.delenv("ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS",
+                           raising=False)
+
+        # Neutralize any interactive-context leak from earlier tests in
+        # the batch (the contextvar is process-global; a leaked True makes
+        # this test's own probe gated and batch-order-dependent).
+        from core.llm.interactive_context import _interactive_chat_ctx
+
+        _interactive_chat_ctx.set(False)
+
+        # Snapshot the process-global routing memos; restored at the end.
+        _snap = {
+            "temp": dict(bh._MODEL_TEMPERATURE),
+            "tc": set(bh._TOOLCHOICE_UNSUPPORTED),
+            "rm": set(bh._REASONING_MANDATORY),
+            "lp": set(bh._LOGPROBS_UNSUPPORTED),
+            "auth": set(bh._AUTH_FAILED),
+            "lat": dict(bh._MODEL_STRUCTURED_LATENCY),
+        }
+
+        handler = BYOKHandler(workspace_id="default")
+
+        # Discover THIS environment's candidate universe first (the
+        # TESTING-mode catalog omits opencode-go, so the live-shape
+        # scenario must use whatever models actually rank here). The
+        # tracker is FROZEN (all headroom 1.0) for the probe so neither
+        # the real singleton's state nor this call's own consumption
+        # makes the test batch-order-dependent.
+        _all_open = SimpleNamespace(
+            get_model_headroom=lambda p, m: 1.0,
+            get_headroom=lambda p: 1.0,
+            get_model_weight=lambda p, m: 1.0,
+            get_max_context=lambda p, m=200000: 200000,
+        )
+        with patch.object(handler, "rate_tracker", _all_open):
+            universe = list(handler.get_ranked_providers(
+                QueryComplexity.MODERATE, "planning", True, "free", False,
+                requires_tools=True, requires_structured=True,
+                estimated_tokens=3000))
+        assert universe, "no candidates in this environment's catalog"
+        healthy = universe[0][1]  # the one rate-healthy model
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY[f"{universe[0][0]}/{healthy}"] = 46.0
+
+        fake = SimpleNamespace(
+            get_model_headroom=lambda p, m: (
+                1.0 if m == healthy else 0.0),
+            get_headroom=lambda p: 1.0,
+            get_model_weight=lambda p, m: 1.0,
+            get_max_context=lambda p, m=200000: 200000,
+        )
+        token = mark_interactive_chat()
+        try:
+            with patch.object(handler, "rate_tracker", fake):
+                ranked = list(handler.get_ranked_providers(
+                    QueryComplexity.MODERATE, "planning", True, "free",
+                    False, requires_tools=True, requires_structured=True,
+                    estimated_tokens=3000))
+        finally:
+            reset_interactive_chat(token)
+        # The rate-healthy model IS latency-gated (46s) — but it is the
+        # only survivor, so the gate must relax and admit it.
+        assert any(m == healthy for _p, m in ranked), (
+            f"last-resort relaxation must admit the only healthy route "
+            f"({healthy}); got {ranked[:4]}")
+        # Restore the process-global memos for later tests in this batch.
+        bh._MODEL_TEMPERATURE.update(_snap["temp"])
+        bh._TOOLCHOICE_UNSUPPORTED.update(_snap["tc"])
+        bh._REASONING_MANDATORY.update(_snap["rm"])
+        bh._LOGPROBS_UNSUPPORTED.update(_snap["lp"])
+        bh._AUTH_FAILED.update(_snap["auth"])
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY.update(_snap["lat"])

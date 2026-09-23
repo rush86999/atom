@@ -3489,89 +3489,123 @@ class BYOKHandler:
             _rate_headroom_cache: Dict[str, float] = {}
             _monthly_exhausted: Dict[str, bool] = {}
             monthly_tpm_limit = self._monthly_tpm_limit()
-            for c in candidates:
-                provider_id = c["provider"]
-                model_id = c["model"]
+            _lat_gate_relaxed = False
+            _survivors = 0
+            # Two-pass with a clean boundary: pass 0 applies the latency
+            # gate; if NOTHING survives, pass 1 re-ranks without it (a slow
+            # answer inside the deadline beats no answer — live 2026-09-22:
+            # the gate narrowed generation to one rate-drained model and
+            # the cascade died with every healthy-but-slower route gated).
+            _pass_survivors = None
+            for _gate_pass in (0, 1):
+                candidates = list(candidates) if _gate_pass == 0 else candidates
+                _lat_gate_relaxed = _gate_pass == 1
+                if _gate_pass == 1:
+                    logger.warning(
+                        "BPC latency gate excluded EVERY candidate — "
+                        "re-ranking once without it (a slow answer inside "
+                        "the deadline beats no answer)")
+                for c in candidates:
+                    provider_id = c["provider"]
+                    model_id = c["model"]
 
-                # Monthly subscription allowance hard-skip (opt-in via
-                # OPENCODE_MONTHLY_TPM). Weighted against each model's quota
-                # weight, so heavy models drain the allowance faster.
-                if monthly_tpm_limit:
-                    if provider_id not in _monthly_exhausted:
-                        _monthly_exhausted[provider_id] = self._monthly_budget_exhausted(
-                            provider_id, monthly_tpm_limit
-                        )
-                    if _monthly_exhausted[provider_id]:
+                    # Monthly subscription allowance hard-skip (opt-in via
+                    # OPENCODE_MONTHLY_TPM). Weighted against each model's quota
+                    # weight, so heavy models drain the allowance faster.
+                    if monthly_tpm_limit:
+                        if provider_id not in _monthly_exhausted:
+                            _monthly_exhausted[provider_id] = self._monthly_budget_exhausted(
+                                provider_id, monthly_tpm_limit
+                            )
+                        if _monthly_exhausted[provider_id]:
+                            logger.info(
+                                f"BPC skipped {provider_id} — monthly subscription "
+                                f"quota exhausted (limit={monthly_tpm_limit})"
+                            )
+                            continue
+
+                    # Per-model headroom when the model has its own limits; falls
+                    # back to the provider headroom otherwise.
+                    #
+                    # INTERACTIVE RESERVE (RCA 2026-09-22): background calls
+                    # (ingestion triggers, extraction, learning loops — anything
+                    # outside an interactive chat request) are admitted only
+                    # ABOVE the reserve fraction, so the last slice of every
+                    # window stays available for user-facing turns. During the
+                    # measured incident, background draft/extraction calls
+                    # drained the fleet mid-turn; interactive ranking then saw
+                    # headroom=0.00 with nothing left to cascade to.
+                    from core.llm.interactive_context import (
+                        interactive_rate_reserve,
+                        is_interactive_chat,
+                    )
+
+                    _reserve = (
+                        0.0 if is_interactive_chat() else interactive_rate_reserve())
+                    # LATENCY GATE (interactive only): a pair whose observed
+                    # structured latency cannot fit an interactive turn's
+                    # serial chain is skipped for interactive calls — background
+                    # work may still use it (live 2026-09-22: kimi-k2.7-code at
+                    # ~50s/call starved the canvas-edit leg even with every
+                    # constraint honored).
+                    # Two-pass: pass 2 (after the loop found zero candidates)
+                    # drops the latency gate — observed live 2026-09-22: the
+                    # gate narrowed interactive generation to ONE model whose
+                    # rate budget then drained, and the cascade died with every
+                    # healthy-but-slower route gated ("BPC skipped opencode-
+                    # go/... 36×"). A slow answer inside the turn deadline
+                    # beats no answer; the gate stays a PREFERENCE, not a
+                    # hard exclusion at the last resort.
+                    _lat_max = (
+                        _interactive_structured_max_seconds()
+                        if (is_interactive_chat() and not _lat_gate_relaxed)
+                        else 0.0)
+                    _lat_key = f"{provider_id}/{model_id}"
+                    if _lat_max and _MODEL_STRUCTURED_LATENCY.get(
+                            _lat_key, 0.0) > _lat_max:
                         logger.info(
-                            f"BPC skipped {provider_id} — monthly subscription "
-                            f"quota exhausted (limit={monthly_tpm_limit})"
+                            f"BPC skipped {_lat_key} — observed structured "
+                            f"latency "
+                            f"{_MODEL_STRUCTURED_LATENCY[_lat_key]:.0f}s > "
+                            f"interactive cap {_lat_max:.0f}s"
+                        )
+                        continue
+                    model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
+                    if model_headroom <= _reserve:
+                        logger.info(
+                            f"BPC skipped {provider_id}/{model_id} — per-model rate "
+                            f"budget {'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                            f"(headroom={model_headroom:.2f}"
+                            + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                         )
                         continue
 
-                # Per-model headroom when the model has its own limits; falls
-                # back to the provider headroom otherwise.
-                #
-                # INTERACTIVE RESERVE (RCA 2026-09-22): background calls
-                # (ingestion triggers, extraction, learning loops — anything
-                # outside an interactive chat request) are admitted only
-                # ABOVE the reserve fraction, so the last slice of every
-                # window stays available for user-facing turns. During the
-                # measured incident, background draft/extraction calls
-                # drained the fleet mid-turn; interactive ranking then saw
-                # headroom=0.00 with nothing left to cascade to.
-                from core.llm.interactive_context import (
-                    interactive_rate_reserve,
-                    is_interactive_chat,
-                )
+                    if provider_id not in _rate_headroom_cache:
+                        _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
+                    headroom = _rate_headroom_cache[provider_id]
+                    if headroom <= _reserve:
+                        logger.info(
+                            f"BPC skipped {provider_id} — custom rate budget "
+                            f"{'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
+                            f"(headroom={headroom:.2f}"
+                            + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
+                        )
+                        continue
+                    c["headroom"] = headroom
+                    c["model_headroom"] = model_headroom
+                    c["quota_weight"] = self.rate_tracker.get_model_weight(provider_id, model_id)
+                    _survivors += 1
 
-                _reserve = (
-                    0.0 if is_interactive_chat() else interactive_rate_reserve())
-                # LATENCY GATE (interactive only): a pair whose observed
-                # structured latency cannot fit an interactive turn's
-                # serial chain is skipped for interactive calls — background
-                # work may still use it (live 2026-09-22: kimi-k2.7-code at
-                # ~50s/call starved the canvas-edit leg even with every
-                # constraint honored).
-                _lat_max = (
-                    _interactive_structured_max_seconds()
-                    if is_interactive_chat() else 0.0)
-                if _lat_max and _MODEL_STRUCTURED_LATENCY.get(
-                        f"{provider_id}/{model}", 0.0) > _lat_max:
-                    logger.info(
-                        f"BPC skipped {provider_id}/{model} — observed "
-                        f"structured latency "
-                        f"{_MODEL_STRUCTURED_LATENCY[f'{provider_id}/{model}']:.0f}s "
-                        f"> interactive cap {_lat_max:.0f}s"
-                    )
-                    continue
-                model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
-                if model_headroom <= _reserve:
-                    logger.info(
-                        f"BPC skipped {provider_id}/{model_id} — per-model rate "
-                        f"budget {'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
-                        f"(headroom={model_headroom:.2f}"
-                        + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
-                    )
-                    continue
-
-                if provider_id not in _rate_headroom_cache:
-                    _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
-                headroom = _rate_headroom_cache[provider_id]
-                if headroom <= _reserve:
-                    logger.info(
-                        f"BPC skipped {provider_id} — custom rate budget "
-                        f"{'exhausted' if _reserve == 0.0 else 'below the interactive reserve'} "
-                        f"(headroom={headroom:.2f}"
-                        + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
-                    )
-                    continue
-                c["headroom"] = headroom
-                c["model_headroom"] = model_headroom
-                c["quota_weight"] = self.rate_tracker.get_model_weight(provider_id, model_id)
-
-            # Drop exhausted providers entirely so they can't leak into the
-            # ranked output or break the value-score sort below.
-            candidates = [c for c in candidates if "headroom" in c]
+                # Survivors of THIS pass only: drop exhausted providers so
+                # they can't leak into the ranked output or break the
+                # value-score sort below. The ORIGINAL candidate list is
+                # preserved for a possible relaxed second pass.
+                _survivor_pool = [c for c in candidates if "headroom" in c]
+                if _survivor_pool:
+                    candidates = _survivor_pool
+                    break
+                # Pass 0 emptied: loop continues into pass 1 (gate relaxed),
+                # re-iterating the ORIGINAL candidates without the gate.
 
             # Hard price ceiling (P2.3): optional per-Mtok cap so a mis-ranked
             # expensive model can never win by default. 0/empty disables the
@@ -3773,6 +3807,12 @@ class BYOKHandler:
 
                 _fb_reserve = (
                     0.0 if is_interactive_chat() else interactive_rate_reserve())
+                # NOTE: the dynamic pool relaxes this gate at the last
+                # resort (a slow answer beats none — live 2026-09-22); this
+                # static fallback pool keeps the hard gate: its slots are
+                # the cheap/fast COST_EFFICIENT picks that sit under the
+                # cap anyway, and the dynamic relaxation covers callers
+                # that fall through here empty.
                 _fb_lat_max = (
                     _interactive_structured_max_seconds()
                     if is_interactive_chat() else 0.0)
