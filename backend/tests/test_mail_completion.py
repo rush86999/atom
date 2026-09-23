@@ -295,7 +295,7 @@ class TestHandlePersistence:
                 "read_outcomes": [{"id": ID2, "outcome": "full"}]}}),
         ]
         with patch("core.database.get_db_session", lambda: _fake_db_session(rows)):
-            handles = orch._load_conversation_mail_handles("sess-1")
+            handles, _threads = orch._load_conversation_mail_handles("sess-1")
         # ID2 was read IN FULL → leaves pending; ID1 stays.
         assert [h["id"] for h in handles] == [ID1]
 
@@ -308,7 +308,7 @@ class TestHandlePersistence:
                 "read_outcomes": [{"id": ID1, "outcome": "excerpt"}]}}),
         ]
         with patch("core.database.get_db_session", lambda: _fake_db_session(rows)):
-            handles = orch._load_conversation_mail_handles("sess-1")
+            handles, _threads = orch._load_conversation_mail_handles("sess-1")
         assert [h["id"] for h in handles] == [ID1]
 
     def test_update_session_persists_handles_into_metadata(self):
@@ -447,7 +447,8 @@ async def test_approval_turn_reads_unresolved_ids_and_answer_names_products():
         patch.object(orch, "_record_chat_step", new=AsyncMock()),
         patch.object(orch, "_emit_agent_status", new=AsyncMock()),
         patch.object(orch, "_finish_chat_execution"),
-        patch.object(orch, "_load_conversation_mail_handles", return_value=handles),
+        patch.object(orch, "_load_conversation_mail_handles",
+                     return_value=(handles, [])),
         patch.object(chat.planner if False else planner, "_provenance_menu",
                      new=AsyncMock(return_value="")),
         patch.object(planner, "plan_tool_use", side_effect=fake_plan),

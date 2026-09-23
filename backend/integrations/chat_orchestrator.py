@@ -1075,23 +1075,51 @@ _GENERIC_MAILBOX_LOCAL_PARTS = frozenset({
     "office", "marketing", "accounts", "billing", "service", "help",
     "donotreply", "mail", "team", "hello", "enquiries", "inquiries",
     "orders", "shipping", "receiving", "purchasing", "quotes",
+    # Mail-noun locals: "email"/"message" in the user's own question must
+    # never become a participant handle (live 2026-09-23: local part
+    # `email@…` matched the word "emails", then the substring "email" hit
+    # "hello@procuremail.eunasolutions.com" and the lane injected that
+    # vendor's marketing mail as "the messages the user is pointing at").
+    "email", "emails", "mailbox", "inbox", "thread", "message", "messages",
+    "notice", "letter", "reply", "note", "document", "file", "report",
+    "request", "update", "subject", "sender", "recipient", "postmaster",
 })
 # A participant name alone is not a mail ask — "schedule a call with
 # chandrakant" must not lead with his mailbox. The lane fires only when the
-# message also carries a communication referent.
+# message also carries a communication referent. Pluralized nouns count
+# ("re pull the EMAILS" is a mail ask even with no other noun).
 _PARTICIPANT_REFERENT_RE = re.compile(
-    r"\b(?:email|e-mail|mail|thread|message|inbox|forwarded|forward|fw\b|"
-    r"re\b|reply|replied|wrote|written|said|says|say|sent|send|quoted|"
-    r"quote|heard|told)\b",
+    r"\b(?:e-?mails?|mails?|threads?|messages?|inbox(?:es)?|forwarded|"
+    r"forwards?|fw\b|"
+    r"re\b|repl(?:y|ies)|replied|wrote|written|said|says|say|sent|send|"
+    r"quot(?:e|es|ed)|heard|told)\b",
     re.IGNORECASE,
 )
 # Words too generic to rank a participant's rows by subject/content overlap.
+# Live 2026-09-23: "there were a total of 8 machines quoted" ranked three
+# long unrelated CC threads above the actual "Quote for requested machines"
+# thread because those bodies contain "there"/"total"/"lead" — generic
+# English must never outrank topic nouns (machines, slitter, model codes).
 _PARTICIPANT_RANK_STOPWORDS = frozenset({
-    "the", "this", "that", "email", "thread", "message", "about", "from",
-    "forwarded", "forward", "sent", "check", "find", "search", "show",
-    "tell", "what", "when", "were", "was", "how", "why", "and", "for",
-    "with", "calculate", "calculated", "calculation", "please", "just",
-    "said", "quote", "quotes", "price", "list", "me", "you", "your",
+    "the", "this", "that", "these", "those", "email", "emails", "thread",
+    "threads", "message", "messages", "about", "from", "forwarded",
+    "forward", "sent", "check", "find", "search", "show", "tell", "what",
+    "when", "where", "which", "while", "were", "was", "are", "how", "why",
+    "and", "for", "with", "without", "calculate", "calculated",
+    "calculation", "please", "just", "said", "quote", "quotes",
+    "price", "list", "me", "you", "your", "there", "here", "total",
+    # NOTE "quoted" is deliberately NOT a stopword: "8 machines QUOTED"
+    # is the subject of the mail the user is pointing at (live 2026-09-23).
+    "lead", "then", "thats", "than", "also", "only", "even", "back",
+    "well", "over", "into", "some", "have", "been", "will", "would",
+    "could", "should", "after", "before", "once", "again", "pulled",
+    "pull", "added", "related", "content", "generic", "canvas", "eight",
+    "mentioned", "ones", "rebuild", "rebuilt", "draft", "them", "they",
+    "their", "isnt", "doesnt", "give", "take", "make", "made", "want",
+    "need", "like", "look", "see", "any", "all", "our", "out", "get",
+    "contents", "consider", "task", "thing", "things", "part", "parts",
+    "already", "know", "items", "does", "report", "outcome", "background",
+    "continuation", "conversation", "update", "finish", "started",
 })
 
 
@@ -1099,8 +1127,79 @@ _BY_NAME_RE = re.compile(
     r"\bby\s+([A-Za-z][A-Za-z.\-]{2,25}(?:\s+[A-Za-z][A-Za-z.\-]{2,25})?)",
     re.IGNORECASE,
 )
+# Possessive thread ownership: "chandrakant's email thread" names the
+# SENDER/owner exactly like "by chandrakant" does (live 2026-09-23).
+_BY_POSSESSIVE_RE = re.compile(
+    r"\b([A-Za-z][A-Za-z.\-]{2,25})['’]s\s+"
+    r"(?:e-?mail|mail|thread|message|reply|quote)",
+    re.IGNORECASE,
+)
 _TO_ME_RE = re.compile(
     r"\bto\s+(?:me|us)\b", re.IGNORECASE)
+
+
+def _contains_word(text: str, token: str) -> bool:
+    """Word/token-boundary containment (live 2026-09-23): bare `token in
+    text` let the handle "email" match "emails" in the user's question and
+    "procuremail" in an address — substring handles are not names. The
+    token may carry dots/underscores/dashes (a local part); separators are
+    wild so "steve.macisaac" grips "steve macisaac" and "steve.macisaac"."""
+    if not token or not text:
+        return False
+    parts = [re.escape(p) for p in re.split(r"[._\-]+", token) if p]
+    if not parts:
+        return False
+    piece = r"[\s._\-]+".join(parts)
+    return re.search(
+        r"(?<![a-z0-9])" + piece + r"(?![a-z0-9])", text, re.IGNORECASE
+    ) is not None
+
+
+def _overlap_hit(word: str, blob_words: set) -> int:
+    """Topic-overlap score on WORD membership with light stemming: exact
+    is worth 2, a stem ("quoted"→"quote", "machines"→"machine") only 1.
+    Substring matching (or stem-as-equal) gave every "Brennan Machinery"
+    signature full "machines" credit and recency then buried the thread
+    the user meant (live 2026-09-23)."""
+    if word in blob_words:
+        return 2
+    for stem in (word[:-2] if word.endswith("ed") else "",
+                 word[:-1] if word.endswith(("s", "d")) else ""):
+        if len(stem) >= 4 and stem in blob_words:
+            return 1
+    return 0
+
+
+def _blob_words(subject: Any, content: Any) -> set:
+    return set(re.findall(r"[a-z0-9]+", f"{subject or ''} {content or ''}".lower()))
+
+
+def _canvas_topic_text(canvas: Any) -> str:
+    """Plain text of the canvas the user is looking at — the live topic
+    vocabulary (live 2026-09-23: the quote canvas names "Slitter"/"Linmac"
+    and the user's "alternatives to those machinery" can only grip the
+    thread through those words). Fault-isolated: "" on anything, capped so
+    a mega-canvas never becomes a second transcript."""
+    if not canvas:
+        return ""
+    try:
+        parts: List[str] = []
+        if isinstance(canvas, dict):
+            for key in ("title", "name", "subject"):
+                val = canvas.get(key)
+                if val:
+                    parts.append(str(val))
+            content = canvas.get("content")
+            if isinstance(content, dict):
+                parts.extend(str(v) for v in content.values() if v)
+            elif content:
+                parts.append(str(content))
+        else:
+            parts.append(str(canvas))
+        text = re.sub(r"<[^>]+>", " ", " ".join(parts))
+        return text[:1200]
+    except Exception:  # noqa: BLE001 — best-effort topic vocabulary
+        return ""
 
 
 def _resolve_user_email(user_id: Optional[str]) -> Optional[str]:
@@ -1136,6 +1235,7 @@ def _participant_mail_rows(
     message: str, limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
     user_email: Optional[str] = None,
+    topic: str = "",
 ) -> List[Dict[str, Any]]:
     """Comms rows whose PARTICIPANT (sender/recipient) the user just named.
 
@@ -1151,7 +1251,13 @@ def _participant_mail_rows(
     Ranking among one participant's rows: subject/content overlap with the
     message's other distinctive words ("foot shear") first, then newest —
     "the thread about the foot shear" beats the same sender's unrelated
-    traffic. Pure scan of the two short columns; [] on anything."""
+    traffic. Pure scan of the two short columns; [] on anything.
+
+    ``topic`` is the ANAPHORIC referent (live 2026-09-23: "re pull the
+    emails" names nobody — the handle lives in the previous user turn,
+    "only the ones CHANDRAKANT mentioned"). It joins the message for name
+    extraction and ranking only; the referent gate and the instruction's
+    own directionality stay on the current message alone."""
     if not message or not _PARTICIPANT_REFERENT_RE.search(message):
         return []
     try:
@@ -1160,7 +1266,7 @@ def _participant_mail_rows(
         rows = _comms_store_records()
     except Exception:
         return []
-    msg_l = (message or "").lower()
+    msg_l = f"{message or ''} {topic or ''}".lower()
     names: Dict[str, None] = {}
     for row in rows:
         for field in (row.get("sender"), row.get("recipient")):
@@ -1170,7 +1276,7 @@ def _participant_mail_rows(
                 if (
                     len(local) >= 4
                     and local not in _GENERIC_MAILBOX_LOCAL_PARTS
-                    and local.replace(".", "").replace("_", "").replace("-", "") in msg_l.replace(".", " ").replace("_", " ").replace("-", " ")
+                    and _contains_word(msg_l, local)
                 ):
                     names[local] = None
             # Display-name words. The ADDRESS ITSELF is stripped first: the
@@ -1188,45 +1294,90 @@ def _participant_mail_rows(
             disp = re.sub(r"[^\s<>,;()]*@[^\s<>,;()]*", " ", val)
             for part in re.findall(r"[A-Za-z]{4,}", disp):
                 p = part.lower()
-                if p in msg_l:
+                if _contains_word(msg_l, p):
                     names[p] = None
     if not names:
         return []
-    overlap_words = [
+    # Dedupe kept: message+topic joins repeat words and a double-counted
+    # word must not become a phantom weight.
+    overlap_words = list(dict.fromkeys(
         w for w in re.findall(r"[a-z]{4,}", msg_l)
         if w not in _PARTICIPANT_RANK_STOPWORDS
-    ]
+    ))
     # DIRECTIONALITY (live 2026-09-15): "the email that was SENT TO ME on
     # that day BY chandrakant" names the SENDER ("by X") and the RECIPIENT
     # ("to me" -> the acting user's address). The lane used to match the
     # name on EITHER side, so a chandrakant email to a SUPPLIER surfaced as
     # "sent to you" — the reply then built a false theory on it. Signals
     # mis-matching a row add penalty tiers; absent signals change nothing.
+    # Possessive ownership ("chandrakant's email thread") is the same
+    # sender signal as "by chandrakant" (live 2026-09-23).
     by_names: List[str] = []
-    for m in _BY_NAME_RE.finditer(message or ""):
+    dir_text = f"{message or ''} {topic or ''}"
+    for m in _BY_NAME_RE.finditer(dir_text):
         first = m.group(1).split()[0].lower()
+        if first not in ("the", "a", "an", "me", "us", "him", "her", "them"):
+            by_names.append(first)
+    for m in _BY_POSSESSIVE_RE.finditer(dir_text):
+        first = m.group(1).lower()
         if first not in ("the", "a", "an", "me", "us", "him", "her", "them"):
             by_names.append(first)
     to_me = bool(_TO_ME_RE.search(message or "")) and bool(user_email)
     w_start, w_end = date_window or ("", "")
     directional = bool(by_names or to_me or date_window)
-    scored: List[Tuple[int, int, str, Dict[str, Any]]] = []
+    # PASS 1 — candidate rows + document frequency of each overlap word
+    # across them. A word that appears in MOST of one participant's rows
+    # ("machinery" in every "Brennan Machinery" signature, "does"/"report"
+    # in any long English body) cannot discriminate between them and is
+    # dropped from the ranking — the 2026-09-23 failure had generic
+    # conversation words outranking "Quote for requested machines".
+    candidates: List[Tuple[int, str, Dict[str, Any], set, set]] = []
+    seen_ids: set = set()
+    df: Dict[str, int] = {}
     for row in rows:
+        # The store carries each message twice (two ingestion passes); a
+        # duplicate must not consume the evidence limit.
+        rid = row.get("id")
+        if rid and rid in seen_ids:
+            continue
         sender_l = str(row.get("sender") or "").lower()
         recip_l = str(row.get("recipient") or "").lower()
         hay = f"{sender_l} {recip_l}"
-        if not any(n in hay for n in names):
+        if not any(_contains_word(hay, n) for n in names):
             continue
+        if rid:
+            seen_ids.add(rid)
         tier = 0
-        if by_names and not any(b in sender_l for b in by_names):
+        if by_names and not any(_contains_word(sender_l, b) for b in by_names):
             tier += 2  # the named sender is not this row's sender
-        if to_me and user_email not in recip_l:
+        if to_me and not _contains_word(recip_l, user_email or ""):
             tier += 2  # "sent to me" but addressed elsewhere
         ts = str(row.get("timestamp") or "")[:19]
         if date_window and not (w_start <= ts < w_end):
             tier += 1  # outside the stated day
-        blob = f"{row.get('subject') or ''} {row.get('content') or ''}".lower()
-        overlap = sum(1 for w in overlap_words if w in blob)
+        subj_words = _blob_words(row.get("subject"), "")
+        body_words = _blob_words("", row.get("content"))
+        joined = subj_words | body_words
+        for w in overlap_words:
+            if w in joined:  # EXACT only: a stem hit ("machine" for
+                # "machines") is near-universal in a machinery mailbox and
+                # must not make the discriminative plural look common.
+                df[w] = df.get(w, 0) + 1
+        candidates.append((tier, ts, row, subj_words, body_words))
+    # A word carried by a MAJORITY of one participant's rows cannot
+    # discriminate between them ("machinery" in every "Brennan Machinery"
+    # signature, "does"/"report" in any long English body).
+    cutoff = max(2, len(candidates) // 2)
+    rank_words = [w for w in overlap_words if df.get(w, 0) <= cutoff]
+    # PASS 2 — score. SUBJECT hits weigh double: the thread's own title is
+    # what "the thread about X" points at; incidental body mentions of a
+    # common word must not out-rank it.
+    scored: List[Tuple[int, int, str, Dict[str, Any]]] = []
+    for tier, ts, row, subj_words, body_words in candidates:
+        overlap = 0
+        for w in rank_words:
+            overlap += 2 * _overlap_hit(w, subj_words)
+            overlap += _overlap_hit(w, body_words)
         scored.append((tier, -overlap, ts, row))
     # Two stable sorts: newest first overall, then tier (directional +
     # window + overlap folded) wins without disturbing it.
@@ -1236,6 +1387,24 @@ def _participant_mail_rows(
     if not directional and any(t[1] < 0 for t in scored):
         scored = [t for t in scored if t[1] < 0]
     return [row for _t, _o, _ts, row in scored[:limit]]
+
+
+def _recent_user_topic(context: Optional[Dict[str, Any]], window: int = 4) -> str:
+    """The prior USER turns' text — the anaphoric handle source (live
+    2026-09-23: "re pull the EMAILS" names nobody; "only the ones
+    CHANDRAKANT mentioned" two turns up carries the participant). Same
+    shape as the date-inheritance walk, newest first, session- or
+    role-shaped entries both accepted."""
+    out: List[str] = []
+    for h in ((context or {}).get("history") or [])[-24:]:
+        if not isinstance(h, dict):
+            continue
+        if h.get("role") not in (None, "user"):
+            continue
+        text = str(h.get("message") or h.get("content") or "").strip()
+        if text:
+            out.append(text)
+    return "\n".join(out[-window:])
 
 
 def _render_mail_rows(
@@ -2145,16 +2314,26 @@ async def _verbatim_mail_evidence(
         if phrases:
             return []
         try:
-            lines = _render_mail_rows(
-                await asyncio.wait_for(
-                    asyncio.to_thread(
-                        _participant_mail_rows, message,
-                        4, date_window,
-                        _resolve_user_email(user_id),
-                    ),
-                    timeout=25,
-                )
+            rows = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _participant_mail_rows, message,
+                    4, date_window,
+                    _resolve_user_email(user_id),
+                    # ANAPHORIC topic (live 2026-09-23): "re pull the
+                    # emails" names nobody and "8 machines quoted" under-
+                    # specifies — the handle and the topic nouns ("chandrakant",
+                    # "requested") live in the prior user turns and the open
+                    # canvas ("Slitter", "Linmac"). Ranking and name
+                    # extraction see them; the referent gate and the current
+                    # instruction stay on the message alone.
+                    "{} {}".format(
+                        _recent_user_topic(context),
+                        _canvas_topic_text((context or {}).get("canvas")),
+                    ).strip(),
+                ),
+                timeout=25,
             )
+            lines = _render_mail_rows(rows)
             if lines:
                 return lines
         except Exception as e:  # noqa: BLE001
@@ -3050,9 +3229,10 @@ class ChatOrchestrator:
                     # last was observed losing to a plain re-search (live
                     # replay 2026-09-22).
                     try:
+                        _handles, _threads = (
+                            self._load_conversation_mail_handles(session_id))
                         _mail_handles = self._advertise_mail_handles(
-                            self._load_conversation_mail_handles(session_id),
-                            message, _request_reference,
+                            _handles, message, _request_reference,
                         )
                         if _mail_handles:
                             from core.session_sources import (
@@ -3065,6 +3245,26 @@ class ChatOrchestrator:
                                 prov = (
                                     f"{_mail_block}\n\n{prov}"
                                     if prov else _mail_block)
+                        # RETRIEVED THREADS (2026-09-23): the conversation's
+                        # own search history, advertised to the planner so
+                        # its query names the exact address/subject — a
+                        # flash planner composing from lineage alone
+                        # searched generic terms and missed the thread the
+                        # conversation had already found.
+                        if _threads:
+                            _thread_block = (
+                                "MAIL THREADS RETRIEVED EARLIER IN THIS "
+                                "CONVERSATION (a mailbox search naming the "
+                                "address or subject re-retrieves the full "
+                                "thread): "
+                                + "; ".join(
+                                    f'"{t["subject"][:80]}" — '
+                                    f'{t["address"][:40]}'
+                                    for t in _threads[:5])
+                            )
+                            prov = (
+                                f"{_thread_block}\n\n{prov}"
+                                if prov else _thread_block)
                     except Exception:  # noqa: BLE001
                         pass
                     return await plan_tool_use(
@@ -4674,8 +4874,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # id-directed outlook reads in this
                                             # session (2026-09-22).
                                             "known_mail_handles":
-                                                self._load_conversation_mail_handles(
-                                                    session_id),
+                                                self._load_conversation_mail_handles(session_id)[0],
                                             "canvas": {
                                                 "title": canvas_context.get("title"),
                                                 **((canvas_context.get("content") or {})
@@ -4708,6 +4907,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             o for o in _mail_meta.get(
                                                 "read_outcomes", [])
                                             if isinstance(o, dict) and o.get("id")
+                                        ],
+                                        "searched_threads": [
+                                            {**t, "origin_request": message}
+                                            for t in _mail_meta.get(
+                                                "searched_threads", [])
+                                            if isinstance(t, dict)
+                                            and t.get("subject")
                                         ],
                                     }
                             except Exception as _live_err:
@@ -7295,6 +7501,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         expected_prior_audit_id: Optional[str] = None,
         edit_plan_timeout: float = 30.0,
     ) -> Optional[Dict[str, Any]]:
+        # When the schema-capable edit-plan rung is pinned
+        # (ATOM_ASYNC_EDIT_PLAN_MODEL), the plan needs its full latency —
+        # the default 30 s starves a deepseek-v4-pro-class rung that needs
+        # ~45 s for a multi-row rebuild.
+        _pin_spec = (os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
+        if _pin_spec:
+            edit_plan_timeout = max(edit_plan_timeout, 75.0)
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
         response. Returns None when the turn is NOT a canvas edit (or
@@ -9166,7 +9379,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
     def _load_conversation_mail_handles(
         self, session_id: Optional[str],
-    ) -> List[Dict[str, Any]]:
+    ) -> "tuple[List[Dict[str, Any]], List[Dict[str, Any]]]":
         """Pending + read mail handles for THIS conversation, aggregated from
         recent assistant ChatMessage rows' ``metadata_json["mail_handles"]``.
 
@@ -9212,7 +9425,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         read_ids.add(o["id"])
         except Exception as e:  # noqa: BLE001 — handles are best-effort context
             logger.debug(f"mail-handle load skipped: {e}")
-            return []
+            return [], []
         seen: set = set()
         out: List[Dict[str, Any]] = []
         for h in pending:
@@ -9223,7 +9436,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             out.append(h)
             if len(out) >= 8:
                 break
-        return out
+        # SEARCHED THREADS: distinct (address, subject) pairs this
+        # conversation retrieved — advertised to the planner so later
+        # turns can name them (2026-09-23).
+        threads: List[Dict[str, Any]] = []
+        t_seen: set = set()
+        for row2 in rows:
+            try:
+                meta2 = json.loads(row2.metadata_json or "{}")
+            except Exception:
+                continue
+            for t in (meta2.get("mail_handles") or {}).get(
+                    "searched_threads", []):
+                if not isinstance(t, dict):
+                    continue
+                key = (str(t.get("address") or "").lower(),
+                       str(t.get("subject") or "").lower())
+                if not key[0] or key in t_seen:
+                    continue
+                t_seen.add(key)
+                threads.append(t)
+        return out, threads
 
     def _advertise_mail_handles(
         self,

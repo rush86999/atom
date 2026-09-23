@@ -4310,6 +4310,10 @@ class BYOKHandler:
             last_error = None
             primary_provider = options[0][0] if options else None
             failed_providers = set()
+            # Providers that failed THIS cascade with credit/quota errors —
+            # drives the honest "out of credits" envelope when EVERY route
+            # died the same way (user directive 2026-09-23).
+            _credit_failed_providers = set()
             # Snapshot the caller's transcript ONCE: each provider attempt
             # below rebinds `messages` (attaching the image / current turn),
             # and a fallback attempt must start from the pristine copy —
@@ -4585,6 +4589,10 @@ class BYOKHandler:
                 except Exception as attempt_err:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+                    _attempt_str = str(attempt_err)
+                    if ("402" in _attempt_str or "more credits" in _attempt_str.lower()
+                            or "quota" in _attempt_str.lower()):
+                        _credit_failed_providers.add(provider_id)
 
                     # TEMPERATURE-LOCKED recovery (provider-general,
                     # 2026-09-21): endpoints announce their single allowed
@@ -4867,6 +4875,21 @@ class BYOKHandler:
             # actual last error; keep the failure recognizable as failure
             # text (the reply path's error detector matches
             # "couldn't generate a response").
+            # CREDIT-EXHAUSTION CLASSIFICATION (user directive 2026-09-23):
+            # when every provider failed the SAME way — account-level
+            # credit/quota exhaustion — say so plainly and give the
+            # actionable remedy; "try again" is false guidance when the
+            # balance has not changed. The recognizable failure prefix is
+            # kept so downstream error detectors still classify it.
+            if _credit_failed_providers:
+                _names = ", ".join(sorted(_credit_failed_providers))
+                return (
+                    "I couldn't generate a response — every configured "
+                    f"provider is out of credits ({_names}). The last "
+                    f"provider error: {str(last_error or '')[:160]} Top up "
+                    "the provider balances in Settings → Providers, then "
+                    "ask again — retrying without a top-up will fail the "
+                    "same way.")
             _cause = str(last_error or "no provider attempted")[:200]
             return (
                 "I couldn't generate a response — every configured provider "

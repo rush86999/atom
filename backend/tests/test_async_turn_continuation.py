@@ -726,6 +726,11 @@ class TestRealDatabaseSuccessPath:
         ))
 
     def test_stamped_write_probe_and_duplicate_refusal(self):
+        import core.chat_tool_planner as _ctp
+        for c in (_ctp._PEOPLE_INDEX, _ctp._connected_cache,
+                  _ctp._OWN_ADDRESSES_CACHE, _ctp._COMMS_DIGITS_CACHE,
+                  _ctp._DOCS_TABLE_CACHE, _ctp._comms_store_cache):
+            c.clear()
         import asyncio
         from core.database import get_db_session
         from core.models import CanvasAudit
@@ -964,6 +969,7 @@ class TestEditPlanRungKnob:
 
         monkeypatch.setenv(
             "ATOM_ASYNC_EDIT_PLAN_MODEL", "deepseek/deepseek-v4-pro")
+        monkeypatch.setenv("ATOM_ASYNC_EDIT_PLAN_MAX_TOKENS", "14000")
         captured = {}
 
         async def fake_pinned(llm, *, prompt, response_model,
@@ -984,8 +990,9 @@ class TestEditPlanRungKnob:
             await ed._plan_structured(
                 llm, prompt="p", response_model=_RM,
                 system_instruction="s")
-        assert captured["call_kwargs"] == {
-            "provider_model": ("deepseek", "deepseek-v4-pro")}
+        assert captured["call_kwargs"]["provider_model"] == (
+            "deepseek", "deepseek-v4-pro")
+        assert captured["call_kwargs"]["max_tokens"] == 14000
 
     async def test_unset_knob_leaves_ranking_free(self, monkeypatch):
         from core import chat_canvas_editor as ed
@@ -1027,4 +1034,9 @@ class TestEditPlanRungKnob:
             await ed._plan_structured(
                 llm, prompt="p", response_model=type("_RM", (), {}),
                 system_instruction="s")
-        assert captured["call_kwargs"] is None
+        # The pin fails to build (provider not configured) → build_provider_model_pin
+        # returns {} → max_tokens headroom still applies as a plain kwarg,
+        # but NO provider_model pin. Call kwargs carry only the headroom.
+        assert captured["call_kwargs"] is not None
+        assert "provider_model" not in captured["call_kwargs"]
+        assert captured["call_kwargs"].get("max_tokens") == 14000
