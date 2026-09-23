@@ -4943,17 +4943,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # on retries (the fork captured the EDIT's search,
                         # not this reply search that found the prices).
                         try:
-                            # OPERATION-SCOPED (review: evidence isolation):
-                            # key by the turn's message hash so a later
-                            # turn's evidence cannot be consumed by an
-                            # earlier operation's continuation. The
-                            # continuation reads its OWN turn's key.
-                            import hashlib as _hl
-                            _ev_key = "_ev_{}".format(
-                                _hl.sha256((message or "")[:200].encode(
-                                    "utf-8", "ignore")).hexdigest()[:16])
-                            session[_ev_key] = _tool_block or ""
-                            session["_latest_evidence_block"] = (
+                            # OPERATION-SCOPED by EXECUTION ID (review
+                            # correction: message hash identifies TEXT, not
+                            # an operation — two "yes go ahead" turns in the
+                            # same session produced the same key and one
+                            # overwrote the other's evidence). The execution
+                            # ID is unique per turn and already flows to the
+                            # continuation.
+                            session[f"_ev_{_execution_id}"] = (
                                 _tool_block or "")
                         except Exception:
                             pass

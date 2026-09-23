@@ -859,11 +859,13 @@ def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str
         session = orch.conversation_sessions.get(cont.session_id)
         if not session:
             return ""
-        import hashlib as _hl
-        _ev_key = "_ev_{}".format(
-            _hl.sha256((cont.message or "")[:200].encode(
-                "utf-8", "ignore")).hexdigest()[:16])
-        return str(session.get(_ev_key) or "")
+        # EXECUTION-ID KEYED (review correction: message hash identified
+        # text, not an operation — two identical approval turns collided).
+        # The execution ID is unique per turn and was passed to this
+        # continuation at fork time.
+        if not cont.execution_id:
+            return ""
+        return str(session.get(f"_ev_{cont.execution_id}") or "")
     except Exception:
         return ""
 

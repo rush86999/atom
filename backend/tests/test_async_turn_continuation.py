@@ -1045,48 +1045,66 @@ class TestEditPlanRungKnob:
 
 
 class TestEvidenceIsolation:
-    """Review 2026-09-23: evidence must be operation-scoped, not
-    "latest wins" — a continuation for one topic cannot consume another
-    turn's evidence."""
+    """Review corrections 2026-09-23: evidence keyed by unique EXECUTION ID
+    (not message hash — two identical "yes go ahead" turns collided); each
+    continuation consumes only its own turn's evidence."""
 
-    def _make_cont(self, session_id, message):
-        cont = atc.AsyncTurnContinuation(
-            continuation_id="op-" + session_id, user_id="u1",
+    def _make_cont(self, session_id, message, execution_id):
+        return atc.AsyncTurnContinuation(
+            continuation_id="op-" + execution_id[:8], user_id="u1",
             session_id=session_id, message=message,
-            canvas={"canvas_id": "cv"}, execution_id="e",
+            canvas={"canvas_id": "cv"}, execution_id=execution_id,
             agent_id=None, history_snapshot=[])
-        return cont
 
-    def test_topic_changing_turn_does_not_leak(self):
-        import hashlib
+    def test_identical_messages_different_evidence_isolated(self):
+        """THE DECISIVE REGRESSION (review): two identical 'yes go ahead'
+        turns in the same session, different offers/evidence, overlapping
+        execution — each continuation reads ONLY its own turn's evidence."""
         orch = MagicMock()
         session = {}
         orch.conversation_sessions = {"s-iso": session}
-        cont = self._make_cont("s-iso", "rebuild the draft with 8 machines")
-        object.__setattr__(cont, "_orchestrator", orch)
-        own_key = "_ev_" + hashlib.sha256(
-            cont.message[:200].encode()).hexdigest()[:16]
-        session[own_key] = "EVIDENCE: 8 machines"
-        other_key = "_ev_" + hashlib.sha256(
-            "weather forecast".encode()).hexdigest()[:16]
-        session[other_key] = "EVIDENCE: weather"
-        session["_latest_evidence_block"] = "EVIDENCE: weather"
 
+        # Two turns with the SAME message text but DIFFERENT execution IDs
+        # (each _start_chat_execution call generates a unique ID)
+        cont_a = self._make_cont("s-iso", "yes go ahead", "exec-AAA-111")
+        cont_b = self._make_cont("s-iso", "yes go ahead", "exec-BBB-222")
+        object.__setattr__(cont_a, "_orchestrator", orch)
+        object.__setattr__(cont_b, "_orchestrator", orch)
+
+        # Turn A searched for the machinery quote; turn B for a different offer
+        session["_ev_exec-AAA-111"] = "EVIDENCE: 8 machines with prices"
+        session["_ev_exec-BBB-222"] = "EVIDENCE: different product entirely"
+
+        got_a = atc._latest_turn_evidence(orch, cont_a)
+        got_b = atc._latest_turn_evidence(orch, cont_b)
+
+        assert "8 machines" in got_a, f"cont_a got: {got_a[:50]}"
+        assert "different product" in got_b, f"cont_b got: {got_b[:50]}"
+        assert got_a != got_b, "identical evidence — collision!"
+
+    def test_topic_changing_turn_does_not_leak(self):
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-t": session}
+        cont = self._make_cont("s-t", "rebuild the draft", "exec-T-001")
+        object.__setattr__(cont, "_orchestrator", orch)
+        session["_ev_exec-T-001"] = "EVIDENCE: machinery"
+        session["_ev_exec-WEATHER-99"] = "EVIDENCE: weather"
         got = atc._latest_turn_evidence(orch, cont)
-        assert "8 machines" in got
+        assert "machinery" in got
         assert "weather" not in got
 
     def test_delayed_retrieval_returns_empty(self):
         orch = MagicMock()
         orch.conversation_sessions = {"s-del": {}}
-        cont = self._make_cont("s-del", "rebuild with quotes")
+        cont = self._make_cont("s-del", "rebuild", "exec-DEL-1")
         object.__setattr__(cont, "_orchestrator", orch)
         assert atc._latest_turn_evidence(orch, cont) == ""
 
     def test_restart_session_gone_returns_empty(self):
         orch = MagicMock()
         orch.conversation_sessions = {}
-        cont = self._make_cont("s-gone", "rebuild")
+        cont = self._make_cont("s-gone", "rebuild", "exec-GONE-1")
         object.__setattr__(cont, "_orchestrator", orch)
         assert atc._latest_turn_evidence(orch, cont) == ""
 
