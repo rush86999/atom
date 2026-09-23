@@ -1367,12 +1367,20 @@ async def plan_canvas_edit(
             f"lowest-priority learning sections reduced first"
         )
     prompt = (
+        # TASK SIGNAL FIRST (live 2026-09-23): the 7k-char instruction set
+        # + optional context sections diluted the edit signal enough that
+        # flash-tier models returned wants_edit=False for clear rebuild
+        # requests — the canvas and request sat at the BOTTOM after all
+        # the instructions. Front-load the user's message so the model
+        # reads "this is an edit for X" before the editing rules.
+        f"USER REQUEST (analyze this against the current canvas below and "
+        f"produce a CanvasEditPlan):\n{message}\n\n"
         f"{_EDITOR_SYSTEM}\n\n"
         f"{_identity_section(user_identity)}"
         f"{_playbooks_section(playbooks)}"
+        f"{included.get('fresh', '')}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
-        f"{included.get('fresh', '')}"
         f"{included.get('lessons', '')}"
         f"{included.get('cross', '')}"
         f"{included.get('origin', '')}"
