@@ -46,6 +46,9 @@ class AgentUpdateRequest(BaseModel):
     description: Optional[str] = None
     # P2: per-agent zero-trust tool scoping. Empty/['*'] = unrestricted (default).
     capabilities: Optional[List[str]] = None
+    # USER-TUNABLE PROMOTION FLOOR (2026-09-23): minimum episodes before the
+    # next promotion is considered. Null = use the per-level default.
+    promotion_episode_floor: Optional[int] = Field(None, ge=1, description="Minimum episodes before next promotion (null = per-level default)")
 
     @field_validator('name')
     @classmethod
@@ -531,6 +534,8 @@ async def update_agent(
     # P2: per-agent capability binding (zero-trust tool scoping).
     if update_data.capabilities is not None:
         agent.capabilities = update_data.capabilities
+    if update_data.promotion_episode_floor is not None:
+        agent.promotion_episode_floor = max(1, update_data.promotion_episode_floor)
 
     db.commit()
     db.refresh(agent)
@@ -541,6 +546,7 @@ async def update_agent(
             "name": agent.name,
             "description": agent.description,
             "capabilities": agent.capabilities or [],
+            "promotion_episode_floor": agent.promotion_episode_floor,
         },
         message="Agent updated successfully"
     )

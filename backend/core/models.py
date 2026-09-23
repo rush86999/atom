@@ -1694,6 +1694,12 @@ class AgentRegistry(Base):
     # Graduation & Promotion Tracking (Phase: Episodic Memory & Graduation)
     last_promotion_at = Column(DateTime(timezone=True), nullable=True)  # Last promotion date
     promotion_count = Column(Integer, default=0)  # Number of promotions received
+    # USER-TUNABLE PROMOTION FLOOR (2026-09-23): minimum episodes the agent
+    # must complete before the next promotion is considered. When set,
+    # overrides the per-level default in _get_min_episodes_for_level. Null =
+    # use the level default. Settable via the agent settings API so users can
+    # require more real-world evidence per agent, per domain.
+    promotion_episode_floor = Column(Integer, nullable=True)
     last_exam_id = Column(String(255), ForeignKey("graduation_exams.id", ondelete="SET NULL", use_alter=True), nullable=True)  # Most recent exam
     exam_eligible_at = Column(DateTime(timezone=True), nullable=True)  # When agent can take next exam
     

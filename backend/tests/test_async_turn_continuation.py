@@ -1149,3 +1149,47 @@ class TestExactOperationReplay:
 
         assert r2[0] == "already_applied"
         assert len(calls) == 1, f"duplicate write: {len(calls)} calls"
+
+
+class TestFailureReporting:
+    """2026-09-23 (continuation 90efb974): budget expiry raised
+    asyncio.TimeoutError whose str() is EMPTY, so the durable record shipped
+    as bare "continuation error: " and nobody could tell what stage died.
+    The record must name the stage and keep the exception type."""
+
+    async def test_budget_timeout_names_stage_not_empty_error(
+            self, monkeypatch):
+        cont = _cont()
+
+        async def _slow():
+            await asyncio.sleep(2)
+            return "applied", "ok"
+
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_BUDGET_SECONDS", 0.1)
+        with patch.object(atc, "_create_durable_record"), \
+             patch.object(atc, "_finish_durable_record") as fin, \
+             patch.object(atc, "_apply_effects", new=AsyncMock()):
+            atc.start_continuation(cont, _slow)
+            assert await _wait_terminal(cont) == "failed"
+        assert cont.summary != "continuation error: "
+        assert "budget" in cont.summary
+        assert "TimeoutError" in cont.summary
+        assert cont.error and "TimeoutError" in cont.error
+        # the durable record carries the same non-empty summary
+        assert fin.call_args[0][1] == "failed"
+        assert fin.call_args[0][2] == cont.summary
+
+    async def test_empty_message_exception_keeps_type(self):
+        cont = _cont()
+
+        async def _boom():
+            raise ValueError()
+
+        with patch.object(atc, "_create_durable_record"), \
+             patch.object(atc, "_finish_durable_record"), \
+             patch.object(atc, "_apply_effects", new=AsyncMock()):
+            atc.start_continuation(cont, _boom)
+            assert await _wait_terminal(cont) == "failed"
+        assert "continuation error: ValueError" in cont.summary
+        assert "<no message>" in cont.summary
+        assert cont.error.startswith("ValueError")
