@@ -152,18 +152,13 @@ async def _plan_structured(
     import os as _os
 
     _pin = {}
+    _edit_plan_max_tokens = int(
+        _os.getenv("ATOM_ASYNC_EDIT_PLAN_MAX_TOKENS", "14000") or 14000)
     _pin_spec = (_os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
     if _pin_spec and "/" in _pin_spec:
         _prov, _mod = _pin_spec.split("/", 1)
         _pin = build_provider_model_pin(llm_service, _prov.strip(),
                                         _mod.strip())
-        # A multi-row table rebuild via patch ops carries LARGE replace
-        # payloads (full HTML blocks) — the 6000-token default truncated
-        # the plan mid-JSON ("output incomplete due to max_tokens length
-        # limit", live 2026-09-23 on the 8-machine rebuild). Pinned =
-        # deliberate operator mode: grant the headroom.
-        _pin["max_tokens"] = int(
-            _os.getenv("ATOM_ASYNC_EDIT_PLAN_MAX_TOKENS", "14000") or 14000)
 
     return await pinned_structured_call(
         llm_service,
@@ -173,6 +168,12 @@ async def _plan_structured(
         call_kwargs=_pin or None,
         log_label="canvas edit planning",
         task_type="planning",
+        # A multi-row table rebuild via patch ops carries LARGE replace
+        # payloads (full HTML blocks) — the 6000-token default truncated
+        # the plan mid-JSON (live 2026-09-23). The cap rides extra_kwargs
+        # so it ALSO applies to the unpinned fallback (the pin-only
+        # call_kwargs were dropped on the retry — review finding 3).
+        extra_kwargs={"max_tokens": _edit_plan_max_tokens},
     )
 
 

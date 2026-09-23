@@ -5846,6 +5846,8 @@ class BYOKHandler:
             _pinned_pair = tuple(provider_model) if (
                 provider_model is not None
                 and cascade_options == [tuple(provider_model)]) else None
+            _attempted_any = False
+            _attempt_count = 0
 
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
@@ -5864,7 +5866,10 @@ class BYOKHandler:
                             f"structured gate: skipping deepseek/{model} — "
                             f"direct API does not serve {_bare!r}")
                         continue
-                    continue
+                    # SERVABLE name — fall through to dispatch (the stray
+                    # unconditional continue here skipped EVERY deepseek
+                    # candidate including the valid ones, so direct-deepseek
+                    # pins never dispatched — found by review 2026-09-23).
                 if not self.clients.get(provider_id):
                     # SILENT before 2026-09-20: this skip made a ladder die
                     # with "Last error: None" and no attempt warnings — the
@@ -6034,10 +6039,30 @@ class BYOKHandler:
                             # a bare call blocked the loop for the whole
                             # structured round trip (same starvation as
                             # generate_response).
+                            _attempted_any = True
+                            _attempt_count += 1
+                            _attempt_t0 = time.time()
                             result = await _to_thread_safe(
                                 instructor_client.chat.completions.create,
                                 **_create_kwargs
                             )
+                            # REQUEST-LEVEL TRACE (review fix plan 1): one
+                            # line per dispatched structured call — model,
+                            # effective cap, latency, and the finish reason
+                            # when available. No prompt/response bodies.
+                            _fr = None
+                            try:
+                                _fr = (result.choices[0].finish_reason
+                                       if getattr(result, "choices", None)
+                                       else None)
+                            except Exception:
+                                pass
+                            logger.info(
+                                "[structured-trace] %s/%s cap=%s "
+                                "dur=%.1fs finish=%s",
+                                provider_id, model,
+                                _create_kwargs.get("max_tokens"),
+                                time.time() - _attempt_t0, _fr)
                             _record_structured_latency(
                                 provider_id, model,
                                 time.time() - _structured_start)
@@ -6464,7 +6489,20 @@ class BYOKHandler:
                 except Exception as sweep_err:  # noqa: BLE001
                     logger.warning(f"value-ranked sweep failed: {sweep_err}")
 
-            logger.error(f"All structured providers failed. Last error: {last_error}")
+            # DISTINCT FAILURE OUTCOMES (review 2026-09-23): "Last error:
+            # None" previously meant EITHER no attempt reached a provider
+            # (all candidates skipped) OR all attempts returned None. These
+            # demand opposite responses — record which happened.
+            if last_error is None and not _attempted_any:
+                logger.error(
+                    "All structured candidates SKIPPED before dispatch "
+                    f"(gate/budget/rate exclusions; {cascade_idx} of "
+                    f"{len(cascade_options)} examined) — no request was made")
+            else:
+                logger.error(
+                    f"All structured providers failed after "
+                    f"{_attempt_count} attempt(s). Last error: "
+                    f"{last_error}")
             return None
             
         except Exception as e:

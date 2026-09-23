@@ -975,6 +975,7 @@ class TestEditPlanRungKnob:
         async def fake_pinned(llm, *, prompt, response_model,
                               system_instruction, call_kwargs=None, **kw):
             captured["call_kwargs"] = call_kwargs
+            captured.update(kw)
             return None
 
         handler = MagicMock()
@@ -992,7 +993,8 @@ class TestEditPlanRungKnob:
                 system_instruction="s")
         assert captured["call_kwargs"]["provider_model"] == (
             "deepseek", "deepseek-v4-pro")
-        assert captured["call_kwargs"]["max_tokens"] == 14000
+        # max_tokens moved to extra_kwargs (survives the unpinned fallback).
+        assert (captured.get("extra_kwargs") or {}).get("max_tokens") == 14000
 
     async def test_unset_knob_leaves_ranking_free(self, monkeypatch):
         from core import chat_canvas_editor as ed
@@ -1003,6 +1005,7 @@ class TestEditPlanRungKnob:
         async def fake_pinned(llm, *, prompt, response_model,
                               system_instruction, call_kwargs=None, **kw):
             captured["call_kwargs"] = call_kwargs
+            captured.update(kw)
             return None
 
         llm = MagicMock()
@@ -1023,6 +1026,7 @@ class TestEditPlanRungKnob:
         async def fake_pinned(llm, *, prompt, response_model,
                               system_instruction, call_kwargs=None, **kw):
             captured["call_kwargs"] = call_kwargs
+            captured.update(kw)
             return None
 
         handler = MagicMock()
@@ -1034,9 +1038,7 @@ class TestEditPlanRungKnob:
             await ed._plan_structured(
                 llm, prompt="p", response_model=type("_RM", (), {}),
                 system_instruction="s")
-        # The pin fails to build (provider not configured) → build_provider_model_pin
-        # returns {} → max_tokens headroom still applies as a plain kwarg,
-        # but NO provider_model pin. Call kwargs carry only the headroom.
-        assert captured["call_kwargs"] is not None
-        assert "provider_model" not in captured["call_kwargs"]
-        assert captured["call_kwargs"].get("max_tokens") == 14000
+        # The pin fails to build (provider not configured) → call_kwargs
+        # stays None (no pin). max_tokens rides extra_kwargs regardless.
+        assert captured["call_kwargs"] is None
+        assert (captured.get("extra_kwargs") or {}).get("max_tokens") == 14000
