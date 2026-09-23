@@ -7655,11 +7655,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 ),
                 timeout=edit_plan_timeout,
             )
-        except (CanvasPlanUnavailable, asyncio.TimeoutError) as e:
+        except asyncio.TimeoutError:
+            # TIMEOUT ≠ provider failure (review finding 5): the retrieval
+            # may have succeeded and only planning ran out of time. Set ONLY
+            # the planning flag so the reply keeps the retrieval's evidence.
+            if shared_tool_state is not None:
+                shared_tool_state["canvas_planning_unavailable"] = True
+                logger.warning(
+                    "canvas edit planner TIMED OUT (retrieval may have "
+                    "succeeded); continuing with read-only answer")
+                return None
+        except CanvasPlanUnavailable as e:
             if shared_tool_state is not None:
                 shared_tool_state["canvas_planning_unavailable"] = True
                 shared_tool_state["canvas_evidence_unavailable"] = True
-                logger.warning("canvas edit planner unavailable; continuing with read-only answer")
+                logger.warning(
+                    f"canvas edit planner unavailable ({str(e)[:80]}); "
+                    "continuing with read-only answer")
                 return None
             # Planning infrastructure failed (LLM provider down / timeout).
             # Fall-through here is what produced the worst observed failure:
