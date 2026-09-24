@@ -726,26 +726,15 @@ _INABILITY_RE = re.compile(
 )
 
 
-def _strip_protocol_tags(text: str, captured: Optional[List[str]] = None) -> str:
-    """Strip reasoning/protocol fragments weak models leak into content
-    (minimax "</mm:think>", raw tool-call XML) — shared by the streaming
-    and non-streaming reply paths.
-
-    When ``captured`` is a list, the inner text of paired ``<think>…</think>``
-    blocks is APPENDED to it before stripping: the model's chain-of-thought is
-    training/audit signal (feedback flows judge ``thought`` text), not junk to
-    silently discard."""
-    t = str(text or "").strip()
-    if captured is not None:
-        for _m in re.finditer(r"<think>(.*?)</think>", t, flags=re.DOTALL):
-            _block = (_m.group(1) or "").strip()
-            if _block:
-                captured.append(_block)
-    t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL)
-    t = re.sub(r"<tool_call>.*?</tool_call>", "", t, flags=re.DOTALL)
-    t = re.sub(r"</?(?:mm:)?think>", "", t)
-    t = re.sub(r"\]?<\]?minimax\[>?", "", t)
-    return t.strip()
+# Central malformed-output validation (2026-09-24 review): one shape-based
+# detector for every payload that becomes user-facing or persisted — reply
+# finalization (REJECT, not strip), error-turn classification, stream
+# fragment cleanup. Patterns describe protocol SHAPES, never provider names.
+from core.response_validation import (  # noqa: E402
+    is_malformed_output as _is_malformed_output,
+    malformed_output_reason as _malformed_output_reason,
+    strip_protocol_fragments as _strip_protocol_tags,
+)
 
 
 def _reply_claims_inability(text: str) -> bool:
@@ -3444,7 +3433,7 @@ class ChatOrchestrator:
                     _pfr = None
             if (
                 isinstance(_pfr, dict)
-                and _pfr.get("status") == "retrieved"
+                and _pfr.get("status") in ("retrieved", "delivered")
                 and _pfr.get("rendered")
             ):
                 try:
@@ -3490,6 +3479,8 @@ class ChatOrchestrator:
                         "session_id": session_id,
                         "intent": "search",
                         "confidence": 0.9,
+                        "model": "deterministic",
+                        "provider": "structured",
                         "data": {
                             "deterministic_delivery": True,
                             "file_identity": _pfr.get("identity"),
@@ -3532,10 +3523,15 @@ class ChatOrchestrator:
                     _ask_direct = _is_substantive_request(message)
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
-            if _ask_direct and not _pending_file_task:
+            if (
+                _ask_direct
+                and not _pending_file_task
+                and not os.getenv("ATOM_DISABLE_ASK_TURN_DIRECT_READ")
+            ):
                 _ask_task = {
                     "mention": _ask_mention,
                     "original_message": message,
+                    "disambiguation": (context or {}).get("disambiguation"),
                 }
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
@@ -3558,14 +3554,15 @@ class ChatOrchestrator:
                         session["_resolved_file_identity"] = _ask_identity
                     _ask_complete = bool(
                         _ask_result.get("retrieval_complete"))
-                    if _ask_complete:
-                        session["_pending_file_result"] = {
-                            "status": "delivered",
-                            "rendered": _ask_content[:24000],
-                            "identity": _ask_identity,
-                            "execution_id": _execution_id,
-                            "delivered_at": time.time(),
-                        }
+                    _ask_result_row = {
+                        "status": "retrieved" if _ask_complete else "incomplete",
+                        "rendered": _ask_content[:24000],
+                        "identity": _ask_identity,
+                        "execution_id": _execution_id,
+                        "coverage_complete": _ask_complete,
+                        "retrieved_at": time.time(),
+                    }
+                    session["_pending_file_result"] = _ask_result_row
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -3587,6 +3584,9 @@ class ChatOrchestrator:
                     self._update_session(
                         session, message, _ask_response,
                         {"primary_intent": "search", "confidence": 0.9})
+                    if _ask_complete:
+                        _ask_result_row["status"] = "delivered"
+                        _ask_result_row["delivered_at"] = time.time()
                     await self._emit_agent_status(
                         session_id, _trace_agent_id, _execution_id, "success")
                     self._finish_chat_execution(
@@ -4417,6 +4417,7 @@ class ChatOrchestrator:
                     canvas_evidence_status=_canvas_evidence_status,
                     request_reference=_request_reference,
                     pending_file_task=_pending_file_task,
+                    disambiguation=(context or {}).get("disambiguation"),
                     async_continuation_forked=bool(
                         _shared_tool.get("async_continuation_forked")),
                     session=session,
@@ -5127,6 +5128,7 @@ class ChatOrchestrator:
         canvas_evidence_status: Any = None,
         request_reference: Any = None,
         pending_file_task: Optional[Dict[str, Any]] = None,
+        disambiguation: Optional[Dict[str, Any]] = None,
         async_continuation_forked: bool = False,
         session: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
@@ -6244,10 +6246,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                  "ingested_at": _storage_read_meta.get("ingested_at"),
                                  "source_modified_at": _storage_read_meta.get("source_modified_at"),
                                  "version_verified": _storage_read_meta.get("version_verified"),
-                                 "coverage_complete": _storage_read_meta.get(
-                                     "coverage_complete"),
-                                 "coverage_limits": _storage_read_meta.get(
-                                     "coverage_limits") or {},
+                                  "coverage_limits": _storage_read_meta.get(
+                                      "coverage_limits") or {},
+
                                  "source_metadata": _storage_read_meta.get(
                                      "source_metadata") or {},
                                  "dataset_sheet": _storage_read_meta.get(
@@ -6539,7 +6540,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     else:
                         session[FILE_TASK_SESSION_KEY] = merge_pending_task(
                             session.get(FILE_TASK_SESSION_KEY), message,
-                            _plan_mentions[0])
+                            _plan_mentions[0],
+                            disambiguation)
                         if _tool_block:
                             if _file_lookup_attempted:
                                 _note = (
@@ -8628,11 +8630,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[deterministic-render] workbook answer rendered from "
                         "structured catalog evidence"
                     )
-                elif _content and re.search(
-                    r"<[a-z0-9_.:-]+:tool_call>|<invoke\b|</mm:think>",
-                    _content,
-                    re.IGNORECASE,
-                ):
+                elif _content and _is_malformed_output(_content):
                     # MALFORMED NARRATION IS REJECTED, not sanitized
                     # (2026-09-24 review: stripping tags can hide failed
                     # execution while leaving unsupported claims). Without
@@ -8647,7 +8645,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     response_data["content"] = _content
                     logger.warning(
                         "[narration-reject] malformed model output "
-                        "quarantined — honest status delivered instead"
+                        "quarantined (%s) — honest status delivered instead",
+                        _malformed_output_reason(_content),
                     )
                 # Non-streaming leg: the chain-of-thought step is emitted here
                 # (the streaming leg emits its own right after the stream).
@@ -11015,8 +11014,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             not _resp_dict.get("success", True)
             or _resp_dict.get("cancelled")
             or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
-            or "<tool_call>" in _resp_msg
-            or "</mm:think>" in _resp_msg
+            or (
+                _is_malformed_output is not None
+                and _is_malformed_output(_resp_msg)
+            )
         )
         session["history"].append({
             "message": message,
@@ -11083,6 +11084,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         tenant_id=tenant_id,
                         role="user",
                         content=message,
+                        created_at=datetime.now(timezone.utc),
                     ))
                     # Store the assistant response; error turns carry a
                     # metadata flag so hydration can exclude them from the
@@ -11150,6 +11152,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             role="assistant",
                             content=resp_content,
                             metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
+                            created_at=datetime.now(timezone.utc),
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
@@ -11192,7 +11195,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ChatMessageModel.conversation_id == session_id,
                         ChatMessageModel.role == "assistant",
                     )
-                    .order_by(ChatMessageModel.created_at.desc())
+                    .order_by(ChatMessageModel.created_at.desc(), ChatMessageModel.id.desc())
                     .limit(24)
                     .all()
                 )
@@ -11264,7 +11267,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ChatMessageModel.conversation_id == session_id,
                         ChatMessageModel.role == "assistant",
                     )
-                    .order_by(ChatMessageModel.created_at.desc())
+                    .order_by(ChatMessageModel.created_at.desc(), ChatMessageModel.id.desc())
                     .limit(24)
                     .all()
                 )
@@ -11305,7 +11308,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ChatMessageModel.conversation_id == session_id,
                         ChatMessageModel.role == "assistant",
                     )
-                    .order_by(ChatMessageModel.created_at.desc())
+                    .order_by(ChatMessageModel.created_at.desc(), ChatMessageModel.id.desc())
                     .limit(24)
                     .all()
                 )

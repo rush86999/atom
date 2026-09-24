@@ -8,13 +8,63 @@ import re
 from typing import Any, Dict, List, Optional, Sequence
 
 _TARGET_RE = re.compile(
-    r"(?<![A-Za-z0-9])(?:[A-Za-z]{1,10}(?:-[A-Za-z0-9]+)*[0-9][A-Za-z0-9-]*|[0-9]{2,6})(?![A-Za-z0-9])"
+    r"(?<![A-Za-z0-9])(?:[A-Za-z]{1,10}-[0-9](?![A-Za-z0-9])|"
+    r"[A-Za-z]{1,10}(?:-[A-Za-z0-9]+)*[0-9][A-Za-z0-9-]*|"
+    r"[0-9]{2,6})(?![A-Za-z0-9])"
 )
 _YEAR_RE = re.compile(r"^(?:19|20)\d{2}$")
-_PRICE_HEADER_RE = re.compile(
+# Value-column vocabulary — GENERIC across domains: headers that carry a
+# measurable figure. Price lookup is one use case; any requested field
+# whose word appears in a header is selected too (see
+# extract_attributes — the request's own words drive column selection).
+_VALUE_HEADER_RE = re.compile(
     r"price|cost|amount|rate|value|msrp|list|wholesale|dealer|currency",
     re.IGNORECASE,
 )
+# Kept as an alias during transition; behavior identical.
+_PRICE_HEADER_RE = _VALUE_HEADER_RE
+
+_ATTRIBUTE_STOPWORDS = {
+    "the", "and", "for", "with", "from", "this", "that", "these",
+    "those", "find", "search", "check", "look", "what", "which", "where",
+    "how", "much", "many", "does", "are", "is", "was", "were", "have",
+    "has", "please", "file", "files", "sheet", "sheets", "workbook",
+    "spreadsheet", "excel", "table", "row", "rows", "column", "columns",
+    "prices", "price", "values", "value", "data", "list", "all", "any",
+    "each", "per", "into", "about", "give", "show", "tell", "get",
+    "xlsx", "xls", "csv", "tsv", "pdf", "docx", "doc",
+}
+
+
+def extract_attributes(
+    texts: Sequence[str], targets: Sequence[str],
+) -> List[str]:
+    """Request-supplied attribute words for entity disambiguation and
+    field selection: distinctive words from the request, minus the target
+    identifiers themselves and minus generic ask vocabulary (2026-09-24
+    review: use attributes the request supplies — manufacturer, brand,
+    category, version, field names — matched against the source schema;
+    never business-specific lists)."""
+    target_tokens = set()
+    for target in targets or []:
+        target_tokens.update(
+            re.findall(r"[a-z0-9]+", str(target).lower()))
+    out: List[str] = []
+    seen = set()
+    for text in texts or []:
+        for word in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,24}", str(text or "")):
+            cleaned = word.strip().lower()
+            key = re.sub(r"[^a-z0-9]+", "", cleaned)
+            if (
+                len(key) >= 4
+                and key not in seen
+                and cleaned not in _ATTRIBUTE_STOPWORDS
+                and not any(t in key.split() or key in t for t in (
+                    target_tokens or set()))
+            ):
+                seen.add(key)
+                out.append(cleaned)
+    return out[:16]
 _TARGET_EVIDENCE_CAP = 128
 _CURRENCY_RE = re.compile(
     r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b|"
@@ -91,7 +141,7 @@ def _is_designation_match(
 
     A numeric collision (the cell VALUE happens to be 381.6 in an
     exchange-rate or price column) is a CANDIDATE, not a product row
-    (2026-09-24 review: use manufacturer/type corroboration; report
+    (2026-09-24 review: use request/schema attribute corroboration; report
     ambiguity only when multiple plausible product rows remain). A match
     is a designation when the matched text carries letters (model codes
     like 'U-22', 'SLE24-16', '381mm') OR the cell sits outside every
@@ -111,58 +161,115 @@ def _is_designation_match(
         return True
     return not _PRICE_HEADER_RE.search(header)
 
+def _criteria_values(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        for key in ("value", "values", "name", "label"):
+            if key in value:
+                return _criteria_values(value.get(key))
+        return []
+    if isinstance(value, (list, tuple, set)):
+        values: List[str] = []
+        for item in value:
+            values.extend(_criteria_values(item))
+        return values
+    text = _cell_text(value)
+    return [text] if text else []
+
+
+def _add_criteria_value(
+    criteria: Dict[str, List[str]], attribute: Any, value: Any,
+) -> None:
+    field = re.sub(r"[^a-z0-9]+", "_", str(attribute or "").strip().lower())
+    field = field.strip("_")
+    if not field:
+        return
+    values = criteria.setdefault(field, [])
+    for text in _criteria_values(value):
+        if text.lower() not in {item.lower() for item in values}:
+            values.append(text)
+
+
 def _disambiguation_criteria(
     query: str = "",
     context_texts: Optional[Sequence[str]] = None,
     explicit: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, List[str]]:
-    criteria: Dict[str, List[str]] = {
-        "manufacturers": [],
-        "machine_types": [],
-    }
-    for key, target in (
-        ("manufacturer", "manufacturers"),
-        ("manufacturers", "manufacturers"),
-        ("make", "manufacturers"),
-        ("brand", "manufacturers"),
-        ("machine_type", "machine_types"),
-        ("machine_types", "machine_types"),
-        ("product_type", "machine_types"),
-    ):
-        for value in (explicit or {}).get(key) or []:
-            text = _cell_text(value)
-            if text and text.lower() not in {item.lower() for item in criteria[target]}:
-                criteria[target].append(text)
-    patterns = (
-        ("manufacturers", r"\b(?:manufacturer|make|brand)\s*(?:is|=|:)\s*[\"']?([^,;\n]+)"),
-        ("machine_types", r"\b(?:machine|product|item)(?:\s+type|\s+kind)?\s*(?:is|=|:)\s*[\"']?([^,;\n]+)"),
+    criteria: Dict[str, List[str]] = {}
+    explicit = explicit or {}
+    for container_key in ("attributes", "selectors", "fields", "filters", "constraints"):
+        container = explicit.get(container_key)
+        if isinstance(container, dict):
+            for attribute, value in container.items():
+                _add_criteria_value(criteria, attribute, value)
+        elif isinstance(container, list):
+            for selector in container:
+                if not isinstance(selector, dict):
+                    _add_criteria_value(criteria, container_key, selector)
+                    continue
+                attribute = (
+                    selector.get("attribute")
+                    or selector.get("field")
+                    or selector.get("name")
+                )
+                value = selector.get("value", selector.get("values"))
+                _add_criteria_value(criteria, attribute, value)
+    for attribute, value in explicit.items():
+        if attribute not in {
+            "attributes", "selectors", "fields", "filters", "constraints"
+        }:
+            _add_criteria_value(criteria, attribute, value)
+
+    pattern = re.compile(
+        r"(?<![\w.])([A-Za-z][A-Za-z0-9 _-]{0,40}?)\s*(?:=|:|\bis\b)\s*"
+        r"([^,;\n]+)",
+        re.IGNORECASE,
     )
     for text in [query or "", *(context_texts or [])]:
-        for key, pattern in patterns:
-            for match in re.finditer(pattern, str(text or ""), re.IGNORECASE):
-                value = _cell_text(match.group(1)).strip(" \"'")
-                if value and value.lower() not in {
-                    item.lower() for item in criteria[key]
-                }:
-                    criteria[key].append(value)
+        for match in pattern.finditer(str(text or "")):
+            field_text = match.group(1).strip()
+            if re.search(
+                r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)\s*$",
+                field_text,
+                re.IGNORECASE,
+            ):
+                continue
+            _add_criteria_value(
+                criteria, field_text, match.group(2).strip(" \"'")
+            )
     return criteria
 
+
+
+def _is_value_column(header: str, attributes: Sequence[str]) -> bool:
+    """Does this column carry a requested VALUE? Generic value vocabulary
+    (price/cost/rate/…) OR the request's own field words appearing in the
+    header (2026-09-24 review: requested fields drive selection — price
+    lookup is one use case, not the pipeline)."""
+    if _VALUE_HEADER_RE.search(str(header or "")):
+        return True
+    low = str(header or "").lower()
+    return any(a and a in low for a in (attributes or []))
 
 def _matches_disambiguation(
     evidence: Dict[str, Any], criteria: Dict[str, List[str]],
 ) -> bool:
-    haystack = _canonical(
+    row_context = [
+        item for item in (evidence.get("row_context") or [])
+        if isinstance(item, dict)
+    ]
+    all_values = _canonical(
         " ".join([
             str(evidence.get("sheet") or ""),
-            " ".join(
+            *[
                 str(item.get("value") or "")
-                for item in (evidence.get("row_context") or [])
-                if isinstance(item, dict)
-            ),
+                for item in row_context
+            ],
         ])
     )
 
-    def term_matches(term: str) -> bool:
+    def term_matches(term: str, haystack: str) -> bool:
         canonical = _canonical(term)
         if not canonical:
             return False
@@ -177,9 +284,21 @@ def _matches_disambiguation(
         hits = sum(token in haystack.lower() for token in tokens)
         return hits >= max(1, (len(tokens) + 1) // 2)
 
-    for key in ("manufacturers", "machine_types"):
-        terms = criteria.get(key) or []
-        if terms and not any(term_matches(term) for term in terms):
+    for attribute, terms in criteria.items():
+        if not terms:
+            continue
+        field_key = _canonical(attribute)
+        field_values = [
+            str(item.get("value") or "")
+            for item in row_context
+            if field_key
+            and (
+                field_key in _canonical(item.get("field"))
+                or _canonical(item.get("field")) in field_key
+            )
+        ]
+        haystack = _canonical(" ".join(field_values)) if field_values else all_values
+        if not any(term_matches(term, haystack) for term in terms):
             return False
     return True
 
@@ -258,6 +377,7 @@ def inspect_workbook_bytes(
     query: str = "",
     context_texts: Optional[Sequence[str]] = None,
     targets: Optional[Sequence[str]] = None,
+    attributes: Optional[Sequence[str]] = None,
     provider: Optional[str] = None,
     resource_id: Optional[str] = None,
     source_metadata: Optional[Dict[str, Any]] = None,
@@ -313,7 +433,11 @@ def inspect_workbook_bytes(
         for row in rows:
             row_number = row[0].row if row else 0
             row_values = [
-                {"cell": cell.coordinate, "value": _cell_text(cell.value)}
+                {
+                    "cell": cell.coordinate,
+                    "value": _cell_text(cell.value),
+                    "field": header_map.get(cell.column, ""),
+                }
                 for cell in row if _cell_text(cell.value)
             ]
             for cell in row:
@@ -333,7 +457,7 @@ def inspect_workbook_bytes(
                         continue
                     price_columns = [
                         (column, name) for column, name in header_map.items()
-                        if _PRICE_HEADER_RE.search(str(name))
+                        if _is_value_column(str(name), attributes or [])
                     ]
                     prices: List[Dict[str, Any]] = []
                     for column, name in price_columns:
@@ -413,7 +537,7 @@ def inspect_workbook_bytes(
                 "— not treated as product rows"
             )
             if any(criteria.values()):
-                note = "no candidate matched the supplied manufacturer/type constraints"
+                note = "no candidate matched the supplied attribute constraints"
             outcomes.append({
                 "target": target,
                 "status": "absent",
@@ -482,6 +606,7 @@ def inspect_dataset_entries(
     query: str = "",
     context_texts: Optional[Sequence[str]] = None,
     targets: Optional[Sequence[str]] = None,
+    attributes: Optional[Sequence[str]] = None,
     provider: Optional[str] = None,
     resource_id: Optional[str] = None,
     source_metadata: Optional[Dict[str, Any]] = None,
@@ -556,8 +681,11 @@ def inspect_dataset_entries(
         for row_index, row in frame.iterrows():
             row_number = row.get(row_column) if row_column else row_index + 1
             row_context = [
-                {"cell": f"{_column_letter(column_index + 1)}{row_number}",
-                 "value": _cell_text(value)}
+                {
+                    "cell": f"{_column_letter(column_index + 1)}{row_number}",
+                    "value": _cell_text(value),
+                    "field": columns[column_index],
+                }
                 for column_index, value in enumerate(row.tolist())
                 if _cell_text(value)
             ][:40]
@@ -572,7 +700,7 @@ def inspect_dataset_entries(
                         continue
                     prices = []
                     for price_index, price_column in enumerate(columns, start=1):
-                        if not _PRICE_HEADER_RE.search(price_column):
+                        if not _is_value_column(price_column, attributes or []):
                             continue
                         price_value = row.iloc[price_index - 1]
                         prices.append({
@@ -657,7 +785,7 @@ def inspect_dataset_entries(
             )
         elif status == "absent" and any(criteria.values()):
             outcome["note"] = (
-                "no candidate matched the supplied manufacturer/type constraints"
+                "no candidate matched the supplied attribute constraints"
             )
         elif status == "absent" and coincidences:
             outcome["note"] = (
@@ -754,7 +882,7 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
                          "— no conversion applied, do not infer one)"
                 )
                 lines.append(
-                    f"  PRICE {target} | {price.get('cell')} | "
+                    f"  VALUE {target} | {price.get('cell')} | "
                     f"{price.get('value')} | basis={price.get('price_basis')} | "
                     f"{currency_label} | "
                     f"formula_state={price.get('formula_state')}"

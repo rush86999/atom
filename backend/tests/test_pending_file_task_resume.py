@@ -194,6 +194,16 @@ class TestMergePendingTask:
             "consolidated price list 2019.xlsx")
         assert merged["original_message"] == ORIGINAL_ASK
 
+    def test_disambiguation_survives_confirmation(self):
+        criteria = {"attributes": {"region": "north"}}
+        existing = build_pending_task(
+            ORIGINAL_ASK, "2019.xlsx", disambiguation=criteria
+        )
+        merged = merge_pending_task(
+            existing, CONFIRMATION, "2019.xlsx", disambiguation=criteria
+        )
+        assert merged["disambiguation"] == criteria
+
     def test_substantive_ask_replaces_task(self):
         existing = build_pending_task("older ask about old.xlsx", "old.xlsx")
         merged = merge_pending_task(
@@ -507,6 +517,39 @@ async def test_retrieved_result_retry_renders_without_rereading():
     assert response["data"]["deterministic_delivery"] is True
     assert "| U-22 | FOUND |" in response["message"]
     assert session["_pending_file_result"]["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_delivered_result_retry_is_idempotent_without_rereading():
+    orch = _orch()
+    session = {
+        "id": "s-delivered-retry",
+        "history": [],
+        "_pending_file_result": {
+            "status": "delivered",
+            "rendered": "| U-22 | FOUND | Sheet1!A2 R2 |",
+            "identity": {"file_id": "r1"},
+        },
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+        patch.object(orch.llm_service, "generate_completion", new=AsyncMock(
+            side_effect=AssertionError("must not narrate"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "go", session_id="s-delivered-retry", context={}
+        )
+    assert response["success"] is True
+    assert response["data"]["deterministic_delivery"] is True
+    assert "| U-22 | FOUND |" in response["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +888,6 @@ async def test_named_file_query_resolves_to_that_file_not_a_token_winner():
     INDUSTRIAL Sept 2026.xlsx' because the catalog probe's content token
     ('prices') outranked the name. A named file must SCOPE the evidence."""
     from core.chat_tool_planner import _datasets_named_file_block
-    from core.sheet_dataset_service import _probe_cached as real_probe
 
     catalog_entries = [
         {"source": "catalog", "external_id": "wb-2019",
@@ -1417,7 +1459,7 @@ async def test_acceptance_planner_and_narration_unavailable():
     ):
         # A delivered result is terminal: a follow-up "go" neither re-reads
         # (direct reader raises if called) nor resurrects the planner.
-        result2 = await orch.process_chat_message(
+        await orch.process_chat_message(
             "u1", "go", "acc1", context={"agent_id": "a1"})
     direct_mock.assert_not_awaited()
 
@@ -1483,3 +1525,108 @@ async def test_ask_turn_never_ships_fabricated_prices():
     assert "8880" in result["message"], "the REAL workbook price must ship"
     assert "5,850" not in result["message"], "fabricated values must not"
     orch.llm_service.generate_completion.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Wiring 12 — GENERALITY: non-price use case through the same machinery
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_non_price_fields_flow_through_the_same_pipeline():
+    """The machinery is a general structured-retrieval capability: a
+    weight/lead-time ask on a spec sheet resolves, scopes, and delivers
+    through the identical path — with requested-field words selecting the
+    value columns and no price vocabulary involved."""
+    orch = _orch()
+    orch.llm_service.generate_completion = AsyncMock(side_effect=RuntimeError(
+        "narration must not be needed"))
+    import tempfile as _tf
+
+    import pandas as _pd
+
+    _tmp = _tf.mkdtemp(prefix="wb-gen-")
+    _spec = _pd.DataFrame({
+        "__sheet_row": [7, 8],
+        "Part": ["R-15", "R-16"],
+        "Weight kg": [120, 145],
+        "Lead Time days": [21, 35],
+        "Notes": ["steel", "stainless"],
+    })
+    _path = os.path.join(_tmp, "spec.parquet")
+    _spec.to_parquet(_path)
+    catalog = [{
+        "source": "app_upload", "external_id": "spec-1",
+        "dataset_name": "spec_fixture", "file_name": "Spec Sheet 2025.xlsx",
+        "entity_name": "Specs", "parquet_path": _path, "row_count": 2,
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": "ab12", "ingested_at": "2026-09-01",
+    }]
+    session = {"id": "gen1", "history": []}
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="gen-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service.entries_for_file_sync",
+              return_value=list(catalog)),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1",
+            "find the weight and lead time of R-15 in Spec Sheet 2025.xlsx",
+            "gen1", context={"agent_id": "a1"})
+    assert result["success"] is True
+    assert result.get("model") == "deterministic"
+    msg = result["message"]
+    assert "R-15" in msg and "120" in msg and "21" in msg, (
+        "requested non-price fields must ship from the matched row")
+    assert "Spec Sheet 2025.xlsx" in msg
+    assert "MATERIALIZED COPY" in msg
+    # Field labels come from the schema (column headers), not price vocab.
+    assert "Weight kg" in msg and "Lead Time days" in msg
+
+
+class TestCentralResponseValidation:
+    def test_detects_tool_call_tag_dialects(self):
+        from core.response_validation import is_malformed_output
+
+        assert is_malformed_output(
+            "Answer:\n<minimax:tool_call>\n<invoke name=\"x\">")
+        assert is_malformed_output(
+            "ok <openai:function_call>{}</openai:function_call>")
+        assert is_malformed_output("partial </mm:think> residue")
+
+    def test_detects_bare_tool_name_json_line(self):
+        from core.response_validation import is_malformed_output
+
+        # The live-observed residue shape (2026-09-24).
+        assert is_malformed_output(
+            'Let me check.\nsearch_read: {"file": "x.xlsx", "probe": ["381"]}')
+        assert not is_malformed_output(
+            "The result: {see the table above} is what we found.")
+
+    def test_clean_content_passes(self):
+        from core.response_validation import is_malformed_output
+
+        assert not is_malformed_output(
+            "| SLE24-16 | FOUND | 8880 with sheet and row references |")
+        assert not is_malformed_output("")
+
+    def test_stream_stripper_preserves_think_capture(self):
+        from core.response_validation import strip_protocol_fragments
+
+        captured: list = []
+        out = strip_protocol_fragments(
+            "<think>reasoning</think>The answer is 42", captured=captured)
+        assert out == "The answer is 42" and captured == ["reasoning"]

@@ -5568,6 +5568,15 @@ async def _datasets_named_file_block(
             for entry in (context or {}).get("history") or []:
                 if isinstance(entry, dict) and entry.get("message"):
                     context_texts.append(str(entry["message"]))
+            try:
+                from core.workbook_read_artifact import extract_attributes
+
+                _attr_words = extract_attributes(
+                    [query] + ([msg_text] if msg_text else []),
+                    item_tokens,
+                )
+            except Exception:  # noqa: BLE001 — attribute extraction optional
+                _attr_words = []
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -5575,6 +5584,7 @@ async def _datasets_named_file_block(
                 query=query,
                 context_texts=context_texts,
                 targets=item_tokens,
+                attributes=_attr_words,
                 provider=prov["source"],
                 resource_id=prov["resource_id"],
                 source_metadata=e0.get("source_metadata") or {},
@@ -5713,7 +5723,7 @@ async def _datasets_named_file_block(
                     f"{price.get('cell')}={price.get('value')} "
                     f"[basis={basis}; currency={currency}]"
                 )
-            suffix = f" (prices: {', '.join(price_refs)})" if price_refs else ""
+            suffix = f" (values: {', '.join(price_refs)})" if price_refs else ""
             row_suffix = f" R{row_number}" if row_number is not None else ""
             pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
         return " ; ".join(pieces)
