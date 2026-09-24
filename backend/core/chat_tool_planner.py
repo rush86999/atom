@@ -5089,9 +5089,105 @@ async def _memory_hybrid_block(
 
 
 
+def _named_file_targets(
+    query: str, context: Optional[Dict[str, Any]],
+    candidate_probe_tokens: Any,
+) -> List[str]:
+    explicit = (context or {}).get("requested_targets")
+    if isinstance(explicit, str):
+        explicit = [explicit]
+    values: List[str] = []
+    if isinstance(explicit, (list, tuple, set)):
+        values.extend(str(value).strip() for value in explicit if str(value).strip())
+    if not values:
+        try:
+            from core.workbook_read_artifact import extract_targets
+
+            texts = [str(query or "")]
+            current = _current_message_text(context)
+            if current:
+                texts.append(current)
+            for entry in (context or {}).get("history") or []:
+                if isinstance(entry, dict) and entry.get("message"):
+                    texts.append(str(entry["message"]))
+            values.extend(extract_targets(query, texts))
+        except Exception:
+            values = []
+        lookup_text = " ".join(texts)
+        quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", lookup_text)
+        values.extend(quoted)
+        list_match = re.search(
+            r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
+            r"(?:for|of|:)\s+(.+)",
+            lookup_text,
+            re.IGNORECASE,
+        )
+        if list_match:
+            ignored = {
+                "prices", "price", "models", "model", "items", "item",
+                "machines", "machine", "parts", "part", "these", "this",
+                "the", "and", "from", "in", "for", "of", "with",
+            }
+            for part in re.split(r",|\band\b", list_match.group(1), flags=re.IGNORECASE):
+                cleaned = part.strip(" .:;?!()[]'\"")
+                if (
+                    cleaned
+                    and len(cleaned) <= 80
+                    and not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower()))
+                    and not re.search(r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)$", cleaned, re.IGNORECASE)
+                ):
+                    values.append(cleaned)
+    if not values:
+        try:
+            texts = [str(query or "")]
+            current = _current_message_text(context)
+            if current:
+                texts.append(current)
+            values.extend(candidate_probe_tokens(texts, max_tokens=64))
+        except Exception:
+            values = []
+    out: List[str] = []
+    seen: set = set()
+    for value in values:
+        text = str(value or "").strip()
+        key = re.sub(r"[^0-9a-z]+", "", text.lower())
+        if text and key and key not in seen:
+            seen.add(key)
+            out.append(text)
+    return out[:64]
+
+
+def _named_file_aliases(value: str) -> List[str]:
+    text = str(value or "").strip()
+    variants: List[str] = []
+    seen: set = set()
+
+    def add(candidate: str) -> None:
+        candidate = str(candidate or "").strip()
+        key = candidate.lower()
+        if candidate and key not in seen:
+            seen.add(key)
+            variants.append(candidate)
+
+    add(text)
+    add(re.sub(r"\s+", " ", text).lower())
+    add(re.sub(r"[^0-9a-zA-Z]+", "", text).lower())
+    parts = re.findall(r"[A-Za-z]+|\d+", text)
+    if len(parts) > 1:
+        add("".join(parts).lower())
+        add(" ".join(parts).lower())
+        for part in parts:
+            if len(part) >= 2:
+                add(part.lower())
+    return variants[:8]
+
+
 def _stamp_named_file_meta(
     plan: Any, key: tuple, names: Dict[tuple, str], tokens: List[str],
     prov: Optional[Dict[str, Any]] = None,
+    *, coverage_complete: bool = True,
+    coverage_limits: Optional[Dict[str, Any]] = None,
+    workbook_read: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Stamp the same structured outcome the storage read stamps, from the
     lane that actually served the evidence. Without this, a datasets-served
@@ -5117,10 +5213,14 @@ def _stamp_named_file_meta(
             "ingested_at": (prov or {}).get("ingested_at"),
             "source_modified_at": (prov or {}).get("source_modified_at"),
             "sheets_indexed": (prov or {}).get("sheets_indexed"),
-            "identity_verified": True,       # unique catalog resolution
-            "completed": True,               # scoped evidence returned
-            "coverage_complete": True,       # every probed token in scope
-            "probed_tokens": list(tokens[:8]),
+            "sheets_searched": (prov or {}).get("sheets_searched"),
+            "identity_verified": True,
+            "completed": True,
+            "coverage_complete": bool(coverage_complete),
+            "coverage_limits": dict(coverage_limits or {}),
+            "probed_tokens": list(tokens[:64]),
+            "aliases_tried": (prov or {}).get("aliases_tried") or {},
+            "workbook_read": workbook_read,
             "note": "named-file scoped datasets read (materialized copy)",
         }
     except Exception:  # noqa: BLE001 — meta is best-effort
@@ -5157,6 +5257,7 @@ async def _datasets_named_file_block(
             _probe_cached,
             _probe_named_file,
             candidate_probe_tokens,
+            entries_for_file_sync,
             find_entries_sync,
             render_dataset_answer,
             sheet_datasets_enabled,
@@ -5165,118 +5266,290 @@ async def _datasets_named_file_block(
         return None
     if not sheet_datasets_enabled():
         return None
-    mentions = detect_file_mentions(query)
+    msg_text = _current_message_text(context) or ""
+    lookup_text = " ".join(value for value in (query, msg_text) if value)
+    mentions = detect_file_mentions(lookup_text)
     if not mentions:
         return None
     ws = (context or {}).get("workspace_id")
     entries = await asyncio.to_thread(
         find_entries_sync, "", user_id, ws, 500)
+    catalog_rows_seen = len(entries or [])
+    catalog_truncated = catalog_rows_seen >= 500
     by_file: Dict[tuple, List[Dict[str, Any]]] = {}
     names: Dict[tuple, str] = {}
-    for e in entries or []:
-        key = (str(e.get("source") or ""), str(e.get("external_id") or ""))
-        by_file.setdefault(key, []).append(e)
-        names.setdefault(key, str(e.get("file_name") or ""))
+    for entry in entries or []:
+        key = (
+            str(entry.get("source") or ""),
+            str(entry.get("external_id") or ""),
+        )
+        by_file.setdefault(key, []).append(entry)
+        names.setdefault(key, str(entry.get("file_name") or ""))
+
     def _keys_at(tiers) -> set:
         return {
-            key for key, fname in names.items()
-            if any(score_file_match(m, fname) in tiers for m in mentions)
+            key for key, file_name in names.items()
+            if any(
+                score_file_match(mention, file_name) in tiers
+                for mention in mentions
+            )
         }
 
     exact_keys = _keys_at(("exact", "normalized"))
     if not exact_keys:
-        # Prose may prefix the name ("prices in <name>.xlsx") — a
-        # containment mention resolves ONLY when it is unique across the
-        # catalog; several containment matches (the workbook plus its
-        # "Copy of …" variant) are explicit ambiguity, never a silent
-        # fall-through to the catalog-wide probe.
         contain_keys = _keys_at(("containment",))
         if len(contain_keys) == 1:
             exact_keys = contain_keys
         elif len(contain_keys) > 1:
-            exact_keys = contain_keys  # -> the ambiguity block below
+            exact_keys = contain_keys
     if not exact_keys:
-        return None  # not catalogued — the catalog-wide probe reports rows
-        # with their own file names, so absence stays sayable.
+        if plan is None:
+            return None
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        _meta["storage_read"] = {
+            "service": "datasets",
+            "file_name": mentions[0],
+            "identity_verified": False,
+            "completed": False,
+            "coverage_complete": False,
+            "evidence_kind": "materialized_copy",
+            "note": "named file was not resolved in the indexed catalog",
+        }
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the named file "
+            f"'{mentions[0]}' is not present in the catalogued file index "
+            f"({catalog_rows_seen} rows searched"
+            + (", catalog limit reached" if catalog_truncated else "")
+            + "). Report NOT FOUND IN THE INDEXED CONTENT SEARCHED; do not "
+            "search or substitute another workbook."
+        )
     if len(exact_keys) > 1:
         dup = ", ".join(
-            f"'{names[k]}'" for k in sorted(exact_keys))[:400]
+            f"'{names[key]}'" for key in sorted(exact_keys)
+        )[:400]
+        if plan is not None:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["storage_read"] = {
+                "service": "datasets",
+                "file_name": mentions[0],
+                "identity_verified": False,
+                "completed": False,
+                "coverage_complete": False,
+                "note": "multiple catalogued files match the named file",
+            }
         return _with_grounding(
             "LIVE TOOL RESULTS (datasets.named-file) — the query names "
             f"'{mentions[0]}' but MULTIPLE catalogued files match: {dup}. "
             "Identity is ambiguous: ask the user which one, and do NOT "
-            "present any of their rows as the named file.")
+            "present any of their rows as the named file."
+        )
+
     key = next(iter(exact_keys))
-    file_entries = by_file[key]
-    e0 = file_entries[0] if file_entries else {}
-    sheets_indexed = sorted({
-        str(e.get("entity_name") or "").strip()
-        for e in file_entries if str(e.get("entity_name") or "").strip()
+    file_entries = list(by_file.get(key) or [])
+    has_materialized_rows = bool(file_entries) and all(
+        entry.get("parquet_path") for entry in file_entries
+    )
+    if has_materialized_rows and key[1]:
+        try:
+            full_entries = await asyncio.to_thread(
+                entries_for_file_sync, key[0], key[1]
+            )
+            if full_entries:
+                file_entries = list(full_entries)
+                catalog_truncated = False
+        except Exception as file_entries_error:
+            logger.debug(
+                "named-file full catalog lookup failed: %r",
+                file_entries_error,
+            )
+    if not file_entries:
+        return None
+
+    e0 = file_entries[0]
+    hashes = {
+        str(entry.get("content_hash") or "")
+        for entry in file_entries
+        if str(entry.get("content_hash") or "")
+    }
+    if len(hashes) > 1:
+        if plan is not None:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["storage_read"] = {
+                "service": "datasets",
+                "file_id": key[1] or None,
+                "resource_id": key[1] or None,
+                "file_name": names.get(key),
+                "identity_verified": False,
+                "completed": False,
+                "coverage_complete": False,
+                "content_hashes": sorted(hashes),
+                "note": "multiple active content versions share the named file",
+            }
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the named file has "
+            "MULTIPLE active content versions in the catalog: "
+            + ", ".join(sorted(hashes))
+            + ". Do not select a version by name; ask which source version "
+            "to use."
+        )
+
+    sheet_names = sorted({
+        str(entry.get("entity_name") or "").strip()
+        for entry in file_entries
+        if str(entry.get("entity_name") or "").strip()
     })
+    ingested_values = sorted(
+        str(entry.get("ingested_at") or "") for entry in file_entries
+        if entry.get("ingested_at")
+    )
     prov = {
         "source": e0.get("source"),
         "resource_id": e0.get("external_id"),
         "content_hash": e0.get("content_hash"),
-        "ingested_at": e0.get("ingested_at"),
+        "ingested_at": ingested_values[-1] if ingested_values else None,
         "source_modified_at": e0.get("source_modified_at"),
-        "sheets_indexed": len(sheets_indexed),
+        "sheets_indexed": len(sheet_names),
+        "sheets_searched": len(file_entries),
     }
-    # Version identity (2026-09-24 review, qualification 2): a unique
-    # catalog NAME is not a workbook version — the resource id, content
-    # hash and ingestion timestamp are what pin which copy answered.
     provenance_line = (
         f"MATERIALIZED COPY — this evidence comes from the materialized "
         f"copy of '{names[key]}' (NOT a fresh read of the live file): "
         f"source={prov['source'] or '?'}, resource="
         f"{str(prov['resource_id'] or '?')[:44]}, ingested="
-        f"{prov['ingested_at'] or '?'}, sha256="
-        f"{str(prov['content_hash'] or '?')[:20]}, source_modified="
-        f"{prov['source_modified_at'] or 'unknown'}, "
+        f"{prov['ingested_at'] or '?'}, content_hash="
+        f"{str(prov['content_hash'] or '?')[:20]} (sha1), "
+        f"source_modified={prov['source_modified_at'] or 'unknown'}, "
         f"{prov['sheets_indexed']} sheet(s) indexed."
     )
-    # Probe tokens come from the query AND the turn's message (on a
-    # pending-file-task resume the planner's query may be the FILENAME
-    # alone while the eight identifiers live in the confirmed original
-    # ask — the execute context's message carries it verbatim). Each
-    # identifier is probed as-typed AND separator-normalized ('U-22' ->
-    # 'u22'): the substring probe does not cross separator differences.
-    _msg_text = _current_message_text(context) or ""
-    _target_hay = [query] + ([_msg_text] if _msg_text else [])
-    tokens = candidate_probe_tokens(_target_hay) or []
-    item_tokens = tokens[:8]
 
-    def _variants(tok: str) -> List[str]:
-        out: List[str] = []
-        normalized = re.sub(r"[^0-9a-zA-Z]+", "", tok).lower()
-        for value in (tok, normalized):
-            if value and value.lower() not in {item.lower() for item in out}:
-                out.append(value)
-        return out
-
+    item_tokens = _named_file_targets(query, context, candidate_probe_tokens)
+    aliases_tried: Dict[str, List[str]] = {}
     per_item: Dict[str, Optional[Dict[str, Any]]] = {}
-    for tok in item_tokens:
-        rec = None
-        for variant in _variants(tok):
-            rec = await asyncio.to_thread(
-                _probe_cached, file_entries, variant, 8)
-            if rec:
+    probe_failed = False
+    for token in item_tokens:
+        record = None
+        tried: List[str] = []
+        for variant in _named_file_aliases(token):
+            tried.append(variant)
+            try:
+                record = await asyncio.to_thread(
+                    _probe_cached, file_entries, variant, 8
+                )
+            except Exception as probe_error:
+                probe_failed = True
+                logger.debug(
+                    "named-file probe failed for %s on %s: %r",
+                    token, variant, probe_error,
+                )
+                record = None
+            if record:
                 break
-        per_item[tok] = rec
-    recs = [r for r in per_item.values() if r]
+        aliases_tried[token] = tried
+        per_item[token] = record
+    recs = [record for record in per_item.values() if record]
     if not recs and not item_tokens:
-        rec = await asyncio.to_thread(_probe_named_file, file_entries, 20)
-        if rec:
-            recs.append(rec)
-    _stamp_named_file_meta(plan, key, names, item_tokens, prov)
-    coverage_note = (
-        "COVERAGE LIMITS — 'not found' below means: not present in any of "
-        f"the {prov['sheets_indexed']} INDEXED sheets of this materialized "
-        "copy, under case-insensitive substring and separator-normalized "
-        "alias probes. It does NOT prove absence from the live workbook "
-        "(un-indexed sheets, later versions, or formatting variants could "
-        "still contain the item)."
+        record = await asyncio.to_thread(
+            _probe_named_file, file_entries, 20
+        )
+        if record:
+            recs.append(record)
+
+    workbook_read: Optional[Dict[str, Any]] = None
+    render_artifact: Optional[str] = None
+    if has_materialized_rows:
+        try:
+            from core.workbook_read_artifact import (
+                inspect_dataset_entries,
+                render_workbook_artifact,
+            )
+
+            context_texts = [query]
+            if msg_text:
+                context_texts.append(msg_text)
+            for entry in (context or {}).get("history") or []:
+                if isinstance(entry, dict) and entry.get("message"):
+                    context_texts.append(str(entry["message"]))
+            workbook_read = await asyncio.to_thread(
+                inspect_dataset_entries,
+                file_entries,
+                names[key],
+                query=query,
+                context_texts=context_texts,
+                targets=item_tokens,
+                provider=prov["source"],
+                resource_id=prov["resource_id"],
+                source_metadata=e0.get("source_metadata") or {},
+                content_hash=prov["content_hash"],
+                content_hash_algorithm="sha1",
+                ingested_at=prov["ingested_at"],
+            )
+            render_artifact = render_workbook_artifact(workbook_read)
+        except Exception as artifact_error:
+            logger.debug(
+                "named-file dataset artifact unavailable: %r", artifact_error
+            )
+            workbook_read = None
+            render_artifact = None
+
+    artifact_outcomes = {
+        str(outcome.get("target")): outcome
+        for outcome in ((workbook_read or {}).get("coverage") or {}).get(
+            "outcomes", []
+        )
+    }
+    artifact_complete = bool(
+        workbook_read
+        and workbook_read.get("all_sheets_searched")
+        and not workbook_read.get("truncated")
+        and ((workbook_read.get("coverage") or {}).get("complete"))
     )
-    if not recs:
+    coverage_complete = bool(
+        not catalog_truncated
+        and not probe_failed
+        and (artifact_complete if has_materialized_rows else True)
+    )
+    coverage_limits = {
+        "catalog_rows_seen": catalog_rows_seen,
+        "catalog_truncated": catalog_truncated,
+        "indexed_sheets": len(sheet_names),
+        "scanned_sheets": len(file_entries),
+        "row_display_cap": 8,
+        "alias_probes": aliases_tried,
+        "artifact_available": bool(workbook_read),
+        "artifact_complete": artifact_complete,
+        "probe_failed": probe_failed,
+    }
+    prov["sheets_searched"] = len(file_entries)
+    prov["aliases_tried"] = aliases_tried
+    _stamp_named_file_meta(
+        plan,
+        key,
+        names,
+        item_tokens,
+        prov,
+        coverage_complete=coverage_complete,
+        coverage_limits=coverage_limits,
+        workbook_read=workbook_read,
+    )
+    coverage_note = (
+        "COVERAGE LIMITS — indexed sheets="
+        f"{len(sheet_names)}; scanned entries={len(file_entries)}; "
+        f"catalog_truncated={catalog_truncated}; row display cap=8. "
+        "'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under "
+        "case-insensitive substring and normalized alias probes. It does "
+        "NOT prove absence from the live workbook; unindexed sheets, later "
+        "versions, or formatting variants may still contain the item."
+    )
+    if not recs and not workbook_read:
         return _with_grounding("\n".join([
             "LIVE TOOL RESULTS (datasets.named-file) — '"
             f"{names[key]}' resolved uniquely; {provenance_line}",
@@ -5288,23 +5561,60 @@ async def _datasets_named_file_block(
             "files' rows.",
         ]))
 
-    def _row_summary(rec: Dict[str, Any]) -> str:
-        out = []
-        for row in (rec.get("rows") or [])[:2]:
-            rnum = row.get(SHEET_ROW_COL) or row.get("__row__") or "?"
-            cells = [
-                f"{c}={row.get(c)}"
-                for c in (rec.get("columns") or [])[:6]
-                if row.get(c) is not None
+    def _row_summary(record: Dict[str, Any]) -> str:
+        out: List[str] = []
+        columns = list(record.get("columns") or [])
+        letters = record.get("column_letters") or {}
+        for row in (record.get("rows") or [])[:2]:
+            row_number = (
+                row.get(SHEET_ROW_COL) or row.get("__row__") or "?"
+            )
+            values = [
+                f"{column}={row.get(column)}"
+                for column in columns[:6]
+                if row.get(column) is not None
             ]
+            refs = []
+            for column in columns:
+                value = row.get(column)
+                if value is None:
+                    continue
+                if re.search(
+                    r"price|cost|amount|rate|value|list|total|dealer",
+                    str(column), re.IGNORECASE,
+                ):
+                    letter = letters.get(column)
+                    if letter:
+                        refs.append(f"{letter}{row_number}={value}")
+            sheet = record.get("entity_name") or "?"
             out.append(
-                f"{rec.get('entity_name') or '?'} R{rnum}: "
-                + ", ".join(str(x)[:40] for x in cells)[:170])
+                f"{sheet} R{row_number}"
+                + (f" [{', '.join(refs)}]" if refs else "")
+                + ": "
+                + ", ".join(str(value)[:40] for value in values)[:170]
+            )
         return " ; ".join(out) or "matched sheet carries no row detail"
 
-    # Deterministic per-item table (2026-09-24 review, qualification 4):
-    # rendered FROM the scan so the reply REPRODUCES it — the live reply
-    # once said '3 of 8 found' over a table showing 2.
+    def _artifact_summary(outcome: Dict[str, Any]) -> str:
+        evidence = outcome.get("evidence") or []
+        if not evidence:
+            return "no matching cell in the indexed rows"
+        pieces: List[str] = []
+        for item in evidence[:3]:
+            sheet = item.get("sheet") or "?"
+            cell = item.get("cell") or "?"
+            row_number = item.get("row")
+            prices = item.get("prices") or []
+            price_refs = [
+                f"{price.get('cell')}={price.get('value')}"
+                for price in prices[:4]
+                if price.get("cell")
+            ]
+            suffix = f" (prices: {', '.join(price_refs)})" if price_refs else ""
+            row_suffix = f" R{row_number}" if row_number is not None else ""
+            pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
+        return " ; ".join(pieces)
+
     table = [
         "PER-ITEM OUTCOMES (deterministic, rendered from the scan — "
         "reproduce VERBATIM; do not recount or re-derive):",
@@ -5312,15 +5622,29 @@ async def _datasets_named_file_block(
         "| item | outcome | evidence |",
         "|---|---|---|",
     ]
-    for tok in item_tokens:
-        rec = per_item.get(tok)
-        if rec:
-            table.append(f"| {tok} | FOUND | {_row_summary(rec)} |")
+    for token in item_tokens:
+        outcome = artifact_outcomes.get(token)
+        if outcome is not None:
+            status = str(outcome.get("status") or "incomplete").upper()
+            if status == "ABSENT" and not coverage_complete:
+                status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+            evidence = _artifact_summary(outcome)
         else:
-            table.append(
-                f"| {tok} | NOT FOUND IN INDEXED CONTENT | all "
-                f"{prov['sheets_indexed']} indexed sheets probed "
-                "(substring + alias) |")
+            record = per_item.get(token)
+            if record:
+                status = "FOUND"
+                evidence = _row_summary(record)
+            elif coverage_complete:
+                status = "NOT FOUND IN INDEXED CONTENT"
+                evidence = (
+                    f"all {len(sheet_names)} indexed sheets probed "
+                    "(substring + alias)"
+                )
+            else:
+                status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+                evidence = "coverage incomplete; see COVERAGE LIMITS"
+        table.append(f"| {token} | {status} | {evidence} |")
+
     lines = [
         "LIVE TOOL RESULTS (datasets.named-file, file='"
         f"{names[key]}') — the query NAMED this file, so the evidence is "
@@ -5330,10 +5654,12 @@ async def _datasets_named_file_block(
         "",
     ]
     lines.extend(table)
-    for rec in recs:
-        lines.append("")
-        lines.append(render_dataset_answer(rec))
-    return _with_grounding("\n".join(lines)[:18000])
+    if render_artifact:
+        lines.extend(["", render_artifact])
+    else:
+        for record in recs:
+            lines.extend(["", render_dataset_answer(record)])
+    return _with_grounding("\n".join(lines)[:32000])
 
 
 async def _datasets_search_block(

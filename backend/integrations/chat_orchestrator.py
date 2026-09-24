@@ -5743,6 +5743,52 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     f"planned live lookup failed ({_planned}): {_live_err!r}"
                                 )
                                 _live_block = None
+                        # CONFIRMED-READ GUARANTEE (2026-09-24 review,
+                        # qualification 3/4): on a pending-file-task resume
+                        # turn the planner's ROUTING varies with the fleet —
+                        # one run plans datasets.search with the filename,
+                        # the next plans a mailbox scan and the confirmed
+                        # read's evidence never reaches the reply (live
+                        # wb-replay-1790254746). The user already CONFIRMED
+                        # this read: when the executed block does not name
+                        # the mentioned file, run the file-scoped
+                        # named-file lane directly and LEAD the evidence
+                        # with it (the plan's own block follows, if any).
+                        if (
+                            _resume_original
+                            and _plan_mentions
+                            and (
+                                _off_request
+                                or not _block_names_file(
+                                    _live_block, _plan_mentions)
+                            )
+                        ):
+                            try:
+                                from core.chat_tool_planner import (
+                                    _datasets_named_file_block,
+                                )
+
+                                _file_ev = await _datasets_named_file_block(
+                                    user_id, _plan_mentions[0],
+                                    {"message": _gate_msg,
+                                     "workspace_id": workspace_id,
+                                     "history": (planner_history
+                                                 or history or [])[-6:]},
+                                    plan=_plan,
+                                )
+                                if _file_ev:
+                                    logger.info(
+                                        "[pending-file-task] planner routed "
+                                        "elsewhere — file-scoped evidence "
+                                        "delivered by the confirmed-read "
+                                        "guarantee")
+                                    _live_block = (
+                                        f"{_file_ev}\n\n{_live_block}"
+                                        if _live_block else _file_ev)
+                            except Exception as _fg_err:  # noqa: BLE001
+                                logger.debug(
+                                    f"confirmed-read guarantee skipped: "
+                                    f"{_fg_err}")
                         # PENDING FILE TASK: a file-serving lookup that RAN
                         # (storage read / datasets / documents, or any block
                         # that actually names the mentioned file) retires

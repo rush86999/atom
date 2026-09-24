@@ -1033,3 +1033,73 @@ async def test_all_miss_block_is_coverage_scoped_not_absence():
     assert "NOT FOUND IN THE INDEXED CONTENT SEARCHED" in block
     assert "do not claim absence from the workbook" in block
     assert "ABSENT from this workbook" not in block
+
+
+# ---------------------------------------------------------------------------
+# Wiring 10 — confirmed-read guarantee (planner routing variance)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_resume_turn_delivers_file_evidence_even_when_planned_elsewhere():
+    """Live wb-replay-1790254746: the confirmation turn's planner routed to
+    a MAILBOX scan (fleet variance) and the confirmed file read's evidence
+    never reached the reply. The guarantee runs the file-scoped lane and
+    leads the evidence with it whenever the executed block does not name
+    the confirmed file."""
+    orch = _orch()
+    session = {
+        "id": "s1", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            ORIGINAL_ASK, "consolidated price list 2019.xlsx"),
+    }
+    # Planner routes to the mailbox — NOT a file-serving service.
+    plan = planner.ToolPlan(
+        use_tool=True, service="outlook", intent="search",
+        query="consolidated price list")
+
+    async def fake_execute(p, uid, tenant, context=None, llm_service=None):
+        return ("LIVE TOOL RESULTS (outlook.search): mailbox scanned, "
+                "no relevant messages")
+
+    async def fake_named_file(uid, query, context, plan=None):
+        # stamps the lifecycle meta exactly as the real lane does
+        if plan is not None:
+            plan._result_meta = {"storage_read": {
+                "service": "datasets", "file_id": "u8ai1e3a",
+                "resource_id": "u8ai1e3a",
+                "file_name": "Consolidated Price List 2019.xlsx",
+                "identity_verified": True, "completed": True,
+                "coverage_complete": True, "note": "guarantee test"}}
+        return ("LIVE TOOL RESULTS (datasets.named-file, file='Consolidated "
+                "Price List 2019.xlsx') — MATERIALIZED COPY … PER-ITEM "
+                "OUTCOMES table")
+
+    with (
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=plan)),
+        patch("core.chat_tool_planner.execute_tool_plan",
+              new=fake_execute),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_file)) as named,
+        patch("core.chat_tool_planner._provenance_menu", new=AsyncMock(
+            return_value="")),
+        patch("core.memory_context_assembler.assembly_enabled",
+              return_value=False),
+        patch.object(chat, "_verbatim_mail_evidence", new=AsyncMock(
+            return_value=[])),
+    ):
+        await orch._get_qwen_response(
+            CONFIRMATION, [], user_id="u1", session_id="s1",
+            execution_id="e6", session=session,
+            pending_file_task=session[FILE_TASK_SESSION_KEY],
+        )
+    named.assert_awaited()
+    evidence = session.get("_ev_e6") or ""
+    assert "datasets.named-file" in evidence, (
+        "the file-scoped evidence must lead the composed block")
+    assert evidence.index("datasets.named-file") < evidence.index(
+        "outlook.search"), "file evidence leads the mailbox block"
+    served = session.get(FILE_TASK_SESSION_KEY)
+    assert served and served["status"] == "served", (
+        "the guarantee stamps the lifecycle meta — the confirmed read "
+        "completes the task")
