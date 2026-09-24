@@ -5155,7 +5155,13 @@ async def _datasets_named_file_block(
             "Identity is ambiguous: ask the user which one, and do NOT "
             "present any of their rows as the named file.")
     key = next(iter(exact_keys))
-    tokens = candidate_probe_tokens([query]) or []
+    # Probe tokens come from the query AND the turn's message (on a
+    # pending-file-task resume the planner's query may be the FILENAME
+    # alone while the eight identifiers live in the confirmed original
+    # ask — the execute context's message carries it verbatim).
+    _msg_text = _current_message_text(context) or ""
+    _target_hay = [query] + ([_msg_text] if _msg_text else [])
+    tokens = candidate_probe_tokens(_target_hay) or []
     recs = []
     for tok in tokens[:8]:
         rec = await asyncio.to_thread(_probe_cached, by_file[key], tok, 8)
