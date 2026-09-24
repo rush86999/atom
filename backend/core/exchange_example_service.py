@@ -50,6 +50,10 @@ logger = logging.getLogger(__name__)
 
 _MODE_FLAG = "ATOM_EXCHANGE_MEMORY"
 _VECTOR_TABLE = "exchange_examples"
+_LEGACY_OWNER_IDS = frozenset({
+    "", "default", "default_user", "anonymous", "guest", "user", "test_user",
+    "00000000-0000-0000-0000-000000000000",
+})
 
 # Semi-hard band defaults (LanceDB search score = clamp(1 - distance, 0, 1),
 # higher = more similar). Env-tunable so deployments can calibrate without
@@ -96,7 +100,10 @@ def exchange_memory_mode(db=None) -> str:
 # ---------------------------------------------------------------------------
 
 def _resolve_exchange_pair(
-    db, conversation_id: Optional[str], message_id: Optional[str]
+    db,
+    conversation_id: Optional[str],
+    message_id: Optional[str],
+    user_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Resolve the rated (query, response) pair from the chat transcript.
 
@@ -109,6 +116,19 @@ def _resolve_exchange_pair(
     Error-artifact turns (metadata quality=error) never qualify: an
     infrastructure failure is not a content example to learn from.
     """
+    def _owned_conversation(identifier: Optional[str]) -> bool:
+        if not identifier or not user_id:
+            return True
+        from core.models import ChatSession
+
+        row = db.query(ChatSession).filter(ChatSession.id == identifier).first()
+        if row is None:
+            return False
+        owner = row.user_id
+        if owner in _LEGACY_OWNER_IDS:
+            return True
+        return str(owner) == str(user_id)
+
     def _usable(assistant_row: ChatMessage) -> Optional[Dict[str, Any]]:
         if assistant_row is None or not (assistant_row.content or "").strip():
             return None
@@ -137,20 +157,24 @@ def _resolve_exchange_pair(
             "agent_id": assistant_row.agent_id,
             "conversation_id": assistant_row.conversation_id,
             "tenant_id": assistant_row.tenant_id or "default",
-            # The model's chain-of-thought persisted at reply time
-            # (ChatMessage.metadata_json.reasoning) — feedback training
-            # judges WHAT the agent was thinking, not just what it said.
+            "model": meta.get("model") or meta.get("model_id"),
+            "provider": meta.get("provider"),
+            "execution_id": meta.get("execution_id"),
             "reasoning": (str(meta.get("reasoning"))[:20000] if meta.get("reasoning") else None),
         }
 
     if message_id:
         row = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
         if row is not None and row.role == "assistant":
+            if not _owned_conversation(row.conversation_id):
+                return None
             pair = _usable(row)
             if pair:
                 return pair
 
     if not conversation_id:
+        return None
+    if not _owned_conversation(conversation_id):
         return None
     newest = (
         db.query(ChatMessage)
@@ -229,7 +253,11 @@ def _write_vector(row: ExchangeExample) -> bool:
         return False
 
 
-def _fire_teaching_circuit(pair: Dict[str, Any], row: ExchangeExample) -> Dict[str, Any]:
+def _fire_teaching_circuit(
+    pair: Dict[str, Any],
+    row: ExchangeExample,
+    classification: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Feed the rated pair into the existing learning/teaching circuitry.
 
     - Comment-bearing rejection -> human_correction observation for STUDENT
@@ -244,7 +272,18 @@ def _fire_teaching_circuit(pair: Dict[str, Any], row: ExchangeExample) -> Dict[s
     """
     fired: Dict[str, Any] = {}
 
-    if row.label == "negative" and (row.comment or "").strip():
+    if classification is not None:
+        fired["feedback_classification"] = {
+            "kind": classification.get("kind"),
+            "destination": classification.get("destination"),
+            "requires_review": bool(classification.get("requires_review")),
+        }
+        logger.info(
+            "feedback routed away from permanent lesson fan-out: %s",
+            classification.get("destination"),
+        )
+
+    if classification is None and row.label == "negative" and (row.comment or "").strip():
         try:
             import asyncio
             from core.student_learning_service import auto_observe
@@ -371,16 +410,40 @@ async def capture_exchange(
 
     db = SessionLocal()
     try:
-        pair = _resolve_exchange_pair(db, session_id, message_id)
+        pair = _resolve_exchange_pair(db, session_id, message_id, user_id=user_id)
         if not pair:
             return {"captured": False, "reason": "pair_unresolvable"}
+
+        classification = None
+        if (comment or "").strip():
+            from core.feedback_classifier import classify_feedback
+
+            classification = classify_feedback(
+                comment or "",
+                label="negative" if label == "negative" else "positive",
+            )
 
         if _dedupe_key_match(db, pair, label) is not None:
             return {"captured": False, "reason": "duplicate"}
 
+        # FEEDBACK CLASSIFICATION BEFORE LEARNING (2026-09-24): every
+        # captured exchange is routed to its destination kind with scope,
+        # confidence, and provenance; retrieved-source quotes never
+        # become instructions.
+        _classification = None
+        try:
+            from core.feedback_classifier import classify_feedback
+
+            _classification = classify_feedback(
+                comment or "",
+                label="negative" if label == "negative" else "positive",
+                evidence_text=str(assistant_response or "")[:8000],
+            )
+        except Exception:  # noqa: BLE001 — classification never blocks capture
+            _classification = None
         row = ExchangeExample(
             tenant_id=pair["tenant_id"],
-            user_id=user_id,
+            user_id=pair.get("user_id") or user_id,
             workspace_id=None,  # resolved below via the user's workspace
             conversation_id=pair["conversation_id"],
             message_id=message_id,
@@ -391,13 +454,15 @@ async def capture_exchange(
             label=label,
             source=source,
             comment=(comment or "").strip() or None,
-            model=model,
-            provider=provider,
+            model=pair.get("model") or model,
+            provider=pair.get("provider") or provider,
             reasoning=(
-                (reasoning or "").strip()[:20000]
-                or pair.get("reasoning")
+                str(pair.get("reasoning") or "").strip()[:20000]
+                or (reasoning or "").strip()[:20000]
                 or None
             ),
+        
+            feedback_classification=_classification,
         )
         # Workspace scoping must match chat-time retrieval: the assembler
         # retrieves from resolve_user_workspace(user_id) (chat_orchestrator)
@@ -418,10 +483,43 @@ async def capture_exchange(
         db.add(row)
         db.commit()
 
+        lesson_candidate_id = None
+        if classification and classification.get("kind") == "strategy_improvement":
+            try:
+                from core.lesson_candidates import (
+                    extract_lesson_candidate,
+                    register_candidate,
+                )
+
+                candidate = extract_lesson_candidate(
+                    comment or "",
+                    evidence_refs=[{
+                        "kind": "exchange_example",
+                        "resource_id": row.id,
+                        "addresses_requested": False,
+                    }],
+                    scope={
+                        "tenant_id": row.tenant_id,
+                        "workspace_id": row.workspace_id,
+                        "agent_id": row.agent_id,
+                        "user_id": row.user_id,
+                    },
+                )
+                if candidate and register_candidate(
+                    candidate,
+                    actor_id=row.user_id,
+                    scope=candidate.get("scope"),
+                ):
+                    lesson_candidate_id = candidate.get("candidate_id")
+            except Exception as e:
+                logger.debug(f"strategy candidate registration skipped: {e}")
+
         import asyncio
 
         embedded = await asyncio.to_thread(_write_vector, row)
-        circuitry = _fire_teaching_circuit(pair, row)
+        circuitry = _fire_teaching_circuit(
+            pair, row, classification=classification
+        )
 
         logger.info(
             "exchange example captured: %s label=%s source=%s embedded=%s circuitry=%s",
@@ -434,6 +532,9 @@ async def capture_exchange(
             "source": source,
             "embedded": embedded,
             "circuitry": circuitry,
+            "lesson_candidate_id": lesson_candidate_id,
+            "feedback_classification": classification,
+            "execution_id": pair.get("execution_id"),
         }
     except Exception as e:
         logger.warning(f"exchange example capture failed (non-fatal): {e}")
@@ -567,8 +668,8 @@ def get_corpus_counts(db) -> Dict[str, int]:
     out = {"positive": 0, "negative": 0, "total": 0}
     try:
         labels = [r[0] for r in db.query(ExchangeExample.label).all()]
-        pos = sum(1 for l in labels if l == "positive")
-        neg = sum(1 for l in labels if l == "negative")
+        pos = sum(1 for label_value in labels if label_value == "positive")
+        neg = sum(1 for label_value in labels if label_value == "negative")
         out = {"positive": pos, "negative": neg, "total": pos + neg}
     except Exception as e:
         logger.debug("corpus counts failed: %s", e)
@@ -587,8 +688,8 @@ def get_rated_exchange_summary(db, agent_id: str) -> Dict[str, Any]:
             .all()
         )
         labels = [r[0] for r in rows]
-        pos = sum(1 for l in labels if l == "positive")
-        neg = sum(1 for l in labels if l == "negative")
+        pos = sum(1 for label_value in labels if label_value == "positive")
+        neg = sum(1 for label_value in labels if label_value == "negative")
         total = pos + neg
         out = {
             "positive": pos,

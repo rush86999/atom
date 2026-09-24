@@ -1751,6 +1751,19 @@ _CANVAS_TARGET_RE = re.compile(
     r"table|sheet|slide|spreadsheet|presentation)\b",
     re.IGNORECASE,
 )
+_CANVAS_ADVISORY_OBJECTIVE_RE = re.compile(
+    r"\b(?:explain|whether|which\s+[^\n.?!]{0,80}\s+should|"
+    r"should\s+(?:i|we)|do\s+(?:i|we)\s+need|decide\s+whether)\b",
+    re.IGNORECASE,
+)
+_CANVAS_EXPLICIT_EDIT_RE = re.compile(
+    r"\b(?:please\s+)?(?:update|edit|replace|change|set|apply|fill|add|"
+    r"remove|delete|restore|rebuild|rewrite|revise|reformat|reword)\s+"
+    r"(?:the\s+|this\s+|that\s+)?(?:draft|canvas|email|document|content|"
+    r"subject|body|table|sheet|slide|presentation|price|value|row|entry|"
+    r"field)\b",
+    re.IGNORECASE,
+)
 
 
 def _canvas_edit_shaped(
@@ -1760,6 +1773,11 @@ def _canvas_edit_shaped(
     canvas gate matters most: the same verbs in a plain chat (no panel) are
     ordinary turns."""
     text = message or ""
+    if (
+        _CANVAS_ADVISORY_OBJECTIVE_RE.search(text)
+        and not _CANVAS_EXPLICIT_EDIT_RE.search(text)
+    ):
+        return False
     if _CANVAS_NON_EDIT_SHAPE_RE.search(text) and not _CANVAS_TARGET_RE.search(text):
         return False
     if not _CANVAS_EDIT_SHAPE_RE.search(text):
@@ -1797,6 +1815,15 @@ _FILE_READ_SHAPE_RE = re.compile(
     r"how\s+much|what|which|where|compare|fetch|locate|does|do|is|are)\b",
     re.IGNORECASE,
 )
+_OBJECTIVE_SYNTHESIS_RE = re.compile(
+    r"\b(?:compare|comparison|reconcile|reconciliation|discrepanc(?:y|ies)|"
+    r"difference|differences|against|historical|implication|implications|"
+    r"verify\s+whether|review.{0,60}tell\s+me\s+if|out\s+of\s+date|"
+    r"should\s+(?:change|update|replace)|support(?:s|ed)?\s+chang(?:e|ing)|"
+    r"prepare\s+(?:a\s+|the\s+)?(?:change|update)|what\s+does\s+this\s+mean|"
+    r"what\s+do\s+these\s+mean|do\s+i\s+need\s+to\s+(?:change|update))\b",
+    re.IGNORECASE,
+)
 
 # Services whose live lookups can actually serve a file-scoped ask (storage
 # reads, sheet datasets, ingested documents). A mailbox/calendar hit does
@@ -1817,7 +1844,9 @@ _SPREADSHEET_ANSWER_CONTRACT = (
     "absent (name the sheet(s) searched), or incomplete. Take values ONLY "
     "from matched rows of this file's evidence — never substitute a value "
     "from another source in the conversation (e.g. email quotes), and keep "
-    "each source's values labeled separately. The WORKBOOK READ ARTIFACT "
+    "each source's values labeled separately. A separate SOURCE COMPARISON "
+    "may discuss another source only as a comparison; it never replaces the "
+    "workbook answer or makes an incomparable value authoritative. The WORKBOOK READ ARTIFACT "
     "is the coverage record: report its target statuses and sheet/cell "
     "references; if it says incomplete, do not fill gaps from email or memory. "
     "When a deterministic per-item table is present, reproduce its values and "
@@ -2393,12 +2422,14 @@ async def _verbatim_mail_evidence(
     skipped before touching the store)."""
     if not user_id or not message:
         return []
+    if isinstance(context, dict):
+        context.setdefault("message", message)
     date_window = None
     try:
         from core.chat_tool_planner import (
             _distinctive_figure_phrases,
             _latest_user_figure_phrases,
-            _search_ingested_by_tokens,
+            _search_ingested_by_tokens_observed,
             _stated_date_window,
             _window_from_iso_date,
         )
@@ -2442,8 +2473,8 @@ async def _verbatim_mail_evidence(
             # outranks recency when a common code matches many rows.
             return await asyncio.wait_for(
                 asyncio.to_thread(
-                    _search_ingested_by_tokens, user_id, figs, 3,
-                    date_window,
+                    _search_ingested_by_tokens_observed, user_id, figs, 3,
+                    date_window, context or {},
                 ),
                 timeout=25,
             )
@@ -2490,8 +2521,8 @@ async def _verbatim_mail_evidence(
         if figs:
             return await asyncio.wait_for(
                 asyncio.to_thread(
-                    _search_ingested_by_tokens, user_id, figs, 3,
-                    date_window,
+                    _search_ingested_by_tokens_observed, user_id, figs, 3,
+                    date_window, context or {},
                 ),
                 timeout=25,
             )
@@ -3155,6 +3186,166 @@ class ChatOrchestrator:
                     mentions = [str(task.get("mention"))]
             except Exception:
                 mentions = []
+            comparison = (
+                (response.get("data") or {}).get("objective_evidence")
+                or (ai_response or {}).get("objective_evidence")
+                or result.get("objective_evidence")
+            )
+            if not isinstance(comparison, dict):
+                comparison = {}
+            comparison_coverage = comparison.get("coverage") or {}
+            comparison_outcomes = [
+                item
+                for item in comparison_coverage.get("outcomes") or []
+                if isinstance(item, dict)
+            ]
+            comparison_statuses = [
+                str(item.get("status") or "unresolved")
+                for item in comparison_outcomes
+            ]
+            comparison_reason_sets = [
+                {
+                    str(reason)
+                    for reason in item.get("reasons") or []
+                }
+                for item in comparison_outcomes
+            ]
+            comparison_total = int(
+                comparison_coverage.get("outcome_count")
+                or len(comparison_outcomes)
+                or 0
+            )
+            comparison_covered = sum(
+                status not in {
+                    "unverified", "evidence_missing", "unresolved",
+                }
+                for status in comparison_statuses
+            )
+            comparison_complete = bool(
+                comparison_total and comparison_covered == comparison_total
+            )
+            comparison_ledger = {
+                "known": sum(
+                    status not in {
+                        "field_missing",
+                        "evidence_missing",
+                        "unverified",
+                    }
+                    and not (
+                        {"field_missing", "evidence_missing"}
+                        & reasons
+                    )
+                    for status, reasons in zip(
+                        comparison_statuses,
+                        comparison_reason_sets,
+                    )
+                ),
+                "missing": sum(
+                    status in {"field_missing", "evidence_missing"}
+                    or bool(
+                        {"field_missing", "evidence_missing"} & reasons
+                    )
+                    for status, reasons in zip(
+                        comparison_statuses,
+                        comparison_reason_sets,
+                    )
+                ),
+                "conflicting": sum(
+                    "changed" in status for status in comparison_statuses
+                ),
+                "incomparable": sum(
+                    "incomparable" in status
+                    or status == "partially_comparable"
+                    for status in comparison_statuses
+                ),
+                "unverified": sum(
+                    status == "unverified" for status in comparison_statuses
+                ),
+                "covered": comparison_covered,
+                "total": comparison_total,
+            }
+            comparison_evidence_refs = []
+            for observation in comparison.get("evidence") or []:
+                if not isinstance(observation, dict):
+                    continue
+                source = observation.get("source") or {}
+                source_id = source.get("source_id")
+                if not source_id:
+                    continue
+                ref = {
+                    "kind": "source",
+                    "source": dict(source),
+                    "addresses_requested": True,
+                }
+                if ref not in comparison_evidence_refs:
+                    comparison_evidence_refs.append(ref)
+            criterion_results = []
+            for item in comparison_outcomes:
+                refs = []
+                for pair in item.get("comparisons") or []:
+                    for source_id in (
+                        pair.get("left_source_id"),
+                        pair.get("right_source_id"),
+                    ):
+                        if source_id and not any(
+                            (ref.get("source") or {}).get("source_id")
+                            == source_id
+                            for ref in refs
+                        ):
+                            refs.append({
+                                "kind": "source",
+                                "source": {"source_id": source_id},
+                                "addresses_requested": True,
+                            })
+                criterion_results.append({
+                    "criterion": (
+                        f"{item.get('entity_id')}:{item.get('field')} "
+                        "has an explicit evidence outcome"
+                    ),
+                    "met": (
+                        str(item.get("status")) not in {
+                            "unverified",
+                            "evidence_missing",
+                            "unresolved",
+                        }
+                    ),
+                    "evidence_refs": refs,
+                })
+            comparison_gaps = [
+                item for item in comparison.get("gaps") or []
+                if isinstance(item, dict)
+            ]
+            comparison_implications = [
+                {
+                    **item,
+                    "evidence_refs": comparison_evidence_refs[:8],
+                }
+                for item in comparison.get("implications") or []
+                if isinstance(item, dict)
+            ]
+            comparison_actions = [
+                item
+                for item in (
+                    list(comparison.get("actions") or [])
+                    + list(comparison.get("blocked_actions") or [])
+                )
+                if isinstance(item, dict)
+            ]
+            canvas_edit = (response.get("data") or {}).get(
+                "canvas_edit"
+            ) or {}
+            mutation = {
+                "requested": bool(canvas_edit),
+                "readback_matched": (
+                    canvas_edit.get("updated") is True
+                    and canvas_edit.get("postcondition_verified") is not False
+                ),
+                "status": (
+                    canvas_edit.get("postcondition_verified")
+                    if "postcondition_verified" in canvas_edit
+                    else canvas_edit.get("review_status")
+                ),
+            }
             delivered = bool(
                 status not in {"failed", "cancelled"}
                 and response.get("success", True)
@@ -3172,7 +3363,7 @@ class ChatOrchestrator:
                 result.get("status") in {"incomplete", "failed", "error"}
             )
             evidence_refs = []
-            if identity and (mentions or result):
+            if identity and (mentions or result or comparison):
                 evidence_refs = [{
                     "kind": "file",
                     "file_name": identity.get("file_name"),
@@ -3181,21 +3372,38 @@ class ChatOrchestrator:
                     "evidence_kind": identity.get("evidence_kind"),
                     "addresses_requested": True,
                 }]
+            for ref in comparison_evidence_refs:
+                if ref not in evidence_refs:
+                    evidence_refs.append(ref)
             tool_outcomes = []
-            if result and (mentions or task.get("mention")):
+            if (result or comparison) and (
+                mentions or task.get("mention") or comparison
+            ):
                 tool_outcomes = [{
                     "tool": "file_scoped_read",
-                    "verified": True if retrieval_complete else (
+                    "verified": True if (
+                        retrieval_complete or comparison_complete
+                    ) else (
                         False if failed_retrieval else None
                     ),
-                    "outcome": f"status={result.get('status') or 'unknown'}",
+                    "outcome": (
+                        f"status={result.get('status') or 'unknown'}"
+                        if result else "structured source comparison"
+                    ),
                     "required": True,
                     "evidence_refs": evidence_refs,
                 }]
             objective_met = None
             if status in {"failed", "cancelled"} or response.get("success") is False:
                 objective_met = False
+            elif comparison_complete and delivered:
+                objective_met = True
             elif deterministic and retrieval_complete:
+                objective_met = True
+            elif (
+                canvas_edit.get("updated") is True
+                and mutation.get("readback_matched") is True
+            ):
                 objective_met = True
             failure_layer = None
             failure_owner = None
@@ -3214,29 +3422,68 @@ class ChatOrchestrator:
             elif failed_retrieval:
                 failure_layer = "execution"
                 failure_owner = "capability"
-            return build_task_outcome(
+            outcome: Dict[str, Any] = build_task_outcome(
                 objective=objective,
                 objective_met=objective_met,
                 completion_criteria=(
-                    ["requested values delivered with source provenance"]
-                    if mentions else []
+                    ([{"kind": "source_comparison"}] if comparison else
+                     [{"kind": "source_scoped_retrieval"}] if mentions else [])
+                    + ([{"kind": "mutation"}] if canvas_edit else [])
                 ),
+                criterion_results=criterion_results,
                 requested={
                     "mentions": mentions,
                     "task_mention": task.get("mention"),
+                    "target_entities": (
+                        comparison_coverage.get("requested_entities") or []
+                    ),
+                    "requested_attributes": (
+                        comparison_coverage.get("requested_fields") or []
+                    ),
                 },
-                source_constraints=(
-                    {"file_identity": {
-                        key: identity.get(key)
-                        for key in (
-                            "file_name", "resource_id", "content_hash",
-                            "evidence_kind",
-                        )
-                    }} if identity else {}
-                ),
+                source_constraints={
+                    **(
+                        {"file_identity": {
+                            key: identity.get(key)
+                            for key in (
+                                "file_name", "resource_id", "content_hash",
+                                "evidence_kind",
+                            )
+                        }} if identity else {}
+                    ),
+                    "comparison_sources": [
+                        ref.get("source_id")
+                        for ref in comparison_evidence_refs
+                        if (ref.get("source") or {}).get("source_id")
+                    ],
+                },
                 authorized_actions=list(authorized_actions or []),
                 tool_outcomes=tool_outcomes,
                 evidence_refs=evidence_refs,
+                objective_state={
+                    "goal": objective,
+                    "target_entities": (
+                        comparison_coverage.get("requested_entities") or []
+                    ),
+                    "requested_attributes": (
+                        comparison_coverage.get("requested_fields") or []
+                    ),
+                    "source_constraints": (
+                        {"file_identity": {
+                            key: identity.get(key)
+                            for key in (
+                                "file_name", "resource_id", "content_hash",
+                                "evidence_kind",
+                            )
+                        }} if identity else {}
+                    ),
+                    "authorized_actions": list(authorized_actions or []),
+                },
+                evidence_ledger=comparison_ledger,
+                gaps=comparison_gaps,
+                implications=comparison_implications,
+                actions=comparison_actions,
+                mutation=mutation,
                 delivery={
                     "delivered": delivered,
                     "channel": "chat",
@@ -3261,6 +3508,7 @@ class ChatOrchestrator:
                 turn_id=session.get("id"),
                 policy_version="learning-loop-v1",
             )
+            return outcome
         except Exception as error:
             logger.debug(f"task outcome build skipped: {error}")
             return {}
@@ -3711,13 +3959,22 @@ class ChatOrchestrator:
                     from core.pending_file_task import (
                         FILE_TASK_SESSION_KEY,
                         is_filename_confirmation,
+                        is_retrieval_refresh_request,
                         mark_task_delivered,
                     )
 
                     _new_substantive = _is_substantive_request(message)
+                    # RE-DELIVERY vs RE-RETRIEVAL (2026-09-24 review): a
+                    # bare approval may re-render the persisted result;
+                    # "search again"/"refresh"/"check the latest version"
+                    # is a NEW retrieval — it bypasses the cached copy and
+                    # re-runs the file-scoped reader (the matching path
+                    # re-opens a terminal task for refresh requests).
+                    _refresh_request = is_retrieval_refresh_request(message)
                     _delivery_retry = (
-                        is_filename_confirmation(message)
-                        or not _new_substantive
+                        (is_filename_confirmation(message)
+                         or not _new_substantive)
+                        and not _refresh_request
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
@@ -3731,6 +3988,22 @@ class ChatOrchestrator:
                             str(_pfr["rendered"]))
                     except Exception:  # noqa: BLE001 — renderer optional
                         _deliver_content = str(_pfr["rendered"])
+                    _objective_retry = _pfr.get("objective_evidence")
+                    if isinstance(_objective_retry, dict):
+                        try:
+                            from core.workbook_read_artifact import (
+                                render_source_comparison,
+                            )
+
+                            _comparison_retry = render_source_comparison(
+                                _objective_retry
+                            )
+                            if _comparison_retry:
+                                _deliver_content += (
+                                    f"\n\n{_comparison_retry}"
+                                )
+                        except Exception:
+                            pass
                     _deliver_content += (
                         "\n\n(Delivered from the persisted scan result — "
                         "re-rendered without re-reading the file; the "
@@ -3754,6 +4027,8 @@ class ChatOrchestrator:
                         "data": {
                             "deterministic_delivery": True,
                             "file_identity": _pfr.get("identity"),
+                            "objective_evidence": _objective_retry
+                            if isinstance(_objective_retry, dict) else None,
                         },
                         "requires_confirmation": False,
                         "next_steps": [],
@@ -3806,6 +4081,9 @@ class ChatOrchestrator:
             if (
                 _ask_direct
                 and not _pending_file_task
+                and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
+                and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
+                and not _canvas_edit_shaped(message, context)
                 and not os.getenv("ATOM_DISABLE_ASK_TURN_DIRECT_READ")
             ):
                 _ask_task = {
@@ -3843,6 +4121,18 @@ class ChatOrchestrator:
                         "retrieved_at": time.time(),
                     }
                     session["_pending_file_result"] = _ask_result_row
+                    if not _ask_complete:
+                        from core.pending_file_task import (
+                            FILE_TASK_SESSION_KEY,
+                            merge_pending_task,
+                        )
+
+                        session[FILE_TASK_SESSION_KEY] = merge_pending_task(
+                            session.get(FILE_TASK_SESSION_KEY),
+                            message,
+                            _ask_mention,
+                            (context or {}).get("disambiguation"),
+                        )
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -3854,6 +4144,7 @@ class ChatOrchestrator:
                             "deterministic_delivery": True,
                             "file_identity": _ask_identity,
                             "coverage_complete": _ask_complete,
+                            "resumable": not _ask_complete,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -3867,11 +4158,15 @@ class ChatOrchestrator:
                     if _ask_complete:
                         _ask_result_row["status"] = "delivered"
                         _ask_result_row["delivered_at"] = time.time()
+                    _ask_terminal_status = (
+                        "success" if _ask_complete else "partial"
+                    )
                     await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id, "success")
+                        session_id, _trace_agent_id, _execution_id,
+                        _ask_terminal_status)
                     self._finish_chat_execution(
                         _execution_id,
-                        "success",
+                        _ask_terminal_status,
                         _ask_content,
                         session=session,
                         message=message,
@@ -3887,14 +4182,23 @@ class ChatOrchestrator:
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
             if _pending_file_task:
-                _direct_result = await self._direct_confirmed_file_read(
-                    _pending_file_task,
-                    history,
-                    user_id,
-                    session_id,
-                    (context or {}).get("workspace_id"),
-                    _deadline,
-                )
+                if _OBJECTIVE_SYNTHESIS_RE.search(
+                    str(_pending_file_task.get("original_message") or "")
+                ):
+                    _direct_result = {
+                        "ok": False,
+                        "block": "",
+                        "reason": "objective requires source comparison",
+                    }
+                else:
+                    _direct_result = await self._direct_confirmed_file_read(
+                        _pending_file_task,
+                        history,
+                        user_id,
+                        session_id,
+                        (context or {}).get("workspace_id"),
+                        _deadline,
+                    )
                 if _direct_result.get("ok"):
                     try:
                         from core.chat_tool_planner import (
@@ -3963,6 +4267,7 @@ class ChatOrchestrator:
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],
                             "coverage_complete": _direct_complete,
+                            "resumable": not _direct_complete,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -3992,12 +4297,16 @@ class ChatOrchestrator:
                             _direct_result_row["delivered_at"] = time.time()
                         except Exception:
                             pass
+                    _direct_terminal_status = (
+                        "success" if _direct_complete else "partial"
+                    )
                     await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id, "success"
+                        session_id, _trace_agent_id, _execution_id,
+                        _direct_terminal_status
                     )
                     self._finish_chat_execution(
                         _execution_id,
-                        "success",
+                        _direct_terminal_status,
                         _direct_content,
                         session=session,
                         message=message,
@@ -4019,9 +4328,20 @@ class ChatOrchestrator:
                     _pft_remaining = _deadline.remaining()
                 except Exception:  # noqa: BLE001 — deadline is optional
                     _pft_remaining = None
+                # RUNTIME LESSON CONSUMPTION (2026-09-24 loop close):
+                # the resume-wait cap is configurable through an APPROVED
+                # lesson candidate (ledger -> core.lesson_runtime); the
+                # code default below is the rollback state.
+                try:
+                    from core.lesson_runtime import get_override
+
+                    _wait_cap = float(get_override(
+                        "resume_planner_wait_max_seconds", 55.0))
+                except Exception:  # noqa: BLE001 — runtime lessons optional
+                    _wait_cap = 55.0
                 _resume_plan_wait_seconds = (
-                    min(55.0, max(25.0, _pft_remaining - 40.0))
-                    if _pft_remaining is not None else 55.0)
+                    min(_wait_cap, max(25.0, _pft_remaining - 40.0))
+                    if _pft_remaining is not None else _wait_cap)
                 logger.info(
                     "[pending-file-task] confirmation resumes the stored file "
                     "ask (file=%r, ask=%.160r, planner wait %.0fs)",
@@ -4473,12 +4793,21 @@ class ChatOrchestrator:
                         )
                         self._finish_chat_execution(
                             _execution_id,
-                            "success",
+                            "success" if _edit_response.get(
+                                "success", True
+                            ) else "failed",
                             _edit_response.get("message", ""),
                             session=session,
                             message=message,
                             response=_edit_response,
                             deadline=_deadline,
+                            authorized_actions=(
+                                ["edit_artifact"]
+                                if ((_edit_response.get("data") or {}).get(
+                                    "canvas_edit"
+                                ) or {}).get("updated") is True
+                                else []
+                            ),
                         )
                         return _edit_response
 
@@ -5048,7 +5377,11 @@ class ChatOrchestrator:
                         _live_identity.get("workbook_read")
                         if isinstance(_live_identity, dict) else None
                     )
-                    if _live_verified and isinstance(_workbook_read, dict):
+                    if (
+                        _live_verified
+                        and isinstance(_workbook_read, dict)
+                        and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
+                    ):
                         _display = str(
                             _live_identity.get("file_name") or _filename
                         )
@@ -5120,6 +5453,18 @@ class ChatOrchestrator:
                     combined_data[feature_type.value] = response["data"]
                 if response and "suggested_actions" in response:
                     suggested_actions.extend(response.get("suggested_actions", []))
+            _objective_result = (ai_response or {}).get(
+                "objective_evidence"
+            )
+            if isinstance(_objective_result, dict):
+                combined_data["objective_evidence"] = _objective_result
+            _objective_workbook = (
+                (session.get("_resolved_file_identity") or {}).get(
+                    "workbook_read"
+                )
+            )
+            if isinstance(_objective_workbook, dict):
+                combined_data["workbook_read"] = _objective_workbook
 
             # Budget-failure precedence: if any feature (agent) reported a
             # budget_exceeded error, surface it at the top level — overriding
@@ -5712,6 +6057,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             ]
 
             memory_block = None
+            _objective_synthesis_requested = bool(
+                _OBJECTIVE_SYNTHESIS_RE.search(
+                    str(
+                        (pending_file_task or {}).get("original_message")
+                        or message
+                    )
+                )
+            )
             _file_scoped_request = bool(isinstance(pending_file_task, dict))
             if not _file_scoped_request:
                 try:
@@ -5726,6 +6079,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 messages.append({
                     "role": "system",
                     "content": (
+                        (
+                            "FILE SOURCE ISOLATION + OBJECTIVE: answer the "
+                            "file-specific values only from the verified "
+                            "storage/workbook artifact. A separate structured "
+                            "SOURCE COMPARISON may use other sources for the "
+                            "user's comparison, but never substitute them "
+                            "for workbook values or silently convert their "
+                            "currency, units, basis, or effective date."
+                        )
+                        if _objective_synthesis_requested else
                         "FILE SOURCE ISOLATION: for this file-scoped request, "
                         "use only the verified storage/workbook artifact and its "
                         "sheet/cell evidence. Do not use email, chat, or other "
@@ -5921,6 +6284,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _planned: Optional[str] = None
             _off_request = False
             _deterministic_answer: Optional[str] = None
+            _objective_comparison: Optional[Dict[str, Any]] = None
             # PENDING FILE TASK support (2026-09-23): on a resume turn the
             # plan is built from the CONFIRMED ORIGINAL ask, so the
             # relevance gate and the executor's context (identifier net,
@@ -5947,9 +6311,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _remaining = deadline.remaining() if deadline else None
                 except Exception:  # noqa: BLE001 — deadline is optional
                     _remaining = None
+                try:
+                    from core.lesson_runtime import get_override
+
+                    _wait_cap = float(get_override(
+                        "resume_planner_wait_max_seconds", 55.0))
+                except Exception:  # noqa: BLE001 — runtime lessons optional
+                    _wait_cap = 55.0
                 _plan_wait_seconds = (
-                    min(55.0, max(25.0, _remaining - 40.0))
-                    if _remaining is not None else 55.0)
+                    min(_wait_cap, max(25.0, _remaining - 40.0))
+                    if _remaining is not None else _wait_cap)
                 logger.info(
                     "[pending-file-task] resume turn: planner wait raised to "
                     "%.0fs (deadline-bounded)", _plan_wait_seconds)
@@ -6220,6 +6591,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # Re-planning or re-executing would pay twice for
                     # identical results — reuse the block as-is.
                     _tool_block = prefetched_tool_block
+                    _prefetch_result_meta: Dict[str, Any] = {}
                     if _plan_mentions:
                         _prefetch_meta = {}
                         if (
@@ -6229,10 +6601,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ):
                             try:
                                 _prefetch_plan = tool_plan_task.result()
-                                _prefetch_meta = (
+                                _prefetch_result_meta = (
                                     getattr(_prefetch_plan, "_result_meta", {})
                                     or {}
-                                ).get("storage_read") or {}
+                                )
+                                _prefetch_meta = (
+                                    _prefetch_result_meta.get("storage_read")
+                                    or {}
+                                )
                             except Exception:
                                 _prefetch_meta = {}
                         if _prefetch_meta:
@@ -6273,6 +6649,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                         elif _file_lookup_served(_tool_block, _plan_mentions):
                             _file_lookup_attempted = True
+                        _prefetch_objective = _prefetch_result_meta.get(
+                            "objective_evidence"
+                        )
+                        if isinstance(_prefetch_objective, dict):
+                            _objective_comparison = _prefetch_objective
+                            if session is not None:
+                                session[f"_objective_evidence_{execution_id}"] = (
+                                    _objective_comparison
+                                )
                     logger.info(
                         "[stage-timing] tool exec: reused canvas-edit leg "
                         "block (singleflight) — no second plan/execute")
@@ -6299,12 +6684,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 tool_plan_task.result(), "mentioned_date", None)
                         except Exception:  # noqa: BLE001 — best-effort date
                             _reuse_plan_date = None
+                    _reuse_mail_context: Dict[str, Any] = {
+                        "message": _gate_msg,
+                        "history": planner_history or history,
+                        "requested_targets": list(_requested_targets),
+                        "canvas": canvas_context,
+                    }
                     try:
                         _reuse_mail = await asyncio.wait_for(
                             _verbatim_mail_evidence(
-                                message, user_id,
-                                {"history": planner_history or history,
-                                 "canvas": canvas_context},
+                                message,
+                                user_id,
+                                _reuse_mail_context,
                                 plan_date=_reuse_plan_date,
                             ),
                             timeout=25,
@@ -6319,6 +6710,75 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = _compose_lookup_evidence(
                             _gate_msg, None, _tool_block, _reuse_mail,
                         )
+                    _reuse_workbook = (
+                        (_resolved_file_identity or {}).get("workbook_read")
+                        or {}
+                    )
+                    if _reuse_workbook and isinstance(canvas_context, dict):
+                        try:
+                            from core.chat_canvas_editor import (
+                                build_canvas_evidence_comparison,
+                            )
+                            from core.workbook_read_artifact import (
+                                render_source_comparison,
+                            )
+
+                            _reuse_observations = list(
+                                _prefetch_result_meta.get(
+                                    "source_observations"
+                                ) or []
+                            )
+                            _reuse_observations.extend(
+                                item
+                                for item in (
+                                    _reuse_mail_context.get(
+                                        "_source_observations"
+                                    ) or []
+                                )
+                                if isinstance(item, dict)
+                            )
+                            _reuse_observations = list({
+                                item.get("observation_id"): item
+                                for item in _reuse_observations
+                                if isinstance(item, dict)
+                                and item.get("observation_id")
+                            }.values())
+                            _objective_comparison = (
+                                build_canvas_evidence_comparison(
+                                    canvas_context,
+                                    _reuse_workbook,
+                                    source_observations=(
+                                        _reuse_observations
+                                    ),
+                                    authorized_actions=(
+                                        ["edit_artifact"]
+                                        if _canvas_edit_shaped(
+                                            message,
+                                            {"canvas": canvas_context},
+                                        )
+                                        else []
+                                    ),
+                                    objective_text=_gate_msg,
+                                )
+                            )
+                            _comparison_text = render_source_comparison(
+                                _objective_comparison
+                            )
+                            if _comparison_text:
+                                _tool_block = (
+                                    f"{_tool_block}\n\n{_comparison_text}"
+                                    if _tool_block
+                                    else _comparison_text
+                                )
+                            if session is not None:
+                                session[f"_objective_evidence_{execution_id}"] = (
+                                    _objective_comparison
+                                )
+                        except Exception as _comparison_err:
+                            logger.debug(
+                                "reuse objective comparison skipped: %r",
+                                _comparison_err,
+                            )
                     _tool_block = await _derivation_supplement(
                         message, user_id, planner_history or history,
                         canvas_context, _tool_block,
@@ -6489,10 +6949,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # independent of the live lookup, so it runs CONCURRENTLY
                         # with it — the lookup's own latency absorbs the scan
                         # instead of the user waiting for both in series.
+                        _objective_mail_context: Dict[str, Any] = {
+                            "message": _gate_msg,
+                            "history": planner_history or history,
+                            "requested_targets": list(_requested_targets),
+                            "canvas": canvas_context,
+                        }
                         _mail_task = asyncio.ensure_future(
                             _verbatim_mail_evidence(
-                                message, user_id,
-                                {"history": planner_history or history},
+                                message,
+                                user_id,
+                                _objective_mail_context,
                                 plan_date=getattr(
                                     _plan, "mentioned_date", None),
                             )
@@ -6741,6 +7208,80 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = _compose_lookup_evidence(
                             _gate_msg, _plan, _live_block, _mail_lines,
                         )
+                        _source_observations = list(
+                            (getattr(_plan, "_result_meta", None) or {}).get(
+                                "source_observations"
+                            ) or []
+                        )
+                        _source_observations.extend(
+                            item
+                            for item in (
+                                _objective_mail_context.get(
+                                    "_source_observations"
+                                ) or []
+                            )
+                            if isinstance(item, dict)
+                        )
+                        _source_observations = list({
+                            item.get("observation_id"): item
+                            for item in _source_observations
+                            if isinstance(item, dict)
+                            and item.get("observation_id")
+                        }.values())
+                        _workbook_read = (
+                            _storage_read_meta.get("workbook_read") or {}
+                        )
+                        if (
+                            not _off_request
+                            and _workbook_read
+                            and isinstance(canvas_context, dict)
+                        ):
+                            try:
+                                from core.chat_canvas_editor import (
+                                    build_canvas_evidence_comparison,
+                                )
+                                from core.workbook_read_artifact import (
+                                    render_source_comparison,
+                                )
+
+                                _objective_comparison = (
+                                    build_canvas_evidence_comparison(
+                                        canvas_context,
+                                        _workbook_read,
+                                        source_observations=(
+                                            _source_observations
+                                        ),
+                                        authorized_actions=(
+                                            ["edit_artifact"]
+                                            if _canvas_edit_shaped(
+                                                message,
+                                                {"canvas": canvas_context},
+                                            )
+                                            else []
+                                        ),
+                                        objective_text=_gate_msg,
+                                    )
+                                )
+                                _comparison_text = (
+                                    render_source_comparison(
+                                        _objective_comparison
+                                    )
+                                )
+                                if _comparison_text:
+                                    _tool_block = (
+                                        f"{_tool_block}\n\n{_comparison_text}"
+                                        if _tool_block
+                                        else _comparison_text
+                                    )
+                                if session is not None:
+                                    session[f"_objective_evidence_{execution_id}"] = (
+                                        _objective_comparison
+                                    )
+                            except Exception as _comparison_err:
+                                logger.debug(
+                                    "objective source comparison skipped: %r",
+                                    _comparison_err,
+                                )
                         # EVIDENCE HANDOFF (review item 2): persist this
                         # turn's composed evidence on the session so the
                         # background continuation can refresh its evidence
@@ -6957,6 +7498,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _deterministic_answer or _tool_block or ""
                             )[:24000],
                             "identity": _identity,
+                            "workbook_read": _resolved_file_identity.get(
+                                "workbook_read"
+                            ) if isinstance(_resolved_file_identity, dict) else None,
+                            "objective_evidence": _objective_comparison,
                             "execution_id": execution_id,
                             "retrieved_at": time.time(),
                         }
@@ -7017,6 +7562,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "its user-facing renderer was unavailable. The result "
                         "remains persisted for retry."
                     )
+                if _objective_comparison:
+                    try:
+                        from core.workbook_read_artifact import (
+                            render_source_comparison,
+                        )
+
+                        _comparison_text = render_source_comparison(
+                            _objective_comparison
+                        )
+                        if _comparison_text:
+                            _structured_content += (
+                                f"\n\n{_comparison_text}"
+                            )
+                    except Exception:
+                        pass
                 logger.info(
                     "[deterministic-render] structured workbook response "
                     "returned before narration"
@@ -7027,6 +7587,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "provider": "structured",
                     "reasoning": None,
                     "deterministic_delivery": True,
+                    "objective_evidence": _objective_comparison,
                 }
 
             if os.getenv("ATOM_DISABLE_CHAT_NARRATION", "").lower() in (
@@ -9074,6 +9635,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     except Exception:
                         _content = _deterministic_answer
+                    if _objective_comparison:
+                        try:
+                            from core.workbook_read_artifact import (
+                                render_source_comparison,
+                            )
+
+                            _comparison_text = render_source_comparison(
+                                _objective_comparison
+                            )
+                            if _comparison_text:
+                                _content += f"\n\n{_comparison_text}"
+                        except Exception:
+                            pass
+                        response_data["objective_evidence"] = (
+                            _objective_comparison
+                        )
                     response_data["content"] = _content
                     logger.info(
                         "[deterministic-render] workbook answer rendered from "
@@ -9117,6 +9694,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
                     "reasoning": _turn_reasoning,
+                    "objective_evidence": response_data.get(
+                        "objective_evidence"
+                    ) or _objective_comparison,
                 }
 
             return None
@@ -9132,6 +9712,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _det_save = None
             if _det_save:
                 try:
+                    _objective_save = _objective_comparison
+                except (NameError, UnboundLocalError):
+                    _objective_save = None
+                try:
                     from core.chat_tool_planner import (
                         _user_facing_workbook_answer,
                     )
@@ -9139,6 +9723,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _saved = _user_facing_workbook_answer(_det_save)
                 except Exception:  # noqa: BLE001 — renderer optional
                     _saved = str(_det_save)
+                if _objective_save:
+                    try:
+                        from core.workbook_read_artifact import (
+                            render_source_comparison,
+                        )
+
+                        _saved += "\n\n" + render_source_comparison(
+                            _objective_save
+                        )
+                    except Exception:
+                        pass
                 _saved += (
                     "\n\n(Delivered from the verified scan — the "
                     "narration model was unavailable this turn.)"
@@ -9148,7 +9743,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "answer delivered without the model")
                 return {"content": _saved, "model": "deterministic",
                         "provider": "structured",
-                        "deterministic_delivery": True}
+                        "deterministic_delivery": True,
+                        "objective_evidence": _objective_save}
             return None
 
     async def _try_zoho_crm_write(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[str]:
@@ -9689,6 +10285,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 step_type=step_type, action=action, observation=observation)
 
         from core.chat_canvas_editor import fetch_fresh_data_section
+        _edit_requested = _canvas_edit_shaped(message, {"canvas": canvas})
         fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
             canvas_id=canvas.get("canvas_id"),
@@ -9696,10 +10293,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             canvas=canvas,
             plan_task=(shared_tool_state or {}).get("plan_task"),
             existing_block=(shared_tool_state or {}).get("block"),
-            allow_canvas_target=_canvas_edit_shaped(
-                message, {"canvas": canvas}),
+            allow_canvas_target=_edit_requested,
+            existing_evidence_contract=(
+                (shared_tool_state or {}).get("objective_evidence")
+                if isinstance(
+                    (shared_tool_state or {}).get("objective_evidence"), dict
+                )
+                else None
+            ),
+            authorized_actions=(
+                ["edit_artifact"] if _edit_requested else []
+            ),
         )
         if shared_tool_state is not None:
+            if isinstance(fresh.evidence_contract, dict):
+                shared_tool_state["objective_evidence"] = (
+                    fresh.evidence_contract
+                )
             # Blackboard hand-back: whatever this leg executed belongs to
             # the whole turn. When the edit declines below, the chat leg
             # reuses this block instead of re-planning and re-executing.
@@ -9942,6 +10552,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             history=history,
             preserve_footer=preserve_footer,
             pending_review=learning_mode,
+            evidence_contract=fresh.evidence_contract,
+            require_evidence_postconditions=bool(
+                fresh.evidence_contract
+            ),
         )
         # Tolerant unpack: tests (and any caller using the default
         # return_reason=False) may hand back the bare result instead of the
@@ -9950,6 +10564,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             result, apply_reason = applied
         else:
             result, apply_reason = applied, None
+        if result and result.get("postcondition_verified") is False:
+            return {
+                "success": False,
+                "message": (
+                    "The canvas write was recorded, but independent read-back "
+                    "could not verify every source-backed change. Review the "
+                    "artifact before relying on it."
+                ),
+                "error_code": "postcondition_unverified",
+                "session_id": session_id,
+                "execution_id": execution_id,
+                "intent": "canvas_edit",
+                "confidence": 0.0,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                        "write_recorded": True,
+                        "postcondition_verified": False,
+                        "postcondition_error": result.get(
+                            "postcondition_error"
+                        ),
+                        "evidence_refs": result.get(
+                            "postcondition_evidence_refs"
+                        ) or [],
+                        "reason": apply_reason,
+                    },
+                    **({
+                        "objective_evidence": fresh.evidence_contract
+                    } if fresh.evidence_contract else {}),
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
         # GoalRun integration (docs/architecture/GOAL_RUN_ORCHESTRATION.md
         # §3.3): a finished canvas edit is a step boundary — the owning run
         # re-decides its next direction from the canvas state. Fire-and-
@@ -10026,7 +10676,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "canvas_id": canvas.get("canvas_id"),
                         "updated": False,
                         "reason": apply_reason,
-                    }
+                    },
+                    **({"objective_evidence": fresh.evidence_contract}
+                       if fresh.evidence_contract else {}),
                 },
                 "suggested_actions": [],
                 "requires_confirmation": False,
@@ -10072,6 +10724,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "Updated the canvas — it should refresh beside this panel (and "
             "the new version is saved to its history)."
         )
+        if (
+            fresh.evidence_contract
+            and result.get("postcondition_verified") is False
+        ):
+            reply = (
+                "The canvas write was recorded, but independent read-back "
+                "could not verify every source-backed change. Review the "
+                "artifact before relying on it."
+            )
         if learning_mode:
             if hitl_policy:
                 # Mature hire, but the owner demanded a human for canvas
@@ -10110,10 +10771,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         result.get("review_status")
                         or ("pending_review" if learning_mode else "accepted")
                     ),
+                    **({
+                        "postcondition_verified": result.get(
+                            "postcondition_verified"
+                        ),
+                        "postcondition_error": result.get(
+                            "postcondition_error"
+                        ),
+                        "evidence_refs": result.get(
+                            "postcondition_evidence_refs"
+                        ) or [],
+                    } if fresh.evidence_contract else {}),
                     **({"learning_mode": True} if learning_mode else {}),
                     **({"matched_playbooks": matched_playbooks}
                        if matched_playbooks else {}),
-                }
+                },
+                **({"objective_evidence": fresh.evidence_contract}
+                   if fresh.evidence_contract else {}),
             },
             "suggested_actions": [],
             "requires_confirmation": False,

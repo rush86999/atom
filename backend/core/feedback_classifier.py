@@ -73,6 +73,13 @@ def _from_retrieved_source(text: str, evidence_text: str) -> bool:
     normalised_evidence = _normalise(evidence_text)
     if len(normalised_text) >= 8 and normalised_text in normalised_evidence:
         return True
+    words = normalised_text.split()
+    for size in range(min(10, len(words)), 5, -1):
+        if any(
+            " ".join(words[index:index + size]) in normalised_evidence
+            for index in range(len(words) - size + 1)
+        ):
+            return True
     for quote in _QUOTE_RE.findall(text):
         inner = quote[1:-1].strip()
         if len(inner) >= 8 and _normalise(inner) in normalised_evidence:
@@ -140,6 +147,7 @@ def classify_feedback(
     destination = _destination(kind)
     learnable = kind == KIND_STRATEGY and not from_source
     return {
+        "classifier_version": 1,
         "kind": kind,
         "confidence": confidence,
         "scope": "turn",

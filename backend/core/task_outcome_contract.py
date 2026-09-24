@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +23,7 @@ FAILURE_LAYERS = frozenset(
 FAILURE_OWNERS = frozenset(
     {"capability", "configuration", "task_data", "model", "delivery", "unknown"}
 )
+LEARNING_LAYERS = ("general_capability", "user_business_configuration", "task_evidence")
 
 
 def _tri_state(value: Any) -> Optional[bool]:
@@ -88,6 +90,110 @@ def _criterion_results(value: Any) -> List[Dict[str, Any]]:
     return results
 
 
+def _normalise_objective_state(value: Any) -> Dict[str, Any]:
+    state = _copy_dict(value)
+    return {
+        "goal": _bounded_text(state.get("goal") or state.get("objective"), 4000),
+        "target_entities": [
+            _bounded_text(item, 300)
+            for item in state.get("target_entities") or []
+            if str(item).strip()
+        ],
+        "requested_attributes": [
+            _bounded_text(item, 200)
+            for item in state.get("requested_attributes") or []
+            if str(item).strip()
+        ],
+        "source_constraints": _copy_dict(state.get("source_constraints")),
+        "authorized_actions": [
+            _bounded_text(item, 120)
+            for item in state.get("authorized_actions") or []
+            if str(item).strip()
+        ],
+    }
+
+
+def _normalise_gap(value: Any) -> Dict[str, Any]:
+    gap = _copy_dict(value)
+    return {
+        "criterion_id": _bounded_text(
+            gap.get("criterion_id") or gap.get("entity_id"), 300
+        ),
+        "status": _bounded_text(
+            gap.get("status") or "unknown", 120
+        ),
+        "reasons": [
+            _bounded_text(item, 200)
+            for item in gap.get("reasons") or ([gap.get("reason")] if gap.get("reason") else [])
+            if str(item).strip()
+        ],
+        "next_evidence_needed": _bounded_text(
+            gap.get("next_evidence_needed"), 500
+        ),
+    }
+
+
+def _normalise_implication(value: Any) -> Dict[str, Any]:
+    implication = _copy_dict(value)
+    return {
+        "statement": _bounded_text(implication.get("statement"), 1000),
+        "verification": _bounded_text(
+            implication.get("verification") or "unknown", 120
+        ),
+        "evidence_refs": [
+            _copy_ref(ref)
+            for ref in implication.get("evidence_refs") or []
+            if isinstance(ref, dict)
+        ],
+    }
+
+
+def _normalise_action(value: Any) -> Dict[str, Any]:
+    action = _copy_dict(value)
+    return {
+        "action_type": _bounded_text(
+            action.get("action_type") or action.get("type") or "unknown", 120
+        ),
+        "criterion_id": _bounded_text(
+            action.get("criterion_id") or action.get("entity_id"), 300
+        ),
+        "status": _bounded_text(action.get("status") or "unknown", 120),
+        "authorized": action.get("authorized") is True,
+        "applied": action.get("applied") is True,
+        "evidence_refs": [
+            _copy_ref(ref)
+            for ref in (
+                action.get("evidence_refs")
+                or [
+                    {
+                        "kind": "observation",
+                        "source": {"observation_id": evidence_id},
+                    }
+                    for evidence_id in action.get("evidence_ids") or []
+                ]
+            )
+            if isinstance(ref, dict)
+        ],
+    }
+
+
+def _normalise_evidence_ledger(value: Any) -> Dict[str, Any]:
+    ledger = _copy_dict(value)
+    return {
+        key: ledger[key]
+        for key in (
+            "known",
+            "missing",
+            "conflicting",
+            "incomparable",
+            "unverified",
+            "covered",
+            "total",
+        )
+        if key in ledger
+    }
+
+
 def build_task_outcome(
     *,
     objective: str,
@@ -111,6 +217,13 @@ def build_task_outcome(
     turn_id: Optional[str] = None,
     policy_version: Optional[str] = None,
     candidate_versions: Optional[Dict[str, Any]] = None,
+    objective_state: Optional[Dict[str, Any]] = None,
+    evidence_ledger: Optional[Dict[str, Any]] = None,
+    gaps: Optional[List[Dict[str, Any]]] = None,
+    implications: Optional[List[Dict[str, Any]]] = None,
+    actions: Optional[List[Dict[str, Any]]] = None,
+    calculation: Optional[Dict[str, Any]] = None,
+    mutation: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build one task outcome without treating delivery as task success."""
     delivery_data = _copy_dict(delivery)
@@ -122,6 +235,9 @@ def build_task_outcome(
         "execution_id": execution_id,
         "turn_id": turn_id,
         "objective": _bounded_text(objective, 4000),
+        "objective_state": _normalise_objective_state(
+            objective_state or {"goal": objective}
+        ),
         "objective_met": _tri_state(objective_met),
         "completion_criteria": list(completion_criteria or []),
         "criterion_results": _criterion_results(criterion_results),
@@ -133,6 +249,20 @@ def build_task_outcome(
             _copy_ref(ref) for ref in (evidence_refs or [])
             if isinstance(ref, dict)
         ],
+        "evidence_ledger": _normalise_evidence_ledger(evidence_ledger),
+        "gaps": [_normalise_gap(item) for item in (gaps or []) if isinstance(item, dict)],
+        "implications": [
+            _normalise_implication(item)
+            for item in (implications or [])
+            if isinstance(item, dict)
+        ],
+        "actions": [
+            _normalise_action(item)
+            for item in (actions or [])
+            if isinstance(item, dict)
+        ],
+        "calculation": _copy_dict(calculation),
+        "mutation": _copy_dict(mutation),
         "delivery": delivery_data,
         "user_corrections": [_copy_dict(item) for item in (user_corrections or [])],
         "limitations": list(limitations or []),
@@ -141,6 +271,27 @@ def build_task_outcome(
         "scope": _copy_dict(scope),
         "policy_version": policy_version,
         "candidate_versions": _copy_dict(candidate_versions),
+        "learning_layers": {
+            "general_capability": {
+                "policy_version": policy_version,
+                "candidate_versions": _copy_dict(candidate_versions),
+            },
+            "user_business_configuration": {
+                "scope": _copy_dict(scope),
+            },
+            "task_evidence": {
+                "requested": _copy_dict(requested),
+                "evidence_refs": [
+                    _copy_ref(ref) for ref in (evidence_refs or [])
+                    if isinstance(ref, dict)
+                ],
+                "evidence_ledger": _normalise_evidence_ledger(
+                    evidence_ledger
+                ),
+                "gap_count": len(gaps or []),
+                "corrections": list(user_corrections or []),
+            },
+        },
         "failure_layer": failure_layer,
         "failure_owner": failure_owner,
     }
@@ -149,6 +300,115 @@ def build_task_outcome(
         outcome["failure"] = diagnosis
     outcome["success_kinds"] = derive_success_kinds(outcome)
     return outcome
+
+
+# ---------------------------------------------------------------------------
+# TASK-NEUTRAL ACCEPTANCE-CRITERIA VERIFIERS (2026-09-24 review):
+# completion depends on the task's DECLARED criteria, evaluated through
+# this shared interface. Retrieval's evidence-identity rule is ONE
+# registered verifier, not the contract's definition of success;
+# calculation, scheduling, and mutation register their own.
+# ---------------------------------------------------------------------------
+from typing import Callable as _Callable
+
+CriteriaVerifier = _Callable[[Dict[str, Any]], "bool | None"]
+
+_VERIFIERS: Dict[str, CriteriaVerifier] = {}
+
+
+def register_criteria_verifier(kind: str, fn: CriteriaVerifier) -> None:
+    """Register the verifier for one criterion kind. A verifier returns
+    True (criteria met, with evidence), False (explicitly not met), or
+    None (UNKNOWN — insufficient evidence; unknown must stay unknown)."""
+    _VERIFIERS[str(kind)] = fn
+
+
+def criteria_verdict(outcome: Dict[str, Any]) -> "tuple[str, bool | None]":
+    """(basis, verdict) for the outcome's declared criteria. Unknown
+    criteria kinds and absent criteria return None — never a guess."""
+    criteria = outcome.get("completion_criteria") or []
+    kinds = {
+        str(c.get("kind") if isinstance(c, dict) else c).strip().lower()
+        for c in criteria
+        if (c.get("kind") if isinstance(c, dict) else c)
+    }
+    # Pre-computed criterion_results (the concurrent data form of this
+    # interface) take precedence — one interface, two carriers.
+    results = [
+        r for r in (outcome.get("criterion_results") or [])
+        if isinstance(r, dict)
+    ]
+    if results:
+        if any(r.get("met") is False for r in results):
+            return "criteria_not_met", False
+        if all(r.get("met") is True for r in results):
+            return "criteria_met", True
+        return "criteria_unknown", None
+    if not kinds:
+        return "criteria_not_declared", None
+    verdicts: list = []
+    for kind in sorted(kinds):
+        fn = _VERIFIERS.get(kind)
+        if fn is None:
+            return f"no_verifier:{kind}", None
+        verdicts.append(fn(outcome))
+    if any(v is False for v in verdicts):
+        return "criteria_not_met", False
+    if any(v is None for v in verdicts):
+        return "criteria_unknown", None
+    return "criteria_met", True
+
+
+def _retrieval_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """Retrieval criteria: verified tool evidence whose identity
+    addresses the request (file/resource/hash), as before — now one
+    verifier among equals."""
+    tools = [
+        t for t in (outcome.get("tool_outcomes") or [])
+        if isinstance(t, dict)
+    ]
+    if not tools:
+        return None
+    if any(t.get("verified") is False for t in tools):
+        return False
+    if not any(t.get("verified") is True for t in tools):
+        return None
+    return _has_verified_evidence(outcome, tools)
+
+
+register_criteria_verifier("retrieval", _retrieval_verifier)
+register_criteria_verifier("source_scoped_retrieval", _retrieval_verifier)
+
+
+def _calculation_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """Calculation criteria: a declared computed result whose inputs are
+    traceable to verified evidence (both present -> True; declared but
+    untraceable -> False; nothing declared -> None)."""
+    calc = (outcome.get("calculation") or {})
+    if not calc.get("computed"):
+        return None
+    return bool(
+        calc.get("inputs_traceable") is True
+        and _has_verified_evidence(outcome, [
+            t for t in (outcome.get("tool_outcomes") or [])
+            if isinstance(t, dict)])
+    )
+
+
+register_criteria_verifier("calculation", _calculation_verifier)
+
+
+def _mutation_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """Mutation criteria (edits, writes, scheduling): the declared
+    change was confirmed by READBACK after the write."""
+    mutation = (outcome.get("mutation") or {})
+    if not mutation.get("requested"):
+        return None
+    return mutation.get("readback_matched") is True
+
+
+register_criteria_verifier("mutation", _mutation_verifier)
+register_criteria_verifier("scheduling", _mutation_verifier)
 
 
 def _has_verified_evidence(outcome: Dict[str, Any], tools: List[Dict[str, Any]]) -> bool:
@@ -199,6 +459,16 @@ def derive_success_kinds(outcome: Dict[str, Any]) -> Dict[str, Any]:
 
     tools = [item for item in (outcome.get("tool_outcomes") or []) if isinstance(item, dict)]
     delivery_value = _tri_state((outcome.get("delivery") or {}).get("delivered"))
+    _cv_basis, _cv_verdict = criteria_verdict(outcome)
+    if _cv_basis.startswith("no_verifier:") or _cv_basis == "criteria_unknown":
+        return {
+            "task_success": None,
+            "tool_success": None,
+            "delivery_success": delivery_value,
+            "task_success_basis": _cv_basis,
+        }
+    _cv_basis, _cv_verdict = criteria_verdict(outcome)
+    criteria_failed = _cv_verdict is False
     if tools:
         verified = [item.get("verified") for item in tools]
         if any(value is False for value in verified):
@@ -221,6 +491,9 @@ def derive_success_kinds(outcome: Dict[str, Any]) -> Dict[str, Any]:
     elif delivery_value is False:
         task_success = False
         basis = "delivery_failed"
+    elif criteria_failed:
+        task_success = False
+        basis = _cv_basis
     elif objective_value is None:
         task_success = None
         basis = "objective_unknown"
@@ -236,6 +509,12 @@ def derive_success_kinds(outcome: Dict[str, Any]) -> Dict[str, Any]:
     elif not _has_verified_evidence(outcome, tools):
         task_success = None
         basis = "insufficient_evidence"
+    elif _cv_verdict is True:
+        task_success = True
+        basis = _cv_basis
+    elif _cv_basis not in ("criteria_not_declared",):
+        task_success = None
+        basis = _cv_basis
     else:
         task_success = True
         basis = "verified_evidence"
@@ -245,6 +524,35 @@ def derive_success_kinds(outcome: Dict[str, Any]) -> Dict[str, Any]:
         "tool_success": tool_success,
         "delivery_success": delivery_value,
         "task_success_basis": basis,
+    }
+
+
+def diagnose_task_failure(outcome: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Diagnose a known unsuccessful task without guessing from silence."""
+    if not isinstance(outcome, dict) or outcome.get("objective_met") is not False:
+        return None
+    if outcome.get("user_corrections"):
+        return None
+    text = str(outcome.get("objective") or "").lower()
+    evidence = outcome.get("evidence_refs") or []
+    constraints = outcome.get("source_constraints") or {}
+    tools = outcome.get("tool_outcomes") or []
+    if constraints and not evidence:
+        layer, owner = "identity", "configuration"
+    elif re.search(r"\b(compare|comparison|difference|versus|vs\.?|reconcile)\b", text):
+        layer, owner = "comparison", "capability"
+    elif re.search(r"\b(extract|parse|field|column|row|value)\b", text) and tools:
+        layer, owner = "extraction", "task_data"
+    elif re.search(r"\b(find|search|look\s+up|retrieve|read|fetch)\b", text):
+        layer, owner = "discovery", "capability"
+    elif tools:
+        layer, owner = "execution", "capability"
+    else:
+        layer, owner = "intent", "capability"
+    return {
+        "layer": layer,
+        "owner": owner,
+        "basis": "inferred_from_failed_objective",
     }
 
 
@@ -284,6 +592,9 @@ def diagnose_failure(outcome: Dict[str, Any]) -> Optional[Dict[str, str]]:
                 "owner": owner,
                 "basis": "explicit_terminal_signal",
             }
+    inferred = diagnose_task_failure(outcome)
+    if inferred is not None:
+        return inferred
     return None
 
 
