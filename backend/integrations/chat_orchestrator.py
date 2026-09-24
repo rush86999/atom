@@ -732,8 +732,8 @@ _INABILITY_RE = re.compile(
 # fragment cleanup. Patterns describe protocol SHAPES, never provider names.
 from core.response_validation import (  # noqa: E402
     is_malformed_output as _is_malformed_output,
-    malformed_output_reason as _malformed_output_reason,
     strip_protocol_fragments as _strip_protocol_tags,
+    validate_response_payload as _validate_response_payload,
 )
 
 
@@ -7152,6 +7152,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         None if _stream_budget == float("inf")
                         else _time.monotonic() + _stream_budget
                     )
+                    _stream_hold = ""
+                    _stream_emitted = 0
+                    _stream_residue_detected = False
                     while True:
                         # FIRST-VISIBLE DEADLINE, CHECKED ON EVERY CHUNK. The
                         # check below (in the timeout branch) only fires when a
@@ -7231,20 +7234,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if not _tok:
                             continue
                         _buf.append(_tok)
+                        try:
+                            from core.response_validation import (
+                                split_safe_prefix,
+                            )
+
+                            _safe, _held, _residue = split_safe_prefix(
+                                "".join(_buf))
+                            _stream_hold = _held
+                            _delta_out = _safe[_stream_emitted:]
+                            _stream_emitted = len(_safe)
+                            if _residue:
+                                _stream_residue_detected = True
+                        except Exception:  # noqa: BLE001 — display path
+                            _delta_out = _tok
+                            _stream_emitted = len("".join(_buf))
+                        if not _delta_out:
+                            if _stream_residue_detected:
+                                break
+                            continue
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token",
                             "data": {
                                 "session_id": session_id,
                                 "execution_id": execution_id,
-                                "delta": _tok,
+                                "delta": _delta_out,
                             },
                         })
+                        if _stream_residue_detected:
+                            break
                     _full = "".join(_buf).strip()
                     if _full:
                         from core.chat_tool_planner import (
                             _explicit_web_research_requested,
                         )
-                        _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
+                        _strip_protocol_tags(_full, captured=_reasoning_parts)
+                        _streamed = _full
                         # ROUTE THAT PRODUCED THIS STREAM, captured BEFORE any
                         # guard regeneration runs. The handler's last-used pair
                         # is overwritten by every later call, so reading it
@@ -7282,7 +7307,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -7328,8 +7353,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags(
-                                (_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if (_fixed
                                     and not uncovered_absence_claims(
                                         _fixed, _tool_block)):
@@ -7445,7 +7469,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **_retry_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _derivation_reply_ignored_the_row(
                                     _fixed, _tool_block):
                                 _streamed = _fixed
@@ -7480,7 +7504,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _missing_chain_cells(
                                     _fixed, _tool_block):
                                 _streamed = _fixed
@@ -7509,7 +7533,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -7553,7 +7577,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _reply_is_unsourced_derivation(
                                     _fixed, message):
                                 _streamed = _fixed
@@ -7580,7 +7604,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not _reply_is_generic_non_answer(_fixed, message):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -7617,7 +7641,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not asserts_unverified_confirmation(message, _fixed):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -7663,7 +7687,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     **extra_kwargs,
                                 )
                             )
-                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            _fixed = (_fix or {}).get("content") or ""
                             if _fixed and not signature_signer_status(_fixed, _primary, _team):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
@@ -7684,12 +7708,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 )
                             except Exception:
                                 pass
+                        _stream_done_content = (
+                            "" if _stream_residue_detected
+                            else _strip_protocol_tags(_streamed)
+                        )
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
                                 "session_id": session_id,
                                 "execution_id": execution_id,
-                                "content": _streamed,
+                                "content": _stream_done_content,
                                 "elapsed_s": round(_time.monotonic() - _t0, 1),
                             },
                         })
@@ -7817,13 +7845,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     f"budget={deadline.total_seconds:.1f}s"
                 )
             if response_data.get("success"):
-                # Reasoning/protocol-tag hygiene: some models (minimax m3 via
-                # OpenRouter) leak chain-of-thought fragments ("</mm:think>")
-                # or raw tool-call XML ("<tool_call>…</tool_call>") into
-                # content. Strip paired blocks and stray tags before the
-                # reply is stored or displayed — otherwise they persist into
-                # the transcript and the next turn's context.
-                _content = _strip_protocol_tags(response_data.get("content"))
+                # Reasoning/protocol-tag hygiene: some models leak internal
+                # reasoning or tool-call syntax into content. The final
+                # response validator rejects residue before persistence or
+                # display; only stream assembly may clean partial fragments.
+                _content = response_data.get("content") or ""
                 from core.chat_tool_planner import (
                     _explicit_web_research_requested,
                 )
@@ -7855,8 +7881,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _content = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _content = (response_data or {}).get("content") or ""
                 # CAPABILITY-HONESTY GUARD (non-streaming path): same residual
                 # as the streaming path — inability claim, no tool block, on
                 # an explicit web-research ask. Keeps the reply TRUE about the
@@ -7892,8 +7917,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _content = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _content = (response_data or {}).get("content") or ""
                 # DERIVATION GUARD (non-streaming path): same deterministic
                 # check as the streaming leg — the matched workbook row was
                 # DELIVERED and the reply cites no row, so it ignored what it
@@ -7968,8 +7992,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     )
                     if _fix_response:
-                        _fixed = _strip_protocol_tags(
-                            (_fix_response or {}).get("content"))
+                        _fixed = (_fix_response or {}).get("content") or ""
                         if _fixed and not _derivation_reply_ignored_the_row(
                                 _fixed, _tool_block):
                             _content = _fixed
@@ -8003,8 +8026,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     )
                     if _complete_fix:
-                        _completed = _strip_protocol_tags(
-                            (_complete_fix or {}).get("content"))
+                        _completed = (_complete_fix or {}).get("content") or ""
                         if _completed and not _missing_chain_cells(
                                 _completed, _tool_block):
                             _content = _completed
@@ -8039,8 +8061,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _content = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _content = (response_data or {}).get("content") or ""
                 # EVIDENCE GUARD (non-streaming path): same confirm→assert
                 # guard as the streaming path — the request asked to
                 # confirm/verify and the reply asserts it as fact.
@@ -8076,8 +8097,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _fixed = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _fixed = (response_data or {}).get("content") or ""
                     if _fixed and not asserts_unverified_confirmation(message, _fixed):
                         _content = _fixed
                         response_data = {**response_data, "content": _fixed}
@@ -8123,8 +8143,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _fixed = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _fixed = (response_data or {}).get("content") or ""
                     if _fixed and not signature_signer_status(_fixed, _primary, _team):
                         _content = _fixed
                         response_data = {**response_data, "content": _fixed}
@@ -8432,9 +8451,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                         if _guard_fix:
                             response_data = _guard_fix
-                        _regenerated = _strip_protocol_tags(
-                            (response_data or {}).get("content")
-                        )
+                        _regenerated = (response_data or {}).get("content") or ""
                         if _regenerated:
                             _content = _regenerated
                 # ABSENCE COVERAGE GUARD (RCA 2026-09-17 finding 4 + the
@@ -8485,8 +8502,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if _guard_fix:
                         response_data = _guard_fix
-                    _regenerated = _strip_protocol_tags(
-                        (response_data or {}).get("content"))
+                    _regenerated = (response_data or {}).get("content") or ""
                     if (_regenerated
                             and not uncovered_absence_claims(
                                 _regenerated, _tool_block)):
@@ -8595,8 +8611,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "every claim in this reply against the retrieved sources.*")
                             else:
                                 response_data = _panel_fix
-                                _content = _strip_protocol_tags(
-                                    (_panel_fix or {}).get("content"))
+                                _content = (_panel_fix or {}).get("content") or ""
                                 _verdict2 = await _bounded_verify(verify_reply(
                                     _content, _tool_block,
                                     handler=self.llm_service.handler,
@@ -8621,33 +8636,35 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
 
                         _content = _user_facing_workbook_answer(
-                            _strip_protocol_tags(_deterministic_answer)
+                            _deterministic_answer
                         )
                     except Exception:
-                        _content = _strip_protocol_tags(_deterministic_answer)
+                        _content = _deterministic_answer
                     response_data["content"] = _content
                     logger.info(
                         "[deterministic-render] workbook answer rendered from "
                         "structured catalog evidence"
                     )
-                elif _content and _is_malformed_output(_content):
-                    # MALFORMED NARRATION IS REJECTED, not sanitized
-                    # (2026-09-24 review: stripping tags can hide failed
-                    # execution while leaving unsupported claims). Without
-                    # a deterministic answer to fall back on, deliver an
-                    # honest status — never the protocol residue.
-                    _content = (
-                        "The answer model produced unusable output this "
-                        "turn, so no narrated answer is being delivered. "
-                        "Any completed file results are persisted and will "
-                        "be re-delivered on your next message."
+                else:
+                    _final_validation = _validate_response_payload(
+                        _content,
+                        channel="final_text",
+                        content_type="text/markdown",
                     )
-                    response_data["content"] = _content
-                    logger.warning(
-                        "[narration-reject] malformed model output "
-                        "quarantined (%s) — honest status delivered instead",
-                        _malformed_output_reason(_content),
-                    )
+                    if not _final_validation.valid:
+                        _malformed_reason = _final_validation.reason
+                        _content = (
+                            "The answer model produced unusable output this "
+                            "turn, so no narrated answer is being delivered. "
+                            "Any completed file results are persisted and will "
+                            "be re-delivered on your next message."
+                        )
+                        response_data["content"] = _content
+                        logger.warning(
+                            "[narration-reject] malformed model output "
+                            "quarantined (%s) — honest status delivered instead",
+                            _malformed_reason,
+                        )
                 # Non-streaming leg: the chain-of-thought step is emitted here
                 # (the streaming leg emits its own right after the stream).
                 if _turn_reasoning and _streamed is None:

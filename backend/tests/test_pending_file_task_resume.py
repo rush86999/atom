@@ -1616,6 +1616,45 @@ class TestCentralResponseValidation:
         assert not is_malformed_output(
             "The result: {see the table above} is what we found.")
 
+    def test_quoted_examples_and_code_blocks_are_not_protocol_leaks(self):
+        from core.response_validation import is_malformed_output
+
+        assert not is_malformed_output(
+            'Example: "<invoke name=\\"demo\\">" is quoted documentation.'
+        )
+        assert not is_malformed_output(
+            'Example:\n```xml\n<invoke name="demo"/>\n```'
+        )
+        assert not is_malformed_output(
+            "Use the literal `<parameter>` tag in documentation."
+        )
+
+    def test_split_stream_marker_is_cleaned_but_not_accepted_as_final(self):
+        from core.response_validation import (
+            is_malformed_output,
+            strip_protocol_fragments,
+        )
+
+        partial = "The answer is <thi"
+        assert strip_protocol_fragments(partial) == "The answer is"
+        assert not is_malformed_output(partial, channel="stream")
+        assert is_malformed_output(partial)
+
+    def test_structured_channel_validates_type_without_text_scanning(self):
+        from core.response_validation import validate_response_payload
+
+        result = validate_response_payload(
+            {"tool_calls": [{"name": "read", "arguments": {}}]},
+            channel="tool",
+            content_type="application/json",
+        )
+        assert result.valid is True
+        invalid = validate_response_payload(
+            "{not-json", channel="tool", content_type="application/json"
+        )
+        assert invalid.valid is False
+        assert invalid.reason == "invalid JSON response payload"
+
     def test_clean_content_passes(self):
         from core.response_validation import is_malformed_output
 
@@ -1630,3 +1669,210 @@ class TestCentralResponseValidation:
         out = strip_protocol_fragments(
             "<think>reasoning</think>The answer is 42", captured=captured)
         assert out == "The answer is 42" and captured == ["reasoning"]
+
+
+# ---------------------------------------------------------------------------
+# Wiring 13 — GENERality contrast fixtures + NL attributes + field ambiguity
+# ---------------------------------------------------------------------------
+
+def _wb_fixture(tmpdir, name, columns, rows, entity="Data"):
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        [{"__sheet_row": i + 2, **row} for i, row in enumerate(rows)])
+    path = os.path.join(tmpdir, f"{name}.parquet")
+    frame.to_parquet(path)
+    return {
+        "source": "app_upload", "external_id": f"fix-{name}",
+        "dataset_name": f"fix_{name}", "file_name": f"{name}.xlsx",
+        "entity_name": entity, "parquet_path": path,
+        "row_count": len(rows),
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": f"hash-{name}", "ingested_at": "2026-09-01",
+    }
+
+
+async def _run_direct_ask(orch, catalog, session_id, message):
+    from unittest.mock import AsyncMock, patch
+    import core.chat_tool_planner as planner_mod
+    import integrations.chat_orchestrator as chat_mod
+    session = {"id": session_id, "history": []}
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value=f"{session_id}-e"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch("core.sheet_dataset_service.sheet_datasets_enabled", return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync", return_value=list(catalog)),
+        patch("core.sheet_dataset_service.entries_for_file_sync", return_value=list(catalog)),
+        patch.object(planner_mod, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        return await orch.process_chat_message(
+            "u1", message, session_id, context={"agent_id": "a1"})
+
+
+@pytest.mark.asyncio
+async def test_generality_contrast_fixtures():
+    """Three contrasting domains through the SAME production path:
+    inventory quantities, employee certification dates, and software
+    version requirements (2026-09-24 review: absence of incident tokens
+    is hygiene, not proof — these are the proof)."""
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="wb-contrast-")
+    cases = [
+        (_wb_fixture(tmp, "Inventory", ["__sheet_row", "SKU", "On Hand", "Reorder At"],
+                     [{"SKU": "TX-4400", "On Hand": 12, "Reorder At": 4},
+                      {"SKU": "TX-4500", "On Hand": 0, "Reorder At": 6}], "Stock"),
+         "how many of TX-4400 are on hand in Inventory.xlsx",
+         ["TX-4400", "12"]),
+        (_wb_fixture(tmp, "Certifications", ["__sheet_row", "Employee", "Certification", "Expiry"],
+                     [{"Employee": "J. Ortiz", "Certification": "Forklift-3", "Expiry": "2026-11-02"},
+                      {"Employee": "M. Chen", "Certification": "Weld-1", "Expiry": "2027-03-15"}], "HR"),
+         "when does the Forklift-3 certification expire in Certifications.xlsx",
+         ["Forklift-3", "2026-11-02"]),
+        (_wb_fixture(tmp, "Requirements", ["__sheet_row", "Component", "Min Version", "License"],
+                     [{"Component": "auth-service", "Min Version": "4.2.1", "License": "MIT"},
+                      {"Component": "sync-engine", "Min Version": "2.9.0", "License": "Apache"}], "Eng"),
+         "what minimum version does auth-service require in Requirements.xlsx",
+         ["auth-service", "4.2.1"]),
+    ]
+    for i, (entry, ask, expected) in enumerate(cases):
+        orch = _orch()
+        orch.llm_service.generate_completion = AsyncMock(
+            side_effect=AssertionError("narration must not run"))
+        result = await _run_direct_ask(orch, [entry], f"contrast{i}", ask)
+        assert result["success"] is True, ask
+        assert result.get("model") == "deterministic", ask
+        for token in expected:
+            assert token in result["message"], f"{ask}: missing {token}"
+
+
+@pytest.mark.asyncio
+async def test_natural_language_attribute_disambiguation():
+    """"Find Acme's model 381" — the organization attribute rides into
+    retrieval WITHOUT special syntax and corroborates via identity-headed
+    fields; a same-code hit under another organization stays a candidate,
+    not a silent pick."""
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="wb-acme-")
+    import pandas as pd
+
+    frame = pd.DataFrame({
+        "__sheet_row": [4, 5],
+        "Part": ["381", "381"],
+        "Vendor": ["Acme", "Zeta"],
+        "Weight": [10, 99],
+    })
+    path = os.path.join(tmp, "parts.parquet")
+    frame.to_parquet(path)
+    entry = {
+        "source": "app_upload", "external_id": "acme-1",
+        "dataset_name": "acme_fixture", "file_name": "Parts Catalog.xlsx",
+        "entity_name": "Parts", "parquet_path": path, "row_count": 2,
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": "h1", "ingested_at": "2026-09-01",
+    }
+    from core.workbook_read_artifact import (
+        extract_attributes,
+        inspect_dataset_entries,
+    )
+
+    targets = ["381"]
+    attrs = extract_attributes(
+        ["find Acme's model 381 in Parts Catalog.xlsx"], targets)
+    assert "acme" in attrs, attrs
+    art = inspect_dataset_entries(
+        [entry], "Parts Catalog.xlsx", query="find Acme's model 381",
+        targets=targets, attributes=attrs)
+    (outcome,) = art["coverage"]["outcomes"]
+    assert outcome["status"] == "found", outcome
+    ev = outcome["evidence"][0]
+    assert ev["row"] == 4 and "Acme" in str(ev.get("row_context")), (
+        "the identity-field corroborated row must win")
+
+
+@pytest.mark.asyncio
+async def test_field_ambiguity_is_explicit_not_silent():
+    """Duplicate value-columns for one requested field surface BOTH with
+    an explicit ambiguity signal rather than a silent plausible pick."""
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="wb-amb-")
+    import pandas as pd
+
+    frame = pd.DataFrame({
+        "__sheet_row": [3],
+        "Part": ["R-9"],
+        "Weight gross": [120],
+        "Weight net": [100],
+    })
+    path = os.path.join(tmp, "amb.parquet")
+    frame.to_parquet(path)
+    entry = {
+        "source": "app_upload", "external_id": "amb-1",
+        "dataset_name": "amb_fixture", "file_name": "Spec.xlsx",
+        "entity_name": "Spec", "parquet_path": path, "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": "h2", "ingested_at": "2026-09-01",
+    }
+    from core.workbook_read_artifact import (
+        extract_attributes,
+        inspect_dataset_entries,
+        render_workbook_artifact,
+    )
+
+    attrs = extract_attributes(
+        ["what is the weight of R-9 in Spec.xlsx"], ["R-9"])
+    art = inspect_dataset_entries(
+        [entry], "Spec.xlsx", query="what is the weight of R-9",
+        targets=["R-9"], attributes=attrs)
+    (outcome,) = art["coverage"]["outcomes"]
+    prices = outcome["evidence"][0].get("prices") or []
+    weight_columns = sorted(
+        p["column"] for p in prices if "weight" in str(p.get("column", "")).lower())
+    assert weight_columns == ["Weight gross", "Weight net"], (
+        "BOTH matching columns must ship — never a silent single pick")
+    assert outcome["evidence"][0]["field_selection"]["ambiguous"] is True
+    rendered = render_workbook_artifact(art)
+    assert "Weight gross" in rendered and "Weight net" in rendered
+
+
+class TestValidatorFalsePositives:
+    def test_quoted_example_and_code_block_are_legitimate(self):
+        from core.response_validation import is_malformed_output
+
+        assert not is_malformed_output(
+            'Example residue looks like this: "<minimax:tool_call>" '
+            "— ignore it.")
+        assert not is_malformed_output(
+            "```xml\n<invoke name=\"x\"/>\n```\nThat is the protocol doc.")
+        assert not is_malformed_output(
+            "Use `<parameter name=\"q\">` when calling the tool.")
+
+    def test_prose_braces_are_not_json(self):
+        from core.response_validation import is_malformed_output
+
+        assert not is_malformed_output(
+            "The result: {see the table above} is what we found.")
+
+    def test_split_stream_marker_is_detected_once_complete(self):
+        from core.response_validation import split_safe_prefix
+
+        # Split across chunks: partial tail is held back, not displayed.
+        safe, held, residue = split_safe_prefix(
+            "The answer is 42.<minimax:tool")
+        assert safe == "The answer is 42." and held == "<minimax:tool"
+        assert residue is False
+        # Completed: everything from the marker is protocol.
+        safe2, held2, residue2 = split_safe_prefix(
+            "The answer is 42.<minimax:tool_call>\n<invoke>")
+        assert residue2 is True and safe2 == "The answer is 42."
