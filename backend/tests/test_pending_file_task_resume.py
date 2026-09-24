@@ -1420,3 +1420,66 @@ async def test_acceptance_planner_and_narration_unavailable():
         result2 = await orch.process_chat_message(
             "u1", "go", "acc1", context={"agent_id": "a1"})
     direct_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ask_turn_never_ships_fabricated_prices():
+    """The fabrication guard: a spreadsheet price ask is answered by the
+    file-scoped reader deterministically — a narration model that would
+    invent prices (live: $5,850 for SLE24-16 vs the real 8880) is never
+    consulted for the values."""
+    orch = _orch()
+    orch.llm_service.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "| Machine | Price |\n| SLE24-16 | $5,850 |",
+        "model": "fabricator", "provider": "test",
+    })
+    import tempfile as _tf
+
+    import pandas as _pd
+
+    _tmp = _tf.mkdtemp(prefix="wb-fab-")
+    _t = _pd.DataFrame({
+        "__sheet_row": [101],
+        "Model": ["SLE24-16"], "PRICE": [8880], "U.S. LIST": [4500],
+    })
+    _path = os.path.join(_tmp, "t.parquet")
+    _t.to_parquet(_path)
+    catalog = [{
+        "source": "zoho_workdrive", "external_id": "u8ai1e3a",
+        "dataset_name": "wb_fab", "file_name":
+        "Consolidated Price List 2019.xlsx", "entity_name": "Tennsmith",
+        "parquet_path": _path, "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": "ff2", "ingested_at": "2026-09-07",
+    }]
+    session = {"id": "fab1", "history": []}
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="fab-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service.entries_for_file_sync",
+              return_value=list(catalog)),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1",
+            "find the prices of these machines in Consolidated Price List "
+            "2019.xlsx: 381, U-22, SLE24-16 and U-38",
+            "fab1", context={"agent_id": "a1"})
+    assert result["success"] is True
+    assert result.get("model") == "deterministic"
+    assert "8880" in result["message"], "the REAL workbook price must ship"
+    assert "5,850" not in result["message"], "fabricated values must not"
+    orch.llm_service.generate_completion.assert_not_awaited()

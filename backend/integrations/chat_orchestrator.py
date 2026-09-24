@@ -3511,6 +3511,92 @@ class ChatOrchestrator:
                         "[pending-file-task] delivery retry — persisted "
                         "result re-rendered without re-reading")
                     return _deliver_response
+            # ASK-TURN DIRECT READ (2026-09-24, the fabrication guard): a
+            # substantive read-shaped ask that names a spreadsheet asks for
+            # THIS file's values — the ask itself authorizes the read, so
+            # the file-scoped reader runs IMMEDIATELY and the answer ships
+            # deterministically. Live evidence (wb-replay on 7ea70a0cc,
+            # turn 1): with no evidence the narration model FABRICATED all
+            # eight prices ($5,850 for SLE24-16 vs the real 8880). A
+            # file-scoped price question is never left to free narration.
+            _ask_mention = ""
+            _ask_direct = False
+            try:
+                from core.agent_file_context import spreadsheet_mentions
+
+                _ask_mentions_list = spreadsheet_mentions(message)
+                _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
+                if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
+                    from core.plan_relevance import _is_substantive_request
+
+                    _ask_direct = _is_substantive_request(message)
+            except Exception:  # noqa: BLE001 — shape gate only
+                _ask_direct = False
+            if _ask_direct and not _pending_file_task:
+                _ask_task = {
+                    "mention": _ask_mention,
+                    "original_message": message,
+                }
+                _ask_result = await self._direct_confirmed_file_read(
+                    _ask_task, history or [], user_id, session_id,
+                    (context or {}).get("workspace_id"), _deadline)
+                if _ask_result.get("ok"):
+                    try:
+                        from core.chat_tool_planner import (
+                            _user_facing_workbook_answer,
+                        )
+
+                        _ask_content = _user_facing_workbook_answer(
+                            str(_ask_result.get("rendered_answer")
+                                or _ask_result.get("block") or ""))
+                    except Exception:  # noqa: BLE001 — renderer optional
+                        _ask_content = str(
+                            _ask_result.get("rendered_answer")
+                            or _ask_result.get("block") or "")
+                    _ask_identity = _ask_result.get("identity") or {}
+                    if _ask_identity:
+                        session["_resolved_file_identity"] = _ask_identity
+                    _ask_complete = bool(
+                        _ask_result.get("retrieval_complete"))
+                    if _ask_complete:
+                        session["_pending_file_result"] = {
+                            "status": "delivered",
+                            "rendered": _ask_content[:24000],
+                            "identity": _ask_identity,
+                            "execution_id": _execution_id,
+                            "delivered_at": time.time(),
+                        }
+                    _ask_response = {
+                        "success": True,
+                        "message": _ask_content,
+                        "session_id": session_id,
+                        "execution_id": _execution_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {
+                            "deterministic_delivery": True,
+                            "file_identity": _ask_identity,
+                            "coverage_complete": _ask_complete,
+                        },
+                        "model": "deterministic",
+                        "provider": "structured",
+                        "requires_confirmation": False,
+                        "next_steps": [],
+                        "suggested_actions": [],
+                    }
+                    self._update_session(
+                        session, message, _ask_response,
+                        {"primary_intent": "search", "confidence": 0.9})
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success")
+                    self._finish_chat_execution(
+                        _execution_id, "success", _ask_content)
+                    logger.info(
+                        "[file-ask] spreadsheet ask answered directly by "
+                        "the file-scoped reader (no narration path)")
+                    return _ask_response
+                # Read did not complete: fall through to the normal flow,
+                # which stores the pending task and tells the user plainly.
             if _pending_file_task:
                 _direct_result = await self._direct_confirmed_file_read(
                     _pending_file_task,
