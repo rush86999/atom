@@ -824,3 +824,93 @@ async def test_named_file_absent_falls_through_to_catalog_probe():
         block = await _datasets_named_file_block(
             "u1", "prices in Missing Workbook 2019.xlsx", {})
     assert block is None, "not catalogued -> catalog-wide probe runs"
+
+
+@pytest.mark.asyncio
+async def test_named_file_block_stamps_serving_meta():
+    """A datasets-served workbook answer must mark the pending task served:
+    the lifecycle contract reads storage_read meta, so the named-file lane
+    stamps the same structured outcome (unique identity + completed)."""
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    plan = planner.ToolPlan(
+        use_tool=True, service="datasets", intent="search", query="x")
+    catalog_entries = [
+        {"source": "catalog", "external_id": "wb-2019",
+         "file_name": "Consolidated Price List 2019.xlsx"},
+    ]
+
+    def fake_probe(entries, token, max_rows):
+        return {"file_name": entries[0]["file_name"],
+                "entity_name": "Tennsmith", "columns": ["Model", "Price"],
+                "rows": [{"__row__": 12, "Model": token, "Price": 8880}],
+                "row_count": 1}
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog_entries)),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["SLE24-16"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "prices in Consolidated Price List 2019.xlsx", {},
+            plan=plan)
+    assert block and "SCOPED to it" in block
+    meta = (getattr(plan, "_result_meta", None) or {}).get("storage_read")
+    assert meta and meta["identity_verified"] is True
+    assert meta["completed"] is True and meta["coverage_complete"] is True
+    assert meta["file_name"] == "Consolidated Price List 2019.xlsx"
+
+
+@pytest.mark.asyncio
+async def test_prefixed_mention_resolves_only_when_containment_unique():
+    """'prices in <name>.xlsx' keeps its prose prefix ('prices' is a real
+    filename word) — a containment mention resolves when UNIQUE, and stays
+    ambiguous against the workbook's 'Copy of …' variant."""
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    def fake_probe(entries, token, max_rows):
+        return {"file_name": entries[0]["file_name"],
+                "entity_name": "Sheet1", "columns": ["Model"],
+                "rows": [{"__row__": 3, "Model": token}], "row_count": 1}
+
+    # UNIQUE containment: only one catalogued file contains the name.
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=[{"source": "c", "external_id": "w1",
+                             "file_name": "Consolidated Price List 2019.xlsx"}]),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["381"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "prices in Consolidated Price List 2019.xlsx", {})
+    assert block and "Consolidated Price List 2019.xlsx" in block
+
+    # NON-unique containment (the workbook + its Copy-of variant) is
+    # explicit ambiguity, never a silent pick. A CLEAN partial mention
+    # ("price list 2019.xlsx") sits inside both stems; the prefixed
+    # "prices in …" uniquely excludes the Copy, which is why the case
+    # above resolves.
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=[
+                  {"source": "c", "external_id": "w1",
+                   "file_name": "Consolidated Price List 2019.xlsx"},
+                  {"source": "c", "external_id": "w2",
+                   "file_name": "Copy of Consolidated Price List 2019 - Linmac Update.xlsx"},
+              ]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "check price list 2019.xlsx", {})
+    assert block and "MULTIPLE catalogued files match" in block
+    assert "Copy of Consolidated Price List 2019" in block

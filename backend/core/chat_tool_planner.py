@@ -5088,8 +5088,42 @@ async def _memory_hybrid_block(
         return None
 
 
+
+def _stamp_named_file_meta(
+    plan: Any, key: tuple, names: Dict[tuple, str], tokens: List[str],
+) -> None:
+    """Stamp the same structured outcome the storage read stamps, from the
+    lane that actually served the evidence. Without this, a datasets-served
+    workbook answer never marks the pending file task served (the strict
+    lifecycle contract reads ``storage_read`` meta only) and the task would
+    re-resume on a later stray confirmation."""
+    try:
+        if plan is None:
+            return
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        if "storage_read" in _meta:
+            return
+        _meta["storage_read"] = {
+            "service": "datasets",
+            "file_id": key[1] or None,
+            "resource_id": key[1] or None,
+            "file_name": names.get(key),
+            "identity_verified": True,       # unique catalog resolution
+            "completed": True,               # scoped evidence returned
+            "coverage_complete": True,       # every probed token in scope
+            "probed_tokens": tokens[:8],
+            "note": "named-file scoped datasets read",
+        }
+    except Exception:  # noqa: BLE001 — meta is best-effort
+        pass
+
+
 async def _datasets_named_file_block(
-    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
+    plan: Any = None,
 ) -> Optional[str]:
     """A query that NAMES a catalogued file resolves to THAT file.
 
@@ -5136,13 +5170,24 @@ async def _datasets_named_file_block(
         key = (str(e.get("source") or ""), str(e.get("external_id") or ""))
         by_file.setdefault(key, []).append(e)
         names.setdefault(key, str(e.get("file_name") or ""))
-    exact_keys = {
-        key for key, fname in names.items()
-        if any(
-            score_file_match(m, fname) in ("exact", "normalized")
-            for m in mentions
-        )
-    }
+    def _keys_at(tiers) -> set:
+        return {
+            key for key, fname in names.items()
+            if any(score_file_match(m, fname) in tiers for m in mentions)
+        }
+
+    exact_keys = _keys_at(("exact", "normalized"))
+    if not exact_keys:
+        # Prose may prefix the name ("prices in <name>.xlsx") — a
+        # containment mention resolves ONLY when it is unique across the
+        # catalog; several containment matches (the workbook plus its
+        # "Copy of …" variant) are explicit ambiguity, never a silent
+        # fall-through to the catalog-wide probe.
+        contain_keys = _keys_at(("containment",))
+        if len(contain_keys) == 1:
+            exact_keys = contain_keys
+        elif len(contain_keys) > 1:
+            exact_keys = contain_keys  # -> the ambiguity block below
     if not exact_keys:
         return None  # not catalogued — the catalog-wide probe reports rows
         # with their own file names, so absence stays sayable.
@@ -5172,6 +5217,7 @@ async def _datasets_named_file_block(
         if rec:
             recs.append(rec)
     if not recs:
+        _stamp_named_file_meta(plan, key, names, tokens)
         return _with_grounding(
             "LIVE TOOL RESULTS (datasets.named-file) — '"
             f"{names[key]}' resolved uniquely (a catalogued copy exists) "
@@ -5186,6 +5232,7 @@ async def _datasets_named_file_block(
     ]
     for rec in recs:
         lines.append(render_dataset_answer(rec))
+    _stamp_named_file_meta(plan, key, names, tokens)
     return _with_grounding("\n".join(lines)[:18000])
 
 
@@ -6585,7 +6632,8 @@ async def execute_tool_plan(
                     "scan timed out — no result; do not conclude the value "
                     "is absent.")
             return _with_grounding(render_find_all_result(scan))
-        block = await _datasets_named_file_block(user_id, query, context)
+        block = await _datasets_named_file_block(
+            user_id, query, context, plan=plan)
         if block is None:
             block = await _datasets_search_block(user_id, query, context)
         if block:
