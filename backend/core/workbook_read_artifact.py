@@ -18,7 +18,7 @@ _YEAR_RE = re.compile(r"^(?:19|20)\d{2}$")
 # whose word appears in a header is selected too (see
 # extract_attributes — the request's own words drive column selection).
 _VALUE_HEADER_RE = re.compile(
-    r"price|cost|amount|rate|value|msrp|list|wholesale|dealer|currency",
+    r"price|cost|amount|rate|value|msrp|list|wholesale|currency",
     re.IGNORECASE,
 )
 # Kept as an alias during transition; behavior identical.
@@ -38,7 +38,8 @@ _ATTRIBUTE_STOPWORDS = {
 _FIELD_ALIASES: Dict[str, Sequence[str]] = {
     "price": (
         "price", "cost", "amount", "value", "msrp", "list", "wholesale",
-        "dealer", "retail", "unit cost", "selling price", "quote",
+        "dealer price", "dealer cost", "factory price", "retail",
+        "unit cost", "selling price", "quote",
     ),
     "quantity": (
         "quantity", "qty", "stock", "on hand", "available", "units", "count",
@@ -251,12 +252,6 @@ def _select_value_columns(
             selected.append(item)
         elif _VALUE_HEADER_RE.search(str(label)):
             selected.append(item)
-    if not selected and requested:
-        generic = [
-            item for item in descriptors
-            if _VALUE_HEADER_RE.search(str(item.get("label") or ""))
-        ]
-        selected = generic
     if not requested and not raw_terms:
         matches["generic_value"] = [
             item for item in selected
@@ -441,7 +436,7 @@ def extract_targets(
                 words = match.group(1).split()
                 while words and words[0].lower() in ignored_words:
                     words.pop(0)
-                kept = []
+                kept: List[str] = []
                 for word in words:
                     if word.lower() in ignored_words:
                         break
@@ -668,6 +663,25 @@ _IDENTITY_HEADER_RE = re.compile(
 )
 
 
+def _row_identity_values(evidence: Dict[str, Any]) -> List[str]:
+    headers = evidence.get("headers") or {}
+    values: List[str] = []
+    for item in evidence.get("row_context") or []:
+        if not isinstance(item, dict):
+            continue
+        cell_ref = str(item.get("cell") or "")
+        column_letter = re.match(r"([A-Z]+)", cell_ref)
+        header = (
+            headers.get(column_letter.group(1))
+            if column_letter else None
+        ) or item.get("field") or str(evidence.get("column") or "")
+        if header and _IDENTITY_HEADER_RE.search(str(header)):
+            value = str(item.get("value") or "").strip()
+            if value:
+                values.append(value)
+    return values
+
+
 def _attribute_corroborates(
     evidence: Dict[str, Any], attribute: str,
 ) -> bool:
@@ -678,22 +692,10 @@ def _attribute_corroborates(
     attr = str(attribute or "").strip().lower()
     if not attr:
         return False
-    if attr in str(evidence.get("sheet") or "").lower():
-        return True
-    headers = evidence.get("headers") or {}
-    for item in evidence.get("row_context") or []:
-        if not isinstance(item, dict):
-            continue
-        cell_ref = str(item.get("cell") or "")
-        column_letter = re.match(r"([A-Z]+)", cell_ref)
-        header = (
-            headers.get(column_letter.group(1))
-            if column_letter else None
-        ) or str(evidence.get("column") or "")
-        if header and _IDENTITY_HEADER_RE.search(str(header)):
-            if attr in str(item.get("value") or "").lower():
-                return True
-    return False
+    identity_values = _row_identity_values(evidence)
+    if identity_values:
+        return any(attr in value.lower() for value in identity_values)
+    return attr in str(evidence.get("sheet") or "").lower()
 
 
 def _matches_disambiguation(
@@ -876,6 +878,23 @@ def inspect_workbook_bytes(
             requested_fields or (),
         )
         selected_columns = field_selection["selected"]
+        # STRUCTURED field ambiguity (2026-09-24 review): the gross/net
+        # distinction lives in the outcome DATA, not only the render.
+        field_ambiguity_map: Dict[str, List[str]] = {}
+        for _amb in field_selection.get("ambiguous_fields") or []:
+            _cols = [
+                str(d.get("label") or "")
+                for d in selected_columns
+                if _stem(str(_amb)) in _stem(str(d.get("label") or ""))
+                or _stem(str(d.get("label") or "")) in _stem(str(_amb))
+            ]
+            if len(_cols) >= 2:
+                field_ambiguity_map[str(_amb)] = _cols
+        _ambiguous_labels = {
+            label
+            for _cols in field_ambiguity_map.values()
+            for label in _cols
+        }
         for row in rows:
             row_number = row[0].row if row else 0
             row_values = [
@@ -931,7 +950,12 @@ def inspect_workbook_bytes(
                             ),
                         })
                     if len(evidence[target]) < _TARGET_EVIDENCE_CAP:
+                        for _v in values:
+                            _v["field_ambiguous"] = (
+                                str(_v.get("column") or "") in _ambiguous_labels
+                            )
                         evidence[target].append({
+                            "field_ambiguities": dict(field_ambiguity_map),
                             "sheet": worksheet.title,
                             "row": row_number,
                             "cell": cell.coordinate,
@@ -991,6 +1015,17 @@ def inspect_workbook_bytes(
                 )
                 if len(best) == 1 and top > runner:
                     designations = best
+            elif any(
+                _row_identity_values(item)
+                and any(
+                    str(attribute or "").strip().lower()
+                    in str(item.get("sheet") or "").lower()
+                    for attribute in attributes
+                    if str(attribute or "").strip()
+                )
+                for item in designations
+            ):
+                designations = []
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -998,36 +1033,39 @@ def inspect_workbook_bytes(
             ]
             if len(exact) == 1:
                 designations = exact
-        selection = next(
-            (item.get("field_selection") for item in designations
-             if item.get("field_selection")),
-            next(
-                (item.get("field_selection") for item in found
-                 if item.get("field_selection")),
-                {},
-            ),
-        )
+        selection: Dict[str, Any] = {}
+        field_ambiguities: Dict[str, Any] = {}
+        for candidate in [*designations, *found]:
+            candidate_selection = candidate.get("field_selection")
+            if isinstance(candidate_selection, dict):
+                selection = candidate_selection
+            candidate_ambiguities = candidate.get("field_ambiguities")
+            if isinstance(candidate_ambiguities, dict):
+                field_ambiguities = candidate_ambiguities
+            if selection and field_ambiguities:
+                break
         if not designations:
-            note = (
+            absent_note = (
                 f"{len(coincidences)} numeric coincidence(s) in "
                 "price/rate columns; no model-designation cell matched "
                 "— not treated as product rows"
             )
             if any(criteria.values()):
-                note = "no candidate matched the supplied attribute constraints"
+                absent_note = "no candidate matched the supplied attribute constraints"
             if selection.get("ambiguous"):
-                note += "; requested fields are ambiguous"
+                absent_note += "; requested fields are ambiguous"
             outcomes.append({
                 "target": target,
                 "status": "absent",
                 "evidence": [],
-                "note": note,
+                "note": absent_note,
                 "disambiguation": criteria,
                 "field_selection": selection,
+                "field_ambiguities": field_ambiguities,
             })
             continue
         status = "found" if len(designations) == 1 else "ambiguous"
-        note = None
+        note: Optional[str] = None
         if selection.get("ambiguous"):
             note = "requested fields map to multiple columns"
         outcomes.append({
@@ -1038,6 +1076,7 @@ def inspect_workbook_bytes(
                 else designations[:1]),
             "disambiguation": criteria,
             "field_selection": selection,
+            "field_ambiguities": field_ambiguities,
             **({"note": note} if note else {}),
         })
 
@@ -1168,6 +1207,23 @@ def inspect_dataset_entries(
             requested_fields or (),
         )
         selected_columns = field_selection["selected"]
+        # STRUCTURED field ambiguity (2026-09-24 review): the gross/net
+        # distinction lives in the outcome DATA, not only the render.
+        field_ambiguity_map: Dict[str, List[str]] = {}
+        for _amb in field_selection.get("ambiguous_fields") or []:
+            _cols = [
+                str(d.get("label") or "")
+                for d in selected_columns
+                if _stem(str(_amb)) in _stem(str(d.get("label") or ""))
+                or _stem(str(d.get("label") or "")) in _stem(str(_amb))
+            ]
+            if len(_cols) >= 2:
+                field_ambiguity_map[str(_amb)] = _cols
+        _ambiguous_labels = {
+            label
+            for _cols in field_ambiguity_map.values()
+            for label in _cols
+        }
         formula_map: Dict[str, Any] = {}
         try:
             from core.sheet_dataset_service import load_formulas_for_parquet
@@ -1221,7 +1277,12 @@ def inspect_dataset_entries(
                     if len(evidence[target]) >= _TARGET_EVIDENCE_CAP:
                         target_evidence_capped = True
                         continue
+                    for _v in values:
+                        _v["field_ambiguous"] = (
+                            str(_v.get("column") or "") in _ambiguous_labels
+                        )
                     evidence[target].append({
+                        "field_ambiguities": dict(field_ambiguity_map),
                         "sheet": sheet_name,
                         "row": int(row_number) if str(row_number).isdigit() else row_number,
                         "cell": cell_ref,
@@ -1268,6 +1329,36 @@ def inspect_dataset_entries(
                 designations = constrained
             else:
                 designations = []
+        elif designations and attributes:
+            def _corroboration_count(item: Dict[str, Any]) -> int:
+                return sum(
+                    1 for attribute in attributes
+                    if _attribute_corroborates(item, attribute)
+                )
+
+            scored = [(_corroboration_count(item), item) for item in designations]
+            top = max(score for score, _item in scored)
+            if top > 0:
+                best = [
+                    item for score, item in scored if score == top
+                ]
+                runner = max(
+                    (score for score, _item in scored if score < top),
+                    default=0,
+                )
+                if len(best) == 1 and top > runner:
+                    designations = best
+            elif any(
+                _row_identity_values(item)
+                and any(
+                    str(attribute or "").strip().lower()
+                    in str(item.get("sheet") or "").lower()
+                    for attribute in attributes
+                    if str(attribute or "").strip()
+                )
+                for item in designations
+            ):
+                designations = []
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1281,15 +1372,17 @@ def inspect_dataset_entries(
             status = "absent"
         else:
             status = "found" if len(designations) == 1 else "ambiguous"
-        selection = next(
-            (item.get("field_selection") for item in designations
-             if item.get("field_selection")),
-            next(
-                (item.get("field_selection") for item in found
-                 if item.get("field_selection")),
-                {},
-            ),
-        )
+        selection: Dict[str, Any] = {}
+        field_ambiguities: Dict[str, Any] = {}
+        for candidate in [*designations, *found]:
+            candidate_selection = candidate.get("field_selection")
+            if isinstance(candidate_selection, dict):
+                selection = candidate_selection
+            candidate_ambiguities = candidate.get("field_ambiguities")
+            if isinstance(candidate_ambiguities, dict):
+                field_ambiguities = candidate_ambiguities
+            if selection and field_ambiguities:
+                break
         outcome = {
             "target": target,
             "status": status,
@@ -1299,6 +1392,7 @@ def inspect_dataset_entries(
                 else designations[:1]),
             "disambiguation": criteria,
             "field_selection": selection,
+            "field_ambiguities": field_ambiguities,
         }
         if status == "ambiguous" and len(designations) >= _TARGET_EVIDENCE_CAP:
             outcome["note"] = (

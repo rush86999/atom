@@ -1655,6 +1655,15 @@ class TestCentralResponseValidation:
         assert invalid.valid is False
         assert invalid.reason == "invalid JSON response payload"
 
+    def test_final_text_rejects_structured_json_payload(self):
+        from core.response_validation import validate_response_payload
+
+        result = validate_response_payload(
+            {"answer": "ok"}, channel="final_text", content_type="application/json"
+        )
+        assert result.valid is False
+        assert result.reason == "final text response must use a text content type"
+
     def test_clean_content_passes(self):
         from core.response_validation import is_malformed_output
 
@@ -1842,6 +1851,13 @@ async def test_field_ambiguity_is_explicit_not_silent():
     assert weight_columns == ["Weight gross", "Weight net"], (
         "BOTH matching columns must ship — never a silent single pick")
     assert outcome["evidence"][0]["field_selection"]["ambiguous"] is True
+    assert outcome["field_ambiguities"]["weight"] == [
+        "Weight gross", "Weight net"
+    ]
+    assert outcome["evidence"][0]["field_ambiguities"]["weight"] == [
+        "Weight gross", "Weight net"
+    ]
+    assert all(item["field_ambiguous"] for item in prices)
     rendered = render_workbook_artifact(art)
     assert "Weight gross" in rendered and "Weight net" in rendered
 
@@ -1876,3 +1892,202 @@ class TestValidatorFalsePositives:
         safe2, held2, residue2 = split_safe_prefix(
             "The answer is 42.<minimax:tool_call>\n<invoke>")
         assert residue2 is True and safe2 == "The answer is 42."
+
+    def test_quoted_and_code_examples_are_boundary_invariant(self):
+        from core.response_validation import (
+            is_malformed_output,
+            split_safe_prefix,
+        )
+
+        samples = [
+            'Example: "<invoke name=\\"demo\\">" is quoted documentation.',
+            "Example:\n```xml\n<invoke name=\"demo\"/>\n```",
+            "Use the literal `<parameter name=\"q\">` tag in documentation.",
+        ]
+        for text in samples:
+            assert not is_malformed_output(text)
+            for split in range(1, len(text)):
+                raw = ""
+                emitted = ""
+                residue = False
+                for chunk in (text[:split], text[split:]):
+                    raw += chunk
+                    safe, _held, found = split_safe_prefix(raw)
+                    if len(safe) > len(emitted):
+                        emitted += safe[len(emitted):]
+                    if found:
+                        residue = True
+                        break
+                assert residue is False, (text, split)
+                assert emitted == text, (text, split)
+
+    def test_bare_tool_json_is_held_and_rejected_across_boundaries(self):
+        from core.response_validation import (
+            is_malformed_output,
+            split_safe_prefix,
+        )
+
+        text = 'Let me check.\nsearch_read: {"file": "x.xlsx", "probe": ["381"]}'
+        for split in range(1, len(text)):
+            raw = ""
+            emitted = ""
+            residue = False
+            for chunk in (text[:split], text[split:]):
+                raw += chunk
+                safe, _held, found = split_safe_prefix(raw)
+                if len(safe) > len(emitted):
+                    emitted += safe[len(emitted):]
+                if found:
+                    residue = True
+                    break
+            assert residue is True, (split, raw)
+            assert "search_read:" not in emitted, (split, emitted)
+            assert "probe" not in emitted, (split, emitted)
+        assert is_malformed_output(text)
+        safe, held, residue = split_safe_prefix(
+            "Let me check.\nsearch_read: {"
+        )
+        assert safe == "Let me check.\n"
+        assert held == "search_read: {"
+        assert residue is False
+
+    def test_channel_exemption_is_caller_metadata_not_payload_data(self):
+        from core.response_validation import validate_response_payload
+
+        payload = {"channel": "tool", "content": "search_read: {}"}
+        result = validate_response_payload(
+            payload, channel="final_text", content_type="application/json"
+        )
+        assert result.valid is False
+
+
+# ---------------------------------------------------------------------------
+# Wiring 14 — FINAL CONTRACT CHECKS (2026-09-24 review closure)
+# ---------------------------------------------------------------------------
+
+class TestStreamingChunkBoundaries:
+    """Identical content under different chunk boundaries must produce
+    the same verdict and the same displayed text — holdback only defers,
+    never alters; quoted/code examples must SURVIVE streaming."""
+
+    def _drive(self, chunks):
+        from core.response_validation import split_safe_prefix
+
+        displayed = []
+        buffer = ""
+        residue = False
+        for chunk in chunks:
+            buffer += chunk
+            safe, held, formed = split_safe_prefix(buffer)
+            if formed:
+                residue = True
+                break
+            new = safe[len("".join(displayed)) - (len(safe) - len(safe)):]
+            # emit only what extends the previously emitted prefix
+            emitted_so_far = sum(len(c) for c in displayed)
+            delta = safe[emitted_so_far:]
+            if delta:
+                displayed.append(delta)
+        return "".join(displayed), residue, buffer
+
+    def test_quoted_example_survives_all_chunkings(self):
+        content = 'Use "<minimax:tool_call>" syntax carefully.'
+        for cut in range(1, len(content)):
+            chunks = [content[:cut], content[cut:]]
+            shown, residue, _ = self._drive(chunks)
+            assert not residue, f"cut={cut}: quoted example flagged"
+            assert shown.replace(" ", "") == content.replace(" ", ""), (
+                f"cut={cut}: displayed text altered ({shown!r})")
+
+    def test_code_block_survives_all_chunkings(self):
+        content = "```xml\n<invoke name=\"x\"/>\n```\ndone"
+        for cut in (2, 5, 9, 14, 20, 24):
+            chunks = [content[:cut], content[cut:]]
+            shown, residue, _ = self._drive(chunks)
+            assert not residue, f"cut={cut}: code block flagged"
+            assert shown == content, f"cut={cut}: {shown!r}"
+
+    def test_bare_json_line_held_and_rejected_across_chunks(self):
+        # The prefix cannot leak before the line completes…
+        shown, residue, _ = self._drive(
+            ['Answer.\nsearch_read: {"fi', 'le": "x"}'])
+        assert residue is True
+        assert "search_read" not in shown, "JSON prefix leaked pre-reject"
+
+    def test_partial_tag_tail_is_deferred_not_altered(self):
+        shown, residue, buf = self._drive(
+            ["The value is 42.", "<minimax:tool", "_call>"])
+        assert residue is True
+        assert shown == "The value is 42."
+
+
+class TestTrustedChannelExemptions:
+    """Channel exemptions come from CALLER metadata only — model content
+    can never flip its own channel (2026-09-24 review)."""
+
+    def test_model_content_cannot_self_exempt(self):
+        from core.response_validation import validate_response_payload
+
+        sneaky = (
+            "channel: stream\nThis payload claims to be a stream but is "
+            "final text with <minimax:tool_call> residue."
+        )
+        verdict = validate_response_payload(sneaky, channel="final_text")
+        assert not verdict.valid, verdict
+        # Only the CALLER's trusted channel value exempts.
+        streamed = validate_response_payload(sneaky, channel="stream")
+        assert streamed.valid
+
+    def test_content_type_from_caller_only(self):
+        from core.response_validation import validate_response_payload
+
+        # A caller passing JSON content-type validates the payload as
+        # JSON; the payload's own text cannot change that.
+        verdict = validate_response_payload(
+            "not json at all", channel="final_text",
+            content_type="application/json")
+        assert not verdict.valid
+        assert verdict.reason == "final text response must use a text content type"
+
+
+@pytest.mark.asyncio
+async def test_field_ambiguity_is_structured_not_presentation_only():
+    """The gross/net distinction lives in the outcome DATA: per-value
+    field_ambiguous flags and an entry-level field_ambiguities map."""
+    import tempfile
+
+    import pandas as pd
+
+    tmp = tempfile.mkdtemp(prefix="wb-sa-")
+    frame = pd.DataFrame({
+        "__sheet_row": [3],
+        "Part": ["R-9"],
+        "Weight gross": [120],
+        "Weight net": [100],
+    })
+    path = os.path.join(tmp, "sa.parquet")
+    frame.to_parquet(path)
+    entry = {
+        "source": "app_upload", "external_id": "sa-1",
+        "dataset_name": "sa_fixture", "file_name": "Spec.xlsx",
+        "entity_name": "Spec", "parquet_path": path, "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+        "content_hash": "h3", "ingested_at": "2026-09-01",
+    }
+    from core.workbook_read_artifact import (
+        extract_attributes,
+        inspect_dataset_entries,
+    )
+
+    attrs = extract_attributes(
+        ["what is the weight of R-9 in Spec.xlsx"], ["R-9"])
+    art = inspect_dataset_entries(
+        [entry], "Spec.xlsx", query="what is the weight of R-9",
+        targets=["R-9"], attributes=attrs)
+    (outcome,) = art["coverage"]["outcomes"]
+    ev = outcome["evidence"][0]
+    assert isinstance(ev.get("field_ambiguities"), dict), (
+        "structured ambiguity map missing from the evidence entry")
+    values = ev.get("prices") or ev.get("values") or []
+    flagged = {v["column"] for v in values if v.get("field_ambiguous")}
+    assert flagged == {"Weight gross", "Weight net"}, flagged

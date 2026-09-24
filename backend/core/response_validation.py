@@ -28,11 +28,19 @@ _TOOL_NAME_JSON_LINE_RE = re.compile(
     r"^\s*[a-z][a-z0-9_-]{2,40}\s*:\s*\{.*\}[,;]?\s*$",
     re.MULTILINE,
 )
+_TOOL_NAME_JSON_PREFIX_RE = re.compile(
+    r"^\s*[a-z][a-z0-9_-]{2,40}\s*:\s*\{"
+)
+_TOOL_NAME_JSON_CANDIDATE_RE = re.compile(
+    r"^\s*[a-z][a-z0-9_-]{0,40}(?::|_)"
+)
 _ZERO_WIDTH_RE = re.compile(r"[\u200b\u200c\u200d\ufeff]")
 _FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 _PARTIAL_MARKER_RE = re.compile(r"<\/?[A-Za-z0-9_.:-]*\s*$")
 _QUOTED_LINE_RE = re.compile(r"^\s*[\"'].*[\"']\s*$")
+_DOUBLE_QUOTED_RE = re.compile(r"\"(?:\\.|[^\"\\])*\"")
+_SINGLE_QUOTED_RE = re.compile(r"'(?:\\.|[^'\\])*'")
 _EXAMPLE_LINE_RE = re.compile(
     r"^\s*(?:example|e\.g\.|for example|sample|quoted)\b",
     re.IGNORECASE,
@@ -49,6 +57,53 @@ _ALLOWED_CHANNELS = {
 
 def _normalized_content_type(content_type: str) -> str:
     return str(content_type or "text/plain").split(";", 1)[0].strip().lower()
+
+
+# A short QUOTED SPAN: 'Use "<minimax:tool_call>" carefully.' — the marker
+# inside quotes is an EXAMPLE being shown, not protocol being executed
+# (2026-09-24 review: quoted examples must survive validation).
+_QUOTED_SPAN_RE = re.compile(
+    '"[^"]{0,200}"' 
+    "|'[^']{0,200}'"
+)
+
+
+
+def _looks_like_quoted_protocol(value: str) -> bool:
+    return bool(
+        _TOOL_CALL_TAG_RE.search(value)
+        or _REASONING_TAG_RE.search(value)
+        or _PARTIAL_MARKER_RE.search(value)
+        or re.search(
+            r"[a-z][a-z0-9_-]{2,40}\s*:\s*\{",
+            value,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _add_quoted_protocol_spans(
+    text: str, spans: List[tuple[int, int]],
+) -> None:
+    raw = str(text or "")
+    complete_quotes = [
+        * _DOUBLE_QUOTED_RE.finditer(raw),
+        * _SINGLE_QUOTED_RE.finditer(raw),
+    ]
+    for match in complete_quotes:
+        if _looks_like_quoted_protocol(match.group(0)):
+            spans.append((match.start(), match.end()))
+    for match in re.finditer(r"(?<!\\)([\"'])", raw):
+        start = match.start()
+        if any(begin <= start < end for begin, end in spans):
+            continue
+        quote = match.group(1)
+        closing = re.search(
+            rf"(?<!\\){re.escape(quote)}", raw[start + 1:]
+        )
+        end = start + 1 + closing.start() if closing else len(raw)
+        if _looks_like_quoted_protocol(raw[start:end]):
+            spans.append((start, end))
 
 
 def _exempt_spans(text: str) -> List[tuple[int, int]]:
@@ -80,12 +135,27 @@ def _exempt_spans(text: str) -> List[tuple[int, int]]:
             _TOOL_CALL_TAG_RE.search(line)
             or _REASONING_TAG_RE.search(line)
             or _TOOL_NAME_JSON_LINE_RE.match(line)
+            or _PARTIAL_MARKER_RE.search(line)
         ):
             spans.append((start, end))
     if fence_start is not None:
         spans.append((fence_start, len(str(text or ""))))
-    for match in _INLINE_CODE_RE.finditer(str(text or "")):
+    raw = str(text or "")
+    _add_quoted_protocol_spans(raw, spans)
+    for match in _INLINE_CODE_RE.finditer(raw):
         spans.append((match.start(), match.end()))
+    for line_match in re.finditer(r"(?m)^.*$", raw):
+        line_start = line_match.start()
+        if any(start <= line_start < end for start, end in spans):
+            continue
+        ticks = [
+            line_start + match.start()
+            for match in re.finditer(r"(?<!`)`(?!`)", line_match.group(0))
+        ]
+        if len(ticks) % 2:
+            spans.append((ticks[-1], len(raw)))
+    for _q in _QUOTED_SPAN_RE.finditer(text):
+        spans.append((_q.start(), _q.end()))
     return spans
 
 
@@ -120,6 +190,9 @@ def _scan_visible_text(text: str) -> Optional[str]:
     for line in visible.splitlines():
         if _TOOL_NAME_JSON_LINE_RE.match(line):
             return f"bare tool-name JSON line ({line.strip()[:60]!r})"
+    for line in visible.splitlines():
+        if _TOOL_NAME_JSON_PREFIX_RE.match(line):
+            return f"incomplete bare tool-name JSON line ({line.strip()[:60]!r})"
     return None
 
 
@@ -134,6 +207,16 @@ def validate_response_payload(
     if normalized_channel not in _ALLOWED_CHANNELS:
         return ResponseValidation(
             False, "unknown response channel", normalized_channel, normalized_type
+        )
+    if (
+        normalized_channel in {"final_text", "persisted_text"}
+        and not normalized_type.startswith("text/")
+    ):
+        return ResponseValidation(
+            False,
+            "final text response must use a text content type",
+            normalized_channel,
+            normalized_type,
         )
     if normalized_type == "application/json" or normalized_type.endswith("+json"):
         if isinstance(payload, (dict, list)):
@@ -227,18 +310,48 @@ def split_safe_prefix(text: str) -> "tuple[str, str, bool]":
     for pattern in (_TOOL_CALL_TAG_RE, _REASONING_TAG_RE):
         for match in pattern.finditer(t):
             if not _inside_spans(match.start(), spans):
+                # PENDING QUOTE (2026-09-24 review: identical content must
+                # yield identical outcomes under any chunk boundary): a
+                # marker preceded on its line by an ODD number of quotes
+                # sits inside a span whose closing quote has not arrived
+                # — hold from the opening quote, do not declare residue.
+                line_start = t.rfind("\n", 0, match.start()) + 1
+                prefix = t[line_start:match.start()]
+                if prefix.count('"') % 2 or prefix.count("'") % 2:
+                    quote_pos = max(
+                        prefix.rfind('"'), prefix.rfind("'"))
+                    hold_from = line_start + quote_pos
+                    return t[:hold_from], t[hold_from:], False
                 return t[: match.start()], "", True
     for match in re.finditer(r"(?m)^.*$", t):
         line = match.group(0)
-        if (
-            _TOOL_NAME_JSON_LINE_RE.match(line)
-            and not _inside_spans(match.start(), spans)
-        ):
+        if _inside_spans(match.start(), spans):
+            continue
+        if _TOOL_NAME_JSON_LINE_RE.match(line):
             return t[: match.start()], "", True
+        if _TOOL_NAME_JSON_PREFIX_RE.match(line):
+            if match.end() >= len(t):
+                return t[: match.start()], t[match.start() :], False
+            return t[: match.start()], "", True
+        if (
+            _TOOL_NAME_JSON_CANDIDATE_RE.match(line)
+            and match.end() >= len(t)
+        ):
+            return t[: match.start()], t[match.start() :], False
     for match in _PARTIAL_MARKER_RE.finditer(t):
         if (
             match.end() == len(t)
             and not _inside_spans(match.start(), spans)
         ):
+            return t[: match.start()], t[match.start() :], False
+    # PARTIAL bare tool-name JSON line: 'search_read: {"fi…' split across
+    # chunks — the prefix would display before the line completes and the
+    # full-line rule can reject it (2026-09-24 review: test bare JSON
+    # lines in streaming, not just XML-style markers). Hold the tail.
+    for match in re.finditer(
+        r"(?m)^[ \t]*[a-z][a-z0-9_-]{2,40}[ \t]*:[ \t]*\{[^{}\n]*$",
+        t,
+    ):
+        if not _inside_spans(match.start(), spans):
             return t[: match.start()], t[match.start() :], False
     return t, "", False
