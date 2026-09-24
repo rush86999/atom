@@ -697,16 +697,29 @@ def _references_conversation(message: str) -> bool:
     return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
 
 
-# Approval phrases ("go ahead", "proceed", "yes do it") mean DELIVER the
-# announced artifact now — without this, reply models loop on proposing
+# Approval phrases ("go ahead", "proceed", "yes do it") mean EXECUTE the
+# resolved action now — without this, reply models loop on proposing
 # instead of producing (observed live 2026-09-01: three consecutive
 # "Ready to send once you confirm!" turns on an explicit "go ahead").
+# TASK CONTINUITY (2026-09-24 regression): the approved action is the one
+# the user just resolved — a data lookup is answered by its results (or an
+# honest failure), never by an artifact from a different task. Live: with
+# a workbook search unresolved, "go ahead" produced the open email draft —
+# the canvas supplied context and this rule's old wording supplied the
+# artifact pressure.
 _APPROVAL_EXECUTION_RULE = (
     "APPROVAL MEANS EXECUTE: when the user says \"go ahead\", \"proceed\", "
     "\"yes\", \"do it\", or otherwise approves something you proposed or "
-    "announced — deliver the COMPLETE artifact in this reply: the full email "
-    "draft (To/Subject/Body), the complete text, or the concrete result. "
-    "Do NOT ask \"should I proceed?\", do NOT restate that you will do it, "
+    "announced — execute THAT resolved action and deliver its result in "
+    "this reply. If the approved action is a file or data lookup, the "
+    "result is what the lookup returned: report the values with their "
+    "source, or state precisely why the lookup did not produce them. "
+    "NEVER answer an approved lookup with an unrelated artifact (an email "
+    "draft, a message, a summary from another task or from the open "
+    "canvas). If the approved action is a deliverable, deliver the "
+    "COMPLETE artifact in this reply: the full email draft (To/Subject/"
+    "Body), the complete text, or the concrete result. Do NOT ask "
+    "\"should I proceed?\", do NOT restate that you will do it, "
     "and do NOT request another confirmation — the user's approval was the "
     "confirmation. The concise-response limit does not apply to "
     "user-requested artifacts."
@@ -3056,7 +3069,13 @@ class ChatOrchestrator:
     # ------------------------------------------------------------------ #
 
     def _start_chat_execution(
-        self, session_id: str, agent_id: Optional[str], message: str
+        self,
+        session_id: str,
+        agent_id: Optional[str],
+        message: str,
+        *,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Optional[str]:
         """Create an AgentExecution row for a chat turn so the workspace
         panel has a run to group steps under — and so the trace survives
@@ -3075,18 +3094,214 @@ class ChatOrchestrator:
                     status="running",
                     input_summary=(message or "")[:300],
                     triggered_by="chat",
-                    metadata_json={"session_id": session_id, "surface": "chat"},
+                    metadata_json={
+                        "session_id": session_id,
+                        "surface": "chat",
+                        "user_id": user_id,
+                        "workspace_id": workspace_id,
+                    },
                 ))
             return execution_id
         except Exception as e:
             logger.warning(f"chat execution row skipped: {e}")
             return None
 
+    def _build_turn_task_outcome(
+        self,
+        session: Dict[str, Any],
+        message: str,
+        response: Dict[str, Any],
+        ai_response: Optional[Dict[str, Any]],
+        deadline: Optional["TurnDeadline"],
+        *,
+        execution_id: Optional[str] = None,
+        pending_task: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        authorized_actions: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        allow_persisted_evidence: bool = False,
+    ) -> Dict[str, Any]:
+        """Build an outcome from structured turn state, not response prose."""
+        try:
+            from core.task_outcome_contract import build_task_outcome
+
+            task = pending_task if isinstance(pending_task, dict) else session.get(
+                "_pending_file_task"
+            ) or {}
+            objective = str(task.get("original_message") or message or "")[:4000]
+            result = session.get("_pending_file_result") or {}
+            result_execution_id = result.get("execution_id")
+            if (
+                execution_id
+                and result_execution_id
+                and not allow_persisted_evidence
+                and str(result_execution_id) != str(execution_id)
+            ):
+                result = {}
+            identity = result.get("identity") or session.get(
+                "_resolved_file_identity"
+            ) or {}
+            mentions: List[str] = []
+            try:
+                from core.agent_file_context import detect_file_mentions
+
+                mentions = list(dict.fromkeys(
+                    detect_file_mentions(objective)
+                    + detect_file_mentions(message)
+                ))[:4]
+                if not mentions and task.get("mention"):
+                    mentions = [str(task.get("mention"))]
+            except Exception:
+                mentions = []
+            delivered = bool(
+                status not in {"failed", "cancelled"}
+                and response.get("success", True)
+                and response.get("message")
+                and "couldn't generate a response" not in str(
+                    response.get("message")
+                )
+            )
+            deterministic = response.get("model") == "deterministic"
+            retrieval_complete = bool(
+                result.get("status") in ("retrieved", "delivered")
+                and result.get("coverage_complete") is not False
+            )
+            failed_retrieval = bool(
+                result.get("status") in {"incomplete", "failed", "error"}
+            )
+            evidence_refs = []
+            if identity and (mentions or result):
+                evidence_refs = [{
+                    "kind": "file",
+                    "file_name": identity.get("file_name"),
+                    "resource_id": identity.get("resource_id"),
+                    "content_hash": identity.get("content_hash"),
+                    "evidence_kind": identity.get("evidence_kind"),
+                    "addresses_requested": True,
+                }]
+            tool_outcomes = []
+            if result and (mentions or task.get("mention")):
+                tool_outcomes = [{
+                    "tool": "file_scoped_read",
+                    "verified": True if retrieval_complete else (
+                        False if failed_retrieval else None
+                    ),
+                    "outcome": f"status={result.get('status') or 'unknown'}",
+                    "required": True,
+                    "evidence_refs": evidence_refs,
+                }]
+            objective_met = None
+            if status in {"failed", "cancelled"} or response.get("success") is False:
+                objective_met = False
+            elif deterministic and retrieval_complete:
+                objective_met = True
+            failure_layer = None
+            failure_owner = None
+            if not delivered and status in {"failed", "cancelled"}:
+                error_code = response.get("error_code")
+                if error_code in {
+                    "no_llm_provider",
+                    "turn_budget_exceeded",
+                    "budget_exceeded",
+                }:
+                    failure_layer = "execution"
+                    failure_owner = "model"
+                else:
+                    failure_layer = "delivery"
+                    failure_owner = "delivery"
+            elif failed_retrieval:
+                failure_layer = "execution"
+                failure_owner = "capability"
+            return build_task_outcome(
+                objective=objective,
+                objective_met=objective_met,
+                completion_criteria=(
+                    ["requested values delivered with source provenance"]
+                    if mentions else []
+                ),
+                requested={
+                    "mentions": mentions,
+                    "task_mention": task.get("mention"),
+                },
+                source_constraints=(
+                    {"file_identity": {
+                        key: identity.get(key)
+                        for key in (
+                            "file_name", "resource_id", "content_hash",
+                            "evidence_kind",
+                        )
+                    }} if identity else {}
+                ),
+                authorized_actions=list(authorized_actions or []),
+                tool_outcomes=tool_outcomes,
+                evidence_refs=evidence_refs,
+                delivery={
+                    "delivered": delivered,
+                    "channel": "chat",
+                    "model": response.get("model"),
+                    "deterministic": deterministic,
+                },
+                limitations=(
+                    [task.get("status")]
+                    if isinstance(task, dict) and task.get("status") else []
+                ),
+                latency_s=(
+                    round(deadline.elapsed(), 2) if deadline else None
+                ),
+                failure_layer=failure_layer,
+                failure_owner=failure_owner,
+                scope={
+                    "user_id": user_id or session.get("user_id"),
+                    "workspace_id": workspace_id or session.get("workspace_id"),
+                    "agent_id": agent_id or session.get("agent_id"),
+                },
+                execution_id=execution_id,
+                turn_id=session.get("id"),
+                policy_version="learning-loop-v1",
+            )
+        except Exception as error:
+            logger.debug(f"task outcome build skipped: {error}")
+            return {}
+
     def _finish_chat_execution(
-        self, execution_id: Optional[str], status: str, result_summary: str = ""
+        self,
+        execution_id: Optional[str],
+        status: str,
+        result_summary: str = "",
+        task_outcome: Optional[Dict[str, Any]] = None,
+        *,
+        session: Optional[Dict[str, Any]] = None,
+        message: str = "",
+        response: Optional[Dict[str, Any]] = None,
+        ai_response: Optional[Dict[str, Any]] = None,
+        deadline: Optional["TurnDeadline"] = None,
+        pending_task: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        authorized_actions: Optional[List[str]] = None,
+        allow_persisted_evidence: bool = False,
     ) -> None:
         if not execution_id:
             return
+        if task_outcome is None and isinstance(session, dict):
+            task_outcome = self._build_turn_task_outcome(
+                session,
+                message,
+                response or {},
+                ai_response,
+                deadline,
+                execution_id=execution_id,
+                pending_task=pending_task,
+                user_id=user_id,
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+                authorized_actions=authorized_actions,
+                status=status,
+                allow_persisted_evidence=allow_persisted_evidence,
+            )
         try:
             from datetime import datetime as _dt
             from core.database import get_db_session
@@ -3100,6 +3315,25 @@ class ChatOrchestrator:
                     row.status = status
                     row.completed_at = _dt.utcnow()
                     row.result_summary = result_summary[:500]
+                    if task_outcome:
+                        meta = row.metadata_json if isinstance(
+                            row.metadata_json, dict
+                        ) else {}
+                        from core.task_outcome_contract import derive_success_kinds
+
+                        meta["task_outcome"] = task_outcome
+                        meta["task_success_kinds"] = task_outcome.get(
+                            "success_kinds"
+                        ) or derive_success_kinds(task_outcome)
+                        meta["learning_event"] = {
+                            "event_type": "task_outcome",
+                            "contract_version": task_outcome.get(
+                                "contract_version"
+                            ),
+                            "execution_id": execution_id,
+                        }
+                        row.metadata_json = meta
+                    db.commit()
         except Exception as e:
             logger.warning(f"chat execution finish skipped: {e}")
 
@@ -3348,8 +3582,13 @@ class ChatOrchestrator:
             # (planner decision, tool calls, answer) — and survives reloads.
             _trace_agent_id = (context or {}).get("agent_id") or "chat"
             _execution_id = self._start_chat_execution(
-                session_id, (context or {}).get("agent_id"), message
+                session_id,
+                (context or {}).get("agent_id"),
+                message,
+                user_id=user_id,
+                workspace_id=(context or {}).get("workspace_id"),
             )
+            session["_current_execution_id"] = _execution_id
             await self._emit_agent_status(
                 session_id, _trace_agent_id, _execution_id, "running"
             )
@@ -3399,6 +3638,7 @@ class ChatOrchestrator:
             try:
                 from core.pending_file_task import (
                     FILE_TASK_SESSION_KEY,
+                    is_filename_confirmation,
                     matching_pending_task,
                 )
 
@@ -3418,6 +3658,36 @@ class ChatOrchestrator:
                     session.setdefault(FILE_TASK_SESSION_KEY, _stored_task)
                 _pending_file_task = matching_pending_task(
                     _stored_task, message, history or [])
+                if _pending_file_task is None and is_filename_confirmation(
+                        message):
+                    # LEGACY / EXPIRED STATE RECOVERY (2026-09-24,
+                    # task-continuity regression): a conversation that
+                    # predates the pending-task store — or whose task
+                    # expired — has nothing to resume. Live: the retry turn
+                    # promised a search and executed nothing, and the next
+                    # "go ahead" was answered from the open email canvas.
+                    # When THIS turn is itself a confirmation/retry and no
+                    # answered state exists, reconstruct the latest
+                    # unresolved file objective from the bounded history so
+                    # the existing direct reader executes it.
+                    from core.pending_file_task import (
+                        pending_task_is_recoverable,
+                        recover_pending_task_from_history,
+                    )
+
+                    if pending_task_is_recoverable(_stored_task):
+                        _pending_file_task = (
+                            recover_pending_task_from_history(
+                                history or [], message))
+                        if _pending_file_task is not None:
+                            session[FILE_TASK_SESSION_KEY] = (
+                                _pending_file_task)
+                            logger.info(
+                                "[pending-file-task] legacy recovery — "
+                                "unresolved file objective reconstructed "
+                                "from history (file=%r, ask=%.160r)",
+                                _pending_file_task.get("mention"),
+                                _pending_file_task.get("original_message"))
             except Exception as _pft_err:  # noqa: BLE001 — resume is best-effort
                 logger.debug(f"pending file task resume check skipped: {_pft_err}")
             # DELIVERY RETRY WITHOUT RE-READING (2026-09-24 review): a
@@ -3497,7 +3767,17 @@ class ChatOrchestrator:
                         session_id, _trace_agent_id, _execution_id, "success"
                     )
                     self._finish_chat_execution(
-                        _execution_id, "success", _deliver_content)
+                        _execution_id,
+                        "success",
+                        _deliver_content,
+                        session=session,
+                        message=message,
+                        response=_deliver_response,
+                        deadline=_deadline,
+                        pending_task=session.get("_pending_file_task"),
+                        authorized_actions=["read"],
+                        allow_persisted_evidence=True,
+                    )
                     logger.info(
                         "[pending-file-task] delivery retry — persisted "
                         "result re-rendered without re-reading")
@@ -3590,7 +3870,16 @@ class ChatOrchestrator:
                     await self._emit_agent_status(
                         session_id, _trace_agent_id, _execution_id, "success")
                     self._finish_chat_execution(
-                        _execution_id, "success", _ask_content)
+                        _execution_id,
+                        "success",
+                        _ask_content,
+                        session=session,
+                        message=message,
+                        response=_ask_response,
+                        deadline=_deadline,
+                        pending_task=session.get("_pending_file_task"),
+                        authorized_actions=["read"],
+                    )
                     logger.info(
                         "[file-ask] spreadsheet ask answered directly by "
                         "the file-scoped reader (no narration path)")
@@ -3707,7 +3996,15 @@ class ChatOrchestrator:
                         session_id, _trace_agent_id, _execution_id, "success"
                     )
                     self._finish_chat_execution(
-                        _execution_id, "success", _direct_content
+                        _execution_id,
+                        "success",
+                        _direct_content,
+                        session=session,
+                        message=message,
+                        response=_direct_response,
+                        deadline=_deadline,
+                        pending_task=_pending_file_task,
+                        authorized_actions=["read"],
                     )
                     logger.info(
                         "[pending-file-task] confirmed read delivered directly "
@@ -4011,7 +4308,15 @@ class ChatOrchestrator:
                 await self._emit_agent_status(
                     session_id, _trace_agent_id, _execution_id, "success"
                 )
-                self._finish_chat_execution(_execution_id, "success", _mini_app_response.get("message", ""))
+                self._finish_chat_execution(
+                    _execution_id,
+                    "success",
+                    _mini_app_response.get("message", ""),
+                    session=session,
+                    message=message,
+                    response=_mini_app_response,
+                    deadline=_deadline,
+                )
                 if _tool_plan_task is not None and not _tool_plan_task.done():
                     _tool_plan_task.cancel()
                 return _mini_app_response
@@ -4166,7 +4471,15 @@ class ChatOrchestrator:
                         await self._emit_agent_status(
                             session_id, _trace_agent_id, _execution_id, "success"
                         )
-                        self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
+                        self._finish_chat_execution(
+                            _execution_id,
+                            "success",
+                            _edit_response.get("message", ""),
+                            session=session,
+                            message=message,
+                            response=_edit_response,
+                            deadline=_deadline,
+                        )
                         return _edit_response
 
                     if (
@@ -4296,7 +4609,15 @@ class ChatOrchestrator:
                         await self._emit_agent_status(
                             session_id, _trace_agent_id, _execution_id, "success"
                         )
-                        self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
+                        self._finish_chat_execution(
+                            _execution_id,
+                            "success",
+                            _action_response.get("message", ""),
+                            session=session,
+                            message=message,
+                            response=_action_response,
+                            deadline=_deadline,
+                        )
                         return _action_response
 
                 _no_apply_edit = (
@@ -4373,7 +4694,13 @@ class ChatOrchestrator:
                         session_id, _trace_agent_id, _execution_id, "success"
                     )
                     self._finish_chat_execution(
-                        _execution_id, "success", _no_apply_message
+                        _execution_id,
+                        "success",
+                        _no_apply_message,
+                        session=session,
+                        message=message,
+                        response=response,
+                        deadline=_deadline,
                     )
                     return response
 
@@ -4450,7 +4777,17 @@ class ChatOrchestrator:
                                          {"primary_intent": "search_request", "confidence": 0.9})
                     status = "success" if ai_response else "failed"
                     await self._emit_agent_status(session_id, _trace_agent_id, _execution_id, status)
-                    self._finish_chat_execution(_execution_id, status, response["message"])
+                    self._finish_chat_execution(
+                        _execution_id,
+                        status,
+                        response["message"],
+                        session=session,
+                        message=message,
+                        response=response,
+                        ai_response=ai_response,
+                        deadline=_deadline,
+                        pending_task=_pending_file_task,
+                    )
                     return response
             finally:
                 if _tool_plan_task is not None:
@@ -4476,8 +4813,23 @@ class ChatOrchestrator:
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
-                return {"success": False, "message": "Request cancelled by user.",
-                        "session_id": session_id, "cancelled": True}
+                _cancelled_response = {
+                    "success": False,
+                    "message": "Request cancelled by user.",
+                    "session_id": session_id,
+                    "cancelled": True,
+                }
+                self._finish_chat_execution(
+                    _execution_id,
+                    "cancelled",
+                    _cancelled_response["message"],
+                    session=session,
+                    message=message,
+                    response=_cancelled_response,
+                    deadline=_deadline,
+                    pending_task=_pending_file_task,
+                )
+                return _cancelled_response
 
             # CRM write dispatch: when chatting AS a domain agent and the
             # message is a CRM mutation, execute it directly through the
@@ -4486,11 +4838,21 @@ class ChatOrchestrator:
             if _agent_id:
                 _crm_result = await self._try_zoho_crm_write(message, context, user_id)
                 if _crm_result is not None:
-                    return {
+                    _crm_response = {
                         "success": True,
                         "message": _crm_result,
                         "session_id": session_id,
                     }
+                    self._finish_chat_execution(
+                        _execution_id,
+                        "success",
+                        _crm_result,
+                        session=session,
+                        message=message,
+                        response=_crm_response,
+                        deadline=_deadline,
+                    )
+                    return _crm_response
 
             # 2. Analyze intent using AI NLP (for routing). Consolidation
             # (2026-09-09): the tool planner already classified this turn
@@ -4542,8 +4904,23 @@ class ChatOrchestrator:
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
-                return {"success": False, "message": "Request cancelled by user.",
-                        "session_id": session_id, "cancelled": True}
+                _cancelled_response = {
+                    "success": False,
+                    "message": "Request cancelled by user.",
+                    "session_id": session_id,
+                    "cancelled": True,
+                }
+                self._finish_chat_execution(
+                    _execution_id,
+                    "cancelled",
+                    _cancelled_response["message"],
+                    session=session,
+                    message=message,
+                    response=_cancelled_response,
+                    deadline=_deadline,
+                    pending_task=_pending_file_task,
+                )
+                return _cancelled_response
 
             # 3. Route to appropriate feature handlers (for data lookups).
             # Bounded by what is LEFT of the request, and skipped outright when
@@ -4579,6 +4956,42 @@ class ChatOrchestrator:
             used_provider = None
             if ai_response:
                 main_message = ai_response["content"]
+                # HONEST EXECUTION STATUS (2026-09-24 task-continuity
+                # regression): a turn resuming an outstanding file task
+                # that executed NO lookup must not ship a promise ("I'll
+                # search ... now") — live, exactly that promise was the
+                # setup for the next turn's wrong-task email answer.
+                # Progress requires a started operation; without one the
+                # user gets the precise blocker instead.
+                try:
+                    from core.pending_file_task import (
+                        reply_promises_unrun_lookup,
+                    )
+
+                    _pfr_now = session.get("_pending_file_result")
+                    _read_ran_this_turn = (
+                        isinstance(_pfr_now, dict)
+                        and _pfr_now.get("execution_id") == _execution_id
+                    )
+                    if (
+                        _pending_file_task
+                        and not _read_ran_this_turn
+                        and reply_promises_unrun_lookup(main_message)
+                    ):
+                        main_message = (
+                            f"The '{_pending_file_task.get('mention')}' "
+                            "lookup did not run this turn — no search "
+                            "executed, so there are no results to report "
+                            "and none are underway. Send another message "
+                            "to retry the lookup."
+                        )
+                        ai_response["content"] = main_message
+                        logger.warning(
+                            "[pending-file-task] promise gate — reply "
+                            "claimed work that never started; replaced "
+                            "with the honest blocker")
+                except Exception:  # noqa: BLE001 — gate is best-effort
+                    pass
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
@@ -4798,6 +5211,12 @@ class ChatOrchestrator:
                 _execution_id,
                 "success" if response.get("success", True) else "failed",
                 response.get("message", ""),
+                session=session,
+                message=message,
+                response=response,
+                ai_response=ai_response,
+                deadline=_deadline,
+                pending_task=_pending_file_task,
             )
             # DELIVERED marking (retrieval != delivery, 2026-09-24): the
             # response is about to reach the user — a RETRIEVED result
@@ -4835,18 +5254,30 @@ class ChatOrchestrator:
                 )
             except Exception:
                 pass
-            self._finish_chat_execution(_execution_id, "failed", str(e)[:300])
-            # BUG-125: Persist the user's message even on error so it's not
-            # lost from chat history. Previously _update_session was only
-            # called on the success path.
+            error_response = self._generate_error_response(
+                "I encountered an error processing your message. Please try again.", session_id
+            )
+            self._finish_chat_execution(
+                _execution_id,
+                "failed",
+                str(e)[:300],
+                session=locals().get("session"),
+                message=message,
+                response=error_response,
+                deadline=locals().get("_deadline"),
+                pending_task=locals().get("_pending_file_task"),
+            )
             try:
-                error_response = self._generate_error_response(
-                    "I encountered an error processing your message. Please try again.", session_id
+                self._update_session(
+                    locals().get("session") or {"id": session_id, "history": []},
+                    message,
+                    error_response,
+                    locals().get("intent_analysis")
+                    or {"primary_intent": "error", "confidence": 0.0},
                 )
-                self._update_session(session, message, error_response, intent_analysis)
             except Exception:
-                pass  # Don't let the persistence attempt mask the original error
-            return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
+                pass
+            return error_response
         finally:
             if _interactive_token is not None:
                 try:
@@ -7152,7 +7583,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         None if _stream_budget == float("inf")
                         else _time.monotonic() + _stream_budget
                     )
-                    _stream_hold = ""
                     _stream_emitted = 0
                     _stream_residue_detected = False
                     while True:
@@ -7241,7 +7671,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
                             _safe, _held, _residue = split_safe_prefix(
                                 "".join(_buf))
-                            _stream_hold = _held
                             _delta_out = _safe[_stream_emitted:]
                             _stream_emitted = len(_safe)
                             if _residue:
@@ -7708,10 +8137,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 )
                             except Exception:
                                 pass
-                        _stream_done_content = (
-                            "" if _stream_residue_detected
-                            else _strip_protocol_tags(_streamed)
-                        )
+                        _stream_done_content = ""
+                        if not _stream_residue_detected:
+                            _stream_done_validation = _validate_response_payload(
+                                _streamed,
+                                channel="final_text",
+                                content_type="text/plain",
+                            )
+                            if _stream_done_validation.valid:
+                                _stream_done_content = _streamed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -11033,7 +11467,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
             or (
                 _is_malformed_output is not None
-                and _is_malformed_output(_resp_msg)
+                and                 _is_malformed_output(
+                    _resp_msg, channel="persisted_text", content_type="text/plain"
+                )
+
             )
         )
         session["history"].append({
@@ -11112,9 +11549,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
                         _msg_meta: Dict[str, Any] = {}
+                        _turn_execution_id = (
+                            response.get("execution_id")
+                            if isinstance(response, dict) else None
+                        ) or session.get("_current_execution_id")
+                        if _turn_execution_id:
+                            _msg_meta["execution_id"] = str(_turn_execution_id)
                         if _is_error_turn:
                             _msg_meta["quality"] = "error"
                         _turn_reasoning = response.get("reasoning") if isinstance(response, dict) else None
+                        if isinstance(response, dict):
+                            if response.get("model"):
+                                _msg_meta["model"] = str(response.get("model"))[:120]
+                            if response.get("provider"):
+                                _msg_meta["provider"] = str(response.get("provider"))[:120]
                         if _turn_reasoning:
                             _msg_meta["reasoning"] = str(_turn_reasoning)[:20000]
                         # STRUCTURED mail handles (2026-09-22): this turn's
