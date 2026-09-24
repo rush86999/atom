@@ -9,6 +9,7 @@ Priority: CRITICAL - Agent governance, maturity management
 """
 import pytest
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, patch
 from freezegun import freeze_time
 from sqlalchemy.orm import Session
 
@@ -585,11 +586,16 @@ class TestAgentGraduation:
         agent = StudentAgentFactory(_session=db_session)
         graduation_service = AgentGraduationService(db_session)
 
-        success = await graduation_service.promote_agent(
-            agent_id=agent.id,
-            new_maturity="INTERN",
-            validated_by="test_admin"
-        )
+        with patch.object(
+            graduation_service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value={"ready": True, "gaps": []}),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+            success = await graduation_service.promote_agent(
+                agent_id=agent.id,
+                new_maturity="INTERN",
+                validated_by="test_admin"
+            )
 
         assert success is True
 
@@ -608,11 +614,16 @@ class TestAgentGraduation:
         )
         graduation_service = AgentGraduationService(db_session)
 
-        await graduation_service.promote_agent(
-            agent_id=agent.id,
-            new_maturity="INTERN",
-            validated_by="test_admin"
-        )
+        with patch.object(
+            graduation_service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value={"ready": True, "gaps": []}),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+            await graduation_service.promote_agent(
+                agent_id=agent.id,
+                new_maturity="INTERN",
+                validated_by="test_admin"
+            )
 
         # Check metadata (promotion metadata is recorded in the agent's
         # `configuration` JSON column — AgentRegistry has no metadata_json)

@@ -453,3 +453,70 @@ def test_B9_env_var_off_then_on_toggles_flag(monkeypatch):
     # Flip back off.
     monkeypatch.setenv("ATOM_CASCADE_ROUTING", "false")
     assert hc.is_cascade_routing_enabled() is False
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_empty_structured_response_accounts_raw_usage_as_failure(
+        _fake_instructor):
+    from core.llm import byok_handler as module
+
+    handler = _make_handler()
+    handler.health_monitor = MagicMock()
+    handler.rate_tracker = MagicMock()
+    handler.cache_router = MagicMock()
+    handler._provider_cooldown_active = lambda provider_id: False
+    handler._model_cooldown_active = lambda provider_id, model: False
+    handler._stash_decision_features = MagicMock(return_value=None)
+    outcome = {}
+
+    async def record_outcome(**kwargs):
+        outcome.update(kwargs)
+
+    handler._record_outcome_feedback = record_outcome
+    _stub_options(handler, [("openai", "gpt-4o-mini")])
+    raw = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content=None),
+            finish_reason="length",
+        )],
+        usage=SimpleNamespace(
+            prompt_tokens=11,
+            completion_tokens=7,
+            total_tokens=18,
+        ),
+    )
+    _fake_instructor.chat.completions.create = MagicMock(
+        return_value=SimpleNamespace(_raw_response=raw))
+    with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+        module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+    try:
+        with patch("core.llm.byok_handler.llm_usage_tracker") as usage_tracker, \
+             patch("core.llm.byok_handler.get_pricing_fetcher") as pricing, \
+             patch("core.llm.byok_handler.get_llm_call_tracker") as tracker:
+            pricing.return_value.estimate_cost.return_value = 0.02
+            tracker.return_value = MagicMock()
+            result = await handler.generate_structured_response(
+                prompt="test",
+                system_instruction="sys",
+                response_model=dict,
+                allow_moa=False,
+                _sweep_depth=1,
+            )
+    finally:
+        with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+            module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+    assert result is None
+    usage_tracker.record.assert_called_once()
+    usage = usage_tracker.record.call_args.kwargs
+    assert usage["input_tokens"] == 11
+    assert usage["output_tokens"] == 7
+    tracker.return_value.record.assert_called_once()
+    telemetry = tracker.return_value.record.call_args.kwargs
+    assert telemetry["success"] is False
+    assert telemetry["input_tokens"] == 11
+    assert telemetry["output_tokens"] == 7
+    assert "empty_output" in telemetry["error"]
+    assert outcome["success"] is False
+    assert outcome["schema_error"] is False
+    assert outcome["exception"].reason == "empty_output"

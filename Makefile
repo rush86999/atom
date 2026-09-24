@@ -2,7 +2,7 @@
 # Run `make help` to see everything. These wrap the canonical scripts under
 # scripts/ and the E2E suite; no behavior of their own.
 
-VENV       ?= backend/venv/bin/python
+VENV       ?= $(CURDIR)/backend/venv/bin/python
 PY         ?= $(VENV)
 PYTEST     ?= $(VENV) -m pytest
 PORT       ?= 8001
@@ -41,7 +41,10 @@ dev: ## Run backend + frontend together (requires tmux or two terminals)
 # -------------------------------------------------------------------
 .PHONY: test test-e2e test-backend test-core
 test-backend: ## Run the backend unit tests
-	cd backend && $(PYTEST) tests/ -q --tb=short
+	TEST_DB=$$(mktemp /tmp/atom-backend-tests-XXXXXX.db); \
+	trap 'rm -f "$$TEST_DB"' EXIT; \
+	cd backend && TESTING=1 DATABASE_URL="sqlite:///$$TEST_DB" \
+	SECRET_KEY="test-secret-key" $(PYTEST) tests/ --ignore=tests/e2e_ui -q --tb=short
 
 # The CI-gated core suite (same 14 files the backend-tests job runs). Keep in
 # sync with .github/workflows/ci.yml.

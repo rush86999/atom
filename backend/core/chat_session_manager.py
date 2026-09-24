@@ -246,6 +246,44 @@ class ChatSessionManager:
         sessions = self._load_sessions_file()
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
+    def update_session_metadata(
+        self, session_id: str, metadata: Dict[str, Any]
+    ) -> bool:
+        """Merge durable session metadata into the active persistence store."""
+        if not session_id or not isinstance(metadata, dict):
+            return False
+        updated = False
+        if self.use_db:
+            try:
+                with get_db_session() as db:
+                    row = db.query(ChatSession).filter(
+                        ChatSession.id == session_id
+                    ).first()
+                    if row is not None:
+                        merged = dict(row.metadata_json or {})
+                        merged.update(metadata)
+                        row.metadata_json = merged
+                        row.updated_at = datetime.now(timezone.utc)
+                        db.commit()
+                        updated = True
+            except Exception as e:
+                logger.warning(f"DB metadata update failed for {session_id}: {e}")
+        if self.persistence_mode == "STRICT_DB":
+            return updated
+        try:
+            sessions = self._load_sessions_file()
+            for row in sessions:
+                if row.get("session_id") == session_id:
+                    merged = dict(row.get("metadata") or {})
+                    merged.update(metadata)
+                    row["metadata"] = merged
+                    row["last_active"] = datetime.now(timezone.utc).isoformat()
+                    updated = self._save_sessions_file(sessions) or updated
+                    break
+        except Exception as e:
+            logger.warning(f"File metadata update failed for {session_id}: {e}")
+        return updated
+
     def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
         """Update session's last_active timestamp and history"""
         # 1. Database Path

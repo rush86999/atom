@@ -61,3 +61,58 @@ def interactive_rate_reserve() -> float:
         except (TypeError, ValueError):
             pass
     return 0.2
+
+
+def mark_background_execution() -> contextvars.Token:
+    """Explicitly mark the current task/context as BACKGROUND execution.
+
+    asyncio tasks COPY the creating context, so a task forked from inside
+    an interactive chat request — the canvas-edit continuation is forked
+    mid-turn by ``async_turn_continuation.start_continuation`` — inherits
+    ``atom_interactive_chat=True`` for its whole life. Two defects follow:
+    the INTERACTIVE-only structured-latency cap (25s) vetoes healthy
+    26–30s rungs inside a background tier whose edit bound is 150s (live
+    2026-09-23, continuation ab86e7bf attempt 1: zero-dispatch exhaustion
+    in 1.3s), and the fork consumes the interactive rate reserve that
+    exists to protect user-facing turns. Background tasks forked from a
+    request call this at their entry; rate, auth and cooldown restrictions
+    are unaffected — only the interactive classification is corrected."""
+    return _interactive_chat_ctx.set(False)
+
+
+_structured_wait_ctx = contextvars.ContextVar(
+    "atom_interactive_structured_wait", default=0.0)
+
+
+def declare_interactive_structured_wait(seconds: float) -> contextvars.Token:
+    """Raise the interactive structured-latency cap for calls on THIS
+    context only (the planner of a pending-file-task resume turn — a turn
+    whose entire purpose is one lookup, and whose caller actually waits
+    longer than the default 25s).
+
+    This is a CALLER-DECLARED WAIT, not a relaxation of restrictions:
+    rate budgets, the interactive reserve, cooldowns and auth gates are
+    untouched — only the latency expectation of the interactive structured
+    ladder is raised to what the caller will genuinely wait. Callers MUST
+    reset the token when their wait scope ends (task-scoped usage keeps
+    the declaration from leaking to the reply generation)."""
+    try:
+        value = max(0.0, float(seconds))
+    except (TypeError, ValueError):
+        value = 0.0
+    return _structured_wait_ctx.set(value)
+
+
+def reset_interactive_structured_wait(token: contextvars.Token) -> None:
+    """End the declared-wait scope (fault-tolerant, same fail-open
+    contract as :func:`reset_interactive_chat`)."""
+    try:
+        _structured_wait_ctx.reset(token)
+    except (ValueError, LookupError):
+        pass
+
+
+def interactive_structured_wait() -> float:
+    """Seconds the current context's caller will wait for a structured
+    call (0 = no declaration; the default cap applies)."""
+    return float(_structured_wait_ctx.get() or 0.0)

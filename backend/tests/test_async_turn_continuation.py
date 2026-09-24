@@ -49,6 +49,15 @@ def _fresh_registry():
 
 
 @pytest.fixture(autouse=True)
+def _test_schema():
+    from core.database import engine
+    from core.models_registration import Base
+
+    Base.metadata.create_all(engine)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clean_registry():
     _fresh_registry()
     # Atomic-claim semantics WITHOUT a database: an in-memory PK map with
@@ -74,7 +83,10 @@ def _clean_registry():
         yield
     for t in list(atc._tasks.values()):
         if not t.done():
-            t.cancel()
+            try:
+                t.cancel()
+            except RuntimeError:
+                pass
     _fresh_registry()
 
 
@@ -470,6 +482,52 @@ async def test_orchestrator_forks_once_reply_honest_action_skipped(
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_fork_failure_returns_honest_no_apply(monkeypatch):
+    monkeypatch.setenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "8")
+    monkeypatch.setattr(chat, "_CANVAS_LEG_MAX_SECONDS", 0.5)
+    monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
+
+    orch = chat.ChatOrchestrator()
+    session = {"id": "sess-fork-fail", "history": []}
+    canvas = {"canvas_id": "cv1", "canvas_type": "email",
+              "content": {"subject": "Draft", "body": "Unchanged"}}
+
+    async def slow_edit(*a, **k):
+        await asyncio.sleep(5)
+        return None
+
+    reply = AsyncMock()
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=canvas)),
+        patch.object(orch, "_start_chat_execution", return_value="e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_try_canvas_edit", side_effect=slow_edit),
+        patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+        patch.object(orch, "_get_qwen_response", new=reply),
+        patch("core.chat_tool_planner.plan_tool_use",
+              new=AsyncMock(return_value=None)),
+        patch("core.chat_tool_planner._provenance_menu",
+              new=AsyncMock(return_value="")),
+        patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+              return_value=None),
+        patch("core.async_turn_continuation.continuation_in_flight",
+              return_value=None),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "rebuild the draft with the quotes", "sess-fork-fail",
+            context={"canvas_id": "cv1"})
+
+    assert result["data"]["canvas_edit"]["updated"] is False
+    assert result["data"]["canvas_edit"]["reason"] == "background_fork_unavailable"
+    reply.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_new_turn_supersedes_pending_continuation(monkeypatch):
     """The orchestrator cancels a pending continuation at turn entry — the
     new instruction wins."""
@@ -637,6 +695,104 @@ class TestAtomicRevisionDoor:
         assert added, "the write must append its audit row"
         details = added[0].details_json
         assert details["operation_id"] == "op-1"
+
+
+class TestRevisionAndReviewSemantics:
+    async def test_pending_draft_is_readable_without_being_accepted(self):
+        import uuid
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from tools.canvas_crud_tool import read_canvas, update_canvas_content
+
+        canvas_id = "cv-review-" + uuid.uuid4().hex[:10]
+        user_id = "u-review"
+        with get_db_session() as db:
+            db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).delete()
+            db.query(Canvas).filter(Canvas.id == canvas_id).delete()
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by=user_id,
+                name="Review draft", canvas_type="email",
+                content={"body": "accepted"}, status="active",
+            ))
+            db.add(CanvasAudit(
+                id="seed-" + canvas_id, canvas_id=canvas_id,
+                tenant_id="default", action_type="update", user_id=user_id,
+                canvas_type="email", details_json={
+                    "content": {"body": "accepted"},
+                    "review_status": "accepted",
+                },
+            ))
+
+        pending = await update_canvas_content(
+            user_id, canvas_id, {"body": "draft"}, "email",
+            operation_id="op-pending", pending_review=True,
+        )
+        assert pending["review_status"] == "pending_review"
+        read_pending = await read_canvas(user_id, canvas_id)
+        assert read_pending["content"].get("body") == "draft"
+        assert read_pending["review_status"] == "pending_review"
+        with get_db_session() as db:
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "accepted"
+
+        accepted = await update_canvas_content(
+            user_id, canvas_id, {"body": "accepted update"}, "email",
+            operation_id="op-accepted",
+            expected_prior_audit_id=pending["audit_id"],
+        )
+        assert accepted["review_status"] == "accepted"
+        with get_db_session() as db:
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "accepted update"
+        read_accepted = await read_canvas(user_id, canvas_id)
+        assert read_accepted["content"].get("body") == "accepted update"
+        assert read_accepted["review_status"] == "accepted"
+
+    async def test_exact_operation_replay_does_not_append_another_audit(self):
+        import uuid
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from tools.canvas_crud_tool import update_canvas_content
+
+        canvas_id = "cv-op-" + uuid.uuid4().hex[:10]
+        user_id = "u-op"
+        with get_db_session() as db:
+            db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).delete()
+            db.query(Canvas).filter(Canvas.id == canvas_id).delete()
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by=user_id,
+                name="Operation", canvas_type="email",
+                content={"body": "old"}, status="active",
+            ))
+            db.add(CanvasAudit(
+                id="seed-" + canvas_id, canvas_id=canvas_id,
+                tenant_id="default", action_type="update", user_id=user_id,
+                canvas_type="email", details_json={
+                    "content": {"body": "old"},
+                    "review_status": "accepted",
+                },
+            ))
+
+        first = await update_canvas_content(
+            user_id, canvas_id, {"body": "new"}, "email",
+            operation_id="op-exact",
+        )
+        second = await update_canvas_content(
+            user_id, canvas_id, {"body": "different"}, "email",
+            operation_id="op-exact",
+        )
+        assert first["success"] is True
+        assert second["already_applied"] is True
+        with get_db_session() as db:
+            rows = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id).all()
+            stamped = [r for r in rows
+                       if (r.details_json or {}).get("operation_id") == "op-exact"]
+            assert len(stamped) == 1
+            assert db.query(Canvas).filter(
+                Canvas.id == canvas_id).first().content.get("body") == "new"
 
 
 class TestConditionalSupersede:
@@ -1042,3 +1198,260 @@ class TestEditPlanRungKnob:
         # stays None (no pin). max_tokens rides extra_kwargs regardless.
         assert captured["call_kwargs"] is None
         assert (captured.get("extra_kwargs") or {}).get("max_tokens") == 14000
+
+
+class TestEvidenceIsolation:
+    """Review corrections 2026-09-23: evidence keyed by unique EXECUTION ID
+    (not message hash — two identical "yes go ahead" turns collided); each
+    continuation consumes only its own turn's evidence."""
+
+    def _make_cont(self, session_id, message, execution_id):
+        return atc.AsyncTurnContinuation(
+            continuation_id="op-" + execution_id[:8], user_id="u1",
+            session_id=session_id, message=message,
+            canvas={"canvas_id": "cv"}, execution_id=execution_id,
+            agent_id=None, history_snapshot=[])
+
+    def test_identical_messages_different_evidence_isolated(self):
+        """THE DECISIVE REGRESSION (review): two identical 'yes go ahead'
+        turns in the same session, different offers/evidence, overlapping
+        execution — each continuation reads ONLY its own turn's evidence."""
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-iso": session}
+
+        # Two turns with the SAME message text but DIFFERENT execution IDs
+        # (each _start_chat_execution call generates a unique ID)
+        cont_a = self._make_cont("s-iso", "yes go ahead", "exec-AAA-111")
+        cont_b = self._make_cont("s-iso", "yes go ahead", "exec-BBB-222")
+        object.__setattr__(cont_a, "_orchestrator", orch)
+        object.__setattr__(cont_b, "_orchestrator", orch)
+
+        # Turn A searched for the machinery quote; turn B for a different offer
+        session["_ev_exec-AAA-111"] = "EVIDENCE: 8 machines with prices"
+        session["_ev_exec-BBB-222"] = "EVIDENCE: different product entirely"
+
+        got_a = atc._latest_turn_evidence(orch, cont_a)
+        got_b = atc._latest_turn_evidence(orch, cont_b)
+
+        assert "8 machines" in got_a, f"cont_a got: {got_a[:50]}"
+        assert "different product" in got_b, f"cont_b got: {got_b[:50]}"
+        assert got_a != got_b, "identical evidence — collision!"
+
+    def test_topic_changing_turn_does_not_leak(self):
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-t": session}
+        cont = self._make_cont("s-t", "rebuild the draft", "exec-T-001")
+        object.__setattr__(cont, "_orchestrator", orch)
+        session["_ev_exec-T-001"] = "EVIDENCE: machinery"
+        session["_ev_exec-WEATHER-99"] = "EVIDENCE: weather"
+        got = atc._latest_turn_evidence(orch, cont)
+        assert "machinery" in got
+        assert "weather" not in got
+
+    def test_delayed_retrieval_returns_empty(self):
+        orch = MagicMock()
+        orch.conversation_sessions = {"s-del": {}}
+        cont = self._make_cont("s-del", "rebuild", "exec-DEL-1")
+        object.__setattr__(cont, "_orchestrator", orch)
+        assert atc._latest_turn_evidence(orch, cont) == ""
+
+    def test_restart_session_gone_returns_empty(self):
+        orch = MagicMock()
+        orch.conversation_sessions = {}
+        cont = self._make_cont("s-gone", "rebuild", "exec-GONE-1")
+        object.__setattr__(cont, "_orchestrator", orch)
+        assert atc._latest_turn_evidence(orch, cont) == ""
+
+
+    async def test_delayed_evidence_is_picked_up_after_an_empty_fork(self):
+        orch = MagicMock()
+        session = {}
+        orch.conversation_sessions = {"s-late": session}
+        calls = []
+
+        async def edit(*args, **kwargs):
+            calls.append((kwargs.get("shared_tool_state") or {}).get("block"))
+            if len(calls) == 1:
+                session["_ev_exec-late"] = "fresh source evidence"
+                return None
+            return {
+                "message": "applied",
+                "data": {"canvas_edit": {"updated": True}},
+            }
+
+        orch._try_canvas_edit = AsyncMock(side_effect=edit)
+        cont = self._make_cont("s-late", "rebuild", "exec-late")
+        object.__setattr__(cont, "_orchestrator", orch)
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 2), \
+             patch.object(atc, "_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS", 0):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "applied"
+        assert calls[0] is None
+        assert calls[1] == "fresh source evidence"
+
+    async def test_truthy_response_without_updated_is_not_completion(self):
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value={
+            "message": "I updated it",
+            "data": {"canvas_edit": {"updated": False}},
+        })
+        cont = self._make_cont("s-false", "rebuild", "exec-false")
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+        assert outcome == "failed"
+        assert "did not confirm" in summary or "did not apply" in summary
+
+    async def test_completion_requires_audit_and_ui_readback(self):
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(return_value={
+            "message": "applied",
+            "data": {"canvas_edit": {"updated": True, "audit_id": "a-1"}},
+        })
+        cont = self._make_cont("s-readback", "rebuild", "exec-readback")
+        cont.readback_required = True
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_operation_landed", return_value=False), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "failed"
+
+        with patch.object(atc, "_classify_preapply", return_value=None), \
+             patch.object(atc, "_latest_audit", return_value=None), \
+             patch.object(atc, "_operation_landed", return_value=True), \
+             patch("tools.canvas_crud_tool.read_canvas", new=AsyncMock(
+                 return_value={"success": True, "audit_id": "a-1"})), \
+             patch.object(atc, "_ASYNC_CONTINUATION_ATTEMPTS", 1):
+            outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
+        assert outcome == "applied"
+
+
+class TestExactOperationReplay:
+    """Review 2026-09-23: invoking the SAME persisted operation ID twice
+    produces ONE effective write (not just 'no duplicate on a repeated
+    user message')."""
+
+    async def test_same_op_id_no_duplicate_write(self):
+        calls = []
+
+        async def edit_fn(*args, **kwargs):
+            calls.append(kwargs.get("operation_id"))
+            return {"message": "Rebuilt.",
+                    "data": {"canvas_edit": {"updated": True}}}
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(side_effect=edit_fn)
+        orch.conversation_sessions = {"s-replay": {}}
+
+        cont1 = atc.AsyncTurnContinuation(
+            continuation_id="op-exact-001", user_id="u1",
+            session_id="s-replay",
+            message="rebuild with 8 machines",
+            canvas={"canvas_id": "cv", "canvas_type": "email",
+                    "content": {"body": "4-row"}},
+            execution_id="e", agent_id=None, history_snapshot=[])
+        r1 = await atc.run_canvas_edit_continuation(orch, cont1)
+        assert r1[0] == "applied"
+
+        # EXACT replay: SAME continuation_id (same persisted op)
+        cont2 = atc.AsyncTurnContinuation(
+            continuation_id="op-exact-001",  # SAME ID
+            user_id="u1", session_id="s-replay",
+            message="rebuild with 8 machines",
+            canvas={"canvas_id": "cv", "canvas_type": "email",
+                    "content": {"body": "8-row now"}},
+            execution_id="e", agent_id=None, history_snapshot=[])
+        with patch.object(atc, "_operation_landed", return_value=True):
+            r2 = await atc.run_canvas_edit_continuation(orch, cont2)
+
+        assert r2[0] == "already_applied"
+        assert len(calls) == 1, f"duplicate write: {len(calls)} calls"
+
+
+class TestFailureReporting:
+    """2026-09-23 (continuation 90efb974): budget expiry raised
+    asyncio.TimeoutError whose str() is EMPTY, so the durable record shipped
+    as bare "continuation error: " and nobody could tell what stage died.
+    The record must name the stage and keep the exception type."""
+
+    async def test_budget_timeout_names_stage_not_empty_error(
+            self, monkeypatch):
+        cont = _cont()
+
+        async def _slow():
+            await asyncio.sleep(2)
+            return "applied", "ok"
+
+        monkeypatch.setattr(atc, "_ASYNC_CONTINUATION_BUDGET_SECONDS", 0.1)
+        with patch.object(atc, "_create_durable_record"), \
+             patch.object(atc, "_finish_durable_record") as fin, \
+             patch.object(atc, "_apply_effects", new=AsyncMock()):
+            atc.start_continuation(cont, _slow)
+            assert await _wait_terminal(cont) == "failed"
+        assert cont.summary != "continuation error: "
+        assert "budget" in cont.summary
+        assert "TimeoutError" in cont.summary
+        assert cont.error and "TimeoutError" in cont.error
+        # the durable record carries the same non-empty summary
+        assert fin.call_args[0][1] == "failed"
+        assert fin.call_args[0][2] == cont.summary
+
+    async def test_empty_message_exception_keeps_type(self):
+        cont = _cont()
+
+        async def _boom():
+            raise ValueError()
+
+        with patch.object(atc, "_create_durable_record"), \
+             patch.object(atc, "_finish_durable_record"), \
+             patch.object(atc, "_apply_effects", new=AsyncMock()):
+            atc.start_continuation(cont, _boom)
+            assert await _wait_terminal(cont) == "failed"
+        assert "continuation error: ValueError" in cont.summary
+        assert "<no message>" in cont.summary
+        assert cont.error.startswith("ValueError")
+
+
+class TestBackgroundExecutionContext:
+    """2026-09-23: the continuation task is forked from INSIDE the
+    interactive chat request; asyncio copies the creating context, so the
+    background tier inherited atom_interactive_chat=True — the interactive
+    25s structured-latency cap vetoed healthy 26–30s rungs inside a tier
+    whose edit bound is 150s (live: continuation ab86e7bf attempt 1,
+    zero-dispatch exhaustion in 1.3s). The boundary now explicitly
+    establishes background execution; rate/auth/cooldown restrictions are
+    separate mechanisms and unaffected."""
+
+    async def test_fork_inside_interactive_scope_runs_as_background(self):
+        from core.llm.interactive_context import (
+            is_interactive_chat,
+            mark_interactive_chat,
+            reset_interactive_chat,
+        )
+
+        seen = {}
+
+        async def _probe():
+            seen["interactive"] = is_interactive_chat()
+            return "applied", "ok"
+
+        token = mark_interactive_chat()
+        try:
+            assert is_interactive_chat() is True  # enclosing scope intact
+            cont = _cont()
+            with patch.object(atc, "_create_durable_record"), \
+                 patch.object(atc, "_finish_durable_record"), \
+                 patch.object(atc, "_apply_effects", new=AsyncMock()):
+                assert atc.start_continuation(cont, _probe)
+                assert await _wait_terminal(cont) == "applied"
+            assert is_interactive_chat() is True  # fork must not clobber it
+        finally:
+            reset_interactive_chat(token)
+        assert seen["interactive"] is False  # the boundary fix

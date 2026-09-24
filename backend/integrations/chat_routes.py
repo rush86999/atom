@@ -1180,12 +1180,21 @@ async def get_session_details(
 
 
 
+def _chat_operation_succeeded(response: Dict[str, Any]) -> bool:
+    data = response.get("data")
+    if isinstance(data, dict):
+        canvas_edit = data.get("canvas_edit")
+        if isinstance(canvas_edit, dict) and "updated" in canvas_edit:
+            return bool(canvas_edit.get("updated"))
+    return bool(response.get("success", True))
+
+
 # API Routes
 @router.post("/message")
 async def send_chat_message(
     request: ChatMessageRequest,
     http_request: Request,
-    response: Response,
+    http_response: Response,
     current_user: User = Depends(get_current_user),
     db: _Session = Depends(get_db),
 ) -> ChatMessageResponse:
@@ -1203,7 +1212,7 @@ async def send_chat_message(
 
         _identity = get_runtime_identity()
         for _name, _value in _identity.headers().items():
-            response.headers[_name] = _value
+            http_response.headers[_name] = _value
     except Exception as _ident_err:  # noqa: BLE001 — attribution is best-effort
         logger.debug(f"serving-instance headers skipped: {_ident_err}")
 
@@ -1446,7 +1455,7 @@ async def send_chat_message(
         # matured when chat ran through the streaming endpoint. Record the
         # outcome (success and failure) for every session-linked agent turn.
         if getattr(request, "agent_id", None):
-            turn_success = bool(response.get("success", True))
+            turn_success = _chat_operation_succeeded(response)
             try:
                 from core.database import get_db_session
                 from core.agent_governance_service import AgentGovernanceService

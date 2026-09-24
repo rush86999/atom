@@ -83,19 +83,107 @@ def quoted_phrases(text: str) -> List[str]:
 
 
 def relevance_verdict(
-    query: str, message: str, history: Optional[List[Dict[str, Any]]] = None
+    query: str, message: str, history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
+    allow_canvas_target: bool = True,
 ) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` (fail-open) for a
     planned lookup query against the current user message.
 
     See :func:`relevance_basis` for the rule-by-rule contract; this is its
     verdict-only view."""
-    return relevance_basis(query, message, history=history)[0]
+    return relevance_basis(
+        query, message, history=history, extra_topic=extra_topic,
+        allow_canvas_target=allow_canvas_target,
+    )[0]
+
+
+_CANVAS_TOPIC_NOISE = frozenset({
+    "email", "quote", "quotation", "draft", "prepared", "prepared", "page",
+    "table", "row", "rows", "unit", "price", "prices", "delivery", "lead",
+    "time", "term", "terms", "payment", "cad", "fob", "tbd", "valid",
+    "days", "day", "footer", "signature", "regards", "visit", "website",
+    "web", "site", "rate", "performance", "brennan", "machinery", "inc",
+    "requested", "alternative", "alternatives", "option", "options",
+    "vendor", "supplier", "product", "products", "equipment", "model",
+    "series", "industrial", "customer", "client", "company", "amount",
+    "cost", "value", "figure", "request", "requests", "update", "apply",
+    "actual", "customer", "client", "lead", "time", "term", "terms",
+})
+
+
+def _canvas_topic_tokens(text: str) -> Set[str]:
+    tokens = content_tokens(text)
+    return {
+        token for token in tokens
+        if token not in _CANVAS_TOPIC_NOISE
+        and not re.fullmatch(r"(?:19|20)\d{2}", token)
+    }
+
+
+def _canvas_topic_variants(tokens: Set[str]) -> Set[str]:
+    variants = set(tokens)
+    for token in tokens:
+        if token.endswith("ies") and len(token) > 3:
+            variants.add(token[:-3] + "y")
+        if token.endswith("es") and len(token) > 3:
+            variants.add(token[:-2])
+        if token.endswith("s") and not token.endswith("ss") and len(token) > 3:
+            variants.add(token[:-1])
+    return variants
+
+
+def _canvas_topic_strong_tokens(text: str) -> Set[str]:
+    strong = set(strong_tokens(text))
+    return {
+        token for token in strong
+        if token not in _CANVAS_TOPIC_NOISE
+        and not re.fullmatch(r"(?:19|20)\d{2}", token)
+    }
+
+
+def canvas_topic_text(canvas: Optional[Dict[str, Any]]) -> str:
+    """Judgeable subject text of the canvas a request operates on: the
+    title plus the readable text of its content and participants (HTML tags
+    stripped), so a retrieval query naming the canvas's own subject can be
+    recognized.
+
+    Live 2026-09-23 (canvas 0e4defa5): the edit instruction "update with
+    actual prices in the email" shares ZERO words with the correct
+    evidence query — the products being priced (roll bender, bead roller,
+    slitters) live in the CANVAS the instruction points at ("the email"),
+    not in the sentence. The canvas target is therefore part of what a
+    canvas-edit lookup legitimately names. Tolerates both context shapes
+    (editor ``{title, content…}`` and orchestrator ``_resolve_canvas_ctx``)
+    and returns "" when nothing usable is present."""
+    if not isinstance(canvas, dict):
+        return ""
+    parts: List[str] = []
+    for key in ("title", "name", "subject"):
+        val = canvas.get(key)
+        if isinstance(val, str) and val.strip():
+            parts.append(val)
+    content = canvas.get("content")
+    if isinstance(content, dict):
+        for key in (
+            "subject", "title", "to", "from", "sender", "cc", "participants",
+            "body", "content", "text",
+        ):
+            val = content.get(key)
+            if isinstance(val, str) and val.strip():
+                parts.append(re.sub(r"<[^>]+>", " ", val))
+            elif isinstance(val, (list, tuple)):
+                parts.extend(str(item) for item in val if str(item).strip())
+    elif isinstance(content, str) and content.strip():
+        parts.append(re.sub(r"<[^>]+>", " ", content))
+    return " ".join(parts)[:8000]
 
 
 def relevance_basis(
     query: str, message: str,
     history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
+    allow_canvas_target: bool = True,
 ) -> "tuple[str, str]":
     """``(verdict, basis)`` — the verdict plus the RULE that produced it.
 
@@ -137,6 +225,18 @@ def relevance_basis(
     "yes go ahead" names no subject, and lexical absence is not proof of
     mismatch. Without ``history`` the behaviour is byte-identical to the
     pre-resolution rules.
+
+    2026-09-23 (canvas-target acceptance, ``extra_topic``): an edit turn's
+    evidence query names the SUBJECT OF THE CANVAS being edited, while the
+    instruction names the artifact and the fields to fill ("update with
+    actual prices in the email") — zero lexical overlap by construction.
+    When ``extra_topic`` (the canvas's subject text, see
+    :func:`canvas_topic_text`) is supplied, a query sharing two content
+    words with it — or one word that is a strong identifier of it — is
+    ``relevant`` (basis ``canvas-target``/``canvas-target-identifier``)
+    instead of ``irrelevant``. A stale query shares nothing with the target
+    and still declines. Callers that pass no ``extra_topic`` see
+    byte-identical behaviour.
     """
     if not query or not str(query).strip():
         return "unknown", "empty-query"
@@ -213,9 +313,62 @@ def relevance_basis(
     # back to the caller (inspect/replan/clarify), never decline.
     if ref.kind in (REF_UNRESOLVED, REF_AMBIGUOUS):
         return "unknown", "unresolved-reference"
+    # CANVAS-TARGET RULE (2026-09-23, canvas 0e4defa5): an edit turn's
+    # evidence lookup legitimately names the SUBJECT OF THE CANVAS being
+    # edited, not the wording of the instruction — "update with actual
+    # prices in the email" vs the mailbox search for the quoted products
+    # is zero-overlap BY CONSTRUCTION, the same shape as the
+    # provenance-quote exemption above (query = thread SUBJECT, message =
+    # pasted BODY). When the query names what the canvas names — two
+    # content words, or one word that is a strong identifier of the canvas
+    # (a model code, a figure) — it addresses the request. A genuinely
+    # stale query (RCA 2026-09-17: "PRICE VIPUL price list" against a
+    # scorecard canvas) still shares nothing with the target and declines.
+    if extra_topic and allow_canvas_target:
+        topic_tokens = _canvas_topic_variants(_canvas_topic_tokens(extra_topic))
+        query_topic_tokens = _canvas_topic_variants(
+            _canvas_topic_tokens(q_norm))
+        topic_overlap = query_topic_tokens & topic_tokens
+        if topic_overlap & _canvas_topic_strong_tokens(extra_topic):
+            return "relevant", "canvas-target-identifier"
+        if len(topic_overlap) >= 2 or (
+                len(topic_overlap) == 1
+                and any(len(token) >= 4 for token in topic_overlap)):
+            return "relevant", "canvas-target"
     # NO shared signal at all: the query and the request are about different
     # subjects, which is the one case lexical evidence can settle.
     return "irrelevant", "zero-overlap"
+
+
+def resolved_plan_relevance(
+    plan: Any,
+    message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
+    allow_canvas_target: bool = True,
+) -> "tuple[str, str]":
+    """Resolve a plan stamp against the current request and canvas.
+
+    A stamp is evidence from an earlier stage, not a permanent bypass. A
+    provenance quote remains valid because its subject is established by the
+    verified source; every other verdict is rechecked against the current
+    message, history, and target canvas. This is what prevents a plan stamped
+    against a stale client snapshot from executing after the durable canvas
+    has changed."""
+    stamped = getattr(plan, "relevance_verdict", None)
+    stamped_basis = str(getattr(plan, "relevance_basis", "") or "")
+    if stamped == "relevant" and stamped_basis == "provenance-quote":
+        return "relevant", stamped_basis
+    query = str(getattr(plan, "query", "") or "")
+    current = relevance_basis(
+        query, message, history=history, extra_topic=extra_topic,
+        allow_canvas_target=allow_canvas_target,
+    )
+    if current[0] == "irrelevant":
+        return current
+    if stamped in (None, "", "unknown"):
+        return current
+    return current
 
 
 def _digit_runs(text: str) -> Set[str]:
@@ -466,10 +619,10 @@ def _ground_ordinal(message: str, offer_text: str) -> Optional[str]:
     if not items:
         return None
     if idx == -1:
-        return items[-1][1].strip()
+        return str(items[-1][1]).strip()
     for num, body in items:
         if int(num) == idx:
-            return body.strip()
+            return str(body).strip()
     return None
 
 

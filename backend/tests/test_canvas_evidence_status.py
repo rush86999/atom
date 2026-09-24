@@ -101,3 +101,33 @@ class TestNotes:
     def test_string_value_is_coerced(self):
         assert canvas_evidence_note("fetch_declined") == canvas_evidence_note(
             CanvasEvidenceStatus.FETCH_DECLINED)
+
+
+def test_canvas_target_evidence_is_not_quarantined_for_a_real_edit():
+    from integrations.chat_orchestrator import _evidence_relevance
+
+    block = (
+        "LIVE TOOL RESULTS (outlook.search, "
+        "query='Chandrakant amacisaac alternatives roll bender bead roller "
+        "flanger slitter TK 16'):\n"
+        "Roper Whitney No. 381 $2,902.00"
+    )
+    canvas = {
+        "canvas_id": "cv-quote",
+        "title": "Quote - Roper Whitney Roll Bender, Linmac Bead Roller, Slitters",
+        "content": {"body": "<table><tr><td>Roper Whitney No. 381</td></tr></table>"},
+    }
+    assert _evidence_relevance(
+        block,
+        "update with actual prices in the email",
+        [],
+        canvas=canvas,
+        allow_canvas_target=True,
+    ) == "addresses"
+    assert _evidence_relevance(
+        block,
+        "update with actual prices in the email",
+        [],
+        canvas=canvas,
+        allow_canvas_target=False,
+    ) != "addresses"

@@ -52,9 +52,14 @@ export const NotificationsBell: React.FC = () => {
         }
     }, []);
 
-    // Initial poll on mount, and when the dropdown is first opened.
+    // Initial poll on mount, when the dropdown is first opened, and every
+    // 60s afterwards — Layout mounts the bell once for the whole SPA, so
+    // without an interval an approval notification that arrives mid-session
+    // never lights the badge until a full page reload.
     useEffect(() => {
         fetchUnread();
+        const t = setInterval(fetchUnread, 60000);
+        return () => clearInterval(t);
     }, [fetchUnread]);
 
     // Close on outside click.
@@ -127,6 +132,11 @@ export const NotificationsBell: React.FC = () => {
                     </span>
                 )}
             </button>
+            <span role="status" aria-live="polite" className="sr-only">
+                {unread > 0
+                    ? `${unread} unread notification${unread === 1 ? "" : "s"}`
+                    : "No unread notifications"}
+            </span>
 
             {open && (
                 <div className="absolute right-0 mt-2 w-80 max-h-[480px] overflow-y-auto rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg z-50">

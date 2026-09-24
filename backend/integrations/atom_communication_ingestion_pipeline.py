@@ -519,6 +519,15 @@ class CommunicationAppType(Enum):
     CRM_LEAD = "crm_lead"
     CRM_DEAL = "crm_deal"
 
+class IngestionStatus(str, Enum):
+    INSERTED = "inserted"
+    DUPLICATE = "duplicate"
+    ERROR = "error"
+
+    @property
+    def status(self) -> str:
+        return self.value
+
 @dataclass
 class CommunicationData:
     """Unified communication data structure"""
@@ -979,40 +988,44 @@ class LanceDBMemoryManager:
             logger.warning(f"Could not persist duplicate-row heal marker: {marker_err}")
 
     def ingest_communication(self, data: CommunicationData) -> bool:
-        """Ingest single communication into LanceDB"""
+        status = self.ingest_communication_with_status(data)
+        if status == IngestionStatus.INSERTED:
+            self._invalidate_vfs_rows_cache()
+        return status != IngestionStatus.ERROR
+
+    def ingest_communication_with_status(self, data: CommunicationData) -> IngestionStatus:
         try:
-            # Cross-process idempotency: the poller's seen-id map can't see
-            # another process's marks, but the store can. A row stamped for
-            # a DIFFERENT owner still ingests (ownership-scoped search keeps
-            # those invisible, same contract as _dedup_messages).
             owner = ""
             if isinstance(data.metadata, dict):
                 owner = str(data.metadata.get("user_id") or "")
             if self._stored_row_blocked(data.app_type, data.id, owner):
+                try:
+                    setattr(data, "_ingestion_status", IngestionStatus.DUPLICATE)
+                except Exception:
+                    pass
                 logger.info(
                     f"Skipped duplicate communication {data.id} — row already "
                     f"present in store (cross-process guard)"
                 )
-                return True
+                return IngestionStatus.DUPLICATE
             if self._stored_content_blocked(
                 data.app_type, owner, data.sender, data.recipient,
                 data.subject, data.content, data.timestamp,
             ):
+                try:
+                    setattr(data, "_ingestion_status", IngestionStatus.DUPLICATE)
+                except Exception:
+                    pass
                 logger.info(
                     f"Skipped communication {data.id} — identical content "
                     f"already stored under a different id (content-identity guard)"
                 )
-                return True
+                return IngestionStatus.DUPLICATE
 
-            # Styling preservation net (ALL apps): producers that bypass the
-            # per-app normalizers (projects/sales pipelines, API/webhook
-            # ingests) get the same treatment here — idempotent for content
-            # a normalizer already processed.
             data.content, data.metadata = _apply_styling_preservation(
                 data.content, data.metadata
             )
 
-            # Convert to record
             record = {
                 "id": data.id,
                 "app_type": data.app_type,
@@ -1027,23 +1040,26 @@ class LanceDBMemoryManager:
                 "status": data.status,
                 "priority": data.priority,
                 "tags": data.tags,
-                "vector": data.vector_embedding or [0.0] * self.embedding_dim,  # Default embedding
+                "vector": data.vector_embedding or [0.0] * self.embedding_dim,
                 "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
             }
-            
-            # Add to database
+
             self.connections_table.add([record])
-            
-            # Update metadata
             self._update_metadata(data.app_type, 1)
             self._invalidate_vfs_rows_cache()
-            
+            try:
+                setattr(data, "_ingestion_status", IngestionStatus.INSERTED)
+            except Exception:
+                pass
             logger.info(f"Ingested communication {data.id} from {data.app_type}")
-            return True
-            
+            return IngestionStatus.INSERTED
         except Exception as e:
+            try:
+                setattr(data, "_ingestion_status", IngestionStatus.ERROR)
+            except Exception:
+                pass
             logger.error(f"Error ingesting communication: {str(e)}")
-            return False
+            return IngestionStatus.ERROR
 
     def ingest_generic_record(self, record_data: Any) -> bool:
         """Ingest a generic record (lead, contact, etc.) into LanceDB memory"""
@@ -2179,6 +2195,20 @@ class CommunicationIngestionPipeline:
     
     async def ingest_message(self, app_type: str, message_data: Dict[str, Any],
                              *, describe_images: bool = False) -> bool:
+        status = await self._ingest_message_with_status(
+            app_type,
+            message_data,
+            describe_images=describe_images,
+        )
+        return status in {IngestionStatus.INSERTED, IngestionStatus.DUPLICATE}
+
+    async def _ingest_message_with_status(
+        self,
+        app_type: str,
+        message_data: Dict[str, Any],
+        *,
+        describe_images: bool = False,
+    ) -> IngestionStatus:
         """Ingest single message from any communication app.
 
         ``describe_images``: images with NO text layer get a vision DESCRIPTION
@@ -2205,15 +2235,6 @@ class CommunicationIngestionPipeline:
             # Normalize message data
             normalized_data = self._normalize_message(app_type, message_data)
 
-            # Binary attachments (pdf/docx/xlsx/…) get a real text layer in
-            # the documents memory index. Text-like ones skip this — their
-            # text is already folded into the comms content above.
-            if raw_attachments:
-                await self._ingest_binary_attachments(
-                    app_type, raw_attachments, normalized_data,
-                    describe_images=describe_images,
-                )
-
             # Convert to CommunicationData
             comm_data = CommunicationData(**normalized_data)
             
@@ -2223,9 +2244,41 @@ class CommunicationIngestionPipeline:
             
             # Ingest into memory (run in executor to avoid blocking)
             loop = asyncio.get_running_loop()
-            success = await loop.run_in_executor(None, self.memory_manager.ingest_communication, comm_data)
-            
-            if success:
+            store_result = await loop.run_in_executor(
+                None,
+                self.memory_manager.ingest_communication,
+                comm_data,
+            )
+            status = getattr(comm_data, "_ingestion_status", None)
+            if not isinstance(status, IngestionStatus):
+                try:
+                    status = IngestionStatus(status)
+                except (TypeError, ValueError):
+                    try:
+                        candidate = (
+                            store_result.get("status")
+                            if isinstance(store_result, dict)
+                            else getattr(store_result, "status", store_result)
+                        )
+                        status = IngestionStatus(candidate)
+                    except (TypeError, ValueError):
+                        status = IngestionStatus.INSERTED if store_result else IngestionStatus.ERROR
+
+            if status == IngestionStatus.INSERTED:
+                if raw_attachments:
+                    try:
+                        await self._ingest_binary_attachments(
+                            app_type,
+                            raw_attachments,
+                            normalized_data,
+                            describe_images=describe_images,
+                        )
+                    except Exception as ex:
+                        logger.error(
+                            "Binary attachment ingestion failed for %s: %s",
+                            comm_data.id,
+                            ex,
+                        )
                 # Trigger Knowledge Extraction asynchronously if enabled and content exists
                 from core.automation_settings import get_automation_settings
                 settings = get_automation_settings()
@@ -2283,12 +2336,40 @@ class CommunicationIngestionPipeline:
                         logger.error(f"Error triggering knowledge extraction in ingestion pipeline: {ex}")
                 elif not settings.is_automations_enabled() or not settings.is_extraction_enabled():
                     logger.info(f"Knowledge extraction skipped for {comm_data.id} (automations disabled in settings)")
+
+                # AI trigger coordinator: ingested communications feed the same
+                # auto-trigger path as webhooks and streams (on_data_ingested →
+                # category classify → workspace domain hire → maturity guard).
+                # Inbound + fresh messages only — backfilled old mail and
+                # outbound/sent items must not fire one coordinator run (and
+                # one review proposal) per message.
+                if (settings.is_automations_enabled()
+                        and not extraction_blocked
+                        and (comm_data.direction or "inbound") == "inbound"
+                        and comm_data.content and len(comm_data.content.strip()) > 20):
+                    try:
+                        from core.ai_trigger_coordinator import on_data_ingested
+
+                        loop.create_task(_bounded_extraction(on_data_ingested(
+                            data={"text": comm_data.content},
+                            source=app_type,
+                            workspace_id=self.memory_manager.workspace_id or "default",
+                            user_id=comm_data.metadata.get("user_id") or "system",
+                            metadata={
+                                "source_app": app_type,
+                                "message_id": comm_data.id,
+                                "subject": comm_data.subject,
+                                "sender": comm_data.sender,
+                            },
+                        )))
+                    except Exception as ex:
+                        logger.error(f"Error triggering AI coordinator in ingestion pipeline: {ex}")
             
-            return success
-            
+            return status
+
         except Exception as e:
             logger.error(f"Error ingesting message from {app_type}: {str(e)}")
-            return False
+            return IngestionStatus.ERROR
     
     def start_real_time_stream(self, app_type: str):
         """Start real-time ingestion stream for app"""
@@ -4302,12 +4383,16 @@ class CommunicationIngestionPipeline:
                     "message_id": message_id,
                 }
 
-            success = await self.ingest_message(
-                app_type, normalized, describe_images=True
-            )
-            if not success:
-                # NOT marked seen — the message stays on the retry path
-                # (same contract as _ingest_and_mark).
+            if hasattr(self, "memory_manager"):
+                status = await self._ingest_message_with_status(
+                    app_type, normalized, describe_images=True
+                )
+            else:
+                success = await self.ingest_message(
+                    app_type, normalized, describe_images=True
+                )
+                status = IngestionStatus.INSERTED if success else IngestionStatus.ERROR
+            if status == IngestionStatus.ERROR:
                 return {
                     "status": "error",
                     "reason": "store_write_failed",
@@ -4322,7 +4407,7 @@ class CommunicationIngestionPipeline:
             except Exception as e:
                 logger.debug(f"On-demand ingest: fetch-state save skipped: {e}")
             return {
-                "status": "ingested",
+                "status": "already_ingested" if status == IngestionStatus.DUPLICATE else "ingested",
                 "app_type": app_type,
                 "message_id": message_id,
                 "subject": normalized.get("subject") or "",
@@ -4834,6 +4919,7 @@ ingestion_pipeline = get_ingestion_pipeline()
 # Export for use
 __all__ = [
     'CommunicationAppType',
+    'IngestionStatus',
     'CommunicationData',
     'IngestionConfig',
     'LanceDBMemoryManager',

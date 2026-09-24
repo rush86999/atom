@@ -357,6 +357,7 @@ class TestINTERNGraduationCriteria:
             readiness_score=45.0,
             episodes_analyzed=10,
             avg_constitutional_score=0.65,
+            breakdown={"constitutional_recorded": 10},
             gaps=["Constitutional score too low: 0.65 < 0.70"],
         )
 
@@ -451,6 +452,7 @@ class TestSUPERVISEDGraduationCriteria:
             readiness_score=70.0,
             episodes_analyzed=25,
             avg_constitutional_score=0.80,
+            breakdown={"constitutional_recorded": 25},
             gaps=["Constitutional score too low: 0.80 < 0.85"],
         )
 
@@ -545,6 +547,7 @@ class TestAUTONOMOUSGraduationCriteria:
             readiness_score=85.0,
             episodes_analyzed=50,
             avg_constitutional_score=0.93,
+            breakdown={"constitutional_recorded": 50},
             gaps=["Constitutional score too low: 0.93 < 0.95"],
         )
 

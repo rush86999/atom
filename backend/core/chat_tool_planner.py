@@ -39,6 +39,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, PrivateAttr, field_validator
 
+try:  # canvas-target text for the relevance judgments below; the module
+      # is fault-isolated at every use site, so absence degrades to "".
+    from core.plan_relevance import canvas_topic_text
+except Exception:  # noqa: BLE001 — planner must import without it
+    def canvas_topic_text(canvas: Optional[Dict[str, Any]]) -> str:
+        return ""
+
 logger = logging.getLogger(__name__)
 
 # Connects provider names as stored in integration_tokens to the service
@@ -995,6 +1002,7 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
 def _plan_relevance_verdict(
     query: str, message: str,
     history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
 ) -> str:
     """``relevant`` | ``irrelevant`` | ``unknown`` — thin wrapper over
     core.plan_relevance (the same verdict the consumption-side gates run),
@@ -1005,10 +1013,18 @@ def _plan_relevance_verdict(
     messages ("yes go ahead", "rebuild the draft with requested quotes…")
     are judged on their RESOLVED topic/lineage, not their bare wording —
     the bare judgement fired the corrective repair arm on exactly those
-    turns (RCA: 59.5s planner, two sequential structured calls)."""
+    turns (RCA: 59.5s planner, two sequential structured calls).
+
+    2026-09-23: ``extra_topic`` (the open canvas's subject text) rides
+    along for the canvas-target rule — an edit turn's evidence query names
+    the CANVAS's subject, which shares zero words with an instruction like
+    "update with actual prices in the email" (live canvas 0e4defa5: the
+    correct mailbox query was replanned and then declined by both
+    consumption gates on the bare-word judgement)."""
     try:
         from core.plan_relevance import relevance_verdict
-        return relevance_verdict(query, message, history=history)
+        return relevance_verdict(query, message, history=history,
+                                 extra_topic=extra_topic)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown"
 
@@ -1016,16 +1032,19 @@ def _plan_relevance_verdict(
 def _plan_relevance_basis(
     query: str, message: str,
     history: Optional[List[Dict[str, Any]]] = None,
+    extra_topic: Optional[str] = None,
 ) -> "tuple[str, str]":
     """Same fault-isolation contract as :func:`_plan_relevance_verdict`,
     returning the rule basis alongside the verdict so the acceptance stamp
     records WHY (basis ``provenance-quote`` is assigned by the caller for
     the exemption, not by this module). History-aware for the same reason
     as the verdict wrapper — the stamp is the verdict of record the
-    downstream editor gate honors."""
+    downstream editor gate honors. ``extra_topic``-aware since 2026-09-23
+    (canvas-target rule) for the same reason."""
     try:
         from core.plan_relevance import relevance_basis
-        return relevance_basis(query, message, history=history)
+        return relevance_basis(query, message, history=history,
+                               extra_topic=extra_topic)
     except Exception:  # noqa: BLE001 — gate must never break planning
         return "unknown", "module-unavailable"
 
@@ -1129,6 +1148,7 @@ async def plan_tool_use(
     llm_service: Any,
     canvas: Optional[Dict[str, Any]] = None,
     provenance: str = "",
+    allow_canvas_target: bool = False,
 ) -> Optional[ToolPlan]:
     """Decide (via cheap structured LLM output) whether this turn needs live
     integration data, and which connected service to query. Returns None on
@@ -1315,8 +1335,18 @@ async def plan_tool_use(
             provenance
             and "INGESTED MAIL contains" in provenance
             and _quote_lookup_shape(message))
+        # The canvas target rides along on every relevance judgment below:
+        # an edit turn's evidence query names the CANVAS's subject (the
+        # products in the open draft), which shares zero words with the
+        # instruction ("update with actual prices in the email") — live
+        # 2026-09-23, canvas 0e4defa5: the CORRECT mailbox query was
+        # replanned, then declined by both consumption gates.
+        _canvas_topic = (
+            canvas_topic_text(canvas) if allow_canvas_target else ""
+        )
         if not _prov_quote_lookup and _plan_relevance_verdict(
-                plan.query or "", message, history) == "irrelevant":
+                plan.query or "", message, history,
+                extra_topic=_canvas_topic) == "irrelevant":
             defect = (
                 "the planned query answers an EARLIER request, not the "
                 f"current one: query {plan.query!r} names nothing the "
@@ -1330,7 +1360,7 @@ async def plan_tool_use(
                     and repaired.service in allowed
                     and _plan_relevance_verdict(
                         repaired.query or "", message,
-                        history) == "relevant"):
+                        history, extra_topic=_canvas_topic) == "relevant"):
                 logger.info(
                     "tool planner: relevance repair -> "
                     f"{repaired.service}.{repaired.intent} "
@@ -1363,7 +1393,8 @@ async def plan_tool_use(
             plan.relevance_basis = "provenance-quote"
         else:
             plan.relevance_verdict, plan.relevance_basis = (
-                _plan_relevance_basis(plan.query or "", message, history))
+                _plan_relevance_basis(plan.query or "", message, history,
+                                      extra_topic=_canvas_topic))
     return plan
 
 
@@ -6983,6 +7014,10 @@ async def execute_tool_plan(
                     for h in ((context or {}).get("history") or [])
                     if isinstance(h, dict) and h.get("message")
                 ][-6:],
+                "message": (context or {}).get("message") or query,
+                "history": (context or {}).get("history") or [],
+                "canvas": (context or {}).get("canvas"),
+                "requested_targets": (context or {}).get("requested_targets"),
                 "llm_service": llm_service,
             }
 
@@ -6993,6 +7028,49 @@ async def execute_tool_plan(
                 )
         result = await _run_call()
         data = result.get("data") if isinstance(result, dict) else None
+
+        # STORAGE-READ IDENTITY + COMPLETION (2026-09-23): a storage read
+        # resolves a concrete file — record WHICH file (service, resource
+        # id, name) and whether the read COMPLETED (content extracted) or
+        # merely found/failed (found-but-download-failed, no-text, search
+        # miss). The chat layer needs both to keep a pending file task
+        # alive across turns: identity and completion are separate facts.
+        try:
+            if (
+                result.get("status") == "success"
+                and isinstance(data, dict)
+                and (
+                    data.get("file_id")
+                    or data.get("resource_id")
+                    or data.get("file_name")
+                )
+            ):
+                _meta = getattr(plan, "_result_meta", None)
+                if not isinstance(_meta, dict):
+                    _meta = {}
+                    plan._result_meta = _meta
+                _meta["storage_read"] = {
+                    "service": service,
+                    "file_id": data.get("file_id"),
+                    "resource_id": data.get("resource_id") or data.get("file_id"),
+                    "file_name": data.get("file_name"),
+                    "identity_verified": bool(data.get("identity_verified")),
+                    "source_metadata": data.get("source_metadata") or {},
+                    "served": bool(data.get("served", data.get("found"))),
+                    "read_completed": bool(data.get("read_completed", False)),
+                    "coverage_complete": bool(data.get("coverage_complete", False)),
+                    "workbook_read": data.get("workbook_read"),
+                    "content_sha256": data.get("content_sha256"),
+                    "completed": bool(
+                        data.get("read_completed")
+                        and data.get("served", data.get("found"))
+                    ),
+                    "note": data.get("message"),
+                    "dataset_sheet": (data.get("dataset") or {}).get(
+                        "sheet"),
+                }
+        except Exception:  # noqa: BLE001 — meta is best-effort
+            pass
 
         # SEARCH-MISS → ON-DEMAND INGEST (generalized from the outlook leg,
         # live 2026-09-11 Seguin incident): an EMPTY live search is exactly
@@ -7126,6 +7204,18 @@ async def execute_tool_plan(
                 f"returned nothing usable ({reason}).{ingest_note}"
             )
         if action == "read_file" and isinstance(data, dict):
+            plan._result_meta["file_read"] = {
+                "served": bool(data.get("served", data.get("found"))),
+                "identity_verified": bool(data.get("identity_verified")),
+                "resource_id": data.get("resource_id") or data.get("file_id"),
+                "provider": data.get("provider") or service,
+                "file_name": data.get("file_name"),
+                "source_metadata": data.get("source_metadata") or {},
+                "read_completed": bool(data.get("read_completed", False)),
+                "coverage_complete": bool(data.get("coverage_complete", False)),
+                "workbook_read": data.get("workbook_read"),
+                "content_sha256": data.get("content_sha256"),
+            }
             # The file was OPENED — render the excerpt as first-class
             # evidence rather than str(dict) noise. found=False /
             # download-failure envelopes fall through to the generic path.
@@ -7165,14 +7255,23 @@ async def execute_tool_plan(
             # with a read intent means the open FAILED (not found / download
             # / extraction) — same dead-end class, same second source. Files
             # with no ingested copy still surface as plain metadata hits.
-            mem_block = await _memory_search_block(user_id, query, context)
-            if mem_block:
-                return _with_grounding(
-                    f"{header}\n\nThe results above are METADATA only — file "
-                    f"records, not contents. INGESTED COPY, full-text search "
-                    f"over the workspace's own extracted file contents "
-                    f"(authoritative for what the files SAY):\n{mem_block}"
-                )
+            _file_read_failure = False
+            if action == "read_file":
+                try:
+                    from core.agent_file_context import detect_file_task_mentions
+
+                    _file_read_failure = bool(detect_file_task_mentions(query))
+                except Exception:
+                    _file_read_failure = False
+            if not _file_read_failure:
+                mem_block = await _memory_search_block(user_id, query, context)
+                if mem_block:
+                    return _with_grounding(
+                        f"{header}\n\nThe results above are METADATA only — file "
+                        f"records, not contents. INGESTED COPY, full-text search "
+                        f"over the workspace's own extracted file contents "
+                        f"(authoritative for what the files SAY):\n{mem_block}"
+                    )
         if service in _COMMUNICATION_SERVICES or _haystack_has_address(query, context):
             # Same anchoring lesson as the outlook leg: a live mailbox/chat
             # search "succeeds" with whatever the provider's relevance

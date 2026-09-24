@@ -9,6 +9,7 @@ _require_supervisor (TEAM_LEAD+). The graduation surface must match.
 """
 import os
 import tempfile
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -133,10 +134,20 @@ def test_member_cannot_promote_any_agent(client, db, agent):
 def test_supervisor_can_promote(client, db, agent):
     """TEAM_LEAD+ keeps the ability to promote (legitimate flow intact)."""
     client.atom_current["id"] = "u-lead"
-    resp = client.post(
-        "/api/episodes/graduation/promote",
-        params={"agent_id": "agent-1", "new_maturity": "INTERN"},
-    )
+
+    async def promote(**kwargs):
+        agent.status = AgentStatus.INTERN.value
+        db.commit()
+        return True
+
+    with patch("api.episode_routes.AgentGraduationService") as service_cls:
+        service = service_cls.return_value
+        service.get_agent_in_scope = Mock(return_value=agent)
+        service.promote_agent = AsyncMock(side_effect=promote)
+        resp = client.post(
+            "/api/episodes/graduation/promote",
+            params={"agent_id": "agent-1", "new_maturity": "INTERN"},
+        )
     assert resp.status_code == 200, resp.text
     assert resp.json()["data"]["promoted"] is True
     db.expire_all()

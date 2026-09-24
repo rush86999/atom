@@ -137,6 +137,42 @@ class TestReplanArm:
                                    _llm(off, decline))
         assert plan is None
 
+    async def test_canvas_target_stamp_requires_edit_opt_in(self, monkeypatch):
+        _planner_env(monkeypatch)
+        canvas = {
+            "canvas_id": "cv-quote",
+            "title": "Quote - Roper Whitney Roll Bender, Linmac Bead Roller, Slitters",
+            "content": {"body": "<table><tr><td>Roper Whitney No. 381</td></tr></table>"},
+        }
+        source = ToolPlan(
+            use_tool=True, service="outlook", intent="search",
+            query="Chandrakant amacisaac alternatives roll bender bead roller flanger slitter",
+        )
+        plan = await plan_tool_use(
+            "update with actual prices in the email", [], "u1", _llm(source),
+            canvas=canvas, allow_canvas_target=True,
+        )
+        assert plan.relevance_verdict == "relevant"
+        assert plan.relevance_basis == "canvas-target"
+
+    async def test_canvas_target_is_not_used_by_an_ordinary_canvas_turn(
+            self, monkeypatch):
+        _planner_env(monkeypatch)
+        canvas = {
+            "canvas_id": "cv-quote",
+            "title": "Quote - Roper Whitney Roll Bender",
+            "content": {"body": "<table><tr><td>Roper Whitney</td></tr></table>"},
+        }
+        source = ToolPlan(
+            use_tool=True, service="outlook", intent="search",
+            query="roll bender alternatives",
+        )
+        plan = await plan_tool_use(
+            "check the vendor scorecard", [], "u1", _llm(source),
+            canvas=canvas,
+        )
+        assert plan.relevance_verdict != "relevant"
+
     async def test_anaphoric_retry_is_never_gated(self, monkeypatch):
         """'try again' carries no identifiers — the relevance verdict is
         'unknown' and the retry keeps its single-call contract."""

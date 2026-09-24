@@ -717,3 +717,175 @@ class TestMailDirection:
         # chandrakant is the recipient here — the lane correctly identifies
         # this as received mail (direction is from sender/recipient fields)
         assert all(r["sender"] == "chandrakant@brennan.ca" for r in result)
+
+
+class TestParticipantLaneLive20260923:
+    """Canvas 0e4defa5 / session replay-success2-20260922.
+
+    Two failure shapes from the "8 machines quoted" correction turn:
+
+    1. SUBSTRING HANDLES: the local part ``email@…`` matched the word
+       "emails" in the user's question, then the substring "email" matched
+       ``hello@procuremail.eunasolutions.com`` — the lane injected that
+       vendor's marketing mail as "the messages the user is pointing at".
+    2. GENERIC-WORD RANKING: "Chandrakant's email thread to the lead,
+       there were a total of 8 machines quoted" ranked three long
+       unrelated CC threads above "Quote for requested machines" — every
+       "Brennan Machinery" signature carries the word "machinery", and
+       common English ("does", "report") in long bodies outranked the
+       subject words the user actually named. The store also carries each
+       message TWICE, so duplicates ate the evidence limit.
+
+    The corpus mirrors the live store's shapes: the MacIsaac quote thread
+    (8 machines over two mails), newer chandrakant-CC noise, and the
+    Euna-shaped marketing rows.
+    """
+
+    QUOTE = _rows(
+        ("chandrakant@brennan.ca", "amacisaac@AlumaSafway.com",
+         "Quote for requested machines",
+         "Hey Steve, Thank you for your interest in the No. 381 "
+         "Roper Whitney Gauge Manual Roll Bender No. 381 $2,902.00 "
+         "Linmac U-22 Bead Roller $1,777.00 Roper Whitney Rotary Machine "
+         "No. 622 $2,421.00 TK Manual Flanger $1,609.00. "
+         "Brennan Machinery Inc. Best, Chandrakant Sharma",
+         "2026-09-18T14:55:38"),
+        ("chandrakant@brennan.ca", "amacisaac@AlumaSafway.com",
+         "Quote for Slitter",
+         "Hello Steve, thank you for your interest in the Tennsmith Single "
+         "Wheel Slitter SLE24-16 $8,880.00, TK 1624 Slitter $8,040.00, "
+         "Tin Knocker TK Multi Wheel Gang Slitter $12,838.00, Tennsmith "
+         "GSL48-16 $14,166.00. Best, Chandrakant Sharma",
+         "2026-09-18T15:06:58"),
+        ("amacisaac@AlumaSafway.com", "chandrakant@brennan.ca",
+         "RE: [EXTERNAL]: Quote for requested machines",
+         "Thank you do you have the slitter price too. Steve MacIsaac",
+         "2026-09-18T15:07:05"),
+    )
+    NOISE = _rows(
+        ("vipul@brennan.ca", "sales@stable-tek.com, chandrakant@brennan.ca",
+         "Re: Brennan Machinery_NT550 & NT650 TNC640",
+         "there were questions about the total lead time, the control "
+         "does report alarms; we already covered the machines in the "
+         "manual. Chandrakant, machinery details attached.",
+         "2026-08-27T17:37:00"),
+        ("vipul@brennan.ca", "sales3@skymen.cc, chandrakant@brennan.ca",
+         "Re: Parts Washer RFP - Machine Recommendation",
+         "the machines in total were there in the report we already sent; "
+         "the machinery does not need another pass. Regards, Brennan "
+         "Machinery Inc.",
+         "2026-08-26T17:46:23"),
+    )
+    EUNA = _rows(
+        ("hello@procuremail.eunasolutions.com", "rish@brennan.ca",
+         "Make finding open bid opportunities easier",
+         "upgrade to pro for more bid opportunities in your inbox",
+         "2026-09-22T19:35:18"),
+    )
+    # Every message stored twice (the live store's two ingestion passes).
+    STORE = QUOTE * 2 + NOISE * 2 + EUNA * 2
+
+    HISTORY = [
+        {"message": "rebuild the draft with requested quotes and "
+                    "alternatives to those machinery."},
+        {"message": "try again this task, consider chandrakant's email "
+                    "contents that already mentioned alternatives -- "
+                    "rebuild the draft with requested quotes and "
+                    "alternatives to those machinery."},
+        {"message": "only the ones chandrakant mentioned. "},
+    ]
+    CANVAS = {
+        "title": "Quote - Roper Whitney Roll Bender, Linmac Bead Roller, "
+                 "Manual Flanger & Slitter",
+        "content": {
+            "to": "amacisaac@alumasafway.com",
+            "subject": "Quote - Roper Whitney Roll Bender",
+            "body": "Hi Steve, requested items quoted: Roper Whitney Roll "
+                    "Bender No. 381, Linmac U-22 Bead Roller, TK Manual "
+                    "Flanger, Tennsmith SLE24-16 Slitter TBD. If lead time "
+                    "or price is a concern, let us know and we can look "
+                    "for alternative options.",
+        },
+    }
+
+    @pytest.fixture(autouse=True)
+    def _store(self, monkeypatch):
+        monkeypatch.setattr(ctp, "_comms_store_records", lambda: self.STORE)
+
+    def _topic(self):
+        return (
+            f"{co._recent_user_topic({'history': self.HISTORY})} "
+            f"{co._canvas_topic_text(self.CANVAS)}"
+        ).strip()
+
+    def test_substring_handles_are_not_participants(self):
+        # The "email" inside "emails" and "procuremail" must never become a
+        # participant handle — this is what injected the Euna marketing mail.
+        rows = co._participant_mail_rows(
+            "re pull the emails and if there isn't, then thats ok as I "
+            "added a generic message related to alternatives.")
+        assert rows == []
+
+    def test_plural_referent_still_fires_the_lane(self):
+        rows = co._participant_mail_rows(
+            "re pull the emails and if there isn't, then thats ok as I "
+            "added a generic message related to alternatives.",
+            topic="only the ones chandrakant mentioned.")
+        assert rows, "anaphoric 'the emails' must grip the named participant"
+        assert all("chandrakant" in r["sender"] or
+                   "chandrakant" in r["recipient"] for r in rows)
+
+    def test_eight_machines_thread_outranks_cc_noise(self):
+        rows = co._participant_mail_rows(
+            "if you check Chandrakant's email thread to the lead, there "
+            "were a total of 8 machines quoted",
+            limit=4, topic=self._topic())
+        assert rows, "the named thread must be found"
+        subjects = [r["subject"] for r in rows]
+        assert "Quote for requested machines" in subjects, subjects
+        assert "Brennan Machinery_NT550 & NT650 TNC640" not in subjects[:1]
+        assert "Parts Washer RFP - Machine Recommendation" not in subjects[:1]
+        # The lead's thread is the one the user pointed at — it leads.
+        assert "Quote for requested machines" in rows[0]["subject"] or \
+               "Quote for requested machines" in subjects[:2]
+
+    def test_full_thread_is_reachable_despite_duplicate_store_rows(self):
+        rows = co._participant_mail_rows(
+            "if you check Chandrakant's email thread to the lead, there "
+            "were a total of 8 machines quoted",
+            limit=4, topic=self._topic())
+        ids = [r["id"] for r in rows]
+        assert len(ids) == len(set(ids)), "duplicates must not eat the limit"
+        found = {" ".join(str(r.get("subject")) for r in rows)}
+        assert any("Slitter" in s or "requested" in s for s in (
+            r["subject"] for r in rows))
+
+    def test_repull_with_anaphoric_topic_finds_the_thread(self):
+        rows = co._participant_mail_rows(
+            "re pull the emails and if there isn't, then thats ok as I "
+            "added a generic message related to alternatives. see canvas "
+            "content",
+            limit=4, topic=self._topic())
+        subjects = [r["subject"] for r in rows]
+        assert any("Quote" in s for s in subjects), subjects
+        assert not any("bid opportunities" in r["content"] for r in rows)
+
+    def test_possessive_thread_owner_tiers_other_senders_down(self):
+        rows = co._participant_mail_rows(
+            "if you check Chandrakant's email thread to the lead, there "
+            "were a total of 8 machines quoted",
+            limit=4, topic=self._topic())
+        # vipul-sent noise (chandrakant only CC'd) must not lead the
+        # chandrakant-SENT thread the possessive names.
+        assert rows[0]["sender"] == "chandrakant@brennan.ca"
+        assert "amacisaac" in rows[0]["recipient"].lower()
+
+    def test_canvas_words_grip_the_alternatives_row(self):
+        rows = co._participant_mail_rows(
+            "re pull the emails and if there isn't, then thats ok as I "
+            "added a generic message related to alternatives. see canvas "
+            "content",
+            limit=4, topic=self._topic())
+        subjects = [r["subject"] for r in rows]
+        assert "Quote for Slitter" in subjects or \
+               "Quote for requested machines" in subjects, subjects

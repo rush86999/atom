@@ -127,7 +127,8 @@ describe('NotificationsBell', () => {
     const bell = await screen.findByRole('button', {
       name: 'Notifications (1 unread)',
     });
-    expect(screen.getByText('1')).toBeInTheDocument();
+     expect(screen.getByText('1')).toBeInTheDocument();
+     expect(screen.getByRole('status')).toHaveTextContent('1 unread notification');
   });
 
   test('caps the badge at 9+', async () => {

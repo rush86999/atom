@@ -16,6 +16,7 @@ import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
 import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 import { authHeaders } from "@/lib/auth-headers";
 import { fetchWithRetry } from "@/lib/retry";
+import { useActionProposals } from "@/hooks/useActionProposals";
 
 interface GlobalChatWidgetProps {
     userId?: string;
@@ -48,6 +49,17 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const { toast } = useToast();
     const router = useRouter();
     const { isConnected, lastMessage, subscribe } = useWebSocket();
+    const actionProposalsQuery = useActionProposals({
+        statusFilter: "pending_approval",
+        limit: 10,
+    });
+    const pendingProposalCount = actionProposalsQuery.pendingCount;
+    const pendingProposals = pendingProposalCount !== null && pendingProposalCount > 0
+        ? {
+            count: pendingProposalCount,
+            latest: actionProposalsQuery.pendingProposals?.[0]?.title ?? "",
+        }
+        : null;
 
     // Initialize session
     useEffect(() => {
@@ -123,6 +135,12 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         fetchPendingApprovals();
         return () => controller.abort();
     }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
+            void actionProposalsQuery.refetch();
+        }
+    }, [isOpen, actionProposalsQuery.refetch]);
 
     // WebSocket subscription
     useEffect(() => {
@@ -531,13 +549,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     <Button
                         className="relative h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
                         onClick={() => setIsOpen(true)}
-                        aria-label={pendingApproval && !isOpen ? 'Messages — approval required' : 'Open ATOM Assistant'}
+                        aria-label={((pendingApproval || pendingProposals) && !isOpen) ? 'Messages — review needed' : 'Open ATOM Assistant'}
                     >
                         <MessageSquare className="h-6 w-6 text-white" />
                         {/* Unread-style indicator: an agent is blocked on an
-                            approval while the widget is collapsed. Keeps the
-                            HITL gate visible without opening chat. */}
-                        {pendingApproval && !isOpen && (
+                            approval OR a data-trigger proposal awaits review
+                            while the widget is collapsed. Keeps the HITL gate
+                            visible without opening chat. */}
+                        {(pendingApproval || pendingProposals) && !isOpen && (
                             <span
                                 data-testid="approval-indicator"
                                 className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center"
@@ -628,6 +647,26 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                                         Reject
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Agent Action Proposal banner (INTERN data triggers
+                            held for review). Decisions stay on /approvals —
+                            approving EXECUTES an agent action, which deserves
+                            the full queue's context, not a one-click chip. */}
+                        {pendingProposals && (
+                            <div className="mx-4 mb-2 p-3 border-2 border-violet-200 rounded-lg bg-violet-50">
+                                <div className="flex items-center gap-2 text-violet-800 font-medium text-sm mb-1">
+                                    <AlertCircle className="h-4 w-4" />
+                                    Agent {pendingProposals.count === 1 ? "proposal" : "proposals"} awaiting review
+                                </div>
+                                <p className="text-xs text-violet-700 mb-2">
+                                    {pendingProposals.count} data-trigger {pendingProposals.count === 1 ? "proposal is" : "proposals are"} held for your decision.
+                                    {pendingProposals.latest ? ` Latest: “${pendingProposals.latest}”` : ""}
+                                </p>
+                                <Button size="sm" onClick={() => router.push("/approvals")}>
+                                    Review
+                                </Button>
                             </div>
                         )}
 

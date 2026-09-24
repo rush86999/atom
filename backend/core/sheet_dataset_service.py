@@ -1026,7 +1026,7 @@ def entries_for_file_sync(source: str, external_id: str) -> List[Dict[str, Any]]
                 DatasetEntry.status == "active",
             )
             .order_by(DatasetEntry.entity_name.asc())
-            .limit(50)
+            .limit(500)
             .all()
         )
         return [_entry_to_dict(r) for r in rows]

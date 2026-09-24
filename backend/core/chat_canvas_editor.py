@@ -26,7 +26,9 @@ import json
 import logging
 import os
 import re
+from decimal import Decimal, InvalidOperation
 from enum import Enum
+from html import unescape
 from typing import Any, Awaitable, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 from pydantic import BaseModel
@@ -263,9 +265,15 @@ the authority, NOT your memory of earlier drafts:
   plausibility. Live 2026-09-03: with no evidence in the prompt, a price
   "from the consolidated price list" was typed into a draft as $14,500.00
   (the workbook said $14,145.00). If a value the request needs is in none
-  of those sources, do not invent it — put an explicitly unfilled
-  placeholder in the content (e.g. "[price — from Consolidated Price
-  List]") and say in `reply` which value needs its source.
+  of those sources, do not invent it. If the user permits an explicit
+  placeholder, use one and name the missing source in `reply`; if the user
+  forbids placeholders, stop and report that the edit was not applied.
+- When the request supplies a count or a requested/alternative split, reconcile
+  the complete source-backed product set before writing. Do not fill a named
+  row with a generic "alternative" label, and do not invent an unnamed row to
+  make the count match.
+- When the request says to preserve the footer, preserve its text, signature,
+  validity language, and URLs exactly; only change the product scope and values.
 - reply is one or two short sentences telling the user what you changed.
   For wants_edit=false, reply is a short conversational answer based on the
   canvas content (or empty if another step will answer).
@@ -299,6 +307,357 @@ def _serialize_content(content: Any) -> str:
     if len(text) > _MAX_CONTENT_CHARS:
         text = text[:_MAX_CONTENT_CHARS] + "\n…(truncated)"
     return text
+
+
+_SCOPE_GENERIC_TOKENS = frozenset({
+    "row", "rows", "table", "machine", "machines", "item", "items", "price",
+    "prices", "actual", "delivery", "lead", "time", "terms", "payment",
+    "cad", "fob", "tbd", "in", "stock", "weeks", "week", "months", "month",
+    "requested", "alternative", "alternatives", "option", "options", "from",
+    "email", "quote", "apply", "update", "keep", "preserve", "footer",
+})
+
+
+def _scope_number(value: str) -> Optional[int]:
+    value = str(value or "").strip().lower()
+    if value.isdigit():
+        return int(value)
+    return {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    }.get(value)
+
+
+def _scope_user_messages(history: Optional[List[Dict[str, Any]]]) -> List[str]:
+    result: List[str] = []
+    for entry in (history or [])[-12:]:
+        if not isinstance(entry, dict):
+            continue
+        role = str(entry.get("role") or "").lower()
+        text = str(entry.get("message") or "").strip()
+        if text and role in ("", "user"):
+            result.append(text)
+    return result
+
+
+def _requested_product_count(messages: List[str]) -> Optional[int]:
+    number = r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
+    for text in messages:
+        lower = str(text or "").lower()
+        total = re.search(
+            rf"\b(?:all\s+)?{number}\s+(?:machines?|items?|rows?)\b", lower,
+        )
+        if total:
+            value = _scope_number(total.group(1))
+            if value:
+                return value
+        base = re.search(
+            rf"\b{number}\s+(?:[a-z-]+\s+){{0,3}}"
+            r"(?:machines?|items?)\b", lower,
+        )
+        alternatives = re.search(
+            rf"\b{number}\s+(?:alternatives?|slitters?|options?)\b",
+            lower,
+        )
+        if base and alternatives:
+            left = _scope_number(base.group(1))
+            right = _scope_number(alternatives.group(1))
+            if left and right:
+                between = lower[base.end():alternatives.start()]
+                return left + right + (1 if re.search(
+                    r"\b(?:sle|tgk|gsl|tk)\w*\d|\b\d{3,}\b", between) else 0)
+        row_range = re.search(r"\brows?\s*(\d+)\s*(?:-|to|through)\s*(\d+)\b", lower)
+        if row_range:
+            return int(row_range.group(2))
+    return None
+
+
+def _scope_codes(messages: List[str]) -> set:
+    codes = set()
+    for text in messages:
+        source = str(text or "").lower()
+        money_numbers = set()
+        for match in re.finditer(r"[$€£]\s*(\d[\d,]*(?:\.\d+)?)", source):
+            money_numbers.add(match.group(1).replace(",", ""))
+        for token in re.findall(
+            r"\b[a-z]{1,8}[a-z0-9-]*\d[a-z0-9-]*\b|\b\d{3,}\b",
+            source,
+        ):
+            if re.fullmatch(r"(?:19|20)\d{2}", token):
+                continue
+            if token.isdigit() and any(
+                    token in number for number in money_numbers):
+                continue
+            if token not in _SCOPE_GENERIC_TOKENS:
+                codes.add(token)
+    return codes
+
+
+def _scope_tokens(text: str) -> set:
+    return {
+        token.strip(".,:;()[]{}")
+        for token in re.findall(r"[a-z0-9][a-z0-9._+\-]*", str(text or "").lower())
+        if token.strip(".,:;()[]{}") not in _SCOPE_GENERIC_TOKENS
+        and len(token.strip(".,:;()[]{}")) >= 2
+    }
+
+
+def _money_key(value: str) -> str:
+    raw = re.sub(r"[^0-9.]", "", str(value or ""))
+    try:
+        return format(Decimal(raw), "f").rstrip("0").rstrip(".")
+    except (InvalidOperation, ValueError):
+        return raw
+
+
+def _scope_requirements(messages: List[str]) -> List[Tuple[set, set, int]]:
+    requirements: List[Tuple[set, set, int]] = []
+    for text in messages:
+        for clause in re.split(r"[;\n]+", str(text or "")):
+            amounts = {
+                _money_key(match)
+                for match in re.findall(
+                    r"[$€£]\s*\d[\d,]*(?:\.\d+)?", clause)
+            }
+            if not amounts:
+                continue
+            tokens = _scope_tokens(clause)
+            strong = {
+                token for token in tokens
+                if any(ch.isdigit() for ch in token) or "-" in token
+            }
+            if strong:
+                requirements.append((amounts, strong, 1))
+            elif len(tokens) >= 2:
+                requirements.append((amounts, tokens, 2))
+    return requirements
+
+
+def _body_from_content(content: Any) -> str:
+    if isinstance(content, dict):
+        return str(content.get("body") or content.get("content") or "")
+    return str(content or "")
+
+
+def _html_text(value: str) -> str:
+    return re.sub(
+        r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", str(value or "")))
+    ).strip()
+
+
+def _table_rows(body: str) -> List[List[str]]:
+    text = str(body or "")
+    rows: List[List[str]] = []
+    if "<table" in text.lower():
+        for row_html in re.findall(
+            r"<tr\b[^>]*>(.*?)</tr>", text, re.IGNORECASE | re.DOTALL
+        ):
+            cells = [
+                _html_text(cell)
+                for cell in re.findall(
+                    r"<t[dh]\b[^>]*>(.*?)</t[dh]>", row_html,
+                    re.IGNORECASE | re.DOTALL,
+                )
+            ]
+            if cells:
+                rows.append(cells)
+    else:
+        for line in text.splitlines():
+            if "|" not in line:
+                continue
+            cells = [_html_text(cell) for cell in line.strip().strip("|").split("|")]
+            if cells:
+                rows.append(cells)
+    if rows and (
+        rows[0][0].strip().lower() in {"#", "no", "number"}
+        or any(cell.strip().lower() in {"description", "unit price", "delivery"}
+               for cell in rows[0])
+    ):
+        rows = rows[1:]
+    return rows
+
+
+def _footer_start(body: str, after: int = 0) -> Optional[int]:
+    lower = str(body or "").lower()
+    positions = [
+        lower.find(marker, after)
+        for marker in (
+            "unit price:", "unit price", "fob:", "payment terms:",
+            "regards", "visit our web site", "all quotes are valid",
+        )
+    ]
+    positions = [position for position in positions if position >= 0]
+    return min(positions) if positions else None
+
+
+def _bounded_email_content(
+    current: Any, proposed: Any,
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(current, dict) or not isinstance(proposed, dict):
+        return None
+    old_body = str(current.get("body") or "")
+    new_body = str(proposed.get("body") or "")
+    old_table = re.search(
+        r"<table\b[^>]*>.*?</table>", old_body, re.IGNORECASE | re.DOTALL)
+    new_table = re.search(
+        r"<table\b[^>]*>.*?</table>", new_body, re.IGNORECASE | re.DOTALL)
+    if not old_table or not new_table:
+        return None
+    old_footer = _footer_start(old_body, old_table.end())
+    new_footer = _footer_start(new_body, new_table.end())
+    if old_footer is None or new_footer is None:
+        return None
+    bounded_body = (
+        old_body[:old_table.start()]
+        + new_table.group(0)
+        + new_body[new_table.end():new_footer]
+        + old_body[old_footer:]
+    )
+    merged = dict(current)
+    merged["body"] = bounded_body
+    return merged
+
+
+def _scope_placeholder_violations(body: str, rows: List[List[str]]) -> List[str]:
+    violations: List[str] = []
+    if re.search(r"\[[^\]]+\]", body):
+        violations.append("bracketed_label")
+    for row in rows:
+        for cell in row[1:]:
+            if re.search(r"\bTBD\b|to be determined|description needed|price needed", cell, re.I):
+                violations.append("unresolved_product_cell")
+                break
+    if re.search(
+        r"(?:pricing|price|lead time|delivery).{0,50}(?:follow|shortly|needed)",
+        body, re.IGNORECASE | re.DOTALL,
+    ):
+        violations.append("unresolved_followup")
+    return sorted(set(violations))
+
+
+def _validate_scoped_edit(
+    current: Any,
+    new_content: Any,
+    request_messages: List[str],
+    preserve_footer: bool = False,
+) -> Optional[str]:
+    if not request_messages:
+        return None
+    request_text = " ".join(request_messages)
+    lower_request = request_text.lower()
+    if not re.search(
+        r"price|lead time|delivery|actual|quote|table|row|apply|update|fill",
+        lower_request,
+    ):
+        return None
+    old_body = _body_from_content(current)
+    new_body = _body_from_content(new_content)
+    rows = _table_rows(new_body)
+    expected = _requested_product_count(request_messages)
+    if expected is not None and len(rows) != expected:
+        return f"scope_row_count:{len(rows)}!={expected}"
+    new_tokens = _scope_tokens(new_body)
+    missing_codes = _scope_codes(request_messages) - new_tokens
+    if missing_codes:
+        return "scope_missing_product"
+    new_money = {
+        _money_key(match)
+        for match in re.findall(
+            r"[$€£]\s*\d[\d,]*(?:\.\d+)?", new_body)
+    }
+    for amounts, identifiers, minimum in _scope_requirements(request_messages):
+        if not amounts.intersection(new_money):
+            return "scope_missing_price"
+        if len(identifiers.intersection(new_tokens)) < minimum:
+            return "scope_missing_product"
+    if "alternative" in lower_request:
+        if not re.search(r"alternatives?|options?", new_body, re.IGNORECASE):
+            return "scope_missing_alternatives"
+        if "requested" in lower_request and not re.search(
+            r"requested", new_body, re.IGNORECASE
+        ):
+            return "scope_missing_requested_framing"
+        if re.search(r"slitter\s+alternatives?", new_body, re.IGNORECASE):
+            if any("rotary" in " ".join(row[1:]).lower() for row in rows):
+                return "scope_wrong_alternative_category"
+    if re.search(
+        r"no\s+(?:square\s+brackets?|brackets?|unresolved\s+placeholders?)|"
+        r"square\s+brackets?.{0,30}(?:not|never|no)",
+        lower_request,
+    ):
+        violations = _scope_placeholder_violations(new_body, rows)
+        if violations:
+            return "scope_placeholder:" + ",".join(violations)
+    if preserve_footer:
+        old_urls = set(_extract_http_urls(old_body))
+        new_urls = set(_extract_http_urls(new_body))
+        if not old_urls.issubset(new_urls):
+            return "footer_missing_link"
+        for marker in (
+            "unit price", "fob", "payment terms", "all quotes are valid",
+        ):
+            if marker in old_body.lower() and marker not in new_body.lower():
+                return "footer_missing:" + marker.replace(" ", "_")
+    return None
+
+
+def _request_scope_section(
+    message: str,
+    history: List[Dict[str, Any]],
+    fresh_data: Optional[str],
+) -> str:
+    messages = [message] + _scope_user_messages(history)
+    count = _requested_product_count(messages)
+    requirements = _scope_requirements(messages)
+    if not count and not requirements and not fresh_data:
+        return ""
+    lines = [
+        "SCOPE AND ACCEPTANCE CONTRACT — reconcile the current request with "
+        "the current canvas and the retrieved source evidence before editing.",
+        "The current request and source-backed evidence outrank earlier drafts; "
+        "do not preserve a missing or unnamed row from an earlier attempt.",
+    ]
+    if count:
+        lines.append(
+            f"The finished product table must contain exactly {count} data "
+            "rows, counting only product rows and excluding the header."
+        )
+    if requirements:
+        lines.append(
+            "Every source-backed amount and product identifier explicitly "
+            "named by the request must be present in the finished table."
+        )
+        for text in messages:
+            for clause in re.split(r"[;\n]+", text):
+                if re.search(r"[$€£]\s*\d", clause):
+                    lines.append("Required source item: " + clause.strip()[:240])
+    if re.search(r"alternative", message, re.IGNORECASE):
+        lines.append(
+            "Label requested machines separately from alternatives; do not "
+            "call an unnamed item or a product whose own description says "
+            "rotary a slitter alternative."
+        )
+    if re.search(
+        r"no\s+(?:square\s+brackets?|brackets?|unresolved\s+placeholders?)|"
+        r"square\s+brackets?.{0,30}(?:not|never|no)",
+        message, re.IGNORECASE,
+    ):
+        lines.append(
+            "Do not put bracketed reference labels, TBD product cells, or "
+            "follow-up placeholders in the customer email. Payment Terms: TBD "
+            "is allowed when the source says so."
+        )
+    if re.search(r"footer|keep the footer|preserve", message, re.IGNORECASE):
+        lines.append(
+            "Preserve the existing footer, signature, validity text, and URLs "
+            "byte-for-byte; change only the product scope and its values."
+        )
+    if fresh_data:
+        lines.append(
+            "Use the retrieved source figures and delivery terms; keep source "
+            "references in internal evidence metadata, never as customer-facing labels."
+        )
+    return "\n".join(lines) + "\n\n"
 
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
@@ -841,6 +1200,7 @@ async def fetch_fresh_data_section(
     canvas: Optional[Dict[str, Any]] = None,
     plan_task: Optional[Any] = None,
     existing_block: Optional[str] = None,
+    allow_canvas_target: bool = True,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -945,7 +1305,8 @@ async def fetch_fresh_data_section(
                 pass
             return await plan_tool_use(
                 message, history, user_id, llm_service,
-                canvas=canvas, provenance=prov)
+                canvas=canvas, provenance=prov,
+                allow_canvas_target=allow_canvas_target)
 
         def _resolved_plan_if_done() -> Any:
             """The shared plan's verdict when it landed just after our cap.
@@ -1011,7 +1372,10 @@ async def fetch_fresh_data_section(
         # (no data-dependent edit without its evidence) and the block is
         # never written to the blackboard for the reply leg to reuse.
         try:
-            from core.plan_relevance import relevance_verdict
+            from core.plan_relevance import (
+                canvas_topic_text,
+                resolved_plan_relevance,
+            )
 
             # R4 (2026-09-17): the planner STAMPS the verdict of record on
             # the plan at acceptance — including its provenance-quote
@@ -1020,8 +1384,26 @@ async def fetch_fresh_data_section(
             # BODY, zero lexical overlap by construction). Plans without a
             # stamp (SimpleNamespace fixtures, legacy callers) fall back to
             # the raw verdict, which still governs.
-            _relevance = (getattr(plan, "relevance_verdict", None)
-                          or relevance_verdict(plan.query, message))
+            #
+            # AUDIT (2026-09-23, canvas 0e4defa5): an "irrelevant" verdict —
+            # stamped OR raw — no longer declines on its own. It is
+            # re-judged against the SAME resolved inputs this leg already
+            # holds: the conversation history (request-reference
+            # resolution) and the open canvas's subject (the canvas-target
+            # rule). Live shape: "update with actual prices in the email"
+            # shares zero words with the CORRECT mailbox query (the
+            # products being priced live in the canvas, not the message),
+            # the stamped decline killed the lookup the request depended
+            # on, and the edit never ran. A query that names neither the
+            # resolved request nor the canvas target — the genuinely stale
+            # plan this gate exists for — still declines, and the decline
+            # stays a RELEVANCE rejection (declined_irrelevant), distinct
+            # from a retrieval failure.
+            _relevance, _relevance_basis = resolved_plan_relevance(
+                plan, message, history=history,
+                extra_topic=canvas_topic_text(canvas),
+                allow_canvas_target=allow_canvas_target,
+            )
         except Exception:  # noqa: BLE001 — a failed gate must not gate
             _relevance = "unknown"
         if _relevance == "irrelevant":
@@ -1327,6 +1709,7 @@ async def plan_canvas_edit(
     # fetch_fresh_data_section and handed in; never gathered here, so this
     # function stays a single structured LLM call.
     rendered = {  # canonical layout order; priority = same order
+        "scope": _request_scope_section(message, history, fresh_data),
         "corrections": _corrections_section(corrections),
         "versions": _versions_section(versions, canvas.get("content")),
         # Evidence outranks the learning channels: it is the data THIS edit
@@ -1367,12 +1750,21 @@ async def plan_canvas_edit(
             f"lowest-priority learning sections reduced first"
         )
     prompt = (
+        # TASK SIGNAL FIRST (live 2026-09-23): the 7k-char instruction set
+        # + optional context sections diluted the edit signal enough that
+        # flash-tier models returned wants_edit=False for clear rebuild
+        # requests — the canvas and request sat at the BOTTOM after all
+        # the instructions. Front-load the user's message so the model
+        # reads "this is an edit for X" before the editing rules.
+        f"USER REQUEST (analyze this against the current canvas below and "
+        f"produce a CanvasEditPlan):\n{message}\n\n"
         f"{_EDITOR_SYSTEM}\n\n"
         f"{_identity_section(user_identity)}"
         f"{_playbooks_section(playbooks)}"
+        f"{included.get('scope', '')}"
+        f"{included.get('fresh', '')}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
-        f"{included.get('fresh', '')}"
         f"{included.get('lessons', '')}"
         f"{included.get('cross', '')}"
         f"{included.get('origin', '')}"
@@ -1495,10 +1887,46 @@ def _repair_json(raw: str) -> Optional[Any]:
         start = raw.find(opener)
         end = raw.rfind(closer)
         if start != -1 and end > start:
+            candidate = raw[start:end + 1]
             try:
-                return json.loads(raw[start:end + 1])
+                return json.loads(candidate)
             except (json.JSONDecodeError, ValueError):
-                continue
+                relaxed = re.sub(r",\s*([}\]])", r"\1", candidate)
+                output: List[str] = []
+                in_string = False
+                escaped = False
+                for index, char in enumerate(relaxed):
+                    if not in_string:
+                        output.append(char)
+                        if char == '"':
+                            in_string = True
+                        continue
+                    if escaped:
+                        output.append(char)
+                        escaped = False
+                        continue
+                    if char == "\\":
+                        output.append(char)
+                        escaped = True
+                        continue
+                    if char == '"':
+                        next_index = index + 1
+                        while next_index < len(relaxed) and relaxed[next_index].isspace():
+                            next_index += 1
+                        if next_index >= len(relaxed) or relaxed[next_index] in ":,}]":
+                            in_string = False
+                            output.append(char)
+                        else:
+                            output.append('\\"')
+                        continue
+                    if char in "}]":
+                        output.append('"')
+                        in_string = False
+                    output.append(char)
+                try:
+                    return json.loads("".join(output))
+                except (json.JSONDecodeError, ValueError):
+                    pass
     try:
         import json_repair
 
@@ -1695,6 +2123,10 @@ async def apply_canvas_edit(
     return_reason: bool = False,
     operation_id: Optional[str] = None,
     expected_prior_audit_id: Optional[str] = None,
+    request_message: Optional[str] = None,
+    history: Optional[List[Dict[str, Any]]] = None,
+    preserve_footer: bool = False,
+    pending_review: bool = False,
 ):
     """Persist the planned edit through the general canvas CRUD layer
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
@@ -1771,9 +2203,23 @@ async def apply_canvas_edit(
         parsed, decode_reason = _decode_replace_content(plan, current)
         if parsed is None:
             return _out(None, decode_reason or "not_valid_json")
-        new_content, reason = _merge_replace_content(parsed, current, canvas_type)
+        new_content = None
+        if preserve_footer:
+            new_content = _bounded_email_content(current, parsed)
         if new_content is None:
-            return _out(None, reason or "merge_failed")
+            new_content, reason = _merge_replace_content(
+                parsed, current, canvas_type)
+            if new_content is None:
+                return _out(None, reason or "merge_failed")
+
+    request_messages = []
+    if request_message:
+        request_messages.append(str(request_message))
+    request_messages.extend(_scope_user_messages(history))
+    scope_reason = _validate_scoped_edit(
+        current, new_content, request_messages, preserve_footer=preserve_footer)
+    if scope_reason:
+        return _out(None, scope_reason)
 
     # No-op guard: a plan whose result equals the current content writes
     # nothing and reports honestly. Live incident (2026-09-02, canvas
@@ -1803,6 +2249,7 @@ async def apply_canvas_edit(
             user_id, canvas_id, new_content, canvas_type, plan.title,
             operation_id=operation_id,
             expected_prior_audit_id=expected_prior_audit_id,
+            pending_review=pending_review,
         )
     except Exception as e:
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
@@ -1998,6 +2445,38 @@ def describe_apply_failure(
             "payload for this canvas, so nothing was changed. Try a smaller, "
             "more specific instruction (e.g. one field or one paragraph at "
             "a time)." + field_hint
+        )
+    if reason and reason.startswith("scope_row_count"):
+        return (
+            "The source-backed product list does not match the requested "
+            "scope yet, so nothing was written. I need the complete named "
+            "set before changing the customer's quote."
+        )
+    if reason and (
+        reason.startswith("scope_missing_price")
+        or reason.startswith("scope_missing_product")
+        or reason.startswith("scope_missing_alternatives")
+        or reason.startswith("scope_missing_requested")
+        or reason.startswith("scope_wrong_alternative_category")
+    ):
+        return (
+            "The proposed table does not yet contain every source-backed "
+            "product and value in the requested scope, so nothing was "
+            "written. I left the current draft unchanged rather than send a "
+            "partial quote."
+        )
+    if reason and reason.startswith("scope_placeholder"):
+        return (
+            "The proposed customer email still contains unresolved product "
+            "placeholders, so nothing was written. Source references stay "
+            "internal; the email needs the actual values or an explicit "
+            "decision to stop."
+        )
+    if reason and reason.startswith("footer_"):
+        return (
+            "The proposed edit would remove part of the existing footer or "
+            "its links, so nothing was written. I kept the customer footer "
+            "unchanged."
         )
     if field_hint:
         return (

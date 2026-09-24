@@ -329,11 +329,17 @@ class TestAgentPromotion:
         """Successfully promote agent."""
         agent = Mock(spec=AgentRegistry)
         agent.id = "agent-123"
+        agent.status = AgentStatus.INTERN.value
         agent.configuration = {}
 
         mock_db.query.return_value.filter.return_value.first.return_value = agent
 
-        with patch('core.agent_graduation_service.flag_modified'):
+        with patch.object(
+            graduation_service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value={"ready": True, "gaps": []}),
+        ), patch('core.agent_graduation_service.flag_modified'), \
+             patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
             result = await graduation_service.promote_agent(
                 agent_id="agent-123",
                 new_maturity="SUPERVISED",

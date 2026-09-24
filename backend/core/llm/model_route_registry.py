@@ -58,13 +58,35 @@ import json
 import logging
 import os
 import re
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple
 
+_fcntl: Any
+try:
+    import fcntl as _fcntl
+except ImportError:
+    _fcntl = None
+
 logger = logging.getLogger(__name__)
+
+_BACKEND_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+
+
+def _resolve_catalog_path(configured_path: Optional[str]) -> str:
+    expanded = os.path.expanduser(configured_path or "")
+    if not expanded:
+        expanded = os.path.join(
+            _BACKEND_ROOT, "data", "provider_model_catalog.json")
+    elif not os.path.isabs(expanded):
+        expanded = os.path.join(_BACKEND_ROOT, expanded)
+    return os.path.abspath(expanded)
+
 
 #: How long a successful discovery stays "fresh". After this the set is still
 #: used (previously verified beats unknown) but flagged stale.
@@ -137,7 +159,9 @@ _ENTITLEMENT_RE = re.compile(
 _QUOTA_RE = re.compile(
     r"insufficient\s+(?:balance|credits?|funds|quota)|quota\s+exceeded|"
     r"out\s+of\s+credits|exceeded\s+your\s+(?:current\s+)?quota|"
-    r"billing|payment\s+required|credit\s+limit",
+    r"billing|payment\s+required|credit\s+limit|"
+    r"requires\s+more\s+credits|can\s+only\s+afford|"
+    r"credits?\s+or\s+fewer\s+max_tokens",
     re.IGNORECASE)
 _RATE_RE = re.compile(
     r"rate\s*limit|too\s+many\s+requests|429|slow\s+down|retry\s+after",
@@ -163,7 +187,11 @@ def _status_of(exc: BaseException) -> Optional[int]:
         value = getattr(response, attr, None)
         if isinstance(value, int):
             return value
-    return None
+    match = re.search(
+        r"(?:error\s+code|status(?:\s+code)?|http\s+status)\D{0,8}([1-5]\d{2})",
+        str(exc or ""), re.IGNORECASE,
+    )
+    return int(match.group(1)) if match else None
 
 
 def sanitize_error_text(text: Any, limit: int = 400) -> str:
@@ -260,6 +288,7 @@ class ProviderObservation:
     auth_ok: Optional[bool] = None
     auth_checked_at: Optional[float] = None
     auth_detail: Optional[str] = None
+    invalidated_at: Optional[float] = None
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -274,6 +303,7 @@ class ProviderObservation:
             "auth_ok": self.auth_ok,
             "auth_checked_at": _iso(self.auth_checked_at),
             "auth_detail": self.auth_detail,
+            "invalidated_at": _iso(self.invalidated_at),
         }
 
 
@@ -320,76 +350,228 @@ class ProviderModelCatalog:
 
     def __init__(self, path: Optional[str] = None,
                  freshness_seconds: int = DEFAULT_FRESHNESS_SECONDS):
-        self.path = path or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))), "data",
-            "provider_model_catalog.json")
+        configured_path = path or os.getenv("ATOM_PROVIDER_MODEL_CATALOG_PATH")
+        self.path = _resolve_catalog_path(configured_path)
         self.freshness_seconds = freshness_seconds
         self._lock = threading.RLock()
         self._observations: Dict[str, ProviderObservation] = {}
+        self._dirty_providers: set[str] = set()
+        self._file_signature: Optional[Tuple[int, int, int]] = None
         self._load()
+        self._persisted_observations = {
+            provider_id: ProviderObservation(**obs.__dict__)
+            for provider_id, obs in self._observations.items()
+        }
 
     # -- persistence ------------------------------------------------------
-    def _load(self) -> None:
+    def _file_state(self) -> Optional[Tuple[int, int, int]]:
+        try:
+            stat = os.stat(self.path)
+            return (
+                int(stat.st_mtime_ns),
+                int(stat.st_size),
+                int(getattr(stat, "st_ino", 0)),
+            )
+        except FileNotFoundError:
+            return None
+        except OSError:
+            return None
+
+    def _read_payload(self) -> Dict[str, Any]:
         try:
             with open(self.path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
+            return data if isinstance(data, dict) else {}
         except FileNotFoundError:
-            return
-        except Exception as exc:  # noqa: BLE001 — a corrupt cache is not fatal
+            return {}
+        except Exception as exc:
             logger.warning("provider model catalog unreadable (%s); starting "
                            "empty — routes will be treated as unknown", exc)
-            return
+            return {}
+
+    @staticmethod
+    def _observation_from_raw(provider_id: str, raw: Dict[str, Any]) -> ProviderObservation:
+        served = raw.get("served")
+        return ProviderObservation(
+            provider_id=provider_id,
+            served=[str(m) for m in served] if isinstance(served, list) else None,
+            verified_at=raw.get("verified_at"),
+            last_attempt_at=raw.get("last_attempt_at"),
+            last_error=raw.get("last_error"),
+            last_error_cause=raw.get("last_error_cause"),
+            consecutive_failures=int(raw.get("consecutive_failures") or 0),
+            auth_ok=raw.get("auth_ok"),
+            auth_checked_at=raw.get("auth_checked_at"),
+            auth_detail=raw.get("auth_detail"),
+            invalidated_at=raw.get("invalidated_at"),
+        )
+
+    def _load(self) -> None:
+        data = self._read_payload()
+        self._observations = {}
         for provider_id, raw in (data.get("providers") or {}).items():
-            if not isinstance(raw, dict):
-                continue
-            served = raw.get("served")
-            self._observations[provider_id] = ProviderObservation(
-                provider_id=provider_id,
-                served=[str(m) for m in served] if isinstance(served, list) else None,
-                verified_at=raw.get("verified_at"),
-                last_attempt_at=raw.get("last_attempt_at"),
-                last_error=raw.get("last_error"),
-                last_error_cause=raw.get("last_error_cause"),
-                consecutive_failures=int(raw.get("consecutive_failures") or 0),
-                auth_ok=raw.get("auth_ok"),
-                auth_checked_at=raw.get("auth_checked_at"),
-                auth_detail=raw.get("auth_detail"),
-            )
+            if isinstance(raw, dict):
+                self._observations[provider_id] = self._observation_from_raw(
+                    provider_id, raw)
+        self._file_signature = self._file_state()
+
+    def _reload_if_changed(self) -> None:
+        with self._lock:
+            signature = self._file_state()
+            if signature == self._file_signature:
+                return
+            data = self._read_payload()
+            disk_observations: Dict[str, ProviderObservation] = {
+                provider_id: self._observation_from_raw(provider_id, raw)
+                for provider_id, raw in (data.get("providers") or {}).items()
+                if isinstance(raw, dict)
+            }
+            for provider_id in self._dirty_providers:
+                current = self._observations.get(provider_id)
+                if current is None:
+                    disk_observations.pop(provider_id, None)
+                else:
+                    disk_observations[provider_id] = self._merge_observations(
+                        disk_observations.get(provider_id),
+                        current,
+                        self._persisted_observations.get(provider_id),
+                    )
+            self._observations = disk_observations
+            self._persisted_observations = {
+                provider_id: ProviderObservation(**obs.__dict__)
+                for provider_id, obs in disk_observations.items()
+            }
+            self._file_signature = signature
+
+    @staticmethod
+    def _observation_dict(obs: ProviderObservation) -> Dict[str, Any]:
+        return {
+            "served": obs.served,
+            "verified_at": obs.verified_at,
+            "last_attempt_at": obs.last_attempt_at,
+            "last_error": obs.last_error,
+            "last_error_cause": obs.last_error_cause,
+            "consecutive_failures": obs.consecutive_failures,
+            "auth_ok": obs.auth_ok,
+            "auth_checked_at": obs.auth_checked_at,
+            "auth_detail": obs.auth_detail,
+            "invalidated_at": obs.invalidated_at,
+        }
+
+    @staticmethod
+    def _merge_observations(
+        disk: Optional[ProviderObservation],
+        current: ProviderObservation,
+        baseline: Optional[ProviderObservation] = None,
+    ) -> ProviderObservation:
+        if disk is None:
+            return current
+        merged = ProviderObservation(**{**disk.__dict__})
+        if baseline is None:
+            if current.served is not None:
+                for field_name in (
+                    "served", "verified_at", "last_attempt_at", "last_error",
+                    "last_error_cause", "consecutive_failures", "invalidated_at",
+                ):
+                    setattr(merged, field_name, getattr(current, field_name))
+            if current.auth_ok is not None or current.auth_checked_at is not None:
+                for field_name in (
+                    "auth_ok", "auth_checked_at", "auth_detail",
+                ):
+                    setattr(merged, field_name, getattr(current, field_name))
+            if current.last_error is not None or current.consecutive_failures:
+                for field_name in (
+                    "last_attempt_at", "last_error", "last_error_cause",
+                    "consecutive_failures",
+                ):
+                    setattr(merged, field_name, getattr(current, field_name))
+            if current.invalidated_at is not None:
+                merged.invalidated_at = current.invalidated_at
+            merged.provider_id = current.provider_id
+            return merged
+        fields = (
+            "served", "verified_at", "last_attempt_at", "last_error",
+            "last_error_cause", "consecutive_failures", "auth_ok",
+            "auth_checked_at", "auth_detail", "invalidated_at",
+        )
+        for field_name in fields:
+            if getattr(current, field_name) != getattr(baseline, field_name):
+                setattr(merged, field_name, getattr(current, field_name))
+        merged.provider_id = current.provider_id
+        return merged
 
     def _save_locked(self) -> None:
         try:
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            self._save_locked_unsafe()
+        except Exception as exc:
+            logger.debug("provider model catalog write skipped: %s", exc)
+
+    def _save_locked_unsafe(self) -> None:
+        parent = os.path.dirname(self.path)
+        os.makedirs(parent, exist_ok=True)
+        lock_path = f"{self.path}.lock"
+        lock_fh = open(lock_path, "a+", encoding="utf-8")
+        try:
+            if _fcntl is not None:
+                _fcntl.flock(lock_fh.fileno(), _fcntl.LOCK_EX)
+            disk_data = self._read_payload()
+            disk_observations: Dict[str, ProviderObservation] = {
+                provider_id: self._observation_from_raw(provider_id, raw)
+                for provider_id, raw in (disk_data.get("providers") or {}).items()
+                if isinstance(raw, dict)
+            }
+            dirty_providers = set(self._dirty_providers)
+            for provider_id, current in self._observations.items():
+                baseline = self._persisted_observations.get(provider_id)
+                if baseline is None or current != baseline:
+                    dirty_providers.add(provider_id)
+            for provider_id in dirty_providers:
+                current_observation = self._observations.get(provider_id)
+                if current_observation is not None:
+                    disk_observations[provider_id] = self._merge_observations(
+                        disk_observations.get(provider_id), current_observation,
+                        self._persisted_observations.get(provider_id))
             payload = {
                 "version": 1,
                 "updated_at": _iso(_now()),
                 "providers": {
-                    pid: {
-                        "served": obs.served,
-                        "verified_at": obs.verified_at,
-                        "last_attempt_at": obs.last_attempt_at,
-                        "last_error": obs.last_error,
-                        "last_error_cause": obs.last_error_cause,
-                        "consecutive_failures": obs.consecutive_failures,
-                        "auth_ok": obs.auth_ok,
-                        "auth_checked_at": obs.auth_checked_at,
-                        "auth_detail": obs.auth_detail,
-                    }
-                    for pid, obs in self._observations.items()
+                    provider_id: self._observation_dict(obs)
+                    for provider_id, obs in disk_observations.items()
                 },
             }
-            tmp = f"{self.path}.tmp"
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2)
-            os.replace(tmp, self.path)
-        except Exception as exc:  # noqa: BLE001 — cache write is best-effort
-            logger.debug("provider model catalog write skipped: %s", exc)
+            fd, tmp = tempfile.mkstemp(
+                prefix=f".{os.path.basename(self.path)}.",
+                suffix=".tmp",
+                dir=parent,
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump(payload, fh, indent=2)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                os.replace(tmp, self.path)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+            self._observations = disk_observations
+            self._persisted_observations = {
+                provider_id: ProviderObservation(**obs.__dict__)
+                for provider_id, obs in disk_observations.items()
+            }
+            self._file_signature = self._file_state()
+            self._dirty_providers.clear()
+        finally:
+            if _fcntl is not None:
+                _fcntl.flock(lock_fh.fileno(), _fcntl.LOCK_UN)
+            lock_fh.close()
 
     # -- recording --------------------------------------------------------
     def record_discovery(self, provider_id: str,
                          model_ids: Iterable[str]) -> ProviderObservation:
         """Record a SUCCESSFUL discovery of the provider's served identifiers."""
         ids = sorted({str(m).strip() for m in (model_ids or []) if str(m).strip()})
+        if not ids:
+            raise ValueError("successful discovery returned no model identifiers")
         with self._lock:
             obs = self._observations.setdefault(
                 provider_id, ProviderObservation(provider_id=provider_id))
@@ -399,6 +581,8 @@ class ProviderModelCatalog:
             obs.last_error = None
             obs.last_error_cause = None
             obs.consecutive_failures = 0
+            obs.invalidated_at = None
+            self._dirty_providers.add(provider_id)
             self._save_locked()
             return obs
 
@@ -418,6 +602,7 @@ class ProviderModelCatalog:
             obs.last_error = sanitize_error_text(error)
             obs.last_error_cause = cause
             obs.consecutive_failures += 1
+            self._dirty_providers.add(provider_id)
             self._save_locked()
             return obs
 
@@ -435,10 +620,12 @@ class ProviderModelCatalog:
             obs.auth_ok = bool(ok)
             obs.auth_checked_at = _now()
             obs.auth_detail = sanitize_error_text(detail) if detail else None
+            self._dirty_providers.add(provider_id)
             self._save_locked()
 
     # -- reads ------------------------------------------------------------
     def observe(self, provider_id: str) -> ProviderObservation:
+        self._reload_if_changed()
         with self._lock:
             obs = self._observations.get(provider_id)
             if obs is None:
@@ -458,6 +645,7 @@ class ProviderModelCatalog:
                 else "stale")
 
     def snapshot(self) -> Dict[str, Any]:
+        self._reload_if_changed()
         with self._lock:
             return {
                 "freshness_seconds": self.freshness_seconds,
@@ -475,11 +663,19 @@ class ProviderModelCatalog:
         fetched with the old key may not apply to the new one.
         """
         with self._lock:
-            if provider_id is None:
-                self._observations.clear()
-            else:
-                self._observations.pop(provider_id, None)
-            self._save_locked()
+            providers = (
+                list(self._observations)
+                if provider_id is None else [provider_id]
+            )
+            stamp = _now()
+            for pid in providers:
+                self._observations[pid] = ProviderObservation(
+                    provider_id=pid,
+                    invalidated_at=stamp,
+                )
+                self._dirty_providers.add(pid)
+            if providers:
+                self._save_locked()
 
 
 #: Process-wide catalog (the file is the shared state; instances are cheap).

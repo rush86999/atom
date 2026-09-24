@@ -215,6 +215,151 @@ class TestChatCompletionTracking:
             error="boom", fallback=False,
         )
 
+    @pytest.mark.asyncio
+    async def test_empty_completion_accounts_usage_and_failure_telemetry(
+            self, tracker_mock):
+        client = FakeClient([FakeResponse(None, finish_reason="length")])
+        handler = make_handler({"openai": client})
+        with patch("core.llm.byok_handler.llm_usage_tracker") as usage_tracker, \
+             patch("core.llm.byok_handler.get_pricing_fetcher") as pricing:
+            usage_tracker.is_budget_exceeded = lambda ws: False
+            usage_tracker.is_trial_expired = lambda ws: False
+            pricing.return_value.estimate_cost = lambda m, i, o: 0.01
+            with patch_fallback(["openai"]):
+                with pytest.raises(AllProvidersFailedError):
+                    await handler.chat_completion(
+                        [{"role": "user", "content": "x"}],
+                        "gpt-4o",
+                        "openai",
+                    )
+        usage_tracker.record.assert_called_once()
+        usage = usage_tracker.record.call_args.kwargs
+        assert usage["input_tokens"] == 5
+        assert usage["output_tokens"] == 3
+        failure_calls = [
+            call for call in tracker_mock.record.call_args_list
+            if str(call.kwargs.get("error") or "").startswith("empty_output:")
+        ]
+        assert len(failure_calls) == 1
+        failure = failure_calls[0].kwargs
+        assert failure["provider"] == "openai"
+        assert failure["model"] == "gpt-4o"
+        assert failure["success"] is False
+        assert failure["input_tokens"] == 5
+        assert failure["output_tokens"] == 3
+        outcome = handler._record_outcome_feedback.await_args.kwargs
+        assert outcome["success"] is False
+        assert outcome["schema_error"] is False
+        assert outcome["exception"].reason == "empty_output"
+        assert "empty output" in str(outcome["exception"]).lower()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload_field", ["tool_calls", "function_call"])
+    async def test_empty_content_preserves_tool_payload(
+            self, tracker_mock, payload_field):
+        from core.llm import byok_handler as module
+        with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+            module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+        if payload_field == "tool_calls":
+            payload = [{
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "lookup", "arguments": "{}"},
+            }]
+            finish_reason = "tool_calls"
+        else:
+            payload = {"name": "lookup", "arguments": "{}"}
+            finish_reason = "function_call"
+        response = SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(
+                    content=None,
+                    **{payload_field: payload},
+                ),
+                finish_reason=finish_reason,
+            )],
+            usage=FakeUsage(),
+        )
+        handler = make_handler({"openai": FakeClient([response])})
+        with patch("core.llm.byok_handler.llm_usage_tracker") as usage_tracker, \
+             patch("core.llm.byok_handler.get_pricing_fetcher") as pricing:
+            usage_tracker.is_budget_exceeded = lambda ws: False
+            usage_tracker.is_trial_expired = lambda ws: False
+            pricing.return_value.estimate_cost = lambda m, i, o: 0.01
+            with patch_fallback(["openai"]):
+                result = await handler.chat_completion(
+                    [{"role": "user", "content": "x"}],
+                    "gpt-4o",
+                    "openai",
+                )
+        message = result["choices"][0]["message"]
+        assert message["content"] == ""
+        assert message[payload_field] == payload
+        usage_tracker.record.assert_called_once()
+        assert_recorded(
+            tracker_mock,
+            provider="openai",
+            model="gpt-4o",
+            success=True,
+            input_tokens=5,
+            output_tokens=3,
+        )
+        outcome = handler._record_outcome_feedback.await_args.kwargs
+        assert outcome["success"] is True
+        assert outcome.get("schema_error", False) is False
+
+    @pytest.mark.asyncio
+    async def test_empty_direct_completion_accounts_usage_and_failure_telemetry(
+            self, tracker_mock):
+        from core.llm import byok_handler as module
+
+        with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+            module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+        try:
+            client = SyncFakeClient([FakeResponse(None, finish_reason="length")])
+            handler = make_handler(clients={"openai": client})
+            handler.analyze_query_complexity = lambda p, t: SimpleNamespace(
+                value="simple")
+            handler.get_ranked_providers = AsyncMock(
+                return_value=[("openai", "gpt-4o")])
+            handler._rerank_with_learning = AsyncMock(
+                side_effect=lambda options, *a, **k: options)
+            healer = MagicMock()
+            healer.heal.return_value = SimpleNamespace(
+                patched_kwargs=None, rule=None, patched_keys=[])
+            with patch("core.llm.byok_handler.get_db_session", fake_db_session), \
+                 patch("core.llm.byok_handler.llm_usage_tracker") as usage_tracker, \
+                 patch("core.llm.byok_handler.get_pricing_fetcher") as pricing, \
+                 patch("core.llm.routing.request_healer.get_request_healer",
+                       return_value=healer):
+                usage_tracker.is_budget_exceeded = lambda ws: False
+                pricing.return_value.estimate_cost = lambda m, i, o: 0.01
+                result = await handler.generate_response(
+                    "hello", task_type="chat")
+            assert "couldn't generate" in result
+            usage_tracker.record.assert_called_once()
+            usage = usage_tracker.record.call_args.kwargs
+            assert usage["input_tokens"] == 5
+            assert usage["output_tokens"] == 3
+            failure_calls = [
+                call for call in tracker_mock.record.call_args_list
+                if str(call.kwargs.get("error") or "").startswith("empty_output:")
+            ]
+            assert len(failure_calls) == 1
+            failure = failure_calls[0].kwargs
+            assert failure["provider"] == "openai"
+            assert failure["model"] == "gpt-4o"
+            assert failure["success"] is False
+            assert failure["input_tokens"] == 5
+            assert failure["output_tokens"] == 3
+            outcome = handler._record_outcome_feedback.await_args.kwargs
+            assert outcome["success"] is False
+            assert outcome["schema_error"] is False
+            assert outcome["exception"].reason == "empty_output"
+        finally:
+            with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+                module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+
 
 # ---------------------------------------------------------------------------
 # stream_completion

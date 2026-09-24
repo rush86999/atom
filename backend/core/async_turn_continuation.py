@@ -52,7 +52,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -127,10 +127,18 @@ class AsyncTurnContinuation:
     # Idempotency snapshot, taken at fork time.
     snapshot_content_hash: str = ""
     snapshot_audit_ts: str = ""
+    # EVIDENCE HANDOFF (review item 2): the turn's already-retrieved
+    # evidence block — the reply path's search found data the edit's own
+    # fresh-data search missed (live 2026-09-23: reply had 4/4 slitter
+    # prices; edit applied placeholders). The continuation injects this
+    # as existing_block so the retry REUSES it instead of re-searching.
+    evidence_block: str = ""
     # Terminal state.
     outcome: str = ""
     summary: str = ""
     error: str = ""
+    failure_stage: str = ""
+    readback_required: bool = False
 
 
 #: In-process handles (fast path). The DURABLE record is the AgentExecution
@@ -256,6 +264,7 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                         "message": cont.message[:500],
                         "snapshot_content_hash": cont.snapshot_content_hash,
                         "snapshot_audit_ts": cont.snapshot_audit_ts,
+                        "failure_stage": cont.failure_stage,
                     },
                 },
             ))
@@ -285,7 +294,7 @@ def _durable_running_id(session_id: str) -> Optional[str]:
                 continue
             if (meta.get("continuation") or {}).get(
                     "session_id") == session_id:
-                return row.id
+                return str(row.id)
     return None
 
 
@@ -310,6 +319,7 @@ def _finish_durable_record(
             cont_meta["outcome"] = outcome
             cont_meta["summary"] = summary[:500]
             cont_meta["notified"] = True
+            cont_meta["failure_stage"] = cont.failure_stage
             meta["continuation"] = cont_meta
             row.metadata_json = meta
             # JSON columns need an explicit dirty flag when the value is
@@ -559,6 +569,22 @@ def start_continuation(
         started = time.monotonic()
         outcome = OUTCOME_FAILED
         summary = ""
+        # BACKGROUND EXECUTION CONTEXT (2026-09-23): this task is forked
+        # from INSIDE the interactive chat request, and asyncio copies the
+        # creating context — without this reset the continuation inherits
+        # atom_interactive_chat=True for its whole life, so the interactive
+        # 25s structured-latency cap vetoed healthy 26–30s rungs inside a
+        # tier whose edit bound is 150s, and the fork consumed the
+        # interactive rate reserve meant to protect user-facing turns (live:
+        # continuation ab86e7bf attempt 1, zero-dispatch exhaustion in
+        # 1.3s). Rate, auth and cooldown restrictions are untouched — only
+        # the interactive classification is corrected.
+        try:
+            from core.llm.interactive_context import mark_background_execution
+
+            mark_background_execution()
+        except Exception:  # noqa: BLE001 — classification only, never fatal
+            pass
         try:
             outcome, summary = await asyncio.wait_for(
                 runner(), timeout=_ASYNC_CONTINUATION_BUDGET_SECONDS)
@@ -588,13 +614,34 @@ def start_continuation(
                 cont, OUTCOME_CANCELLED, cont.summary)
             _reap(cid, cont.session_id)
             raise
-        except Exception as cont_err:  # noqa: BLE001 — never raise outward
+        except asyncio.TimeoutError:
+            # Budget expiry lands here: str(TimeoutError()) is EMPTY, which
+            # is how the durable summary shipped as bare "continuation
+            # error: " (live 2026-09-23, continuation 90efb974: attempt 2
+            # was cut by the 300s budget and the record read
+            # "continuation error: " with nothing after it). Name the stage
+            # and the exception type so the record says what happened.
             outcome = OUTCOME_FAILED
-            summary = f"continuation error: {cont_err}"
-            cont.error = str(cont_err)[:500]
+            stage = getattr(cont, "failure_stage", "") or "runner"
+            summary = (
+                "background edit did not finish within its "
+                f"{_ASYNC_CONTINUATION_BUDGET_SECONDS:.0f}s budget "
+                f"at stage {stage} (TimeoutError)")
+            cont.error = summary[:500]
             logger.warning(
                 f"[async-continuation] {cid} failed after "
-                f"{time.monotonic() - started:.0f}s: {cont_err}")
+                f"{time.monotonic() - started:.0f}s: {summary}")
+        except Exception as cont_err:  # noqa: BLE001 — never raise outward
+            outcome = OUTCOME_FAILED
+            # An exception with an empty str() must never collapse the
+            # record to "continuation error: " again — keep the type.
+            _detail = str(cont_err).strip() or "<no message>"
+            outcome_type = type(cont_err).__name__
+            summary = f"continuation error: {outcome_type}: {_detail}"
+            cont.error = f"{outcome_type}: {_detail}"[:500]
+            logger.warning(
+                f"[async-continuation] {cid} failed after "
+                f"{time.monotonic() - started:.0f}s: {summary}")
         cont.outcome = outcome
         cont.summary = str(summary)[:1000]
         try:
@@ -730,13 +777,30 @@ async def run_canvas_edit_continuation(
     """Runner for a starved canvas-edit turn: idempotency/conflict gate,
     then re-run the SAME edit leg with a fresh blackboard, a relaxed inner
     timeout, and bounded backoff retries. Returns ``(outcome, summary)``."""
-    # BACKOFF-AND-RETRY: the first attempt often lands while the shared
-    # rate budgets are still drained by the interactive turn (or a provider
-    # is briefly benched) — wait and try again inside the total budget.
-    # The pre-apply gate re-runs each attempt: a revision that advanced
-    # between attempts is honored, never overwritten.
+    started = time.monotonic()
+    deadline = started + max(1.0, _ASYNC_CONTINUATION_BUDGET_SECONDS - 2.0)
     last_note = "the edit planner could not complete"
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
+        if attempt > 1:
+            latest = _latest_turn_evidence(orchestrator, cont)
+            if latest and latest != cont.evidence_block:
+                logger.info(
+                    "[async-continuation] %s retry %d: refreshed evidence "
+                    "block (%d → %d chars)",
+                    cont.continuation_id, attempt,
+                    len(cont.evidence_block or ""), len(latest))
+                cont.evidence_block = latest
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            cont.failure_stage = "budget"
+            return OUTCOME_FAILED, (
+                f"The background edit exhausted its "
+                f"{_ASYNC_CONTINUATION_BUDGET_SECONDS:.0f}s budget at stage "
+                f"{cont.failure_stage} after {attempt - 1} attempts."
+            )
+
+        cont.failure_stage = f"attempt-{attempt}-preapply"
         pre = _classify_preapply(cont)
         if pre == OUTCOME_ALREADY_APPLIED:
             return pre, (
@@ -750,51 +814,128 @@ async def run_canvas_edit_continuation(
                 "rather than overwriting them. Re-ask and it will run "
                 "against the current canvas.")
 
-        blackboard: Dict[str, Any] = {"plan_task": None, "block": None}
-        # The revision token is captured per attempt and enforced at the
-        # write door — an edit arriving during the retry is a refusal,
-        # not an overwrite. The operation id stamps whatever lands.
+        blackboard: Dict[str, Any] = {
+            "plan_task": None,
+            "block": (cont.evidence_block or "") or None,
+        }
         prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
         expected_prior = (prior or {}).get("id")
-        response = await orchestrator._try_canvas_edit(
-            cont.message, cont.history_snapshot, cont.canvas,
-            cont.user_id, cont.session_id, cont.execution_id,
-            cont.agent_id,
-            provenance=cont.provenance,
-            shared_tool_state=blackboard,
-            operation_id=cont.continuation_id,
-            expected_prior_audit_id=expected_prior,
-            edit_plan_timeout=_ASYNC_EDIT_PLAN_TIMEOUT_SECONDS,
-        )
+        remaining = deadline - time.monotonic()
+        if remaining <= 1:
+            cont.failure_stage = "budget"
+            return OUTCOME_FAILED, (
+                f"The background edit exhausted its "
+                f"{_ASYNC_CONTINUATION_BUDGET_SECONDS:.0f}s budget before "
+                f"attempt {attempt}."
+            )
+        cont.failure_stage = f"attempt-{attempt}-edit"
+        edit_timeout = min(
+            _ASYNC_EDIT_PLAN_TIMEOUT_SECONDS, max(1.0, remaining - 1.0))
+        attempt_started = time.monotonic()
+        logger.info(
+            "[async-continuation] %s attempt %d/%d stage=%s remaining=%.1fs "
+            "edit_timeout=%.1fs", cont.continuation_id, attempt,
+            _ASYNC_CONTINUATION_ATTEMPTS, cont.failure_stage,
+            remaining, edit_timeout)
+        try:
+            response = await asyncio.wait_for(
+                orchestrator._try_canvas_edit(
+                    cont.message, cont.history_snapshot, cont.canvas,
+                    cont.user_id, cont.session_id, cont.execution_id,
+                    cont.agent_id,
+                    provenance=cont.provenance,
+                    shared_tool_state=blackboard,
+                    operation_id=cont.continuation_id,
+                    expected_prior_audit_id=expected_prior,
+                    edit_plan_timeout=edit_timeout,
+                ),
+                timeout=max(0.1, remaining),
+            )
+        except asyncio.TimeoutError:
+            cont.failure_stage = f"attempt-{attempt}-edit-timeout"
+            last_note = (
+                f"attempt {attempt} reached its remaining budget during the "
+                "edit leg"
+            )
+            logger.warning(
+                "[async-continuation] %s %s after %.0fs",
+                cont.continuation_id, cont.failure_stage,
+                time.monotonic() - started)
+            break
+        except Exception as edit_err:
+            cont.failure_stage = f"attempt-{attempt}-edit-error"
+            last_note = f"{type(edit_err).__name__}: {str(edit_err).strip() or '<no message>'}"
+            logger.warning(
+                "[async-continuation] %s %s after %.0fs: %s",
+                cont.continuation_id, cont.failure_stage,
+                time.monotonic() - started, last_note)
+            response = None
+
+        logger.info(
+            "[async-continuation] %s attempt %d/%d edit returned in %.1fs "
+            "stage=%s", cont.continuation_id, attempt,
+            _ASYNC_CONTINUATION_ATTEMPTS,
+            time.monotonic() - attempt_started, cont.failure_stage)
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
-            summary = str(response.get("message") or "").strip() or (
-                "Canvas edit applied to "
-                f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
-                f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
-            if edit_meta.get("learning_mode"):
-                return OUTCOME_AWAITING_APPROVAL, summary
-            return OUTCOME_APPLIED, summary
+            if edit_meta.get("updated") is not True:
+                last_note = str(
+                    (edit_meta.get("reason") or "edit response did not confirm a write")
+                )[:240]
+            else:
+                cont.failure_stage = f"attempt-{attempt}-readback"
+                readback_ok = True
+                if cont.readback_required:
+                    readback_ok = _operation_landed(cont)
+                    if readback_ok:
+                        try:
+                            from tools.canvas_crud_tool import read_canvas
+
+                            readback = await read_canvas(
+                                cont.user_id,
+                                str((cont.canvas or {}).get("canvas_id") or ""),
+                            )
+                            readback_ok = bool(
+                                readback.get("success")
+                                and readback.get("audit_id")
+                            )
+                        except Exception as read_err:
+                            readback_ok = False
+                            last_note = (
+                                "readback failed: "
+                                f"{type(read_err).__name__}: {str(read_err).strip()}"
+                            )
+                if readback_ok:
+                    summary = str(response.get("message") or "").strip() or (
+                        "Canvas edit applied to "
+                        f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
+                        f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
+                    if edit_meta.get("learning_mode") or edit_meta.get(
+                            "review_status") == "pending_review":
+                        return OUTCOME_AWAITING_APPROVAL, summary
+                    return OUTCOME_APPLIED, summary
+                if not last_note or last_note == "the edit planner could not complete":
+                    last_note = "the write could not be confirmed by audit readback"
+
         if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
-            logger.info(
-                "[async-continuation] %s attempt %d/%d did not apply — "
-                "backing off %.0fs (shared rate budgets recover; the "
-                "canvas re-checked on the next attempt)",
-                cont.continuation_id, attempt, _ASYNC_CONTINUATION_ATTEMPTS,
-                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS)
-            await asyncio.sleep(_ASYNC_CONTINUATION_RETRY_DELAY_SECONDS)
+            delay = min(
+                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS,
+                max(0.0, deadline - time.monotonic()),
+            )
+            if delay > 0:
+                cont.failure_stage = "retry-backoff"
+                logger.info(
+                    "[async-continuation] %s retry %d/%d after %.0fs",
+                    cont.continuation_id, attempt,
+                    _ASYNC_CONTINUATION_ATTEMPTS, delay)
+                await asyncio.sleep(delay)
+
+    cont.failure_stage = cont.failure_stage or "attempts"
     return OUTCOME_FAILED, (
         f"The background edit attempt did not apply after "
-        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts ({last_note}).")
-    edit_meta = ((response.get("data") or {}).get("canvas_edit") or {})
-    summary = str(response.get("message") or "").strip() or (
-        "Canvas edit applied to "
-        f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
-        f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
-    if edit_meta.get("learning_mode"):
-        return OUTCOME_AWAITING_APPROVAL, summary
-    return OUTCOME_APPLIED, summary
+        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts "
+        f"({last_note}; stage={cont.failure_stage}).")
 
 
 def supersede_pending_continuation(
@@ -819,6 +960,31 @@ def supersede_pending_continuation(
     return cancel_continuation(session_id)
 
 
+def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str:
+    """This OPERATION's evidence from the session — operation-scoped, not
+    "latest wins" (review: evidence isolation). The reply path stores its
+    composed evidence under a key derived from the turn's message hash; the
+    continuation reads the SAME key derived from ITS OWN originating message
+    (cont.message), so a later turn's evidence cannot be consumed by this
+    continuation. Fault-isolated."""
+    try:
+        orch = getattr(cont, "_orchestrator", None)
+        if orch is None:
+            return ""
+        session = orch.conversation_sessions.get(cont.session_id)
+        if not session:
+            return ""
+        # EXECUTION-ID KEYED (review correction: message hash identified
+        # text, not an operation — two identical approval turns collided).
+        # The execution ID is unique per turn and was passed to this
+        # continuation at fork time.
+        if not cont.execution_id:
+            return ""
+        return str(session.get(f"_ev_{cont.execution_id}") or "")
+    except Exception:
+        return ""
+
+
 def fork_canvas_edit_continuation(
     orchestrator: Any,
     *,
@@ -830,6 +996,7 @@ def fork_canvas_edit_continuation(
     execution_id: Optional[str],
     agent_id: Optional[str],
     provenance: Optional[Dict[str, Any]] = None,
+    evidence_block: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
     branch. Snapshots the idempotency state at fork time. Returns the
@@ -848,6 +1015,8 @@ def fork_canvas_edit_continuation(
         provenance=provenance,
         snapshot_content_hash=_content_hash(canvas or {}),
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
+        evidence_block=evidence_block or "",
+        readback_required=True,
     )
     # Dataclass: stash the orchestrator for the in-memory session append
     # (same event loop, same instance that served the forked turn).

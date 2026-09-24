@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import { getAuthToken } from "../../lib/identity";
+import { useActionProposals } from "../../hooks/useActionProposals";
 import {
     useUserRole,
     ADMIN_MIN_LEVEL,
@@ -54,6 +56,89 @@ interface SidebarItem {
      * to be below it (backend still enforces every gate — this only stops
      * roles from clicking into guaranteed 403s). */
     minLevel?: number;
+}
+
+/** Pending-count pill for the Approvals nav item: HITL actions + INTERN
+ * action proposals (data triggers held for review). Discovery gap fix — the
+ * queue previously surfaced only if you already knew to open the page.
+ * Fetches only when the viewer passes the supervisor gate (both queues are
+ * TEAM_LEAD+); any failure → hidden, never noisy. */
+function ApprovalsPendingBadge({ active, collapsed }: { active: boolean; collapsed: boolean }): React.ReactElement | null {
+    const [hitlCount, setHitlCount] = useState<number | null>(null);
+    const proposalQuery = useActionProposals({
+        statusFilter: "pending_approval",
+        limit: 50,
+        enabled: active,
+    });
+    const proposalCount = proposalQuery.pendingCount;
+
+    React.useEffect(() => {
+        if (!active) {
+            setHitlCount(null);
+            return;
+        }
+        const controller = new AbortController();
+        let cancelled = false;
+        const API = process.env.NEXT_PUBLIC_API_URL || "";
+        const load = async () => {
+            try {
+                const res = await fetch(`${API}/api/agents/approvals/pending`, {
+                    headers: { Authorization: `Bearer ${getAuthToken() || ""}` },
+                    signal: controller.signal,
+                });
+                if (!res.ok) {
+                    if (!cancelled) setHitlCount(null);
+                    return;
+                }
+                const data = await res.json();
+                if (!cancelled && Array.isArray(data)) setHitlCount(data.length);
+            } catch (err: any) {
+                if (err?.name !== "AbortError" && !cancelled) setHitlCount(null);
+            }
+        };
+        void load();
+        const t = setInterval(load, 60000);
+        return () => {
+            cancelled = true;
+            controller.abort();
+            clearInterval(t);
+        };
+    }, [active]);
+
+    if (
+        !active ||
+        hitlCount === null ||
+        proposalCount === null ||
+        proposalQuery.isPending ||
+        proposalQuery.isError
+    ) return null;
+    const count = hitlCount + proposalCount;
+    if (count <= 0) return null;
+    const liveStatus = `${count} pending review${count === 1 ? "" : "s"}`;
+
+    if (collapsed) {
+        return (
+            <>
+                <span
+                    data-testid="approvals-pending-dot"
+                    title={liveStatus}
+                    className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-background"
+                />
+                <span role="status" aria-live="polite" className="sr-only">{liveStatus}</span>
+            </>
+        );
+    }
+    return (
+        <>
+            <span
+                data-testid="approvals-pending-badge"
+                className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/90 px-1.5 text-[10px] font-bold text-white"
+            >
+                {count > 99 ? "99+" : count}
+            </span>
+            <span role="status" aria-live="polite" className="sr-only">{liveStatus}</span>
+        </>
+    );
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
@@ -273,6 +358,17 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                                                 <span className="ml-3 font-semibold text-[13.5px] truncate transition-colors">
                                                     {item.label}
                                                 </span>
+                                            )}
+
+                                            {/* Pending-review count on the
+                                                Approvals entry (supervisor
+                                                gate resolved; hidden while
+                                                the role is unknown). */}
+                                            {item.path === "/approvals" && (
+                                                <ApprovalsPendingBadge
+                                                    active={roleLevel >= SUPERVISOR_MIN_LEVEL}
+                                                    collapsed={isCollapsed}
+                                                />
                                             )}
 
                                             {/* Active Indicator for collapsed mode */}

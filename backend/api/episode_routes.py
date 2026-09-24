@@ -21,6 +21,7 @@ from core.episode_lifecycle_service import EpisodeLifecycleService
 from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.models import AgentFeedback, Episode, User, UserRole
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.security.rbac import user_meets_role
 from core.security_dependencies import get_current_user
 
@@ -670,7 +671,19 @@ async def get_readiness(
 ):
     """Calculate graduation readiness score"""
     service = AgentGraduationService(db)
-    return await service.calculate_readiness_score(agent_id, target_maturity)
+    tenant_id = resolve_tenant_id(current_user)
+    workspace_id = resolve_workspace_id(current_user)
+    if service.get_agent_in_scope(agent_id, tenant_id, workspace_id) is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    result = await service.calculate_readiness_score(
+        agent_id=agent_id,
+        target_maturity=target_maturity,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    if result.get("error") == "Agent not found":
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return result
 
 
 @router.post("/graduation/exam")
@@ -696,7 +709,19 @@ async def promote_agent(
     """Promote agent after validation"""
     _require_supervisor(db, current_user)
     service = AgentGraduationService(db)
-    success = await service.promote_agent(agent_id, new_maturity, current_user.id)
+    tenant_id = resolve_tenant_id(current_user)
+    workspace_id = resolve_workspace_id(current_user)
+    if service.get_agent_in_scope(agent_id, tenant_id, workspace_id) is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    success = await service.promote_agent(
+        agent_id=agent_id,
+        new_maturity=new_maturity,
+        validated_by=current_user.id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    if not success and service.get_agent_in_scope(agent_id, tenant_id, workspace_id) is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     return router.success_response(
         data={

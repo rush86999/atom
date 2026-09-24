@@ -114,6 +114,7 @@ export interface ActionProposal {
   session_id?: string | null;
   title: string | null;
   description: string | null;
+  proposal_type: string | null;
   status: string | null;
   proposed_action: Record<string, unknown> | null;
   reasoning: string | null;
@@ -121,6 +122,17 @@ export interface ActionProposal {
   created_at: string | null;
   approved_by: string | null;
   approved_at: string | null;
+}
+
+export interface ActionProposalExecutionResult {
+  success: boolean;
+  [key: string]: unknown;
+}
+
+export interface ActionProposalApprovalResult {
+  message?: string;
+  proposal_id?: string;
+  execution_result: ActionProposalExecutionResult;
 }
 
 // apiClient.fetch exists at runtime (attached in lib/api.ts) but is not part
@@ -528,27 +540,36 @@ export async function listActionProposals(opts: {
   agentId?: string;
   statusFilter?: string;
   limit?: number;
+  signal?: AbortSignal;
 } = {}): Promise<ActionProposal[]> {
   const res = await fetchJson(
     `/api/maturity/proposals${query({
       agent_id: opts.agentId,
       status_filter: opts.statusFilter,
       limit: opts.limit,
-    })}`
+    })}`,
+    { signal: opts.signal }
   );
+  if (!res.ok) throw new Error(`Action proposal list failed (${res.status})`);
   const body = await res.json();
-  return body.proposals ?? [];
+  if (!Array.isArray(body?.proposals)) {
+    throw new Error('Action proposal list returned an invalid payload');
+  }
+  return body.proposals;
 }
 
 export async function approveActionProposal(
   proposalId: string,
   modifications?: Record<string, unknown>
-): Promise<{ execution_result: unknown }> {
-  const res = await fetchJson(`/api/maturity/proposals/${proposalId}/approve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ approve: true, modifications }),
-  });
+): Promise<ActionProposalApprovalResult> {
+  const res = await fetchJson(
+    `/api/maturity/proposals/${encodeURIComponent(proposalId)}/approve`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approve: true, modifications }),
+    }
+  );
   if (!res.ok) throw new Error(`Approve failed (${res.status})`);
   return res.json();
 }
@@ -557,10 +578,13 @@ export async function rejectActionProposal(
   proposalId: string,
   reason: string
 ): Promise<void> {
-  const res = await fetchJson(`/api/maturity/proposals/${proposalId}/reject`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
+  const res = await fetchJson(
+    `/api/maturity/proposals/${encodeURIComponent(proposalId)}/reject`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }
+  );
   if (!res.ok) throw new Error(`Reject failed (${res.status})`);
 }

@@ -19,6 +19,7 @@ These tests pin the three mechanisms that were wrong:
 """
 import asyncio
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -43,6 +44,181 @@ from core.llm.model_route_registry import (
 @pytest.fixture()
 def catalog(tmp_path):
     return ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+
+
+class TestCatalogPersistence:
+    def test_environment_path_override(self, monkeypatch, tmp_path):
+        path = tmp_path / "isolated-catalog.json"
+        monkeypatch.setenv("ATOM_PROVIDER_MODEL_CATALOG_PATH", str(path))
+        instance = ProviderModelCatalog()
+        assert instance.path == str(path.resolve())
+
+    def test_relative_environment_path_is_backend_anchored(self, monkeypatch):
+        relative_path = "data/provider_model_catalog_test.json"
+        monkeypatch.setenv("ATOM_PROVIDER_MODEL_CATALOG_PATH", relative_path)
+        repo_root = Path(__file__).resolve().parents[2]
+        backend_root = repo_root / "backend"
+        monkeypatch.chdir(repo_root)
+        from_root = ProviderModelCatalog().path
+        monkeypatch.chdir(backend_root)
+        from_backend = ProviderModelCatalog().path
+        assert from_root == from_backend
+        assert from_root == str(backend_root / relative_path)
+
+    def test_reader_refreshes_after_other_instance_writes(
+            self, tmp_path, monkeypatch):
+        path = str(tmp_path / "catalog.json")
+        reader = ProviderModelCatalog(path=path)
+        writer = ProviderModelCatalog(path=path)
+        assert reader.served("alpha") is None
+        writer.record_discovery("alpha", ["alpha-model"])
+        monkeypatch.setattr(
+            reader, "_save_locked", lambda: pytest.fail("reader wrote"))
+        assert reader.served("alpha") == frozenset({"alpha-model"})
+        reads = []
+        original_read = reader._read_payload
+
+        def counted_read():
+            reads.append(True)
+            return original_read()
+
+        monkeypatch.setattr(reader, "_read_payload", counted_read)
+        assert reader.served("alpha") == frozenset({"alpha-model"})
+        assert reader.freshness("alpha") == "fresh"
+        assert reads == []
+
+    def test_atomic_merge_preserves_other_providers(self, tmp_path):
+        path = str(tmp_path / "catalog.json")
+        first = ProviderModelCatalog(path=path)
+        second = ProviderModelCatalog(path=path)
+        first.record_discovery("alpha", ["alpha-model"])
+        second.record_discovery("beta", ["beta-model"])
+        first.record_auth_probe("alpha", True, "ok")
+        payload = json.loads((tmp_path / "catalog.json").read_text())
+        assert payload["providers"]["alpha"]["auth_ok"] is True
+        assert payload["providers"]["beta"]["served"] == ["beta-model"]
+
+    def test_atomic_merge_preserves_same_provider_updates(self, tmp_path):
+        path = str(tmp_path / "catalog.json")
+        first = ProviderModelCatalog(path=path)
+        second = ProviderModelCatalog(path=path)
+        first.record_discovery("alpha", ["alpha-model"])
+        second.record_auth_probe("alpha", True, "ok")
+        payload = json.loads((tmp_path / "catalog.json").read_text())
+        assert payload["providers"]["alpha"]["served"] == ["alpha-model"]
+        assert payload["providers"]["alpha"]["auth_ok"] is True
+        assert first.served("alpha") == frozenset({"alpha-model"})
+        assert first.observe("alpha").auth_ok is True
+
+    def test_provider_invalidation_preserves_other_providers(self, tmp_path):
+        path = str(tmp_path / "catalog.json")
+        catalog = ProviderModelCatalog(path=path)
+        catalog.record_discovery("alpha", ["alpha-model"])
+        catalog.record_discovery("beta", ["beta-model"])
+        catalog.invalidate("alpha")
+        payload = json.loads((tmp_path / "catalog.json").read_text())
+        assert payload["providers"]["alpha"]["served"] is None
+        assert payload["providers"]["beta"]["served"] == ["beta-model"]
+
+    def test_empty_discovery_is_rejected(self, catalog):
+        with pytest.raises(ValueError):
+            catalog.record_discovery("alpha", [])
+
+
+class TestStructuredRouteSelection:
+    def test_cost_priority_interleaves_provider_families(self):
+        from core.llm.byok_handler import _interleave_provider_families
+
+        candidates = [
+            {"provider": "alpha", "model": "a1", "cost_rank_key": 1},
+            {"provider": "alpha", "model": "a2", "cost_rank_key": 2},
+            {"provider": "beta", "model": "b1", "cost_rank_key": 3},
+        ]
+        ordered = _interleave_provider_families(candidates)
+        assert [item["provider"] for item in ordered] == [
+            "alpha", "beta", "alpha"]
+
+    def test_structured_empty_content_is_rejected(self):
+        from core.llm.byok_handler import (
+            _structured_finish_reason,
+            _structured_output_missing,
+            _structured_tool_calls_present,
+        )
+
+        raw = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=None), finish_reason="length")])
+        assert _structured_output_missing(SimpleNamespace(_raw_response=raw))
+        assert _structured_finish_reason(SimpleNamespace(_raw_response=raw)) == "length"
+        assert not _structured_tool_calls_present(SimpleNamespace(_raw_response=raw))
+        assert not _structured_output_missing(
+            SimpleNamespace(_raw_response=SimpleNamespace(choices=[
+                SimpleNamespace(message=SimpleNamespace(content="{}"))
+            ])))
+
+    def test_structured_tool_call_is_not_empty(self):
+        from core.llm.byok_handler import (
+            _structured_finish_reason,
+            _structured_output_missing,
+            _structured_tool_calls_present,
+        )
+
+        tool_call = SimpleNamespace(
+            function=SimpleNamespace(arguments='{"value":"ok"}'))
+        raw = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=None, tool_calls=[tool_call]),
+            finish_reason="tool_calls")])
+        result = SimpleNamespace(_raw_response=raw)
+        assert not _structured_output_missing(result)
+        assert _structured_finish_reason(result) == "tool_calls"
+        assert _structured_tool_calls_present(result)
+
+    def test_structured_dict_function_call_is_not_empty(self):
+        from core.llm.byok_handler import _structured_output_missing
+
+        result = SimpleNamespace(_raw_response={
+            "choices": [{
+                "message": {
+                    "content": None,
+                    "function_call": {"arguments": "{}"},
+                },
+                "finish_reason": "function_call",
+            }],
+        })
+        assert not _structured_output_missing(result)
+
+    def test_model_attempt_claim_is_exclusive(self):
+        first = object.__new__(bh.BYOKHandler)
+        second = object.__new__(bh.BYOKHandler)
+        with bh._MODEL_ATTEMPT_INFLIGHT_LOCK:
+            bh._MODEL_ATTEMPT_INFLIGHT.clear()
+        try:
+            assert first._claim_model_attempt("alpha", "model")
+            assert not second._claim_model_attempt("alpha", "model")
+            first._release_model_attempt("alpha", "model")
+            assert second._claim_model_attempt("alpha", "model")
+        finally:
+            with bh._MODEL_ATTEMPT_INFLIGHT_LOCK:
+                bh._MODEL_ATTEMPT_INFLIGHT.clear()
+
+    def test_empty_model_cooldown_is_shared_across_handlers(self):
+        first = object.__new__(bh.BYOKHandler)
+        second = object.__new__(bh.BYOKHandler)
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+        try:
+            first._bench_model("alpha", "bad-model")
+            assert second._model_cooldown_active("alpha", "bad-model")
+            assert not second._model_cooldown_active("alpha", "good-model")
+            first._clear_model_cooldown("alpha", "bad-model")
+            assert not second._model_cooldown_active("alpha", "bad-model")
+            first._bench_model("alpha", "bad-model")
+            bh._AUTH_FAILED.add("alpha/bad-model")
+            bh.BYOKHandler.invalidate_provider_failures("alpha")
+            assert not second._model_cooldown_active("alpha", "bad-model")
+            assert "alpha/bad-model" not in bh._AUTH_FAILED
+        finally:
+            with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+                bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +367,16 @@ class TestFailureClassification:
     def test_causes(self, body, status, expected):
         cause, detail, http = classify_failure(status=status, body=body)
         assert cause == expected
+
+    def test_live_openrouter_credit_message_is_quota(self):
+        message = (
+            "Error code: 402 - This request requires more credits, or fewer "
+            "max_tokens. You requested up to 6000 tokens, but can only afford 43."
+        )
+        cause, _, status = classify_failure(Exception(message))
+        assert cause == FailureCause.QUOTA_EXHAUSTED
+        assert status == 402
+        assert bh._is_insufficient_balance_error(Exception(message))
 
     def test_model_rejection_wins_over_the_status_code(self):
         """Some gateways answer an unsupported model with 401 and a body that
@@ -495,6 +681,58 @@ class TestProviderServesModelUsesTheCatalogue:
         import core.llm.model_route_registry as mrr
         monkeypatch.setattr(mrr, "_CATALOG", catalog)
         assert not handler._provider_serves_model("openrouter", "anything")
+
+
+class TestStructuredRouteTrace:
+    def test_trace_records_catalog_age_auth_and_cooldown_state(
+            self, monkeypatch, catalog, caplog):
+        handler = bh.BYOKHandler.__new__(bh.BYOKHandler)
+        handler.clients = {"deepseek": object(), "opencode-go": object()}
+        handler._provider_models_cache = {}
+        import core.llm.model_route_registry as mrr
+        monkeypatch.setattr(mrr, "_CATALOG", catalog)
+        catalog.freshness_seconds = 0
+        catalog.record_discovery("deepseek", ["deepseek-flash"])
+        catalog.record_discovery("opencode-go", ["deepseek-v4.1-flash"])
+        catalog.record_auth_probe("opencode-go", False, "401 invalid")
+        handler._bench_provider(
+            "opencode-go", cause=FailureCause.INVALID_CREDENTIAL, seconds=60)
+        monkeypatch.setenv("ATOM_LLM_ROUTE_TRACE", "1")
+        with caplog.at_level("INFO", logger="core.llm.byok_handler"):
+            handler._trace_structured_route(
+                "trace-1", "opencode-go", "deepseek-v4.1-flash",
+                "skip", "provider_cooldown")
+        records = [
+            json.loads(r.getMessage().split("] ", 1)[1])
+            for r in caplog.records
+            if "[structured-route-trace]" in r.getMessage()
+        ]
+        assert len(records) == 1
+        record = records[0]
+        assert record["trace_id"] == "trace-1"
+        assert record["reason"] == "provider_cooldown"
+        state = record["state"]
+        assert state["catalog_freshness"] == "stale"
+        assert state["catalog_verified_age_s"] is not None
+        assert state["auth_ok"] is False
+        assert state["auth_checked_age_s"] is not None
+        assert state["provider_cooldown"]["cause"] == FailureCause.INVALID_CREDENTIAL
+        assert state["client_initialized"] is True
+
+    def test_trace_is_opt_in(self, monkeypatch, catalog, caplog):
+        handler = bh.BYOKHandler.__new__(bh.BYOKHandler)
+        handler.clients = {"deepseek": object()}
+        handler._provider_models_cache = {}
+        import core.llm.model_route_registry as mrr
+        monkeypatch.setattr(mrr, "_CATALOG", catalog)
+        monkeypatch.delenv("ATOM_LLM_ROUTE_TRACE", raising=False)
+        with caplog.at_level("INFO", logger="core.llm.byok_handler"):
+            handler._trace_structured_route(
+                "trace-off", "deepseek", "deepseek-flash", "dispatch", "")
+        assert not any(
+            "[structured-route-trace]" in record.getMessage()
+            for record in caplog.records
+        )
 
 
 class TestFallbackPreservesTaskRequirements:

@@ -14,7 +14,7 @@ version AND the fact that it is wired in:
 """
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -282,15 +282,21 @@ class TestPromoteAgentStrategicGate:
         db.query.return_value.filter.return_value.first.return_value = agent
         service = AgentGraduationService(db)
 
-        weak = SimpleNamespace(
-            readiness_score=0.92, zero_intervention_ratio=0.95,
-            avg_constitutional_score=0.97, avg_confidence_score=0.93,
-            success_rate=0.97, episodes_analyzed=40,  # < 50 floor
-        )
-        with patch("core.agent_graduation_service.EpisodeService") as episode_svc, \
-             patch("core.agent_graduation_service.get_lancedb_handler"), \
-             patch("core.agent_graduation_service.flag_modified"):
-            episode_svc.return_value.get_graduation_readiness.return_value = weak
+        weak = {
+            "ready": True,
+            "gaps": [],
+            "readiness_score": 0.92,
+            "success_rate": 0.97,
+            "avg_constitutional_score": 0.97,
+            "intervention_rate": 0.05,
+            "avg_confidence_score": 0.93,
+            "episodes_analyzed": 40,
+        }
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=weak),
+        ), patch("core.agent_graduation_service.flag_modified"):
             result = await service.promote_agent("a1", "AUTONOMOUS", "supervisor-1")
         assert result is False
         assert agent.status == "supervised"
@@ -307,20 +313,27 @@ class TestPromoteAgentStrategicGate:
         db.query.return_value.filter.return_value.first.return_value = agent
         service = AgentGraduationService(db)
 
-        strong = SimpleNamespace(
-            readiness_score=0.96, zero_intervention_ratio=0.95,
-            avg_constitutional_score=0.97, avg_confidence_score=0.93,
-            success_rate=0.97, episodes_analyzed=60,
-        )
-        with patch("core.agent_graduation_service.EpisodeService") as episode_svc, \
-             patch("core.agent_graduation_service.get_lancedb_handler"), \
-             patch("core.agent_graduation_service.flag_modified"):
-            episode_svc.return_value.get_graduation_readiness.return_value = strong
+        strong = {
+            "ready": True,
+            "gaps": [],
+            "readiness_score": 0.96,
+            "success_rate": 0.97,
+            "avg_constitutional_score": 0.97,
+            "intervention_rate": 0.05,
+            "avg_confidence_score": 0.93,
+            "episodes_analyzed": 60,
+        }
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=strong),
+        ), patch("core.agent_graduation_service.flag_modified"), \
+             patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
             result = await service.promote_agent("a2", "AUTONOMOUS", "supervisor-1")
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_lower_tiers_untouched_by_gate(self):
+    async def test_lower_tier_requires_readiness(self):
         from core.agent_graduation_service import AgentGraduationService
 
         agent = SimpleNamespace(
@@ -330,9 +343,17 @@ class TestPromoteAgentStrategicGate:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = agent
         service = AgentGraduationService(db)
-        with patch("core.agent_graduation_service.EpisodeService") as episode_svc, \
-             patch("core.agent_graduation_service.get_lancedb_handler"), \
-             patch("core.agent_graduation_service.flag_modified"):
+        readiness = AsyncMock(return_value={
+            "ready": False,
+            "gaps": ["No episodes recorded yet"],
+        })
+        with patch.object(service, "calculate_readiness_score", new=readiness):
             result = await service.promote_agent("a3", "INTERN", "supervisor-1")
-        assert result is True
-        episode_svc.return_value.get_graduation_readiness.assert_not_called()
+        assert result is False
+        assert agent.status == "student"
+        readiness.assert_awaited_once_with(
+            agent_id="a3",
+            target_maturity="INTERN",
+            tenant_id=None,
+            workspace_id=None,
+        )

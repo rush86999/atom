@@ -12,11 +12,18 @@ from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
 from core.episode_service import EpisodeService
+from core.personal_scope import (
+    PERSONAL_TENANT_ID,
+    PERSONAL_WORKSPACE_ID,
+    resolve_tenant_id,
+    resolve_workspace_id,
+)
 from core.service_factory import get_episode_service
 from core.sandbox_executor import get_sandbox_executor, get_graduation_exam_executor
 from core.models import (
@@ -81,6 +88,13 @@ class AgentGraduationService:
         }
     }
 
+    PROMOTION_SOURCES = {
+        AgentStatus.INTERN.name: AgentStatus.STUDENT.value,
+        AgentStatus.SUPERVISED.name: AgentStatus.INTERN.value,
+        AgentStatus.AUTONOMOUS.name: AgentStatus.SUPERVISED.value,
+    }
+    _EPISODE_SERVICE_TYPE = EpisodeService
+
     def __init__(self, db: Session):
         self.db = db
         self.lancedb = get_lancedb_handler()
@@ -97,11 +111,42 @@ class AgentGraduationService:
             except Exception as e:
                 logger.warning(f"Failed to initialize POMDP framework: {e}")
 
+    def get_agent_in_scope(
+        self,
+        agent_id: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[AgentRegistry]:
+        query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
+        if tenant_id is not None:
+            resolved_tenant = str(tenant_id) or PERSONAL_TENANT_ID
+            tenant_scope = AgentRegistry.tenant_id == resolved_tenant
+            if resolved_tenant == PERSONAL_TENANT_ID:
+                tenant_scope = or_(
+                    tenant_scope,
+                    AgentRegistry.tenant_id.is_(None),
+                    AgentRegistry.tenant_id == "",
+                )
+            query = query.filter(tenant_scope)
+        if workspace_id is not None:
+            resolved_workspace = str(workspace_id) or PERSONAL_WORKSPACE_ID
+            workspace_scope = AgentRegistry.workspace_id == resolved_workspace
+            if resolved_workspace == PERSONAL_WORKSPACE_ID:
+                workspace_scope = or_(
+                    workspace_scope,
+                    AgentRegistry.workspace_id.is_(None),
+                    AgentRegistry.workspace_id == "",
+                )
+            query = query.filter(workspace_scope)
+        return query.first()
+
     async def calculate_readiness_score(
         self,
         agent_id: str,
-        target_maturity: str,  # INTERN, SUPERVISED, AUTONOMOUS
-        min_episodes: int = None
+        target_maturity: str,
+        min_episodes: Optional[int] = None,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Calculate graduation readiness score from episodic memory.
@@ -118,32 +163,43 @@ class AgentGraduationService:
                 "gaps": List[str]
             }
         """
-        # Query agent
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
+        agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
 
         if not agent:
             return {"error": "Agent not found"}
 
-        # Validate target maturity level
         if target_maturity not in self.CRITERIA:
             return {"error": f"Unknown maturity level: {target_maturity}"}
 
         current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
 
         criteria = self.CRITERIA.get(target_maturity, {})
-
-        # Use Ported EpisodeService for weighted readiness formula
         episode_service = get_episode_service(self.db)
-        if isinstance(episode_service, EpisodeService) and episode_service.db is not self.db:
+        if (
+            isinstance(episode_service, self._EPISODE_SERVICE_TYPE)
+            and episode_service.db is not self.db
+        ):
             episode_service = EpisodeService(self.db, tenant_api_key=None)
+
+        effective_min_episodes: Any = min_episodes
+        if effective_min_episodes is None:
+            effective_min_episodes = criteria.get("min_episodes", 0)
+            if isinstance(episode_service, self._EPISODE_SERVICE_TYPE):
+                effective_min_episodes = episode_service._get_min_episodes_for_level(
+                    target_maturity.lower()
+                )
+            agent_floor = getattr(agent, "promotion_episode_floor", None)
+            if isinstance(agent_floor, int) and agent_floor > 0:
+                effective_min_episodes = max(int(effective_min_episodes), agent_floor)
+        effective_min_episodes = int(effective_min_episodes)
+        requested_tenant = str(tenant_id) if tenant_id else resolve_tenant_id(agent)
+
         readiness = episode_service.get_graduation_readiness(
             agent_id=agent_id,
-            tenant_id=agent.tenant_id or "default",
+            tenant_id=requested_tenant,
             target_level=target_maturity.lower(),
             min_episodes_override=min_episodes,
-            episode_count=max(criteria.get("min_episodes", 30), 30)
+            episode_count=max(effective_min_episodes, 30)
         )
         
         result = readiness.to_dict()
@@ -162,10 +218,14 @@ class AgentGraduationService:
             total_interventions = int(
                 (readiness.breakdown or {}).get("total_interventions", 0) or 0
             )
+            constitutional_recorded = int(
+                (readiness.breakdown or {}).get("constitutional_recorded", 0) or 0
+            )
             zero_intervention_ratio = float(readiness.zero_intervention_ratio)
             avg_constitutional = float(readiness.avg_constitutional_score)
         except (TypeError, ValueError, AttributeError):
             raw_score, episodes_analyzed, total_interventions = 0.0, 0, 0
+            constitutional_recorded = 0
             zero_intervention_ratio, avg_constitutional = 0.0, 0.0
 
         result["score"] = round(raw_score * 100, 2)
@@ -174,12 +234,9 @@ class AgentGraduationService:
         result["intervention_rate"] = round(1.0 - zero_intervention_ratio, 4)
 
         gaps = []
-        # Honor an explicit caller-supplied min_episodes override; otherwise
-        # fall back to the maturity-level criteria default.
-        min_episodes = min_episodes if min_episodes is not None else criteria.get("min_episodes", 0)
-        if episodes_analyzed < min_episodes:
+        if episodes_analyzed < effective_min_episodes:
             gaps.append(
-                f"Insufficient episodes ({episodes_analyzed}/{min_episodes} required)"
+                f"Insufficient episodes ({episodes_analyzed}/{effective_min_episodes} required)"
             )
         max_intervention = criteria.get("max_intervention_rate", 1.0)
         if result["intervention_rate"] > max_intervention:
@@ -187,8 +244,14 @@ class AgentGraduationService:
                 f"Intervention rate {result['intervention_rate']:.2f} exceeds "
                 f"maximum {max_intervention:.2f}"
             )
+        # Unmeasured ≠ failing: the scorer renormalizes over factors with
+        # recorded evidence only (see EpisodeService._compute_readiness_score),
+        # so an agent whose episodes never measured compliance must not show
+        # a "below required" gap next to a ready verdict — that gap would be
+        # unsatisfiable no matter how the agent performs. Fires only when
+        # scores WERE recorded and came in under the floor.
         min_constitutional = criteria.get("min_constitutional_score", 0)
-        if avg_constitutional < min_constitutional:
+        if constitutional_recorded and avg_constitutional < min_constitutional:
             gaps.append(
                 f"Constitutional score {avg_constitutional:.2f} below "
                 f"required {min_constitutional:.2f}"
@@ -697,7 +760,9 @@ class AgentGraduationService:
         self,
         agent_id: str,
         new_maturity: str,
-        validated_by: str
+        validated_by: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> bool:
         """
         Update agent metadata in PostgreSQL after successful graduation.
@@ -711,9 +776,7 @@ class AgentGraduationService:
             True if successful
         """
         try:
-            agent = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_id
-            ).first()
+            agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
         except Exception as e:
             logger.error(f"Database error querying agent {agent_id}: {e}")
             return False
@@ -722,44 +785,66 @@ class AgentGraduationService:
             logger.error(f"Agent {agent_id} not found for promotion")
             return False
 
-        # STRATEGIC governance gate: AUTONOMOUS promotions must pass the
-        # graduation policy against the agent's live episode evidence
-        # (core/governance/). This endpoint IS the human approval — a
-        # supervisor calling it — so the policy supplies the evidence
-        # floors the human decision is checked against. Lower tiers stay
-        # supervisor-judgment here; their numeric floors are enforced by
-        # the graduation exam's governance gate.
-        if str(new_maturity).upper() == "AUTONOMOUS":
+        target_name = str(new_maturity).upper()
+        if target_name not in self.PROMOTION_SOURCES:
+            logger.error(f"Invalid maturity level: {new_maturity}")
+            return False
+
+        target_status = AgentStatus[target_name].value
+        current_status = agent.status.value if hasattr(agent.status, "value") else str(agent.status)
+        if current_status != self.PROMOTION_SOURCES[target_name]:
+            logger.error(
+                f"Invalid promotion transition for {agent_id}: "
+                f"{current_status} -> {target_status}"
+            )
+            return False
+
+        try:
+            readiness = await self.calculate_readiness_score(
+                agent_id=agent_id,
+                target_maturity=target_name,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+            )
+        except Exception as readiness_err:
+            logger.error(
+                f"Promotion for {agent_id} denied: readiness evidence unavailable "
+                f"({readiness_err})"
+            )
+            return False
+
+        if (
+            readiness.get("error")
+            or readiness.get("ready") is not True
+            or readiness.get("gaps")
+        ):
+            return False
+
+        if target_status == AgentStatus.AUTONOMOUS.value:
             from core.governance import DynamicGovernanceManager, GovernanceLayer
 
             try:
-                readiness = EpisodeService(self.db).get_graduation_readiness(
-                    agent_id=agent_id,
-                    tenant_id=agent.tenant_id or "default",
-                    target_level="autonomous",
-                )
                 governance_context = {
-                    "episode_count": readiness.episodes_analyzed,
-                    "readiness_score": readiness.readiness_score,
-                    "success_rate": readiness.success_rate,
-                    "constitutional_score": readiness.avg_constitutional_score,
-                    "intervention_rate": round(1.0 - readiness.zero_intervention_ratio, 4),
-                    "confidence_score": readiness.avg_confidence_score,
+                    "episode_count": readiness["episodes_analyzed"],
+                    "readiness_score": readiness["readiness_score"],
+                    "success_rate": readiness["success_rate"],
+                    "constitutional_score": readiness["avg_constitutional_score"],
+                    "intervention_rate": readiness["intervention_rate"],
+                    "confidence_score": readiness["avg_confidence_score"],
                 }
-            except Exception as readiness_err:
-                # Evidence unreadable → do not hand out autonomy blind.
+                decision = DynamicGovernanceManager().decide(
+                    agent_id=agent_id,
+                    action="graduate_to_autonomous",
+                    layer=GovernanceLayer.STRATEGIC,
+                    context=governance_context,
+                )
+            except Exception as governance_err:
                 logger.error(
-                    f"Autonomous promotion for {agent_id} denied: readiness "
-                    f"evidence unavailable ({readiness_err})"
+                    f"Autonomous promotion for {agent_id} denied: governance "
+                    f"evidence unavailable ({governance_err})"
                 )
                 return False
 
-            decision = DynamicGovernanceManager().decide(
-                agent_id=agent_id,
-                action="graduate_to_autonomous",
-                layer=GovernanceLayer.STRATEGIC,
-                context=governance_context,
-            )
             if not decision.allowed:
                 logger.warning(
                     f"Autonomous promotion DENIED by governance policy for "
@@ -767,13 +852,8 @@ class AgentGraduationService:
                 )
                 return False
 
-        # Update maturity
-        try:
-            previous_status = agent.status
-            agent.status = AgentStatus[new_maturity.upper()]
-        except KeyError:
-            logger.error(f"Invalid maturity level: {new_maturity}")
-            return False
+        previous_status = agent.status
+        agent.status = target_status
 
         agent.updated_at = datetime.now()
 
@@ -808,7 +888,7 @@ class AgentGraduationService:
                 from core.maturity_broadcast import schedule_maturity_broadcast
 
                 schedule_maturity_broadcast(
-                    workspace_id=getattr(agent, "tenant_id", None),
+                    workspace_id=resolve_workspace_id(agent, workspace_id),
                     agent_id=agent_id,
                     previous_confidence=agent.confidence_score,
                     confidence=agent.confidence_score,
@@ -833,7 +913,6 @@ class AgentGraduationService:
                     or validated_by
                     or "00000000-0000-0000-0000-000000000000"
                 )
-                from core.personal_scope import resolve_tenant_id, resolve_workspace_id
                 workspace_id = resolve_workspace_id(agent, validated_by)
                 tenant_id = resolve_tenant_id(agent, validated_by)
 

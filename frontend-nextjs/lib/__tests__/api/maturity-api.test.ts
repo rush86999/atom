@@ -21,6 +21,7 @@ import {
   completeTrainingSession,
   listActionProposals,
   approveActionProposal,
+  rejectActionProposal,
   getCanvasTrainingContext,
   teachAgent,
   updateTrainingGuidance,
@@ -100,13 +101,31 @@ describe('maturity-api training proposals', () => {
 });
 
 describe('maturity-api action proposals', () => {
-  test('listActionProposals unwraps payload', async () => {
+  test('listActionProposals preserves proposal_type and forwards cancellation', async () => {
+    const controller = new AbortController();
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ proposals: [{ id: 'pr1', agent_id: 'a1' }] })
+      jsonResponse({
+        proposals: [{
+          id: 'pr1',
+          agent_id: 'a1',
+          proposal_type: 'action',
+        }],
+      })
     );
-    const out = await listActionProposals({ statusFilter: 'PENDING_APPROVAL' });
-    expect(out[0].id).toBe('pr1');
+
+    const out = await listActionProposals({
+      statusFilter: 'PENDING_APPROVAL',
+      signal: controller.signal,
+    });
+
+    expect(out[0]).toEqual(expect.objectContaining({ id: 'pr1', proposal_type: 'action' }));
     expect(mockFetch.mock.calls[0][0]).toContain('status_filter=PENDING_APPROVAL');
+    expect((mockFetch.mock.calls[0][1] as RequestInit).signal).toBe(controller.signal);
+  });
+
+  test('listActionProposals rejects non-ok responses', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ detail: 'unavailable' }, false, 500));
+    await expect(listActionProposals()).rejects.toThrow('500');
   });
 
   test('approveActionProposal returns execution result', async () => {
@@ -116,6 +135,18 @@ describe('maturity-api action proposals', () => {
     const out = await approveActionProposal('pr1');
     expect(out.execution_result).toEqual({ success: true });
     expect(mockFetch.mock.calls[0][0]).toBe('/api/maturity/proposals/pr1/approve');
+  });
+
+  test('approveActionProposal rejects backend execution failures', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ detail: 'Proposal execution failed' }, false, 500)
+    );
+    await expect(approveActionProposal('pr1')).rejects.toThrow('500');
+  });
+
+  test('rejectActionProposal rejects non-ok responses', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ detail: 'nope' }, false, 400));
+    await expect(rejectActionProposal('pr1', 'bad')).rejects.toThrow('400');
   });
 });
 

@@ -10,6 +10,7 @@ This service handles:
 - Activity event publishing for menu bar companion
 - Progressive detail retrieval for episode recall
 """
+import os
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any, Literal
 from sqlalchemy.orm import Session
@@ -754,11 +755,23 @@ class EpisodeService:
             ReadinessResponse with readiness score and breakdown (including
             the weights actually applied)
         """
-        # Get agent
+        # Get agent. The tenant match must tolerate NULL/"" rows: Personal
+        # Edition rows (admin-bootstrap user, agents hired before tenant
+        # scoping) carry tenant_id=None and core/personal_scope.py declares
+        # the resolver fallback to "default" load-bearing. A strict equality
+        # filter made every readiness call for such an agent raise
+        # "Agent not found" → the canvas Training panel showed
+        # "Readiness unavailable." and the supervisor promoted blind.
+        # An unscoped row resolves for any requested tenant; properly
+        # tenanted rows keep exact-match scoping.
         agent = self.db.query(AgentRegistry).filter(
             and_(
                 AgentRegistry.id == agent_id,
-                AgentRegistry.tenant_id == tenant_id
+                or_(
+                    AgentRegistry.tenant_id == tenant_id,
+                    AgentRegistry.tenant_id.is_(None),
+                    AgentRegistry.tenant_id == "",
+                ),
             )
         ).first()
 
@@ -827,10 +840,20 @@ class EpisodeService:
         # Get threshold for target level
         threshold = self._get_threshold_for_level(target_level)
         # Get minimum episode count for target level (honor caller override)
+        # PER-AGENT FLOOR (user request 2026-09-23): when the agent has a
+        # promotion_episode_floor set on its registry row, that floor
+        # overrides the per-level default — users can require more real-
+        # world evidence per agent, per domain.
+        agent_row = agent
+        floor = getattr(agent_row, "promotion_episode_floor", None) if agent_row else None
         min_episodes = (
             min_episodes_override
             if min_episodes_override is not None
-            else self._get_min_episodes_for_level(target_level)
+            else (
+                max(int(floor), self._get_min_episodes_for_level(target_level))
+                if floor is not None and int(floor) > 0
+                else self._get_min_episodes_for_level(target_level)
+            )
         )
         # Check both score threshold and minimum episode count
         threshold_met = readiness_score >= threshold and len(episodes) >= min_episodes
@@ -852,6 +875,10 @@ class EpisodeService:
                 "episodes_by_outcome": metrics["episodes_by_outcome"],
                 "total_interventions": metrics["total_interventions"],
                 "avg_step_efficiency": round(metrics.get("avg_step_efficiency", 1.0), 4),
+                # How many of the analyzed episodes actually recorded a
+                # constitutional score — consumers (the graduation gap list)
+                # need this to tell "unmeasured" apart from "measured at 0".
+                "constitutional_recorded": metrics.get("constitutional_recorded", 0),
                 "supervision_metrics": supervision_metrics,
                 "skill_metrics": skill_metrics,  # Skill diversity breakdown
                 "proposal_quality_metrics": proposal_quality_metrics,  # NEW (Phase 224-04)
@@ -1461,7 +1488,24 @@ class EpisodeService:
         return thresholds.get(target_level, 0.70)
 
     def _get_min_episodes_for_level(self, target_level: str) -> int:
-        """Get minimum episode count for target level"""
+        """Get minimum episode count for target level.
+
+        Env-overridable per level (ATOM_PROMOTION_MIN_EPISODES_{LEVEL}),
+        so deployments can tune the graduation bar without code changes
+        (user request 2026-09-23: 25 episodes felt early for a production
+        sales agent). The hardcoded defaults are the product baseline —
+        not a ceiling."""
+        overrides = {
+            "intern": os.getenv("ATOM_PROMOTION_MIN_EPISODES_INTERN"),
+            "supervised": os.getenv("ATOM_PROMOTION_MIN_EPISODES_SUPERVISED"),
+            "autonomous": os.getenv("ATOM_PROMOTION_MIN_EPISODES_AUTONOMOUS"),
+        }
+        raw = overrides.get(target_level)
+        if raw is not None:
+            try:
+                return max(1, int(raw))
+            except (TypeError, ValueError):
+                pass
         min_episodes = {
             AgentStatus.INTERN.value: 10,
             AgentStatus.SUPERVISED.value: 25,

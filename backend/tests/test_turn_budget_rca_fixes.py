@@ -50,6 +50,27 @@ class TestCanvasEditShapeBudget:
         assert not _canvas_edit_shaped(
             "what does the draft say?", {"canvas_id": "c1"})
 
+    def test_common_edit_verbs_are_recognized(self):
+        from integrations.chat_orchestrator import _canvas_edit_shaped
+
+        ctx = {"canvas_id": "c1", "canvas_type": "document"}
+        for message in (
+            "append this line to the draft",
+            "apply the correction to the document",
+            "insert the price into the table",
+            "set the subject on the email",
+            "rename the sheet",
+        ):
+            assert _canvas_edit_shaped(message, ctx), message
+
+    def test_task_management_request_is_not_a_canvas_edit(self):
+        from integrations.chat_orchestrator import _canvas_edit_shaped
+
+        assert not _canvas_edit_shaped(
+            "add a task to follow up tomorrow", {"canvas_id": "c1"})
+        assert _canvas_edit_shaped(
+            "add a task to the draft's checklist", {"canvas_id": "c1"})
+
     def test_extended_budget_applies(self, monkeypatch):
         monkeypatch.delenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS", raising=False)
         monkeypatch.delenv("ATOM_DERIVATION_TURN_BUDGET_SECONDS", raising=False)
@@ -243,6 +264,8 @@ async def test_action_leg_skipped_when_edit_leg_dies_at_bound(monkeypatch):
               new=AsyncMock(return_value=None)),
         patch("core.chat_tool_planner._provenance_menu",
               new=AsyncMock(return_value="")),
+        patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+              return_value="cont-rca3"),
     ):
         result = await orch.process_chat_message(
             "u1", "rebuild the draft with the quotes", "sess-rca3",
@@ -293,6 +316,8 @@ async def test_action_leg_runs_when_an_action_task_is_in_flight(monkeypatch):
               new=AsyncMock(return_value=None)),
         patch("core.chat_tool_planner._provenance_menu",
               new=AsyncMock(return_value="")),
+        patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+              return_value="cont-rca4"),
     ):
         await orch.process_chat_message(
             "u1", "rebuild the draft with the quotes", "sess-rca4",
@@ -420,6 +445,7 @@ class TestPairMemoPersistence:
 
     def test_save_then_reload_round_trips(self, tmp_path, monkeypatch):
         import json
+        import time
 
         memo_path = tmp_path / "pair_memos.json"
         monkeypatch.setenv("ATOM_PAIR_MEMO_PATH", str(memo_path))
@@ -437,6 +463,14 @@ class TestPairMemoPersistence:
         bh._REASONING_MANDATORY.add("prov/rmand")
         bh._LOGPROBS_UNSUPPORTED.add("prov/logp")
         bh._AUTH_FAILED.add("prov/badcred")
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY_AT.clear()
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+        bh._MODEL_STRUCTURED_LATENCY["prov/slow"] = 12.5
+        bh._MODEL_STRUCTURED_LATENCY_AT["prov/slow"] = time.time()
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL["prov/empty"] = time.time() + 120
         bh._save_pair_memos()
 
         # Simulate the restart: wipe, reload, verify.
@@ -445,15 +479,25 @@ class TestPairMemoPersistence:
         bh._REASONING_MANDATORY.clear()
         bh._LOGPROBS_UNSUPPORTED.clear()
         bh._AUTH_FAILED.clear()
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY_AT.clear()
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
         bh._load_pair_memos()
         assert bh._MODEL_TEMPERATURE["prov/tlocked"] == 1.0
         assert bh._TOOLCHOICE_UNSUPPORTED == {"prov/thinking"}
         assert bh._REASONING_MANDATORY == {"prov/rmand"}
         assert bh._LOGPROBS_UNSUPPORTED == {"prov/logp"}
         assert bh._AUTH_FAILED == {"prov/badcred"}
+        assert bh._MODEL_STRUCTURED_LATENCY["prov/slow"] == 12.5
+        assert bh._MODEL_STRUCTURED_LATENCY_AT["prov/slow"] > 0
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            assert "prov/empty" in bh._MODEL_OUTPUT_COOLDOWN_UNTIL
         # The file on disk is plain JSON (inspectable, hand-editable).
         payload = json.loads(memo_path.read_text())
         assert payload["temperature"] == {"prov/tlocked": 1.0}
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
 
     def test_missing_file_is_a_cold_start(self, tmp_path, monkeypatch):
         monkeypatch.setenv(

@@ -767,9 +767,15 @@ class TestRealTimeGovernanceCacheInvalidation:
 
         import asyncio
 
-        get_event_loop().run_until_complete(
-            AgentGraduationService(db).promote_agent(test_agent.id, "INTERN", "supervisor-1")
-        )
+        service = AgentGraduationService(db)
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value={"ready": True, "gaps": []}),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+            get_event_loop().run_until_complete(
+                service.promote_agent(test_agent.id, "INTERN", "supervisor-1")
+            )
         assert set(invalidated) == {test_agent.id}
         db.refresh(test_agent)
         assert test_agent.status == "intern"
