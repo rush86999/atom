@@ -3429,10 +3429,21 @@ class ChatOrchestrator:
             if _pending_file_task:
                 _pft_original = str(
                     _pending_file_task.get("original_message") or "")
+                # Resume-aware planner wait, shared by the pre-started task
+                # and the reply leg's fresh path: deadline-bounded so the
+                # execute + reply stages keep their shares.
+                try:
+                    _pft_remaining = _deadline.remaining()
+                except Exception:  # noqa: BLE001 — deadline is optional
+                    _pft_remaining = None
+                _resume_plan_wait_seconds = (
+                    min(55.0, max(25.0, _pft_remaining - 40.0))
+                    if _pft_remaining is not None else 55.0)
                 logger.info(
                     "[pending-file-task] confirmation resumes the stored file "
-                    "ask (file=%r, ask=%.160r)",
-                    _pending_file_task.get("mention"), _pft_original)
+                    "ask (file=%r, ask=%.160r, planner wait %.0fs)",
+                    _pending_file_task.get("mention"), _pft_original,
+                    _resume_plan_wait_seconds)
                 if _clarify_turn and _pft_original:
                     # The confirmation's referent is the STORED ask — the
                     # resolver cannot pin it because the offer it confirms
@@ -3619,12 +3630,41 @@ class ChatOrchestrator:
                         prov = (
                             f"{_pft_directive}\n\n{prov}"
                             if prov else _pft_directive)
-                    return await plan_tool_use(
-                        _plan_msg, _plan_hist, user_id, self.llm_service,
-                        canvas=_canvas_ctx, provenance=prov,
-                        allow_canvas_target=_canvas_edit_shaped(
-                            message, {"canvas": _canvas_ctx}),
-                    )
+                    # RESUME-AWARE STRUCTURED WAIT (2026-09-24): declare the
+                    # caller's real wait to the routing layer so the
+                    # interactive latency cap admits healthy-but-slower
+                    # rungs for THIS call only (task-scoped — the reply
+                    # generation keeps the default cap). Restrictions
+                    # (rate, reserve, cooldowns, auth) are untouched.
+                    _wait_token = None
+                    if _pending_file_task:
+                        try:
+                            from core.llm.interactive_context import (
+                                declare_interactive_structured_wait,
+                            )
+
+                            _wait_token = (
+                                declare_interactive_structured_wait(
+                                    _resume_plan_wait_seconds))
+                        except Exception:  # noqa: BLE001 — declaration is optional
+                            _wait_token = None
+                    try:
+                        return await plan_tool_use(
+                            _plan_msg, _plan_hist, user_id, self.llm_service,
+                            canvas=_canvas_ctx, provenance=prov,
+                            allow_canvas_target=_canvas_edit_shaped(
+                                message, {"canvas": _canvas_ctx}),
+                        )
+                    finally:
+                        if _wait_token is not None:
+                            try:
+                                from core.llm.interactive_context import (
+                                    reset_interactive_structured_wait,
+                                )
+
+                                reset_interactive_structured_wait(_wait_token)
+                            except Exception:  # noqa: BLE001
+                                pass
 
                 if _clarify_turn:
                     # STRUCTURAL clarify guarantee: no plan task exists to
@@ -5054,6 +5094,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if isinstance(pending_file_task, dict):
                 _resume_original = str(
                     pending_file_task.get("original_message") or "").strip()
+            # RESUME-AWARE PLANNER WAIT (2026-09-24): a pending-file-task
+            # resume turn exists to run ONE lookup, but the interactive 25s
+            # planner await also anchors the routing layer's interactive
+            # latency cap — so healthy-but-slow structured rungs (observed
+            # live 2026-09-23 replay: opencode-go/kimi-k2.7-code 46s,
+            # direct deepseek/deepseek-v4-pro 51.7s) were excluded from the
+            # pool and the cascade degenerated to a credits-exhausted
+            # family. The confirmed read deserves a longer, deadline-
+            # bounded wait (execute + reply keep their shares); ordinary
+            # turns keep the 25s interactive contract.
+            _plan_wait_seconds = 25.0
+            if _resume_original:
+                try:
+                    _remaining = deadline.remaining() if deadline else None
+                except Exception:  # noqa: BLE001 — deadline is optional
+                    _remaining = None
+                _plan_wait_seconds = (
+                    min(55.0, max(25.0, _remaining - 40.0))
+                    if _remaining is not None else 55.0)
+                logger.info(
+                    "[pending-file-task] resume turn: planner wait raised to "
+                    "%.0fs (deadline-bounded)", _plan_wait_seconds)
             _gate_msg = _resume_original or message
             if isinstance(pending_file_task, dict):
                 try:
@@ -5430,7 +5492,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # the pre-reply cost is a single opaque stage number.
                         _plan_was_done = tool_plan_task.done()
                         _plan_wait_t0 = time.monotonic()
-                        _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
+                        _plan = await asyncio.wait_for(
+                            tool_plan_task, timeout=_plan_wait_seconds)
                         logger.info(
                             "[timeline] planner awaited by the reply builder: "
                             "%.1fs (already done when awaited: %s)",
@@ -5461,16 +5524,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _prov = f"{_prov}\n\n{_src}" if _prov else _src
                         except Exception:  # noqa: BLE001
                             pass
-                        _plan = await asyncio.wait_for(
-                            plan_tool_use(
-                                message, planner_history or history, user_id,
-                                self.llm_service, canvas=canvas_context,
-                                provenance=_prov,
-                                allow_canvas_target=_canvas_edit_shaped(
-                                    message, {"canvas": canvas_context}),
-                            ),
-                            timeout=25,
-                        )
+                        _fresh_wait_token = None
+                        if _resume_original:
+                            try:
+                                from core.llm.interactive_context import (
+                                    declare_interactive_structured_wait,
+                                )
+
+                                _fresh_wait_token = (
+                                    declare_interactive_structured_wait(
+                                        _plan_wait_seconds))
+                            except Exception:  # noqa: BLE001 — optional
+                                _fresh_wait_token = None
+                        try:
+                            _plan = await asyncio.wait_for(
+                                plan_tool_use(
+                                    message, planner_history or history, user_id,
+                                    self.llm_service, canvas=canvas_context,
+                                    provenance=_prov,
+                                    allow_canvas_target=_canvas_edit_shaped(
+                                        message, {"canvas": canvas_context}),
+                                ),
+                                timeout=_plan_wait_seconds,
+                            )
+                        finally:
+                            if _fresh_wait_token is not None:
+                                try:
+                                    from core.llm.interactive_context import (
+                                        reset_interactive_structured_wait,
+                                    )
+
+                                    reset_interactive_structured_wait(
+                                        _fresh_wait_token)
+                                except Exception:  # noqa: BLE001
+                                    pass
                     logger.info(
                         f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
                         f"{time.monotonic() - _plan_t0:.1f}s")

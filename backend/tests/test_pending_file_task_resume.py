@@ -681,3 +681,55 @@ class TestReadOnlyFileAskGate:
         canvas = {"canvas_id": "c1", "canvas_type": "document"}
         assert chat._read_only_file_ask(
             "what are the current prices?", canvas) is False
+
+
+# ---------------------------------------------------------------------------
+# Wiring 7 — resume-aware structured wait (caller-declared, task-scoped)
+# ---------------------------------------------------------------------------
+
+class TestDeclaredStructuredWait:
+    def test_declare_and_reset(self):
+        from core.llm.interactive_context import (
+            declare_interactive_structured_wait,
+            interactive_structured_wait,
+            reset_interactive_structured_wait,
+        )
+
+        assert interactive_structured_wait() == 0.0
+        token = declare_interactive_structured_wait(50.0)
+        assert interactive_structured_wait() == 50.0
+        reset_interactive_structured_wait(token)
+        assert interactive_structured_wait() == 0.0
+
+    def test_bad_values_fail_open_to_zero(self):
+        from core.llm.interactive_context import (
+            declare_interactive_structured_wait,
+            interactive_structured_wait,
+            reset_interactive_structured_wait,
+        )
+
+        token = declare_interactive_structured_wait("not-a-number")
+        assert interactive_structured_wait() == 0.0
+        reset_interactive_structured_wait(token)
+
+    def test_effective_cap_takes_max_of_default_and_declaration(self):
+        # The routing layer's interactive structured cap must ADMIT a
+        # declared wait: max(default, declared). Verified against the
+        # helper the handler uses, so a healthy 46s rung is no longer
+        # excluded on a turn whose caller waits 50s.
+        from core.llm import byok_handler
+        from core.llm.interactive_context import (
+            declare_interactive_structured_wait,
+            interactive_structured_wait,
+            reset_interactive_structured_wait,
+        )
+
+        token = declare_interactive_structured_wait(50.0)
+        try:
+            effective = max(
+                byok_handler._interactive_structured_max_seconds(),
+                interactive_structured_wait(),
+            )
+            assert effective >= 50.0
+        finally:
+            reset_interactive_structured_wait(token)

@@ -4215,6 +4215,7 @@ class BYOKHandler:
                     # headroom=0.00 with nothing left to cascade to.
                     from core.llm.interactive_context import (
                         interactive_rate_reserve,
+                        interactive_structured_wait,
                         is_interactive_chat,
                     )
 
@@ -4235,7 +4236,10 @@ class BYOKHandler:
                     # beats no answer; the gate stays a PREFERENCE, not a
                     # hard exclusion at the last resort.
                     _lat_max = (
-                        _interactive_structured_max_seconds()
+                        max(
+                            _interactive_structured_max_seconds(),
+                            interactive_structured_wait(),
+                        )
                         if (is_interactive_chat() and not _lat_gate_relaxed)
                         else 0.0)
                     _lat_key = f"{provider_id}/{model_id}"
