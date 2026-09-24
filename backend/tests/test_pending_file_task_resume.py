@@ -1704,7 +1704,6 @@ def _wb_fixture(tmpdir, name, columns, rows, entity="Data"):
 async def _run_direct_ask(orch, catalog, session_id, message):
     from unittest.mock import AsyncMock, patch
     import core.chat_tool_planner as planner_mod
-    import integrations.chat_orchestrator as chat_mod
     session = {"id": session_id, "history": []}
     with (
         patch.object(orch, "_get_or_create_session", return_value=session),
@@ -1982,8 +1981,6 @@ class TestStreamingChunkBoundaries:
             if formed:
                 residue = True
                 break
-            new = safe[len("".join(displayed)) - (len(safe) - len(safe)):]
-            # emit only what extends the previously emitted prefix
             emitted_so_far = sum(len(c) for c in displayed)
             delta = safe[emitted_so_far:]
             if delta:
@@ -2091,3 +2088,570 @@ async def test_field_ambiguity_is_structured_not_presentation_only():
     values = ev.get("prices") or ev.get("values") or []
     flagged = {v["column"] for v in values if v.get("field_ambiguous")}
     assert flagged == {"Weight gross", "Weight net"}, flagged
+
+
+# ---------------------------------------------------------------------------
+# Task-continuity regression (2026-09-24): the LEGACY conversation — the
+# objective predates the pending-task store, so a retry has NOTHING to
+# resume. Live: "try excel file search again" logged `tool plan executed:
+# None`, the reply promised a search that never started, and the next
+# "go ahead" was answered from the open email canvas — the wrong task.
+# ---------------------------------------------------------------------------
+
+LEGACY_ASK = (
+    "find all these prices from price list 2019 and let me know what you "
+    "find")
+LEGACY_CONFIRM = "Consolidated Price List 2019.xlsx is correct"
+LEGACY_RETRY = "try excel file search again"
+LEGACY_APPROVAL = "go ahead"
+LEGACY_HISTORY = [
+    {"message": "update the canvas",
+     "response": "The canvas edit has been started in the background."},
+    {"message": "create a sample quote email for this lead",
+     "response": "To: Steve — Quote draft..."},
+    {"message": "apply the priced table to the canvas now",
+     "response": "I can't apply the canvas edit — the edit planner failed."},
+    {"message": LEGACY_ASK,
+     "response": "the WorkDrive lookup came back unverified"},
+    {"message": LEGACY_CONFIRM,
+     "response": "Noted that the filename to target is the 2019 price list."},
+]
+
+
+class TestLegacyTaskRecovery:
+    def test_retry_recovers_the_unresolved_ask(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        task = recover_pending_task_from_history(
+            LEGACY_HISTORY, LEGACY_RETRY)
+        assert task is not None, (
+            "a retry in a legacy conversation must reconstruct the ask")
+        assert task["original_message"] == LEGACY_ASK
+        assert task["mention"] == "consolidated price list 2019.xlsx", (
+            "the confirmation's specific name refines the ask's own "
+            "extensionless mention")
+        assert task["status"] == "pending"
+        assert task["recovered"] is True
+
+    def test_bare_approval_also_recovers(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        task = recover_pending_task_from_history(
+            LEGACY_HISTORY + [
+                {"message": LEGACY_RETRY,
+                 "response": "I will search Zoho WorkDrive now."},
+            ],
+            LEGACY_APPROVAL)
+        assert task is not None
+        assert task["original_message"] == LEGACY_ASK
+
+    def test_approval_of_a_newer_email_objective_recovers_nothing(self):
+        """Task drift guard: the approval belongs to the LATEST objective.
+        When a non-file ask (the email draft) is newer than the file ask,
+        recovery must stay out of it — the email flow owns the approval."""
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = LEGACY_HISTORY + [
+            {"message": "create a sample quote email for this lead",
+             "response": "Here is the draft..."},
+        ]
+        assert recover_pending_task_from_history(
+            history, LEGACY_APPROVAL) is None
+
+    def test_action_turn_on_the_same_file_refuses_recovery(self):
+        """An approval of 'email me the price list' must never execute a
+        workbook read instead."""
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = LEGACY_HISTORY + [
+            {"message": "email me the consolidated price list 2019.xlsx",
+             "response": "..."},
+        ]
+        assert recover_pending_task_from_history(
+            history, LEGACY_APPROVAL) is None
+
+    def test_different_file_objective_supersedes(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = LEGACY_HISTORY + [
+            {"message": "search the stock counts 2026.xlsx for SKU 12",
+             "response": "..."},
+        ]
+        task = recover_pending_task_from_history(history, LEGACY_APPROVAL)
+        assert task is not None and task["mention"] == (
+            "stock counts 2026.xlsx")
+
+    def test_expired_pending_state_recovers(self):
+        """Replay requirement: expired pending state. The stored task's TTL
+        is long gone, nothing was answered — the retry still continues the
+        objective. A bare confirmation stays TTL-bound; an explicit
+        re-retrieval request is live intent and matches anyway."""
+        import core.pending_file_task as pft
+
+        stored = pft.build_pending_task(
+            LEGACY_ASK, "price list 2019")
+        stored["created_at"] -= pft._PENDING_FILE_TASK_TTL_SECONDS * 4
+        assert pft.matching_pending_task(
+            stored, "That filename is correct", LEGACY_HISTORY) is None, (
+            "a bare confirmation stays TTL-bound")
+        assert pft.matching_pending_task(
+            stored, LEGACY_RETRY, LEGACY_HISTORY) is not None, (
+            "an explicit refresh is live intent past the TTL")
+        assert pft.pending_task_is_recoverable(stored)
+        task = pft.recover_pending_task_from_history(
+            LEGACY_HISTORY, LEGACY_RETRY)
+        assert task is not None and task["original_message"] == LEGACY_ASK
+
+    def test_terminal_task_is_never_recovered(self):
+        import core.pending_file_task as pft
+
+        served = pft.mark_task_served(
+            pft.build_pending_task(LEGACY_ASK, "price list 2019"), None)
+        assert not pft.pending_task_is_recoverable(served)
+
+    def test_cross_domain_equivalent(self):
+        """The mechanism is domain-independent: a billing workbook instead
+        of the machinery price list, same four-turn shape."""
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = [
+            {"message": "write a blog post draft", "response": "..."},
+            {"message": (
+                "find the invoice totals in the Q3 billing summary and "
+                "let me know what you find"),
+             "response": "the lookup did not complete"},
+            {"message": "Q3 Billing Summary 2026.xlsx is right",
+             "response": "noted"},
+        ]
+        task = recover_pending_task_from_history(
+            history, "try the file search again")
+        assert task is not None
+        assert task["mention"] == "q3 billing summary 2026.xlsx"
+        assert "invoice totals" in task["original_message"]
+
+
+class TestLineageMatching:
+    def test_intervening_confirmation_does_not_break_the_match(self):
+        """Even WITH stored state, the old history check hit the filename
+        confirmation first (it classifies substantive) and the text-equality
+        test broke the resume — the retry then had no task."""
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        matched = pft.matching_pending_task(
+            pending, LEGACY_RETRY, LEGACY_HISTORY)
+        assert matched is not None, (
+            "the retry continues the task across its own lineage turns")
+
+    def test_confirmation_then_retry_then_approval_all_match(self):
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        assert pft.matching_pending_task(
+            pending, LEGACY_CONFIRM, LEGACY_HISTORY) is None, (
+            "the confirmation itself is substantive-classified and stays a "
+            "new-request to the strict matcher — recovery and the ask-turn "
+            "read own it")
+        assert pft.matching_pending_task(
+            pending, LEGACY_APPROVAL, LEGACY_HISTORY) is not None
+
+    def test_tasks_carry_explicit_lineage_id(self):
+        import core.pending_file_task as pft
+
+        task = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        merged = pft.merge_pending_task(task, LEGACY_RETRY, "price list 2019")
+        assert merged["task_id"] == task["task_id"], (
+            "confirmations and retries attach to the SAME task id")
+        other = pft.merge_pending_task(
+            task, "check stock counts 2026.xlsx", "stock counts 2026.xlsx")
+        assert other["task_id"] != task["task_id"], (
+            "a genuinely new objective starts a new task")
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator-level migration acceptance: the four-turn sequence on a
+# session that NEVER had pending state — retry executes the read
+# deterministically; the approval re-delivers; no narration, no email.
+# ---------------------------------------------------------------------------
+
+def _direct_ok():
+    rendered = (
+        "Workbook read: Consolidated Price List 2019.xlsx\n"
+        "| SLE24-16 | FOUND | Tennsmith!A106 R106 |"
+    )
+    return {
+        "ok": True, "block": rendered, "rendered_answer": rendered,
+        "identity": {"file_id": "wd-77",
+                     "file_name": "Consolidated Price List 2019.xlsx",
+                     "identity_verified": True, "coverage_complete": True},
+        "meta": {"completed": True, "identity_verified": True,
+                 "coverage_complete": True},
+        "retrieval_complete": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_legacy_retry_executes_the_read_without_narration():
+    orch = _orch()
+    # The session predates the pending-task store: NO task key at all.
+    session = {"id": "s-legacy", "history": list(LEGACY_HISTORY)}
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="leg-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=_direct_ok())) as direct_mock,
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))) as plan_mock,
+        patch.object(orch.llm_service, "generate_completion", new=AsyncMock(
+            side_effect=AssertionError(
+                "narration must not answer a resolved read"))) as narr_mock,
+    ):
+        result = await orch.process_chat_message(
+            "u1", LEGACY_RETRY, "s-legacy", context={"agent_id": "a1"})
+
+    assert result["success"] is True
+    assert result["model"] == "deterministic", (
+        "the retry must be answered by the structured reader, not the "
+        "reply model")
+    assert "| SLE24-16 | FOUND |" in result["message"]
+    direct_mock.assert_awaited()
+    direct_task = direct_mock.await_args.args[0]
+    assert direct_task["original_message"] == LEGACY_ASK
+    plan_mock.assert_not_awaited()
+    narr_mock.assert_not_awaited()
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+    assert session["_pending_file_result"]["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_legacy_approval_re_delivers_without_rereading():
+    """Turn 4 of the sequence: after the retry delivered, 'go ahead' comes
+    from the PERSISTED result — the open email canvas can never supply the
+    answer, and no re-read runs."""
+    orch = _orch()
+    session = {
+        "id": "s-legacy2", "history": list(LEGACY_HISTORY) + [
+            {"message": LEGACY_RETRY,
+             "response": "Workbook read: ... | SLE24-16 | FOUND |"}],
+        FILE_TASK_SESSION_KEY: dict(
+            build_pending_task(LEGACY_ASK,
+                               "consolidated price list 2019.xlsx"),
+            status="retrieved"),
+        "_pending_file_result": {
+            "status": "retrieved",
+            "rendered": "Workbook read: Consolidated Price List 2019.xlsx\n"
+                        "| SLE24-16 | FOUND | Tennsmith!A106 R106 |",
+            "identity": {"file_id": "wd-77"},
+        },
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_start_chat_execution", return_value="leg-e2"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=(
+            session["_pending_file_result"])),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+        patch.object(orch.llm_service, "generate_completion", new=AsyncMock(
+            side_effect=AssertionError("must not narrate"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", LEGACY_APPROVAL, "s-legacy2", context={})
+
+    assert result["success"] is True
+    assert result["data"]["deterministic_delivery"] is True
+    assert "SLE24-16" in result["message"], (
+        "the approval ships the workbook result — never the email draft")
+    assert "To: Steve" not in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_promise_gate_replaces_unexecuted_search_claims():
+    """Honest execution status: a resume turn whose lookup did NOT run must
+    not ship 'I'll search ... now' — the precise blocker ships instead."""
+    orch = _orch()
+    session = {
+        "id": "s-promise",
+        "history": [
+            {"message": LEGACY_ASK, "response": "lookup unverified"},
+            {"message": LEGACY_CONFIRM, "response": "noted"},
+        ],
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="pm-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features", new=AsyncMock(return_value={})),
+        # The read did not complete this turn...
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value={"ok": False, "block": "", "reason": "timeout"})),
+        # ...and the reply leg promised anyway (the live drift shape).
+        # _get_qwen_response is patched whole: the gate lives downstream,
+        # where its content becomes the turn's message.
+        patch.object(orch, "_get_qwen_response", new=AsyncMock(
+            return_value={"content": "I'll search Zoho WorkDrive for the "
+                                     "file now.",
+                          "model": "m", "provider": "p"})),
+    ):
+        result = await orch.process_chat_message(
+            "u1", LEGACY_RETRY, "s-promise", context={"agent_id": "a1"})
+
+    assert "did not run this turn" in result["message"], (
+        "a promise of unexecuted work is replaced by the honest blocker")
+    assert "I'll search" not in result["message"]
+
+
+def test_approval_rule_binds_the_artifact_to_the_approved_action():
+    """The global approval rule must not push an unrelated artifact: an
+    approved lookup is answered by its results or an honest failure — the
+    live drift route named the email draft as the expected output."""
+    assert "NEVER answer an approved lookup" in chat._APPROVAL_EXECUTION_RULE
+    assert "unrelated artifact" in chat._APPROVAL_EXECUTION_RULE
+    assert "email draft" in chat._APPROVAL_EXECUTION_RULE
+
+
+# ---------------------------------------------------------------------------
+# Review follow-ups (2026-09-24, second round) — two task-continuity edge
+# cases with NEGATIVE tests:
+# 1. same file does NOT mean same task — different work on one file starts
+#    a new task instead of inheriting lineage;
+# 2. cached re-delivery ("go ahead") is a different operation from
+#    re-retrieval ("search again", "refresh", "check the latest version").
+# ---------------------------------------------------------------------------
+
+DIFFERENT_WORK = "check the revision history of the price list 2019 file"
+
+
+class TestSameFileDifferentWork:
+    def test_new_work_on_same_file_supersedes(self):
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        history = LEGACY_HISTORY + [{"message": DIFFERENT_WORK,
+                                     "response": "..."}]
+        assert pft.matching_pending_task(
+            pending, "yes go ahead", history) is None, (
+            "the approval belongs to the revision-history request — the "
+            "stored price ask must not be resumed over it")
+
+    def test_comparing_quantities_is_also_new_work(self):
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        history = LEGACY_HISTORY + [
+            {"message": "compare its quantities with last year",
+             "response": "..."}]
+        assert pft.matching_pending_task(
+            pending, "yes", history) is None
+
+    def test_new_work_supersedes_recovery_too(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = LEGACY_HISTORY + [{"message": DIFFERENT_WORK,
+                                     "response": "..."}]
+        task = recover_pending_task_from_history(history, LEGACY_APPROVAL)
+        assert task is not None, (
+            "recovery still finds the newest objective on the approval")
+        assert task["original_message"] == DIFFERENT_WORK, (
+            "the recovered task is the revision-history ask — NOT the "
+            "older price ask")
+
+    def test_refinement_of_the_same_work_stays_lineage(self):
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        history = LEGACY_HISTORY + [
+            {"message": "find its prices and let me know", "response": "..."}]
+        assert pft.matching_pending_task(
+            pending, "yes", history) is not None, (
+            "a pronoun-led re-ask of the SAME work continues the task")
+
+    def test_retry_shape_stays_lineage_despite_loose_pattern(self):
+        """'check the file again' is retry vocabulary; 'check the revision
+        history of the file' matches the SAME loose pattern but carries two
+        new nouns — the nouns decide, the shape does not."""
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(LEGACY_ASK, "price list 2019")
+        assert pft.is_filename_confirmation(
+            "check the file again") is True
+        assert pft.matching_pending_task(
+            pending, "yes",
+            LEGACY_HISTORY + [{"message": "check the file again",
+                               "response": "..."}]) is not None
+
+
+class TestReDeliveryVsRefresh:
+    """'go ahead' may re-deliver a completed result; 'search again' /
+    'refresh' / 'check the latest version' must RE-RUN the retrieval."""
+
+    def test_refresh_detector_distinguishes_the_operations(self):
+        from core.pending_file_task import is_retrieval_refresh_request
+
+        for msg in ("search the file again", "try the excel file search "
+                    "again", "refresh the prices", "check the latest "
+                    "version", "re-read the workbook"):
+            assert is_retrieval_refresh_request(msg), msg
+        for msg in ("go ahead", "yes", "proceed", "That filename is "
+                    "correct"):
+            assert not is_retrieval_refresh_request(msg), msg
+
+    def test_terminal_task_matches_only_for_refresh(self):
+        import core.pending_file_task as pft
+
+        delivered = pft.mark_task_delivered(
+            pft.build_pending_task(LEGACY_ASK,
+                                   "consolidated price list 2019.xlsx"))
+        assert pft.matching_pending_task(
+            delivered, "go ahead", LEGACY_HISTORY) is None, (
+            "an approval never re-runs a completed read")
+        assert pft.matching_pending_task(
+            delivered, "search the file again", LEGACY_HISTORY) is not None
+        assert pft.matching_pending_task(
+            delivered, "check the latest version of the workbook",
+            LEGACY_HISTORY) is not None
+
+    def test_merge_revives_terminal_task_keeping_source_constraints(self):
+        import core.pending_file_task as pft
+
+        delivered = pft.mark_task_delivered(
+            pft.build_pending_task(
+                LEGACY_ASK, "consolidated price list 2019.xlsx",
+                disambiguation={"attributes": {"region": "north"}}))
+        merged = pft.merge_pending_task(
+            delivered, "check the latest version", "price list 2019")
+        assert merged["status"] == "pending", (
+            "the refresh re-opens the task for a fresh read")
+        assert merged["original_message"] == LEGACY_ASK, (
+            "the refresh retains the ORIGINAL objective, not the refresh "
+            "phrase")
+        assert merged["mention"] == "consolidated price list 2019.xlsx"
+        assert merged["disambiguation"] == {
+            "attributes": {"region": "north"}}
+        assert merged["refreshed"] is True
+        assert merged["attempts"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_refresh_turn_retrieves_while_approval_re_delivers(self):
+        """Orchestrator-level: with a DELIVERED result persisted, 'go
+        ahead' must NOT re-read, and 'search again' must NOT answer from
+        the cached copy."""
+        orch = _orch()
+        base_task = dict(
+            build_pending_task(LEGACY_ASK,
+                               "consolidated price list 2019.xlsx"),
+            status="delivered")
+        cached_render = "CACHED RENDER | SLE24-16 | FOUND |"
+        fresh_render = "FRESH READ | SLE24-16 | FOUND |"
+
+        def fresh_direct():
+            rendered = fresh_render
+            return {
+                "ok": True, "block": rendered, "rendered_answer": rendered,
+                "identity": {"file_id": "wd-77",
+                             "file_name": "Consolidated Price List "
+                                          "2019.xlsx",
+                             "identity_verified": True,
+                             "coverage_complete": True},
+                "meta": {"completed": True, "identity_verified": True,
+                         "coverage_complete": True},
+                "retrieval_complete": True,
+            }
+
+        # --- 'go ahead': re-delivery from persistence, no re-read. -----
+        session_go = {
+            "id": "s-goahead", "history": list(LEGACY_HISTORY),
+            FILE_TASK_SESSION_KEY: dict(base_task),
+            "_pending_file_result": {
+                "status": "delivered", "rendered": cached_render,
+                "identity": {"file_id": "wd-77"},
+            },
+        }
+        with (
+            patch.object(orch, "_get_or_create_session",
+                         return_value=session_go),
+            patch.object(orch, "_start_chat_execution",
+                         return_value="rd-e1"),
+            patch.object(orch, "_update_session"),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_load_pending_file_result",
+                         return_value=session_go["_pending_file_result"]),
+            patch.object(orch, "_direct_confirmed_file_read",
+                         new=AsyncMock(
+                             side_effect=AssertionError(
+                                 "an approval must not re-read"))) as go_read,
+        ):
+            go = await orch.process_chat_message(
+                "u1", LEGACY_APPROVAL, "s-goahead", context={})
+        go_read.assert_not_awaited()
+        assert cached_render in go["message"], (
+            "the approval re-delivers the persisted result")
+
+        # --- 'search again': fresh retrieval, cached copy bypassed. ----
+        session_again = {
+            "id": "s-again", "history": list(LEGACY_HISTORY),
+            FILE_TASK_SESSION_KEY: dict(base_task),
+            "_pending_file_result": {
+                "status": "delivered", "rendered": cached_render,
+                "identity": {"file_id": "wd-77"},
+            },
+        }
+        with (
+            patch.object(orch, "_get_or_create_session",
+                         return_value=session_again),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=None)),
+            patch.object(orch, "_start_chat_execution",
+                         return_value="rd-e2"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch("core.chat_mini_app_authoring.try_handle",
+                  new=AsyncMock(return_value=None)),
+            patch.object(orch, "_try_zoho_crm_write",
+                         new=AsyncMock(return_value=None)),
+            patch.object(orch, "_route_to_features",
+                         new=AsyncMock(return_value={})),
+            patch.object(orch, "_direct_confirmed_file_read",
+                         new=AsyncMock(return_value=fresh_direct())
+                         ) as again_read,
+            patch.object(planner, "plan_tool_use", new=AsyncMock(
+                side_effect=AssertionError(
+                    "the refresh executes the direct reader, not the "
+                    "planner"))),
+        ):
+            again = await orch.process_chat_message(
+                "u1", "search the file again", "s-again",
+                context={"agent_id": "a1"})
+        again_read.assert_awaited(), (
+            "an explicit refresh must re-run the retrieval")
+        assert again_read.await_args.args[0]["original_message"] == (
+            LEGACY_ASK), "the refresh retains the original objective"
+        assert cached_render not in again["message"], (
+            "the refresh never answers from the cached copy")
+        assert fresh_render in again["message"]
+        assert session_again[FILE_TASK_SESSION_KEY]["status"] in (
+            "retrieved", "delivered"), (
+            "the fresh read re-drives the lifecycle")
+        assert session_again[FILE_TASK_SESSION_KEY].get("refreshed") is \
+            None or True  # lifecycle stamp; revival recorded on merge

@@ -4767,6 +4767,11 @@ class ChatOrchestrator:
                                                 evidence_block=(
                                                     _shared_tool.get("block")
                                                     or ""),
+                                                evidence_contract=(
+                                                    _shared_tool.get(
+                                                        "objective_evidence"
+                                                    )
+                                                ),
                                             )
                                         )
                                         self._record_canvas_background_fork(
@@ -4851,6 +4856,9 @@ class ChatOrchestrator:
                                         "canvas_provenance"),
                                     evidence_block=(
                                         _shared_tool.get("block") or ""),
+                                    evidence_contract=(
+                                        _shared_tool.get("objective_evidence")
+                                    ),
                                 )
                                 self._record_canvas_background_fork(
                                     _shared_tool, session_id, _cont_id2)

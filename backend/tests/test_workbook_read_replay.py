@@ -10,6 +10,7 @@ from scripts.workbook_read_replay import (
     FILE_NAME,
     TARGETS,
     evaluate,
+    evaluate_retry,
     flatten_trace,
     parse_outcomes,
 )
@@ -84,5 +85,66 @@ def test_evaluate_accepts_complete_structured_closure():
         {"status_code": 200, "error": ""},
         {"status": "pending", "read_error": ""},
         {"status": "served", "read_error": ""},
+    )
+    assert report["all_pass"], report["checks"]
+
+
+def test_evaluate_accepts_outage_mode_and_retrieved_delivery_state():
+    identity = {
+        "instance_id": "i1", "source_id": "s1", "revision": "r1",
+        "started_at": "t1", "pid": 1,
+    }
+    report = evaluate(
+        identity,
+        identity,
+        {"success": False, "message": "temporarily unavailable"},
+        {"success": True, "message": _reply(), "model": "deterministic",
+         "data": {"deterministic_delivery": True}},
+        [{"step_type": "observation", "observation": "Consolidated Price List 2019.xlsx 381 datasets"}],
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        {
+            "status": "retrieved",
+            "result_status": "retrieved",
+            "read_error": "",
+        },
+        "r1",
+        True,
+    )
+    assert report["all_pass"], report["checks"]
+
+
+def test_evaluate_retry_requires_persisted_result_unchanged():
+    result = {
+        "status": "retrieved",
+        "identity": {
+            "resource_id": "r1",
+            "workbook_read": {"file_name": FILE_NAME, "content_hash": "h"},
+        },
+        "execution_id": "exec-1",
+        "retrieved_at": 123.0,
+    }
+    before = {
+        "status": "retrieved",
+        "result_status": "retrieved",
+        "result": result,
+    }
+    after_result = dict(result)
+    after_result["status"] = "delivered"
+    after_result["delivered_at"] = 124.0
+    after = {
+        "status": "delivered",
+        "result_status": "delivered",
+        "result": after_result,
+    }
+    report = evaluate_retry(
+        before,
+        after,
+        {
+            "success": True,
+            "model": "deterministic",
+            "message": _reply(),
+            "data": {"deterministic_delivery": True},
+        },
     )
     assert report["all_pass"], report["checks"]

@@ -3649,9 +3649,36 @@ def _match_rows_by_figure_tokens(
     return [r for _, _, r in scored[:limit]]
 
 
+def ingested_row_source_observations(
+    row: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    message_id = str((row or {}).get("id") or "ingested-message")
+    text = str((row or {}).get("content") or "")
+    if not text.strip():
+        return []
+    observations = outlook_source_observations(
+        {
+            "id": message_id,
+            "subject": (row or {}).get("subject"),
+            "received_date_time": (row or {}).get("timestamp"),
+        },
+        {"text": text, "truncated": False},
+        context,
+    )
+    for observation in observations:
+        observation.setdefault("source", {})["source_type"] = "message"
+        observation["locator"] = {
+            **dict(observation.get("locator") or {}),
+            "message_id": message_id,
+        }
+    return observations
+
+
 def _search_ingested_by_tokens(
     user_id, tokens: List[str], limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """Deterministic LanceDB lookup of ingested messages containing the
     query's figure tokens (amounts, model codes). Graph $search handles
@@ -3665,11 +3692,17 @@ def _search_ingested_by_tokens(
     if not tokens:
         return out
     try:
-        for i, row in enumerate(
-            _match_rows_by_figure_tokens(
-                _comms_store_records(), tokens, limit=limit,
-                date_window=date_window)
-        ):
+        rows = _match_rows_by_figure_tokens(
+            _comms_store_records(), tokens, limit=limit,
+            date_window=date_window
+        )
+        for i, row in enumerate(rows):
+            if isinstance(context, dict):
+                existing = context.setdefault("_source_observations", [])
+                if isinstance(existing, list):
+                    existing.extend(
+                        ingested_row_source_observations(row, context)
+                    )
             out.append(
                 _ingested_line_from_row(
                     row,
@@ -3686,7 +3719,31 @@ def _search_ingested_by_tokens(
             )
     except Exception as e:
         logger.debug(f"ingested figure-token search skipped: {e}")
+        return out
     return out
+
+
+def _search_ingested_by_tokens_observed(
+    user_id,
+    tokens: List[str],
+    limit: int,
+    date_window: Optional[Tuple[str, str]],
+    context: Dict[str, Any],
+) -> List[str]:
+    try:
+        return _search_ingested_by_tokens(
+            user_id,
+            tokens,
+            limit,
+            date_window,
+            context=context,
+        )
+    except TypeError as error:
+        if "context" not in str(error):
+            raise
+        return _search_ingested_by_tokens(
+            user_id, tokens, limit, date_window
+        )
 
 
 async def _ingested_mailbox_lines(
@@ -3729,8 +3786,8 @@ async def _ingested_mailbox_lines(
     _inherited_figs: List[str] = []
     if _fig_tokens:
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2),
-            _window
+            _search_ingested_by_tokens_observed, user_id, _fig_tokens,
+            max(cap - 2, 2), _window, context or {}
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
@@ -3773,8 +3830,8 @@ async def _ingested_mailbox_lines(
     if _inherited_figs and len(store_lines) < cap:
         # Spare capacity only: the named participant's thread has had its pick.
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _inherited_figs,
-            max(cap - len(store_lines), 2), _window
+            _search_ingested_by_tokens_observed, user_id, _inherited_figs,
+            max(cap - len(store_lines), 2), _window, context or {}
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
@@ -4363,6 +4420,59 @@ def _validate_mail_ids(
     return allowed, rejected
 
 
+def outlook_source_observations(
+    email: Dict[str, Any],
+    body: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    text = str((body or {}).get("text") or "")
+    if not text.strip():
+        return []
+    from core.workbook_read_artifact import (
+        extract_field_requests,
+        extract_targets,
+        observations_from_text,
+    )
+
+    ctx = context or {}
+    message = str(ctx.get("message") or "")
+    subject = str((email or {}).get("subject") or "")
+    requested_entities = [
+        str(item)
+        for item in ctx.get("requested_targets") or []
+        if str(item).strip()
+    ]
+    if not requested_entities:
+        requested_entities = extract_targets(
+            message, [subject, str(ctx.get("query") or "")]
+        )
+    requested_fields = extract_field_requests([
+        message,
+        subject,
+        str(ctx.get("query") or ""),
+    ])
+    if not requested_fields and re.search(
+        r"[$€£¥₹₩₽₺]\s*\d|\b(?:price|quote|cost)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        requested_fields = ["price"]
+    source = {
+        "source_id": str((email or {}).get("id") or "outlook-message"),
+        "source_type": "message",
+        "version": str((email or {}).get("id") or "outlook-message"),
+        "subject": subject,
+        "received_date_time": (email or {}).get("received_date_time"),
+    }
+    return observations_from_text(
+        text,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        source=source,
+        verification="excerpt" if (body or {}).get("truncated") else "verified",
+    )
+
+
 async def _outlook_read_by_ids(
     user_id: Optional[str],
     ids: List[str],
@@ -4412,7 +4522,13 @@ async def _outlook_read_by_ids(
                          "detail": "message retrieved but body empty"}
         return eid, {
             "outcome": "excerpt" if truncated else "full",
-            "text": text, "detail": "",
+            "text": text,
+            "detail": "",
+            "email": {
+                "id": str(msg.get("id") or eid),
+                "subject": str(msg.get("subject") or ""),
+                "received_date_time": msg.get("received_date_time"),
+            },
         }
 
     loop = asyncio.get_event_loop()
@@ -4779,7 +4895,13 @@ async def _mailbox_figure_lines(
             or _window_from_iso_date((context or {}).get("mentioned_date"))
         )
         return await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, figs, limit, window)
+            _search_ingested_by_tokens_observed,
+            user_id,
+            figs,
+            limit,
+            window,
+            context or {},
+        )
     except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
         logger.debug(f"mailbox figure leg skipped: {e}")
         return []
@@ -5568,15 +5690,23 @@ async def _datasets_named_file_block(
             for entry in (context or {}).get("history") or []:
                 if isinstance(entry, dict) and entry.get("message"):
                     context_texts.append(str(entry["message"]))
+            _field_requests = []
             try:
-                from core.workbook_read_artifact import extract_attributes
+                from core.workbook_read_artifact import (
+                    extract_attributes,
+                    extract_field_requests,
+                )
 
                 _attr_words = extract_attributes(
                     [query] + ([msg_text] if msg_text else []),
                     item_tokens,
                 )
+                _field_requests = extract_field_requests(
+                    [query] + ([msg_text] if msg_text else [])
+                )
             except Exception:  # noqa: BLE001 — attribute extraction optional
                 _attr_words = []
+                _field_requests = []
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -5585,6 +5715,7 @@ async def _datasets_named_file_block(
                 context_texts=context_texts,
                 targets=item_tokens,
                 attributes=_attr_words,
+                requested_fields=_field_requests,
                 provider=prov["source"],
                 resource_id=prov["resource_id"],
                 source_metadata=e0.get("source_metadata") or {},
@@ -5712,16 +5843,23 @@ async def _datasets_named_file_block(
             sheet = item.get("sheet") or "?"
             cell = item.get("cell") or "?"
             row_number = item.get("row")
-            prices = item.get("prices") or []
+            values = item.get("values") or item.get("prices") or []
             price_refs = []
-            for price in prices[:4]:
-                if not price.get("cell"):
+            for value in values[:4]:
+                if not value.get("cell"):
                     continue
-                basis = price.get("price_basis") or price.get("column") or "price"
-                currency = price.get("currency") or "unspecified"
+                basis = (
+                    value.get("field")
+                    or value.get("price_basis")
+                    or value.get("column")
+                    or "value"
+                )
+                unit = value.get("unit")
+                unit_label = f"; unit={unit}" if unit else ""
+                currency = value.get("currency") or "unspecified"
                 price_refs.append(
-                    f"{price.get('cell')}={price.get('value')} "
-                    f"[basis={basis}; currency={currency}]"
+                    f"{value.get('cell')}={value.get('value')} "
+                    f"[basis={basis}{unit_label}; currency={currency}]"
                 )
             suffix = f" (values: {', '.join(price_refs)})" if price_refs else ""
             row_suffix = f" R{row_number}" if row_number is not None else ""
@@ -7092,6 +7230,15 @@ async def execute_tool_plan(
     if service == "memory":
         block = await _memory_search_block(user_id, query, context)
         if block:
+            source_observations = list(
+                (context or {}).get("_source_observations") or []
+            )
+            if source_observations:
+                result_meta = getattr(plan, "_result_meta", None)
+                if not isinstance(result_meta, dict):
+                    result_meta = {}
+                    setattr(plan, "_result_meta", result_meta)
+                result_meta["source_observations"] = source_observations
             return block
         return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}'): "
@@ -7221,6 +7368,8 @@ async def execute_tool_plan(
                 )
                 lines: List[str] = []
                 meta_outcomes: List[Dict[str, Any]] = []
+                meta_observations: List[Dict[str, Any]] = []
+                observation_context = {**(context or {}), "query": query}
                 for eid in _query_ids:
                     res = outcomes.get(eid) or {
                         "outcome": "not_attempted", "text": "",
@@ -7233,6 +7382,14 @@ async def execute_tool_plan(
                                 else "FULL BODY (EXCERPT — middle elided)")
                         lines.append(
                             f"- READ OK ({mark}) | message_id: {eid}\n{res['text']}")
+                        meta_observations.extend(outlook_source_observations(
+                            res.get("email") or {"id": eid},
+                            {
+                                "text": res.get("text") or "",
+                                "truncated": outcome == "excerpt",
+                            },
+                            observation_context,
+                        ))
                     elif outcome == "failed":
                         lines.append(
                             f"- READ FAILED | message_id: {short_id}… — "
@@ -7250,6 +7407,12 @@ async def execute_tool_plan(
                             f"- READ NOT ATTEMPTED | message_id: {short_id} — "
                             f"{res.get('detail') or 'budget exhausted'}")
                 plan._result_meta["read_outcomes"] = meta_outcomes
+                if meta_observations:
+                    plan._result_meta["source_observations"] = list({
+                        item.get("observation_id"): item
+                        for item in meta_observations
+                        if isinstance(item, dict) and item.get("observation_id")
+                    }.values())
                 _ok = sum(
                     1 for m in meta_outcomes if m["outcome"] in ("full", "excerpt"))
                 return _with_grounding(
@@ -7445,12 +7608,26 @@ async def execute_tool_plan(
                         store_lines = await _ingested_mailbox_lines(user_id, query, context)
                     else:
                         ingest_note = (
-                            "\n(on-demand mailbox pull ran but found no candidate "
-                            "message to ingest)"
+                            "\n\nON-DEMAND PULL ran but found no candidate "
+                            "message to ingest"
                             if not ing_core["lines"] else
-                            "\n(on-demand mailbox pull ran: its candidates are "
-                            "already in memory — no new content above)"
+                            "\n\nON-DEMAND PULL ran with no candidate "
+                            "message to ingest"
                         )
+
+            source_observations: List[Dict[str, Any]] = []
+            observation_context = {**(context or {}), "query": query}
+            for email in emails:
+                body = full_bodies.get(email.get("id")) or {}
+                source_observations.extend(outlook_source_observations(
+                    email, body, observation_context
+                ))
+            if source_observations:
+                plan._result_meta["source_observations"] = list({
+                    item.get("observation_id"): item
+                    for item in source_observations
+                    if isinstance(item, dict) and item.get("observation_id")
+                }.values())
 
             if not emails and not store_lines:
                 # A mailbox miss is not the whole story: the question may be

@@ -560,10 +560,10 @@ def build_file_block(filename: str, lookup: Optional[Dict[str, Any]]) -> str:
         for s in t.get("samples", []):
             parts.append(f"  sample: {s}")
     parts.append(
-        "These are cached ingestion EXCERPTS, not the file's full contents: "
-        "discuss them as samples, and verify specific values (prices, "
-        "quantities) against a fresh read of the file before quoting them "
-        "as authoritative. Do not invent rows that are not shown."
+        "These are cached ingestion EXCERPTS from a materialized copy, not a "
+        "fresh provider read or the file's full contents: discuss them as "
+        "samples, preserve the copy's source/version metadata, and do not "
+        "invent rows that are not shown."
     )
     return "\n".join(parts)
 
@@ -599,9 +599,9 @@ def build_file_canvas_content(
         _fid = live_identity.get("file_id") or live_identity.get("resource_id") or "?"
         _hash = live_identity.get("content_sha256") or "unavailable"
         lines.append(
-            f"SAME FILE AS THIS CONVERSATION'S LIVE READ / VERIFIED RESOURCE "
-            f"({_svc}, id {_fid}, sha256 {_hash}): this preview is bound to "
-            "the resource used by the answer."
+            f"SAME FILE AS THIS ANSWER'S VERIFIED RESOURCE "
+            f"({_svc}, id {_fid}, content hash {_hash}): this preview is bound "
+            "to the resource used by the answer."
         )
         _workbook = live_identity.get("workbook_read")
         if isinstance(_workbook, dict):
