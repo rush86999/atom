@@ -1733,7 +1733,20 @@ _DERIVATION_VALUE_RE = re.compile(
 _CANVAS_EDIT_SHAPE_RE = re.compile(
     r"\b(?:rebuild|rewrite|redraft|revise|reformat|reword|reorder|restore|"
     r"restructure|rework|update|edit|change|fix|shorten|tighten|polish|"
-    r"add|remove|delete|replace|make it|turn it into)\b",
+    r"add|remove|delete|replace|append|apply|insert|set|fill|include|rename|"
+    r"sort|write|make it|turn it into)\b",
+    re.IGNORECASE,
+)
+_CANVAS_NON_EDIT_SHAPE_RE = re.compile(
+    r"\b(?:add|create|make|schedule|track|remove|delete|set)\s+"
+    r"(?:a\s+|an\s+|the\s+|this\s+|that\s+|these\s+|those\s+)?"
+    r"(?:task|tasks|todo|to-do|reminder|follow[- ]?up|meeting|event|"
+    r"appointment)\b",
+    re.IGNORECASE,
+)
+_CANVAS_TARGET_RE = re.compile(
+    r"\b(?:draft|canvas|email|document|text|copy|content|subject|body|"
+    r"table|sheet|slide|spreadsheet|presentation)\b",
     re.IGNORECASE,
 )
 
@@ -1744,11 +1757,140 @@ def _canvas_edit_shaped(
     """Edit-shaped wording AND an open canvas in the request context. The
     canvas gate matters most: the same verbs in a plain chat (no panel) are
     ordinary turns."""
-    if not _CANVAS_EDIT_SHAPE_RE.search(message or ""):
+    text = message or ""
+    if _CANVAS_NON_EDIT_SHAPE_RE.search(text) and not _CANVAS_TARGET_RE.search(text):
+        return False
+    if not _CANVAS_EDIT_SHAPE_RE.search(text):
         return False
     ctx = context or {}
     return bool(
         ctx.get("canvas_id") or ctx.get("canvas") or ctx.get("canvas_type")
+    )
+
+
+def _canvas_non_edit_intent(intent: Any) -> bool:
+    value = getattr(intent, "value", intent)
+    return value in {
+        ChatIntent.TASK_MANAGEMENT.value,
+        ChatIntent.SCHEDULING.value,
+        ChatIntent.WORKFLOW_CREATION.value,
+        ChatIntent.AUTOMATION_TRIGGER.value,
+        ChatIntent.INTEGRATION_SETUP.value,
+        ChatIntent.CRM.value,
+    }
+
+
+# Verbs that make a canvas turn an ACTION turn ("send this", "export the
+# sheet") — a read-only bypass must never skip these.
+_CANVAS_ACTION_SHAPE_RE = re.compile(
+    r"\b(?:send|export|share|post|publish|submit|schedule|ship)\b",
+    re.IGNORECASE,
+)
+
+# Read/lookup shape for a file-data ask ("find the prices…", "what does the
+# workbook say about…").
+_FILE_READ_SHAPE_RE = re.compile(
+    r"\b(?:find|search|look\s?up|lookup|check|get|show|list|pull|read|"
+    r"price|prices|pricing|cost|costs|value|values|quote|quotes|"
+    r"how\s+much|what|which|where|compare|fetch|locate|does|do|is|are)\b",
+    re.IGNORECASE,
+)
+
+# Services whose live lookups can actually serve a file-scoped ask (storage
+# reads, sheet datasets, ingested documents). A mailbox/calendar hit does
+# NOT retire a pending file task.
+_FILE_SERVICES = frozenset({
+    "zoho_workdrive", "google_drive", "onedrive", "dropbox", "box",
+    "datasets", "documents",
+})
+
+#: Answer contract appended to a live workbook/dataset read, so a
+#: multi-item price ask is answered per-item with row provenance instead of
+#: a nearby number (or a value from an unrelated email — live 2026-09-23).
+_SPREADSHEET_ANSWER_CONTRACT = (
+    "TABULAR EVIDENCE CONTRACT: this request asks about specific items in "
+    "one file. In your answer, give ONE outcome PER requested item: found "
+    "(the value, plus the sheet and row/cell it came from, and the price "
+    "basis/currency when the header shows one), ambiguous (say why), "
+    "absent (name the sheet(s) searched), or incomplete. Take values ONLY "
+    "from matched rows of this file's evidence — never substitute a value "
+    "from another source in the conversation (e.g. email quotes), and keep "
+    "each source's values labeled separately. The WORKBOOK READ ARTIFACT "
+    "is the coverage record: report its target statuses and sheet/cell "
+    "references; if it says incomplete, do not fill gaps from email or memory."
+)
+
+
+def _read_only_file_ask(
+    message: str, canvas_ctx: Optional[Dict[str, Any]]
+) -> bool:
+    """A workbook/data-file READ ask while a canvas is open ("find the 8
+    machine prices in Consolidated Price List 2019.xlsx"). Such a turn must
+    bypass canvas-edit generation entirely: the edit classifier's call plus
+    the fresh-data fetch consumed 42-45s of the read turn's budget in the
+    live 2026-09-23 incident and the classifier can only decline — the ask
+    carries no edit verb. The reply leg still runs the shared tool plan
+    (singleflight), so no lookup evidence is lost by skipping the leg."""
+    if not canvas_ctx:
+        return False
+    if _canvas_edit_shaped(message, {"canvas": canvas_ctx}):
+        return False
+    if _CANVAS_ACTION_SHAPE_RE.search(message or ""):
+        return False
+    try:
+        from core.agent_file_context import (
+            detect_file_task_mentions,
+            is_spreadsheet_task_mention,
+        )
+
+        if not any(
+            is_spreadsheet_task_mention(item)
+            for item in detect_file_task_mentions(message)
+        ):
+            return False
+    except Exception:  # noqa: BLE001 — shape gate only
+        return False
+    return bool(_FILE_READ_SHAPE_RE.search(message or ""))
+
+
+def _block_names_file(block: Optional[str], mentions: List[str]) -> bool:
+    """Does an evidence block actually reference the mentioned file (by
+    name, or by one of its strong stem tokens)? A mailbox hit about
+    something else must not retire a pending file task."""
+    if not block or not mentions:
+        return False
+    hay = re.sub(r"[\s_\-]+", "", (block or "").lower())
+    for m in mentions:
+        if re.sub(r"[\s_\-]+", "", m) in hay:
+            return True
+        for tok in re.findall(r"[a-z0-9]+", m.rsplit(".", 1)[0].lower()):
+            if len(tok) >= 4 and any(c.isalpha() for c in tok) and tok in (block or "").lower():
+                return True
+    return False
+
+
+# Failure markers a rendered evidence block carries when a lookup RAN but
+# produced nothing usable for the file (search miss, download failed, no
+# text extracted, declined). Such a block names the file but is NOT a
+# completed read — the pending file task must stay pending.
+_FILE_LOOKUP_FAILURE_MARKERS_RE = re.compile(
+    r"no (?:file|results|matching|data|text)|not found|could not|"
+    r"couldn't|failed|failure|error|no live lookup|download failed|"
+    r"nothing could be extracted|unavailable",
+    re.IGNORECASE,
+)
+
+
+def _file_lookup_served(block: Optional[str], mentions: List[str]) -> bool:
+    """Fallback completion heuristic when the storage layer's structured
+    ``storage_read`` meta is absent (e.g. a datasets-service block): the
+    block must NAME the file and carry no failure marker. Naming alone is
+    not completion — "No file matched 'X.xlsx'" names the file too."""
+    return bool(
+        block
+        and mentions
+        and _block_names_file(block, mentions)
+        and not _FILE_LOOKUP_FAILURE_MARKERS_RE.search(block)
     )
 
 
@@ -2283,15 +2425,6 @@ async def _verbatim_mail_evidence(
         # Otherwise a bandsaw question displaces the next quoted-email lookup.
         from core.chat_tool_planner import _mail_contains_phrases, _quoted_content_phrases
 
-        phrases = _quoted_content_phrases(message)
-        if phrases:
-            rows = await asyncio.wait_for(
-                asyncio.to_thread(_mail_contains_phrases, phrases), timeout=25,
-            )
-            lines = _render_mail_rows(rows[:3], anchors=phrases)
-            if lines:
-                return lines
-
         figs = _distinctive_figure_phrases(message)
         if figs:
             # Measured on the live 7,149-row store: ~2s with the comms cache
@@ -2309,6 +2442,16 @@ async def _verbatim_mail_evidence(
                 ),
                 timeout=25,
             )
+
+        phrases = _quoted_content_phrases(message)
+        if phrases:
+            rows = await asyncio.wait_for(
+                asyncio.to_thread(_mail_contains_phrases, phrases), timeout=25,
+            )
+            lines = _render_mail_rows(rows[:3], anchors=phrases)
+            if lines:
+                return lines
+
         # A missing explicit phrase is a miss for this request, not permission
         # to answer a previous question. The normal search still runs alongside.
         if phrases:
@@ -2635,6 +2778,16 @@ def _compose_lookup_evidence(
     Shared by fresh and reused lookups. A code match in an old email does
     not make that email authoritative for today's warehouse/CRM state.
     """
+    try:
+        from core.agent_file_context import detect_file_task_mentions
+
+        if (
+            getattr(plan, "service", None) in _FILE_SERVICES
+            and detect_file_task_mentions(message)
+        ):
+            return live_block
+    except Exception:
+        pass
     if not mail_lines:
         return live_block
     from core.chat_tool_planner import _quote_lookup_shape, _with_grounding
@@ -2761,10 +2914,15 @@ class ChatOrchestrator:
                 "user_id": s["user_id"],
                 "title": s.get("title"),
                 "created_at": s.get("created_at"),
-                "last_updated": s.get("last_active"), 
+                "last_updated": s.get("last_active"),
                 "history": s.get("history", []),
-                "metadata": s.get("metadata", {})
+                "metadata": s.get("metadata", {}) or {},
             }
+            _pending = sessions_dict[s["session_id"]]["metadata"].get(
+                "_pending_file_task"
+            )
+            if isinstance(_pending, dict):
+                sessions_dict[s["session_id"]]["_pending_file_task"] = _pending
             
             # Opportunistically cache in memory if missing
             if s["session_id"] not in self.conversation_sessions:
@@ -2787,9 +2945,15 @@ class ChatOrchestrator:
                         "id": s["session_id"],
                         "user_id": s["user_id"],
                         "created_at": s.get("created_at"),
-                        "last_updated": s.get("last_active"), 
-                        "history": s.get("history", [])
+                        "last_updated": s.get("last_active"),
+                        "history": s.get("history", []),
+                        "metadata": s.get("metadata", {}) or {},
                     }
+                    _pending = self.conversation_sessions[s["session_id"]]["metadata"].get(
+                        "_pending_file_task"
+                    )
+                    if isinstance(_pending, dict):
+                        self.conversation_sessions[s["session_id"]]["_pending_file_task"] = _pending
                 logger.info(f"Loaded {len(persisted)} persisted sessions from file.")
         except Exception as e:
             logger.error(f"Failed to load persisted sessions: {e}")
@@ -2850,6 +3014,28 @@ class ChatOrchestrator:
                 await manager.broadcast_event(channel, "agent_step_update", payload)
         except Exception as e:
             logger.warning(f"Failed to emit agent step: {e}")
+
+    @staticmethod
+    def _record_canvas_background_fork(
+        shared_tool: Dict[str, Any],
+        session_id: str,
+        continuation_id: Optional[str],
+    ) -> None:
+        if continuation_id:
+            shared_tool["async_continuation_forked"] = True
+            return
+        try:
+            from core.async_turn_continuation import continuation_in_flight
+
+            existing_id = continuation_in_flight(session_id)
+        except Exception:
+            existing_id = None
+        if existing_id:
+            shared_tool["async_continuation_forked"] = True
+            shared_tool["async_continuation_existing"] = True
+            return
+        shared_tool["canvas_edit_no_apply"] = True
+        shared_tool["canvas_edit_no_apply_reason"] = "background_fork_unavailable"
 
     async def _emit_agent_status(
         self,
@@ -3099,6 +3285,23 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
+            try:
+                from core.pending_file_task import (
+                    FILE_TASK_SESSION_KEY,
+                    supersedes_pending_task,
+                )
+
+                if supersedes_pending_task(
+                    session.get(FILE_TASK_SESSION_KEY), message
+                ):
+                    logger.info(
+                        "[pending-file-task] superseded by a newer request")
+                    session.pop(FILE_TASK_SESSION_KEY, None)
+            except Exception as _pft_supersede_err:
+                logger.debug(
+                    f"pending file task supersede check skipped: "
+                    f"{_pft_supersede_err}"
+                )
 
             # Auto-title from the first user turn — untitled sessions flooded
             # the chat sidebar as "Untitled" clones. Never overrides a title.
@@ -3192,6 +3395,71 @@ class ChatOrchestrator:
                 message, history or [])
             _clarify_turn = _request_reference.kind in (
                 REF_UNRESOLVED, REF_AMBIGUOUS)
+            # PENDING FILE TASK RESUME (2026-09-23): a file-scoped ask whose
+            # lookup never ran is stored on the session by the reply leg; a
+            # later CONFIRMATION ("That filename is correct", "yes go
+            # ahead") resumes it instead of being planned as small talk.
+            # Live incident: the eight workbook prices were answered from
+            # September-2026 email quotes after the planner timed out, and
+            # the confirmation turn logged "No live lookup needed" — the
+            # requested read died with the turn that asked for it.
+            _pending_file_task: Optional[Dict[str, Any]] = None
+            try:
+                from core.pending_file_task import (
+                    FILE_TASK_SESSION_KEY,
+                    matching_pending_task,
+                )
+
+                _stored_task = session.get(FILE_TASK_SESSION_KEY)
+                if not isinstance(_stored_task, dict):
+                    # RESTART RECOVERY (2026-09-23 review, gap 5): the
+                    # persisted-session projection drops private keys, so
+                    # after a restart the durable carrier is the assistant
+                    # rows' metadata_json. Newest row wins; a served task
+                    # does not come back pending.
+                    _stored_task, _stored_identity = (
+                        self._load_pending_file_task(session_id))
+                    if isinstance(_stored_identity, dict):
+                        session.setdefault(
+                            "_resolved_file_identity", _stored_identity)
+                _pending_file_task = matching_pending_task(
+                    _stored_task, message, history or [])
+            except Exception as _pft_err:  # noqa: BLE001 — resume is best-effort
+                logger.debug(f"pending file task resume check skipped: {_pft_err}")
+            if _pending_file_task:
+                _pft_original = str(
+                    _pending_file_task.get("original_message") or "")
+                logger.info(
+                    "[pending-file-task] confirmation resumes the stored file "
+                    "ask (file=%r, ask=%.160r)",
+                    _pending_file_task.get("mention"), _pft_original)
+                if _clarify_turn and _pft_original:
+                    # The confirmation's referent is the STORED ask — the
+                    # resolver cannot pin it because the offer it confirms
+                    # was prose, not a machine-tracked exchange. Pin it
+                    # here so the plan task is created; the structural
+                    # no-speculative-lookup guarantee is preserved (the
+                    # referent is explicit, not guessed).
+                    _clarify_turn = False
+                    from core.plan_relevance import (
+                        REF_RESOLVED,
+                        RequestReference,
+                    )
+
+                    _request_reference = RequestReference(
+                        REF_RESOLVED, message,
+                        f"{message} {_pft_original}",
+                        [message, _pft_original], [-1],
+                        [_pft_original[:160]], "")
+            _canvas_preclassified_intent: Optional[Dict[str, Any]] = None
+            _canvas_action_bypassed = False
+            if _canvas_ctx and not _pending_file_task:
+                _canvas_preclassified_intent = self._fallback_intent_analysis(message)
+                _canvas_action_bypassed = (
+                    not _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
+                    and _canvas_non_edit_intent(
+                        _canvas_preclassified_intent.get("primary_intent"))
+                )
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -3216,10 +3484,52 @@ class ChatOrchestrator:
                     # plan call whose prompt consumes it — so the store probe
                     # costs no wall-clock time on the turns that use it and
                     # nothing at all on the turns that don't.
+                    #
+                    # PENDING FILE TASK resume: plan the ORIGINAL confirmed
+                    # ask, not the bare confirmation ("That filename is
+                    # correct" names nothing to look up — planned literally,
+                    # the planner declines and the read never runs).
+                    _plan_msg = message
+                    _plan_hist = _plan_history
+                    if _pending_file_task:
+                        _pft_orig = str(
+                            _pending_file_task.get("original_message") or "")
+                        if _pft_orig:
+                            _confirmed_name = str(
+                                _pending_file_task.get("confirmed_mention") or "")
+                            if not _confirmed_name:
+                                try:
+                                    from core.agent_file_context import (
+                                        detect_file_task_mentions,
+                                    )
+
+                                    _confirmed_name = next(
+                                        (
+                                            item for item in detect_file_task_mentions(message)
+                                            if "." in item
+                                        ),
+                                        "",
+                                    )
+                                except Exception:
+                                    _confirmed_name = ""
+                            if not _confirmed_name and isinstance(session, dict):
+                                _confirmed_name = str(
+                                    (session.get("_resolved_file_identity") or {}).get(
+                                        "file_name"
+                                    ) or ""
+                                )
+                            _plan_msg = _pft_orig
+                            if _confirmed_name:
+                                _plan_msg = (
+                                    f"{_pft_orig} Confirmed file: "
+                                    f"{_confirmed_name}"
+                                )
+                            _plan_hist = list(_plan_history or []) + [
+                                {"message": message, "response": ""}]
                     _prov_task = asyncio.ensure_future(
                         _provenance_menu(
-                            message,
-                            {"history": _plan_history,
+                            _plan_msg,
+                            {"history": _plan_hist,
                              "workspace_id": _ctx_workspace_id},
                         )
                     )
@@ -3292,8 +3602,25 @@ class ChatOrchestrator:
                                 if prov else _thread_block)
                     except Exception:  # noqa: BLE001
                         pass
+                    if _pending_file_task:
+                        # Front-loaded like the mail handles: flash-tier
+                        # planners anchor on prompt-start, and a resume
+                        # directive buried last loses to the bare
+                        # confirmation text.
+                        _pft_directive = (
+                            "PENDING FILE TASK CONFIRMED BY THE USER: this "
+                            "turn confirms the EARLIER request below — plan "
+                            "the lookup that ANSWERS it (read/search '"
+                            f"{_pending_file_task.get('mention')}' from "
+                            "storage or the sheet datasets). Do not treat "
+                            "the turn as conversational.\n"
+                            f"EARLIER CONFIRMED REQUEST: {_plan_msg[:600]}"
+                        )
+                        prov = (
+                            f"{_pft_directive}\n\n{prov}"
+                            if prov else _pft_directive)
                     return await plan_tool_use(
-                        message, _plan_history, user_id, self.llm_service,
+                        _plan_msg, _plan_hist, user_id, self.llm_service,
                         canvas=_canvas_ctx, provenance=prov,
                         allow_canvas_target=_canvas_edit_shaped(
                             message, {"canvas": _canvas_ctx}),
@@ -3374,7 +3701,24 @@ class ChatOrchestrator:
                                             "block": None}
             _edit_leg_timed_out = False
             try:
-                if _canvas_ctx:
+                if _canvas_ctx and not _canvas_action_bypassed and (
+                    _pending_file_task
+                    or _read_only_file_ask(message, _canvas_ctx)
+                ):
+                    # READ-ONLY FILE ASK (2026-09-23): skip canvas-edit
+                    # generation entirely — the classifier can only decline
+                    # it, and its planning call + fresh-data fetch consumed
+                    # 42-45s of the read turn's budget in the live incident
+                    # (the shared tool plan the reply leg awaits is
+                    # unaffected; singleflight still runs the lookup). The
+                    # same applies to a turn CONFIRMING a pending file ask:
+                    # its job is to resume the read, not to classify a
+                    # canvas edit of a bare confirmation.
+                    logger.info(
+                        "[stage-timing] canvas-edit leg skipped — read-only "
+                        "file-data ask (the reply leg runs the lookup)")
+                    _edit_response = None
+                elif _canvas_ctx and not _canvas_action_bypassed:
                     _edit_leg = self._try_canvas_edit(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
@@ -3468,14 +3812,14 @@ class ChatOrchestrator:
                                                     or ""),
                                             )
                                         )
-                                        if _cont_id:
-                                            _shared_tool[
-                                                "async_continuation_forked"
-                                            ] = True
+                                        self._record_canvas_background_fork(
+                                            _shared_tool, session_id, _cont_id)
                                     except Exception as fork_err:  # noqa: BLE001
                                         logger.debug(
                                             "async continuation not forked: "
                                             f"{fork_err}")
+                                        self._record_canvas_background_fork(
+                                            _shared_tool, session_id, None)
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
@@ -3534,13 +3878,14 @@ class ChatOrchestrator:
                                     evidence_block=(
                                         _shared_tool.get("block") or ""),
                                 )
-                                if _cont_id2:
-                                    _shared_tool[
-                                        "async_continuation_forked"] = True
+                                self._record_canvas_background_fork(
+                                    _shared_tool, session_id, _cont_id2)
                             except Exception as fork_err2:  # noqa: BLE001
                                 logger.debug(
                                     "async continuation (planner-unavailable) "
                                     f"not forked: {fork_err2}")
+                                self._record_canvas_background_fork(
+                                    _shared_tool, session_id, None)
                     elif (
                         _shared_tool.get("canvas_edit_no_apply")
                         and _canvas_edit_shaped(
@@ -3622,11 +3967,15 @@ class ChatOrchestrator:
                         self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
                         return _action_response
 
-                _no_apply_edit = _canvas_edit_shaped(
-                    message, {"canvas": _canvas_ctx}
-                ) and (
-                    _shared_tool.get("canvas_edit_no_apply")
-                    or _shared_tool.get("canvas_planning_unavailable")
+                _no_apply_edit = (
+                    not _canvas_action_bypassed
+                    and _canvas_edit_shaped(
+                        message, {"canvas": _canvas_ctx}
+                    )
+                    and (
+                        _shared_tool.get("canvas_edit_no_apply")
+                        or _shared_tool.get("canvas_planning_unavailable")
+                    )
                 )
                 if _no_apply_edit:
                     _background_started = bool(
@@ -3735,6 +4084,7 @@ class ChatOrchestrator:
                     # never claim a lookup failed.
                     canvas_evidence_status=_canvas_evidence_status,
                     request_reference=_request_reference,
+                    pending_file_task=_pending_file_task,
                     async_continuation_forked=bool(
                         _shared_tool.get("async_continuation_forked")),
                     session=session,
@@ -3817,8 +4167,11 @@ class ChatOrchestrator:
             # NLU LLM completion entirely. Awaiting a done task returns
             # instantly; a task that was cancelled (planner timeout) or
             # raised just sends us down the NLU path unchanged.
-            intent_analysis = None
-            if _tool_plan_task is not None and _tool_plan_task.done():
+            intent_analysis = (
+                _canvas_preclassified_intent
+                if _canvas_action_bypassed else None
+            )
+            if intent_analysis is None and _tool_plan_task is not None and _tool_plan_task.done():
                 try:
                     intent_analysis = self._intent_from_tool_plan(
                         _tool_plan_task.result())
@@ -3910,36 +4263,105 @@ class ChatOrchestrator:
                 used_model = "template"
                 used_provider = "template"
 
-            # Mentioned-file mini canvas: when the user refers to a specific
-            # file and data from it was actually ingested, open a canvas with
-            # the data preview for visual reference / editing / discussion.
+            # Mentioned-file mini canvas (2026-09-23 revision): opens ONLY
+            # on a VERIFIED file identity (exact/normalized). The old
+            # any-shared-token match branded a "2019.xlsx" preview from
+            # unrelated ingested sources (live incident: year-token overlap
+            # stood as proof of identity). The canvas is titled with the
+            # MATCHED ingested source name, its content labels the rows as
+            # cached samples, and — when this conversation RESOLVED the
+            # file live — the preview says so and shares that identity
+            # (same file/version as the chat answer), or explicitly flags
+            # a different file (2026-09-23 review, gap 4: the preview must
+            # not look independently sourced).
             try:
-                from core.agent_file_context import detect_file_mentions, lookup_file_records
+                from core.agent_file_context import detect_file_task_mentions
 
-                for _filename in detect_file_mentions(message)[:1]:
-                    _lookup = lookup_file_records(
-                        resolve_user_workspace(user_id), _filename
+                _live_identity = session.get("_resolved_file_identity")
+                if not isinstance(_live_identity, dict):
+                    try:
+                        _live_identity = self._load_pending_file_task(
+                            session_id)[1]
+                    except Exception:  # noqa: BLE001 — preview is best-effort
+                        _live_identity = None
+                _preview_mentions = detect_file_task_mentions(message)
+                if not _preview_mentions and isinstance(_live_identity, dict):
+                    _live_name = _live_identity.get("file_name")
+                    if _live_name:
+                        _preview_mentions = [str(_live_name)]
+                for _filename in _preview_mentions[:1]:
+                    _live_verified = bool(
+                        isinstance(_live_identity, dict)
+                        and _live_identity.get("identity_verified")
+                        and (
+                            _live_identity.get("resource_id")
+                            or _live_identity.get("file_id")
+                        )
                     )
-                    if _lookup and _lookup.get("found"):
+                    _workbook_read = (
+                        _live_identity.get("workbook_read")
+                        if isinstance(_live_identity, dict) else None
+                    )
+                    if _live_verified and isinstance(_workbook_read, dict):
+                        _display = str(
+                            _live_identity.get("file_name") or _filename
+                        )
+                        _sample_rows = []
+                        for _outcome in (
+                            _workbook_read.get("coverage", {}).get("outcomes", [])
+                        ):
+                            for _evidence in _outcome.get("evidence", [])[:2]:
+                                _sample_rows.append(
+                                    f"{_outcome.get('target')}: "
+                                    f"{_outcome.get('status')} | "
+                                    f"{_evidence.get('sheet')}!"
+                                    f"{_evidence.get('cell')} | "
+                                    f"{_evidence.get('value')}"
+                                )
+                        _lookup = {
+                            "found": True,
+                            "verified": True,
+                            "identity_verified": True,
+                            "match_tier": "exact",
+                            "matched_source": _display,
+                            "resource_id": _live_identity.get("resource_id")
+                            or _live_identity.get("file_id"),
+                            "provider": _live_identity.get("service"),
+                            "tables": [{
+                                "table": "verified workbook read",
+                                "count": len(_sample_rows),
+                                "samples": _sample_rows,
+                            }],
+                            "total": len(_sample_rows),
+                            "candidates": [],
+                        }
                         _canvas_id = await self._create_file_mention_canvas(
                             session["id"],
                             user_id,
                             (context or {}).get("agent_id"),
-                            _filename,
+                            _display,
                             _lookup,
+                            mention=_filename,
+                            live_identity=_live_identity,
                         )
                         if _canvas_id:
                             main_message += (
                                 f"\n\n📋 I've opened a mini canvas — "
-                                f"'{_filename} — data preview' — with what I have "
-                                "from that file. Open it in the workspace panel "
-                                "and we can review or edit it together."
+                                f"'{_display} — data preview' — from the "
+                                "same verified workbook resource used for "
+                                "this answer."
                             )
+                    elif _live_identity and _live_identity.get("identity_verified"):
+                        main_message += (
+                            "\n\n(I verified the file identity, but this "
+                            "read has no structured workbook artifact, so "
+                            "I did not create an independent preview.)"
+                        )
                     else:
                         main_message += (
-                            f"\n\n(I couldn't find ingested data from "
-                            f"'{_filename}' — ingest the file first and then "
-                            "I can discuss its contents.)"
+                            "\n\n(I did not create a file preview because "
+                            "the answer did not produce one verified file "
+                            "resource.)"
                         )
             except Exception as _file_err:
                 logger.debug(f"file-mention canvas hook failed: {_file_err}")
@@ -4135,11 +4557,20 @@ class ChatOrchestrator:
         agent_id: Optional[str],
         filename: str,
         lookup: Dict[str, Any],
+        mention: Optional[str] = None,
+        live_identity: Optional[Dict[str, Any]] = None,
+        differs_from_live: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """Mini canvas with the mentioned file's ingested data — the visual
         reference/editing surface for training and discussion. Same Canvas +
         CanvasAudit pattern as the chat_draft_to_canvas route, broadcast to
-        the session's workspace pane, and expandable to /canvas/{id}."""
+        the session's workspace pane, and expandable to /canvas/{id}.
+        ``filename`` is the VERIFIED ingested source name (not the possibly
+        truncated user mention); ``mention`` is kept in the audit trail.
+        ``live_identity`` (same file as the conversation's live read) or
+        ``differs_from_live`` (a DIFFERENT file was read live) ties the
+        preview to the answer's evidence instead of looking independently
+        sourced."""
         try:
             import uuid as _uuid
 
@@ -4149,7 +4580,10 @@ class ChatOrchestrator:
 
             canvas_id = str(_uuid.uuid4())
             created_by = user_id or "system"
-            content_text = build_file_canvas_content(filename, lookup)
+            content_text = build_file_canvas_content(
+                filename, lookup, mention=mention,
+                live_identity=live_identity,
+                differs_from_live=differs_from_live)
             db = SessionLocal()
             try:
                 canvas = Canvas(
@@ -4175,7 +4609,19 @@ class ChatOrchestrator:
                         canvas_type="document",
                         action_type="create",
                         user_id=created_by,
-                        details_json={"source": "file_mention", "file": filename},
+                        details_json={
+                            "source": "file_mention",
+                            "file": filename,
+                            "mention": mention or filename,
+                            "match_tier": lookup.get("match_tier"),
+                            "resource_id": lookup.get("resource_id"),
+                            "source_metadata": (live_identity or {}).get("source_metadata"),
+                            "content_sha256": (live_identity or {}).get("content_sha256"),
+                            "coverage_complete": (live_identity or {}).get("coverage_complete"),
+                            "shares_live_read": bool(
+                                (live_identity or {}).get("file_id")
+                                or (live_identity or {}).get("file_name")),
+                        },
                     )
                 )
                 db.commit()
@@ -4238,6 +4684,7 @@ class ChatOrchestrator:
         prefetched_tool_block: Optional[str] = None,
         canvas_evidence_status: Any = None,
         request_reference: Any = None,
+        pending_file_task: Optional[Dict[str, Any]] = None,
         async_continuation_forked: bool = False,
         session: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
@@ -4390,6 +4837,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             ]
 
             memory_block = None
+            _file_scoped_request = bool(isinstance(pending_file_task, dict))
+            if not _file_scoped_request:
+                try:
+                    from core.agent_file_context import detect_file_task_mentions
+
+                    _file_scoped_request = bool(
+                        detect_file_task_mentions(message)
+                    )
+                except Exception:
+                    _file_scoped_request = False
+            if _file_scoped_request:
+                messages.append({
+                    "role": "system",
+                    "content": (
+                        "FILE SOURCE ISOLATION: for this file-scoped request, "
+                        "use only the verified storage/workbook artifact and its "
+                        "sheet/cell evidence. Do not use email, chat, or other "
+                        "memory values as substitutes for the requested file."
+                    ),
+                })
             # Unified turn-time memory retrieval (P0, memory unification plan):
             # comms memory + GraphRAG + episodes + turn facts, bounded block.
             # Fault-isolated and flag-gated — never blocks or breaks the turn.
@@ -4402,7 +4869,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Resolve agent identity for role-scoped recall
                 _agent_id = agent_id
 
-                if assembly_enabled():
+                if assembly_enabled() and not _file_scoped_request:
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -4577,6 +5044,57 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # failed attempts — results placed before them lost to recency.
             _tool_block: Optional[str] = None
             _planned: Optional[str] = None
+            # PENDING FILE TASK support (2026-09-23): on a resume turn the
+            # plan is built from the CONFIRMED ORIGINAL ask, so the
+            # relevance gate and the executor's context (identifier net,
+            # date window) must judge/receive that ask too — judged against
+            # the bare confirmation, every correctly-resumed plan would
+            # decline as "off-request".
+            _resume_original = ""
+            if isinstance(pending_file_task, dict):
+                _resume_original = str(
+                    pending_file_task.get("original_message") or "").strip()
+            _gate_msg = _resume_original or message
+            if isinstance(pending_file_task, dict):
+                try:
+                    from core.agent_file_context import detect_file_task_mentions
+
+                    _confirmed_mentions = [
+                        item for item in detect_file_task_mentions(message)
+                        if "." in item
+                    ]
+                    if _confirmed_mentions:
+                        _gate_msg = f"{_gate_msg} {_confirmed_mentions[0]}"
+                except Exception:
+                    pass
+            _plan_mentions: List[str] = []
+            try:
+                from core.agent_file_context import (
+                    SPREADSHEET_EXTENSIONS,
+                    detect_file_task_mentions,
+                    is_spreadsheet_task_mention,
+                )
+
+                _plan_mentions = detect_file_task_mentions(_gate_msg)
+            except Exception:  # noqa: BLE001 — bookkeeping only
+                _plan_mentions = []
+            _requested_targets: List[str] = []
+            try:
+                from core.workbook_read_artifact import extract_targets
+
+                _requested_targets = extract_targets(
+                    _gate_msg,
+                    [str(canvas_context or "")],
+                )
+            except Exception:
+                _requested_targets = []
+            _live_file_lookup_ran = False
+            # Pending-file-task lifecycle state (2026-09-23 review, gap 3):
+            # attempted != completed — a lookup that ran but missed/failed
+            # keeps the task pending; identity is retained separately from
+            # completion so a retry reuses the resolved resource.
+            _file_lookup_attempted = False
+            _resolved_file_identity: Optional[Dict[str, Any]] = None
             # Timer for the "[stage-timing] reply generation" log. The plan
             # branch re-anchors it; the prefetched path (blackboard reuse)
             # never enters that branch, so it needs a value up front — the
@@ -4803,6 +5321,51 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # Re-planning or re-executing would pay twice for
                     # identical results — reuse the block as-is.
                     _tool_block = prefetched_tool_block
+                    if _plan_mentions:
+                        _prefetch_meta = {}
+                        if (
+                            tool_plan_task is not None
+                            and tool_plan_task.done()
+                            and not tool_plan_task.cancelled()
+                        ):
+                            try:
+                                _prefetch_plan = tool_plan_task.result()
+                                _prefetch_meta = (
+                                    getattr(_prefetch_plan, "_result_meta", {})
+                                    or {}
+                                ).get("storage_read") or {}
+                            except Exception:
+                                _prefetch_meta = {}
+                        if _prefetch_meta:
+                            _file_lookup_attempted = True
+                            _resolved_file_identity = {
+                                "service": _prefetch_meta.get("service"),
+                                "file_id": _prefetch_meta.get("file_id"),
+                                "resource_id": _prefetch_meta.get("resource_id")
+                                or _prefetch_meta.get("file_id"),
+                                "file_name": _prefetch_meta.get("file_name"),
+                                "source_metadata": _prefetch_meta.get(
+                                    "source_metadata") or {},
+                                "workbook_read": _prefetch_meta.get("workbook_read"),
+                                "content_sha256": _prefetch_meta.get("content_sha256"),
+                                "identity_verified": bool(
+                                    _prefetch_meta.get("identity_verified")),
+                                "coverage_complete": bool(
+                                    _prefetch_meta.get("coverage_complete")),
+                                "completed": bool(_prefetch_meta.get("completed")),
+                                "execution_id": execution_id,
+                            }
+                            _live_file_lookup_ran = bool(
+                                _prefetch_meta.get("completed")
+                                and _prefetch_meta.get("identity_verified")
+                                and (
+                                    _plan_mentions[0].rsplit(".", 1)[-1]
+                                    not in SPREADSHEET_EXTENSIONS
+                                    or _prefetch_meta.get("coverage_complete")
+                                )
+                            )
+                        elif _file_lookup_served(_tool_block, _plan_mentions):
+                            _file_lookup_attempted = True
                     logger.info(
                         "[stage-timing] tool exec: reused canvas-edit leg "
                         "block (singleflight) — no second plan/execute")
@@ -4847,7 +5410,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             f"reuse-branch mailbox overlay: {len(_reuse_mail)} "
                             "evidence line(s) lead the tool block")
                         _tool_block = _compose_lookup_evidence(
-                            message, None, _tool_block, _reuse_mail,
+                            _gate_msg, None, _tool_block, _reuse_mail,
                         )
                     _tool_block = await _derivation_supplement(
                         message, user_id, planner_history or history,
@@ -4948,7 +5511,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # the canvas. A query naming neither the resolved
                         # request nor the canvas target still declines.
                         _off_request = resolved_plan_relevance(
-                            _plan, message,
+                            _plan, _gate_msg,
                             history=planner_history or history,
                             extra_topic=(
                                 canvas_topic_text(canvas_context)
@@ -4959,6 +5522,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             allow_canvas_target=_canvas_edit_shaped(
                                 message, {"canvas": canvas_context}),
                         )[0] == "irrelevant"
+                        if _resume_original and not _off_request:
+                            logger.info(
+                                "[pending-file-task] plan relevance judged "
+                                "against the confirmed original ask, not the "
+                                "bare confirmation")
                         if _off_request:
                             logger.warning(
                                 "[plan-relevance] %s declined: the planned "
@@ -5021,10 +5589,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # history (which is written only
                                             # after the response): the stated-
                                             # date window and the identifier
-                                            # net read it from here.
-                                            "message": message,
-                                            "history": (planner_history or history or [])[-6:],
-                                            # Conversation mail handles (pending
+                                            # net read it from here. On a
+                                            # pending-file-task resume turn
+                                            # this is the CONFIRMED ORIGINAL
+                                            # ask — the confirmation text
+                                            # names no identifiers.
+                                            "message": _gate_msg,
+                                             "history": (planner_history or history or [])[-6:],
+                                             "requested_targets": _requested_targets,
+                                             "file_identity_confirmed": bool(
+                                                 isinstance(pending_file_task, dict)
+                                             ),
+                                             # Conversation mail handles (pending
+
                                             # ∪ read): the allow-list for
                                             # id-directed outlook reads in this
                                             # session (2026-09-22).
@@ -5079,13 +5656,95 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     f"planned live lookup failed ({_planned}): {_live_err!r}"
                                 )
                                 _live_block = None
+                        # PENDING FILE TASK: a file-serving lookup that RAN
+                        # (storage read / datasets / documents, or any block
+                        # that actually names the mentioned file) retires
+                        # the stored ask — it was served, not abandoned.
+                        # The off-request decline branch also assigns
+                        # _live_block (as failure TEXT naming the query) —
+                        # PENDING FILE TASK completion vs identity (2026-09-23
+                        # review, gap 3): the storage layer stamps a
+                        # structured ``storage_read`` outcome on the plan —
+                        # COMPLETED means content was extracted; found-but-
+                        # failed / search-miss keeps the task pending with
+                        # the resolved identity retained. The off-request
+                        # decline branch also assigns _live_block (as failure
+                        # TEXT naming the query) — not a lookup, retires
+                        # nothing.
+                        _storage_read_meta: Dict[str, Any] = {}
+                        try:
+                            _storage_read_meta = (
+                                (getattr(_plan, "_result_meta", None) or {})
+                                .get("storage_read") or {})
+                        except Exception:  # noqa: BLE001 — meta is optional
+                            _storage_read_meta = {}
+                        if not _off_request and _storage_read_meta:
+                            _file_lookup_attempted = True
+                            _resolved_file_identity = {
+                                "service": _storage_read_meta.get("service"),
+                                "file_id": _storage_read_meta.get("file_id"),
+                                "resource_id": _storage_read_meta.get(
+                                    "resource_id") or _storage_read_meta.get("file_id"),
+                                "file_name": _storage_read_meta.get("file_name"),
+                                "source_metadata": _storage_read_meta.get(
+                                    "source_metadata") or {},
+                                "dataset_sheet": _storage_read_meta.get(
+                                    "dataset_sheet"),
+                                "workbook_read": _storage_read_meta.get(
+                                    "workbook_read"),
+                                "content_sha256": _storage_read_meta.get(
+                                    "content_sha256"),
+                                "identity_verified": bool(
+                                    _storage_read_meta.get("identity_verified")),
+                                "coverage_complete": bool(
+                                    _storage_read_meta.get("coverage_complete")),
+                                "completed": bool(
+                                    _storage_read_meta.get("completed")),
+                                "note": _storage_read_meta.get("note"),
+                                "execution_id": execution_id,
+                            }
+                            _is_spreadsheet = bool(
+                                _plan_mentions
+                                and is_spreadsheet_task_mention(
+                                    _plan_mentions[0]
+                                )
+                            )
+                            _live_file_lookup_ran = bool(
+                                _storage_read_meta.get("completed")
+                                and _storage_read_meta.get("identity_verified")
+                                and (
+                                    not _is_spreadsheet
+                                    or _storage_read_meta.get("coverage_complete")
+                                )
+                            )
+                        elif not _off_request and (
+                            _live_block or _storage_read_meta
+                        ):
+                            _file_lookup_attempted = True
+                        # WORKBOOK ANSWER CONTRACT: a spreadsheet-file ask
+                        # gets per-item coverage instructions appended to
+                        # its live evidence, so the answer reports one
+                        # outcome per requested item with sheet/row
+                        # provenance and never substitutes values from
+                        # other sources (the live 2026-09-23 failure: 2026
+                        # email prices answering a 2019-workbook question).
+                        if (
+                            _live_block
+                            and not _off_request
+                            and _plan_mentions
+                            and is_spreadsheet_task_mention(
+                                _plan_mentions[0]
+                            )
+                        ):
+                            _live_block = (
+                                f"{_live_block}\n\n{_SPREADSHEET_ANSWER_CONTRACT}")
                         try:
                             _mail_lines = await _mail_task
                         except Exception as _mail_err:  # noqa: BLE001
                             logger.debug(f"overlapped mail evidence skipped: {_mail_err}")
                             _mail_lines = []
                         _tool_block = _compose_lookup_evidence(
-                            message, _plan, _live_block, _mail_lines,
+                            _gate_msg, _plan, _live_block, _mail_lines,
                         )
                         # EVIDENCE HANDOFF (review item 2): persist this
                         # turn's composed evidence on the session so the
@@ -5191,6 +5850,78 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         message, user_id, {"history": planner_history or history}
                     )
 
+            # PENDING FILE TASK bookkeeping (2026-09-23): a file-scoped ask
+            # survives the turn until a COMPLETED read serves it (identity
+            # and completion tracked separately — a failed/incomplete
+            # lookup keeps the task pending with its attempt recorded).
+            # The reply is told plainly what did or did not run.
+            if session is not None and _plan_mentions:
+                try:
+                    from core.pending_file_task import (
+                        FILE_TASK_SESSION_KEY,
+                        mark_task_served,
+                        merge_pending_task,
+                    )
+
+                    if _resolved_file_identity:
+                        # Identity is retained separately from completion
+                        # (2026-09-23 review, gap 3): a found-but-failed
+                        # read still pins WHICH file, so retries and the
+                        # preview reuse the same resource instead of
+                        # re-deriving it from filenames.
+                        session["_resolved_file_identity"] = (
+                            _resolved_file_identity)
+                    if _live_file_lookup_ran:
+                        # COMPLETED read (content extracted): the ask is
+                        # served. The task row stays with status "served"
+                        # (a durable marker so a later bare "yes" cannot
+                        # resurrect it), and the identity is kept for the
+                        # preview to share.
+                        session[FILE_TASK_SESSION_KEY] = mark_task_served(
+                            session.get(FILE_TASK_SESSION_KEY),
+                            _resolved_file_identity or {
+                                "file_name": _plan_mentions[0],
+                                "execution_id": execution_id,
+                            },
+                        )
+                        logger.info(
+                            "[pending-file-task] completed read — ask "
+                            "served (identity=%s)",
+                            (_resolved_file_identity or {}).get("file_id")
+                            or _plan_mentions[0])
+                    else:
+                        session[FILE_TASK_SESSION_KEY] = merge_pending_task(
+                            session.get(FILE_TASK_SESSION_KEY), message,
+                            _plan_mentions[0])
+                        if _tool_block:
+                            if _file_lookup_attempted:
+                                _note = (
+                                    "\n\nPENDING FILE TASK: the lookup for "
+                                    f"'{_plan_mentions[0]}' RAN this turn "
+                                    "but did NOT complete — it found no "
+                                    "usable content for the file. The task "
+                                    "is saved with the attempt recorded, "
+                                    "and the user's confirmation on their "
+                                    "next message will retry it. Tell the "
+                                    "user plainly what did not complete; "
+                                    "do not answer this file's contents "
+                                    "from other sources."
+                                )
+                            else:
+                                _note = (
+                                    "\n\nPENDING FILE TASK: the lookup for "
+                                    f"'{_plan_mentions[0]}' did NOT run "
+                                    "this turn — it is saved, and the "
+                                    "user's confirmation on their next "
+                                    "message will run it automatically. "
+                                    "Tell the user plainly that the search "
+                                    "has not run yet; do not answer this "
+                                    "file's contents from other sources."
+                                )
+                            _tool_block += _note
+                except Exception as _pft2_err:  # noqa: BLE001 — bookkeeping only
+                    logger.debug(f"pending file task store skipped: {_pft2_err}")
+
             # Add conversation history. When fresh tool results exist for
             # this turn, include ONLY the user turns as context: measured
             # (Aug 30), a transcript full of earlier failed attempts anchors
@@ -5223,7 +5954,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 for _h in history[-6:]:
                     if _h.get("error"):
                         continue  # a failed attempt carries no answer content
-                    _resp = (_h.get("response") or {}).get("message") or ""
+                    _raw_response = _h.get("response")
+                    _resp = (
+                        _raw_response.get("message") or ""
+                        if isinstance(_raw_response, dict)
+                        else str(_raw_response or "")
+                    )
                     if not _resp or _reply_claims_inability(_resp):
                         continue  # refusal wobble is what anchors a re-refusal
                     if _resp not in _answered:
@@ -5245,7 +5981,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # weak models into refusals and carry no answer content.
                     if h.get("error"):
                         continue
-                    resp_msg = h.get("response", {}).get("message", "")
+                    _raw_response = h.get("response")
+                    resp_msg = (
+                        _raw_response.get("message") or ""
+                        if isinstance(_raw_response, dict)
+                        else str(_raw_response or "")
+                    )
                     if resp_msg:
                         messages.append({"role": "assistant", "content": resp_msg})
 
@@ -8608,10 +9349,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # Simple keyword-based intent detection
         if any(word in message_lower for word in ["find", "search", "look for", "where is"]):
             intent = ChatIntent.SEARCH_REQUEST
+        elif any(word in message_lower for word in [
+            "task", "todo", "reminder", "due", "follow-up", "follow up",
+        ]):
+            intent = ChatIntent.TASK_MANAGEMENT
         elif any(word in message_lower for word in ["message", "email", "send", "notify"]):
             intent = ChatIntent.MESSAGE_SEND
-        elif any(word in message_lower for word in ["task", "todo", "reminder", "due"]):
-            intent = ChatIntent.TASK_MANAGEMENT
         elif any(word in message_lower for word in ["workflow", "automate", "automation"]):
             intent = ChatIntent.WORKFLOW_CREATION
         elif any(word in message_lower for word in ["schedule", "meeting", "calendar", "appointment"]):
@@ -9366,11 +10109,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     pending_user = content
                 else:
                     _row_error = False
+                    _meta = {}
                     try:
                         _meta = json.loads(row.metadata_json or "{}")
                         _row_error = _meta.get("quality") == "error"
                     except Exception:
                         pass
+                    if "_pending_file_task" in _meta:
+                        _pending_value = _meta.get("_pending_file_task")
+                        if isinstance(_pending_value, dict):
+                            session["_pending_file_task"] = _pending_value
+                        else:
+                            session.pop("_pending_file_task", None)
                     turns.append({
                         "message": pending_user or "",
                         "response": {"message": "" if _row_error else content},
@@ -9433,6 +10183,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # history is already populated.
                 self._hydrate_session_history(session_id, existing)
                 self._ensure_session_row(session_id, existing, channel_id, thread_id)
+                _metadata = existing.get("metadata") or {}
+                _pending = _metadata.get("_pending_file_task")
+                if isinstance(_pending, dict):
+                    existing["_pending_file_task"] = _pending
             return self.conversation_sessions[session_id]
 
         # New session — create in-memory AND persist the ChatSession row.
@@ -9448,6 +10202,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # exist from a previous app run — load them back so the LLM sees the
         # full conversation, not just the turns after this restart.
         self._hydrate_session_history(session_id, self.conversation_sessions[session_id])
+        try:
+            _persisted = self.session_manager.get_session(session_id) if self.session_manager else None
+            _metadata = (_persisted or {}).get("metadata") or {}
+            _pending = _metadata.get("_pending_file_task")
+            if isinstance(_pending, dict):
+                self.conversation_sessions[session_id]["_pending_file_task"] = _pending
+        except Exception:
+            pass
         # Persist the session row so it survives restarts and appears in the
         # session list sidebar.
         try:
@@ -9563,6 +10325,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 session_row.channel_id = session["channel_id"]
                             if session.get("thread_id") and not session_row.thread_id:
                                 session_row.thread_id = session["thread_id"]
+                            _session_meta = dict(session_row.metadata_json or {})
+                            _session_meta["_pending_file_task"] = session.get(
+                                "_pending_file_task"
+                            )
+                            session_row.metadata_json = _session_meta
                     except Exception:
                         # Non-fatal: session-row backfill is best-effort.
                         pass
@@ -9596,6 +10363,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _pending_mail = session.pop("_pending_mail_meta", None)
                         if _pending_mail:
                             _msg_meta["mail_handles"] = _pending_mail
+                        # PENDING FILE TASK (2026-09-23 review, gap 5): the
+                        # session dict is NOT durable (restart rebuilds a
+                        # projection), so the task and the resolved file
+                        # identity ride the SAME durable carrier the mail
+                        # handles use — assistant-row metadata_json. Copied,
+                        # not popped: the in-memory session stays usable and
+                        # the newest row always carries the current state
+                        # (status "served" included, so a restart cannot
+                        # resurrect a served ask from an older row).
+                        try:
+                            from core.pending_file_task import (
+                                FILE_TASK_SESSION_KEY,
+                            )
+
+                            _pft_row = session.get(FILE_TASK_SESSION_KEY)
+                            if isinstance(_pft_row, dict):
+                                _msg_meta["pending_file_task"] = _pft_row
+                        except Exception:
+                            pass
+                        _resolved_identity = session.get(
+                            "_resolved_file_identity")
+                        if not isinstance(_resolved_identity, dict):
+                            _task_identity = session.get("_pending_file_task")
+                            if isinstance(_task_identity, dict):
+                                _resolved_identity = _task_identity.get(
+                                    "resolved_file")
+                        if isinstance(_resolved_identity, dict):
+                            _msg_meta["resolved_file_identity"] = (
+                                _resolved_identity)
+                        _msg_meta["_pending_file_task"] = session.get(
+                            "_pending_file_task"
+                        )
                         db.add(ChatMessageModel(
                             conversation_id=session_id,
                             tenant_id=tenant_id,
@@ -9605,6 +10404,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
+
+        try:
+            if self.session_manager and session.get("id"):
+                self.session_manager.update_session_metadata(
+                    session["id"],
+                    {"_pending_file_task": session.get("_pending_file_task")},
+                )
+        except Exception as e:
+            logger.debug(f"Session metadata persistence skipped: {e}")
 
     def _load_conversation_mail_handles(
         self, session_id: Optional[str],
@@ -9676,7 +10484,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             except Exception:
                 continue
             for t in (meta2.get("mail_handles") or {}).get(
-                    "searched_threads", []):
+                "searched_threads", []):
                 if not isinstance(t, dict):
                     continue
                 key = (str(t.get("address") or "").lower(),
@@ -9686,6 +10494,53 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 t_seen.add(key)
                 threads.append(t)
         return out, threads
+
+    def _load_pending_file_task(
+        self, session_id: Optional[str],
+    ) -> "tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]":
+        """The conversation's pending-file task + resolved file identity,
+        recovered from assistant ChatMessage rows' ``metadata_json`` — the
+        same durable carrier the mail handles use. Newest row wins; a task
+        whose newest record says ``status: served`` does NOT come back
+        pending (an append-only marker, so a restart cannot resurrect a
+        served ask from an older row). Restart recovery for the in-memory
+        session key, which the persisted-session projection drops."""
+        if not session_id:
+            return None, None
+        task: Optional[Dict[str, Any]] = None
+        identity: Optional[Dict[str, Any]] = None
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "assistant",
+                    )
+                    .order_by(ChatMessageModel.created_at.desc())
+                    .limit(24)
+                    .all()
+                )
+            for row in rows:
+                try:
+                    meta = json.loads(row.metadata_json or "{}")
+                except Exception:
+                    continue
+                if task is None and isinstance(
+                        meta.get("pending_file_task"), dict):
+                    task = meta["pending_file_task"]
+                if identity is None and isinstance(
+                        meta.get("resolved_file_identity"), dict):
+                    identity = meta["resolved_file_identity"]
+                if task is not None and identity is not None:
+                    break
+        except Exception as e:  # noqa: BLE001 — loader is best-effort
+            logger.debug(f"pending file task load skipped: {e}")
+        return task, identity
+
 
     def _advertise_mail_handles(
         self,

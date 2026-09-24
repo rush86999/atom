@@ -17,20 +17,128 @@ TDD: these tests failed before the fixes.
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, AsyncMock, patch
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.models import (
+    AgentProposal,
     AgentRegistry,
     AgentStatus,
     ProposalStatus,
     ProposalType,
+    Tenant,
     TrainingSession,
     User,
     UserRole,
+    Workspace,
 )
+
+
+@pytest.fixture
+def action_proposal_scope(db_session):
+    tenant_a = Tenant(id="route-tenant-a", name="Route A", subdomain="route-a")
+    tenant_b = Tenant(id="route-tenant-b", name="Route B", subdomain="route-b")
+    workspace_a = Workspace(
+        id="route-workspace-a", name="Route A", tenant_id=tenant_a.id
+    )
+    workspace_b = Workspace(
+        id="route-workspace-b", name="Route B", tenant_id=tenant_b.id
+    )
+    user_a = User(
+        id="route-user-a",
+        email="route-user-a@example.com",
+        first_name="Route",
+        last_name="A",
+        role=UserRole.TEAM_LEAD.value,
+        status="active",
+        tenant_id=tenant_a.id,
+        workspace_id=workspace_a.id,
+    )
+    user_b = User(
+        id="route-user-b",
+        email="route-user-b@example.com",
+        first_name="Route",
+        last_name="B",
+        role=UserRole.TEAM_LEAD.value,
+        status="active",
+        tenant_id=tenant_b.id,
+        workspace_id=workspace_b.id,
+    )
+    agent_a = AgentRegistry(
+        id="route-agent-a",
+        name="Route Agent A",
+        category="testing",
+        module_path="agents.a",
+        class_name="A",
+        status=AgentStatus.INTERN.value,
+        confidence_score=0.6,
+        tenant_id=tenant_a.id,
+        workspace_id=workspace_a.id,
+        user_id=user_a.id,
+    )
+    agent_b = AgentRegistry(
+        id="route-agent-b",
+        name="Route Agent B",
+        category="testing",
+        module_path="agents.b",
+        class_name="B",
+        status=AgentStatus.INTERN.value,
+        confidence_score=0.6,
+        tenant_id=tenant_b.id,
+        workspace_id=workspace_b.id,
+        user_id=user_b.id,
+    )
+    db_session.add_all(
+        [
+            tenant_a,
+            tenant_b,
+            workspace_a,
+            workspace_b,
+            user_a,
+            user_b,
+            agent_a,
+            agent_b,
+        ]
+    )
+    db_session.commit()
+    proposal_a = AgentProposal(
+        id="route-proposal-a",
+        tenant_id=tenant_a.id,
+        user_id=user_a.id,
+        agent_id=agent_a.id,
+        agent_name=agent_a.name,
+        title="Tenant A proposal",
+        description="Tenant A proposal",
+        proposal_type=ProposalType.ACTION.value,
+        proposal_data={"action_type": "agent_execute", "prompt": "a"},
+        status=ProposalStatus.PENDING_APPROVAL.value,
+    )
+    proposal_b = AgentProposal(
+        id="route-proposal-b",
+        tenant_id=tenant_b.id,
+        user_id=user_b.id,
+        agent_id=agent_b.id,
+        agent_name=agent_b.name,
+        title="Tenant B proposal",
+        description="Tenant B proposal",
+        proposal_type=ProposalType.ACTION.value,
+        proposal_data={"action_type": "agent_execute", "prompt": "b"},
+        status=ProposalStatus.PENDING_APPROVAL.value,
+    )
+    db_session.add_all([proposal_a, proposal_b])
+    db_session.commit()
+    return {
+        "db": db_session,
+        "tenant_a": tenant_a,
+        "tenant_b": tenant_b,
+        "user_a": user_a,
+        "agent_a": agent_a,
+        "agent_b": agent_b,
+        "proposal_a": proposal_a,
+        "proposal_b": proposal_b,
+    }
 
 
 # ============================================================================
@@ -233,6 +341,10 @@ class TestTrainingProposalEndpoints:
                 uf.first.return_value = Mock(id="u", role=UserRole.TEAM_LEAD.value)
                 q.filter.return_value = uf
                 return q
+            if model.__name__ in {"TrainingSession", "AgentRegistry"}:
+                q = Mock()
+                q.filter.return_value.first.return_value = None
+                return q
             return listing_q
 
         db.query = Mock(side_effect=query_impl)
@@ -362,6 +474,112 @@ class TestActionProposalEndpoints:
             resp = client.get("/api/maturity/agents/a1/proposal-history")
         assert resp.status_code == 200
         assert resp.json()["proposal_history"] == [{"id": "pr1"}]
+
+    @pytest.mark.asyncio
+    async def test_action_proposal_list_is_tenant_scoped_and_includes_type(
+        self, action_proposal_scope
+    ):
+        from api.agent_maturity_routes import list_action_proposals
+
+        response = await list_action_proposals(
+            agent_id=None,
+            status_filter=None,
+            limit=50,
+            current_user=action_proposal_scope["user_a"],
+            db=action_proposal_scope["db"],
+        )
+
+        assert [item["id"] for item in response["proposals"]] == ["route-proposal-a"]
+        assert response["proposals"][0]["proposal_type"] == ProposalType.ACTION.value
+
+    @pytest.mark.asyncio
+    async def test_foreign_tenant_proposal_approval_returns_404(
+        self, action_proposal_scope
+    ):
+        from api.agent_maturity_routes import (
+            ApproveActionProposalRequest,
+            approve_action_proposal,
+        )
+
+        db = action_proposal_scope["db"]
+        with patch(
+            "core.proposal_service.ProposalService._execute_proposed_action_with",
+            new=AsyncMock(return_value={"success": True}),
+        ), patch("core.proposal_service.AgentLearningEnhanced"):
+            with pytest.raises(HTTPException) as exc:
+                await approve_action_proposal(
+                    action_proposal_scope["proposal_b"].id,
+                    ApproveActionProposalRequest(approve=True),
+                    current_user=action_proposal_scope["user_a"],
+                    db=db,
+                )
+
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_foreign_tenant_proposal_rejection_returns_404(
+        self, action_proposal_scope
+    ):
+        from api.agent_maturity_routes import RejectProposalRequest, reject_action_proposal
+
+        db = action_proposal_scope["db"]
+        with patch(
+            "core.proposal_service.ProposalService._create_proposal_episode",
+            new=AsyncMock(),
+        ), patch("core.proposal_service.AgentLearningEnhanced"), patch(
+            "core.autonomy_policy.reset_autonomy_cycle"
+        ):
+            with pytest.raises(HTTPException) as exc:
+                await reject_action_proposal(
+                    action_proposal_scope["proposal_b"].id,
+                    RejectProposalRequest(reason="not allowed"),
+                    current_user=action_proposal_scope["user_a"],
+                    db=db,
+                )
+
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_foreign_agent_proposal_history_is_empty(
+        self, action_proposal_scope
+    ):
+        from api.agent_maturity_routes import get_agent_proposal_history
+
+        db = action_proposal_scope["db"]
+        response = await get_agent_proposal_history(
+            action_proposal_scope["agent_b"].id,
+            limit=50,
+            current_user=action_proposal_scope["user_a"],
+            db=db,
+        )
+
+        assert response["proposal_history"] == []
+
+    @pytest.mark.asyncio
+    async def test_failed_execution_result_returns_non_2xx_with_safe_detail(
+        self, action_proposal_scope
+    ):
+        from api.agent_maturity_routes import (
+            ApproveActionProposalRequest,
+            approve_action_proposal,
+        )
+
+        db = action_proposal_scope["db"]
+        with patch("api.agent_maturity_routes.ProposalService") as service_cls:
+            service_cls.return_value.approve_proposal = AsyncMock(
+                return_value={"success": False, "error": "sensitive internal detail"}
+            )
+            with pytest.raises(HTTPException) as exc:
+                await approve_action_proposal(
+                    action_proposal_scope["proposal_a"].id,
+                    ApproveActionProposalRequest(approve=True),
+                    current_user=action_proposal_scope["user_a"],
+                    db=db,
+                )
+
+        assert exc.value.status_code >= 400
+        assert exc.value.detail == "Proposal execution failed"
+        assert "sensitive internal detail" not in str(exc.value.detail)
 
 
 # ============================================================================

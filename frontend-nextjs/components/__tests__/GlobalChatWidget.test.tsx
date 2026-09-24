@@ -22,7 +22,8 @@
  *       POST /api/agents/approvals/:id (apiClient)
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '../../tests/test-utils';
 import '@testing-library/jest-dom';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -52,7 +53,10 @@ jest.mock('next/router', () => ({
 
 const mockApiPost = jest.fn();
 jest.mock('../../lib/api-client', () => ({
-  apiClient: { post: mockApiPost },
+  apiClient: {
+    post: mockApiPost,
+    fetch: (url: any, init?: any) => global.fetch(url, init),
+  },
 }));
 
 jest.mock('@/hooks/useWebSocket', () => ({
@@ -118,9 +122,12 @@ describe('GlobalChatWidget', () => {
           })
         );
       }),
-      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
-        return res(ctx.status(200), ctx.json([]));
-      })
+       rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+         return res(ctx.status(200), ctx.json([]));
+       }),
+       rest.get('*/api/maturity/proposals', (req, res, ctx) => {
+         return res(ctx.status(200), ctx.json({ proposals: [] }));
+       })
     );
 
     mockApiPost.mockResolvedValue({ data: { success: true } });
@@ -269,6 +276,26 @@ describe('GlobalChatWidget', () => {
       expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
     });
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Action approved' }));
+  });
+
+  it('surfaces the typed action-proposal count', async () => {
+    server.use(
+      rest.get('*/api/maturity/proposals', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({
+          proposals: [{
+            id: 'ap-1',
+            title: 'Review the lead',
+            status: 'pending_approval',
+          }],
+        }))
+      )
+    );
+
+    render(<GlobalChatWidget />);
+    expect(await screen.findByTestId('approval-indicator')).toBeInTheDocument();
+    openChat();
+    expect(await screen.findByText(/1 data-trigger proposal is held/)).toBeInTheDocument();
+    expect(screen.getByText(/Review the lead/)).toBeInTheDocument();
   });
 
   it('rejects the pending approval via the API', async () => {
@@ -428,9 +455,12 @@ describe('GlobalChatWidget (extended coverage)', () => {
       rest.get('/api/chat/history/:sid', (req, res, ctx) => {
         return res(ctx.status(200), ctx.json({ messages: [] }));
       }),
-      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
-        return res(ctx.status(200), ctx.json([]));
-      })
+       rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+         return res(ctx.status(200), ctx.json([]));
+       }),
+       rest.get('*/api/maturity/proposals', (req, res, ctx) => {
+         return res(ctx.status(200), ctx.json({ proposals: [] }));
+       })
     );
 
     mockApiPost.mockResolvedValue({ data: { success: true } });

@@ -844,9 +844,7 @@ class EpisodeService:
         # promotion_episode_floor set on its registry row, that floor
         # overrides the per-level default — users can require more real-
         # world evidence per agent, per domain.
-        agent_row = db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
+        agent_row = agent
         floor = getattr(agent_row, "promotion_episode_floor", None) if agent_row else None
         min_episodes = (
             min_episodes_override

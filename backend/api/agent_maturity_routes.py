@@ -34,7 +34,7 @@ from core.models import (
     UserRole,
 )
 from core.security.rbac import user_meets_role
-from core.proposal_service import ProposalService
+from core.proposal_service import ProposalNotFoundError, ProposalService
 from core.student_training_service import (
     InsufficientTrainingEvidenceError,
     StudentTrainingService,
@@ -886,7 +886,8 @@ async def list_action_proposals(
 ):
     """List action proposals from INTERN agents."""
     query = db.query(AgentProposal).filter(
-        AgentProposal.proposal_type.in_([ProposalType.ACTION.value, ProposalType.ANALYSIS.value])
+        AgentProposal.proposal_type.in_([ProposalType.ACTION.value, ProposalType.ANALYSIS.value]),
+        AgentProposal.tenant_id == resolve_tenant_id(current_user),
     )
     if agent_id:
         query = query.filter(AgentProposal.agent_id == agent_id)
@@ -905,6 +906,7 @@ async def list_action_proposals(
                 "session_id": p.session_id,
                 "title": p.title,
                 "description": p.description,
+                "proposal_type": p.proposal_type,
                 "status": p.status,
                 "proposed_action": p.proposed_action,
                 "reasoning": p.reasoning,
@@ -928,6 +930,7 @@ async def approve_action_proposal(
     """Approve an action proposal and execute it (INTERN HITL loop)."""
     _require_supervisor(db, current_user)
     user_id: str = str(current_user.id)
+    tenant_id = resolve_tenant_id(current_user)
     service = ProposalService(db)
     try:
         if not request.approve:
@@ -935,6 +938,7 @@ async def approve_action_proposal(
                 proposal_id=proposal_id,
                 user_id=user_id,
                 reason="User rejected the proposal",
+                tenant_id=tenant_id,
             )
             return {"message": "Proposal rejected", "proposal_id": proposal_id}
 
@@ -942,9 +946,18 @@ async def approve_action_proposal(
             proposal_id=proposal_id,
             user_id=user_id,
             modifications=request.modifications,
+            tenant_id=tenant_id,
         )
+    except ProposalNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Proposal {proposal_id} not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Proposal execution failed for %s", proposal_id)
+        raise HTTPException(status_code=500, detail="Proposal execution failed")
+
+    if not isinstance(execution_result, dict) or execution_result.get("success") is not True:
+        raise HTTPException(status_code=500, detail="Proposal execution failed")
 
     return {
         "message": "Proposal approved and executed",
@@ -962,12 +975,16 @@ async def reject_action_proposal(
 ):
     _require_supervisor(db, current_user)
     user_id: str = str(current_user.id)
+    tenant_id = resolve_tenant_id(current_user)
     try:
         await ProposalService(db).reject_proposal(
             proposal_id=proposal_id,
             user_id=user_id,
             reason=request.reason,
+            tenant_id=tenant_id,
         )
+    except ProposalNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Proposal {proposal_id} not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -982,7 +999,9 @@ async def get_agent_proposal_history(
     db: Session = Depends(get_db),
 ):
     history = await ProposalService(db).get_proposal_history(
-        agent_id=agent_id, limit=limit
+        agent_id=agent_id,
+        limit=limit,
+        tenant_id=resolve_tenant_id(current_user),
     )
     return {"agent_id": agent_id, "proposal_history": history}
 

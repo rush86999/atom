@@ -19,6 +19,7 @@ composition, no interactive-context flag. These tests pin:
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -148,6 +149,47 @@ class TestExhaustionClassificationAndRefresh:
                 "t2", [("deepseek", "tencent/deepseek-v4-pro")], exclusions,
                 dispatched=False)
         assert calls == [["deepseek"]]
+
+    def test_direct_refresh_respects_discovery_backoff(self, monkeypatch):
+        import core.llm.model_route_registry as registry
+
+        calls = []
+
+        class FakeCatalog:
+            def freshness(self, provider_id):
+                return "stale"
+
+            def record_discovery(self, provider_id, model_ids):
+                calls.append((provider_id, tuple(model_ids)))
+
+            def record_discovery_failure(self, provider_id, error):
+                calls.append((provider_id, str(error)))
+
+        monkeypatch.setattr(
+            registry, "get_provider_model_catalog", lambda: FakeCatalog())
+        monkeypatch.setattr(
+            registry, "discover_provider_models",
+            lambda client, provider_id: (["model-1"], None))
+        h = _bare_handler()
+        h.clients = {"deepseek": object()}
+        first = h._refresh_provider_catalog()
+        second = h._refresh_provider_catalog()
+        assert first["deepseek"]["discovered"] == 1
+        assert second["deepseek"]["skipped"] == "discovery backoff"
+        assert calls == [("deepseek", ("model-1",))]
+
+    async def test_concurrent_refresh_claims_one_attempt(self, monkeypatch):
+        calls: list = []
+        h = _bare_handler()
+        monkeypatch.setattr(
+            h, "_refresh_provider_catalog",
+            lambda providers=None, force=False: calls.append(list(providers)))
+        results = await asyncio.gather(*(
+            h._refresh_stale_discovery_once(["deepseek"])
+            for _ in range(5)
+        ))
+        assert len(calls) == 1
+        assert any(result.get("refreshed") for result in results)
 
     async def test_fresh_catalog_and_cooldown_never_refresh(
             self, monkeypatch):

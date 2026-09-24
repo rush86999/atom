@@ -32,6 +32,10 @@ def _agent(**kw):
     return MagicMock(**base)
 
 
+def _ready_readiness():
+    return {"ready": True, "gaps": []}
+
+
 def _episode(**kw):
     base = dict(id="e1", agent_id="a1", task_description="Task",
                 human_intervention_count=1, constitutional_score=0.9,
@@ -222,8 +226,17 @@ class TestConsistencyBands:
 
 
 class TestPromoteBranches:
+    @pytest.fixture(autouse=True)
+    def ready_gate(self, svc):
+        with patch.object(
+            svc,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=_ready_readiness()),
+        ):
+            yield
+
     async def test_promote_notification_no_loop_fallback(self, svc):
-        agent = _agent(configuration=None)
+        agent = _agent(status=AgentStatus.STUDENT.value, configuration=None)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.notification_service.NotificationService") as ns, \
              patch("core.personal_scope.resolve_workspace_id",
@@ -231,7 +244,8 @@ class TestPromoteBranches:
              patch("core.personal_scope.resolve_tenant_id",
                    return_value="t1"), \
              patch("core.agent_graduation_service.POMDP_AVAILABLE", False), \
-             patch("asyncio.get_event_loop", side_effect=RuntimeError("no loop")), \
+             patch("core.agent_graduation_service.get_event_loop",
+                   side_effect=RuntimeError("no loop")), \
              patch("asyncio.new_event_loop") as new_loop, \
              patch("asyncio.set_event_loop") as set_loop:
             ns.return_value.send_notification = AsyncMock()
@@ -242,7 +256,7 @@ class TestPromoteBranches:
         set_loop.assert_called_once_with(new_loop.return_value)
 
     async def test_promote_notification_failure_tolerated(self, svc):
-        agent = _agent()
+        agent = _agent(status=AgentStatus.STUDENT.value)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.notification_service.NotificationService") as ns, \
              patch("core.personal_scope.resolve_workspace_id",
@@ -252,7 +266,7 @@ class TestPromoteBranches:
         assert result is True  # promotion already committed
 
     async def test_promote_pomdp_consolidation_success(self, svc):
-        agent = _agent()
+        agent = _agent(status=AgentStatus.STUDENT.value)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.notification_service.NotificationService") as ns, \
              patch("core.personal_scope.resolve_workspace_id",
@@ -270,7 +284,7 @@ class TestPromoteBranches:
         mc.return_value.consolidate_memories.assert_awaited_once_with("a1")
 
     async def test_promote_pomdp_consolidation_failure_tolerated(self, svc):
-        agent = _agent()
+        agent = _agent(status=AgentStatus.STUDENT.value)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.notification_service.NotificationService") as ns, \
              patch("core.personal_scope.resolve_workspace_id",

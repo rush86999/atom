@@ -27,6 +27,10 @@ let mockWsState: { lastMessage: any; isConnected: boolean } = {
 
 let mockFetchSessionTrace: jest.Mock;
 let mockSubmitStepFeedback: jest.Mock;
+const mockUseActionProposals = jest.fn();
+jest.mock('@/hooks/useActionProposals', () => ({
+  useActionProposals: (...args: any[]) => mockUseActionProposals(...args),
+}));
 jest.mock('@/lib/agent-trace-api', () => ({
   fetchSessionTrace: (...args: any[]) => mockFetchSessionTrace(...args),
   submitStepFeedback: (...args: any[]) => mockSubmitStepFeedback(...args),
@@ -55,6 +59,14 @@ jest.mock('../ArtifactSidebar', () => ({
   ),
 }));
 
+beforeEach(() => {
+  mockUseActionProposals.mockReturnValue({
+    pendingCount: null,
+    isPending: true,
+    isError: false,
+  });
+});
+
 describe('AgentWorkspace', () => {
   beforeEach(() => {
     mockWsState = { lastMessage: null, isConnected: false };
@@ -68,6 +80,17 @@ describe('AgentWorkspace', () => {
     expect(container.textContent).toContain('Tasks');
     expect(container.textContent).toContain('Artifacts');
     expect(container.textContent).toContain('Browser View');
+  });
+
+  test('shows the pending proposal count from the typed query', async () => {
+    mockUseActionProposals.mockReturnValue({
+      pendingCount: 2,
+      isPending: false,
+      isError: false,
+    });
+    renderWithProviders(<AgentWorkspace sessionId={null} initialAgentId="agent-1" />);
+
+    expect(await screen.findByTestId('pending-proposals-chip')).toHaveTextContent('2 pending proposals');
   });
 
   // Test 2: handles loading state initially

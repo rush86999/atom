@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ArtifactSidebar } from "./ArtifactSidebar";
 import { CanvasHost } from "./canvas-host";
+import { useActionProposals } from "@/hooks/useActionProposals";
 import {
     fetchSessionTrace, submitStepFeedback, TraceRun,
 } from "@/lib/agent-trace-api";
@@ -374,6 +375,14 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const historyRuns = runs.slice(0, -1);
     const totalSteps = currentRun?.steps.length ?? 0;
     const maturity = activeAgentId ? maturityByAgent[activeAgentId] : undefined;
+
+    const actionProposalsQuery = useActionProposals({
+        agentId: activeAgentId,
+        statusFilter: "pending_approval",
+        limit: 10,
+        enabled: Boolean(activeAgentId),
+    });
+    const pendingProposalCount = actionProposalsQuery.pendingCount;
 
     const handleClear = () => {
         setRuns([]);
@@ -779,6 +788,17 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                                         </span>
                                     )}
                                 </div>
+                            )}
+                            {pendingProposalCount !== null && pendingProposalCount > 0 && (
+                                <a
+                                    href="/approvals"
+                                    data-testid="pending-proposals-chip"
+                                    title="This agent has data-trigger proposals held for your review"
+                                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-300 hover:bg-violet-500/20 transition-colors"
+                                >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {pendingProposalCount} pending {pendingProposalCount === 1 ? "proposal" : "proposals"} · review
+                                </a>
                             )}
                         </CardContent>
                     </Card>

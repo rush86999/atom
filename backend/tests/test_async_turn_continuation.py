@@ -49,6 +49,15 @@ def _fresh_registry():
 
 
 @pytest.fixture(autouse=True)
+def _test_schema():
+    from core.database import engine
+    from core.models_registration import Base
+
+    Base.metadata.create_all(engine)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clean_registry():
     _fresh_registry()
     # Atomic-claim semantics WITHOUT a database: an in-memory PK map with
@@ -74,7 +83,10 @@ def _clean_registry():
         yield
     for t in list(atc._tasks.values()):
         if not t.done():
-            t.cancel()
+            try:
+                t.cancel()
+            except RuntimeError:
+                pass
     _fresh_registry()
 
 
@@ -467,6 +479,52 @@ async def test_orchestrator_forks_once_reply_honest_action_skipped(
     assert len(forks) == 1
     action.assert_not_awaited()
     assert result["message"] == "finishing in the background"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_fork_failure_returns_honest_no_apply(monkeypatch):
+    monkeypatch.setenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "8")
+    monkeypatch.setattr(chat, "_CANVAS_LEG_MAX_SECONDS", 0.5)
+    monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
+
+    orch = chat.ChatOrchestrator()
+    session = {"id": "sess-fork-fail", "history": []}
+    canvas = {"canvas_id": "cv1", "canvas_type": "email",
+              "content": {"subject": "Draft", "body": "Unchanged"}}
+
+    async def slow_edit(*a, **k):
+        await asyncio.sleep(5)
+        return None
+
+    reply = AsyncMock()
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=canvas)),
+        patch.object(orch, "_start_chat_execution", return_value="e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_try_canvas_edit", side_effect=slow_edit),
+        patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+        patch.object(orch, "_get_qwen_response", new=reply),
+        patch("core.chat_tool_planner.plan_tool_use",
+              new=AsyncMock(return_value=None)),
+        patch("core.chat_tool_planner._provenance_menu",
+              new=AsyncMock(return_value="")),
+        patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+              return_value=None),
+        patch("core.async_turn_continuation.continuation_in_flight",
+              return_value=None),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "rebuild the draft with the quotes", "sess-fork-fail",
+            context={"canvas_id": "cv1"})
+
+    assert result["data"]["canvas_edit"]["updated"] is False
+    assert result["data"]["canvas_edit"]["reason"] == "background_fork_unavailable"
+    reply.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -91,7 +91,8 @@ except ImportError:
 # Critical environment variables to isolate between tests
 _CRITICAL_ENV_VARS = [
     'SECRET_KEY', 'ENVIRONMENT', 'DATABASE_URL', 'ALLOW_DEV_TEMP_USERS',
-    'BYOK_CONFIG_FILE', 'BYOK_KEYS_FILE', 'BYOK_ENCRYPTION_KEY'
+    'BYOK_CONFIG_FILE', 'BYOK_KEYS_FILE', 'BYOK_ENCRYPTION_KEY',
+    'ATOM_PROVIDER_MODEL_CATALOG_PATH'
 ]
 
 
@@ -270,6 +271,17 @@ def setup_byok_test_env():
         # worked because _get_fernet silently swapped in a fresh key on error
         # (removed in R61: fail-loud instead of silent key rotation).
         os.environ['BYOK_ENCRYPTION_KEY'] = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+        catalog_path = os.path.join(tmp_dir, "provider_model_catalog.json")
+        os.environ['ATOM_PROVIDER_MODEL_CATALOG_PATH'] = catalog_path
+        catalog_module = None
+        previous_catalog = None
+        try:
+            import core.llm.model_route_registry as catalog_module
+            previous_catalog = catalog_module._CATALOG
+            catalog_module._CATALOG = catalog_module.ProviderModelCatalog(
+                path=catalog_path)
+        except ImportError:
+            pass
 
         # The BYOK modules resolve their file-path constants at import time,
         # and pytest imports test modules (hence api.byok_routes /
@@ -297,6 +309,10 @@ def setup_byok_test_env():
             json.dump({"keys": {}}, f)
 
         yield
+
+        if catalog_module is not None:
+            catalog_module._CATALOG = previous_catalog
+            os.environ.pop('ATOM_PROVIDER_MODEL_CATALOG_PATH', None)
 
         # Env vars will be popped/restored by isolate_environment fixture if it was used,
         # but setup_byok_test_env is session-scoped, so it sets them for everyone.

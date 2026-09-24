@@ -4,7 +4,7 @@ Tests for Agent Graduation Service
 
 import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from core.agent_graduation_service import AgentGraduationService
 from core.models import AgentRegistry, AgentStatus, Episode
@@ -219,13 +219,21 @@ class TestAgentPromotion:
         db_session.query = query_return_value
 
         service = AgentGraduationService(db_session)
+        readiness = AsyncMock(return_value={"ready": True, "gaps": []})
 
         import asyncio
-        result = asyncio.run(service.promote_agent(
-            agent_id="student_agent_123",
-            new_maturity="INTERN",
-            validated_by="admin_user"
-        ))
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=readiness,
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False), \
+             patch("core.notification_service.NotificationService",
+                   side_effect=RuntimeError("mocked")):
+            result = asyncio.run(service.promote_agent(
+                agent_id="student_agent_123",
+                new_maturity="INTERN",
+                validated_by="admin_user"
+            ))
 
         assert result is True
         # Check that configuration was updated

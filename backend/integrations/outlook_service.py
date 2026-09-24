@@ -1284,6 +1284,7 @@ class OutlookService(IntegrationService):
         cc_recipients: Optional[List[str]] = None,
         bcc_recipients: Optional[List[str]] = None,
         token: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create draft email"""
         try:
@@ -1305,6 +1306,8 @@ class OutlookService(IntegrationService):
                 "ccRecipients": cc_recipients_data,
                 "bccRecipients": bcc_recipients_data,
             }
+            if conversation_id:
+                email_data["conversationId"] = conversation_id
 
             result = await self._make_graph_request(
                 user_id, "/me/messages", "POST", email_data, access_token=token

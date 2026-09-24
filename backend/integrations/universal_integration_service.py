@@ -1,5 +1,6 @@
 
 import asyncio
+import hashlib
 import logging
 import os
 from datetime import datetime, timezone
@@ -406,6 +407,230 @@ async def _download_storage_file_bytes(service: str, storage_service: Any, token
     if service == "dropbox":
         return await storage_service.download_file(file_id, token)
     return None
+
+
+def _storage_hit_value(hit: Dict[str, Any], *keys: str) -> Any:
+    if not isinstance(hit, dict):
+        return None
+    for key in keys:
+        value = hit.get(key)
+        if value not in (None, ""):
+            return value
+    for container_key in ("attributes", "metadata", "data"):
+        container = hit.get(container_key)
+        if isinstance(container, dict):
+            for key in keys:
+                value = container.get(key)
+                if value not in (None, ""):
+                    return value
+    return None
+
+
+def _storage_hit_id(hit: Dict[str, Any]) -> Optional[str]:
+    value = _storage_hit_value(
+        hit, "id", "file_id", "fileId", "resource_id", "external_id"
+    )
+    return str(value) if value not in (None, "") else None
+
+
+def _storage_hit_name(hit: Dict[str, Any]) -> Optional[str]:
+    value = _storage_hit_value(hit, "name", "display_name", "title", "file_name")
+    return str(value) if value not in (None, "") else None
+
+
+def _storage_requested_name(query: str) -> Optional[str]:
+    try:
+        from core.agent_file_context import detect_file_task_mentions
+
+        mentions = detect_file_task_mentions(query or "")
+        if mentions:
+            return mentions[0]
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_storage_hits(
+    hits: List[Dict[str, Any]], query: str, service: str, user_id: Optional[str]
+) -> Dict[str, Any]:
+    requested = _storage_requested_name(query)
+    result: Dict[str, Any] = {
+        "requested_name": requested,
+        "identity_verified": False,
+        "ambiguous": False,
+        "file_id": None,
+        "file_name": None,
+        "provider": service,
+        "resource_id": None,
+        "source_metadata": None,
+        "candidates": [],
+    }
+    if not hits:
+        result["reason"] = "no_hits"
+        return result
+
+    exact: List[Dict[str, Any]] = []
+    candidates: List[Dict[str, Any]] = []
+    for hit in hits:
+        name = _storage_hit_name(hit)
+        resource_id = _storage_hit_id(hit)
+        if not name or not resource_id:
+            continue
+        item = {
+            "id": resource_id,
+            "name": name,
+            "type": str(_storage_hit_value(hit, "type", "kind") or "file"),
+            "team_id": _storage_hit_value(hit, "team_id", "teamId"),
+            "folder_id": _storage_hit_value(
+                hit, "folder_id", "parent_id", "parentId"
+            ),
+            "modified_at": _storage_hit_value(
+                hit, "modified_at", "modified_time", "modifiedAt", "version"
+            ),
+            "size": _storage_hit_value(hit, "size", "size_in_bytes"),
+            "extension": _storage_hit_value(hit, "extension", "extn"),
+            "raw": hit,
+        }
+        candidates.append(item)
+        if requested:
+            try:
+                from core.agent_file_context import score_file_match
+
+                tier = score_file_match(requested, name)
+            except Exception:
+                tier = None
+            if tier in ("exact", "normalized"):
+                exact.append(item)
+        elif service == "zoho_workdrive":
+            exact.append(item)
+
+    unique_exact = {item["id"]: item for item in exact}
+    if len(unique_exact) > 1:
+        result["ambiguous"] = True
+        result["candidates"] = [
+            {"id": item["id"], "name": item["name"]}
+            for item in unique_exact.values()
+        ]
+        result["reason"] = "duplicate_exact_name"
+        return result
+
+    chosen = next(iter(unique_exact.values()), None)
+    if chosen is None and requested and len(candidates) == 1:
+        chosen = candidates[0]
+        result["reason"] = "single_candidate_not_verified"
+    if chosen is None:
+        result["candidates"] = [
+            {"id": item["id"], "name": item["name"]} for item in candidates[:5]
+        ]
+        result["reason"] = "no_exact_name"
+        return result
+
+    metadata = {
+        "team_id": chosen.get("team_id"),
+        "folder_id": chosen.get("folder_id"),
+        "modified_at": chosen.get("modified_at"),
+        "size": chosen.get("size"),
+        "extension": chosen.get("extension"),
+        "user_id": str(user_id) if user_id else None,
+    }
+    metadata = {key: value for key, value in metadata.items() if value is not None}
+    complete = bool(
+        chosen.get("id")
+        and chosen.get("name")
+        and chosen.get("type") != "folder"
+        and (metadata.get("modified_at") or metadata.get("version"))
+        and (metadata.get("team_id") or metadata.get("folder_id"))
+    )
+    result.update({
+        "file_id": chosen["id"],
+        "resource_id": chosen["id"],
+        "file_name": chosen["name"],
+        "source_metadata": metadata,
+        "identity_verified": bool(unique_exact and complete),
+    })
+    result["candidates"] = [
+        {"id": item["id"], "name": item["name"]} for item in candidates[:5]
+    ]
+    return result
+
+
+async def _refresh_storage_metadata(
+    service: str, storage_service: Any, user_id: Optional[str], identity: Dict[str, Any]
+) -> Dict[str, Any]:
+    getter = getattr(storage_service, "get_file_metadata", None)
+    if not callable(getter) or not identity.get("resource_id"):
+        return identity
+    try:
+        raw = await getter(user_id, identity["resource_id"])
+    except Exception as e:
+        identity["metadata_error"] = str(e)[:160]
+        return identity
+    name = _storage_hit_name(raw or {})
+    resource_id = _storage_hit_id(raw or {})
+    if not resource_id or not name:
+        identity["identity_verified"] = False
+        identity["metadata_error"] = "metadata_incomplete"
+    elif resource_id != identity.get("resource_id"):
+        identity["identity_verified"] = False
+        identity["metadata_error"] = "resource_id_mismatch"
+    if name and not identity.get("file_name"):
+        identity["file_name"] = name
+    if isinstance(raw, dict):
+        raw_meta = {
+            "team_id": _storage_hit_value(raw, "team_id", "teamId"),
+            "folder_id": _storage_hit_value(raw, "folder_id", "parent_id", "parentId"),
+            "modified_at": _storage_hit_value(raw, "modified_at", "modified_time", "version"),
+            "version": _storage_hit_value(raw, "version"),
+            "size": _storage_hit_value(raw, "size", "size_in_bytes"),
+            "extension": _storage_hit_value(raw, "extension", "extn"),
+            "user_id": str(user_id) if user_id else None,
+        }
+        identity["source_metadata"] = {
+            **(identity.get("source_metadata") or {}),
+            **{key: value for key, value in raw_meta.items() if value is not None},
+            "provider_metadata": raw,
+        }
+        if resource_id and name and not identity.get("metadata_error"):
+            requested_name = identity.get("requested_name")
+            requested_matches = True
+            if requested_name:
+                try:
+                    from core.agent_file_context import score_file_match
+
+                    requested_matches = score_file_match(
+                        requested_name, name
+                    ) in ("exact", "normalized")
+                except Exception:
+                    requested_matches = False
+            identity["metadata_verified"] = bool(requested_matches)
+            identity["identity_verified"] = bool(
+                requested_matches
+                and identity.get("reason") != "single_candidate_not_verified"
+                and (
+                    (identity["source_metadata"].get("modified_at")
+                     or identity["source_metadata"].get("version"))
+                    and (identity["source_metadata"].get("team_id")
+                         or identity["source_metadata"].get("folder_id"))
+                )
+            )
+    if name and identity.get("file_name"):
+        try:
+            from core.agent_file_context import score_file_match
+
+            if score_file_match(identity["file_name"], name) not in (
+                "exact", "normalized"
+            ):
+                identity["identity_verified"] = False
+                identity["metadata_error"] = "name_mismatch"
+        except Exception:
+            pass
+    if isinstance(raw, dict):
+        identity["source_metadata"] = {
+            **(identity.get("source_metadata") or {}),
+            "provider_metadata": raw,
+        }
+        identity["metadata_verified"] = bool(resource_id and name)
+    return identity
 
 
 def _dataset_reverify_due(ds_result: Dict[str, Any]) -> bool:
@@ -2034,19 +2259,22 @@ class UniversalIntegrationService:
         query = (params.get("query") or "").strip()
         file_id = params.get("file_id") or params.get("id")
         file_name: Optional[str] = None
+        identity_verified = bool(params.get("identity_verified"))
+        identity: Dict[str, Any] = {
+            "provider": service,
+            "resource_id": str(file_id) if file_id else None,
+            "file_name": params.get("file_name"),
+            "source_metadata": params.get("source_metadata") or {},
+            "identity_verified": identity_verified,
+        }
 
         try:
-            # --- dataset fast path: resolve from the CATALOG first --------
-            # The drive search is the variable cost here (fan-out latency,
-            # AND-matching that zeroes out on over-specific queries — live
-            # 2026-09-07: "consolidated price list 2019 WG-350DSAV" matched
-            # nothing) while the catalog is local. When the top catalog hit
-            # can answer via NL→SQL over a TTL-fresh copy, return it without
-            # touching the drive at all; every other case (no entry, stale,
-            # LLM absent, empty SQL) continues to normal resolution below,
-            # where the search-hit's own mtime provides the stricter
-            # freshness proof for the second fast-path attempt.
-            if query and context.get("llm_service"):
+            if (
+                (identity_verified or not callable(
+                    getattr(storage_service, "get_file_metadata", None)
+                ))
+                and query and context.get("llm_service")
+            ):
                 try:
                     from core.sheet_dataset_service import (
                         answer_from_datasets,
@@ -2111,14 +2339,7 @@ class UniversalIntegrationService:
                 hits: List[Dict[str, Any]] = []
                 if service == "zoho_workdrive":
                     raw = await storage_service.search_files(
-                        user_id or token, query or " ", limit=5)
-                    # search_files returns a PLAIN LIST of file records (and
-                    # always has — the dict unwrap here matched no real
-                    # shape, so every planner read without an explicit
-                    # file_id resolved zero hits and returned found:False
-                    # while the file sat on the drive; live 2026-09-04
-                    # 'Consolidated Price List' read). Tolerate both shapes
-                    # in case a wrapped envelope appears later.
+                        user_id or token, query or " ", limit=20)
                     if isinstance(raw, list):
                         hits = raw
                     else:
@@ -2141,20 +2362,105 @@ class UniversalIntegrationService:
                 if not hits:
                     return {"status": "success", "data": {
                         "found": False,
+                        "served": False,
+                        "identity_verified": False,
                         "message": f"No file in {service} matched '{query}'.",
                     }}
-                file_id, file_name = self._best_file_match(hits, query)
-                # The connector's own modified-time for the chosen hit — the
-                # freshness proof the dataset fast path below checks against
-                # its materialized copy.
-                source_modified_hint = next(
-                    (
-                        h.get("modified_at") or h.get("modified_time")
-                        for h in hits
-                        if str(h.get("id") or h.get("file_id") or h.get("fileId") or "") == str(file_id)
-                    ),
-                    None,
+                if not callable(getattr(storage_service, "get_file_metadata", None)):
+                    _legacy_id, _legacy_name = self._best_file_match(hits, query)
+                    identity = {
+                        "provider": service,
+                        "resource_id": str(_legacy_id) if _legacy_id else None,
+                        "file_name": _legacy_name,
+                        "source_metadata": {},
+                        "identity_verified": False,
+                    }
+                else:
+                    identity = _resolve_storage_hits(
+                        hits, query, service, user_id or token
+                    )
+                    identity = await _refresh_storage_metadata(
+                        service, storage_service, user_id or token, identity
+                    )
+                if (
+                    context.get("file_identity_confirmed")
+                    and identity.get("reason") == "single_candidate_not_verified"
+                    and not identity.get("metadata_error")
+                    and identity.get("resource_id")
+                    and identity.get("source_metadata", {}).get("modified_at")
+                    and (
+                        identity.get("source_metadata", {}).get("team_id")
+                        or identity.get("source_metadata", {}).get("folder_id")
+                    )
+                ):
+                    identity["identity_verified"] = True
+                    identity["identity_confirmation"] = "unique_candidate"
+                if identity.get("ambiguous"):
+                    return {"status": "success", "data": {
+                        "found": False,
+                        "served": False,
+                        "identity_verified": False,
+                        "ambiguous": True,
+                        "candidates": identity.get("candidates") or [],
+                        "message": "More than one file matched the requested name.",
+                    }}
+                file_id = identity.get("file_id")
+                file_name = identity.get("file_name")
+                identity_verified = bool(identity.get("identity_verified"))
+                if not file_id:
+                    if not callable(getattr(storage_service, "get_file_metadata", None)):
+                        file_id, file_name = self._best_file_match(hits, query)
+                        identity = {
+                            "provider": service,
+                            "resource_id": str(file_id) if file_id else None,
+                            "file_name": file_name,
+                            "source_metadata": {},
+                            "identity_verified": False,
+                        }
+                if not file_id:
+                    return {"status": "success", "data": {
+                        "found": False,
+                        "served": False,
+                        "identity_verified": False,
+                        "candidates": identity.get("candidates") or [],
+                        "message": "The requested file identity could not be resolved.",
+                    }}
+                source_modified_hint = (identity.get("source_metadata") or {}).get(
+                    "modified_at"
                 )
+            else:
+                identity = {
+                    "provider": service,
+                    "resource_id": str(file_id),
+                    "file_name": params.get("file_name"),
+                    "requested_name": _storage_requested_name(query),
+                    "source_metadata": params.get("source_metadata") or {},
+                    "identity_verified": bool(params.get("identity_verified")),
+                }
+                identity = await _refresh_storage_metadata(
+                    service, storage_service, user_id or token, identity
+                )
+                identity_verified = bool(identity.get("identity_verified"))
+                file_name = identity.get("file_name") or file_name
+                source_modified_hint = (identity.get("source_metadata") or {}).get(
+                    "modified_at"
+                )
+
+            if (
+                not identity_verified
+                and service == "zoho_workdrive"
+                and callable(getattr(storage_service, "get_file_metadata", None))
+            ):
+                return {"status": "success", "data": {
+                    "found": False,
+                    "served": False,
+                    "identity_verified": False,
+                    "ambiguous": bool(identity.get("ambiguous")),
+                    "candidates": identity.get("candidates") or [],
+                    "resource_id": identity.get("resource_id"),
+                    "file_name": identity.get("file_name"),
+                    "message": "The file name resolved only to an unverified candidate.",
+                }}
 
             # --- dataset fast path (BEFORE the download) -----------------
             # The chat harness runs ONE planned tool leg per turn and the
@@ -2166,7 +2472,7 @@ class UniversalIntegrationService:
             # unavailable, bad SQL, zero rows) falls through to the ordinary
             # download→extract→excerpt path, so this can only SKIP a
             # 13MB-download/10s-parse round trip, never degrade an answer.
-            if query and context.get("llm_service"):
+            if identity_verified and query and context.get("llm_service"):
                 try:
                     from core.sheet_dataset_service import (
                         answer_from_datasets,
@@ -2183,6 +2489,13 @@ class UniversalIntegrationService:
                         if ds_result:
                             return {"status": "success", "data": {
                                 "found": True,
+                                "served": True,
+                                "identity_verified": identity_verified,
+                                "resource_id": str(file_id),
+                                "provider": service,
+                                "source_metadata": identity.get("source_metadata") or {},
+                                "read_completed": True,
+                                "coverage_complete": False,
                                 "file_id": file_id,
                                 "file_name": file_name or ds_result.get("file_name"),
                                 "chars_extracted": ds_result.get("row_count", 0),
@@ -2218,7 +2531,13 @@ class UniversalIntegrationService:
                 content = await storage_service.download_file(file_id or query, token)
             if not content:
                 return {"status": "success", "data": {
-                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "found": False,
+                    "served": False,
+                    "identity_verified": identity_verified,
+                    "resource_id": str(file_id),
+                    "provider": service,
+                    "file_id": file_id,
+                    "file_name": file_name,
                     "message": f"Found the file in {service} but the download failed.",
                 }}
             if not file_name:
@@ -2307,9 +2626,92 @@ class UniversalIntegrationService:
             )
             if not text or not text.strip():
                 return {"status": "success", "data": {
-                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "found": False,
+                    "served": False,
+                    "identity_verified": identity_verified,
+                    "resource_id": str(file_id),
+                    "provider": service,
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "read_completed": False,
                     "message": f"Opened {file_name} but no text could be extracted from it.",
                 }}
+
+            workbook_read = None
+            _context_texts = []
+            if file_ext in ("xlsx", "xlsm"):
+                try:
+                    from core.workbook_read_artifact import inspect_workbook_bytes
+
+                    for _entry in (context.get("history") or []):
+                        if isinstance(_entry, dict):
+                            _context_texts.append(str(_entry.get("message") or ""))
+                            _response = _entry.get("response")
+                            if isinstance(_response, dict):
+                                _context_texts.append(str(_response.get("message") or ""))
+                    _canvas_value = context.get("canvas")
+                    if _canvas_value:
+                        _context_texts.append(str(_canvas_value))
+                    workbook_read = await asyncio.to_thread(
+                        inspect_workbook_bytes,
+                        content,
+                        file_name,
+                        query=query,
+                        context_texts=_context_texts,
+                        targets=context.get("requested_targets"),
+                        provider=service,
+                        resource_id=str(file_id),
+                        source_metadata=identity.get("source_metadata") or {},
+                    )
+                except Exception as artifact_err:
+                    logger.warning(
+                        f"workbook read artifact unavailable for {file_name}: "
+                        f"{artifact_err}"
+                    )
+                if not workbook_read or not workbook_read.get("all_sheets_searched"):
+                    try:
+                        from core.sheet_dataset_service import (
+                            ensure_sheet_dataset,
+                            entries_for_file_sync,
+                            sheet_datasets_enabled,
+                        )
+                        from core.workbook_read_artifact import (
+                            inspect_dataset_entries,
+                        )
+
+                        if sheet_datasets_enabled():
+                            _dataset_result = await ensure_sheet_dataset(
+                                content,
+                                file_name=file_name,
+                                source=service,
+                                user_id=user_id,
+                                workspace_id=context.get("workspace_id") or "default",
+                                external_id=str(file_id),
+                                source_modified_at=source_modified_hint,
+                            )
+                            if _dataset_result.get("status") in (
+                                "materialized", "current"
+                            ):
+                                _entries = await asyncio.to_thread(
+                                    entries_for_file_sync, service, str(file_id)
+                                )
+                                workbook_read = await asyncio.to_thread(
+                                    inspect_dataset_entries,
+                                    _entries,
+                                    file_name,
+                                    query=query,
+                                    context_texts=_context_texts,
+                                    targets=context.get("requested_targets"),
+                                    provider=service,
+                                    resource_id=str(file_id),
+                                    source_metadata=identity.get("source_metadata") or {},
+                                    sha256=hashlib.sha256(content).hexdigest(),
+                                )
+                    except Exception as dataset_artifact_err:
+                        logger.warning(
+                            f"dataset workbook artifact unavailable for "
+                            f"{file_name}: {dataset_artifact_err}"
+                        )
 
             # --- ingest (warming the hybrid index) — best-effort ----------
             ingested = False
@@ -2332,6 +2734,23 @@ class UniversalIntegrationService:
                 logger.warning(f"read-path ingest skipped for {file_name}: {ingest_err}")
 
             excerpt = _query_anchored_excerpt(text, query)
+            coverage_complete = file_ext not in ("xlsx", "xls", "xlsm", "csv", "tsv")
+            if workbook_read:
+                try:
+                    from core.workbook_read_artifact import render_workbook_artifact
+
+                    excerpt = (
+                        f"{excerpt}\n\n"
+                        f"{render_workbook_artifact(workbook_read)}"
+                    )
+                except Exception:
+                    pass
+                coverage = (workbook_read.get("coverage") or {})
+                coverage_complete = bool(
+                    workbook_read.get("all_sheets_searched")
+                    and not workbook_read.get("truncated")
+                    and coverage.get("complete")
+                )
             # After this open the file has SQL-queryable datasets (if it is a
             # sheet) — the NEXT value question about it skips the download
             # entirely via the fast path above. Surface that in the note so
@@ -2351,6 +2770,15 @@ class UniversalIntegrationService:
                 dataset_note = ""
             return {"status": "success", "data": {
                 "found": True,
+                "served": True,
+                "identity_verified": identity_verified,
+                "resource_id": str(file_id),
+                "provider": service,
+                "source_metadata": identity.get("source_metadata") or {},
+                "read_completed": True,
+                "coverage_complete": coverage_complete,
+                "workbook_read": workbook_read,
+                "content_sha256": hashlib.sha256(content).hexdigest(),
                 "file_id": file_id,
                 "file_name": file_name,
                 "chars_extracted": len(text),
@@ -2364,7 +2792,13 @@ class UniversalIntegrationService:
             }}
         except Exception as e:
             logger.error(f"read_storage_file failed ({service}, file={file_id}): {e}")
-            return {"status": "error", "message": f"Could not open the file: {e}"}
+            return {"status": "error", "message": f"Could not open the file: {e}", "data": {
+                "found": False,
+                "served": False,
+                "identity_verified": False,
+                "read_completed": False,
+                "coverage_complete": False,
+            }}
 
     @staticmethod
     def _best_file_match(

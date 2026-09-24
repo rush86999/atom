@@ -35,6 +35,16 @@ def graduation_service(db_session):
     return AgentGraduationService(db_session)
 
 
+@pytest.fixture
+def ready_promotion(graduation_service):
+    with patch.object(
+        graduation_service,
+        "calculate_readiness_score",
+        new=AsyncMock(return_value={"ready": True, "gaps": []}),
+    ):
+        yield graduation_service
+
+
 # ========================================================================
 # Task 2.1: Maturity Level Transitions
 # ========================================================================
@@ -231,7 +241,7 @@ class TestPermissionMatrixValidation:
     """Test permission matrix validation on graduation."""
 
     @pytest.mark.asyncio
-    async def test_promote_agent_updates_maturity_level(self, graduation_service, db_session):
+    async def test_promote_agent_updates_maturity_level(self, ready_promotion, db_session):
         """Test promoting agent updates maturity level in database."""
         agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
@@ -240,7 +250,7 @@ class TestPermissionMatrixValidation:
         original_status = agent.status
 
         # Promote to INTERN
-        success = await graduation_service.promote_agent(
+        success = await ready_promotion.promote_agent(
             agent_id=agent.id,
             new_maturity="INTERN",
             validated_by="test_user"
@@ -279,13 +289,13 @@ class TestPermissionMatrixValidation:
         assert success is False
 
     @pytest.mark.asyncio
-    async def test_promotion_metadata_updated(self, graduation_service, db_session):
+    async def test_promotion_metadata_updated(self, ready_promotion, db_session):
         """Test promotion updates agent metadata."""
         agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
 
         validated_by = "admin_user"
-        await graduation_service.promote_agent(
+        await ready_promotion.promote_agent(
             agent_id=agent.id,
             new_maturity="INTERN",
             validated_by=validated_by
@@ -548,7 +558,7 @@ class TestEdgeCases:
     """Test edge cases and error handling."""
 
     @pytest.mark.asyncio
-    async def test_promote_agent_updates_timestamp(self, graduation_service, db_session):
+    async def test_promote_agent_updates_timestamp(self, ready_promotion, db_session):
         """Test promotion updates agent timestamp."""
         agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
@@ -561,7 +571,7 @@ class TestEdgeCases:
         db_session.refresh(agent)
         original_updated = agent.updated_at
 
-        await graduation_service.promote_agent(
+        await ready_promotion.promote_agent(
             agent_id=agent.id,
             new_maturity="INTERN",
             validated_by="test_user"

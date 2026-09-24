@@ -7014,6 +7014,10 @@ async def execute_tool_plan(
                     for h in ((context or {}).get("history") or [])
                     if isinstance(h, dict) and h.get("message")
                 ][-6:],
+                "message": (context or {}).get("message") or query,
+                "history": (context or {}).get("history") or [],
+                "canvas": (context or {}).get("canvas"),
+                "requested_targets": (context or {}).get("requested_targets"),
                 "llm_service": llm_service,
             }
 
@@ -7024,6 +7028,49 @@ async def execute_tool_plan(
                 )
         result = await _run_call()
         data = result.get("data") if isinstance(result, dict) else None
+
+        # STORAGE-READ IDENTITY + COMPLETION (2026-09-23): a storage read
+        # resolves a concrete file — record WHICH file (service, resource
+        # id, name) and whether the read COMPLETED (content extracted) or
+        # merely found/failed (found-but-download-failed, no-text, search
+        # miss). The chat layer needs both to keep a pending file task
+        # alive across turns: identity and completion are separate facts.
+        try:
+            if (
+                result.get("status") == "success"
+                and isinstance(data, dict)
+                and (
+                    data.get("file_id")
+                    or data.get("resource_id")
+                    or data.get("file_name")
+                )
+            ):
+                _meta = getattr(plan, "_result_meta", None)
+                if not isinstance(_meta, dict):
+                    _meta = {}
+                    plan._result_meta = _meta
+                _meta["storage_read"] = {
+                    "service": service,
+                    "file_id": data.get("file_id"),
+                    "resource_id": data.get("resource_id") or data.get("file_id"),
+                    "file_name": data.get("file_name"),
+                    "identity_verified": bool(data.get("identity_verified")),
+                    "source_metadata": data.get("source_metadata") or {},
+                    "served": bool(data.get("served", data.get("found"))),
+                    "read_completed": bool(data.get("read_completed", False)),
+                    "coverage_complete": bool(data.get("coverage_complete", False)),
+                    "workbook_read": data.get("workbook_read"),
+                    "content_sha256": data.get("content_sha256"),
+                    "completed": bool(
+                        data.get("read_completed")
+                        and data.get("served", data.get("found"))
+                    ),
+                    "note": data.get("message"),
+                    "dataset_sheet": (data.get("dataset") or {}).get(
+                        "sheet"),
+                }
+        except Exception:  # noqa: BLE001 — meta is best-effort
+            pass
 
         # SEARCH-MISS → ON-DEMAND INGEST (generalized from the outlook leg,
         # live 2026-09-11 Seguin incident): an EMPTY live search is exactly
@@ -7157,6 +7204,18 @@ async def execute_tool_plan(
                 f"returned nothing usable ({reason}).{ingest_note}"
             )
         if action == "read_file" and isinstance(data, dict):
+            plan._result_meta["file_read"] = {
+                "served": bool(data.get("served", data.get("found"))),
+                "identity_verified": bool(data.get("identity_verified")),
+                "resource_id": data.get("resource_id") or data.get("file_id"),
+                "provider": data.get("provider") or service,
+                "file_name": data.get("file_name"),
+                "source_metadata": data.get("source_metadata") or {},
+                "read_completed": bool(data.get("read_completed", False)),
+                "coverage_complete": bool(data.get("coverage_complete", False)),
+                "workbook_read": data.get("workbook_read"),
+                "content_sha256": data.get("content_sha256"),
+            }
             # The file was OPENED — render the excerpt as first-class
             # evidence rather than str(dict) noise. found=False /
             # download-failure envelopes fall through to the generic path.
@@ -7196,14 +7255,23 @@ async def execute_tool_plan(
             # with a read intent means the open FAILED (not found / download
             # / extraction) — same dead-end class, same second source. Files
             # with no ingested copy still surface as plain metadata hits.
-            mem_block = await _memory_search_block(user_id, query, context)
-            if mem_block:
-                return _with_grounding(
-                    f"{header}\n\nThe results above are METADATA only — file "
-                    f"records, not contents. INGESTED COPY, full-text search "
-                    f"over the workspace's own extracted file contents "
-                    f"(authoritative for what the files SAY):\n{mem_block}"
-                )
+            _file_read_failure = False
+            if action == "read_file":
+                try:
+                    from core.agent_file_context import detect_file_task_mentions
+
+                    _file_read_failure = bool(detect_file_task_mentions(query))
+                except Exception:
+                    _file_read_failure = False
+            if not _file_read_failure:
+                mem_block = await _memory_search_block(user_id, query, context)
+                if mem_block:
+                    return _with_grounding(
+                        f"{header}\n\nThe results above are METADATA only — file "
+                        f"records, not contents. INGESTED COPY, full-text search "
+                        f"over the workspace's own extracted file contents "
+                        f"(authoritative for what the files SAY):\n{mem_block}"
+                    )
         if service in _COMMUNICATION_SERVICES or _haystack_has_address(query, context):
             # Same anchoring lesson as the outlook leg: a live mailbox/chat
             # search "succeeds" with whatever the provider's relevance

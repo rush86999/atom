@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 import unittest
@@ -19,18 +20,32 @@ from sqlalchemy.orm import configure_mappers, sessionmaker
 import core.models
 from core.communication_intelligence import CommunicationIntelligenceService
 from core.database import Base
-from core.models import Workspace
+from core.models import User, Workspace
 
 
 class _FakeLLM:
-    """Stand-in for KnowledgeExtractor.llm_service — returns the graph JSON
-    the tests' MockAIService used to produce via analyze_text."""
+    """Stand-in for KnowledgeExtractor.llm_service.
+
+    Extraction drifted from generate_completion to the structured-response
+    contract (generate_structured_response returns a response_model instance
+    whose model_dump() is the graph dict) — this fake was still serving the
+    old shape and every analyze_and_route test silently degraded to empty
+    knowledge. Both methods now serve the same FAKE_GRAPH_JSON."""
 
     def __init__(self, json_str):
         self.json_str = json_str
 
     async def generate_completion(self, **kwargs):
         return {"content": self.json_str}
+
+    async def generate_structured_response(self, **kwargs):
+        raw = self.json_str
+
+        class _StructuredResult:
+            def model_dump(self):
+                return json.loads(raw)
+
+        return _StructuredResult()
 
 
 FAKE_GRAPH_JSON = """
@@ -76,9 +91,14 @@ class TestCommunicationIntelligence(unittest.TestCase):
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.db = self.SessionLocal()
         
-        # Setup Workspace & Deal
+        # Setup Workspace, User & Deal
         self.ws = Workspace(id="w1", name="Intel Corp")
         self.db.add(self.ws)
+        self.db.add(User(
+            id="u1", email="u1@example.com", hashed_password="x",
+            first_name="Test", last_name="User", role="member",
+            status="active", workspace_id="w1",
+        ))
         self.deal = Deal(id="deal_1", workspace_id="w1", name="Big Contract", value=5000.0, external_id="ext_deal_123", stage="negotiation")
         self.db.add(self.deal)
         self.db.commit()
@@ -100,6 +120,7 @@ class TestCommunicationIntelligence(unittest.TestCase):
             "id": "msg_1",
             "content": "Let's move forward with the $5k deal.",
             "app_type": "email",
+            "workspace_id": "w1",
             "metadata": {"user_id": "u1"}
         }
         

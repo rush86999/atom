@@ -935,6 +935,69 @@ async def test_non_edit_canvas_turn_falls_through_to_normal_path():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("message", [
+    "set a follow-up for tomorrow",
+    "remove this task",
+    "create a task for the email",
+])
+async def test_canvas_task_commands_use_normal_route(message):
+    from integrations.chat_orchestrator import ChatIntent
+
+    orch = _orch()
+    session = {"id": "s-task", "user_id": "user-1", "history": []}
+    task_analysis = {
+        "primary_intent": ChatIntent.TASK_MANAGEMENT,
+        "confidence": 0.9,
+        "entities": [],
+        "platforms": [],
+        "command_type": "create",
+    }
+
+    with patch.object(orch, "_get_or_create_session", return_value=session), \
+         patch.object(orch, "_start_chat_execution", return_value="exec-task"), \
+         patch.object(orch, "_emit_agent_status", new=AsyncMock()), \
+         patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=_canvas())), \
+         patch.object(orch, "_try_canvas_edit", new=AsyncMock(return_value=None)) as edit, \
+         patch.object(orch, "_try_canvas_action", new=AsyncMock(return_value=None)) as action, \
+         patch.object(orch, "_get_qwen_response", new=AsyncMock(return_value=None)), \
+         patch.object(orch, "_analyze_intent", new=AsyncMock(return_value=task_analysis)), \
+         patch.object(orch, "_route_to_features", new=AsyncMock(return_value={})) as route, \
+         patch.object(orch, "_dispatch_turn_fact_extraction"), \
+         patch.object(orch, "_update_session"), \
+         patch.object(orch, "_finish_chat_execution"), \
+         patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)), \
+         patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(return_value=None)), \
+         patch("core.chat_tool_planner._provenance_menu", new=AsyncMock(return_value="")):
+        out = await orch.process_chat_message(
+            user_id="user-1",
+            message=message,
+            session_id="s-task",
+            context={"canvas_id": "c-123", "canvas_type": "document",
+                     "canvas_content": {"type": "doc", "content": "Old"}},
+        )
+
+    assert out["intent"] == ChatIntent.TASK_MANAGEMENT.value
+    assert "canvas_edit" not in (out.get("data") or {})
+    assert "no_apply" not in str(out)
+    edit.assert_not_awaited()
+    action.assert_not_awaited()
+    route.assert_awaited_once()
+    assert route.await_args.args[1]["primary_intent"] is ChatIntent.TASK_MANAGEMENT
+
+
+@pytest.mark.parametrize("message", [
+    "remove the sign-off from the draft",
+    "update the email body",
+    "tighten the draft",
+])
+def test_genuine_canvas_edit_requests_remain_editor_candidates(message):
+    from integrations.chat_orchestrator import _canvas_edit_shaped
+
+    assert _canvas_edit_shaped(
+        message, {"canvas_id": "c-123", "canvas_type": "document"})
+
+
+@pytest.mark.asyncio
 async def test_canvas_edit_decline_marks_explicit_no_apply():
     orch = _orch()
     action_task = asyncio.get_running_loop().create_future()
@@ -1026,6 +1089,19 @@ async def test_process_edit_no_apply_stops_before_conversation():
     action.assert_not_awaited()
     upd.assert_called()
     finish.assert_called()
+
+
+def test_canvas_no_apply_is_not_an_agent_success_outcome():
+    from integrations.chat_routes import _chat_operation_succeeded
+
+    assert _chat_operation_succeeded({
+        "success": True,
+        "data": {"canvas_edit": {"updated": False, "no_apply": True}},
+    }) is False
+    assert _chat_operation_succeeded({
+        "success": True,
+        "data": {"canvas_edit": {"updated": True}},
+    }) is True
 
 
 @pytest.mark.asyncio

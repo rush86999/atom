@@ -1012,6 +1012,7 @@ def _episode_client(monkeypatch, db, user, **services):
     life.consolidate_similar_episodes = AsyncMock(
         return_value=services.get("consolidate", {}))
     grad = MagicMock()
+    grad.get_agent_in_scope = MagicMock(return_value=object())
     grad.calculate_readiness_score = AsyncMock(
         return_value=services.get("readiness", {}))
     grad.run_graduation_exam = AsyncMock(
@@ -1353,6 +1354,15 @@ class TestEpisodeFeedbackSubmit:
 
 
 class TestEpisodeAnalyticsAndGraduation:
+    @pytest.fixture(autouse=True)
+    def episode_supervisor(self, monkeypatch, user):
+        user.tenant_id = "default"
+        user.workspace_id = "default"
+        monkeypatch.setattr(
+            "api.episode_routes._require_supervisor",
+            lambda _db, _user: None,
+        )
+
     def test_feedback_weighted_episodes(self, monkeypatch, user):
         db = MagicMock()
         q = _chain(db)
@@ -1380,7 +1390,12 @@ class TestEpisodeAnalyticsAndGraduation:
             monkeypatch, MagicMock(), user, readiness={"score": 0.9})
         resp = client.get("/api/episodes/graduation/readiness/ag-1?target_maturity=AUTONOMOUS")
         assert resp.status_code == 200
-        grad.calculate_readiness_score.assert_awaited_once_with("ag-1", "AUTONOMOUS")
+        grad.calculate_readiness_score.assert_awaited_once_with(
+            agent_id="ag-1",
+            target_maturity="AUTONOMOUS",
+            tenant_id="default",
+            workspace_id="default",
+        )
 
     def test_graduation_exam(self, monkeypatch, user):
         client, _, _, _, grad = _episode_client(
@@ -1407,7 +1422,13 @@ class TestEpisodeAnalyticsAndGraduation:
         body = resp.json()
         assert body["data"]["promoted"] is True
         assert body["message"] == "Agent promoted to AUTONOMOUS"
-        grad.promote_agent.assert_awaited_once_with("ag-1", "AUTONOMOUS", "user-w80b")
+        grad.promote_agent.assert_awaited_once_with(
+            agent_id="ag-1",
+            new_maturity="AUTONOMOUS",
+            validated_by="user-w80b",
+            tenant_id="default",
+            workspace_id="default",
+        )
 
     def test_graduation_promote_failure(self, monkeypatch, user):
         client, _, _, _, grad = _episode_client(

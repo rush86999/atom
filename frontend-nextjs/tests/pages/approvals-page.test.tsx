@@ -7,8 +7,15 @@
  * correct endpoints, and failures surface as error notices.
  */
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { renderWithProviders as render } from "../../tests/test-utils";
 import "@testing-library/jest-dom";
+
+const mockUseActionProposals = jest.fn();
+jest.mock("@/hooks/useActionProposals", () => ({
+  useActionProposals: (...args: any[]) => mockUseActionProposals(...args),
+}));
+
 import ApprovalsPage from "@/pages/approvals";
 
 const mockFetch = jest.fn();
@@ -48,12 +55,58 @@ const trainingProposal = {
   created_at: "2026-01-02T09:00:00Z",
 };
 
+const actionProposal = {
+  id: "ap-1",
+  agent_id: "agent-sales-123456789",
+  agent_name: "Sales Agent",
+  title: "Follow up with the new lead",
+  description: "Review the action before it runs.",
+  proposal_type: "action",
+  status: "pending_approval",
+  proposed_action: {
+    action_type: "agent_execute",
+    prompt: "Draft a reply to the lead",
+    parameters: {
+      source: "inbox",
+      password: "never-render-this",
+      nested: { api_token: "also-never-render" },
+    },
+    source_content: "Lead replied: please follow up today",
+  },
+  reasoning: "The agent is not mature enough to send automatically.",
+  created_at: "2026-01-03T09:00:00Z",
+};
+
 const ALL = "/api/agents/approvals/pending";
 const TRAIN = "/api/maturity/training/proposals";
+
+const actionQueryState = (overrides: any = {}) => ({
+  data: [],
+  pendingProposals: [],
+  pendingCount: 0,
+  isPending: false,
+  isError: false,
+  isSuccess: true,
+  isAuthoritativeEmpty: true,
+  approveMutation: { mutateAsync: jest.fn().mockResolvedValue({ execution_result: { success: true } }) },
+  rejectMutation: { mutateAsync: jest.fn().mockResolvedValue(undefined) },
+  ...overrides,
+});
 
 describe("ApprovalsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseActionProposals.mockReturnValue({
+      data: [],
+      pendingProposals: [],
+      pendingCount: 0,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      isAuthoritativeEmpty: true,
+      approveMutation: { mutateAsync: jest.fn().mockResolvedValue({ execution_result: { success: true } }) },
+      rejectMutation: { mutateAsync: jest.fn().mockResolvedValue(undefined) },
+    });
     localStorage.setItem("auth_token", "tok");
     mockFetch.mockImplementation((url: any) => {
       const u = String(url);
@@ -86,6 +139,141 @@ describe("ApprovalsPage", () => {
     await waitFor(() => expect(screen.getByText("Train on ticket triage")).toBeInTheDocument());
     expect(screen.getByText(/Support Agent/)).toBeInTheDocument();
     expect(screen.getByText(/1 capability gap identified/)).toBeInTheDocument();
+  });
+
+  it("renders a bounded, redacted text preview before approval", async () => {
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: [actionProposal],
+      pendingProposals: [actionProposal],
+      pendingCount: 1,
+      isAuthoritativeEmpty: false,
+    }));
+    render(<ApprovalsPage />);
+
+    const title = await screen.findByText("Follow up with the new lead");
+    const card = title.closest("[aria-busy]") as HTMLElement;
+    expect(card).toHaveAttribute("aria-busy", "false");
+    expect(within(card).getByText(/Target agent: Sales Agent/)).toBeInTheDocument();
+    expect(within(card).getByText(/action: agent_execute/)).toBeInTheDocument();
+     expect(within(card).getByText(/^Prompt:/).parentElement).toHaveTextContent("Draft a reply to the lead");
+     expect(within(card).getByText(/^Source content:/).parentElement).toHaveTextContent("Lead replied: please follow up today");
+    const payload = within(card).getByTestId("action-proposal-payload-preview");
+    expect(payload).toHaveTextContent("[REDACTED]");
+    expect(payload).not.toHaveTextContent("never-render-this");
+    expect(payload).not.toHaveTextContent("also-never-render");
+  });
+
+  it("requires a reason for action rejection and passes it to the mutation", async () => {
+    const rejectMutation = { mutateAsync: jest.fn().mockResolvedValue(undefined) };
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: [actionProposal],
+      pendingProposals: [actionProposal],
+      pendingCount: 1,
+      isAuthoritativeEmpty: false,
+      rejectMutation,
+    }));
+    render(<ApprovalsPage />);
+
+    const title = await screen.findByText("Follow up with the new lead");
+    const card = title.closest("[aria-busy]") as HTMLElement;
+    fireEvent.click(within(card).getByRole("button", { name: "Reject" }));
+    const confirm = within(card).getByRole("button", { name: "Confirm rejection" });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(within(card).getByRole("textbox"), { target: { value: "Wait for confirmation" } });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(rejectMutation.mutateAsync).toHaveBeenCalledWith({
+      proposalId: "ap-1",
+      reason: "Wait for confirmation",
+    }));
+    expect(await screen.findByText("Proposal rejected.")).toBeInTheDocument();
+  });
+
+  it("guards duplicate approvals per proposal while execution is pending", async () => {
+    let resolveApproval: (value: { execution_result: { success: boolean } }) => void = () => {};
+    const approveMutation = {
+      mutateAsync: jest.fn(() => new Promise((resolve) => {
+        resolveApproval = resolve;
+      })),
+    };
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: [actionProposal],
+      pendingProposals: [actionProposal],
+      pendingCount: 1,
+      isAuthoritativeEmpty: false,
+      approveMutation,
+    }));
+    render(<ApprovalsPage />);
+
+    const title = await screen.findByText("Follow up with the new lead");
+    const card = title.closest("[aria-busy]") as HTMLElement;
+    const approve = within(card).getByRole("button", { name: "Approve & run" });
+    fireEvent.click(approve);
+    fireEvent.click(approve);
+
+    expect(approveMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(card).toHaveAttribute("aria-busy", "true");
+    resolveApproval({ execution_result: { success: true } });
+    expect(await screen.findByText("Proposal approved and executed.")).toBeInTheDocument();
+  });
+
+  it("renders failed execution separately from a successful approval", async () => {
+    const approveMutation = {
+      mutateAsync: jest.fn().mockResolvedValue({
+        execution_result: { success: false, error: "downstream failed" },
+      }),
+    };
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: [actionProposal],
+      pendingProposals: [actionProposal],
+      pendingCount: 1,
+      isAuthoritativeEmpty: false,
+      approveMutation,
+    }));
+    render(<ApprovalsPage />);
+
+    const title = await screen.findByText("Follow up with the new lead");
+    const card = title.closest("[aria-busy]") as HTMLElement;
+    fireEvent.click(within(card).getByRole("button", { name: "Approve & run" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/execution failed/i);
+    expect(screen.queryByText("Proposal approved and executed.")).not.toBeInTheDocument();
+  });
+
+  it("shows backend non-2xx decision failures and never renders them as empty", async () => {
+    const approveMutation = { mutateAsync: jest.fn().mockRejectedValue(new Error("Approve failed (500)")) };
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: [actionProposal],
+      pendingProposals: [actionProposal],
+      pendingCount: 1,
+      isAuthoritativeEmpty: false,
+      approveMutation,
+    }));
+    render(<ApprovalsPage />);
+
+    const title = await screen.findByText("Follow up with the new lead");
+    const card = title.closest("[aria-busy]") as HTMLElement;
+    fireEvent.click(within(card).getByRole("button", { name: "Approve & run" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Approve failed \(500\)/);
+    expect(screen.queryByText("No agent action proposals waiting.")).not.toBeInTheDocument();
+  });
+
+  it("shows an authoritative error instead of a zero-proposal empty state", async () => {
+    mockUseActionProposals.mockReturnValue(actionQueryState({
+      data: undefined,
+      pendingProposals: undefined,
+      pendingCount: null,
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      isAuthoritativeEmpty: false,
+    }));
+    render(<ApprovalsPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Could not load agent action proposals/);
+    expect(screen.queryByText("No agent action proposals waiting.")).not.toBeInTheDocument();
   });
 
   it("posts approval to the training approve endpoint", async () => {
@@ -138,7 +326,8 @@ describe("ApprovalsPage", () => {
     mockFetch.mockResolvedValue(okJson([]));
     render(<ApprovalsPage />);
     await waitFor(() => expect(screen.getByText(/Nothing waiting for approval/)).toBeInTheDocument());
-    expect(screen.getByText(/No training proposals waiting/)).toBeInTheDocument();
+     expect(screen.getByText(/No training proposals waiting/)).toBeInTheDocument();
+     expect(screen.getByText(/No agent action proposals waiting/)).toBeInTheDocument();
   });
 });
 
@@ -146,6 +335,17 @@ describe("ApprovalsPage", () => {
 describe("Self-directed graduation queue", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseActionProposals.mockReturnValue({
+      data: [],
+      pendingProposals: [],
+      pendingCount: 0,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      isAuthoritativeEmpty: true,
+      approveMutation: { mutateAsync: jest.fn().mockResolvedValue({ execution_result: { success: true } }) },
+      rejectMutation: { mutateAsync: jest.fn().mockResolvedValue(undefined) },
+    });
     localStorage.setItem("auth_token", "tok");
     mockFetch.mockImplementation((url: any) => {
       const u = String(url);

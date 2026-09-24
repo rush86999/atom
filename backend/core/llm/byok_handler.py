@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 from enum import Enum
@@ -7,6 +8,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import threading
 import time
 import uuid
@@ -128,8 +130,12 @@ _PAIR_MEMO_LOCK = threading.Lock()
 
 
 def _save_pair_memos() -> None:
+    if os.getenv("TESTING") and not os.getenv("ATOM_PAIR_MEMO_PATH"):
+        return
     try:
         with _PAIR_MEMO_LOCK:
+            with _MODEL_OUTPUT_COOLDOWN_LOCK:
+                cooldown_payload = dict(_MODEL_OUTPUT_COOLDOWN_UNTIL)
             payload = {
                 "temperature": dict(_MODEL_TEMPERATURE),
                 "toolchoice_unsupported": sorted(_TOOLCHOICE_UNSUPPORTED),
@@ -139,10 +145,23 @@ def _save_pair_memos() -> None:
                 "structured_latency_ewma": {
                     k: round(v, 2)
                     for k, v in _MODEL_STRUCTURED_LATENCY.items()},
+                "structured_latency_observed_at": dict(
+                    _MODEL_STRUCTURED_LATENCY_AT),
+                "model_output_cooldown_until": cooldown_payload,
             }
         path = _pair_memo_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload))
+        fd, tmp = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
     except Exception:  # noqa: BLE001 — persistence is best-effort
         logger.debug("pair-memo save skipped")
 
@@ -172,6 +191,18 @@ def _load_pair_memos() -> None:
             {str(k): float(v)
              for k, v in (payload.get("structured_latency_ewma")
                           or {}).items()})
+        _MODEL_STRUCTURED_LATENCY_AT.update(
+            {str(k): float(v)
+             for k, v in (payload.get("structured_latency_observed_at")
+                          or {}).items()})
+        with _MODEL_OUTPUT_COOLDOWN_LOCK:
+            now = time.time()
+            _MODEL_OUTPUT_COOLDOWN_UNTIL.update({
+                str(k): float(v)
+                for k, v in (payload.get("model_output_cooldown_until")
+                             or {}).items()
+                if float(v) > now
+            })
         logger.info(
             "pair-constraint memos loaded: %d temperature, %d toolchoice, "
             "%d reasoning, %d logprobs, %d auth, %d latency",
@@ -415,12 +446,6 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
-# Reload the durable pair-constraint memos once every container AND the
-# module logger exist (best-effort: absent file = cold start, exactly the
-# pre-persistence behaviour). NOTE: must stay below ``logger`` — an earlier
-# placement raised NameError at import and killed the whole API boot.
-_load_pair_memos()
-
 def _learning_router_enabled() -> bool:
     """Whether RE-RANKING by learned satisfaction is active.
 
@@ -574,6 +599,11 @@ class _EmptyCompletionError(RuntimeError):
     2026-09-01: a chat turn stalled ~2 minutes across retries and delivered
     an empty answer). Treated as a failed attempt so the next ranked
     provider serves the turn — never a silent None success."""
+    reason = "empty_output"
+
+
+class _ModelAttemptInFlight(RuntimeError):
+    """Another request is currently dispatching this provider/model pair."""
 
 
 class _StreamInactivityError(RuntimeError):
@@ -673,6 +703,147 @@ def _visible_content_missing(result: Any) -> bool:
     return result is None or (isinstance(result, str) and not result.strip())
 
 
+def _structured_raw_choices(result: Any) -> Any:
+    raw = getattr(result, "_raw_response", None)
+    source = raw if raw is not None else result
+    if isinstance(source, dict):
+        return source.get("choices")
+    return getattr(source, "choices", None)
+
+
+def _structured_choice(result: Any) -> Any:
+    choices = _structured_raw_choices(result)
+    if isinstance(choices, dict):
+        return choices
+    if isinstance(choices, (list, tuple)):
+        return choices[0] if choices else None
+    return None
+
+
+def _structured_message(choice: Any) -> Any:
+    if isinstance(choice, dict):
+        return choice.get("message") or choice
+    return getattr(choice, "message", None) or choice
+
+
+def _structured_output_missing(result: Any) -> bool:
+    if _visible_content_missing(result):
+        return True
+    choice = _structured_choice(result)
+    if choice is None:
+        return False
+    message = _structured_message(choice)
+    if isinstance(message, dict):
+        content = message.get("content")
+        tool_calls = message.get("tool_calls")
+        function_call = message.get("function_call")
+    else:
+        content = getattr(message, "content", None)
+        tool_calls = getattr(message, "tool_calls", None)
+        function_call = getattr(message, "function_call", None)
+    if tool_calls or function_call is not None:
+        return False
+    return content is None or (isinstance(content, str) and not content.strip())
+
+
+def _structured_finish_reason(result: Any) -> Any:
+    choice = _structured_choice(result)
+    if isinstance(choice, dict):
+        return choice.get("finish_reason")
+    return getattr(choice, "finish_reason", None)
+
+
+def _structured_tool_calls_present(result: Any) -> bool:
+    choice = _structured_choice(result)
+    message = _structured_message(choice) if choice is not None else None
+    if isinstance(message, dict):
+        return bool(message.get("tool_calls")) or message.get("function_call") is not None
+    return bool(getattr(message, "tool_calls", None)) or (
+        getattr(message, "function_call", None) is not None)
+
+
+def _response_field(response: Any, name: str, default: Any = None) -> Any:
+    if isinstance(response, dict):
+        return response.get(name, default)
+    fields = getattr(response, "__dict__", None)
+    if isinstance(fields, dict):
+        if name in fields:
+            return fields[name]
+        if not hasattr(type(response), name):
+            return default
+    return getattr(response, name, default)
+
+
+def _completion_payload(choice: Any) -> tuple[Any, Any, Any]:
+    if choice is None:
+        return None, None, None
+    message = _response_field(choice, "message")
+    if message is None:
+        return None, None, None
+    return (
+        _response_field(message, "content"),
+        _response_field(message, "tool_calls"),
+        _response_field(message, "function_call"),
+    )
+
+
+def _completion_has_payload(choice: Any) -> bool:
+    content, tool_calls, function_call = _completion_payload(choice)
+    return (
+        not _visible_content_missing(content)
+        or bool(tool_calls)
+        or function_call is not None
+    )
+
+
+def _jsonable_response_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_jsonable_response_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _jsonable_response_value(item) for key, item in value.items()}
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(exclude_none=True)
+    return value
+
+
+def _completion_message_dict(choice: Any) -> Dict[str, Any]:
+    content, tool_calls, function_call = _completion_payload(choice)
+    message: Dict[str, Any] = {
+        "role": "assistant",
+        "content": content if content is not None else "",
+    }
+    if tool_calls:
+        message["tool_calls"] = _jsonable_response_value(tool_calls)
+    if function_call is not None:
+        message["function_call"] = _jsonable_response_value(function_call)
+    return message
+
+
+def _response_usage(response: Any) -> Any:
+    raw = getattr(response, "_raw_response", None)
+    source = raw if raw is not None else response
+    usage = _response_field(source, "usage")
+    if usage is None:
+        usage = _response_field(response, "usage")
+    return usage
+
+
+def _usage_value(usage: Any, *names: str) -> int:
+    value = None
+    for name in names:
+        if isinstance(usage, dict):
+            value = usage.get(name)
+        else:
+            value = getattr(usage, name, None)
+        if value is not None:
+            break
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 # Completion cap for plain (non-streaming) completions — same rationale as
 # the structured path's ATOM_STRUCTURED_MAX_TOKENS: reasoning models burn
 # 750–3,155+ tokens thinking BEFORE the visible answer (measured on
@@ -695,6 +866,10 @@ _REASONING_CHAT_MAX_BUDGET = 8000
 _REASONING_BUDGET_UNSUPPORTED: set = set()
 # How long a (provider, model) pair is benched after empty/inactivity output.
 _MODEL_COOLDOWN_SECONDS = 120.0
+_MODEL_OUTPUT_COOLDOWN_UNTIL: Dict[str, float] = {}
+_MODEL_OUTPUT_COOLDOWN_LOCK = threading.Lock()
+_MODEL_ATTEMPT_INFLIGHT: set[str] = set()
+_MODEL_ATTEMPT_INFLIGHT_LOCK = threading.Lock()
 
 # Provider-scoped failures (a rejected credential, an exhausted quota, an
 # entitlement block) mean "asking this provider for a DIFFERENT model fails the
@@ -721,8 +896,31 @@ _PROVIDER_COOLDOWN_LOCK = threading.Lock()
 #: discovery endpoint is down must not turn every exhausted cascade into a
 #: discovery retry — one attempt per provider per window, then wait.
 _DISCOVERY_REFRESH_ATTEMPTED_AT: Dict[str, float] = {}
+_DISCOVERY_REFRESH_LOCK = threading.Lock()
+_RANKING_SKIPS_CTX: contextvars.ContextVar[Optional[List[Dict[str, Any]]]] = (
+    contextvars.ContextVar("atom_ranking_skips", default=None)
+)
 _DISCOVERY_REFRESH_WINDOW_SECONDS = float(
     os.getenv("ATOM_ROUTE_DISCOVERY_REFRESH_WINDOW_SECONDS", "600") or 600)
+
+_load_pair_memos()
+
+
+def _interleave_provider_families(
+    candidates: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    families: Dict[str, List[Dict[str, Any]]] = {}
+    for candidate in candidates:
+        families.setdefault(str(candidate.get("provider") or ""), []).append(
+            candidate)
+    if len(families) < 2:
+        return list(candidates)
+    ordered: List[Dict[str, Any]] = []
+    while any(families.values()):
+        for family in list(families):
+            if families[family]:
+                ordered.append(families[family].pop(0))
+    return ordered
 
 
 def _interactive_flag_best_effort() -> Optional[bool]:
@@ -1091,6 +1289,9 @@ def _is_insufficient_balance_error(err: Exception) -> bool:
         or "creditserror" in text
         or "credit limit" in text
         or "insufficient credit" in text
+        or "requires more credits" in text
+        or "can only afford" in text
+        or "fewer max_tokens" in text
         or "payment required" in text
         or ("billing" in text and "401" in text)
     )
@@ -1839,6 +2040,24 @@ class BYOKHandler:
         except Exception:
             self._last_reasoning = None
 
+    @staticmethod
+    def _record_auth_success(provider_id: str, model: str) -> None:
+        pair = f"{provider_id}/{model}"
+        cleared = False
+        with _PAIR_MEMO_LOCK:
+            if pair in _AUTH_FAILED:
+                _AUTH_FAILED.discard(pair)
+                cleared = True
+        if cleared:
+            _save_pair_memos()
+        try:
+            from core.llm.model_route_registry import get_provider_model_catalog
+
+            get_provider_model_catalog().record_auth_probe(
+                provider_id, True, "completion succeeded")
+        except Exception:
+            pass
+
     def _model_supports_tools(self, model_id: str) -> bool:
         """
         Check if model supports tool calling using pricing cache (not hardcoded lists).
@@ -1943,25 +2162,50 @@ class BYOKHandler:
             return None
         return {"reasoning": {"max_tokens": budget}}
 
-    def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
-        """True while a (provider, model) pair is benched for bad output.
+    def _claim_model_attempt(self, provider_id: str, model: str) -> bool:
+        pair = f"{provider_id}/{model}"
+        with _MODEL_ATTEMPT_INFLIGHT_LOCK:
+            if pair in _MODEL_ATTEMPT_INFLIGHT:
+                return False
+            _MODEL_ATTEMPT_INFLIGHT.add(pair)
+            return True
 
-        Connection failures bench a PROVIDER via the health monitor; a model
-        can be HTTP-healthy yet unusable (empty/truncated/reasoning-starved).
-        Benching the pair stops BPC re-picking it every turn until the
-        learning router's slower EMA catches up."""
-        until = getattr(self, "_model_cooldown_until", None) or {}
-        return until.get(f"{provider_id}/{model}", 0) > time.time()
+    def _release_model_attempt(self, provider_id: str, model: str) -> None:
+        pair = f"{provider_id}/{model}"
+        with _MODEL_ATTEMPT_INFLIGHT_LOCK:
+            _MODEL_ATTEMPT_INFLIGHT.discard(pair)
+
+    def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
+        """True while a (provider, model) pair is benched for bad output."""
+        pair = f"{provider_id}/{model}"
+        with _MODEL_OUTPUT_COOLDOWN_LOCK:
+            return _MODEL_OUTPUT_COOLDOWN_UNTIL.get(pair, 0) > time.time()
 
     def _bench_model(self, provider_id: str, model: str,
                      seconds: Optional[float] = None) -> None:
         """Bench a (provider, model) pair for a short cooldown."""
+        pair = f"{provider_id}/{model}"
         until = getattr(self, "_model_cooldown_until", None)
         if until is None:
             until = {}
             self._model_cooldown_until = until
-        until[f"{provider_id}/{model}"] = time.time() + (
+        expiry = time.time() + (
             seconds if seconds is not None else _MODEL_COOLDOWN_SECONDS)
+        until[pair] = expiry
+        with _MODEL_OUTPUT_COOLDOWN_LOCK:
+            _MODEL_OUTPUT_COOLDOWN_UNTIL[pair] = expiry
+        _save_pair_memos()
+
+    def _clear_model_cooldown(self, provider_id: str, model: str) -> None:
+        pair = f"{provider_id}/{model}"
+        until = getattr(self, "_model_cooldown_until", None) or {}
+        removed = pair in until
+        until.pop(pair, None)
+        with _MODEL_OUTPUT_COOLDOWN_LOCK:
+            removed = removed or pair in _MODEL_OUTPUT_COOLDOWN_UNTIL
+            _MODEL_OUTPUT_COOLDOWN_UNTIL.pop(pair, None)
+        if removed:
+            _save_pair_memos()
 
     def _record_attempt_failure(
         self, provider_id: str, model: str, exc: Optional[BaseException] = None,
@@ -2245,6 +2489,13 @@ class BYOKHandler:
         try:
             classification: Dict[str, int] = {}
             refresh_candidates: Dict[str, str] = {}
+            pre_pool_skips = _RANKING_SKIPS_CTX.get()
+            if pre_pool_skips is None:
+                pre_pool_skips = getattr(self, "_last_ranking_skips", [])
+            for entry in pre_pool_skips:
+                reason = str(entry.get("reason") or "unknown")
+                cls = f"pre_pool_{reason}"
+                classification[cls] = classification.get(cls, 0) + 1
             for entry in exclusions:
                 reason = entry.get("reason")
                 if reason == "provider_cooldown":
@@ -2299,8 +2550,7 @@ class BYOKHandler:
                     "exclusions": exclusions[:40],
                     # RANKING-stage skips: why routes were absent from the
                     # pool in the first place (latency cap / rate budgets).
-                    "pre_pool_skips": getattr(
-                        self, "_last_ranking_skips", [])[:25],
+                    "pre_pool_skips": list(pre_pool_skips)[:25],
                     "providers_on_cooldown": cooldowns,
                     "classification": classification,
                     "refresh_providers": refresh_providers,
@@ -2317,16 +2567,17 @@ class BYOKHandler:
         discovery endpoint is down must not turn every exhausted cascade
         into a discovery retry. Never raises; returns a small JSON-able
         outcome for the correlated record."""
-        now = time.time()
-        due = [
-            p for p in providers
-            if now - _DISCOVERY_REFRESH_ATTEMPTED_AT.get(p, 0.0)
-            >= _DISCOVERY_REFRESH_WINDOW_SECONDS
-        ]
+        with _DISCOVERY_REFRESH_LOCK:
+            now = time.time()
+            due = [
+                p for p in providers
+                if now - _DISCOVERY_REFRESH_ATTEMPTED_AT.get(p, 0.0)
+                >= _DISCOVERY_REFRESH_WINDOW_SECONDS
+            ]
+            for p in due:
+                _DISCOVERY_REFRESH_ATTEMPTED_AT[p] = now
         if not due:
             return {"skipped": "window", "providers": providers}
-        for p in due:
-            _DISCOVERY_REFRESH_ATTEMPTED_AT[p] = now
         try:
             outcome = await asyncio.to_thread(
                 self._refresh_provider_catalog, list(due))
@@ -2354,6 +2605,23 @@ class BYOKHandler:
             else:
                 _PROVIDER_COOLDOWN_UNTIL.pop(provider_id, None)
                 _PROVIDER_COOLDOWN_REASON.pop(provider_id, None)
+        with _MODEL_OUTPUT_COOLDOWN_LOCK:
+            if provider_id is None:
+                _MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+            else:
+                prefix = f"{provider_id}/"
+                for pair in list(_MODEL_OUTPUT_COOLDOWN_UNTIL):
+                    if pair.startswith(prefix):
+                        _MODEL_OUTPUT_COOLDOWN_UNTIL.pop(pair, None)
+        with _PAIR_MEMO_LOCK:
+            if provider_id is None:
+                _AUTH_FAILED.clear()
+            else:
+                prefix = f"{provider_id}/"
+                _AUTH_FAILED.difference_update({
+                    pair for pair in _AUTH_FAILED if pair.startswith(prefix)
+                })
+        _save_pair_memos()
         try:
             from core.llm.model_route_registry import get_provider_model_catalog
 
@@ -2745,6 +3013,20 @@ class BYOKHandler:
             if client is None:
                 outcome[provider_id] = {"skipped": "no client configured"}
                 continue
+            now = time.time()
+            if not force:
+                with _DISCOVERY_REFRESH_LOCK:
+                    last_attempt = _DISCOVERY_REFRESH_ATTEMPTED_AT.get(
+                        provider_id, 0.0)
+                    if now - last_attempt < _DISCOVERY_REFRESH_WINDOW_SECONDS:
+                        outcome[provider_id] = {
+                            "skipped": "discovery backoff",
+                            "retry_after": max(
+                                0.0, _DISCOVERY_REFRESH_WINDOW_SECONDS -
+                                (now - last_attempt)),
+                        }
+                        continue
+                    _DISCOVERY_REFRESH_ATTEMPTED_AT[provider_id] = now
             try:
                 from core.llm.model_route_registry import discover_provider_models
 
@@ -2855,6 +3137,74 @@ class BYOKHandler:
                                            model_id=model_id)
         except Exception:
             logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
+
+    def _record_provider_usage(
+        self,
+        provider_id: str,
+        model: str,
+        response: Any,
+        *,
+        agent_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+        complexity: Any = None,
+        is_managed_service: bool = True,
+        include_savings: bool = False,
+    ) -> tuple[int, int, Optional[float]]:
+        usage = _response_usage(response)
+        if usage is None:
+            return 0, 0, None
+        input_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
+        output_tokens = _usage_value(
+            usage, "completion_tokens", "output_tokens")
+        cost: Optional[float] = None
+        savings_usd = 0.0
+        try:
+            fetcher = get_pricing_fetcher()
+            cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+            if cost is None:
+                cost = get_llm_cost(model, input_tokens, output_tokens)
+            if include_savings:
+                reference_cost = fetcher.estimate_cost(
+                    "gpt-4o", input_tokens, output_tokens)
+                if reference_cost is None:
+                    reference_cost = get_llm_cost(
+                        "gpt-4o", input_tokens, output_tokens)
+                if reference_cost is not None and cost is not None:
+                    savings_usd = max(0.0, reference_cost - cost)
+        except Exception as cost_err:
+            logger.warning(f"Could not attribute LLM cost: {cost_err}")
+        complexity_value = (
+            getattr(complexity, "value", None) or complexity or "moderate")
+        try:
+            llm_usage_tracker.record(
+                workspace_id=self.workspace_id,
+                provider=provider_id,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost or 0.0,
+                savings_usd=savings_usd,
+                agent_id=agent_id,
+                chain_id=chain_id,
+                complexity=str(complexity_value),
+                is_managed_service=is_managed_service,
+            )
+        except Exception as cost_err:
+            logger.warning(f"Could not record LLM usage: {cost_err}")
+        self._track_rate_usage(
+            provider_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            model_id=model,
+        )
+        if cost:
+            try:
+                logger.info(
+                    f"LLM Cost Attributed: {model} - ${cost:.6f} "
+                    f"(Saved: ${savings_usd:.6f})")
+            except (TypeError, ValueError):
+                pass
+        return input_tokens, output_tokens, cost
 
     def _track_llm_call(self, provider: str, model: str, success: bool,
                         latency_ms: float = 0.0, input_tokens: int = 0,
@@ -3510,6 +3860,7 @@ class BYOKHandler:
             # correlated exhaustion record so "why was this healthy route
             # absent from the initial pool?" is answerable with evidence.
             ranking_skips: list = []
+            _RANKING_SKIPS_CTX.set(ranking_skips)
 
             # When a capability filter is active, bulk-load the capability index
             # ONCE instead of querying the DB per model inside the loop below
@@ -3936,6 +4287,13 @@ class BYOKHandler:
                             f"(headroom={headroom:.2f}"
                             + (f", reserve={_reserve:.2f}" if _reserve else "") + ")"
                         )
+                        ranking_skips.append({
+                            "route": provider_id,
+                            "reason": "provider_rate_budget",
+                            "stage": "ranking",
+                            "headroom": round(float(headroom), 3),
+                            "reserve": round(float(_reserve), 3),
+                        })
                         continue
                     c["headroom"] = headroom
                     c["model_headroom"] = model_headroom
@@ -4017,6 +4375,11 @@ class BYOKHandler:
             # (cheapest first) — see the _cost_priority block above for why.
             if _cost_priority:
                 candidates.sort(key=lambda x: x["cost_rank_key"])
+                if len({c.get("provider") for c in candidates}) > 1:
+                    candidates = _interleave_provider_families(candidates)
+                    logger.info(
+                        "BPC cost-priority provider diversity applied "
+                        "(task_type=%s)", task_type)
                 if candidates:
                     logger.info(
                         "BPC cost-priority active (task_type=%s): cheapest "
@@ -4659,8 +5022,17 @@ class BYOKHandler:
             for provider_id, model in options:
                 if provider_id in failed_providers:
                     continue
+                if self._model_cooldown_active(provider_id, model):
+                    logger.info(
+                        "Skipping %s/%s: model cooldown active",
+                        provider_id, model,
+                    )
+                    continue
                 # Per-provider flag: each provider gets at most one self-heal retry.
                 heal_attempted_for_current = False
+                _attempt_input_tokens = 0
+                _attempt_output_tokens = 0
+                _attempt_cost: Optional[float] = None
                 try:
                     import time
                     request_start = time.time()
@@ -4779,16 +5151,53 @@ class BYOKHandler:
                         provider_id, model, _cap)
                     if _reasoning_body:
                         _req_kwargs["extra_body"] = _reasoning_body
-                    response = await _to_thread_safe(
-                        client.chat.completions.create,
-                        **_req_kwargs,
-                    )
+                    if not self._claim_model_attempt(provider_id, model):
+                        logger.info(
+                            "Skipping %s/%s: model attempt already in flight",
+                            provider_id, model,
+                        )
+                        continue
+                    try:
+                        response = await _to_thread_safe(
+                            client.chat.completions.create,
+                            **_req_kwargs,
+                        )
+                    finally:
+                        self._release_model_attempt(provider_id, model)
                     self._capture_echoed_model(response)
                     self._stash_last_reasoning(response)
+                    self._clear_model_cooldown(provider_id, model)
 
+                    if not getattr(response, "choices", None):
+                        _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                            self._record_provider_usage(
+                                provider_id,
+                                model,
+                                response,
+                                agent_id=agent_id,
+                                chain_id=chain_id,
+                                complexity=complexity,
+                                is_managed_service=is_managed,
+                                include_savings=True,
+                            )
+                        )
+                        raise _EmptyCompletionError(
+                            f"empty output: {provider_id}/{model} returned no choices")
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
                     if _visible_content_missing(result):
+                        _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                            self._record_provider_usage(
+                                provider_id,
+                                model,
+                                response,
+                                agent_id=agent_id,
+                                chain_id=chain_id,
+                                complexity=complexity,
+                                is_managed_service=is_managed,
+                                include_savings=True,
+                            )
+                        )
                         # An empty visible payload is a FAILED attempt, not a
                         # success: recording it as healthy and returning None
                         # left the chat path with nothing and the provider
@@ -4803,16 +5212,18 @@ class BYOKHandler:
                         except Exception:
                             pass
                         raise _EmptyCompletionError(
-                            f"{provider_id}/{model} returned no visible content "
+                            f"empty output: {provider_id}/{model} returned no visible content "
                             f"(finish_reason={finish_reason})"
                         )
                     observed_cost = None  # set below if usage attribution succeeds
 
                     # --- Dynamic Cost Attribution (Phase 47) ---
-                    usage = getattr(response, 'usage', None)
+                    usage = _response_usage(response)
                     if usage:
-                        input_tokens = getattr(usage, 'prompt_tokens', 0)
-                        output_tokens = getattr(usage, 'completion_tokens', 0)
+                        input_tokens = _usage_value(
+                            usage, "prompt_tokens", "input_tokens")
+                        output_tokens = _usage_value(
+                            usage, "completion_tokens", "output_tokens")
                         
                         # Calculate real cost from dynamic pricing
                         try:
@@ -4888,17 +5299,22 @@ class BYOKHandler:
                     # Phase 226.4-04: Record successful API call for health monitoring
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+                    self._record_auth_success(provider_id, model)
                     self._track_rate_usage(
                         provider_id,
-                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
-                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        input_tokens=_usage_value(
+                            usage, "prompt_tokens", "input_tokens"),
+                        output_tokens=_usage_value(
+                            usage, "completion_tokens", "output_tokens"),
                         model_id=model,
                     )
                     self._track_llm_call(
                         provider=provider_id, model=model, success=True,
                         latency_ms=latency_ms,
-                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
-                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        input_tokens=_usage_value(
+                            usage, "prompt_tokens", "input_tokens"),
+                        output_tokens=_usage_value(
+                            usage, "completion_tokens", "output_tokens"),
                         fallback=provider_id != primary_provider,
                         fallback_provider=primary_provider if provider_id != primary_provider else None,
                     )
@@ -4923,6 +5339,8 @@ class BYOKHandler:
                     return result
 
                 except Exception as attempt_err:
+                    if isinstance(attempt_err, _EmptyCompletionError):
+                        self._bench_model(provider_id, model)
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
                     _attempt_str = str(attempt_err)
@@ -5036,9 +5454,15 @@ class BYOKHandler:
                         self._track_llm_call(
                             provider=provider_id, model=model, success=False,
                             latency_ms=latency_ms,
+                            input_tokens=_attempt_input_tokens,
+                            output_tokens=_attempt_output_tokens,
                             fallback=provider_id != primary_provider,
                             fallback_provider=primary_provider if provider_id != primary_provider else None,
-                            error=str(attempt_err)[:500],
+                            error=(
+                                f"empty_output: {attempt_err}"
+                                if isinstance(attempt_err, _EmptyCompletionError)
+                                else str(attempt_err)
+                            )[:500],
                         )
                     except Exception:
                         pass  # Don't let health monitoring errors affect primary flow
@@ -5195,11 +5619,16 @@ class BYOKHandler:
                                 last_error = paid_err
 
                     # Learning-router outcome observation for failures.
+                    _empty_output = isinstance(attempt_err, _EmptyCompletionError)
                     await self._record_outcome_feedback(
                         model=model, provider_id=provider_id, task_type=task_type,
-                        content=None, finish_reason=None,
-                        success=False, cost=None, latency_ms=latency_ms,
+                        content="" if _empty_output else None,
+                        finish_reason="empty_output" if _empty_output else None,
+                        success=False,
+                        cost=_attempt_cost if _empty_output else None,
+                        latency_ms=latency_ms,
                         exception=attempt_err,
+                        schema_error=False,
                         routing_result_id=decision_id_for_feedback,
                     )
                     continue # Try next provider
@@ -6048,7 +6477,9 @@ class BYOKHandler:
             # used to bypass every context check, and a learning-heavy prompt
             # overflowed it where the ranker would have chosen a bigger model.
             if provider_model is not None:
-                if self._provider_cooldown_active(provider_model[0]):
+                if self._provider_cooldown_active(provider_model[0]) or self._model_cooldown_active(
+                    provider_model[0], provider_model[1]
+                ):
                     # A pinned provider on cooldown (rejected credential,
                     # exhausted balance) fails exactly as unpinned — and the
                     # pin BYPASSES the ranking gate where cooldowns are
@@ -6057,7 +6488,7 @@ class BYOKHandler:
                     # the ranking gate excludes the benched provider.
                     logger.warning(
                         f"Unpinning {provider_model[0]}/{provider_model[1]} — "
-                        "provider benched (cooldown active); re-ranking "
+                        "provider or model benched (cooldown active); re-ranking "
                         "across healthy providers"
                     )
                     provider_model = None
@@ -6270,6 +6701,15 @@ class BYOKHandler:
                         "catalog_not_in_provider")
                     _structured_skipped += 1
                     continue
+                if self._model_cooldown_active(provider_id, model):
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "model_cooldown")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "model_cooldown")
+                    _structured_skipped += 1
+                    continue
                 if self._provider_cooldown_active(provider_id):
                     # Same skip the other cascades apply (see 6247/6946): a
                     # provider benched process-wide (dead credential, rate
@@ -6288,6 +6728,9 @@ class BYOKHandler:
                     continue
                 self._trace_structured_route(
                     route_trace_id, provider_id, model, "dispatch", "")
+                _attempt_input_tokens = 0
+                _attempt_output_tokens = 0
+                _attempt_cost: Optional[float] = None
                 try:
                     # Get the client and wrap with instructor
                     client = self.clients.get(provider_id)
@@ -6436,36 +6879,79 @@ class BYOKHandler:
                             # a bare call blocked the loop for the whole
                             # structured round trip (same starvation as
                             # generate_response).
+                            _attempt_t0 = time.time()
+                            if not self._claim_model_attempt(
+                                    provider_id, model):
+                                raise _ModelAttemptInFlight(
+                                    f"{provider_id}/{model} is already in flight")
                             _attempted_any = True
                             _attempt_count += 1
-                            _attempt_t0 = time.time()
-                            result = await _to_thread_safe(
-                                instructor_client.chat.completions.create,
-                                **_create_kwargs
-                            )
+                            try:
+                                result = await _to_thread_safe(
+                                    instructor_client.chat.completions.create,
+                                    **_create_kwargs
+                                )
+                            finally:
+                                self._release_model_attempt(
+                                    provider_id, model)
                             # REQUEST-LEVEL TRACE (review fix plan 1): one
                             # line per dispatched structured call — model,
                             # effective cap, latency, and the finish reason
                             # when available. No prompt/response bodies.
-                            _fr = None
-                            try:
-                                _fr = (result.choices[0].finish_reason
-                                       if getattr(result, "choices", None)
-                                       else None)
-                            except Exception:
-                                pass
+                            _fr = _structured_finish_reason(result)
+                            _content_present = not _structured_output_missing(result)
+                            _tool_calls_present = _structured_tool_calls_present(result)
                             logger.info(
                                 "[structured-trace] %s/%s cap=%s "
-                                "dur=%.1fs finish=%s",
+                                "dur=%.1fs finish=%s content_present=%s "
+                                "tool_calls_present=%s result_type=%s",
                                 provider_id, model,
                                 _create_kwargs.get("max_tokens"),
-                                time.time() - _attempt_t0, _fr)
+                                time.time() - _attempt_t0, _fr,
+                                _content_present, _tool_calls_present,
+                                type(result).__name__)
                             _record_structured_latency(
                                 provider_id, model,
                                 time.time() - _structured_start)
+                            if _structured_output_missing(result):
+                                _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                                    self._record_provider_usage(
+                                        provider_id,
+                                        model,
+                                        result,
+                                        agent_id=agent_id,
+                                        chain_id=chain_id,
+                                        complexity=complexity,
+                                        is_managed_service=is_managed,
+                                    )
+                                )
+                                self._bench_model(provider_id, model)
+                                self._trace_structured_route(
+                                    route_trace_id, provider_id, model,
+                                    "failure", "empty_output")
+                                raise _EmptyCompletionError(
+                                    f"empty output: {provider_id}/{model} returned no structured content")
+                            self._clear_model_cooldown(provider_id, model)
                             break
                         except Exception as _attempt_err:
+                            if isinstance(_attempt_err, _ModelAttemptInFlight):
+                                raise
                             _err_txt = str(_attempt_err).lower()
+                            try:
+                                from core.llm.model_route_registry import (
+                                    classify_failure,
+                                )
+
+                                _failure_cause, _, _ = classify_failure(
+                                    _attempt_err,
+                                    empty_output=isinstance(
+                                        _attempt_err, _EmptyCompletionError),
+                                )
+                                self._trace_structured_route(
+                                    route_trace_id, provider_id, model,
+                                    "failure", _failure_cause)
+                            except Exception:
+                                pass
 
                             # (1) Thinking-mode endpoints reject Mode.TOOLS'
                             # tool_choice="required". Retry once with the
@@ -6568,38 +7054,24 @@ class BYOKHandler:
                             self._stamp_sample_logprob(result)
                         except Exception:
                             pass
-                    # Instructor wraps the underlying response; finish_reason
-                    # may be on the raw response. Default to "stop" only when
-                    # unavailable (the API succeeded structurally).
-                    _structured_finish = "stop"
-                    try:
-                        _raw = getattr(result, "_raw_response", None)
-                        if _raw is not None:
-                            _fr = getattr(_raw, "finish_reason", None) or getattr(
-                                getattr(_raw, "choices", [{}])[0] if getattr(_raw, "choices", None) else {},
-                                "finish_reason", None,
-                            )
-                            if _fr:
-                                _structured_finish = _fr
-                    except Exception:
-                        pass
+                    _structured_finish = _structured_finish_reason(result) or "stop"
 
                     # --- Record Usage (Phase 6.6) ---
                     _structured_cost = None  # surfaced to the feedback call below
+                    usage = None
                     try:
                         # Instructor attaches usage to the response object metadata.
                         # Never index into raw_response when it lacks `.usage`
                         # (providers/mocks may omit it) — an AttributeError here
                         # used to leave `usage` unbound and kill the whole
                         # structured attempt with a confusing NameError.
-                        raw_response = getattr(result, "_raw_response", None)
-                        usage = getattr(raw_response, "usage", None) if raw_response is not None else None
-                        if not usage and hasattr(result, "usage"):
-                             usage = result.usage
+                        usage = _response_usage(result)
 
                         if usage:
-                            input_tokens = usage.prompt_tokens
-                            output_tokens = usage.completion_tokens
+                            input_tokens = _usage_value(
+                                usage, "prompt_tokens", "input_tokens")
+                            output_tokens = _usage_value(
+                                usage, "completion_tokens", "output_tokens")
                             self._track_rate_usage(provider_id, input_tokens, output_tokens,
                                                    model_id=model)
 
@@ -6633,8 +7105,10 @@ class BYOKHandler:
                     self._track_llm_call(
                         provider=provider_id, model=model, success=True,
                         latency_ms=_structured_latency_ms,
-                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
-                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        input_tokens=_usage_value(
+                            usage, "prompt_tokens", "input_tokens"),
+                        output_tokens=_usage_value(
+                            usage, "completion_tokens", "output_tokens"),
                         fallback=provider_id != primary_provider,
                         fallback_provider=primary_provider if provider_id != primary_provider else None,
                     )
@@ -6667,6 +7141,15 @@ class BYOKHandler:
                         pass
                     return result
                 except Exception as attempt_err:
+                    if isinstance(attempt_err, _ModelAttemptInFlight):
+                        self._trace_structured_route(
+                            route_trace_id, provider_id, model, "skip",
+                            "model_inflight")
+                        self._note_cascade_exclusion(
+                            _cascade_exclusions, provider_id, model,
+                            "model_inflight")
+                        _structured_skipped += 1
+                        continue
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
 
@@ -6780,13 +7263,17 @@ class BYOKHandler:
                     # are *schema* failures that a bigger model might fix.
                     # Everything else (network, rate limit, auth, context
                     # window) is transient and MUST NOT escalate.
+                    _empty_output = isinstance(attempt_err, _EmptyCompletionError)
                     is_schema_err = (
-                        (
-                            _PydanticValidationError
-                            and isinstance(attempt_err, _PydanticValidationError)
+                        not _empty_output
+                        and (
+                            (
+                                _PydanticValidationError
+                                and isinstance(attempt_err, _PydanticValidationError)
+                            )
+                            or isinstance(attempt_err, json.JSONDecodeError)
+                            or "validation" in str(attempt_err).lower()
                         )
-                        or isinstance(attempt_err, json.JSONDecodeError)
-                        or "validation" in str(attempt_err).lower()
                     )
                     last_was_schema_error = is_schema_err
                     # Per-call provider usage tracking (structured failure).
@@ -6794,11 +7281,17 @@ class BYOKHandler:
                     # learning-router convention); everything else is a
                     # provider failure with the error surfaced.
                     self._track_llm_call(
-                        provider=provider_id, model=model, success=not is_schema_err,
+                        provider=provider_id, model=model, success=False,
                         latency_ms=0.0,
+                        input_tokens=_attempt_input_tokens,
+                        output_tokens=_attempt_output_tokens,
                         fallback=provider_id != primary_provider,
                         fallback_provider=primary_provider if provider_id != primary_provider else None,
-                        error=str(attempt_err)[:500],
+                        error=(
+                            f"empty_output: {attempt_err}"
+                            if _empty_output
+                            else str(attempt_err)
+                        )[:500],
                     )
                     # Learning-router outcome observation (structured failure).
                     # schema_error=True tells assess_response_quality this was a
@@ -6806,8 +7299,11 @@ class BYOKHandler:
                     # predictor learns model X fails structured output for this task.
                     await self._record_outcome_feedback(
                         model=model, provider_id=provider_id, task_type=task_type,
-                        content=None, finish_reason=None,
-                        success=not is_schema_err, cost=None, latency_ms=0.0,
+                        content="" if _empty_output else None,
+                        finish_reason="empty_output" if _empty_output else None,
+                        success=False,
+                        cost=_attempt_cost if _empty_output else None,
+                        latency_ms=0.0,
                         schema_error=is_schema_err,
                         exception=attempt_err if not is_schema_err else None,
                         routing_result_id=structured_decision_id,
@@ -7554,13 +8050,22 @@ class BYOKHandler:
                 # provider: openrouter …` then, 115 s later, `reply generation:
                 # 115.0s` with no zero-chunk warning and no first-visible
                 # abort — neither bound could fire).
-                _connect_s = _stream_connect_timeout_seconds()
-                if _connect_s and _connect_s > 0:
-                    stream = await asyncio.wait_for(
-                        client.chat.completions.create(**create_kwargs),
-                        timeout=_connect_s)
-                else:
-                    stream = await client.chat.completions.create(**create_kwargs)
+                if not self._claim_model_attempt(attempt_provider_id, model):
+                    logger.info(
+                        "Skipping %s/%s: model attempt already in flight",
+                        attempt_provider_id, model,
+                    )
+                    continue
+                try:
+                    _connect_s = _stream_connect_timeout_seconds()
+                    if _connect_s and _connect_s > 0:
+                        stream = await asyncio.wait_for(
+                            client.chat.completions.create(**create_kwargs),
+                            timeout=_connect_s)
+                    else:
+                        stream = await client.chat.completions.create(**create_kwargs)
+                finally:
+                    self._release_model_attempt(attempt_provider_id, model)
                 # Bound inter-chunk silence (see _stream_with_idle_watchdog).
                 _idle_s = _stream_idle_timeout_seconds()
                 if _idle_s and _idle_s > 0:
@@ -7654,6 +8159,7 @@ class BYOKHandler:
                 self._last_used_model = model
                 self._last_used_provider = attempt_provider_id
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                self._record_auth_success(attempt_provider_id, model)
                 self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
                                        model_id=model)
                 self._track_llm_call(
@@ -8239,6 +8745,13 @@ class BYOKHandler:
                 )
                 continue
 
+            if self._model_cooldown_active(attempt_provider_id, model):
+                logger.info(
+                    "Skipping %s/%s: model cooldown active",
+                    attempt_provider_id, model,
+                )
+                continue
+
             # Provider-scoped failure (rejected credential / exhausted quota):
             # a different model on the same provider fails identically, so stop
             # spending the request budget on it and keep the fallback moving.
@@ -8262,21 +8775,53 @@ class BYOKHandler:
                 if _attempt_temperature != _base_temperature:
                     _attempt_kwargs = {**base_kwargs,
                                        "temperature": _attempt_temperature}
+            _attempt_kwargs = {
+                **_attempt_kwargs,
+                "model": _direct_api_model_name(attempt_provider_id, model),
+            }
+            _attempt_input_tokens = 0
+            _attempt_output_tokens = 0
+            _attempt_cost: Optional[float] = None
             try:
                 request_start = datetime.now()
-                response = await client.chat.completions.create(**_attempt_kwargs)
+                if not self._claim_model_attempt(attempt_provider_id, model):
+                    logger.info(
+                        "Skipping %s/%s: model attempt already in flight",
+                        attempt_provider_id, model,
+                    )
+                    continue
+                try:
+                    response = await client.chat.completions.create(**_attempt_kwargs)
+                finally:
+                    self._release_model_attempt(attempt_provider_id, model)
                 self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 
                 choice = response.choices[0] if getattr(response, "choices", None) else None
-                content = ""
-                if choice is not None:
-                    content = getattr(choice.message, "content", "") or ""
-                finish_reason = getattr(choice, "finish_reason", None) or "stop"
+                if not _completion_has_payload(choice):
+                    _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                        self._record_provider_usage(
+                            attempt_provider_id,
+                            model,
+                            response,
+                            agent_id=agent_id,
+                            complexity=self.analyze_query_complexity(
+                                prompt_str, task_type),
+                        )
+                    )
+                    self._bench_model(attempt_provider_id, model)
+                    raise _EmptyCompletionError(
+                        f"empty output: {attempt_provider_id}/{model} returned no completion payload"
+                    )
+                content, _, _ = _completion_payload(choice)
+                content = content or ""
+                finish_reason = _response_field(choice, "finish_reason") or "stop"
+                self._clear_model_cooldown(attempt_provider_id, model)
 
-                usage = getattr(response, "usage", None)
-                prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
-                completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+                usage = _response_usage(response)
+                prompt_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
+                completion_tokens = _usage_value(
+                    usage, "completion_tokens", "output_tokens")
                 total_tokens = (prompt_tokens or 0) + (completion_tokens or 0)
 
                 cost: Optional[float] = None
@@ -8308,6 +8853,7 @@ class BYOKHandler:
                         logger.warning(f"Could not record LLM usage: {cost_err}")
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                self._record_auth_success(attempt_provider_id, model)
                 self._track_rate_usage(
                     attempt_provider_id,
                     input_tokens=prompt_tokens or 0,
@@ -8340,7 +8886,7 @@ class BYOKHandler:
                     "choices": [
                         {
                             "index": 0,
-                            "message": {"role": "assistant", "content": content},
+                            "message": _completion_message_dict(choice),
                             "finish_reason": finish_reason,
                             "logprobs": None,
                         }
@@ -8353,6 +8899,8 @@ class BYOKHandler:
                 }
 
             except Exception as e:
+                if isinstance(e, _EmptyCompletionError):
+                    self._bench_model(attempt_provider_id, model)
                 last_error = e
                 logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
                 # TEMPERATURE-LOCKED recovery (OpenCode Go, 2026-09-21):
@@ -8370,15 +8918,23 @@ class BYOKHandler:
                         f"{_locked_value} — retrying once and memoizing the "
                         f"pair")
                     _save_pair_memos()
-                    _retry_at_1 = {**base_kwargs, "temperature": _locked_value}
+                    _retry_at_1 = {
+                        **base_kwargs,
+                        "temperature": _locked_value,
+                        "model": _direct_api_model_name(attempt_provider_id, model),
+                    }
                     try:
                         response = await client.chat.completions.create(
                             **_retry_at_1)
                         _choice = (response.choices[0]
                                    if getattr(response, "choices", None)
                                    else None)
-                        _content = (getattr(_choice.message, "content", "") or ""
-                                    if _choice else "")
+                        if not _completion_has_payload(_choice):
+                            self._bench_model(attempt_provider_id, model)
+                            raise _EmptyCompletionError(
+                                f"temperature retry on {model} returned no completion payload"
+                            )
+                        self._clear_model_cooldown(attempt_provider_id, model)
                         last_error = None
                         self._last_used_model = model
                         self._last_used_provider = attempt_provider_id
@@ -8392,10 +8948,9 @@ class BYOKHandler:
                             "choices": [
                                 {
                                     "index": 0,
-                                    "message": {"role": "assistant",
-                                                "content": _content},
+                                    "message": _completion_message_dict(_choice),
                                     "finish_reason": (
-                                        getattr(_choice, "finish_reason", None)
+                                        _response_field(_choice, "finish_reason")
                                         or "stop"),
                                     "logprobs": None,
                                 }
@@ -8413,7 +8968,8 @@ class BYOKHandler:
                     self._record_attempt_failure(
                         attempt_provider_id, model, e,
                         status=getattr(getattr(e, "response", None),
-                                       "status_code", None))
+                                       "status_code", None),
+                        empty_output=isinstance(e, _EmptyCompletionError))
                 except Exception as _cause_err:  # noqa: BLE001
                     logger.debug(f"failure classification skipped: {_cause_err}")
                 try:
@@ -8427,9 +8983,15 @@ class BYOKHandler:
                     self._track_llm_call(
                         provider=attempt_provider_id, model=model, success=False,
                         latency_ms=latency_ms,
+                        input_tokens=_attempt_input_tokens,
+                        output_tokens=_attempt_output_tokens,
                         fallback=attempt_provider_id != primary_provider,
                         fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
-                        error=str(e)[:500],
+                        error=(
+                            f"empty_output: {e}"
+                            if isinstance(e, _EmptyCompletionError)
+                            else str(e)
+                        )[:500],
                     )
                 except Exception:
                     pass
@@ -8447,13 +9009,23 @@ class BYOKHandler:
                                 f"with patch={heal_result.rule} keys={heal_result.patched_keys}"
                             )
                             try:
-                                healed_response = await client.chat.completions.create(**heal_result.patched_kwargs)
+                                healed_kwargs = {
+                                    **heal_result.patched_kwargs,
+                                    "model": _direct_api_model_name(
+                                        attempt_provider_id, model),
+                                }
+                                healed_response = await client.chat.completions.create(**healed_kwargs)
                                 self._capture_echoed_model(healed_response)
                                 healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
-                                healed_content = ""
-                                if healed_choice is not None:
-                                    healed_content = getattr(healed_choice.message, "content", "") or ""
-                                healed_finish = getattr(healed_choice, "finish_reason", None) or "stop"
+                                if not _completion_has_payload(healed_choice):
+                                    self._bench_model(attempt_provider_id, model)
+                                    raise _EmptyCompletionError(
+                                        f"healed retry on {model} returned no completion payload"
+                                    )
+                                healed_content, _, _ = _completion_payload(healed_choice)
+                                healed_content = healed_content or ""
+                                healed_finish = _response_field(healed_choice, "finish_reason") or "stop"
+                                self._clear_model_cooldown(attempt_provider_id, model)
                                 healed_usage = getattr(healed_response, "usage", None)
                                 hp = getattr(healed_usage, "prompt_tokens", 0) if healed_usage else 0
                                 hc = getattr(healed_usage, "completion_tokens", 0) if healed_usage else 0
@@ -8462,6 +9034,7 @@ class BYOKHandler:
                                 except Exception:
                                     heal_cost = None
                                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=0.0)
+                                self._record_auth_success(attempt_provider_id, model)
                                 self._track_rate_usage(attempt_provider_id, input_tokens=hp, output_tokens=hc,
                                                        model_id=model)
                                 self._track_llm_call(
@@ -8488,7 +9061,7 @@ class BYOKHandler:
                                     "choices": [
                                         {
                                             "index": 0,
-                                            "message": {"role": "assistant", "content": healed_content},
+                                            "message": _completion_message_dict(healed_choice),
                                             "finish_reason": healed_finish,
                                             "logprobs": None,
                                         }
@@ -8538,15 +9111,21 @@ class BYOKHandler:
                                 if getattr(paid_response, "choices", None)
                                 else None
                             )
-                            p_content = ""
-                            if p_choice is not None:
-                                p_content = getattr(p_choice.message, "content", "") or ""
-                            p_finish = getattr(p_choice, "finish_reason", None) or "stop"
+                            if not _completion_has_payload(p_choice):
+                                self._bench_model(attempt_provider_id, paid_model)
+                                raise _EmptyCompletionError(
+                                    f"paid retry on {paid_model} returned no completion payload"
+                                )
+                            p_content, _, _ = _completion_payload(p_choice)
+                            p_content = p_content or ""
+                            p_finish = _response_field(p_choice, "finish_reason") or "stop"
+                            self._clear_model_cooldown(attempt_provider_id, paid_model)
                             p_usage = getattr(paid_response, "usage", None)
                             pp = getattr(p_usage, "prompt_tokens", 0) if p_usage else 0
                             pc = getattr(p_usage, "completion_tokens", 0) if p_usage else 0
                             latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
                             self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                            self._record_auth_success(attempt_provider_id, paid_model)
                             self._track_rate_usage(
                                 attempt_provider_id,
                                 input_tokens=pp,
@@ -8608,7 +9187,7 @@ class BYOKHandler:
                                 "choices": [
                                     {
                                         "index": 0,
-                                        "message": {"role": "assistant", "content": p_content},
+                                        "message": _completion_message_dict(p_choice),
                                         "finish_reason": p_finish,
                                         "logprobs": None,
                                     }
@@ -8625,11 +9204,17 @@ class BYOKHandler:
                             )
                             last_error = paid_err
 
+                _empty_output = isinstance(e, _EmptyCompletionError)
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
-                    content=None, finish_reason=None,
-                    success=False, cost=None, latency_ms=0.0,
-                    exception=e, routing_result_id=decision_id,
+                    content="" if _empty_output else None,
+                    finish_reason="empty_output" if _empty_output else None,
+                    success=False,
+                    cost=_attempt_cost if _empty_output else None,
+                    latency_ms=latency_ms,
+                    exception=e,
+                    schema_error=False,
+                    routing_result_id=decision_id,
                 )
 
         # LAST-RESORT SWEEP (2026-09-21): provider_order was computed before
@@ -8655,7 +9240,10 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
-                        if not self._ranked_model_is_known_unserved(p, m):
+                        if (
+                            not self._ranked_model_is_known_unserved(p, m)
+                            and not self._model_cooldown_active(p, m)
+                        ):
                             _sweep.append((p, m))
                 _sweep = _sweep[:4]
             except Exception as _sweep_err:  # noqa: BLE001 — best-effort

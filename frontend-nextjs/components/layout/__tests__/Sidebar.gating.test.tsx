@@ -8,10 +8,15 @@
  *   /admin/settings link
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../../tests/test-utils";
 import "@testing-library/jest-dom";
 
 const mockUseUserRole = jest.fn();
+const mockUseActionProposals = jest.fn();
+jest.mock("../../../hooks/useActionProposals", () => ({
+    useActionProposals: (...args: any[]) => mockUseActionProposals(...args),
+}));
 jest.mock("../../../lib/user-role", () => ({
     useUserRole: () => mockUseUserRole(),
     ADMIN_MIN_LEVEL: 5,
@@ -30,11 +35,17 @@ jest.mock("next/router", () => ({
 jest.mock("next-auth/react", () => ({
     useSession: () => ({ data: null, status: "unauthenticated" }),
     signOut: jest.fn(),
+    SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 import Sidebar from "../Sidebar";
 
 beforeEach(() => {
+    mockUseActionProposals.mockReturnValue({
+        pendingCount: null,
+        isPending: true,
+        isError: false,
+    });
     mockUseUserRole.mockReturnValue({
         role: null,
         level: 0,
@@ -42,6 +53,10 @@ beforeEach(() => {
         isAdmin: false,
         loading: false,
     });
+    global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [],
+    } as any) as any;
 });
 
 describe("Sidebar role gating", () => {
@@ -79,6 +94,27 @@ describe("Sidebar role gating", () => {
         expect(screen.getByText("Approvals")).toBeInTheDocument();
         expect(screen.queryByText("User Management")).not.toBeInTheDocument();
         expect(screen.getByText("Self-Healing Harness")).toBeInTheDocument();
+    });
+
+    it("shows the pending count and an accessible live status", async () => {
+        mockUseUserRole.mockReturnValue({
+            role: "team_lead", level: 4, isSupervisor: true, isAdmin: false, loading: false,
+        });
+        mockUseActionProposals.mockReturnValue({
+            pendingCount: 2,
+            isPending: false,
+            isError: false,
+        });
+        const originalFetch = global.fetch;
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => [{ id: "hitl-1" }],
+        } as any);
+        render(<Sidebar />);
+
+        expect(await screen.findByTestId("approvals-pending-badge")).toHaveTextContent("3");
+        expect(screen.getByRole("status")).toHaveTextContent("3 pending reviews");
+        global.fetch = originalFetch;
     });
 
     it("workspace_admin: sees the admin band plus the new Admin Settings link", () => {

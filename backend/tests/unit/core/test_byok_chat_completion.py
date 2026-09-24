@@ -139,6 +139,45 @@ async def test_healer_retry_on_repairable_4xx():
 
 
 @pytest.mark.asyncio
+async def test_empty_completion_benches_pair_and_skips_next_attempt():
+    from core.llm import byok_handler as module
+
+    with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+        module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+    try:
+        client = FakeClient([FakeResponse(None)])
+        handler = make_handler({"openai": client})
+        with patch_fallback(["openai"]):
+            with pytest.raises(AllProvidersFailedError):
+                await handler.chat_completion(
+                    [{"role": "user", "content": "x"}], "gpt-4o", "openai"
+                )
+            assert handler._model_cooldown_active("openai", "gpt-4o")
+            calls = client.chat.completions.create.call_count
+            with pytest.raises(AllProvidersFailedError):
+                await handler.chat_completion(
+                    [{"role": "user", "content": "again"}], "gpt-4o", "openai"
+                )
+            assert client.chat.completions.create.call_count == calls
+    finally:
+        with module._MODEL_OUTPUT_COOLDOWN_LOCK:
+            module._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+
+
+@pytest.mark.asyncio
+async def test_direct_provider_model_name_is_normalized():
+    client = FakeClient([FakeResponse("ok")])
+    handler = make_handler({"deepseek": client})
+    with patch_fallback(["deepseek"]):
+        await handler.chat_completion(
+            [{"role": "user", "content": "x"}],
+            "tencent/deepseek-v4-pro",
+            "deepseek",
+        )
+    assert client.chat.completions.create.call_args.kwargs["model"] == "deepseek-v4-pro"
+
+
+@pytest.mark.asyncio
 async def test_all_failed_raises():
     client = FakeClient(excs=[Exception("boom")])
     handler = make_handler({"openai": client})

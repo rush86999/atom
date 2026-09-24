@@ -1,7 +1,13 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthToken, getCurrentUserId } from "@/lib/identity";
 import { SelfDirectedPathwayCard } from "@/components/Agents/SelfDirectedPathwayCard";
-import { SelfDirectedAgentProgress } from "@/lib/maturity-api";
+import {
+    type ActionProposal,
+    type ActionProposalApprovalResult,
+    SelfDirectedAgentProgress,
+} from "@/lib/maturity-api";
+import { useActionProposals } from "@/hooks/useActionProposals";
+import { buildActionProposalPreview } from "@/lib/action-proposal-preview";
 import { useUserRole } from "@/lib/user-role";
 
 /**
@@ -152,8 +158,18 @@ export default function ApprovalsPage() {
   // transient error would strand supervisors.
   const roleKnown = Boolean(role);
   const canDecide = !roleKnown || isSupervisor;
+  const actionProposalsEnabled = !roleKnown || canDecide;
+  const actionProposalsQuery = useActionProposals({
+    statusFilter: "pending_approval",
+    limit: 25,
+    enabled: actionProposalsEnabled,
+  });
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [proposals, setProposals] = useState<TrainingProposal[]>([]);
+  const [actionProposalBusy, setActionProposalBusy] = useState<Record<string, boolean>>({});
+  const actionProposalBusyRef = useRef<Record<string, boolean>>({});
+  const [rejectingActionProposalId, setRejectingActionProposalId] = useState<string | null>(null);
+  const [actionRejectReason, setActionRejectReason] = useState("");
   // Self-directed STUDENT -> INTERN graduation queue: the evidence cards
   // for every STUDENT agent, so promotion is a one-visit review.
   const [selfDirectedQueue, setSelfDirectedQueue] = useState<SelfDirectedAgentProgress[]>([]);
@@ -285,6 +301,44 @@ export default function ApprovalsPage() {
       loadProposals();
     } catch (e) {
       setError(`Training decision failed: ${String(e)}`);
+    }
+  };
+
+  const decideActionProposal = async (id: string, approve: boolean) => {
+    if (actionProposalBusyRef.current[id]) return;
+    actionProposalBusyRef.current[id] = true;
+    setActionProposalBusy((current) => ({ ...current, [id]: true }));
+    setNotice(null);
+    setError(null);
+    try {
+      if (approve) {
+        const result: ActionProposalApprovalResult =
+          await actionProposalsQuery.approveMutation.mutateAsync({ proposalId: id });
+        if (result.execution_result?.success === true) {
+          setNotice("Proposal approved and executed.");
+        } else {
+          setError("Proposal approved, but execution failed.");
+        }
+      } else {
+        const reason = actionRejectReason.trim();
+        if (!reason) {
+          setError("A rejection reason is required.");
+          return;
+        }
+        await actionProposalsQuery.rejectMutation.mutateAsync({ proposalId: id, reason });
+        setNotice("Proposal rejected.");
+        setRejectingActionProposalId(null);
+        setActionRejectReason("");
+      }
+    } catch (e) {
+      setError(`Action proposal decision failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      delete actionProposalBusyRef.current[id];
+      setActionProposalBusy((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
     }
   };
 
@@ -484,6 +538,10 @@ export default function ApprovalsPage() {
     }
   };
 
+  const pendingActionProposals: ActionProposal[] = actionProposalsQuery.pendingProposals ?? [];
+  const actionProposalsLoading = actionProposalsEnabled && actionProposalsQuery.isPending;
+  const actionProposalsError = actionProposalsEnabled && actionProposalsQuery.isError;
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6 lg:p-10">
       <div className="max-w-4xl mx-auto">
@@ -501,8 +559,8 @@ export default function ApprovalsPage() {
           </div>
         )}
 
-        {error && <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm">{error}</div>}
-        {notice && <div className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-700 text-sm">{notice}</div>}
+        {error && <div role="alert" className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm">{error}</div>}
+        {notice && <div role="status" aria-live="polite" className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-700 text-sm">{notice}</div>}
 
         {loading ? (
           <p className="text-gray-400">Loading…</p>
@@ -942,6 +1000,124 @@ export default function ApprovalsPage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold">Agent Action Proposals (INTERN)</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Automated triggers — e.g. an ingested email classified for a domain — that an
+            INTERN agent was not mature enough to run on its own. Approving <strong>executes
+            the action now</strong> (the agent processes it and you can coach it afterwards);
+            rejecting closes it and teaches the agent the correction.
+          </p>
+          <div aria-busy={actionProposalsLoading}>
+            {actionProposalsLoading && (
+              <p role="status" aria-live="polite" className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
+                Loading agent action proposals…
+              </p>
+            )}
+            {actionProposalsError && (
+              <p role="alert" className="rounded-xl border border-red-800 p-6 text-center text-red-300">
+                Could not load agent action proposals. Please retry.
+              </p>
+            )}
+            {actionProposalsQuery.isSuccess && actionProposalsQuery.isAuthoritativeEmpty && (
+              <div role="status" aria-live="polite" className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
+                No agent action proposals waiting.
+              </div>
+            )}
+            {actionProposalsQuery.isSuccess && pendingActionProposals.length > 0 && (
+              <div className="space-y-3">
+                {pendingActionProposals.map((p) => {
+                  const preview = buildActionProposalPreview(p);
+                  const busy = Boolean(actionProposalBusy[p.id]);
+                  return (
+                    <div key={p.id} aria-busy={busy} className="rounded-xl border border-violet-800/60 bg-gray-900 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-violet-300">{p.title || "Untitled action proposal"}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Target agent: {preview.targetAgent} · ID: {preview.targetAgentId} · action: {preview.actionType}
+                          </div>
+                          {p.description && <div className="text-sm text-gray-400 mt-1 whitespace-pre-line">{p.description}</div>}
+                          <div className="mt-3 rounded-lg border border-gray-700 bg-gray-950/60 p-3 text-xs text-gray-300 space-y-2">
+                            <div><span className="font-semibold text-gray-200">Prompt:</span> {preview.prompt}</div>
+                            <div>
+                              <div className="font-semibold text-gray-200">Parameters:</div>
+                              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{preview.parameters}</pre>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-200">Source content:</div>
+                              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{preview.sourceContent}</pre>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-200">Redacted payload:</div>
+                              <pre data-testid="action-proposal-payload-preview" className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words">{preview.payloadText}</pre>
+                            </div>
+                          </div>
+                          {p.reasoning && (
+                            <details className="text-xs text-gray-500 mt-1">
+                              <summary className="cursor-pointer hover:text-gray-400">Why this was held</summary>
+                              <div className="mt-1">{p.reasoning}</div>
+                            </details>
+                          )}
+                          <div className="text-xs text-gray-600 mt-1">
+                            {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
+                          </div>
+                        </div>
+                        {canDecide ? (
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => decideActionProposal(p.id, true)}
+                              disabled={busy}
+                              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium disabled:opacity-50"
+                            >
+                              {busy ? "Running…" : "Approve & run"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRejectingActionProposalId(p.id);
+                                setActionRejectReason("");
+                              }}
+                              disabled={busy}
+                              className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500 shrink-0">Read-only</span>
+                        )}
+                      </div>
+                      {rejectingActionProposalId === p.id && (
+                        <div className="mt-3 flex flex-wrap items-end gap-2">
+                          <label className="flex-1 min-w-[220px] text-xs text-gray-400">
+                            Rejection reason
+                            <input
+                              value={actionRejectReason}
+                              onChange={(e) => setActionRejectReason(e.target.value)}
+                              aria-label={`Rejection reason for ${p.title || p.id}`}
+                              className="mt-1 w-full rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-gray-100"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => decideActionProposal(p.id, false)}
+                            disabled={busy || !actionRejectReason.trim()}
+                            className="rounded-lg bg-red-700 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                          >
+                            Confirm rejection
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

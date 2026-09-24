@@ -31,6 +31,19 @@ from core.models import (
 )
 
 
+def _ready_promotion_readiness():
+    return {
+        "ready": True,
+        "gaps": [],
+        "readiness_score": 1.0,
+        "success_rate": 1.0,
+        "avg_constitutional_score": 1.0,
+        "intervention_rate": 0.0,
+        "avg_confidence_score": 1.0,
+        "episodes_analyzed": 50,
+    }
+
+
 class TestSandboxExecutor:
     """Tests for GraduationExamSandboxExecutor class (lines 26-144)"""
 
@@ -642,11 +655,16 @@ class TestPromoteAgent:
 
         service = AgentGraduationService(db_session)
 
-        result = await service.promote_agent(
-            agent_id="test-agent",
-            new_maturity="INTERN",
-            validated_by="user-123"
-        )
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=_ready_promotion_readiness()),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+            result = await service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="user-123"
+            )
 
         assert result is True
 
@@ -718,11 +736,16 @@ class TestPromoteAgent:
 
             service = AgentGraduationService(db_session)
 
-            result = await service.promote_agent(
-                agent_id=f"agent-{from_maturity}",
-                new_maturity=to_maturity,
-                validated_by="user-123"
-            )
+            with patch.object(
+                service,
+                "calculate_readiness_score",
+                new=AsyncMock(return_value=_ready_promotion_readiness()),
+            ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+                result = await service.promote_agent(
+                    agent_id=f"agent-{from_maturity}",
+                    new_maturity=to_maturity,
+                    validated_by="user-123"
+                )
 
             assert result is True
 
@@ -1502,21 +1525,26 @@ class TestEdgeCasesAndErrorHandling:
 
         service = AgentGraduationService(db_session)
 
-        # Promote to INTERN
-        result1 = await service.promote_agent(
-            agent_id="test-agent",
-            new_maturity="INTERN",
-            validated_by="user-123"
-        )
-        assert result1 is True
+        with patch.object(
+            service,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=_ready_promotion_readiness()),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+            # Promote to INTERN
+            result1 = await service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="user-123"
+            )
+            assert result1 is True
 
-        # Promote to SUPERVISED
-        result2 = await service.promote_agent(
-            agent_id="test-agent",
-            new_maturity="SUPERVISED",
-            validated_by="user-456"
-        )
-        assert result2 is True
+            # Promote to SUPERVISED
+            result2 = await service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="SUPERVISED",
+                validated_by="user-456"
+            )
+            assert result2 is True
 
         # Verify final state
         db_session.refresh(agent)

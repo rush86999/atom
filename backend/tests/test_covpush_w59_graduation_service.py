@@ -30,6 +30,10 @@ def _agent(**kw):
     return MagicMock(**base)
 
 
+def _ready_readiness():
+    return {"ready": True, "gaps": []}
+
+
 def _episode(**kw):
     base = dict(id="e1", agent_id="a1", task_description="Task",
                 human_intervention_count=1, constitutional_score=0.9,
@@ -69,8 +73,11 @@ class TestReadinessScore:
         readiness = SimpleNamespace(
             to_dict=lambda: {"threshold_met": False},
             readiness_score=0.5, episodes_analyzed=10,
-            breakdown={"total_interventions": 3},
-            zero_intervention_ratio=0.5, avg_constitutional_score=0.6,
+            breakdown={
+                "total_interventions": 3,
+                "constitutional_recorded": 10,
+            },
+            zero_intervention_ratio=0.4, avg_constitutional_score=0.6,
         )
         with patch("core.agent_graduation_service.get_episode_service",
                    return_value=SimpleNamespace(
@@ -191,9 +198,13 @@ class TestPromote:
         assert await svc.promote_agent("a1", "BOGUS", "u1") is False
 
     async def test_success(self, svc):
-        agent = _agent()
+        agent = _agent(status=AgentStatus.STUDENT.value)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
-        with patch("core.notification_service.NotificationService") as ns, \
+        with patch.object(
+            svc,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=_ready_readiness()),
+        ), patch("core.notification_service.NotificationService") as ns, \
              patch("core.personal_scope.resolve_workspace_id",
                    return_value="w1"), \
              patch("core.personal_scope.resolve_tenant_id",
@@ -210,10 +221,14 @@ class TestPromote:
         assert await svc.promote_agent("a1", "INTERN", "u1") is False
 
     async def test_commit_error_rolls_back(self, svc):
-        agent = _agent()
+        agent = _agent(status=AgentStatus.STUDENT.value)
         svc.db.query.return_value.filter.return_value.first.return_value = agent
         svc.db.commit.side_effect = RuntimeError("boom")
-        with patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+        with patch.object(
+            svc,
+            "calculate_readiness_score",
+            new=AsyncMock(return_value=_ready_readiness()),
+        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
             assert await svc.promote_agent("a1", "INTERN", "u1") is False
         svc.db.rollback.assert_called()
 

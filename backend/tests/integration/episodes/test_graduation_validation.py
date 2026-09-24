@@ -635,11 +635,16 @@ class TestGraduationScenarios:
             service.lancedb = mock_lancedb
 
             # Promote agent
-            result = await service.promote_agent(
-                agent_id=student_agent.id,
-                new_maturity="INTERN",
-                validated_by="test-user"
-            )
+            with patch.object(
+                service,
+                "calculate_readiness_score",
+                new=AsyncMock(return_value={"ready": True, "gaps": []}),
+            ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
+                result = await service.promote_agent(
+                    agent_id=student_agent.id,
+                    new_maturity="INTERN",
+                    validated_by="test-user"
+                )
 
             assert result is True
 

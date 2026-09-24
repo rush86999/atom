@@ -281,3 +281,35 @@ def test_body_to_html_rejoins_pretty_printed_table_before_line_pass():
     assert "<table" in html and "</table>" in html
     # plain-text lines around the table still convert
     assert "Hi Jacob,<br>" in html and "Regards,<br>" in html
+
+
+@pytest.mark.asyncio
+async def test_create_draft_email_preserves_conversation_when_available():
+    service = OutlookService()
+    graph = AsyncMock(return_value={"id": "draft-1"})
+    with patch.object(service, "_make_graph_request", new=graph):
+        result = await service.create_draft_email(
+            "u-1",
+            ["sender@example.com"],
+            "Re: Question",
+            "A reply",
+            conversation_id="conversation-1",
+        )
+    assert result == {"id": "draft-1"}
+    payload = graph.await_args.args[3]
+    assert payload["conversationId"] == "conversation-1"
+
+
+@pytest.mark.asyncio
+async def test_create_draft_email_keeps_legacy_payload_without_conversation():
+    service = OutlookService()
+    graph = AsyncMock(return_value={"id": "draft-2"})
+    with patch.object(service, "_make_graph_request", new=graph):
+        await service.create_draft_email(
+            "u-1",
+            ["sender@example.com"],
+            "Subject",
+            "Body",
+        )
+    payload = graph.await_args.args[3]
+    assert "conversationId" not in payload

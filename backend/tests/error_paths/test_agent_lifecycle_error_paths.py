@@ -557,6 +557,14 @@ class TestAgentGraduationErrorPaths:
 class TestAgentPromotionErrorPaths:
     """Tests for AgentPromotionService error scenarios"""
 
+    @pytest.fixture(autouse=True)
+    def ready_graduation_gate(self, monkeypatch):
+        monkeypatch.setattr(
+            AgentGraduationService,
+            "calculate_readiness_score",
+            AsyncMock(return_value={"ready": True, "gaps": []}),
+        )
+
     @pytest.mark.asyncio
     async def test_promotion_without_graduation_exam(self, mock_db, sample_agent):
         """

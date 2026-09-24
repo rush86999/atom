@@ -727,6 +727,14 @@ class ZohoWorkDriveService(IntegrationService):
                         "extension": attrs.get("extn") or attrs.get("extension"),
                         "size": size,
                         "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time"),
+                        "version": attrs.get("version") or attrs.get("resource_version"),
+                        "team_id": team_id,
+                        "workspace_id": attrs.get("workspace_id") or (
+                            (attrs.get("parent") if isinstance(attrs.get("parent"), dict) else {}).get("workspace_id")
+                        ),
+                        "folder_id": attrs.get("parent_id") or (
+                            (attrs.get("parent") if isinstance(attrs.get("parent"), dict) else {}).get("id")
+                        ),
                     })
                     if len(files) >= want:
                         break
@@ -734,6 +742,47 @@ class ZohoWorkDriveService(IntegrationService):
         except Exception as e:
             logger.error(f"Failed to search Zoho WorkDrive: {e}")
             return []
+
+    async def get_file_metadata(
+        self, user_id: str, file_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Return the provider record for one WorkDrive resource."""
+        if not file_id:
+            return None
+        token = await self.get_access_token(user_id)
+        if not token:
+            return None
+        try:
+            response = await self._zoho_get(
+                f"{self.base_url}/files/{file_id}",
+                headers={
+                    "Authorization": f"Zoho-oauthtoken {token}",
+                    "Accept": "application/vnd.api+json",
+                },
+            )
+            response.raise_for_status()
+            data = response.json().get("data") or {}
+            attrs = data.get("attributes") or {}
+            if not isinstance(attrs, dict):
+                attrs = {}
+            return {
+                "id": data.get("id") or file_id,
+                "name": attrs.get("name") or attrs.get("display_name"),
+                "type": "folder" if attrs.get("is_folder") else "file",
+                "extension": attrs.get("extn") or attrs.get("extension"),
+                "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time"),
+                "version": attrs.get("version") or attrs.get("resource_version"),
+                "size": (
+                    (attrs.get("storage_info") if isinstance(attrs.get("storage_info"), dict) else {}).get("size_in_bytes", attrs.get("size"))
+                ),
+                "team_id": attrs.get("team_id") or data.get("team_id"),
+                "workspace_id": attrs.get("workspace_id"),
+                "folder_id": attrs.get("parent_id"),
+                "raw": data,
+            }
+        except Exception as e:
+            logger.warning(f"Failed to fetch Zoho WorkDrive metadata for {file_id}: {e}")
+            return None
 
     async def get_folder_tree(self, user_id: str,
                                workspace_id: Optional[str] = None,

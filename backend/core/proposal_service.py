@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 import uuid
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.models import (
@@ -25,11 +26,39 @@ from core.models import (
     ProposalType,
 )
 from core.agent_learning_enhanced import AgentLearningEnhanced
+from core.personal_scope import resolve_workspace_id
 
 logger = logging.getLogger(__name__)
 
 # Feature flag for proposal execution
 PROPOSAL_EXECUTION_ENABLED = os.getenv("PROPOSAL_EXECUTION_ENABLED", "true").lower() == "true"
+
+_EXECUTION_CONTROL_MODIFICATION_KEYS = frozenset({
+    "action_type",
+    "agent_id",
+    "agent_execution_id",
+    "canvas_id",
+    "command_type",
+    "device_id",
+    "execution_id",
+    "from_canvas_id",
+    "integration_type",
+    "operation",
+    "op",
+    "proposal_id",
+    "session_id",
+    "source_agent_id",
+    "target_agent_id",
+    "tenant_id",
+    "triggered_by",
+    "user_id",
+    "workflow_id",
+    "workspace_id",
+})
+
+
+class ProposalNotFoundError(ValueError):
+    pass
 
 
 class ProposalService:
@@ -42,6 +71,155 @@ class ProposalService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def _serialize_mapped_text(value: Any) -> str:
+        return json.dumps(value, default=str, sort_keys=True)
+
+    @staticmethod
+    def _decode_mapped_text(value: Any) -> Any:
+        if not value:
+            return None
+        if not isinstance(value, str):
+            return value
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return value
+
+    @staticmethod
+    def _normalize_execution_result(result: Any) -> Dict[str, Any]:
+        if not isinstance(result, dict):
+            return {"success": True, "response": str(result)}
+
+        normalized = dict(result)
+        status = str(normalized.get("status") or "").strip().lower()
+        failure_statuses = {
+            "blocked",
+            "budget_exceeded",
+            "cancelled",
+            "canceled",
+            "denied",
+            "errored",
+            "error",
+            "execution_failed",
+            "failed",
+            "failure",
+            "rejected",
+            "timeout",
+        }
+        success_statuses = {"completed", "ok", "success"}
+
+        if "success" in normalized:
+            explicit_success = normalized.get("success")
+            if isinstance(explicit_success, str):
+                explicit_succeeded = explicit_success.strip().lower() in {"1", "true", "yes"}
+            else:
+                explicit_succeeded = bool(explicit_success)
+        else:
+            explicit_succeeded = None
+
+        if explicit_succeeded is False:
+            success = False
+        elif status in failure_statuses:
+            success = False
+        elif status in success_statuses:
+            success = True
+        elif explicit_succeeded is not None:
+            success = explicit_succeeded
+        else:
+            success = False
+
+        normalized["success"] = success
+        return normalized
+
+    def _proposal_query(self, proposal_id: str, tenant_id: Optional[str] = None):
+        query = self.db.query(AgentProposal).filter(AgentProposal.id == proposal_id)
+        if tenant_id is not None:
+            query = query.filter(AgentProposal.tenant_id == tenant_id)
+        return query
+
+    def _claim_proposal(
+        self,
+        proposal_id: str,
+        user_id: str,
+        claimed_status: str,
+        tenant_id: Optional[str] = None,
+        reason: Optional[str] = None,
+        modifications: Any = None,
+        approver_type: str = "user",
+    ) -> AgentProposal:
+        reviewed_at = datetime.now()
+        values: Dict[str, Any] = {
+            "status": claimed_status,
+            "approver_type": approver_type,
+            "approver_id": user_id,
+            "approved_by": user_id,
+            "approved_at": reviewed_at,
+            "reviewed_at": reviewed_at,
+        }
+        if reason is not None:
+            values["approval_reason"] = reason
+        if modifications is not None:
+            values["suggested_modifications"] = self._serialize_mapped_text(modifications)
+
+        claim_result = (
+            self._proposal_query(proposal_id, tenant_id)
+            .filter(AgentProposal.status == ProposalStatus.PENDING_APPROVAL.value)
+            .update(values, synchronize_session=False)
+        )
+        claimed_count = claim_result if isinstance(claim_result, int) else int(bool(claim_result))
+        self.db.commit()
+
+        proposal = self._proposal_query(proposal_id, tenant_id).first()
+        if claimed_count != 1:
+            if not proposal:
+                raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
+            raise ValueError(
+                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
+            )
+        if not proposal:
+            raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
+
+        for field, value in values.items():
+            setattr(proposal, field, value)
+        return proposal
+
+    @staticmethod
+    def _validate_modifications(
+        modifications: Optional[Dict[str, Any]],
+    ) -> None:
+        if not modifications:
+            return
+        if not isinstance(modifications, dict):
+            raise ValueError("Proposal modifications must be an object")
+        modified_keys = {str(key).lower() for key in modifications}
+        if modified_keys & _EXECUTION_CONTROL_MODIFICATION_KEYS:
+            raise ValueError("Modifications cannot change execution-control fields")
+
+    def _persist_execution_exception(
+        self,
+        proposal_id: str,
+        tenant_id: Optional[str],
+    ) -> None:
+        failure_result = {
+            "success": False,
+            "error": "Proposal execution failed",
+            "proposal_id": proposal_id,
+        }
+        query = self._proposal_query(proposal_id, tenant_id).filter(
+            AgentProposal.status == ProposalStatus.APPROVED.value
+        )
+        query.update(
+            {
+                "status": ProposalStatus.EXECUTION_FAILED.value,
+                "execution_success": False,
+                "execution_outcome_details": self._serialize_mapped_text(failure_result),
+                "executed_at": datetime.now(),
+            },
+            synchronize_session=False,
+        )
+        self.db.commit()
 
     async def create_action_proposal(
         self,
@@ -179,7 +357,8 @@ Please review and approve or reject this proposal.
         self,
         proposal_id: str,
         user_id: str,
-        modifications: Optional[Dict[str, Any]] = None
+        modifications: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Approve proposal and execute the proposed action.
@@ -193,90 +372,73 @@ Please review and approve or reject this proposal.
             Execution result
         """
         learning = AgentLearningEnhanced(self.db)
-        
-        proposal = self.db.query(AgentProposal).filter(
-            AgentProposal.id == proposal_id
-        ).first()
+        proposal = self._proposal_query(proposal_id, tenant_id).first()
 
         if not proposal:
-            raise ValueError(f"Proposal {proposal_id} not found")
-
+            raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
         if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             raise ValueError(
                 f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
-        # Update proposal
-        proposal.status = ProposalStatus.APPROVED.value
-        proposal.approved_by = user_id
-        proposal.approved_at = datetime.now()
-
+        self._validate_modifications(modifications)
+        original_action = proposal.proposed_action.copy() if modifications and proposal.proposed_action else None
+        action_to_execute = dict(proposal.proposed_action or {})
         if modifications:
-            # Bug 12 fix: capture original BEFORE mutation, then apply on a
-            # COPY so a failed execution doesn't leave the proposal row in
-            # a partially-mutated state.
-            original_action = proposal.proposed_action.copy() if proposal.proposed_action else {}
-            # Don't mutate proposal.proposed_action yet — build the action to
-            # execute first, then persist only after execution succeeds.
-            _action_to_execute = dict(proposal.proposed_action) if proposal.proposed_action else {}
-            _action_to_execute.update(modifications)
-        else:
-            original_action = None
-            _action_to_execute = proposal.proposed_action
+            action_to_execute.update(modifications)
 
-        # Execute the proposed action using the prepared (possibly modified) copy
+        proposal = self._claim_proposal(
+            proposal_id=proposal_id,
+            user_id=user_id,
+            claimed_status=ProposalStatus.APPROVED.value,
+            tenant_id=tenant_id,
+            modifications=modifications,
+        )
+
         try:
-            execution_result = await self._execute_proposed_action_with(proposal, _action_to_execute)
+            execution_result = self._normalize_execution_result(
+                await self._execute_proposed_action_with(proposal, action_to_execute)
+            )
         except Exception as e:
             logger.error(f"Failed to execute proposal {proposal.id}: {e}")
-            proposal.execution_result = {
-                "success": False,
-                "error": "Proposal execution failed",
-                "proposal_id": proposal.id
-            }
-            proposal.status = ProposalStatus.EXECUTION_FAILED.value
-            proposal.executed_at = datetime.now()
-            self.db.commit()
+            self._persist_execution_exception(proposal.id, tenant_id)
             raise
 
-        # Bug 12 fix: only now (after successful execution) apply mutations
-        # to the persisted proposal row. Previously mutations were applied
-        # BEFORE execution, so a failure left the row in an inconsistent state.
-        # Reassign proposal_data (the JSON column) with a NEW dict — in-place
-        # mutation of the JSON value is not tracked by SQLAlchemy, so it would
-        # silently fail to persist the modified action.
         if modifications:
-            if proposal.proposed_action:
-                merged_action = dict(proposal.proposed_action)
-                merged_action.update(modifications)
-                proposal.proposal_data = merged_action
-            proposal.modifications = modifications
+            proposal.proposal_data = action_to_execute
 
-        proposal.execution_result = execution_result
-        if execution_result.get("success"):
-            proposal.status = ProposalStatus.EXECUTED.value
-        else:
-            proposal.status = ProposalStatus.EXECUTION_FAILED.value
+        execution_id = execution_result.get("execution_id")
+        nested_result = execution_result.get("result")
+        if not execution_id and isinstance(nested_result, dict):
+            execution_id = nested_result.get("execution_id")
+        if execution_id is not None:
+            proposal.execution_id = str(execution_id)
+
+        proposal.execution_success = bool(execution_result["success"])
+        proposal.execution_outcome_details = self._serialize_mapped_text(execution_result)
+        proposal.status = (
+            ProposalStatus.EXECUTED.value
+            if execution_result["success"]
+            else ProposalStatus.EXECUTION_FAILED.value
+        )
         proposal.executed_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(proposal)
 
-        # NEW: Create learning episode from approved proposal
         await self._create_proposal_episode(
             proposal=proposal,
-            outcome="approved" if execution_result.get("success") else "failed",
+            outcome="approved" if execution_result["success"] else "failed",
             modifications=modifications,
             execution_result=execution_result
         )
 
-        # NEW: Record correction if modifications were made
         if modifications:
             await learning.record_user_correction(
                 agent_id=proposal.agent_id,
                 tenant_id=getattr(proposal, 'tenant_id', 'default'),
-                original_action=original_action, # Captured before update
-                corrected_action=proposal.proposed_action, # Current updated action
+                original_action=original_action,
+                corrected_action=proposal.proposal_data,
                 context=f"Modification during proposal {proposal.id} approval"
             )
 
@@ -290,7 +452,8 @@ Please review and approve or reject this proposal.
         self,
         proposal_id: str,
         user_id: str,
-        reason: str
+        reason: str,
+        tenant_id: Optional[str] = None,
     ) -> None:
         """
         Reject proposal with feedback.
@@ -301,43 +464,29 @@ Please review and approve or reject this proposal.
             reason: Reason for rejection
         """
         learning = AgentLearningEnhanced(self.db)
-        proposal = self.db.query(AgentProposal).filter(
-            AgentProposal.id == proposal_id
-        ).first()
+        proposal = self._proposal_query(proposal_id, tenant_id).first()
 
         if not proposal:
-            raise ValueError(f"Proposal {proposal_id} not found")
-
-        # Guard the state machine like approve_proposal does: a proposal that
-        # was already approved/executed must not be flipped to REJECTED — that
-        # would rewrite the audit trail of an action that already ran.
+            raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
         if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
             raise ValueError(
                 f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
             )
 
-        proposal.status = ProposalStatus.REJECTED.value
-        proposal.approved_by = user_id
-        proposal.approved_at = datetime.now()
+        proposal = self._claim_proposal(
+            proposal_id=proposal_id,
+            user_id=user_id,
+            claimed_status=ProposalStatus.REJECTED.value,
+            tenant_id=tenant_id,
+            reason=reason,
+        )
 
-        # Store rejection reason in execution_result
-        proposal.execution_result = {
-            "rejected": True,
-            "rejected_by": user_id,
-            "rejected_at": datetime.now().isoformat(),
-            "reason": reason
-        }
-
-        self.db.commit()
-
-        # NEW: Create learning episode from rejected proposal
         await self._create_proposal_episode(
             proposal=proposal,
             outcome="rejected",
             rejection_reason=reason
         )
 
-        # NEW: Record rejection for learning
         await learning.record_rejection(
             agent_id=proposal.agent_id,
             tenant_id=getattr(proposal, 'tenant_id', 'default'),
@@ -347,9 +496,6 @@ Please review and approve or reject this proposal.
             context=f"Rejection of proposal {proposal.id}"
         )
 
-        # A rejected proposal is a human correction: under
-        # auto_until_corrected topics it resets the hire's EARNED autonomy
-        # for that action's topic (propose again until re-earned).
         try:
             from core.autonomy_policy import reset_autonomy_cycle, topic_for_action
 
@@ -398,12 +544,16 @@ Please review and approve or reject this proposal.
     async def get_proposal_history(
         self,
         agent_id: str,
-        limit: int = 50
+        limit: int = 50,
+        tenant_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get agent's proposal history"""
-        proposals = self.db.query(AgentProposal).filter(
+        query = self.db.query(AgentProposal).filter(
             AgentProposal.agent_id == agent_id
-        ).order_by(
+        )
+        if tenant_id is not None:
+            query = query.filter(AgentProposal.tenant_id == tenant_id)
+        proposals = query.order_by(
             AgentProposal.created_at.desc()
         ).limit(limit).all()
 
@@ -414,13 +564,28 @@ Please review and approve or reject this proposal.
                 "proposal_type": proposal.proposal_type,
                 "title": proposal.title,
                 "status": proposal.status,
-                "created_at": proposal.created_at.isoformat(),
+                "created_at": proposal.created_at.isoformat() if proposal.created_at else None,
                 "approved_at": proposal.approved_at.isoformat() if proposal.approved_at else None,
                 "approved_by": proposal.approved_by,
-                "execution_result": getattr(proposal, "execution_result", None)
+                "approver_id": proposal.approver_id,
+                "approver_type": (
+                    proposal.approver_type.value
+                    if hasattr(proposal.approver_type, "value")
+                    else proposal.approver_type
+                ),
+                "reviewed_at": proposal.reviewed_at.isoformat() if proposal.reviewed_at else None,
+                "approval_reason": proposal.approval_reason,
+                "execution_id": proposal.execution_id,
+                "execution_success": proposal.execution_success,
+                "execution_outcome_details": self._decode_mapped_text(
+                    proposal.execution_outcome_details
+                ),
+                "suggested_modifications": self._decode_mapped_text(
+                    proposal.suggested_modifications
+                ),
             })
 
-        return history
+        return list(history)
 
     # ========================================================================
     # Private Helper Methods
@@ -1148,60 +1313,86 @@ Please review and approve or reject this proposal.
         - parameters: Additional parameters
         """
         try:
-            from core.models import AgentRegistry
             from core.generic_agent import GenericAgent
 
             user_id = proposal.approved_by
-            agent_id = proposal.agent_id
-            target_agent_id = action.get("target_agent_id")
+            source_agent_id = proposal.agent_id
+            target_agent_id = action.get("target_agent_id") or source_agent_id
+            tenant_id = str(getattr(proposal, "tenant_id", None) or "default")
+            tenant_filter = AgentRegistry.tenant_id == tenant_id
+            if tenant_id == "default":
+                tenant_filter = or_(
+                    tenant_filter,
+                    AgentRegistry.tenant_id.is_(None),
+                )
+            registry_agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == target_agent_id,
+                tenant_filter,
+            ).first()
+            if not registry_agent:
+                raise ValueError(f"Agent {target_agent_id} not found")
+            workspace_id = resolve_workspace_id(registry_agent)
 
-            # Create execution tracking
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
-                agent_id=target_agent_id or agent_id,
-                workspace_id="default",
+                agent_id=target_agent_id,
+                workspace_id=workspace_id,
                 status="running",
                 input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action,
-                    "triggered_by": agent_id
+                    "triggered_by": source_agent_id
                 }),
                 triggered_by="proposal",
-                tenant_id=proposal.tenant_id or "default",
+                tenant_id=tenant_id,
             )
             self.db.add(execution)
             self.db.commit()
 
-            # Execute agent (real API: GenericAgent(agent_model=...).execute)
-            registry_agent = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == (target_agent_id or agent_id)
-            ).first()
-            if not registry_agent:
-                raise ValueError(f"Agent {target_agent_id or agent_id} not found")
-            agent = GenericAgent(agent_model=registry_agent, workspace_id="default")
-            result = await agent.execute(
-                task_input=action.get("prompt", ""),
-                context={
-                    "proposal_id": proposal.id,
-                    "execution_id": execution.id,
-                    "parameters": action.get("parameters", {}),
-                },
-            )
-            if not isinstance(result, dict):
-                result = {"success": True, "response": str(result)}
+            try:
+                agent = GenericAgent(
+                    agent_model=registry_agent,
+                    workspace_id=workspace_id,
+                )
+                raw_result = await agent.execute(
+                    task_input=action.get("prompt", ""),
+                    context={
+                        "proposal_id": proposal.id,
+                        "execution_id": execution.id,
+                        "user_id": user_id,
+                        "tenant_id": tenant_id,
+                        "workspace_id": workspace_id,
+                        "agent_id": registry_agent.id,
+                        "parameters": action.get("parameters", {}),
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Agent action failed: {e}")
+                execution.status = "failed"
+                execution.error_message = "Agent execution failed"
+                execution.output_summary = self._serialize_mapped_text({
+                    "success": False,
+                    "error": "Agent execution failed",
+                })
+                execution.completed_at = datetime.now()
+                self.db.commit()
+                self._record_execution_episode(execution, proposal, "delegate_agent")
+                raw_result = {
+                    "success": False,
+                    "error": "Agent execution failed",
+                }
 
-            # Update execution
-            execution.status = "completed" if result.get("success") else "failed"
-            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
+            result = self._normalize_execution_result(raw_result)
+            execution.status = "completed" if result["success"] else "failed"
+            execution.output_summary = self._serialize_mapped_text(result)
             execution.completed_at = datetime.now()
             self.db.commit()
             self._record_execution_episode(execution, proposal, "delegate_agent")
 
-
             return {
-                "success": result.get("success", False),
+                "success": result["success"],
                 "action_type": "agent_execute",
-                "target_agent_id": target_agent_id or agent_id,
+                "target_agent_id": target_agent_id,
                 "execution_id": execution.id,
                 "executed_at": datetime.now().isoformat(),
                 "proposal_id": proposal.id,
@@ -1493,8 +1684,10 @@ Please review and approve or reject this proposal.
         elif outcome == "approved":
             score += 0.1  # Approvals are less critical
 
-        # Modifications boost
-        if getattr(proposal, "modifications", None):
+        suggested_modifications = self._decode_mapped_text(
+            getattr(proposal, "suggested_modifications", None)
+        )
+        if suggested_modifications not in (None, "", [], {}):
             score += 0.1
 
         # Clamp to [0, 1]
@@ -1645,19 +1838,18 @@ Please review and approve or reject this proposal.
                     "review": review_data
                 }
         else:
-            # Reject proposal — never rewrite the audit trail of a proposal
-            # that already ran (same guard as reject_proposal).
-            if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
-                raise ValueError(
-                    f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
-                )
-            proposal.status = ProposalStatus.REJECTED.value
-            proposal.approved_by = review_result["supervisor_id"]
-            proposal.approved_at = datetime.now()
-            proposal.execution_result = {
+            proposal = self._claim_proposal(
+                proposal_id=proposal_id,
+                user_id=review_result["supervisor_id"],
+                claimed_status=ProposalStatus.REJECTED.value,
+                reason=review_data.get("reasoning"),
+                modifications=review_data.get("suggested_modifications"),
+                approver_type="autonomous_agent",
+            )
+            proposal.supervision_metadata = {
                 "autonomous_rejection": True,
                 "supervisor_id": review_result["supervisor_id"],
-                "review": review_data
+                "review": review_data,
             }
             self.db.commit()
 
