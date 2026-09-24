@@ -5091,6 +5091,7 @@ async def _memory_hybrid_block(
 
 def _stamp_named_file_meta(
     plan: Any, key: tuple, names: Dict[tuple, str], tokens: List[str],
+    prov: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Stamp the same structured outcome the storage read stamps, from the
     lane that actually served the evidence. Without this, a datasets-served
@@ -5111,11 +5112,16 @@ def _stamp_named_file_meta(
             "file_id": key[1] or None,
             "resource_id": key[1] or None,
             "file_name": names.get(key),
+            "evidence_kind": "materialized_copy",
+            "content_hash": (prov or {}).get("content_hash"),
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "sheets_indexed": (prov or {}).get("sheets_indexed"),
             "identity_verified": True,       # unique catalog resolution
             "completed": True,               # scoped evidence returned
             "coverage_complete": True,       # every probed token in scope
-            "probed_tokens": tokens[:8],
-            "note": "named-file scoped datasets read",
+            "probed_tokens": list(tokens[:8]),
+            "note": "named-file scoped datasets read (materialized copy)",
         }
     except Exception:  # noqa: BLE001 — meta is best-effort
         pass
@@ -5147,6 +5153,7 @@ async def _datasets_named_file_block(
             score_file_match,
         )
         from core.sheet_dataset_service import (
+            SHEET_ROW_COL,
             _probe_cached,
             _probe_named_file,
             candidate_probe_tokens,
@@ -5200,39 +5207,132 @@ async def _datasets_named_file_block(
             "Identity is ambiguous: ask the user which one, and do NOT "
             "present any of their rows as the named file.")
     key = next(iter(exact_keys))
+    file_entries = by_file[key]
+    e0 = file_entries[0] if file_entries else {}
+    sheets_indexed = sorted({
+        str(e.get("entity_name") or "").strip()
+        for e in file_entries if str(e.get("entity_name") or "").strip()
+    })
+    prov = {
+        "source": e0.get("source"),
+        "resource_id": e0.get("external_id"),
+        "content_hash": e0.get("content_hash"),
+        "ingested_at": e0.get("ingested_at"),
+        "source_modified_at": e0.get("source_modified_at"),
+        "sheets_indexed": len(sheets_indexed),
+    }
+    # Version identity (2026-09-24 review, qualification 2): a unique
+    # catalog NAME is not a workbook version — the resource id, content
+    # hash and ingestion timestamp are what pin which copy answered.
+    provenance_line = (
+        f"MATERIALIZED COPY — this evidence comes from the materialized "
+        f"copy of '{names[key]}' (NOT a fresh read of the live file): "
+        f"source={prov['source'] or '?'}, resource="
+        f"{str(prov['resource_id'] or '?')[:44]}, ingested="
+        f"{prov['ingested_at'] or '?'}, sha256="
+        f"{str(prov['content_hash'] or '?')[:20]}, source_modified="
+        f"{prov['source_modified_at'] or 'unknown'}, "
+        f"{prov['sheets_indexed']} sheet(s) indexed."
+    )
     # Probe tokens come from the query AND the turn's message (on a
     # pending-file-task resume the planner's query may be the FILENAME
     # alone while the eight identifiers live in the confirmed original
-    # ask — the execute context's message carries it verbatim).
+    # ask — the execute context's message carries it verbatim). Each
+    # identifier is probed as-typed AND separator-normalized ('U-22' ->
+    # 'u22'): the substring probe does not cross separator differences.
     _msg_text = _current_message_text(context) or ""
     _target_hay = [query] + ([_msg_text] if _msg_text else [])
     tokens = candidate_probe_tokens(_target_hay) or []
-    recs = []
-    for tok in tokens[:8]:
-        rec = await asyncio.to_thread(_probe_cached, by_file[key], tok, 8)
+    item_tokens = tokens[:8]
+
+    def _variants(tok: str) -> List[str]:
+        out: List[str] = []
+        normalized = re.sub(r"[^0-9a-zA-Z]+", "", tok).lower()
+        for value in (tok, normalized):
+            if value and value.lower() not in {item.lower() for item in out}:
+                out.append(value)
+        return out
+
+    per_item: Dict[str, Optional[Dict[str, Any]]] = {}
+    for tok in item_tokens:
+        rec = None
+        for variant in _variants(tok):
+            rec = await asyncio.to_thread(
+                _probe_cached, file_entries, variant, 8)
+            if rec:
+                break
+        per_item[tok] = rec
+    recs = [r for r in per_item.values() if r]
+    if not recs and not item_tokens:
+        rec = await asyncio.to_thread(_probe_named_file, file_entries, 20)
         if rec:
             recs.append(rec)
+    _stamp_named_file_meta(plan, key, names, item_tokens, prov)
+    coverage_note = (
+        "COVERAGE LIMITS — 'not found' below means: not present in any of "
+        f"the {prov['sheets_indexed']} INDEXED sheets of this materialized "
+        "copy, under case-insensitive substring and separator-normalized "
+        "alias probes. It does NOT prove absence from the live workbook "
+        "(un-indexed sheets, later versions, or formatting variants could "
+        "still contain the item)."
+    )
     if not recs:
-        rec = await asyncio.to_thread(_probe_named_file, by_file[key], 20)
-        if rec:
-            recs.append(rec)
-    if not recs:
-        _stamp_named_file_meta(plan, key, names, tokens)
-        return _with_grounding(
+        return _with_grounding("\n".join([
             "LIVE TOOL RESULTS (datasets.named-file) — '"
-            f"{names[key]}' resolved uniquely (a catalogued copy exists) "
-            f"but none of the query's identifiers ({tokens[:8]}) matched "
-            "inside it. Report the requested items as ABSENT from this "
-            "workbook, naming the sheet scope searched; do not substitute "
-            "rows from other files.")
+            f"{names[key]}' resolved uniquely; {provenance_line}",
+            coverage_note,
+            f"None of the requested identifiers ({item_tokens}) matched "
+            "the indexed content. Report them as NOT FOUND IN THE INDEXED "
+            "CONTENT SEARCHED, with the coverage limits above; do not "
+            "claim absence from the workbook and do not substitute other "
+            "files' rows.",
+        ]))
+
+    def _row_summary(rec: Dict[str, Any]) -> str:
+        out = []
+        for row in (rec.get("rows") or [])[:2]:
+            rnum = row.get(SHEET_ROW_COL) or row.get("__row__") or "?"
+            cells = [
+                f"{c}={row.get(c)}"
+                for c in (rec.get("columns") or [])[:6]
+                if row.get(c) is not None
+            ]
+            out.append(
+                f"{rec.get('entity_name') or '?'} R{rnum}: "
+                + ", ".join(str(x)[:40] for x in cells)[:170])
+        return " ; ".join(out) or "matched sheet carries no row detail"
+
+    # Deterministic per-item table (2026-09-24 review, qualification 4):
+    # rendered FROM the scan so the reply REPRODUCES it — the live reply
+    # once said '3 of 8 found' over a table showing 2.
+    table = [
+        "PER-ITEM OUTCOMES (deterministic, rendered from the scan — "
+        "reproduce VERBATIM; do not recount or re-derive):",
+        "",
+        "| item | outcome | evidence |",
+        "|---|---|---|",
+    ]
+    for tok in item_tokens:
+        rec = per_item.get(tok)
+        if rec:
+            table.append(f"| {tok} | FOUND | {_row_summary(rec)} |")
+        else:
+            table.append(
+                f"| {tok} | NOT FOUND IN INDEXED CONTENT | all "
+                f"{prov['sheets_indexed']} indexed sheets probed "
+                "(substring + alias) |")
     lines = [
         "LIVE TOOL RESULTS (datasets.named-file, file='"
-        f"{names[key]}') — the query NAMED this file, so the results are "
-        "SCOPED to it. Rows carry file, sheet and row references:",
+        f"{names[key]}') — the query NAMED this file, so the evidence is "
+        "SCOPED to its materialized copy:",
+        provenance_line,
+        coverage_note,
+        "",
     ]
+    lines.extend(table)
     for rec in recs:
+        lines.append("")
         lines.append(render_dataset_answer(rec))
-    _stamp_named_file_meta(plan, key, names, tokens)
     return _with_grounding("\n".join(lines)[:18000])
 
 

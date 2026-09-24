@@ -914,3 +914,122 @@ async def test_prefixed_mention_resolves_only_when_containment_unique():
             "u1", "check price list 2019.xlsx", {})
     assert block and "MULTIPLE catalogued files match" in block
     assert "Copy of Consolidated Price List 2019" in block
+
+
+# ---------------------------------------------------------------------------
+# Wiring 9 — coverage wording, provenance, and deterministic rendering
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_named_file_block_carries_provenance_and_coverage_limits():
+    """Version identity (resource id + hash + ingestion) rides the block,
+    and not-found is scoped to the INDEXED CONTENT — never claimed as
+    absence from the live workbook."""
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    catalog = [
+        {"source": "zoho_workdrive", "external_id": "u8ai1e3a",
+         "file_name": "Consolidated Price List 2019.xlsx",
+         "entity_name": "Tennsmith", "content_hash": "ff2597d26f",
+         "ingested_at": "2026-09-07T23:06:19", "source_modified_at": None},
+        {"source": "zoho_workdrive", "external_id": "u8ai1e3a",
+         "file_name": "Consolidated Price List 2019.xlsx",
+         "entity_name": "BurrKing", "content_hash": "ff2597d26f",
+         "ingested_at": "2026-09-07T23:06:19", "source_modified_at": None},
+    ]
+
+    def fake_probe(entries, token, max_rows):
+        if token.lower() in ("sle24-16", "sle2416"):
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "Tennsmith",
+                    "columns": ["Model", "Price"],
+                    "rows": [{"__sheet_row": 12, "Model": "SLE24-16",
+                              "Price": 8880}],
+                    "row_count": 1}
+        return None
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["SLE24-16", "381"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "prices in Consolidated Price List 2019.xlsx", {})
+    assert "MATERIALIZED COPY" in block
+    assert "NOT a fresh read" in block
+    assert "u8ai1e3a" in block and "ff2597d26f" in block
+    assert "2026-09-07T23:06:19" in block
+    assert "2 sheet(s) indexed" in block
+    assert "COVERAGE LIMITS" in block
+    assert "does NOT prove absence from the live workbook" in block
+    # Deterministic table: both outcomes rendered, no model arithmetic.
+    assert "| SLE24-16 | FOUND |" in block
+    assert "| 381 | NOT FOUND IN INDEXED CONTENT |" in block
+    assert "reproduce VERBATIM" in block
+    assert "Tennsmith R12" in block  # sheet + row lineage
+
+
+@pytest.mark.asyncio
+async def test_alias_variants_are_probed():
+    """Separator-normalized aliases ('U-22' -> 'u22') are tried when the
+    as-typed token misses."""
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    catalog = [{"source": "zoho_workdrive", "external_id": "w1",
+                "file_name": "Consolidated Price List 2019.xlsx",
+                "entity_name": "Sheet1"}]
+    probed = []
+
+    def fake_probe(entries, token, max_rows):
+        probed.append(token)
+        if token == "u22":
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "Sheet1", "columns": ["Model"],
+                    "rows": [{"__sheet_row": 4, "Model": "U22"}],
+                    "row_count": 1}
+        return None
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["U-22"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "check Consolidated Price List 2019.xlsx", {})
+    assert probed[:2] == ["U-22", "u22"]
+    assert "| U-22 | FOUND |" in block
+
+
+@pytest.mark.asyncio
+async def test_all_miss_block_is_coverage_scoped_not_absence():
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    catalog = [{"source": "zoho_workdrive", "external_id": "w1",
+                "file_name": "Consolidated Price List 2019.xlsx",
+                "entity_name": "Sheet1", "entity_rows": 10}]
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service._probe_cached",
+              return_value=None),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["381"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "check Consolidated Price List 2019.xlsx", {})
+    assert "NOT FOUND IN THE INDEXED CONTENT SEARCHED" in block
+    assert "do not claim absence from the workbook" in block
+    assert "ABSENT from this workbook" not in block
