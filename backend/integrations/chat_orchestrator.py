@@ -1817,7 +1817,10 @@ _SPREADSHEET_ANSWER_CONTRACT = (
     "from another source in the conversation (e.g. email quotes), and keep "
     "each source's values labeled separately. The WORKBOOK READ ARTIFACT "
     "is the coverage record: report its target statuses and sheet/cell "
-    "references; if it says incomplete, do not fill gaps from email or memory."
+    "references; if it says incomplete, do not fill gaps from email or memory. "
+    "When a deterministic per-item table is present, reproduce its values and "
+    "statuses verbatim; do not recalculate, normalize, interpolate, or invent "
+    "intermediate arithmetic."
 )
 
 
@@ -3422,11 +3425,208 @@ class ChatOrchestrator:
                     if isinstance(_stored_identity, dict):
                         session.setdefault(
                             "_resolved_file_identity", _stored_identity)
+                if isinstance(_stored_task, dict):
+                    session.setdefault(FILE_TASK_SESSION_KEY, _stored_task)
                 _pending_file_task = matching_pending_task(
                     _stored_task, message, history or [])
             except Exception as _pft_err:  # noqa: BLE001 — resume is best-effort
                 logger.debug(f"pending file task resume check skipped: {_pft_err}")
+            # DELIVERY RETRY WITHOUT RE-READING (2026-09-24 review): a
+            # RETRIEVED structured result whose delivery never reached the
+            # user (reply-model failure, budget overrun, restart) is
+            # re-rendered directly from the persisted copy — no planner,
+            # no model, no second read of the file.
+            _pfr = session.get("_pending_file_result")
+            if not isinstance(_pfr, dict) or not _pfr.get("rendered"):
+                try:
+                    _pfr = self._load_pending_file_result(session_id)
+                except Exception:  # noqa: BLE001 — best-effort
+                    _pfr = None
+            if (
+                isinstance(_pfr, dict)
+                and _pfr.get("status") == "retrieved"
+                and _pfr.get("rendered")
+            ):
+                try:
+                    from core.plan_relevance import _is_substantive_request
+                    from core.pending_file_task import (
+                        FILE_TASK_SESSION_KEY,
+                        is_filename_confirmation,
+                        mark_task_delivered,
+                    )
+
+                    _new_substantive = _is_substantive_request(message)
+                    _delivery_retry = (
+                        is_filename_confirmation(message)
+                        or not _new_substantive
+                    )
+                except Exception:  # noqa: BLE001 — shape checks only
+                    _delivery_retry = False
+                if _delivery_retry:
+                    try:
+                        from core.chat_tool_planner import (
+                            _user_facing_workbook_answer,
+                        )
+
+                        _deliver_content = _user_facing_workbook_answer(
+                            str(_pfr["rendered"]))
+                    except Exception:  # noqa: BLE001 — renderer optional
+                        _deliver_content = str(_pfr["rendered"])
+                    _deliver_content += (
+                        "\n\n(Delivered from the persisted scan result — "
+                        "re-rendered without re-reading the file; the "
+                        "narration model was not used.)"
+                    )
+                    _pfr["status"] = "delivered"
+                    _pfr["delivered_at"] = time.time()
+                    session["_pending_file_result"] = _pfr
+                    _task_row = session.get(FILE_TASK_SESSION_KEY)
+                    if isinstance(_task_row, dict):
+                        session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
+                            _task_row)
+                    _deliver_response = {
+                        "success": True,
+                        "message": _deliver_content,
+                        "session_id": session_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {
+                            "deterministic_delivery": True,
+                            "file_identity": _pfr.get("identity"),
+                        },
+                        "requires_confirmation": False,
+                        "next_steps": [],
+                        "suggested_actions": [],
+                    }
+                    self._update_session(
+                        session, message, _deliver_response,
+                        {"primary_intent": "search", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(
+                        _execution_id, "success", _deliver_content)
+                    logger.info(
+                        "[pending-file-task] delivery retry — persisted "
+                        "result re-rendered without re-reading")
+                    return _deliver_response
             if _pending_file_task:
+                _direct_result = await self._direct_confirmed_file_read(
+                    _pending_file_task,
+                    history,
+                    user_id,
+                    session_id,
+                    (context or {}).get("workspace_id"),
+                    _deadline,
+                )
+                if _direct_result.get("ok"):
+                    try:
+                        from core.chat_tool_planner import (
+                            _user_facing_workbook_answer,
+                        )
+
+                        _direct_content = _user_facing_workbook_answer(
+                            str(_direct_result.get("rendered_answer")
+                                or _direct_result.get("block") or "")
+                        )
+                    except Exception:
+                        _direct_content = str(
+                            _direct_result.get("rendered_answer")
+                            or _direct_result.get("block") or ""
+                        )
+                    _direct_identity = _direct_result.get("identity") or {}
+                    if _direct_identity:
+                        session["_resolved_file_identity"] = _direct_identity
+                    _direct_complete = bool(
+                        _direct_result.get("retrieval_complete"))
+                    _direct_result_row = {
+                        # "incomplete" must never masquerade as delivered —
+                        # the durable record states what actually happened.
+                        "status": (
+                            "retrieved" if _direct_complete
+                            else "incomplete"),
+                        "rendered": _direct_content[:24000],
+                        "identity": _direct_identity,
+                        "workbook_read": (
+                            _direct_result.get("meta") or {}
+                        ).get("workbook_read"),
+                        "coverage_complete": _direct_complete,
+                        "execution_id": _execution_id,
+                        "retrieved_at": time.time(),
+                    }
+                    session["_pending_file_result"] = _direct_result_row
+                    try:
+                        from core.pending_file_task import (
+                            FILE_TASK_SESSION_KEY,
+                            mark_task_retrieved,
+                            merge_pending_task,
+                        )
+
+                        if _direct_complete:
+                            session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
+                                session.get(FILE_TASK_SESSION_KEY),
+                                _direct_identity,
+                            )
+                        else:
+                            session[FILE_TASK_SESSION_KEY] = merge_pending_task(
+                                session.get(FILE_TASK_SESSION_KEY),
+                                message,
+                                _pending_file_task.get("mention") or "",
+                            )
+                    except Exception:
+                        pass
+                    _direct_response = {
+                        "success": True,
+                        "message": _direct_content,
+                        "session_id": session_id,
+                        "execution_id": _execution_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {
+                            "deterministic_delivery": True,
+                            "file_identity": _direct_identity,
+                            "workbook_read": _direct_result_row["workbook_read"],
+                            "coverage_complete": _direct_complete,
+                        },
+                        "model": "deterministic",
+                        "provider": "structured",
+                        "requires_confirmation": False,
+                        "next_steps": [],
+                        "suggested_actions": [],
+                    }
+                    self._update_session(
+                        session,
+                        message,
+                        _direct_response,
+                        {"primary_intent": "search", "confidence": 0.9},
+                    )
+                    if _direct_complete:
+                        try:
+                            from core.pending_file_task import (
+                                FILE_TASK_SESSION_KEY,
+                                mark_task_delivered,
+                            )
+
+                            _task_row = session.get(FILE_TASK_SESSION_KEY)
+                            if isinstance(_task_row, dict):
+                                session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
+                                    _task_row
+                                )
+                            _direct_result_row["status"] = "delivered"
+                            _direct_result_row["delivered_at"] = time.time()
+                        except Exception:
+                            pass
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(
+                        _execution_id, "success", _direct_content
+                    )
+                    logger.info(
+                        "[pending-file-task] confirmed read delivered directly "
+                        "without planner or narration")
+                    return _direct_response
                 _pft_original = str(
                     _pending_file_task.get("original_message") or "")
                 # Resume-aware planner wait, shared by the pre-started task
@@ -3489,6 +3689,12 @@ class ChatOrchestrator:
                 _plan_history = session.get("history", []) or history
 
                 async def _planned_with_provenance():
+                    if os.getenv("ATOM_DISABLE_TOOL_PLANNER"):
+                        # Maintenance/acceptance kill switch: the planner is
+                        # deliberately unavailable; confirmed reads still run
+                        # via the planner-independent file-scoped reader.
+                        raise RuntimeError(
+                            "tool planner disabled (ATOM_DISABLE_TOOL_PLANNER)")
                     # LAZY: started only when the planner is actually awaited
                     # (an earlier canvas-edit/action leg answers many turns
                     # first and cancels this task), and overlapped with the
@@ -4443,6 +4649,9 @@ class ChatOrchestrator:
                 "timestamp": datetime.now().isoformat(),
                 "model": used_model,
                 "provider": used_provider,
+                "deterministic_delivery": bool(
+                    (ai_response or {}).get("deterministic_delivery")
+                ),
                 "memory_context": (ai_response or {}).get("memory_context") if ai_response else None,
                 # The model's chain-of-thought for this turn (what the agent
                 # was thinking) — rendered by the "Reasoning Process" drawer
@@ -4503,6 +4712,31 @@ class ChatOrchestrator:
                 "success" if response.get("success", True) else "failed",
                 response.get("message", ""),
             )
+            # DELIVERED marking (retrieval != delivery, 2026-09-24): the
+            # response is about to reach the user — a RETRIEVED result
+            # becomes DELIVERED only now; a failed turn leaves it
+            # RETRIEVED so the next turn re-renders without re-reading.
+            try:
+                from core.pending_file_task import (
+                    FILE_TASK_SESSION_KEY,
+                    mark_task_delivered,
+                )
+
+                _pfr_cur = session.get("_pending_file_result")
+                if (
+                    isinstance(_pfr_cur, dict)
+                    and _pfr_cur.get("status") == "retrieved"
+                    and response.get("success")
+                    and response.get("deterministic_delivery")
+                ):
+                    _pfr_cur["status"] = "delivered"
+                    _pfr_cur["delivered_at"] = time.time()
+                    _task_row = session.get(FILE_TASK_SESSION_KEY)
+                    if isinstance(_task_row, dict):
+                        session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
+                            _task_row)
+            except Exception:  # noqa: BLE001 — bookkeeping only
+                pass
             return response
 
         except Exception as e:
@@ -4702,6 +4936,88 @@ class ChatOrchestrator:
         except Exception as e:
             logger.warning(f"file-mention canvas creation failed: {e}")
             return None
+
+    async def _direct_confirmed_file_read(
+        self,
+        pending_task: Dict[str, Any],
+        history: List[Dict[str, Any]],
+        user_id: Optional[str],
+        session_id: str,
+        workspace_id: Optional[str],
+        deadline: Optional["TurnDeadline"] = None,
+    ) -> Dict[str, Any]:
+        mention = str((pending_task or {}).get("mention") or "").strip()
+        original = str((pending_task or {}).get("original_message") or "").strip()
+        if not mention or not original:
+            return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        timeout = 25.0
+        if deadline is not None:
+            try:
+                timeout = min(timeout, max(1.0, deadline.remaining() - 5.0))
+            except Exception:
+                pass
+        try:
+            import types
+
+            from core.chat_tool_planner import _datasets_named_file_block
+
+            direct_plan = types.SimpleNamespace(_result_meta={})
+            block = await asyncio.wait_for(
+                _datasets_named_file_block(
+                    user_id,
+                    original,
+                    {
+                        "message": original,
+                        "workspace_id": workspace_id,
+                        "history": (history or [])[-6:],
+                        "disambiguation": pending_task.get("disambiguation"),
+                    },
+                    plan=direct_plan,
+                ),
+                timeout=timeout,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[pending-file-task] direct confirmed read failed: %r", exc
+            )
+            return {"ok": False, "block": "", "reason": str(exc)[:300]}
+        meta = (
+            (getattr(direct_plan, "_result_meta", None) or {})
+            .get("storage_read")
+            or {}
+        )
+        identity_verified = bool(meta.get("identity_verified"))
+        coverage_complete = bool(meta.get("coverage_complete"))
+        identity = {
+            "service": meta.get("service"),
+            "file_id": meta.get("file_id"),
+            "resource_id": meta.get("resource_id") or meta.get("file_id"),
+            "file_name": meta.get("file_name"),
+            "source": meta.get("source"),
+            "content_hash": meta.get("content_hash"),
+            "content_hash_algorithm": meta.get("content_hash_algorithm"),
+            "ingested_at": meta.get("ingested_at"),
+            "source_modified_at": meta.get("source_modified_at"),
+            "version_verified": meta.get("version_verified"),
+            "identity_verified": identity_verified,
+            "coverage_complete": coverage_complete,
+            "coverage_limits": meta.get("coverage_limits") or {},
+            "workbook_read": meta.get("workbook_read"),
+            "execution_id": meta.get("execution_id"),
+        }
+        return {
+            "ok": bool(block),
+            "block": block or "",
+            "meta": meta,
+            "identity": identity,
+            "identity_verified": identity_verified,
+            "coverage_complete": coverage_complete,
+            "retrieval_complete": bool(
+                meta.get("completed") and identity_verified and coverage_complete
+            ),
+            "rendered_answer": meta.get("rendered_answer") or "",
+            "reason": "" if block else "file-scoped reader returned no result",
+        }
 
     async def _get_qwen_response(
         self,
@@ -5084,6 +5400,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # failed attempts — results placed before them lost to recency.
             _tool_block: Optional[str] = None
             _planned: Optional[str] = None
+            _off_request = False
+            _deterministic_answer: Optional[str] = None
             # PENDING FILE TASK support (2026-09-23): on a resume turn the
             # plan is built from the CONFIRMED ORIGINAL ask, so the
             # relevance gate and the executor's context (identifier net,
@@ -5399,6 +5717,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             except Exception:
                                 _prefetch_meta = {}
                         if _prefetch_meta:
+                            _deterministic_answer = _prefetch_meta.get(
+                                "rendered_answer"
+                            ) or None
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
                                 "service": _prefetch_meta.get("service"),
@@ -5406,6 +5727,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "resource_id": _prefetch_meta.get("resource_id")
                                 or _prefetch_meta.get("file_id"),
                                 "file_name": _prefetch_meta.get("file_name"),
+                                "source": _prefetch_meta.get("source"),
+                                "content_hash": _prefetch_meta.get("content_hash"),
+                                "ingested_at": _prefetch_meta.get("ingested_at"),
+                                "source_modified_at": _prefetch_meta.get("source_modified_at"),
+                                "version_verified": _prefetch_meta.get("version_verified"),
                                 "source_metadata": _prefetch_meta.get(
                                     "source_metadata") or {},
                                 "workbook_read": _prefetch_meta.get("workbook_read"),
@@ -5524,6 +5850,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _prov = f"{_prov}\n\n{_src}" if _prov else _src
                         except Exception:  # noqa: BLE001
                             pass
+                        if os.getenv("ATOM_DISABLE_TOOL_PLANNER"):
+                            raise RuntimeError(
+                                "tool planner disabled "
+                                "(ATOM_DISABLE_TOOL_PLANNER)")
                         _fresh_wait_token = None
                         if _resume_original:
                             try:
@@ -5811,6 +6141,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 .get("storage_read") or {})
                         except Exception:  # noqa: BLE001 — meta is optional
                             _storage_read_meta = {}
+                        if _storage_read_meta:
+                            _deterministic_answer = _storage_read_meta.get(
+                                "rendered_answer"
+                            ) or None
                         if not _off_request and _storage_read_meta:
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -5818,10 +6152,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "file_id": _storage_read_meta.get("file_id"),
                                 "resource_id": _storage_read_meta.get(
                                     "resource_id") or _storage_read_meta.get("file_id"),
-                                "file_name": _storage_read_meta.get("file_name"),
-                                "source_metadata": _storage_read_meta.get(
-                                    "source_metadata") or {},
-                                "dataset_sheet": _storage_read_meta.get(
+                                 "file_name": _storage_read_meta.get("file_name"),
+                                 "source": _storage_read_meta.get("source"),
+                                 "content_hash": _storage_read_meta.get("content_hash"),
+                                 "ingested_at": _storage_read_meta.get("ingested_at"),
+                                 "source_modified_at": _storage_read_meta.get("source_modified_at"),
+                                 "version_verified": _storage_read_meta.get("version_verified"),
+                                 "coverage_complete": _storage_read_meta.get(
+                                     "coverage_complete"),
+                                 "coverage_limits": _storage_read_meta.get(
+                                     "coverage_limits") or {},
+                                 "source_metadata": _storage_read_meta.get(
+                                     "source_metadata") or {},
+                                 "dataset_sheet": _storage_read_meta.get(
+
                                     "dataset_sheet"),
                                 "workbook_read": _storage_read_meta.get(
                                     "workbook_read"),
@@ -5970,6 +6314,79 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # "" — the old warning printed "tool planning skipped: " and
                 # hid the 45s exec timeout entirely (live 2026-09-06).
                 logger.warning(f"tool planning skipped: {tool_err!r}")
+                # PLANNER-INDEPENDENT CONFIRMED READ (2026-09-24 review,
+                # gap 1): a CONFIRMED file with a known pending request
+                # enters the file-scoped reader DIRECTLY — planner timeout
+                # or disablement must not prevent the read the user already
+                # authorized. The planner stays for genuinely unresolved
+                # choices; this is the bounded lookup fallback.
+                if _resume_original and _plan_mentions and not _tool_block:
+                    try:
+                        import types as _types
+
+                        from core.chat_tool_planner import (
+                            _datasets_named_file_block,
+                        )
+
+                        _direct_plan = _types.SimpleNamespace()
+                        _file_ev = await asyncio.wait_for(
+                            _datasets_named_file_block(
+                                user_id, _plan_mentions[0],
+                                {"message": _gate_msg,
+                                 "workspace_id": workspace_id,
+                                 "history": (planner_history
+                                             or history or [])[-6:]},
+                                plan=_direct_plan),
+                            timeout=25,
+                        )
+                        if _file_ev:
+                            _tool_block = _file_ev
+                            _file_lookup_attempted = True
+                            _sr_direct = (
+                                getattr(_direct_plan, "_result_meta", None)
+                                or {}).get("storage_read") or {}
+                            if _sr_direct.get("file_id"):
+                                _resolved_file_identity = {
+                                    "service": _sr_direct.get("service"),
+                                    "file_id": _sr_direct.get("file_id"),
+                                    "resource_id": _sr_direct.get(
+                                        "resource_id") or _sr_direct.get(
+                                            "file_id"),
+                                    "file_name": _sr_direct.get("file_name"),
+                                    "source": _sr_direct.get("source"),
+                                    "content_hash": _sr_direct.get(
+                                        "content_hash"),
+                                    "ingested_at": _sr_direct.get(
+                                        "ingested_at"),
+                                    "source_modified_at": _sr_direct.get(
+                                        "source_modified_at"),
+                                    "version_verified": _sr_direct.get(
+                                        "version_verified"),
+                                    "coverage_complete": _sr_direct.get(
+                                        "coverage_complete"),
+                                    "coverage_limits": _sr_direct.get(
+                                        "coverage_limits") or {},
+                                    "workbook_read": _sr_direct.get(
+                                        "workbook_read"),
+                                    "execution_id": execution_id,
+                                }
+                            if (
+                                _sr_direct.get("completed")
+                                and _sr_direct.get("identity_verified")
+                                and _sr_direct.get("coverage_complete")
+                            ):
+                                _live_file_lookup_ran = True
+                                _deterministic_answer = (
+                                    _sr_direct.get("rendered_answer")
+                                    or None)
+                            logger.info(
+                                "[pending-file-task] planner unavailable — "
+                                "confirmed read executed directly by the "
+                                "file-scoped reader")
+                    except Exception as _direct_err:  # noqa: BLE001
+                        logger.debug(
+                            f"planner-independent confirmed read failed: "
+                            f"{_direct_err!r}")
                 if _planned and not _tool_block:
                     _tool_block = _tool_failure_block(_planned)
                 elif not _planned and not _tool_block:
@@ -5992,7 +6409,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 try:
                     from core.pending_file_task import (
                         FILE_TASK_SESSION_KEY,
-                        mark_task_served,
+                        mark_task_retrieved,
                         merge_pending_task,
                     )
 
@@ -6005,22 +6422,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         session["_resolved_file_identity"] = (
                             _resolved_file_identity)
                     if _live_file_lookup_ran:
-                        # COMPLETED read (content extracted): the ask is
-                        # served. The task row stays with status "served"
-                        # (a durable marker so a later bare "yes" cannot
-                        # resurrect it), and the identity is kept for the
-                        # preview to share.
-                        session[FILE_TASK_SESSION_KEY] = mark_task_served(
-                            session.get(FILE_TASK_SESSION_KEY),
-                            _resolved_file_identity or {
-                                "file_name": _plan_mentions[0],
-                                "execution_id": execution_id,
-                            },
-                        )
+                        # RETRIEVAL COMPLETE, delivery pending (2026-09-24
+                        # review: completion != delivery). The structured
+                        # result is PERSISTED on the session (and the
+                        # durable metadata carrier) so a failed reply can
+                        # never lose it — the next turn re-renders WITHOUT
+                        # re-reading. Delivered is marked only when a
+                        # response actually reaches the user.
+                        _identity = _resolved_file_identity or {
+                            "file_name": _plan_mentions[0],
+                            "execution_id": execution_id,
+                        }
+                        session["_pending_file_result"] = {
+                            "status": "retrieved",
+                            "rendered": (
+                                _deterministic_answer or _tool_block or ""
+                            )[:24000],
+                            "identity": _identity,
+                            "execution_id": execution_id,
+                            "retrieved_at": time.time(),
+                        }
+                        session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
+                            session.get(FILE_TASK_SESSION_KEY), _identity)
                         logger.info(
-                            "[pending-file-task] completed read — ask "
-                            "served (identity=%s)",
-                            (_resolved_file_identity or {}).get("file_id")
+                            "[pending-file-task] retrieval complete — "
+                            "result persisted, delivery pending "
+                            "(identity=%s)",
+                            (_identity).get("file_id")
                             or _plan_mentions[0])
                     else:
                         session[FILE_TASK_SESSION_KEY] = merge_pending_task(
@@ -6054,6 +6482,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _tool_block += _note
                 except Exception as _pft2_err:  # noqa: BLE001 — bookkeeping only
                     logger.debug(f"pending file task store skipped: {_pft2_err}")
+
+            if _deterministic_answer and not _off_request:
+                try:
+                    from core.chat_tool_planner import (
+                        _user_facing_workbook_answer,
+                    )
+
+                    _structured_content = _user_facing_workbook_answer(
+                        _deterministic_answer
+                    )
+                except Exception:
+                    _structured_content = (
+                        "The structured workbook result is available, but "
+                        "its user-facing renderer was unavailable. The result "
+                        "remains persisted for retry."
+                    )
+                logger.info(
+                    "[deterministic-render] structured workbook response "
+                    "returned before narration"
+                )
+                return {
+                    "content": _structured_content,
+                    "model": "deterministic",
+                    "provider": "structured",
+                    "reasoning": None,
+                    "deterministic_delivery": True,
+                }
+
+            if os.getenv("ATOM_DISABLE_CHAT_NARRATION", "").lower() in (
+                "1", "true", "yes", "on"
+            ):
+                return None
 
             # Add conversation history. When fresh tool results exist for
             # this turn, include ONLY the user turns as context: measured
@@ -8066,6 +8526,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      _content[:300])
                     except Exception:
                         pass
+                if _deterministic_answer and not _off_request:
+                    try:
+                        from core.chat_tool_planner import (
+                            _user_facing_workbook_answer,
+                        )
+
+                        _content = _user_facing_workbook_answer(
+                            _strip_protocol_tags(_deterministic_answer)
+                        )
+                    except Exception:
+                        _content = _strip_protocol_tags(_deterministic_answer)
+                    response_data["content"] = _content
+                    logger.info(
+                        "[deterministic-render] workbook answer rendered from "
+                        "structured catalog evidence"
+                    )
+                elif _content and re.search(
+                    r"<[a-z0-9_.:-]+:tool_call>|<invoke\b|</mm:think>",
+                    _content,
+                    re.IGNORECASE,
+                ):
+                    # MALFORMED NARRATION IS REJECTED, not sanitized
+                    # (2026-09-24 review: stripping tags can hide failed
+                    # execution while leaving unsupported claims). Without
+                    # a deterministic answer to fall back on, deliver an
+                    # honest status — never the protocol residue.
+                    _content = (
+                        "The answer model produced unusable output this "
+                        "turn, so no narrated answer is being delivered. "
+                        "Any completed file results are persisted and will "
+                        "be re-delivered on your next message."
+                    )
+                    response_data["content"] = _content
+                    logger.warning(
+                        "[narration-reject] malformed model output "
+                        "quarantined — honest status delivered instead"
+                    )
                 # Non-streaming leg: the chain-of-thought step is emitted here
                 # (the streaming leg emits its own right after the stream).
                 if _turn_reasoning and _streamed is None:
@@ -8089,6 +8586,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             return None
         except Exception as e:
             logger.warning(f"Unified conversational response failed: {e}")
+            # DETERMINISTIC SAVE (2026-09-24 review, gap 2): a verified
+            # structured answer must not die with the narration model —
+            # generation failed, but the confirmed read's results exist.
+            try:
+                _det_save = _deterministic_answer
+            except (NameError, UnboundLocalError):
+                # failure preceded the variable's initialization
+                _det_save = None
+            if _det_save:
+                try:
+                    from core.chat_tool_planner import (
+                        _user_facing_workbook_answer,
+                    )
+
+                    _saved = _user_facing_workbook_answer(_det_save)
+                except Exception:  # noqa: BLE001 — renderer optional
+                    _saved = str(_det_save)
+                _saved += (
+                    "\n\n(Delivered from the verified scan — the "
+                    "narration model was unavailable this turn.)"
+                )
+                logger.info(
+                    "[deterministic-render] narration failed — structured "
+                    "answer delivered without the model")
+                return {"content": _saved, "model": "deterministic",
+                        "provider": "structured",
+                        "deterministic_delivery": True}
             return None
 
     async def _try_zoho_crm_write(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[str]:
@@ -10513,6 +11037,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _pft_row = session.get(FILE_TASK_SESSION_KEY)
                             if isinstance(_pft_row, dict):
                                 _msg_meta["pending_file_task"] = _pft_row
+                            _pfr_row = session.get("_pending_file_result")
+                            if isinstance(_pfr_row, dict):
+                                # Durable structured result (retrieved /
+                                # delivered) — restart-safe delivery retry
+                                # without re-reading.
+                                _msg_meta["pending_file_result"] = _pfr_row
                         except Exception:
                             pass
                         _resolved_identity = session.get(
@@ -10627,6 +11157,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 t_seen.add(key)
                 threads.append(t)
         return out, threads
+
+    def _load_pending_file_result(
+        self, session_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """The conversation's persisted structured file result (retrieved /
+        delivered), from the newest assistant row that carries it — the
+        same durable carrier as the task. Restart recovery for delivery
+        retry without re-reading."""
+        if not session_id:
+            return None
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "assistant",
+                    )
+                    .order_by(ChatMessageModel.created_at.desc())
+                    .limit(24)
+                    .all()
+                )
+            for row in rows:
+                try:
+                    meta = json.loads(row.metadata_json or "{}")
+                except Exception:
+                    continue
+                result = meta.get("pending_file_result")
+                if isinstance(result, dict) and result.get("rendered"):
+                    return result
+        except Exception as e:  # noqa: BLE001 — loader is best-effort
+            logger.debug(f"pending file result load skipped: {e}")
+        return None
 
     def _load_pending_file_task(
         self, session_id: Optional[str],

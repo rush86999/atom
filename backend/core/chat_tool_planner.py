@@ -5127,6 +5127,7 @@ def _named_file_targets(
                 "prices", "price", "models", "model", "items", "item",
                 "machines", "machine", "parts", "part", "these", "this",
                 "the", "and", "from", "in", "for", "of", "with",
+                "no", "number", "model", "part", "item", "machine", "type",
             }
             for part in re.split(r",|\band\b", list_match.group(1), flags=re.IGNORECASE):
                 cleaned = part.strip(" .:;?!()[]'\"")
@@ -5182,6 +5183,80 @@ def _named_file_aliases(value: str) -> List[str]:
     return variants[:8]
 
 
+def _set_rendered_answer(plan: Any, text: str) -> None:
+    if plan is None:
+        return
+    meta = getattr(plan, "_result_meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        plan._result_meta = meta
+    storage = meta.get("storage_read")
+    if isinstance(storage, dict):
+        storage["rendered_answer"] = _user_facing_workbook_answer(text)[:24000]
+
+
+def _user_facing_workbook_answer(text: str) -> str:
+    lines: List[str] = []
+    for raw_line in str(text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+        if line.startswith("LIVE TOOL RESULTS"):
+            parts = re.split(r"\s+[—-]\s+", line, maxsplit=1)
+            line = (
+                "Workbook read: " + parts[1]
+                if len(parts) == 2 else "Workbook read completed"
+            )
+        elif line.startswith("MATERIALIZED COPY —"):
+            line = line.replace("MATERIALIZED COPY —", "Source: MATERIALIZED COPY —", 1)
+        elif line.startswith("COVERAGE LIMITS —"):
+            line = line.replace("COVERAGE LIMITS —", "Coverage —", 1)
+        elif line.startswith("PER-ITEM OUTCOMES"):
+            line = "Per-item results:"
+        elif line.startswith(("WORKBOOK READ ARTIFACT:", "WORKBOOK COVERAGE LIMITS:")):
+            continue
+        elif line.startswith(("TARGET ", "PRICE ")):
+            continue
+        elif line.startswith("SQL RESULT from"):
+            line = "Workbook rows: " + line.split(";", 1)[-1].strip()
+        elif line.startswith("executed:"):
+            continue
+        line = re.sub(
+            r"reproduce VERBATIM; do not recount or re-derive",
+            "values are copied from the scan",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"Report them as NOT FOUND IN THE INDEXED CONTENT SEARCHED,?\s*"
+            r"with the coverage limits above;?",
+            "Misses are reported as NOT FOUND IN THE INDEXED CONTENT SEARCHED.",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"do not claim absence from the workbook and do not substitute other "
+            r"files' rows\.?",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"do not substitute other files' rows\.?",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(r"\s{2,}", " ", line).strip()
+        if line:
+            lines.append(line)
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
 def _stamp_named_file_meta(
     plan: Any, key: tuple, names: Dict[tuple, str], tokens: List[str],
     prov: Optional[Dict[str, Any]] = None,
@@ -5201,17 +5276,27 @@ def _stamp_named_file_meta(
         if not isinstance(_meta, dict):
             _meta = {}
             plan._result_meta = _meta
-        if "storage_read" in _meta:
-            return
-        _meta["storage_read"] = {
+        storage_read = _meta.get("storage_read")
+        if not isinstance(storage_read, dict):
+            storage_read = {}
+        storage_read.update({
             "service": "datasets",
             "file_id": key[1] or None,
             "resource_id": key[1] or None,
             "file_name": names.get(key),
+            "source": (prov or {}).get("source"),
             "evidence_kind": "materialized_copy",
             "content_hash": (prov or {}).get("content_hash"),
+            "content_hash_algorithm": "sha1",
             "ingested_at": (prov or {}).get("ingested_at"),
             "source_modified_at": (prov or {}).get("source_modified_at"),
+            "version_verified": bool(
+                (prov or {}).get("resource_id")
+                and (
+                    (prov or {}).get("content_hash")
+                    or (prov or {}).get("ingested_at")
+                )
+            ),
             "sheets_indexed": (prov or {}).get("sheets_indexed"),
             "sheets_searched": (prov or {}).get("sheets_searched"),
             "identity_verified": True,
@@ -5222,7 +5307,8 @@ def _stamp_named_file_meta(
             "aliases_tried": (prov or {}).get("aliases_tried") or {},
             "workbook_read": workbook_read,
             "note": "named-file scoped datasets read (materialized copy)",
-        }
+        })
+        _meta["storage_read"] = storage_read
     except Exception:  # noqa: BLE001 — meta is best-effort
         pass
 
@@ -5352,22 +5438,26 @@ async def _datasets_named_file_block(
 
     key = next(iter(exact_keys))
     file_entries = list(by_file.get(key) or [])
-    has_materialized_rows = bool(file_entries) and all(
-        entry.get("parquet_path") for entry in file_entries
-    )
-    if has_materialized_rows and key[1]:
+    if key[1]:
         try:
             full_entries = await asyncio.to_thread(
                 entries_for_file_sync, key[0], key[1]
             )
             if full_entries:
                 file_entries = list(full_entries)
-                catalog_truncated = False
+                catalog_truncated = len(full_entries) >= 500
         except Exception as file_entries_error:
             logger.debug(
                 "named-file full catalog lookup failed: %r",
                 file_entries_error,
             )
+    has_materialized_rows = bool(file_entries) and all(
+        entry.get("parquet_path") for entry in file_entries
+    )
+    unmaterialized_sheets = [
+        str(entry.get("entity_name") or entry.get("sheet_name") or "<unnamed sheet>")
+        for entry in file_entries if not entry.get("parquet_path")
+    ]
     if not file_entries:
         return None
 
@@ -5491,6 +5581,7 @@ async def _datasets_named_file_block(
                 content_hash=prov["content_hash"],
                 content_hash_algorithm="sha1",
                 ingested_at=prov["ingested_at"],
+                disambiguation=(context or {}).get("disambiguation"),
             )
             render_artifact = render_workbook_artifact(workbook_read)
         except Exception as artifact_error:
@@ -5514,8 +5605,12 @@ async def _datasets_named_file_block(
     )
     coverage_complete = bool(
         not catalog_truncated
-        and not probe_failed
-        and (artifact_complete if has_materialized_rows else True)
+        and not unmaterialized_sheets
+        and (
+            artifact_complete
+            if has_materialized_rows
+            else not probe_failed
+        )
     )
     coverage_limits = {
         "catalog_rows_seen": catalog_rows_seen,
@@ -5527,6 +5622,7 @@ async def _datasets_named_file_block(
         "artifact_available": bool(workbook_read),
         "artifact_complete": artifact_complete,
         "probe_failed": probe_failed,
+        "unmaterialized_sheets": unmaterialized_sheets,
     }
     prov["sheets_searched"] = len(file_entries)
     prov["aliases_tried"] = aliases_tried
@@ -5550,7 +5646,7 @@ async def _datasets_named_file_block(
         "versions, or formatting variants may still contain the item."
     )
     if not recs and not workbook_read:
-        return _with_grounding("\n".join([
+        miss_lines = [
             "LIVE TOOL RESULTS (datasets.named-file) — '"
             f"{names[key]}' resolved uniquely; {provenance_line}",
             coverage_note,
@@ -5559,7 +5655,9 @@ async def _datasets_named_file_block(
             "CONTENT SEARCHED, with the coverage limits above; do not "
             "claim absence from the workbook and do not substitute other "
             "files' rows.",
-        ]))
+        ]
+        _set_rendered_answer(plan, "\n".join(miss_lines))
+        return _with_grounding("\n".join(miss_lines))
 
     def _row_summary(record: Dict[str, Any]) -> str:
         out: List[str] = []
@@ -5605,11 +5703,16 @@ async def _datasets_named_file_block(
             cell = item.get("cell") or "?"
             row_number = item.get("row")
             prices = item.get("prices") or []
-            price_refs = [
-                f"{price.get('cell')}={price.get('value')}"
-                for price in prices[:4]
-                if price.get("cell")
-            ]
+            price_refs = []
+            for price in prices[:4]:
+                if not price.get("cell"):
+                    continue
+                basis = price.get("price_basis") or price.get("column") or "price"
+                currency = price.get("currency") or "unspecified"
+                price_refs.append(
+                    f"{price.get('cell')}={price.get('value')} "
+                    f"[basis={basis}; currency={currency}]"
+                )
             suffix = f" (prices: {', '.join(price_refs)})" if price_refs else ""
             row_suffix = f" R{row_number}" if row_number is not None else ""
             pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
@@ -5659,7 +5762,9 @@ async def _datasets_named_file_block(
     else:
         for record in recs:
             lines.extend(["", render_dataset_answer(record)])
-    return _with_grounding("\n".join(lines)[:32000])
+    rendered = "\n".join(lines)[:32000]
+    _set_rendered_answer(plan, rendered)
+    return _with_grounding(rendered)
 
 
 async def _datasets_search_block(
@@ -7633,6 +7738,11 @@ async def execute_tool_plan(
                     "file_name": data.get("file_name"),
                     "identity_verified": bool(data.get("identity_verified")),
                     "source_metadata": data.get("source_metadata") or {},
+                    "evidence_kind": data.get("evidence_kind"),
+                    "content_hash": data.get("content_hash"),
+                    "ingested_at": data.get("ingested_at"),
+                    "source_modified_at": data.get("source_modified_at"),
+                    "rendered_answer": data.get("rendered_answer"),
                     "served": bool(data.get("served", data.get("found"))),
                     "read_completed": bool(data.get("read_completed", False)),
                     "coverage_complete": bool(data.get("coverage_complete", False)),
@@ -7781,17 +7891,34 @@ async def execute_tool_plan(
                 f"returned nothing usable ({reason}).{ingest_note}"
             )
         if action == "read_file" and isinstance(data, dict):
-            plan._result_meta["file_read"] = {
+            file_read_meta = {
                 "served": bool(data.get("served", data.get("found"))),
                 "identity_verified": bool(data.get("identity_verified")),
                 "resource_id": data.get("resource_id") or data.get("file_id"),
                 "provider": data.get("provider") or service,
                 "file_name": data.get("file_name"),
                 "source_metadata": data.get("source_metadata") or {},
+                "evidence_kind": data.get("evidence_kind"),
+                "content_hash": data.get("content_hash"),
+                "ingested_at": data.get("ingested_at"),
+                "source_modified_at": data.get("source_modified_at"),
                 "read_completed": bool(data.get("read_completed", False)),
                 "coverage_complete": bool(data.get("coverage_complete", False)),
                 "workbook_read": data.get("workbook_read"),
+
                 "content_sha256": data.get("content_sha256"),
+            }
+            plan._result_meta["file_read"] = file_read_meta
+            plan._result_meta["storage_read"] = {
+                **file_read_meta,
+                "service": service,
+                "file_id": data.get("file_id"),
+                "resource_id": data.get("resource_id") or data.get("file_id"),
+                "completed": bool(
+                    data.get("read_completed")
+                    and data.get("served", data.get("found"))
+                ),
+                "rendered_answer": data.get("rendered_answer"),
             }
             # The file was OPENED — render the excerpt as first-class
             # evidence rather than str(dict) noise. found=False /

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -14,6 +15,7 @@ _PRICE_HEADER_RE = re.compile(
     r"price|cost|amount|rate|value|msrp|list|wholesale|dealer|currency",
     re.IGNORECASE,
 )
+_TARGET_EVIDENCE_CAP = 128
 _CURRENCY_RE = re.compile(
     r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b|"
     r"\[[$€£¥₹₩₽₺-][^\]]*\]",
@@ -80,6 +82,108 @@ def _matches_target(target: str, value: Any) -> bool:
     return False
 
 
+
+def _is_designation_match(
+    text: str, column_header: str
+) -> bool:
+    """Is this match a plausible PRODUCT-ROW designation rather than a
+    numeric coincidence?
+
+    A numeric collision (the cell VALUE happens to be 381.6 in an
+    exchange-rate or price column) is a CANDIDATE, not a product row
+    (2026-09-24 review: use manufacturer/type corroboration; report
+    ambiguity only when multiple plausible product rows remain). A match
+    is a designation when the matched text carries letters (model codes
+    like 'U-22', 'SLE24-16', '381mm') OR the cell sits outside every
+    price-headed column (a model/part column), i.e. something in the ROW
+    identifies it as a product row rather than a bare number.
+    """
+    header = str(column_header or "").strip()
+    if any(ch.isalpha() for ch in text):
+        return True
+    if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
+        return False
+    if re.search(
+        r"model|part|item|sku|product|description|name|catalog|cat\.?\s*no|code",
+        header,
+        re.IGNORECASE,
+    ):
+        return True
+    return not _PRICE_HEADER_RE.search(header)
+
+def _disambiguation_criteria(
+    query: str = "",
+    context_texts: Optional[Sequence[str]] = None,
+    explicit: Optional[Dict[str, Any]] = None,
+) -> Dict[str, List[str]]:
+    criteria: Dict[str, List[str]] = {
+        "manufacturers": [],
+        "machine_types": [],
+    }
+    for key, target in (
+        ("manufacturer", "manufacturers"),
+        ("manufacturers", "manufacturers"),
+        ("make", "manufacturers"),
+        ("brand", "manufacturers"),
+        ("machine_type", "machine_types"),
+        ("machine_types", "machine_types"),
+        ("product_type", "machine_types"),
+    ):
+        for value in (explicit or {}).get(key) or []:
+            text = _cell_text(value)
+            if text and text.lower() not in {item.lower() for item in criteria[target]}:
+                criteria[target].append(text)
+    patterns = (
+        ("manufacturers", r"\b(?:manufacturer|make|brand)\s*(?:is|=|:)\s*[\"']?([^,;\n]+)"),
+        ("machine_types", r"\b(?:machine|product|item)(?:\s+type|\s+kind)?\s*(?:is|=|:)\s*[\"']?([^,;\n]+)"),
+    )
+    for text in [query or "", *(context_texts or [])]:
+        for key, pattern in patterns:
+            for match in re.finditer(pattern, str(text or ""), re.IGNORECASE):
+                value = _cell_text(match.group(1)).strip(" \"'")
+                if value and value.lower() not in {
+                    item.lower() for item in criteria[key]
+                }:
+                    criteria[key].append(value)
+    return criteria
+
+
+def _matches_disambiguation(
+    evidence: Dict[str, Any], criteria: Dict[str, List[str]],
+) -> bool:
+    haystack = _canonical(
+        " ".join([
+            str(evidence.get("sheet") or ""),
+            " ".join(
+                str(item.get("value") or "")
+                for item in (evidence.get("row_context") or [])
+                if isinstance(item, dict)
+            ),
+        ])
+    )
+
+    def term_matches(term: str) -> bool:
+        canonical = _canonical(term)
+        if not canonical:
+            return False
+        if canonical in haystack:
+            return True
+        tokens = [
+            token for token in re.findall(r"[a-z0-9]+", term.lower())
+            if len(token) >= 3
+        ]
+        if not tokens:
+            return False
+        hits = sum(token in haystack.lower() for token in tokens)
+        return hits >= max(1, (len(tokens) + 1) // 2)
+
+    for key in ("manufacturers", "machine_types"):
+        terms = criteria.get(key) or []
+        if terms and not any(term_matches(term) for term in terms):
+            return False
+    return True
+
+
 def _currency_for(
     value: Any, number_format: str, header: str
 ) -> Dict[str, str]:
@@ -108,13 +212,22 @@ def _fallback_artifact(
     resource_id: Optional[str],
     source_metadata: Optional[Dict[str, Any]],
     error: str,
+    *,
+    content_hash: Optional[str] = None,
+    content_hash_algorithm: str = "sha256",
+    ingested_at: Optional[str] = None,
+    coverage_limits: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    digest = content_hash or (hashlib.sha256(content).hexdigest() if content else None)
     return {
         "provider": provider,
         "resource_id": resource_id,
         "file_name": file_name,
-        "sha256": hashlib.sha256(content).hexdigest(),
-        "byte_length": len(content),
+        "content_hash": digest,
+        "content_hash_algorithm": content_hash_algorithm if digest else None,
+        "ingested_at": ingested_at,
+        "sha256": hashlib.sha256(content).hexdigest() if content else None,
+        "byte_length": len(content) if content else None,
         "sheets": [],
         "sheet_count": 0,
         "all_sheets_searched": False,
@@ -134,6 +247,7 @@ def _fallback_artifact(
             "complete": False,
         },
         "source_metadata": dict(source_metadata or {}),
+        "coverage_limits": dict(coverage_limits or {"error": error}),
     }
 
 
@@ -147,15 +261,19 @@ def inspect_workbook_bytes(
     provider: Optional[str] = None,
     resource_id: Optional[str] = None,
     source_metadata: Optional[Dict[str, Any]] = None,
+    ingested_at: Optional[str] = None,
+    disambiguation: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Read every worksheet once and return one outcome per requested target."""
     requested = extract_targets(query, context_texts, targets)
+    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
     try:
         import openpyxl
     except Exception as exc:
         return _fallback_artifact(
             content, file_name, requested, provider, resource_id,
             source_metadata, f"openpyxl unavailable: {exc}",
+            ingested_at=ingested_at,
         )
 
     try:
@@ -171,6 +289,7 @@ def inspect_workbook_bytes(
         return _fallback_artifact(
             content, file_name, requested, provider, resource_id,
             source_metadata, f"workbook parse failed: {exc}",
+            ingested_at=ingested_at,
         )
 
     evidence: Dict[str, List[Dict[str, Any]]] = {
@@ -242,12 +361,15 @@ def inspect_workbook_bytes(
                                 and cached_value is not None else "literal"
                             ),
                         })
-                    if len(evidence[target]) < 32:
+                    if len(evidence[target]) < _TARGET_EVIDENCE_CAP:
                         evidence[target].append({
                             "sheet": worksheet.title,
                             "row": row_number,
                             "cell": cell.coordinate,
                             "value": text,
+                            "column": header_map.get(cell.column, ""),
+                            "designation": _is_designation_match(
+                                text, header_map.get(cell.column, "")),
                             "formula": value if is_formula else None,
                             "formula_state": formula_state,
                             "row_context": row_values[:40],
@@ -266,24 +388,57 @@ def inspect_workbook_bytes(
     outcomes: List[Dict[str, Any]] = []
     for target in requested:
         found = evidence[target]
-        if not found:
+        designations = [e for e in found if e.get("designation")]
+        coincidences = [e for e in found if not e.get("designation")]
+        if designations and any(criteria.values()):
+            constrained = [
+                item for item in designations
+                if _matches_disambiguation(item, criteria)
+            ]
+            if constrained:
+                designations = constrained
+            else:
+                designations = []
+        if len(designations) > 1:
+            exact = [
+                item for item in designations
+                if _canonical(item.get("value")) == _canonical(target)
+            ]
+            if len(exact) == 1:
+                designations = exact
+        if not designations:
+            note = (
+                f"{len(coincidences)} numeric coincidence(s) in "
+                "price/rate columns; no model-designation cell matched "
+                "— not treated as product rows"
+            )
+            if any(criteria.values()):
+                note = "no candidate matched the supplied manufacturer/type constraints"
             outcomes.append({
                 "target": target,
                 "status": "absent",
                 "evidence": [],
+                "note": note,
+                "disambiguation": criteria,
             })
             continue
-        status = "found" if len(found) == 1 else "ambiguous"
+        status = "found" if len(designations) == 1 else "ambiguous"
         outcomes.append({
             "target": target,
             "status": status,
-            "evidence": found if status == "ambiguous" else found[:1],
+            "evidence": (
+                designations if status == "ambiguous"
+                else designations[:1]),
+            "disambiguation": criteria,
         })
 
     return {
         "provider": provider,
         "resource_id": resource_id,
         "file_name": file_name,
+        "content_hash": hashlib.sha256(content).hexdigest(),
+        "content_hash_algorithm": "sha256",
+        "ingested_at": ingested_at,
         "sha256": hashlib.sha256(content).hexdigest(),
         "byte_length": len(content),
         "sheets": sheets,
@@ -303,6 +458,11 @@ def inspect_workbook_bytes(
             ),
         },
         "source_metadata": dict(source_metadata or {}),
+        "coverage_limits": {
+            "sheets_expected": len(sheets),
+            "sheets_scanned": len(sheets),
+            "target_evidence_cap": _TARGET_EVIDENCE_CAP,
+        },
     }
 
 
@@ -326,19 +486,32 @@ def inspect_dataset_entries(
     resource_id: Optional[str] = None,
     source_metadata: Optional[Dict[str, Any]] = None,
     sha256: Optional[str] = None,
+    content_hash: Optional[str] = None,
+    content_hash_algorithm: str = "sha1",
+    ingested_at: Optional[str] = None,
+    disambiguation: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
+    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
     evidence: Dict[str, List[Dict[str, Any]]] = {target: [] for target in requested}
     sheets: List[Dict[str, Any]] = []
-    complete = True
+    complete = bool(entries)
     formula_states: List[str] = []
+    sheets_scanned = 0
+    unreadable_sheets: List[str] = []
+    truncated_sheets: List[str] = []
+    coverage_unknown_sheets: List[str] = []
+    target_evidence_capped = False
     try:
         import pandas as pd
     except Exception as exc:
         return _fallback_artifact(
             b"", file_name, requested, provider, resource_id,
             source_metadata, f"pandas unavailable: {exc}",
+            content_hash=content_hash,
+            content_hash_algorithm=content_hash_algorithm,
+            ingested_at=ingested_at,
         )
 
     for entry in entries:
@@ -346,12 +519,30 @@ def inspect_dataset_entries(
         sheet_name = str(entry.get("entity_name") or entry.get("sheet_name") or "")
         if not path or not sheet_name:
             complete = False
+            unreadable_sheets.append(sheet_name or path or "<unnamed sheet>")
             continue
         try:
             frame = pd.read_parquet(path)
         except Exception:
             complete = False
+            unreadable_sheets.append(sheet_name)
             continue
+        sheets_scanned += 1
+        expected_rows = entry.get("row_count")
+        if expected_rows is not None:
+            try:
+                if int(expected_rows) > len(frame.index):
+                    complete = False
+                    truncated_sheets.append(sheet_name)
+            except (TypeError, ValueError):
+                pass
+        entry_coverage = entry.get("coverage") or {}
+        if not isinstance(entry_coverage, dict) or not entry_coverage.get("known"):
+            complete = False
+            coverage_unknown_sheets.append(sheet_name)
+        if isinstance(entry_coverage, dict) and entry_coverage.get("truncated"):
+            complete = False
+            truncated_sheets.append(sheet_name)
         columns = [str(column) for column in frame.columns]
         row_column = "__sheet_row" if "__sheet_row" in frame.columns else None
         formula_map: Dict[str, Any] = {}
@@ -390,19 +581,29 @@ def inspect_dataset_entries(
                             "column": price_column,
                             "price_basis": price_column,
                             **_currency_for(price_value, "", price_column),
-                            "formula_state": "literal",
+                            "formula_state": (
+                                "cached" if f"{_column_letter(price_index)}{row_number}"
+                                in formula_map else "literal"
+                            ),
                         })
-                    if len(evidence[target]) < 32:
-                        evidence[target].append({
-                            "sheet": sheet_name,
-                            "row": int(row_number) if str(row_number).isdigit() else row_number,
-                            "cell": cell_ref,
-                            "value": text,
-                            "formula": formula_map.get(cell_ref),
-                            "formula_state": "cached" if cell_ref in formula_map else "literal",
-                            "row_context": row_context,
-                            "prices": prices,
-                        })
+                    if len(evidence[target]) >= _TARGET_EVIDENCE_CAP:
+                        target_evidence_capped = True
+                        continue
+                    evidence[target].append({
+                        "sheet": sheet_name,
+                        "row": int(row_number) if str(row_number).isdigit() else row_number,
+                         "cell": cell_ref,
+                         "value": text,
+                         "column": column,
+                         "designation": _is_designation_match(text, column),
+
+                        "formula": formula_map.get(cell_ref),
+                        "formula_state": (
+                            "cached" if cell_ref in formula_map else "literal"
+                        ),
+                        "row_context": row_context,
+                        "prices": prices,
+                    })
         sheets.append({
             "name": sheet_name,
             "max_row": int(frame.shape[0]),
@@ -416,32 +617,96 @@ def inspect_dataset_entries(
     outcomes = []
     for target in requested:
         found = evidence[target]
-        status = "found" if len(found) == 1 else "ambiguous" if found else "absent"
-        outcomes.append({
+        designations = [e for e in found if e.get("designation")]
+        coincidences = [e for e in found if not e.get("designation")]
+        if designations and any(criteria.values()):
+            constrained = [
+                item for item in designations
+                if _matches_disambiguation(item, criteria)
+            ]
+            if constrained:
+                designations = constrained
+            else:
+                designations = []
+        if len(designations) > 1:
+            exact = [
+                item for item in designations
+                if _canonical(item.get("value")) == _canonical(target)
+            ]
+            if len(exact) == 1:
+                designations = exact
+        if not complete:
+            status = "incomplete"
+        elif not designations:
+            status = "absent"
+        else:
+            status = "found" if len(designations) == 1 else "ambiguous"
+        outcome = {
             "target": target,
             "status": status,
-            "evidence": found if status == "ambiguous" else found[:1],
-        })
+            "evidence": (
+                designations
+                if status in ("ambiguous", "incomplete")
+                else designations[:1]),
+            "disambiguation": criteria,
+        }
+        if status == "ambiguous" and len(designations) >= _TARGET_EVIDENCE_CAP:
+            outcome["note"] = (
+                "multiple plausible product rows remain; candidate evidence "
+                "is capped at the scan limit"
+            )
+        elif status == "absent" and any(criteria.values()):
+            outcome["note"] = (
+                "no candidate matched the supplied manufacturer/type constraints"
+            )
+        elif status == "absent" and coincidences:
+            outcome["note"] = (
+                f"{len(coincidences)} numeric coincidence(s) in price/rate "
+                "columns; no model-designation cell matched — not treated "
+                "as product rows")
+        outcomes.append(outcome)
+    digest = content_hash or sha256
+    algorithm = content_hash_algorithm if content_hash else (
+        "sha256" if sha256 else None
+    )
     return {
         "provider": provider,
         "resource_id": resource_id,
         "file_name": file_name,
+        "content_hash": digest,
+        "content_hash_algorithm": algorithm,
+        "ingested_at": ingested_at,
         "sha256": sha256,
         "byte_length": None,
         "sheets": sheets,
         "sheet_count": len(sheets),
         "all_sheets_searched": complete,
-        "truncated": not complete,
-        "formula_status": "cached" if formula_states and all(s == "cached" for s in formula_states) else "mixed" if formula_states else "not_present",
+        "truncated": not complete or bool(truncated_sheets),
+        "formula_status": (
+            "cached" if formula_states and all(s == "cached" for s in formula_states)
+            else "mixed" if formula_states else "not_present"
+        ),
         "coverage": {
             "requested": requested,
             "outcomes": outcomes,
-            "complete": complete and all(
-                outcome["status"] in ("found", "ambiguous", "absent")
-                for outcome in outcomes
+            "complete": (
+                complete
+                and all(
+                    outcome["status"] in ("found", "ambiguous", "absent")
+                    for outcome in outcomes
+                )
             ),
         },
         "source_metadata": dict(source_metadata or {}),
+        "coverage_limits": {
+            "sheets_expected": len(entries),
+            "sheets_scanned": sheets_scanned,
+            "unreadable_sheets": unreadable_sheets,
+            "coverage_unknown_sheets": coverage_unknown_sheets,
+            "truncated_sheets": truncated_sheets,
+            "target_evidence_cap": _TARGET_EVIDENCE_CAP,
+            "target_evidence_capped": target_evidence_capped,
+        },
     }
 
 
@@ -449,11 +714,16 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
     """Render compact, citable coverage for the model evidence block."""
     if not artifact:
         return ""
+    digest = artifact.get("content_hash") or artifact.get("sha256")
+    algorithm = artifact.get("content_hash_algorithm")
     lines = [
         "WORKBOOK READ ARTIFACT: "
         f"{artifact.get('file_name') or 'unnamed file'} "
         f"(resource_id={artifact.get('resource_id')}, "
-        f"sha256={artifact.get('sha256')}, sheets={artifact.get('sheet_count')}, "
+        f"content_hash={digest or 'unavailable'}"
+        + (f" ({algorithm})" if algorithm else "")
+        + f", ingested_at={artifact.get('ingested_at') or 'unavailable'}, "
+        f"sheets={artifact.get('sheet_count')}, "
         f"all_sheets_searched={artifact.get('all_sheets_searched')}, "
         f"truncated={artifact.get('truncated')}, "
         f"formula_status={artifact.get('formula_status')})"
@@ -475,12 +745,25 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
         )
         for item in (outcome.get("evidence") or [])[:2]:
             for price in item.get("prices") or []:
+                currency = price.get("currency")
+                currency_label = (
+                    f"currency={currency}"
+                    if currency and currency != "unspecified"
+                    else "currency=UNLABELED (no ISO code or symbol in the "
+                         "header/format; basis is the column header VERBATIM "
+                         "— no conversion applied, do not infer one)"
+                )
                 lines.append(
                     f"  PRICE {target} | {price.get('cell')} | "
                     f"{price.get('value')} | basis={price.get('price_basis')} | "
-                    f"currency={price.get('currency')} | "
+                    f"{currency_label} | "
                     f"formula_state={price.get('formula_state')}"
                 )
+    if artifact.get("coverage_limits"):
+        lines.append(
+            "WORKBOOK COVERAGE LIMITS: "
+            + json.dumps(artifact["coverage_limits"], sort_keys=True, default=str)
+        )
     if not coverage.get("complete", False):
         lines.append("WORKBOOK COVERAGE: INCOMPLETE")
     return "\n".join(lines)

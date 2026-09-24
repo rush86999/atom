@@ -169,6 +169,34 @@ def build_pending_task(message: str, mention: str) -> Dict[str, Any]:
     }
 
 
+def mark_task_retrieved(
+    task: Optional[Dict[str, Any]],
+    resolved_file: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Retrieval COMPLETED (structured results exist and are persisted) —
+    but the answer has not necessarily REACHED the user yet (2026-09-24
+    review: distinguish retrieval completion from answer delivery). A
+    retrieved task is not re-read; the delivery path re-renders the
+    persisted result."""
+    retrieved = dict(task or build_pending_task("", ""))
+    retrieved["status"] = "retrieved"
+    if resolved_file:
+        retrieved["resolved_file"] = resolved_file
+    retrieved["retrieved_at"] = time.time()
+    retrieved["updated_at"] = time.time()
+    return retrieved
+
+
+def mark_task_delivered(task: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The persisted result was rendered into a response that reached the
+    user. Terminal state (a new substantive file ask starts a new task)."""
+    delivered = dict(task or build_pending_task("", ""))
+    delivered["status"] = "delivered"
+    delivered["delivered_at"] = time.time()
+    delivered["updated_at"] = time.time()
+    return delivered
+
+
 def mark_task_served(
     task: Optional[Dict[str, Any]],
     resolved_file: Optional[Dict[str, Any]],
@@ -254,9 +282,11 @@ def matching_pending_task(
     original = str(pending.get("original_message") or "").strip()
     if not mention or not original:
         return None
-    if pending.get("status") == "served":
-        # The ask was already answered by a completed read; a later bare
-        # "yes" must not resurrect it.
+    if pending.get("status") in ("served", "retrieved", "delivered"):
+        # served/delivered: answered — a later bare "yes" must not
+        # resurrect it. retrieved: the structured result exists and is
+        # persisted — the DELIVERY path re-renders it without re-reading,
+        # so the read-resume path stays out of it too.
         return None
     try:
         created = float(pending.get("created_at") or 0)

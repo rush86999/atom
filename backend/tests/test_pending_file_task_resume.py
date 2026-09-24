@@ -49,7 +49,8 @@ from core.pending_file_task import (
 
 ORIGINAL_ASK = (
     "find the prices of these 8 machines in Consolidated Price List "
-    "2019.xlsx: 381, U-22, 622, SLE24-16, GSL48-16 and the rest")
+    "2019.xlsx: 381, U-22, 622, SLE24-16, GSL48-16, GSL24-16, SLE16-8 "
+    "and U-38")
 CONFIRMATION = "That filename is correct"
 HISTORY = {"history": [
     {"message": ORIGINAL_ASK,
@@ -301,16 +302,19 @@ async def test_completed_read_serves_task_and_keeps_identity():
             execution_id="e2", session=session,
             pending_file_task=session[FILE_TASK_SESSION_KEY],
         )
-    served = session.get(FILE_TASK_SESSION_KEY)
-    assert served and served["status"] == "served"
-    assert served["resolved_file"]["file_id"] == "wd-77"
+    retrieved = session.get(FILE_TASK_SESSION_KEY)
+    assert retrieved and retrieved["status"] == "retrieved", (
+        "retrieval completes the read; delivery is marked separately")
+    assert retrieved["resolved_file"]["file_id"] == "wd-77"
+    result = session.get("_pending_file_result")
+    assert result and result["status"] == "retrieved" and result["rendered"]
     # Identity retained separately, for preview reuse (gap 4).
     identity = session.get("_resolved_file_identity")
     assert identity and identity["file_id"] == "wd-77"
     assert identity["file_name"] == "Consolidated Price List 2019.xlsx"
     # A served task never resumes.
     from core.pending_file_task import matching_pending_task
-    assert matching_pending_task(served, "yes", HISTORY["history"]) is None
+    assert matching_pending_task(retrieved, "yes", HISTORY["history"]) is None
     # The workbook answer contract rides the evidence for spreadsheet asks.
     evidence = session.get("_ev_e2") or ""
     assert "TABULAR EVIDENCE CONTRACT" in evidence
@@ -406,6 +410,103 @@ async def test_off_request_decline_does_not_retire_pending_task():
     assert FILE_TASK_SESSION_KEY in session, (
         "a declined (never-executed) lookup must leave the pending file "
         "task in place")
+
+
+@pytest.mark.asyncio
+async def test_confirmed_file_read_is_direct_when_planner_and_narration_are_unavailable():
+    orch = _orch()
+    session = {
+        "id": "s-direct",
+        "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            ORIGINAL_ASK, "consolidated price list 2019.xlsx"
+        ),
+    }
+    rendered = (
+        "Workbook read: Consolidated Price List 2019.xlsx\n"
+        "Source: MATERIALIZED COPY — resource=r1, content_hash=h, ingested=t\n"
+        "Coverage — indexed content searched\n"
+        "| 381 | FOUND | Sheet1!A1 R1 [basis=U.S. LIST; currency=unspecified] |"
+    )
+    direct = {
+        "ok": True,
+        "block": rendered,
+        "rendered_answer": rendered,
+        "identity": {
+            "file_id": "r1",
+            "resource_id": "r1",
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "meta": {
+            "workbook_read": {"coverage": {"complete": True}},
+            "completed": True,
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "retrieval_complete": True,
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_start_chat_execution", return_value="exec-direct"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))) as planner_disabled,
+        patch.object(orch.llm_service, "generate_completion", new=AsyncMock(
+            side_effect=AssertionError("narration model must not run"))) as narration_disabled,
+    ):
+        response = await orch.process_chat_message(
+            "u1", CONFIRMATION, session_id="s-direct", context={}
+        )
+
+    assert response["success"] is True
+    assert response["model"] == "deterministic"
+    assert "| 381 | FOUND |" in response["message"]
+    assert response["data"]["deterministic_delivery"] is True
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+    assert session["_pending_file_result"]["status"] == "delivered"
+    planner_disabled.assert_not_awaited()
+    narration_disabled.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_retrieved_result_retry_renders_without_rereading():
+    orch = _orch()
+    session = {"id": "s-retry", "history": []}
+    persisted = {
+        "status": "retrieved",
+        "rendered": (
+            "Workbook read: Consolidated Price List 2019.xlsx\n"
+            "| U-22 | FOUND | Sheet1!A2 R2 [basis=List; currency=unspecified] |"
+        ),
+        "identity": {"file_id": "r1", "file_name": "Consolidated Price List 2019.xlsx"},
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=persisted),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+        patch.object(orch.llm_service, "generate_completion", new=AsyncMock(
+            side_effect=AssertionError("must not narrate"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "yes", session_id="s-retry", context={}
+        )
+
+    assert response["success"] is True
+    assert response["data"]["deterministic_delivery"] is True
+    assert "| U-22 | FOUND |" in response["message"]
+    assert session["_pending_file_result"]["status"] == "delivered"
 
 
 # ---------------------------------------------------------------------------
@@ -525,7 +626,7 @@ class TestPreviewSharesIdentity:
                 "service": "zoho_workdrive", "file_id": "wd-77",
                 "file_name": "Consolidated Price List 2019.xlsx"},
         )
-        assert "SAME FILE AS THIS CONVERSATION'S LIVE READ" in content
+        assert "SAME FILE AS THIS ANSWER'S VERIFIED RESOURCE" in content
         assert "wd-77" in content
 
     def test_canvas_content_flags_different_file_from_live_read(self):
@@ -547,9 +648,7 @@ class TestPreviewSharesIdentity:
 
 @pytest.mark.asyncio
 async def test_confirmation_resumes_original_ask_through_process_chat():
-    """Turn 2 of the incident: 'That filename is correct' must plan the
-    ORIGINAL request — never the bare confirmation — and the executor must
-    receive the original ask (its identifiers live there)."""
+    """A confirmed file enters the direct reader with the original ask."""
     orch = _orch()
     session = {
         "id": "s1",
@@ -557,16 +656,29 @@ async def test_confirmation_resumes_original_ask_through_process_chat():
         FILE_TASK_SESSION_KEY: build_pending_task(
             ORIGINAL_ASK, "consolidated price list 2019.xlsx"),
     }
-    plan = planner.ToolPlan(
-        use_tool=True, service="zoho_workdrive", intent="read",
-        query="Consolidated Price List 2019.xlsx machine prices")
-    plan._result_meta = {"storage_read": {
-        "service": "zoho_workdrive", "file_id": "wd-77",
-        "resource_id": "wd-77",
-        "file_name": "Consolidated Price List 2019.xlsx",
-        "completed": True, "identity_verified": True,
-        "coverage_complete": True, "note": None, "dataset_sheet": "Sheet1",
-    }}
+    rendered = (
+        "Workbook read: Consolidated Price List 2019.xlsx\n"
+        "| GSL48-16 | FOUND | Tennsmith!A106 R106 |"
+    )
+    direct = {
+        "ok": True,
+        "block": rendered,
+        "rendered_answer": rendered,
+        "identity": {
+            "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "meta": {
+            "completed": True,
+            "identity_verified": True,
+            "coverage_complete": True,
+            "workbook_read": {"coverage": {"complete": True}},
+        },
+        "retrieval_complete": True,
+    }
     with (
         patch.object(orch, "_get_or_create_session", return_value=session),
         patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
@@ -578,38 +690,25 @@ async def test_confirmation_resumes_original_ask_through_process_chat():
         patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
         patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
         patch.object(orch, "_route_to_features", new=AsyncMock()),
-        patch.object(planner, "_provenance_menu", new=AsyncMock(return_value="")),
-        patch("core.memory_context_assembler.assembly_enabled",
-              return_value=False),
-        patch.object(planner, "plan_tool_use", new=AsyncMock(return_value=plan)) as plan_mock,
-        patch.object(planner, "execute_tool_plan", new=AsyncMock(
-            return_value=(
-                "LIVE TOOL RESULTS (zoho_workdrive read): Consolidated "
-                "Price List 2019.xlsx — Sheet1 R12 | GSL48-16 | 44500"))) as exec_mock,
-        patch.object(chat, "_verbatim_mail_evidence", new=AsyncMock(return_value=[])),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)) as direct_mock,
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))) as plan_mock,
     ):
         result = await orch.process_chat_message(
             "u1", CONFIRMATION, "s1", context={"agent_id": "a1"})
     assert result["success"] is True
-    # The planner planned the ORIGINAL ask, with the confirmation appended
-    # as the latest history entry.
-    planned_msg = plan_mock.await_args.args[0]
-    assert planned_msg == ORIGINAL_ASK
-    planned_hist = plan_mock.await_args.args[1]
-    assert planned_hist[-1]["message"] == CONFIRMATION
-    # The executor's context carries the original ask (identifier net /
-    # date window read it from there).
-    exec_ctx = exec_mock.await_args.kwargs["context"]
-    assert exec_ctx["message"] == ORIGINAL_ASK
-    # The completed read SERVES the stored ask — marked served, identity
-    # retained, never resurrected by a later bare "yes".
-    served = session.get(FILE_TASK_SESSION_KEY)
-    assert served and served["status"] == "served"
-    assert session.get("_resolved_file_identity")
+    direct_task = direct_mock.await_args.args[0]
+    assert direct_task["original_message"] == ORIGINAL_ASK
+    plan_mock.assert_not_awaited()
+    assert result["data"]["deterministic_delivery"] is True
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+    assert session["_pending_file_result"]["status"] == "delivered"
 
 
 @pytest.mark.asyncio
 async def test_resume_turn_skips_canvas_edit_leg():
+
     """A confirmation resuming a stored file ask must not spend its budget
     classifying a canvas edit of a bare confirmation (the 42.5s incident
     leg)."""
@@ -837,7 +936,8 @@ async def test_named_file_block_stamps_serving_meta():
         use_tool=True, service="datasets", intent="search", query="x")
     catalog_entries = [
         {"source": "catalog", "external_id": "wb-2019",
-         "file_name": "Consolidated Price List 2019.xlsx"},
+         "file_name": "Consolidated Price List 2019.xlsx",
+         "parquet_path": "fake", "coverage": {"known": True}},
     ]
 
     def fake_probe(entries, token, max_rows):
@@ -851,10 +951,25 @@ async def test_named_file_block_stamps_serving_meta():
               return_value=True),
         patch("core.sheet_dataset_service.find_entries_sync",
               return_value=list(catalog_entries)),
+        patch("core.sheet_dataset_service.entries_for_file_sync",
+              return_value=list(catalog_entries)),
         patch("core.sheet_dataset_service._probe_cached",
               side_effect=fake_probe),
         patch("core.sheet_dataset_service.candidate_probe_tokens",
               return_value=["SLE24-16"]),
+        patch("core.workbook_read_artifact.inspect_dataset_entries",
+              return_value={
+                  "all_sheets_searched": True,
+                  "truncated": False,
+                  "coverage": {"complete": True, "outcomes": [
+                      {"target": "SLE24-16", "status": "found",
+                       "evidence": [{"sheet": "Tennsmith", "cell": "A12",
+                                     "row": 12, "value": "SLE24-16",
+                                     "prices": []}]},
+                  ]},
+              }),
+        patch("core.workbook_read_artifact.render_workbook_artifact",
+              return_value=""),
     ):
         block = await _datasets_named_file_block(
             "u1", "prices in Consolidated Price List 2019.xlsx", {},
@@ -969,7 +1084,7 @@ async def test_named_file_block_carries_provenance_and_coverage_limits():
     assert "does NOT prove absence from the live workbook" in block
     # Deterministic table: both outcomes rendered, no model arithmetic.
     assert "| SLE24-16 | FOUND |" in block
-    assert "| 381 | NOT FOUND IN INDEXED CONTENT |" in block
+    assert "| 381 | INCOMPLETE — NOT FOUND IN INDEXED CONTENT |" in block
     assert "reproduce VERBATIM" in block
     assert "Tennsmith R12" in block  # sheet + row lineage
 
@@ -1008,6 +1123,71 @@ async def test_alias_variants_are_probed():
             "u1", "check Consolidated Price List 2019.xlsx", {})
     assert probed[:2] == ["U-22", "u22"]
     assert "| U-22 | FOUND |" in block
+
+
+@pytest.mark.asyncio
+async def test_named_file_emits_one_structured_outcome_per_requested_item():
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    targets = [
+        "381", "U-22", "622", "SLE24-16", "GSL48-16", "GSL24-16",
+        "SLE16-8", "U-38",
+    ]
+    catalog = [{"source": "zoho_workdrive", "external_id": "w1",
+                "file_name": "Consolidated Price List 2019.xlsx",
+                "entity_name": "Sheet1"}]
+
+    def fake_probe(entries, token, max_rows):
+        if token in {"381", "622"}:
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "Sheet1", "columns": ["Model", "Price"],
+                    "rows": [{"__sheet_row": 2, "Model": token, "Price": 100}],
+                    "row_count": 1}
+        return None
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=catalog),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=targets),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "prices for " + ", ".join(targets)
+            + " in Consolidated Price List 2019.xlsx", {})
+
+    rows = [line for line in block.splitlines() if line.startswith("| ")
+            and not line.startswith("| item")]
+    assert len(rows) == len(targets)
+    assert sum("| FOUND |" in row for row in rows) == 2
+    assert sum("NOT FOUND IN INDEXED CONTENT" in row for row in rows) == 6
+
+
+@pytest.mark.asyncio
+async def test_named_file_not_catalogued_does_not_fall_through_to_other_files():
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    plan = planner.ToolPlan(
+        use_tool=True, service="datasets", intent="search",
+        query="prices in Missing Workbook 2019.xlsx",
+    )
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=[{"source": "catalog", "external_id": "other",
+                             "file_name": "Other Prices.xlsx",
+                             "entity_name": "Sheet1"}]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", plan.query, {}, plan=plan)
+
+    assert block and "NOT FOUND IN THE INDEXED CONTENT SEARCHED" in block
+    assert "Other Prices.xlsx" not in block
+    assert plan._result_meta["storage_read"]["completed"] is False
 
 
 @pytest.mark.asyncio
@@ -1100,6 +1280,143 @@ async def test_resume_turn_delivers_file_evidence_even_when_planned_elsewhere():
     assert evidence.index("datasets.named-file") < evidence.index(
         "outlook.search"), "file evidence leads the mailbox block"
     served = session.get(FILE_TASK_SESSION_KEY)
-    assert served and served["status"] == "served", (
-        "the guarantee stamps the lifecycle meta — the confirmed read "
-        "completes the task")
+    assert served and served["status"] == "retrieved", (
+        "the guarantee stamps the lifecycle meta — retrieval completes; "
+        "delivery is marked when the response ships")
+
+
+# ---------------------------------------------------------------------------
+# Wiring 11 — THE ACCEPTANCE TEST: planner and narration deliberately
+# unavailable; the confirmed read still runs, persists, and delivers.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_acceptance_planner_and_narration_unavailable():
+    """Confirmed filename -> direct scoped read -> durable structured
+    results -> rendered eight-item table — with the planner and the
+    narration model BOTH disabled (ATOM_DISABLE_TOOL_PLANNER + a
+    generate_completion that raises if called). Then the retry turn
+    delivers from persistence WITHOUT re-reading."""
+    orch = _orch()
+    # Narration is unavailable: any generation attempt fails loudly.
+    orch.llm_service.generate_completion = AsyncMock(
+        side_effect=RuntimeError("narration model unavailable"))
+    session = {
+        "id": "acc1",
+        "history": list(HISTORY["history"]),
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            ORIGINAL_ASK, "consolidated price list 2019.xlsx"),
+    }
+    # REAL parquet fixtures: the deterministic artifact path scans these,
+    # so the acceptance test exercises the true reader (designation
+    # classification, currency labeling, coverage) — not probe mocks.
+    import tempfile as _tf
+
+    import pandas as _pd
+
+    _tmpdir = _tf.mkdtemp(prefix="wb-acceptance-")
+    _tennsmith = _pd.DataFrame({
+        "__sheet_row": [100, 101, 102],
+        "Model": ["SLE14-14", "SLE24-16", "GSL48-16"],
+        "PRICE": [7000, 8880, 14166],
+        "U.S. LIST": [3600, 4500, 6575],
+        "Current Exchange Rate": [0.35, 0.36, 0.36],
+    })
+    _linmac = _pd.DataFrame({
+        "__sheet_row": [25, 26],
+        "Model": ["U-16", "U-22"],
+        "List Price": [1500, 1777],
+        "Current Exchange Rate": [381.6, 381.6],
+    })
+    _p1 = os.path.join(_tmpdir, "tennsmith.parquet")
+    _p2 = os.path.join(_tmpdir, "linmac.parquet")
+    _tennsmith.to_parquet(_p1)
+    _linmac.to_parquet(_p2)
+
+    def _entry(entity, path, rows):
+        return {
+            "source": "zoho_workdrive", "external_id": "u8ai1e3a",
+            "dataset_name": f"wb_fixture_{entity.lower()}",
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "entity_name": entity, "parquet_path": path,
+            "row_count": rows,
+            "coverage": {"known": True, "truncated": False},
+            "content_hash": "ff2597d26f",
+            "ingested_at": "2026-09-07T23:06:19",
+            "source_modified_at": None,
+        }
+
+    catalog = [
+        _entry("Tennsmith", _p1, len(_tennsmith)),
+        _entry("LINMAC", _p2, len(_linmac)),
+    ]
+
+    with (
+        patch.dict(os.environ, {"ATOM_DISABLE_TOOL_PLANNER": "1"}),
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="acc-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service.entries_for_file_sync",
+              return_value=list(catalog)),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))) as plan_mock,
+    ):
+        result = await orch.process_chat_message(
+            "u1", CONFIRMATION, "acc1", context={"agent_id": "a1"})
+
+    # The eight-item structured table shipped — deterministically.
+    assert result["success"] is True
+    assert result.get("model") == "deterministic"
+    msg = result["message"]
+    for item in ("381", "U-22", "622", "SLE24-16", "GSL48-16",
+                 "GSL24-16", "SLE16-8", "U-38"):
+        assert item in msg, f"missing per-item outcome: {item}"
+    assert "1777" in msg and "8880" in msg
+    assert "materialized copy" in msg.lower() or "MATERIALIZED COPY" in msg
+    # Misses carry the honest scoped vocabulary (INCOMPLETE when the
+    # fixture's coverage flags are partial, NOT FOUND otherwise) — never
+    # a bare claim of absence from the workbook.
+    assert "absent from the workbook" not in msg.lower().replace(
+        "does not prove absence", "ok")
+    plan_mock.assert_not_awaited()
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+    # Durable structured result persisted; lifecycle delivered.
+    pfr = session.get("_pending_file_result")
+    assert pfr and pfr["status"] == "delivered" and pfr["rendered"]
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+
+    # --- Retry turn: deliver from persistence WITHOUT re-reading. -------
+    session2 = dict(session)  # same session continuing
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session2),
+        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="acc-e2"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+        patch.object(orch, "_route_to_features", new=AsyncMock()),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))) as direct_mock,
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        # A delivered result is terminal: a follow-up "go" neither re-reads
+        # (direct reader raises if called) nor resurrects the planner.
+        result2 = await orch.process_chat_message(
+            "u1", "go", "acc1", context={"agent_id": "a1"})
+    direct_mock.assert_not_awaited()
