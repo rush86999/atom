@@ -733,3 +733,94 @@ class TestDeclaredStructuredWait:
             assert effective >= 50.0
         finally:
             reset_interactive_structured_wait(token)
+
+
+# ---------------------------------------------------------------------------
+# Wiring 8 — a named file scopes the datasets evidence (unique resolution)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_named_file_query_resolves_to_that_file_not_a_token_winner():
+    """The live 2026-09-24 replay defect: a query naming 'Consolidated
+    Price List 2019.xlsx' returned rows from 'All Prices For All Parts
+    INDUSTRIAL Sept 2026.xlsx' because the catalog probe's content token
+    ('prices') outranked the name. A named file must SCOPE the evidence."""
+    from core.chat_tool_planner import _datasets_named_file_block
+    from core.sheet_dataset_service import _probe_cached as real_probe
+
+    catalog_entries = [
+        {"source": "catalog", "external_id": "wb-2019",
+         "file_name": "Consolidated Price List 2019.xlsx"},
+        {"source": "catalog", "external_id": "sept-2026",
+         "file_name": "All Prices For All Parts INDUSTRIAL Sept 2026.xlsx"},
+    ]
+
+    def fake_find_entries(q="", user_id=None, ws=None, limit=500):
+        return list(catalog_entries)
+
+    def fake_probe(entries, token, max_rows):
+        # Only the 2019 workbook contains the identifiers.
+        if entries and entries[0].get("external_id") == "wb-2019":
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "Sheet1", "columns": ["Model", "Price"],
+                    "rows": [{"__row__": 12, "Model": token, "Price": 44500}],
+                    "row_count": 1}
+        return None
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              side_effect=fake_find_entries),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=["381", "622"]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "Consolidated Price List 2019.xlsx 381 U-22 622",
+            {"workspace_id": "ws"},
+        )
+    assert block, "the named-file path must produce a block"
+    assert "Consolidated Price List 2019.xlsx" in block
+    assert "SCOPED to it" in block
+    assert "Sept 2026" not in block, "a wrong-file row must not appear"
+
+
+@pytest.mark.asyncio
+async def test_named_file_ambiguity_is_explicit_not_silent():
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    catalog_entries = [
+        {"source": "catalog", "external_id": "a",
+         "file_name": "Price List.xlsx"},
+        {"source": "catalog", "external_id": "b",
+         "file_name": "price list.xlsx"},
+    ]
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog_entries)),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "check Price List.xlsx", {})
+    assert block and "MULTIPLE catalogued files match" in block
+    assert "do NOT present" in block
+
+
+@pytest.mark.asyncio
+async def test_named_file_absent_falls_through_to_catalog_probe():
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=[{"source": "catalog", "external_id": "x",
+                             "file_name": "unrelated.xlsx"}]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1", "prices in Missing Workbook 2019.xlsx", {})
+    assert block is None, "not catalogued -> catalog-wide probe runs"

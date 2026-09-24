@@ -5088,6 +5088,101 @@ async def _memory_hybrid_block(
         return None
 
 
+async def _datasets_named_file_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """A query that NAMES a catalogued file resolves to THAT file.
+
+    Unique resolution first (exact/normalized name against the dataset
+    catalog), an explicit ambiguity block when several catalogued files
+    carry the name, and a fall-through to the catalog-wide probe when the
+    named file is not catalogued (its rows carry their own file names, so
+    the reply can report the named file absent).
+
+    Rationale (live replay 2026-09-24, scratch wb-replay-1790248976): the
+    query 'Consolidated Price List 2019.xlsx 381 U-22 …' executed as a
+    catalog-wide content probe and returned rows from 'All Prices For All
+    Parts INDUSTRIAL Sept 2026.xlsx' — the content token ('prices')
+    outranked the named file. A wrong-file row is exactly the evidence
+    substitution the workbook answer contract forbids; a named file must
+    scope the evidence, not merely bias it.
+    """
+    try:
+        from core.agent_file_context import (
+            detect_file_mentions,
+            score_file_match,
+        )
+        from core.sheet_dataset_service import (
+            _probe_cached,
+            _probe_named_file,
+            candidate_probe_tokens,
+            find_entries_sync,
+            render_dataset_answer,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+    mentions = detect_file_mentions(query)
+    if not mentions:
+        return None
+    ws = (context or {}).get("workspace_id")
+    entries = await asyncio.to_thread(
+        find_entries_sync, "", user_id, ws, 500)
+    by_file: Dict[tuple, List[Dict[str, Any]]] = {}
+    names: Dict[tuple, str] = {}
+    for e in entries or []:
+        key = (str(e.get("source") or ""), str(e.get("external_id") or ""))
+        by_file.setdefault(key, []).append(e)
+        names.setdefault(key, str(e.get("file_name") or ""))
+    exact_keys = {
+        key for key, fname in names.items()
+        if any(
+            score_file_match(m, fname) in ("exact", "normalized")
+            for m in mentions
+        )
+    }
+    if not exact_keys:
+        return None  # not catalogued — the catalog-wide probe reports rows
+        # with their own file names, so absence stays sayable.
+    if len(exact_keys) > 1:
+        dup = ", ".join(
+            f"'{names[k]}'" for k in sorted(exact_keys))[:400]
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the query names "
+            f"'{mentions[0]}' but MULTIPLE catalogued files match: {dup}. "
+            "Identity is ambiguous: ask the user which one, and do NOT "
+            "present any of their rows as the named file.")
+    key = next(iter(exact_keys))
+    tokens = candidate_probe_tokens([query]) or []
+    recs = []
+    for tok in tokens[:8]:
+        rec = await asyncio.to_thread(_probe_cached, by_file[key], tok, 8)
+        if rec:
+            recs.append(rec)
+    if not recs:
+        rec = await asyncio.to_thread(_probe_named_file, by_file[key], 20)
+        if rec:
+            recs.append(rec)
+    if not recs:
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — '"
+            f"{names[key]}' resolved uniquely (a catalogued copy exists) "
+            f"but none of the query's identifiers ({tokens[:8]}) matched "
+            "inside it. Report the requested items as ABSENT from this "
+            "workbook, naming the sheet scope searched; do not substitute "
+            "rows from other files.")
+    lines = [
+        "LIVE TOOL RESULTS (datasets.named-file, file='"
+        f"{names[key]}') — the query NAMED this file, so the results are "
+        "SCOPED to it. Rows carry file, sheet and row references:",
+    ]
+    for rec in recs:
+        lines.append(render_dataset_answer(rec))
+    return _with_grounding("\n".join(lines)[:18000])
+
+
 async def _datasets_search_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
@@ -6484,7 +6579,9 @@ async def execute_tool_plan(
                     "scan timed out — no result; do not conclude the value "
                     "is absent.")
             return _with_grounding(render_find_all_result(scan))
-        block = await _datasets_search_block(user_id, query, context)
+        block = await _datasets_named_file_block(user_id, query, context)
+        if block is None:
+            block = await _datasets_search_block(user_id, query, context)
         if block:
             return block
         return _with_grounding(
