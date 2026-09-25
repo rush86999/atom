@@ -4159,6 +4159,22 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
+                try:
+                    # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
+                    # a version-refresh request that names the file lands
+                    # HERE (no resumable task needed) — the ask must carry
+                    # its operation so the shared direct read runs the
+                    # upstream source check instead of silently serving
+                    # the materialized copy as current.
+                    from core.pending_file_task import (
+                        classify_file_operation,
+                    )
+
+                    _ask_task["operation"] = classify_file_operation(message)
+                except Exception as _ask_op_err:  # noqa: BLE001 — observable
+                    logger.warning(
+                        "[file-ask] operation classification failed — "
+                        "refresh semantics degraded: %r", _ask_op_err)
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
                     (context or {}).get("workspace_id"), _deadline)
@@ -4175,8 +4191,19 @@ class ChatOrchestrator:
                         _ask_content = str(
                             _ask_result.get("rendered_answer")
                             or _ask_result.get("block") or "")
+                    # REFRESH verdict rides the ask-turn answer too — a
+                    # version request served by the ask lane ships the
+                    # same freshness contract as the resume lane.
+                    _ask_freshness = _ask_result.get("freshness") or {}
+                    if _ask_freshness.get("note"):
+                        _ask_content = (
+                            _ask_content + str(_ask_freshness["note"]))
                     _ask_identity = _ask_result.get("identity") or {}
                     if _ask_identity:
+                        _ask_identity = {
+                            **_ask_identity,
+                            "execution_id": _execution_id,
+                        }
                         session["_resolved_file_identity"] = _ask_identity
                     _ask_complete = bool(
                         _ask_result.get("retrieval_complete"))
@@ -6015,6 +6042,19 @@ class ChatOrchestrator:
 
         def _verdict(status: str, note: str, **extra) -> Dict[str, Any]:
             return {"status": status, "note": note, **extra}
+
+        # UPSTREAM RESOLUTION (live smoke 2026-09-25): a catalog-served
+        # read reports service="datasets" while the REAL upstream provider
+        # rides identity.source ("zoho_workdrive", resource u8ai1e3a…) —
+        # the refresh must target the live provider, not the copy store.
+        _LIVE_STORAGE_SERVICES = {
+            "zoho_workdrive", "google_drive", "onedrive", "dropbox",
+            "box",
+        }
+        if service in ("datasets", "documents", ""):
+            upstream = str(identity.get("source") or "")
+            if upstream in _LIVE_STORAGE_SERVICES:
+                service = upstream
 
         if pending_task.get("refresh_attempted"):
             # The re-read of the refreshed copy must not re-fetch again —
