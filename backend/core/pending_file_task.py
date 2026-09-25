@@ -101,6 +101,13 @@ _CONTINUATION_VOCABULARY = _CONFIRMATION_VOCABULARY | {
     "let", "know", "tell", "show", "give", "still", "also", "just",
     "then", "them", "they", "there", "here", "again", "more", "all",
     "any", "get", "need", "want", "see",
+    # function words and degree adverbs never name the work
+    "of", "from", "in", "for", "on", "at", "by", "about", "into", "over",
+    "under", "after", "before", "between", "these", "those", "their",
+    "be", "been", "are", "were", "do", "does", "has", "have", "had",
+    "me", "my", "our", "us", "out", "so", "if", "or", "as", "than",
+    "thoroughly", "carefully", "fully", "properly", "deeply", "harder",
+    "once", "please", "maybe", "perhaps", "instead", "rather", "quite",
 }
 # Verbs that ARE the retry operation itself — a confirmation/retry-classified
 # turn may carry them without naming new work ("try the file search again").
@@ -109,6 +116,22 @@ _CONTINUATION_VOCABULARY = _CONFIRMATION_VOCABULARY | {
 _RETRY_LINEAGE_VOCABULARY = {
     "check", "try", "retry", "verify", "excel", "re", "run", "recheck",
 }
+# STRUCTURED WORK SIGNATURE (2026-09-24 review round 3): task identity is
+# (action group, requested objects) — not a new-word COUNT. "check
+# availability" changes the objective with one new word; "search again
+# more thoroughly" adds words without changing it.
+_WORK_VERB_GROUPS = {
+    "seek": {
+        "find", "search", "look", "lookup", "check", "get", "show",
+        "list", "pull", "read", "fetch", "locate", "scan", "what",
+        "which", "where", "how",
+    },
+    "compare": {"compare", "contrast", "differentiate", "reconcile"},
+    "verify": {"verify", "validate", "audit", "confirm"},
+    "summarize": {"summarize", "summarise", "recap", "review", "outline"},
+    "explain": {"explain", "describe"},
+}
+_ALL_WORK_VERBS = set().union(*_WORK_VERB_GROUPS.values())
 _WORD_RE = re.compile(r"[a-z0-9']+")
 
 
@@ -116,6 +139,18 @@ def _content_words(text: str) -> List[str]:
     return [
         re.sub(r"'s$", "", w) for w in _WORD_RE.findall((text or "").lower())
     ]
+
+
+def _light_stem(word: str) -> str:
+    """Minimal morphology fold so 'prices'/'price' and
+    'quantities'/'quantity' compare equal — NOT a real stemmer, just
+    enough for object identity."""
+    w = word or ""
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-3] + "y"
+    if len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+        return w[:-1]
+    return w
 
 
 def _mention_words(message: str) -> set:
@@ -169,28 +204,64 @@ def is_filename_confirmation(message: str) -> bool:
     return False
 
 
-# An explicit RE-RETRIEVAL request ("search the file again", "refresh",
-# "check the latest version") — a different instruction from an approval:
-# a completed read is RE-RUN with freshness reported, never answered from
-# the cached copy.
-_REFRESH_RE = re.compile(
-    r"\b(?:re-?run|re-?read|re-?retrieve|re-?scan|re-?check|re-?fetch|"
-    r"refresh|latest|newest|up-?to-?date|updated?|current\s+version)\b"
-    r"|\b(?:check|search|read|look|pull|fetch|scan)\s+"
+# THREE distinct operations on a completed read (2026-09-24 review
+# round 3) — re-deliver / re-run / refresh are NOT the same instruction:
+# - re-deliver: return the stored result (an approval);
+# - re-run: search the currently available COPY again ("search again") —
+#   the materialized copy is the accepted source for that turn;
+# - refresh: verify the UPSTREAM version and retrieve updated content
+#   ("latest version", "refresh", "updated") — the copy alone is NOT an
+#   acceptable answer without a source check; a refresh answer must
+#   state its freshness verdict, never present an old copy as current.
+_SOURCE_REFRESH_RE = re.compile(
+    r"\b(?:latest|newest|up-?to-?date|up\s+to\s+date|updated?|"
+    r"update\s+the|current\s+version|newer|refresh|"
+    r"has\s+it\s+changed|changed\s+since|fresh)\b",
+    re.IGNORECASE,
+)
+_RERUN_RE = re.compile(
+    r"\b(?:re-?run|re-?read|re-?retrieve|re-?scan|re-?check|re-?fetch)\b"
+    r"|\b(?:check|search|read|look|pull|fetch|scan|try)\s+"
     r"[^\n]{0,40}\bagain\b",
     re.IGNORECASE,
 )
 
 
-def is_retrieval_refresh_request(message: str) -> bool:
-    """An explicit request to RUN the lookup again / fetch fresh data —
-    as opposed to an approval ("go ahead"), which may re-deliver an
-    already completed result (2026-09-24 review: cached re-delivery and
-    retrying retrieval are different operations)."""
+def is_source_refresh_request(message: str) -> bool:
+    """A SOURCE-freshness request: the upstream version must be checked
+    and updated content retrieved — stronger than re-running the copy."""
+    t = (message or "").strip()
+    return bool(t) and bool(_SOURCE_REFRESH_RE.search(t))
+
+
+def is_rerun_request(message: str) -> bool:
+    """An explicit re-run of the lookup against the currently available
+    copy ("search the file again", "re-read the workbook")."""
     t = (message or "").strip()
     if not t:
         return False
-    return bool(_FILE_RETRY_RE.search(t) or _REFRESH_RE.search(t))
+    return bool(_FILE_RETRY_RE.search(t) or _RERUN_RE.search(t))
+
+
+def is_retrieval_refresh_request(message: str) -> bool:
+    """Any re-retrieval operation (re-run OR source refresh) — an explicit
+    request to run the lookup again, as opposed to an approval ("go
+    ahead"), which may re-deliver an already completed result."""
+    return is_source_refresh_request(message) or is_rerun_request(message)
+
+
+def classify_file_operation(message: str) -> str:
+    """Which of the three operations a continuation turn asks for:
+    "refresh" (source check required) wins over "re-run" (copy search);
+    approvals re-deliver. Unclassified read-shaped turns are "read"."""
+    t = message or ""
+    if is_source_refresh_request(t):
+        return "refresh"
+    if is_rerun_request(t):
+        return "re-run"
+    if is_filename_confirmation(t):
+        return "re-deliver"
+    return "read"
 
 
 def _canon(value: str) -> str:
@@ -316,6 +387,12 @@ def supersedes_pending_task(pending: Optional[Any], message: str) -> bool:
         return False
     if is_filename_confirmation(message):
         return False
+    if is_retrieval_refresh_request(message):
+        # An explicit re-run/refresh CONTINUES the task — live intent, the
+        # opposite of superseding it (live 2026-09-24: "check the latest
+        # version of the workbook" popped the stored ask before the
+        # matcher could resume it, and the turn died in narration).
+        return False
     text = (message or "").strip()
     if "?" in text:
         return False
@@ -338,6 +415,29 @@ def _same_ask(history_user_text: str, original_message: str) -> bool:
     return _canon(history_user_text) == _canon(original_message or "")
 
 
+def _work_signature(
+    text: str, mentions: Optional[List[str]] = None,
+    extra_anchor: Optional[set] = None,
+) -> "tuple[Optional[str], frozenset]":
+    """The (action group, requested objects) a turn asks for — the
+    structured half of task identity. Objects are mention-stripped,
+    verb- and filler-free, lightly stemmed; action is the coarsest verb
+    group present (seek/compare/verify/summarize/explain)."""
+    stripped = _strip_mentions(text, mentions)
+    fillers = _CONTINUATION_VOCABULARY | (extra_anchor or set())
+    words = _content_words(stripped)
+    verbs = [w for w in words if w in _ALL_WORK_VERBS]
+    group = next(
+        (g for g, vs in _WORK_VERB_GROUPS.items() if set(verbs) & vs),
+        None,
+    )
+    objects = frozenset(
+        _light_stem(w) for w in words
+        if w not in _ALL_WORK_VERBS and w not in fillers
+    )
+    return group, objects
+
+
 def _introduces_new_work(
     turn_text: str,
     original_message: str,
@@ -349,25 +449,28 @@ def _introduces_new_work(
     and "compare its quantities" can name ONE file while requesting
     different work — same file does not mean same task).
 
-    Lineage is preserved only when the turn CONTINUES or REFINES the
-    objective: confirmation wording ("... is correct"), or at most one
-    content word the ask does not already carry beyond continuation
-    fillers ("find its prices", "and let me know"). Two or more new
-    content words are the turn's own work — a new task. Mention spans are
-    stripped first: a filename that CONTAINS work words ("price list") is
-    the subject, not the work. ``extra_anchor`` adds the retry-operation
-    vocabulary used when judging a confirmation/retry-classified turn.
+    Compared on STRUCTURED task attributes, with lexical signals as
+    support only: a NEW requested object ("availability" vs "prices", a
+    changed constraint like "north region only") or a different ACTION
+    group ("compare" vs "find") is a new task; verbose retries ("search
+    again more thoroughly") and pronoun-led refinements ("find its
+    prices") are not. Confirmation wording is lineage. Uncertainty
+    resolves to a NEW task — the normal flows own it, and nothing is
+    silently continued on a guess.
     """
     stripped = _strip_mentions(turn_text, mentions)
     if _CONFIRMATION_WORD_RE.search(stripped):
         return False
-    anchor = (
-        set(_content_words(original_message or ""))
-        | _CONTINUATION_VOCABULARY
-        | (extra_anchor or set())
-    )
-    new_words = set(_content_words(stripped)) - anchor
-    return len(new_words) >= 2
+    new_group, new_objects = _work_signature(
+        turn_text, mentions, extra_anchor)
+    old_group, old_objects = _work_signature(
+        original_message or "", None, extra_anchor)
+    unseen = new_objects - old_objects
+    if unseen:
+        return True  # a new object/constraint: its own work
+    if new_group and old_group and new_group != old_group:
+        return True  # same objects, different operation
+    return False
 
 
 def _same_file_identity(a: str, b: str) -> bool:

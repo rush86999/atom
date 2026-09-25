@@ -2655,3 +2655,235 @@ class TestReDeliveryVsRefresh:
             "the fresh read re-drives the lifecycle")
         assert session_again[FILE_TASK_SESSION_KEY].get("refreshed") is \
             None or True  # lifecycle stamp; revival recorded on merge
+
+
+# ---------------------------------------------------------------------------
+# Review round 3 (2026-09-24) — bounded follow-ups:
+# 1. task identity compares STRUCTURED attributes (action group, requested
+#    objects/constraints); lexical counts are not identity. Domain-neutral
+#    cases: a one-word objective change ("check availability"), a verbose
+#    retry ("search again more thoroughly"), a changed constraint.
+# 2. re-deliver / re-run / refresh are three distinct operations; a refresh
+#    verifies the UPSTREAM source and never presents an old copy as current.
+# ---------------------------------------------------------------------------
+
+INVOICE_ASK = (
+    "find the invoice totals in the Q3 billing summary and let me know "
+    "what you find")
+
+
+class TestStructuredTaskIdentity:
+    def test_one_word_objective_change_is_new_work(self):
+        """'check availability' changes the objective with ONE new word —
+        a lexical count would keep it lineage; the object decides."""
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(INVOICE_ASK, "q3 billing summary")
+        history = LEGACY_HISTORY[:0] + [
+            {"message": INVOICE_ASK, "response": "lookup unverified"}]
+        assert pft._introduces_new_work(
+            "check availability", INVOICE_ASK) is True
+        assert pft.matching_pending_task(
+            pending, "yes go ahead",
+            history + [{"message": "check availability",
+                        "response": "..."}]) is None
+
+    def test_verbose_retry_is_still_lineage(self):
+        """'search again more thoroughly' adds words without changing the
+        objective — the retry continues the task."""
+        import core.pending_file_task as pft
+
+        pending = pft.build_pending_task(INVOICE_ASK, "q3 billing summary")
+        assert pft._introduces_new_work(
+            "search again more thoroughly", INVOICE_ASK) is False
+        assert pft.matching_pending_task(
+            pending, "yes",
+            [{"message": INVOICE_ASK, "response": "x"},
+             {"message": "search again more thoroughly",
+              "response": "y"}]) is not None
+
+    def test_changed_constraint_is_new_work(self):
+        import core.pending_file_task as pft
+
+        assert pft._introduces_new_work(
+            "find the invoice totals for the north region only",
+            INVOICE_ASK) is True
+
+    def test_pronoun_refinement_stays_lineage(self):
+        import core.pending_file_task as pft
+
+        assert pft._introduces_new_work(
+            "find its totals and let me know", INVOICE_ASK) is False
+
+    def test_morphology_folds_plural_forms(self):
+        import core.pending_file_task as pft
+
+        assert pft._light_stem("prices") == pft._light_stem("price")
+        assert pft._light_stem("quantities") == pft._light_stem("quantity")
+
+
+class TestThreeOperations:
+    def test_operation_classification(self):
+        from core.pending_file_task import classify_file_operation
+
+        assert classify_file_operation("go ahead") == "re-deliver"
+        assert classify_file_operation("yes") == "re-deliver"
+        assert classify_file_operation(
+            "That filename is correct") == "re-deliver"
+        assert classify_file_operation("search the file again") == "re-run"
+        assert classify_file_operation(
+            "try the excel file search again") == "re-run"
+        assert classify_file_operation("refresh the prices") == "refresh"
+        assert classify_file_operation(
+            "check the latest version of the workbook") == "refresh"
+
+    def test_refresh_wins_over_rerun_wording(self):
+        from core.pending_file_task import classify_file_operation
+
+        assert classify_file_operation(
+            "check the latest version again") == "refresh"
+
+
+def _fake_uis_cls(execute_impl):
+    class _FakeUIS:
+        def __init__(self, workspace_id: str = "default"):
+            self.workspace_id = workspace_id
+
+        async def execute(self, service, action, params, context=None):
+            return await execute_impl(service, action, params, context or {})
+
+    return _FakeUIS
+
+
+def _direct_read_result_meta(plan, block):
+    plan._result_meta = {"storage_read": {
+        "service": "zoho_workdrive", "file_id": "wd-77",
+        "resource_id": "wd-77",
+        "file_name": "Q3 Billing Summary 2026.xlsx",
+        "completed": True, "identity_verified": True,
+        "coverage_complete": True,
+        "ingested_at": "2026-09-01T10:00:00",
+        "content_hash": "aaa111",
+    }}
+    return block
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_unavailable_source_never_claims_current():
+    """The refresh guarantee: when the live source cannot be re-fetched,
+    the answer ships the materialized copy EXPLICITLY labeled possibly
+    outdated — never as current."""
+    orch = _orch()
+    orch.llm_service.generate_completion = AsyncMock(
+        side_effect=AssertionError("narration must not run"))
+    session = {
+        "id": "s-refresh-fail", "history": [],
+        FILE_TASK_SESSION_KEY: dict(
+            build_pending_task(INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+            status="delivered"),
+        "_pending_file_result": {
+            "status": "delivered",
+            "rendered": "| OLD COPY VALUES |",
+            "identity": {"file_id": "wd-77"},
+        },
+    }
+
+    async def failing_read(service, action, params, context):
+        raise RuntimeError("workdrive unreachable")
+
+    async def fake_named_block(user_id, query, ctx, plan=None):
+        return _direct_read_result_meta(plan, "| OLD COPY VALUES |")
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService",
+              _fake_uis_cls(failing_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the workbook",
+            "s-refresh-fail", context={"agent_id": "a1"})
+
+    message = result["message"]
+    assert "SOURCE FRESHNESS" in message, (
+        "a refresh answer must carry its freshness verdict")
+    assert "could NOT be re-fetched" in message
+    assert "OUTDATED" in message, (
+        "a stale copy must be labeled, never passed as current")
+    assert result["data"]["freshness"] == "refresh_failed"
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_live_source_reports_updated_content():
+    """When the live re-fetch succeeds, the reader runs on the refreshed
+    copy and the verdict says the content is updated."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-ok", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        reads["live"] = reads.get("live", 0) + 1
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        block = (
+            "| TOTAL | FOUND | Summary!B4 R4 |"
+            if reads["count"] > 1
+            else "| TOTAL | FOUND | Summary!B2 R2 |")
+        return _direct_read_result_meta(plan, block)
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e2"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-ok", context={"agent_id": "a1"})
+
+    assert reads.get("live") == 1, (
+        "a refresh re-fetches the live source once")
+    assert reads["count"] >= 2, (
+        "the scoped reader runs on the refreshed copy")
+    assert "SOURCE FRESHNESS" in result["message"]
+    assert "UPDATED" in result["message"]
+    assert result["data"]["freshness"] == "refreshed"

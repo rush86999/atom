@@ -6004,6 +6004,17 @@ class ChatOrchestrator:
         def _verdict(status: str, note: str, **extra) -> Dict[str, Any]:
             return {"status": status, "note": note, **extra}
 
+        if pending_task.get("refresh_attempted"):
+            # The re-read of the refreshed copy must not re-fetch again —
+            # one live re-fetch per refresh operation.
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched, "
+                "but the refreshed read could not be completed — this "
+                f"answer is the copy ingested {ingested_at}.",
+                reason="re-read loop guard",
+            )
+
         if not service or not resource_id or service in (
                 "datasets", "documents"):
             return _verdict(
@@ -6064,14 +6075,6 @@ class ChatOrchestrator:
             )
         # The index was just re-warmed — re-run the scoped reader ONCE
         # against the refreshed copy.
-        if pending_task.get("refresh_attempted"):
-            return _verdict(
-                "unverified",
-                "\n\nSOURCE FRESHNESS: the live source was re-fetched, "
-                "but the refreshed read could not be completed — this "
-                f"answer is the copy ingested {ingested_at}.",
-                reason="re-read loop guard",
-            )
         try:
             pending_task["refresh_attempted"] = True
             reread = await self._direct_confirmed_file_read(
