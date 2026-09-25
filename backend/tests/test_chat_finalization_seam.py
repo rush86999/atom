@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -173,6 +174,201 @@ def orch():
     with patch.object(cr, "chat_orchestrator") as m:
         m.session_manager = MagicMock()
         yield m
+
+
+@pytest.fixture
+def exec_db(monkeypatch):
+    from sqlalchemy import create_engine as _create_engine
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+    from sqlalchemy.pool import StaticPool as _StaticPool
+
+    from core import database as _database_module
+    from core.models_registration import Base as _Base
+
+    engine = _create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=_StaticPool,
+    )
+    _Base.metadata.create_all(engine)
+    factory = _sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def get_db_session():
+        db = factory()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    monkeypatch.setattr(_database_module, "get_db_session", get_db_session)
+    yield factory
+    engine.dispose()
+
+
+def _failed_row(factory, execution_id, metadata=None):
+    from datetime import datetime, timezone
+
+    from core.models import AgentExecution
+
+    with factory() as db:
+        db.add(
+            AgentExecution(
+                id=execution_id,
+                status="failed",
+                started_at=datetime.now(timezone.utc),
+                result_summary="editor failed",
+                metadata_json=(metadata if metadata is not None else {"session_id": "session-1"}),
+            )
+        )
+        db.commit()
+
+
+def _stored_operations(factory, execution_id):
+    from core.execution_outcome import STORAGE_KEY
+    from core.models import AgentExecution
+
+    with factory() as db:
+        row = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+        meta = row.metadata_json or {}
+        if not isinstance(meta, dict):
+            return {}
+        stored = meta.get(STORAGE_KEY) or {}
+        return stored.get("operations") or {}
+
+
+def test_m4_failed_turn_persists_delivery_record(monkeypatch, exec_db):
+    from integrations.chat_routes import _finalize_chat_response
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    _failed_row(exec_db, "execution-1")
+    with exec_db() as db:
+        result = _finalize_chat_response(
+            db,
+            {
+                "success": False,
+                "message": "Message processed successfully",
+                "session_id": "session-1",
+                "execution_id": "execution-1",
+                "data": {},
+            },
+        )
+
+    assert result["success"] is False
+    assert "editor failed" in result["message"]
+    operations = _stored_operations(exec_db, "execution-1")
+    assert operations["execution-1"]["execution_status"] == "failed"
+    assert operations["execution-1"]["delivery_status"] == "delivered"
+
+
+def test_m4_sibling_operations_coexist(monkeypatch, exec_db):
+    from integrations.chat_routes import _finalize_chat_response
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    _failed_row(exec_db, "execution-a")
+    _failed_row(exec_db, "execution-b")
+    with exec_db() as db:
+        _finalize_chat_response(
+            db,
+            {
+                "success": False,
+                "message": "Message processed successfully",
+                "session_id": "session-1",
+                "execution_id": "execution-a",
+                "data": {},
+            },
+        )
+    with exec_db() as db:
+        _finalize_chat_response(
+            db,
+            {
+                "success": False,
+                "message": "Message processed successfully",
+                "session_id": "session-1",
+                "execution_id": "execution-b",
+                "data": {},
+            },
+        )
+
+    assert set(_stored_operations(exec_db, "execution-a")) == {"execution-a"}
+    assert set(_stored_operations(exec_db, "execution-b")) == {"execution-b"}
+
+
+def test_m4_unmapped_row_status_falls_back_to_finalized_outcome(monkeypatch, exec_db):
+    from integrations.chat_routes import _finalize_chat_response
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    _failed_row(exec_db, "execution-1")
+    with exec_db() as db:
+        from core.models import AgentExecution
+
+        row = db.query(AgentExecution).filter(AgentExecution.id == "execution-1").first()
+        row.status = "success"
+        db.commit()
+        result = _finalize_chat_response(
+            db,
+            {
+                "success": True,
+                "message": "done",
+                "session_id": "session-1",
+                "execution_id": "execution-1",
+                "data": {},
+            },
+        )
+
+    assert result["success"] is True
+    assert _stored_operations(exec_db, "execution-1")["execution-1"]["execution_status"] == "succeeded"
+
+
+def test_m4_flag_off_writes_no_record(monkeypatch, exec_db):
+    from integrations.chat_routes import _finalize_chat_response
+
+    monkeypatch.delenv("CHAT_FINALIZATION_M1", raising=False)
+    _failed_row(exec_db, "execution-1")
+    with exec_db() as db:
+        result = _finalize_chat_response(
+            db,
+            {
+                "success": False,
+                "message": "Message processed successfully",
+                "session_id": "session-1",
+                "execution_id": "execution-1",
+                "data": {},
+            },
+        )
+
+    assert result["message"] == "Message processed successfully"
+    assert _stored_operations(exec_db, "execution-1") == {}
+
+
+def test_m4_corrupt_metadata_is_never_rewritten(monkeypatch, exec_db):
+    from integrations.chat_routes import _finalize_chat_response
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    _failed_row(exec_db, "execution-1", metadata="not-json{{{")
+    with exec_db() as db:
+        result = _finalize_chat_response(
+            db,
+            {
+                "success": False,
+                "message": "Message processed successfully",
+                "session_id": "session-1",
+                "execution_id": "execution-1",
+                "data": {},
+            },
+        )
+
+    assert "editor failed" in result["message"]
+    from core.models import AgentExecution
+
+    with exec_db() as db:
+        row = db.query(AgentExecution).filter(AgentExecution.id == "execution-1").first()
+        assert row.metadata_json == "not-json{{{"
+        assert _stored_operations(exec_db, "execution-1") == {}
 
 
 def test_m1_turn_budget_early_return_bypasses_finalizer(monkeypatch, client, orch):

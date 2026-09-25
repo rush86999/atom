@@ -1374,7 +1374,7 @@ def _finalize_chat_response(
             else None,
             execution_id,
         )
-        return finalize_payload(record, response)
+        finalized = finalize_payload(record, response)
     except Exception as lookup_error:
         logger.warning(f"M1 finalization failed closed: {lookup_error}")
         try:
@@ -1400,6 +1400,70 @@ def _finalize_chat_response(
                 "message": UNKNOWN_OUTCOME_MESSAGE,
                 "execution_id": execution_id,
             }
+    _store_delivery_record(db, row, execution_id, finalized)
+    return finalized
+
+
+def _store_delivery_record(
+    db: _Session,
+    row: Any,
+    execution_id: Optional[str],
+    finalized: Dict[str, Any],
+) -> None:
+    """Persist this turn's delivery dimension onto its execution row.
+
+    Merges one operation record under the versioned storage key, keyed by
+    the turn's execution id; sibling operations and all other metadata
+    keys pass through untouched. Best-effort and isolated: storage
+    failures never alter the already-decided delivery.
+    """
+    if row is None or not execution_id or not isinstance(finalized, dict):
+        return
+    try:
+        from core import execution_outcome as outcome
+
+        raw_meta = getattr(row, "metadata_json", None)
+        if raw_meta is None:
+            raw_meta = {}
+        if not isinstance(raw_meta, dict):
+            return
+        records = outcome.load_operation_records(raw_meta)
+        record = records.get(str(execution_id)) or outcome.new_operation_record(
+            operation_id=str(execution_id),
+            execution_id=str(execution_id),
+            operation_class="chat_turn",
+            producer="chat_routes",
+        )
+        mapped = {
+            "failed": "failed",
+            "completed": "succeeded",
+            "running": "running",
+            "timeout": "timeout",
+        }.get(str(getattr(row, "status", "") or "").lower())
+        if mapped is None:
+            if finalized.get("success") is True:
+                mapped = "succeeded"
+            elif finalized.get("success") is False:
+                mapped = "failed"
+        if mapped is not None:
+            try:
+                outcome.transition(
+                    record, "execution_status", mapped, producer="chat_routes")
+            except outcome.IllegalTransition:
+                pass
+        try:
+            outcome.transition(
+                record, "delivery_status", "delivered", producer="chat_routes")
+        except outcome.IllegalTransition:
+            pass
+        row.metadata_json = outcome.store_operation_record(raw_meta, record)
+        db.commit()
+    except Exception as store_error:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.warning(f"M4 delivery record skipped: {store_error}")
 
 
 # API Routes
