@@ -16,8 +16,7 @@ from pydantic import BaseModel, Field
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
-from fastapi import Depends
+from integrations.chat_orchestrator import ChatOrchestrator
 from core.auth import get_current_user
 from core.llm.routing_overrides import parse_routing_overrides
 from core.models import User, UserRole
@@ -143,7 +142,7 @@ def _resolve_canvas_agent_id(canvas_id: str, tenant_id: Optional[str]) -> Option
                     .first()
                 )
                 if agent is not None:
-                    return agent.id
+                    return str(agent.id)
         return None
     except Exception as e:
         logger.debug(f"canvas agent resolution skipped: {e}")
@@ -275,7 +274,7 @@ def _goal_inference_enabled() -> bool:
     try:
         from core.runtime_settings import get_bool_setting
 
-        return get_bool_setting("ATOM_CHAT_TEACH_GOAL_INFERENCE", True)
+        return bool(get_bool_setting("ATOM_CHAT_TEACH_GOAL_INFERENCE", True))
     except Exception:  # noqa: BLE001
         return str(os.getenv("ATOM_CHAT_TEACH_GOAL_INFERENCE", "true")).strip().lower() in (
             "1", "true", "yes", "on",
@@ -729,6 +728,8 @@ async def get_chat_history(
                     # trace route only covers agent-tool steps, not CoT).
                     if row.role == "assistant" and _meta.get("reasoning"):
                         _entry["reasoning"] = _meta["reasoning"]
+                    if _meta.get("execution_id"):
+                        _entry["execution_id"] = _meta["execution_id"]
                     history.append(_entry)
                 if history:
                     logger.info(
@@ -1058,19 +1059,89 @@ async def chat_root():
     }
 
 
-def _learning_router_enabled() -> bool:
-    """Whether the learning router is enabled (flag-gated)."""
-    from core.llm.learning_router_registry import learning_router_enabled
-    return learning_router_enabled()
+def _feedback_server_attribution(
+    db: _Session, message_id: Optional[str], session_id: Optional[str]
+) -> Dict[str, Any]:
+    """Recover response attribution from the durable chat message."""
+    try:
+        from core.models import ChatMessage
 
-def _get_learning_router():
-    """Return the process-wide learning router singleton (or None).
+        row = None
+        if message_id:
+            row = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+        if row is None and session_id:
+            row = (
+                db.query(ChatMessage)
+                .filter(
+                    ChatMessage.conversation_id == session_id,
+                    ChatMessage.role == "assistant",
+                )
+                .order_by(ChatMessage.created_at.desc())
+                .first()
+            )
+        if row is None or getattr(row, "role", None) != "assistant":
+            return {}
+        try:
+            metadata = json.loads(getattr(row, "metadata_json", None) or "{}")
+        except Exception:
+            metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        return {
+            "model": metadata.get("model") or metadata.get("model_id"),
+            "provider": metadata.get("provider"),
+            "execution_id": metadata.get("execution_id"),
+            "reasoning": metadata.get("reasoning"),
+        }
+    except Exception as error:
+        logger.debug(f"feedback attribution lookup skipped: {error}")
+        return {}
 
-    Uses the singleton registry so predictors accumulate across requests
-    instead of being trained into throwaway instances.
-    """
-    from core.llm.learning_router_registry import get_learning_router_instance
-    return get_learning_router_instance()
+
+def _assert_feedback_scope(
+    db: _Session,
+    request: "ChatFeedbackRequest",
+    current_user: User,
+) -> None:
+    """Reject feedback for a durable conversation owned by another user."""
+    if current_user is None:
+        raise HTTPException(status_code=403, detail="Access denied")
+    owner_id = str(current_user.id)
+    try:
+        from core.models import ChatMessage, ChatSession
+
+        session_ids = set()
+        if request.session_id:
+            session_ids.add(str(request.session_id))
+        if request.message_id:
+            message = db.query(ChatMessage).filter(
+                ChatMessage.id == request.message_id
+            ).first()
+            if getattr(message, "role", None) == "assistant":
+                if request.session_id and str(
+                    message.conversation_id
+                ) != str(request.session_id):
+                    raise HTTPException(status_code=403, detail="Access denied")
+                session_ids.add(str(message.conversation_id))
+        for session_id in session_ids:
+            session = chat_orchestrator.conversation_sessions.get(session_id)
+            if session is not None and not _ensure_session_access(
+                session, current_user
+            ):
+                raise HTTPException(status_code=403, detail="Access denied")
+            durable = db.query(ChatSession).filter(
+                ChatSession.id == session_id
+            ).first()
+            if (
+                isinstance(durable, ChatSession)
+                and str(durable.user_id) != owner_id
+                and not _is_legacy_placeholder_owner(durable.user_id)
+            ):
+                raise HTTPException(status_code=403, detail="Access denied")
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.debug(f"feedback scope lookup skipped: {error}")
 
 
 class ChatFeedbackRequest(BaseModel):
@@ -1554,7 +1625,7 @@ async def cancel_chat(
 def _learning_router_enabled() -> bool:
     """Whether the learning router is enabled (flag-gated)."""
     from core.llm.learning_router_registry import learning_router_enabled
-    return learning_router_enabled()
+    return bool(learning_router_enabled())
 
 
 def _ema_router_enabled() -> bool:
@@ -1565,7 +1636,7 @@ def _ema_router_enabled() -> bool:
     "true"-only check that disagreed with what the router actually honored.
     """
     from core.llm.learning_router_registry import ema_router_enabled
-    return ema_router_enabled()
+    return bool(ema_router_enabled())
 
 
 def _get_learning_router():
@@ -1581,7 +1652,8 @@ def _get_learning_router():
 @router.post("/feedback")
 async def submit_chat_feedback(
     request: ChatFeedbackRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: _Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Submit feedback on a chat response.
 
@@ -1594,6 +1666,11 @@ async def submit_chat_feedback(
     feedback_val = request.feedback.lower().strip()
     if feedback_val not in ("thumbs_up", "thumbs_down"):
         raise HTTPException(status_code=422, detail="feedback must be 'thumbs_up' or 'thumbs_down'")
+
+    _assert_feedback_scope(db, request, current_user)
+    _attribution = _feedback_server_attribution(
+        db, request.message_id, request.session_id
+    )
 
     # Phase 56 (positive/negative example learning): persist the full
     # (query, response) pair BEFORE the learning-router branch. The router
@@ -1610,13 +1687,27 @@ async def submit_chat_feedback(
             feedback=feedback_val,
             comment=request.comment,
             session_id=request.session_id,
-            model=request.model,
-            provider=request.provider,
+            model=_attribution.get("model"),
+            provider=_attribution.get("provider"),
             user_id=str(current_user.id) if current_user else None,
-            reasoning=request.reasoning,
+            reasoning=_attribution.get("reasoning"),
         )
     except Exception as e:
         logger.warning(f"exchange example capture failed (non-fatal): {e}")
+
+    if capture_summary.get("execution_id") and capture_summary.get(
+        "feedback_classification"
+    ):
+        try:
+            from core.task_outcome_contract import attach_feedback_to_execution
+
+            attach_feedback_to_execution(
+                capture_summary.get("execution_id"),
+                capture_summary["feedback_classification"],
+                user_id=str(current_user.id) if current_user else None,
+            )
+        except Exception as error:
+            logger.debug(f"task outcome feedback join skipped: {error}")
 
     learning_router = _get_learning_router()
     if learning_router is None:
@@ -1629,7 +1720,6 @@ async def submit_chat_feedback(
     try:
         from core.learning_llm_router import LearningBasedRouter
         from core.llm.response_quality import ResponseQuality
-        import uuid
 
         # Map explicit user feedback to a quality assessment. Thumbs-down with
         # a comment is a stronger negative signal than a bare thumbs-down.
@@ -1645,7 +1735,7 @@ async def submit_chat_feedback(
                 quality_score=score, issues=["user_thumbs_down"],
             )
 
-        model_id = request.model or "unknown"
+        model_id = _attribution.get("model") or "unknown"
 
         # Recover the REAL task_type and routing_result_id for this message by
         # correlating with the most recent outcome feedback the BYOK hook
@@ -1662,7 +1752,12 @@ async def submit_chat_feedback(
         # fresh id. Note the id only matters for feature recovery — record_feedback
         # degrades gracefully to task defaults when it's not found.
         import uuid as _uuid
-        decision_id = resolved_id or request.message_id or str(_uuid.uuid4())
+        decision_id = (
+            _attribution.get("execution_id")
+            or resolved_id
+            or request.message_id
+            or str(_uuid.uuid4())
+        )
 
         fb = LearningBasedRouter.build_feedback(
             routing_result_id=decision_id,

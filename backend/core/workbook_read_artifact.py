@@ -383,7 +383,7 @@ _TARGET_EVIDENCE_CAP = 128
 #: delivery durations excluded positionally; name targets merged
 #: identity-like; filename words never entities). Persisted target lists
 #: stamped with an older version are RE-DERIVED, not replayed.
-TARGET_EXTRACTION_VERSION = 2
+TARGET_EXTRACTION_VERSION = 3
 _CURRENCY_RE = re.compile(
     r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b|"
     r"\[[$€£¥₹₩₽₺-][^\]]*\]",
@@ -411,6 +411,16 @@ _DURATION_AFTER_RE = re.compile(
     r"^\s*(?:[–—-]\s*\d+\s*)?(?:weeks?|days?|months?|hrs?|hours?)\b",
     re.IGNORECASE,
 )
+# A COMPLETED monetary amount immediately before (whitespace-separated):
+# '... $1,777.00 609' — the bare 609 is a value continuation (qty,
+# another amount fragment), not an identifier. 'No. 381' differs: an
+# IDENTIFIER MARKER precedes it.
+_AMOUNT_BEFORE_RE = re.compile(
+    r"\d[\d,]*[.,]\d+\s*$|[$€£¥₹₩₽₺]\s*[\d,]+\s*$")
+_ID_MARKER_BEFORE_RE = re.compile(
+    r"(?:\b(?:no|nr|num|model|item|part|sku|code|id|ref)\.?\s*$)",
+    re.IGNORECASE,
+)
 
 
 def _is_value_position(
@@ -433,6 +443,12 @@ def _is_value_position(
         and len(match_run) <= 2
     ):
         return True  # the cents tail of a decimal amount
+    if (
+        match_run_is_numeric
+        and _AMOUNT_BEFORE_RE.search(before)
+        and not _ID_MARKER_BEFORE_RE.search(before)
+    ):
+        return True  # bare number trailing a completed amount
     if _DURATION_AFTER_RE.match(after):
         return True
     return False
@@ -486,7 +502,14 @@ def extract_targets(
             "what", "which", "how", "many", "expire", "expiration", "on",
             "hand", "certification", "date",
         }
-        # Filename tokens: space-joined words each starting uppercase
+        _FILENAME_TOKEN_RE = re.compile(
+    r"\b(?:[A-Z0-9][A-Za-z0-9_()'\ -]*"
+    r"(?:\s+[A-Z0-9][A-Za-z0-9_()'\ -]*){0,6})"
+    r"\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?|pptx?|txt|md|json)\b"
+)
+
+
+# Filename tokens: space-joined words each starting uppercase
         # or a digit (real filenames: 'Consolidated Price List
         # 2019.xlsx'); lowercase prose words terminate the token so the
         # blanking cannot swallow the sentence ('ingest-api is
@@ -516,6 +539,28 @@ def extract_targets(
                     kept.append(word)
                 if kept:
                     _named.append(" ".join(kept))
+    # CAPITALIZED-PHRASE LANE (2026-09-24 reconfirmation): 'Manual
+    # Flanger' — a 2+ word capitalized phrase not inside a filename and
+    # not stopword-led — is an entity even mid-list and even when
+    # numeric identifiers already exist.
+    _cap_phrase = re.compile(
+        r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){1,4})\b")
+    _CAP_STOP = {
+        "The", "This", "That", "These", "Those", "Find", "Check",
+        "Search", "Please", "When", "Does", "What", "Which", "How",
+        "And", "For", "With", "From", "List", "Price", "Prices",
+        "Consolidated", "Stock", "Status", "Training", "Records",
+        "Platform", "Matrix", "Warehouse", "Snapshot", "Spec",
+    }
+    _source_for_caps = [query or "", *(context_texts or [])]
+    for source_text in _source_for_caps:
+        raw_src = _FILENAME_TOKEN_RE.sub(" ", str(source_text or ""))
+        for match in _cap_phrase.finditer(raw_src):
+            phrase = match.group(1).strip()
+            words = phrase.split()
+            if words[0] in _CAP_STOP:
+                continue
+            _named.append(phrase)
     for name in _named:
         text = str(name or "").strip()
         canonical = _canonical(text)

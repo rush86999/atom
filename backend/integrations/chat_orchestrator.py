@@ -4592,6 +4592,10 @@ class ChatOrchestrator:
             # air before the search even starts (measured 2026-09-01). The
             # task is consumed inside _get_qwen_response and cancelled if an
             # earlier leg (edit/action) already answered.
+            # Turn-scoped execution identity for durable stamping (see
+            # _update_session): the assistant row carries the execution id
+            # so UI recovery matches the exact turn.
+            session["_last_execution_id"] = _execution_id
             _tool_plan_task = None
             try:
                 from core.chat_tool_planner import plan_tool_use, _provenance_menu
@@ -12767,6 +12771,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _pending_mail = session.pop("_pending_mail_meta", None)
                         if _pending_mail:
                             _msg_meta["mail_handles"] = _pending_mail
+                        # EXECUTION IDENTITY on the durable assistant row
+                        # (2026-09-24 review, item 4): late-reply recovery
+                        # must match the EXACT execution, not 'latest
+                        # unseen by session' — overlapping or repeated
+                        # turns otherwise adopt each other's replies.
+                        _exec_stamp = session.get("_last_execution_id")
+                        if _exec_stamp:
+                            _msg_meta["execution_id"] = _exec_stamp
                         # PENDING FILE TASK (2026-09-23 review, gap 5): the
                         # session dict is NOT durable (restart rebuilds a
                         # projection), so the task and the resolved file

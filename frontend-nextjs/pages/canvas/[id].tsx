@@ -178,7 +178,6 @@ export default function CanvasDetailPage() {
             // conversation on first send; the binding appears after it.
             return fromQuery;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canvasId, router.query.session]);
 
     useEffect(() => {
@@ -807,6 +806,11 @@ export default function CanvasDetailPage() {
         // finally may clear isAgentResponding, and only the LATEST turn owns
         // it (a slow POST for turn N must not clear turn N+1's spinner).
         const turnId = ++turnSeqRef.current;
+        // EXECUTION IDENTITY for late-reply recovery (2026-09-24 review
+        // item 4): the backend stamps every WS frame and the persisted
+        // assistant row with this turn's execution id — recovery must
+        // match the EXACT execution, not 'latest unseen by session'.
+        const turnExecIdRef = { current: undefined as string | undefined };
         activeTurnRef.current = turnId;
         setIsAgentResponding(true);
         // Persist any pending composer edit BEFORE the turn reads the canvas:
@@ -858,6 +862,9 @@ export default function CanvasDetailPage() {
             const data = (resp as any).data || resp;
             if (data.session_id && data.session_id !== "new") {
                 setChatSessionId(data.session_id);
+            }
+            if (typeof data.execution_id === "string" && data.execution_id) {
+                turnExecIdRef.current = data.execution_id;
             }
             if (data.success && data.message) {
                 // The authoritative reply either FINALIZES the streamed
@@ -1007,7 +1014,20 @@ export default function CanvasDetailPage() {
                         );
                         const data = (resp as any).data || resp;
                         const rows: any[] = data?.messages || [];
-                        const lastAi = [...rows].reverse().find(
+                        // EXACT-EXECUTION MATCH FIRST (2026-09-24
+                        // review item 4): a row carrying this turn's
+                        // execution id IS the late reply, even if its
+                        // text duplicates an earlier turn's (repeated
+                        // asks). Legacy rows without an id fall back to
+                        // the unseen-by-content rule.
+                        const execMatch = turnExecIdRef.current
+                            ? [...rows].reverse().find(
+                                r => r?.role === "assistant"
+                                    && r?.execution_id === turnExecIdRef.current
+                                    && typeof r?.response?.message === "string"
+                                    && r.response.message.trim())
+                            : undefined;
+                        const lastAi = execMatch ?? [...rows].reverse().find(
                             r => r?.role === "assistant" && typeof r?.response?.message === "string" && r.response.message.trim(),
                         );
                         const content = lastAi?.response?.message;
@@ -1050,7 +1070,7 @@ export default function CanvasDetailPage() {
                 setMessages(prev => [...prev, {
                     id: "err",
                     type: "system",
-                    content: "⚠️ Could not reach the agent. Please try again.",
+                    content: `⚠️ Could not reach the agent${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)}: no completed reply recovered within the poll window)` : ""}. Please try again.`, 
                     timestamp: new Date(),
                 }]);
             }
@@ -1486,7 +1506,7 @@ export default function CanvasDetailPage() {
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
                             {messages.length === 0 && historyLoadError && (
                                 <div className="flex flex-col items-center gap-2 py-8 text-sm">
-                                    <p className="text-destructive">Couldn't load chat history.</p>
+                                    <p className="text-destructive">Couldn&apos;t load chat history.</p>
                                     <Button variant="outline" size="sm" className="gap-1.5" onClick={retryChatHistory}>
                                         <RefreshCw className="h-3.5 w-3.5" /> Retry
                                     </Button>
@@ -1495,7 +1515,7 @@ export default function CanvasDetailPage() {
                             {messages.length === 0 && !historyLoadError && (
                                 <div className="text-center text-muted-foreground text-sm py-8">
                                     <p className="mb-2">💬 Ask the agent to modify this canvas</p>
-                                    <p className="text-xs">e.g. "Add a new row to the spreadsheet" or "Change the chart to a bar chart"</p>
+                                    <p className="text-xs">e.g. &quot;Add a new row to the spreadsheet&quot; or &quot;Change the chart to a bar chart&quot;</p>
                                 </div>
                             )}
                             {messages.map(msg => (

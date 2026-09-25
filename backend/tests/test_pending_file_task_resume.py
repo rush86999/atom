@@ -490,7 +490,7 @@ async def test_retrieved_result_retry_renders_without_rereading():
     session = {"id": "s-retry", "history": []}
     persisted = {
         "status": "retrieved",
-        "target_extraction_version": 2,
+        "target_extraction_version": 3,
         "rendered": (
             "Workbook read: Consolidated Price List 2019.xlsx\n"
             "| U-22 | FOUND | Sheet1!A2 R2 [basis=List; currency=unspecified] |"
@@ -528,7 +528,7 @@ async def test_delivered_result_retry_is_idempotent_without_rereading():
         "history": [],
         "_pending_file_result": {
             "status": "delivered",
-            "target_extraction_version": 2,
+            "target_extraction_version": 3,
             "rendered": "| U-22 | FOUND | Sheet1!A2 R2 |",
             "identity": {"file_id": "r1"},
         },
@@ -2349,7 +2349,7 @@ async def test_legacy_approval_re_delivers_without_rereading():
             status="retrieved"),
         "_pending_file_result": {
             "status": "retrieved",
-            "target_extraction_version": 2,
+            "target_extraction_version": 3,
             "rendered": "Workbook read: Consolidated Price List 2019.xlsx\n"
                         "| SLE24-16 | FOUND | Tennsmith!A106 R106 |",
             "identity": {"file_id": "wd-77"},
@@ -2585,7 +2585,7 @@ class TestReDeliveryVsRefresh:
             FILE_TASK_SESSION_KEY: dict(base_task),
             "_pending_file_result": {
                 "status": "delivered", "rendered": cached_render,
-                "target_extraction_version": 2,
+                "target_extraction_version": 3,
                 "identity": {"file_id": "wd-77"},
             },
         }
@@ -2616,7 +2616,7 @@ class TestReDeliveryVsRefresh:
             FILE_TASK_SESSION_KEY: dict(base_task),
             "_pending_file_result": {
                 "status": "delivered", "rendered": cached_render,
-                "target_extraction_version": 2,
+                "target_extraction_version": 3,
                 "identity": {"file_id": "wd-77"},
             },
         }
@@ -2788,7 +2788,7 @@ async def test_refresh_with_unavailable_source_never_claims_current():
             status="delivered"),
         "_pending_file_result": {
             "status": "delivered",
-            "target_extraction_version": 2,
+            "target_extraction_version": 3,
             "rendered": "| OLD COPY VALUES |",
             "identity": {"file_id": "wd-77"},
         },
@@ -3437,7 +3437,7 @@ async def test_non_refreshed_verdict_preserves_last_good_result():
             status="delivered"),
         "_pending_file_result": {
             "status": "delivered",
-            "target_extraction_version": 2,
+            "target_extraction_version": 3,
             "rendered": "| GOOD ANSWER 14,500 |",
             "identity": {"file_id": "wd-77"},
         },
