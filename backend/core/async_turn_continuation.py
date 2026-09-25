@@ -111,6 +111,34 @@ _OUTCOME_NOTIFICATION_TYPE = {
 }
 
 
+def _m3_enabled() -> bool:
+    return os.getenv("CHAT_FINALIZATION_M3") == "1"
+
+
+def _mark_continuation_notified(continuation_id: str) -> bool:
+    try:
+        from core.database import get_db_session
+        from core.models import AgentExecution
+
+        with get_db_session() as db:
+            row = db.query(AgentExecution).filter(
+                AgentExecution.id == continuation_id).first()
+            if row is None:
+                return False
+            meta = dict(row.metadata_json or {})
+            cont_meta = dict(meta.get("continuation") or {})
+            cont_meta["notified"] = True
+            meta["continuation"] = cont_meta
+            row.metadata_json = meta
+            from sqlalchemy.orm.attributes import flag_modified
+
+            flag_modified(row, "metadata_json")
+        return True
+    except Exception as e:  # noqa: BLE001 — marking is best-effort
+        logger.debug(f"continuation notified-mark skipped: {e}")
+        return False
+
+
 @dataclass
 class AsyncTurnContinuation:
     continuation_id: str
@@ -415,7 +443,8 @@ def _finish_durable_record(
             cont_meta = meta.get("continuation") or {}
             cont_meta["outcome"] = outcome
             cont_meta["summary"] = summary[:500]
-            cont_meta["notified"] = True
+            if not _m3_enabled():
+                cont_meta["notified"] = True
             cont_meta["failure_stage"] = cont.failure_stage
             cont_meta["evidence_contract"] = _bounded_evidence_contract(
                 cont.evidence_contract
@@ -847,6 +876,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                 metadata_json=json.dumps({"continuation": {
                     "id": cont.continuation_id,
                     "outcome": outcome,
+                    "originating_execution_id": cont.execution_id,
                     "canvas_id": (cont.canvas or {}).get("canvas_id"),
                     "evidence_contract": _bounded_evidence_contract(
                         cont.evidence_contract
@@ -868,6 +898,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             "chat_continuation",
             {
                 "continuation_id": cont.continuation_id,
+                "originating_execution_id": cont.execution_id,
                 "session_id": cont.session_id,
                 "canvas_id": (cont.canvas or {}).get("canvas_id"),
                 "status": outcome,
@@ -890,7 +921,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             OUTCOME_FAILED: "Background update could not finish",
             OUTCOME_CANCELLED: "Background update cancelled",
         }
-        await NotificationService().send_notification(
+        _notify_result = await NotificationService().send_notification(
             cont.user_id,
             _OUTCOME_NOTIFICATION_TYPE.get(outcome, "async_turn_failed"),
             {
@@ -900,12 +931,17 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                     outcome, "Background update could not finish"),
                 "session_id": cont.session_id,
                 "canvas_id": (cont.canvas or {}).get("canvas_id"),
+                "continuation_id": cont.continuation_id,
+                "originating_execution_id": cont.execution_id,
                 "action_url": (
                     f"/canvas/{(cont.canvas or {}).get('canvas_id')}"
                     if (cont.canvas or {}).get("canvas_id") else "/chat"
                 ),
             },
         )
+        if _m3_enabled() and isinstance(
+                _notify_result, dict) and _notify_result.get("success"):
+            _mark_continuation_notified(cont.continuation_id)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation notification skipped: {e}")
 

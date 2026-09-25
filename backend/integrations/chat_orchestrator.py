@@ -6567,6 +6567,37 @@ class ChatOrchestrator:
         return rewritten
 
     @classmethod
+    async def _m3_reconcile_stream_done(
+        cls,
+        streamed: Optional[str],
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Corrected stream-closing text, or None to keep legacy behavior.
+
+        The streamed reply never passes through the canvas-claim guard —
+        only the non-streaming return does — so on final-text validation
+        failure the frontend keeps the raw streamed text. Under the M3
+        flag, run the same guard over the streamed text and return it only
+        when a claim was actually rewritten; any error or no-op yields
+        None and the caller emits the legacy empty content.
+        """
+        if not streamed or os.getenv("CHAT_FINALIZATION_M3") != "1":
+            return None
+        try:
+            corrected = await cls._canvas_claim_correction(
+                streamed, canvas_context, session_id, user_id,
+                background_forked,
+                execution_id=execution_id,
+            )
+        except Exception:
+            return None
+        return corrected if corrected != streamed else None
+
+    @classmethod
     async def _canvas_write_for_operation(
         cls,
         canvas_id: str,
@@ -9624,6 +9655,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             if _stream_done_validation.valid:
                                 _stream_done_content = _streamed
+                            else:
+                                _reconciled = await self._m3_reconcile_stream_done(
+                                    _streamed, canvas_context, session_id,
+                                    user_id, async_continuation_forked,
+                                    execution_id=execution_id,
+                                )
+                                if _reconciled is not None:
+                                    _stream_done_content = _reconciled
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
