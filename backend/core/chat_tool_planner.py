@@ -3661,6 +3661,9 @@ def ingested_row_source_observations(
         {
             "id": message_id,
             "subject": (row or {}).get("subject"),
+            "sender": (row or {}).get("sender"),
+            "sender_name": (row or {}).get("sender_name"),
+            "display_name": (row or {}).get("display_name"),
             "received_date_time": (row or {}).get("timestamp"),
         },
         {"text": text, "truncated": False},
@@ -4462,6 +4465,9 @@ def outlook_source_observations(
         "source_type": "message",
         "version": str((email or {}).get("id") or "outlook-message"),
         "subject": subject,
+        "sender": (email or {}).get("sender"),
+        "sender_name": (email or {}).get("sender_name"),
+        "display_name": (email or {}).get("display_name"),
         "received_date_time": (email or {}).get("received_date_time"),
     }
     return observations_from_text(
@@ -4527,6 +4533,9 @@ async def _outlook_read_by_ids(
             "email": {
                 "id": str(msg.get("id") or eid),
                 "subject": str(msg.get("subject") or ""),
+                "sender": msg.get("sender"),
+                "sender_name": msg.get("sender_name"),
+                "display_name": msg.get("display_name"),
                 "received_date_time": msg.get("received_date_time"),
             },
         }
@@ -5215,6 +5224,33 @@ def _named_file_targets(
     query: str, context: Optional[Dict[str, Any]],
     candidate_probe_tokens: Any,
 ) -> List[str]:
+    # ENTITY FILTER (2026-09-24 review round 5): extractor output is
+    # post-filtered — filename words are the SOURCE, never an item, and
+    # pronoun/demonstrative fragments or bare common nouns are not
+    # identifiers (live: "check the latest version of <file> for that
+    # price" probed 'Consolidated Price List' and 'that' and rendered
+    # junk ABSENT rows). Digit-bearing codes, hyphenated ids, and
+    # capitalized names survive; caller-supplied requested_targets are
+    # trusted and never filtered.
+    _identity_bad_tokens = {
+        "that", "this", "those", "these", "them", "it", "its", "they",
+        "price", "prices", "value", "values", "cost", "costs", "latest",
+        "version", "list", "copy", "file", "workbook", "spreadsheet",
+        "sheet", "document", "total", "totals", "availability",
+    }
+
+    def _canon(text: str) -> str:
+        return re.sub(r"[^0-9a-z]+", "", text.lower())
+
+    def _plausible(text: str) -> bool:
+        low_tokens = re.findall(r"[a-z]+", text.lower())
+        if any(tok in _identity_bad_tokens for tok in low_tokens):
+            return False
+        if not any(ch.isdigit() for ch in text) and "-" not in text \
+                and not any(word[:1].isupper() for word in text.split()):
+            return False
+        return True
+
     explicit = (context or {}).get("requested_targets")
     if isinstance(explicit, str):
         explicit = [explicit]
@@ -5260,13 +5296,64 @@ def _named_file_targets(
                     and not re.search(r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)$", cleaned, re.IGNORECASE)
                 ):
                     values.append(cleaned)
+        # Post-filter extractor/quoted values (NOT the caller's explicit
+        # targets): drop identity-implausible fragments and anything that
+        # is really the FILE name, not an item. File-name detection uses
+        # EXTENSION-STEM ADJACENCY (the target canon must end exactly
+        # before the extension inside the mention canon) — raw substring
+        # containment against a sloppy prose span ("sle16-8 and u-38 in
+        # consolidated price list 2019.xlsx") would swallow legitimate
+        # identifiers (live 2026-09-25: SLE16-8/U-38 vanished).
+        try:
+            from core.agent_file_context import detect_file_task_mentions
+
+            file_canons = [
+                re.sub(r"[^0-9a-z]+", "", m.lower())
+                for m in detect_file_task_mentions(" ".join(texts)) if m
+            ]
+        except Exception:
+            file_canons = []
+        _FILE_EXTS = ("xlsx", "xlsm", "xls", "csv", "tsv", "pdf",
+                      "docx", "doc")
+
+        def _is_file_name(text: str) -> bool:
+            canon = _canon(text)
+            if not canon:
+                return False
+            for fc in file_canons:
+                if canon == fc:
+                    return True
+                for ext in _FILE_EXTS:
+                    if fc.endswith(ext) and len(fc) > len(ext):
+                        stem = fc[: len(fc) - len(ext)]
+                        if stem.endswith(canon) and len(stem) > len(canon):
+                            return True
+            return False
+
+        def _filter_target_values(candidates: List[str]) -> List[str]:
+            out: List[str] = []
+            for value in candidates:
+                text = str(value or "").strip()
+                if not text:
+                    continue
+                if _is_file_name(text):
+                    continue  # the file name is the source, not an item
+                if _plausible(text):
+                    out.append(text)
+            return out
+
+        values = _filter_target_values(values)
     if not values:
         try:
             texts = [str(query or "")]
             current = _current_message_text(context)
             if current:
                 texts.append(current)
-            values.extend(candidate_probe_tokens(texts, max_tokens=64))
+            # The fallback probe yields FILE-name tokens — the same
+            # entity filter applies, or the junk returns by the back
+            # door (review round 5).
+            values = _filter_target_values(
+                candidate_probe_tokens(texts, max_tokens=64))
         except Exception:
             values = []
     out: List[str] = []

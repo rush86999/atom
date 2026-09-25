@@ -380,14 +380,29 @@ def merge_pending_task(
         return merged
     replacement = build_pending_task(message, mention, disambiguation)
     if isinstance(existing, dict) and existing.get("task_id"):
-        # CONTEXT PRESERVATION (2026-09-24 review round 4): a replacement
-        # records WHICH objective it supersedes — a new requested field or
-        # constraint replaces the task explicitly, and the original ask
-        # survives in the record instead of being silently discarded.
+        # CONTEXT PRESERVATION + EXECUTABLE INHERITANCE (2026-09-24
+        # review round 5): a replacement records WHICH objective it
+        # supersedes (audit), and INHERITS the context needed to execute
+        # the new objective against the same source — the resolved
+        # resource, the confirmed mention, and the disambiguation
+        # constraints (unless the new ask states its own). "check
+        # availability" on the same workbook executes with the same
+        # resource pin and the same region/organization constraints; the
+        # direct reader consumes disambiguation, so inheritance is
+        # behavior, not bookkeeping.
+        if existing.get("resolved_file") and not replacement.get(
+                "resolved_file"):
+            replacement["resolved_file"] = existing["resolved_file"]
+        if existing.get("confirmed_mention") and not replacement.get(
+                "confirmed_mention"):
+            replacement["confirmed_mention"] = existing["confirmed_mention"]
+        if existing.get("disambiguation") and not replacement.get(
+                "disambiguation"):
+            replacement["disambiguation"] = existing["disambiguation"]
         replacement["supersedes"] = {
             "task_id": existing.get("task_id"),
             "original_message": str(
-                existing.get("original_message") or "")[:200],
+                existing.get("original_message") or "")[:500],
             "mention": existing.get("mention"),
         }
     return replacement

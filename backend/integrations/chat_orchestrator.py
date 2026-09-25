@@ -3815,7 +3815,21 @@ class ChatOrchestrator:
                 ):
                     logger.info(
                         "[pending-file-task] superseded by a newer request")
-                    session.pop(FILE_TASK_SESSION_KEY, None)
+                    # CONTEXT SURVIVES SUPERSESSION (review round 5): the
+                    # popped task's resource pin and constraints stay
+                    # reachable for the replacement turn's execution (the
+                    # ask-turn inherits them) — supersession discards the
+                    # OBJECTIVE, never the context needed to serve it.
+                    _superseded = session.pop(FILE_TASK_SESSION_KEY, None)
+                    if isinstance(_superseded, dict):
+                        session["_superseded_file_task_context"] = {
+                            "disambiguation": _superseded.get(
+                                "disambiguation"),
+                            "resolved_file": _superseded.get(
+                                "resolved_file"),
+                            "confirmed_mention": _superseded.get(
+                                "confirmed_mention"),
+                        }
             except Exception as _pft_supersede_err:
                 logger.debug(
                     f"pending file task supersede check skipped: "
@@ -4175,6 +4189,25 @@ class ChatOrchestrator:
                     logger.warning(
                         "[file-ask] operation classification failed — "
                         "refresh semantics degraded: %r", _ask_op_err)
+                # EXECUTABLE CONTEXT (review round 5): when a stored task
+                # exists, its resolved resource and disambiguation
+                # constraints ride into the ask — "check availability in
+                # <file>" executes against the same resource pin and the
+                # same constraints as the objective it replaces. A
+                # superseded task's stashed context (the supersede check
+                # pops the live task before this point) is the fallback
+                # carrier.
+                _stored_ctx = session.get(FILE_TASK_SESSION_KEY) or (
+                    session.get("_superseded_file_task_context"))
+                if isinstance(_stored_ctx, dict):
+                    if _stored_ctx.get("disambiguation") and not _ask_task.get(
+                            "disambiguation"):
+                        _ask_task["disambiguation"] = _stored_ctx[
+                            "disambiguation"]
+                    if _stored_ctx.get("resolved_file") and not _ask_task.get(
+                            "resolved_file"):
+                        _ask_task["resolved_file"] = _stored_ctx[
+                            "resolved_file"]
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
                     (context or {}).get("workspace_id"), _deadline)
@@ -4340,6 +4373,23 @@ class ChatOrchestrator:
                         "execution_id": _execution_id,
                         "retrieved_at": time.time(),
                     }
+                    # LAST-KNOWN-GOOD PRESERVATION (review round 5): a
+                    # refresh that did NOT actually refresh (stale index,
+                    # failed, unverified) must not erase the previously
+                    # delivered good answer — it survives as
+                    # previous_rendered while the shipped answer carries
+                    # its freshness verdict.
+                    if _freshness.get("status") in (
+                            "stale_index", "unverified", "refresh_failed"):
+                        _prior_row = session.get("_pending_file_result")
+                        if (isinstance(_prior_row, dict)
+                                and _prior_row.get("rendered")
+                                and _prior_row.get("status") in (
+                                    "retrieved", "delivered")):
+                            _direct_result_row["previous_rendered"] = str(
+                                _prior_row["rendered"])[:24000]
+                            _direct_result_row["previous_status"] = (
+                                _prior_row.get("status"))
                     session["_pending_file_result"] = _direct_result_row
                     try:
                         from core.pending_file_task import (
@@ -6159,20 +6209,30 @@ class ChatOrchestrator:
             "rendered_answer": reread.get("rendered_answer")
             or result.get("rendered_answer") or "",
         })
-        # EVIDENCE-BASED VERDICT (2026-09-24 review round 4): a new
-        # ingestion timestamp alone does not prove refreshed evidence —
-        # the refreshed EXTRACTION must be complete, and the answer must
-        # come from a copy whose content provably changed (or is proven
-        # identical) versus the pre-refresh copy.
+        # EVIDENCE-BASED VERDICT (2026-09-24 review rounds 4-5): a new
+        # ingestion timestamp alone does not prove refreshed evidence.
+        # The refreshed extraction must be complete, the re-read must
+        # resolve the SAME resource that was fetched, and the content
+        # comparison needs POSITIVE hash evidence: 'current' requires
+        # both hashes present AND equal; 'refreshed' requires both
+        # present AND different. Missing hashes are UNVERIFIED — never a
+        # claim.
         extraction_ok = bool(reread.get("retrieval_complete"))
+        new_resource = str(new_identity.get("resource_id")
+                           or new_identity.get("file_id") or "")
         new_hash = new_identity.get("content_hash")
         new_ingested = new_identity.get("ingested_at")
         old_hash = identity.get("content_hash")
         old_ingested = identity.get("ingested_at")
+        resource_bound = bool(new_resource) and (
+            new_resource == str(resource_id))
         stamp_updated = bool(new_ingested) and (
             not old_ingested or str(new_ingested) != str(old_ingested))
-        content_changed = bool(new_hash) and bool(old_hash) and (
+        hashes_comparable = bool(new_hash) and bool(old_hash)
+        content_changed = hashes_comparable and (
             str(new_hash) != str(old_hash))
+        content_identical = hashes_comparable and (
+            str(new_hash) == str(old_hash))
         if not extraction_ok:
             return _verdict(
                 "unverified",
@@ -6183,6 +6243,16 @@ class ChatOrchestrator:
                 "read.",
                 reason="refreshed extraction incomplete",
             )
+        if not resource_bound:
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the refreshed read resolved a "
+                "DIFFERENT resource than the one fetched — the copy "
+                "cannot be bound to the fetched version. This answer "
+                f"comes from the copy ingested {ingested_at}; no "
+                "current-version claim is made.",
+                reason="resource mismatch after refetch",
+            )
         if stamp_updated and content_changed:
             return _verdict(
                 "refreshed",
@@ -6192,7 +6262,7 @@ class ChatOrchestrator:
                 f"{new_ingested}, content hash {new_hash}).",
                 upstream=service,
             )
-        if stamp_updated:
+        if stamp_updated and content_identical:
             return _verdict(
                 "current",
                 "\n\nSOURCE FRESHNESS: the live source was re-fetched "
@@ -6201,6 +6271,18 @@ class ChatOrchestrator:
                 f"{new_ingested}). These values are verified current as "
                 "of this check.",
                 upstream=service,
+            )
+        if stamp_updated:
+            # Stamp moved but the hashes needed to prove changed-vs-
+            # identical are missing: no claim either way.
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched "
+                "and re-read, but the indexed copy exposes no content "
+                "hash to prove changed-or-identical content. This "
+                f"answer comes from the copy ingested {new_ingested}; "
+                "no current-version claim is made.",
+                reason="no comparable content hashes",
             )
         # The re-read still shows the OLD copy's stamp: the index did not
         # materially update despite the successful re-fetch.

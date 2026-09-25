@@ -490,6 +490,7 @@ async def test_retrieved_result_retry_renders_without_rereading():
     session = {"id": "s-retry", "history": []}
     persisted = {
         "status": "retrieved",
+        "target_extraction_version": 2,
         "rendered": (
             "Workbook read: Consolidated Price List 2019.xlsx\n"
             "| U-22 | FOUND | Sheet1!A2 R2 [basis=List; currency=unspecified] |"
@@ -527,6 +528,7 @@ async def test_delivered_result_retry_is_idempotent_without_rereading():
         "history": [],
         "_pending_file_result": {
             "status": "delivered",
+            "target_extraction_version": 2,
             "rendered": "| U-22 | FOUND | Sheet1!A2 R2 |",
             "identity": {"file_id": "r1"},
         },
@@ -2347,6 +2349,7 @@ async def test_legacy_approval_re_delivers_without_rereading():
             status="retrieved"),
         "_pending_file_result": {
             "status": "retrieved",
+            "target_extraction_version": 2,
             "rendered": "Workbook read: Consolidated Price List 2019.xlsx\n"
                         "| SLE24-16 | FOUND | Tennsmith!A106 R106 |",
             "identity": {"file_id": "wd-77"},
@@ -2582,6 +2585,7 @@ class TestReDeliveryVsRefresh:
             FILE_TASK_SESSION_KEY: dict(base_task),
             "_pending_file_result": {
                 "status": "delivered", "rendered": cached_render,
+                "target_extraction_version": 2,
                 "identity": {"file_id": "wd-77"},
             },
         }
@@ -2612,6 +2616,7 @@ class TestReDeliveryVsRefresh:
             FILE_TASK_SESSION_KEY: dict(base_task),
             "_pending_file_result": {
                 "status": "delivered", "rendered": cached_render,
+                "target_extraction_version": 2,
                 "identity": {"file_id": "wd-77"},
             },
         }
@@ -2783,6 +2788,7 @@ async def test_refresh_with_unavailable_source_never_claims_current():
             status="delivered"),
         "_pending_file_result": {
             "status": "delivered",
+            "target_extraction_version": 2,
             "rendered": "| OLD COPY VALUES |",
             "identity": {"file_id": "wd-77"},
         },
@@ -3174,3 +3180,313 @@ class TestTaskIntentAcrossDomains:
         merged = pft.merge_pending_task(pending, "check availability",
                                         "stock counts.xlsx")
         assert merged["supersedes"]["original_message"] == ask
+
+
+# ---------------------------------------------------------------------------
+# Review round 5 — freshness proof tightened, executable inheritance,
+# entity extraction, last-known-good persistence.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_current_requires_positive_hash_equality():
+    """A moved ingestion stamp with MISSING hashes can never assert
+    'current' — positive evidence of equality is required; without it the
+    verdict is unverified."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-nohash", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": ("2026-09-24T20:00:00" if reads["count"] > 1
+                            else "2026-09-01T10:00:00"),
+            # NO content_hash on the re-read — nothing to compare.
+            "content_hash": None,
+        }}
+        return "| TOTAL | FOUND |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e6"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-nohash", context={"agent_id": "a1"})
+
+    assert result["data"]["freshness"] == "unverified", (
+        "missing hashes can never assert 'current'")
+    assert "no content hash to prove" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_reread_must_resolve_the_fetched_resource():
+    """The refreshed read must bind to the SAME resource that was
+    fetched — a different resource is unverified, never refreshed."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-xfile", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        # First read pins wd-77; the POST-refetch read resolves a
+        # DIFFERENT resource — the copy cannot be bound to the fetched
+        # version, so the verdict must be unverified.
+        rid = "wd-77" if reads["count"] == 1 else "OTHER-RESOURCE"
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive",
+            "file_id": rid,
+            "resource_id": rid,
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": "2026-09-24T20:00:00",
+            "content_hash": "bbb222",
+        }}
+        return "| MISMATCHED RESOURCE |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e7"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-xfile", context={"agent_id": "a1"})
+
+    assert result["data"]["freshness"] == "unverified"
+    assert "DIFFERENT resource" in result["message"]
+
+
+def test_replacement_inherits_executable_context():
+    """Inheritance is behavior, not bookkeeping: the replacement carries
+    the resolved resource pin and the disambiguation constraints the
+    direct reader actually consumes."""
+    import core.pending_file_task as pft
+
+    original = dict(
+        pft.build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx",
+            disambiguation={"attributes": {"organization": "acme"}}),
+        resolved_file={"service": "zoho_workdrive", "file_id": "wd-77"},
+        confirmed_mention="q3 billing summary 2026.xlsx",
+    )
+    replaced = pft.merge_pending_task(
+        original, "check availability", "q3 billing summary")
+    assert replaced["disambiguation"] == {
+        "attributes": {"organization": "acme"}}, (
+        "constraints survive the replacement")
+    assert replaced["resolved_file"]["file_id"] == "wd-77"
+    assert replaced["confirmed_mention"] == (
+        "q3 billing summary 2026.xlsx")
+    assert replaced["supersedes"]["task_id"] == original["task_id"]
+
+
+@pytest.mark.asyncio
+async def test_replacement_constraints_reach_the_reader():
+    """Consumption proof: a replacement turn's inherited constraints ride
+    into the direct reader call."""
+    orch = _orch()
+    session = {
+        "id": "s-inherit", "history": [],
+        FILE_TASK_SESSION_KEY: dict(
+            build_pending_task(
+                INVOICE_ASK, "q3 billing summary 2026.xlsx",
+                disambiguation={"attributes": {"organization": "acme"}}),
+            resolved_file={"service": "zoho_workdrive",
+                           "file_id": "wd-77"}),
+    }
+    # 'check availability' does not name the file, so the RESUME lane
+    # carries it: force matching by stubbing the operation path via a
+    # direct-read capture on a confirmation-shaped turn is already
+    # covered; here we assert the reader sees the inherited constraints
+    # when the replacement turn names the file with an extension.
+    direct = {
+        "ok": True, "block": "| AVAILABLE |",
+        "rendered_answer": "| AVAILABLE |",
+        "identity": {"file_id": "wd-77",
+                     "file_name": "Q3 Billing Summary 2026.xlsx",
+                     "identity_verified": True,
+                     "coverage_complete": True},
+        "meta": {"completed": True, "identity_verified": True,
+                 "coverage_complete": True},
+        "retrieval_complete": True,
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="inh-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch.object(orch, "_direct_confirmed_file_read",
+                     new=AsyncMock(return_value=direct)) as direct_mock,
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        await orch.process_chat_message(
+            "u1", "check availability in q3 billing summary 2026.xlsx",
+            "s-inherit", context={"agent_id": "a1"})
+
+    task_seen = direct_mock.await_args.args[0]
+    assert task_seen["original_message"] == (
+        "check availability in q3 billing summary 2026.xlsx"), (
+        "the replacement objective is what executes")
+    assert task_seen.get("disambiguation") == {
+        "attributes": {"organization": "acme"}}, (
+        "the inherited constraints are CONSUMED by the reader")
+    assert task_seen.get("resolved_file", {}).get("file_id") == "wd-77"
+
+
+def test_named_file_targets_drop_file_and_pronoun_fragments():
+    """Entity extraction: filename words and pronoun fragments are never
+    item targets; digit/hyphen/capitalized identifiers survive."""
+    from core.chat_tool_planner import _named_file_targets
+
+    query = ("check the latest version of Consolidated Price List "
+             "2019.xlsx for that price")
+    targets = _named_file_targets(query, {}, lambda t, m=3, anf=True: [])
+    lowered = [t.lower() for t in targets]
+    assert not any("consolidated" in t for t in lowered), (
+        "the file name is the source, never an item target")
+    assert "that" not in lowered and "that price" not in lowered
+    # identifiers still pass
+    ident = _named_file_targets(
+        "prices for SLE24-16 and U-22 in Consolidated Price List 2019.xlsx",
+        {}, lambda t, m=3, anf=True: [])
+    flat = " | ".join(ident).lower()
+    assert "sle24-16" in flat and "u-22" in flat
+
+
+@pytest.mark.asyncio
+async def test_non_refreshed_verdict_preserves_last_good_result():
+    """A stale-index refresh does not erase the previously delivered good
+    answer — it survives as previous_rendered beside the labeled new one."""
+    orch = _orch()
+    session = {
+        "id": "s-preserve", "history": [],
+        FILE_TASK_SESSION_KEY: dict(
+            build_pending_task(INVOICE_ASK,
+                               "q3 billing summary 2026.xlsx"),
+            status="delivered"),
+        "_pending_file_result": {
+            "status": "delivered",
+            "target_extraction_version": 2,
+            "rendered": "| GOOD ANSWER 14,500 |",
+            "identity": {"file_id": "wd-77"},
+        },
+    }
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": "2026-09-01T10:00:00",
+            "content_hash": "aaa111",
+        }}
+        return "| OLD INDEXED COPY |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="lg-e1"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-preserve", context={"agent_id": "a1"})
+
+    row = session["_pending_file_result"]
+    assert row["previous_rendered"] == "| GOOD ANSWER 14,500 |", (
+        "the last-known-good answer survives a non-refreshed refresh")
+    assert row["freshness"] == "stale_index"
