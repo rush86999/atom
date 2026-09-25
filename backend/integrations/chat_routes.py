@@ -1264,6 +1264,78 @@ def _m1_finalization_enabled() -> bool:
     return os.getenv("CHAT_FINALIZATION_M1") == "1"
 
 
+def _m2_persistence_enabled() -> bool:
+    return os.getenv("CHAT_FINALIZATION_M2") == "1"
+
+
+def _persist_finalized_outcome(
+    db: _Session,
+    response: Dict[str, Any],
+    session_id: Optional[str],
+) -> Dict[str, Any]:
+    """Write the delivered outcome back onto this execution's durable row.
+
+    The orchestrator persists the pre-finalization reply; without this step
+    history reloads, hydration, and recovery polling would keep serving the
+    concealed text after HTTP delivered the finalized outcome. The row is
+    matched by exact execution id within this session — never another
+    turn's row, never a new row. Failures leave delivery untouched.
+    """
+    if not isinstance(response, dict) or not _m2_persistence_enabled():
+        return response
+    execution_id = response.get("execution_id")
+    if not execution_id or not session_id:
+        return response
+    try:
+        from core.models import ChatMessage as ChatMessageModel
+
+        rows = (
+            db.query(ChatMessageModel)
+            .filter(
+                ChatMessageModel.conversation_id == session_id,
+                ChatMessageModel.role == "assistant",
+            )
+            .order_by(ChatMessageModel.created_at.desc(), ChatMessageModel.id.desc())
+            .limit(50)
+            .all()
+        )
+        target = None
+        for row in rows:
+            try:
+                meta = json.loads(row.metadata_json or "{}")
+            except Exception:
+                continue
+            if isinstance(meta, dict) and str(meta.get("execution_id") or "") == str(execution_id):
+                target = row
+                break
+        if target is None:
+            return response
+        try:
+            meta = json.loads(target.metadata_json or "{}")
+        except Exception:
+            meta = {}
+        if not isinstance(meta, dict):
+            meta = {}
+        meta["execution_id"] = str(execution_id)
+        if "success" in response:
+            meta["success"] = bool(response.get("success"))
+            if response.get("success") is False:
+                meta["quality"] = "error"
+        if response.get("error_code") is not None:
+            meta["error_code"] = str(response.get("error_code"))
+        target.content = str(response.get("message") or "")
+        target.metadata_json = json.dumps(meta)
+        db.commit()
+        return response
+    except Exception as persist_error:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.warning(f"M2 outcome persistence skipped: {persist_error}")
+        return response
+
+
 def _finalize_chat_response(
     db: _Session,
     response: Dict[str, Any],
@@ -1644,6 +1716,11 @@ async def send_chat_message(
             )
 
         response = _finalize_chat_response(db, response)
+        response = _persist_finalized_outcome(
+            db,
+            response,
+            response.get("session_id") or session_id or request.session_id,
+        )
 
         return ChatMessageResponse(
             success=response.get("success", True),
