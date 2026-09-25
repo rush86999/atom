@@ -1260,6 +1260,76 @@ def _chat_operation_succeeded(response: Dict[str, Any]) -> bool:
     return bool(response.get("success", True))
 
 
+def _m1_finalization_enabled() -> bool:
+    return os.getenv("CHAT_FINALIZATION_M1") == "1"
+
+
+def _finalize_chat_response(
+    db: _Session,
+    response: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Apply the M1 finalizer to the final generic chat response.
+
+    Binds THIS turn only: the execution record is loaded by the exact
+    execution id carried on the response, never by latest-in-session. A
+    missing identity stays unverified. Lookup or finalization failures
+    produce a structured unverified outcome preserving known identity —
+    never the original response. Scope is the generic final assembly;
+    the structured early-error returns above bypass M1 by design.
+    """
+    if not isinstance(response, dict) or not _m1_finalization_enabled():
+        return response
+    execution_id = response.get("execution_id")
+    try:
+        from core.finalization import execution_record_from_row, finalize_payload
+        from core.models import AgentExecution
+
+        row = None
+        if execution_id:
+            row = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == execution_id)
+                .first()
+            )
+        record = execution_record_from_row(
+            {
+                "id": row.id,
+                "status": row.status,
+                "result_summary": row.result_summary,
+                "metadata_json": getattr(row, "metadata_json", None),
+            }
+            if row is not None
+            else None,
+            execution_id,
+        )
+        return finalize_payload(record, response)
+    except Exception as lookup_error:
+        logger.warning(f"M1 finalization failed closed: {lookup_error}")
+        try:
+            from core.finalization import UNKNOWN_OUTCOME_MESSAGE, finalize_payload
+
+            fallback = dict(response)
+            fallback["message"] = ""
+            return finalize_payload(
+                {
+                    "execution_id": execution_id,
+                    "status": "unknown",
+                    "result_summary": None,
+                    "failure_stage": None,
+                },
+                fallback,
+            )
+        except Exception as finalize_error:
+            logger.warning(f"M1 unverified fallback failed: {finalize_error}")
+            from core.finalization import UNKNOWN_OUTCOME_MESSAGE
+
+            return {
+                "success": False,
+                "message": UNKNOWN_OUTCOME_MESSAGE,
+                "execution_id": execution_id,
+            }
+
+
 # API Routes
 @router.post("/message")
 async def send_chat_message(
@@ -1573,6 +1643,8 @@ async def send_chat_message(
                 recovery_url=response.get("recovery_url"),
             )
 
+        response = _finalize_chat_response(db, response)
+
         return ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),
@@ -1589,6 +1661,7 @@ async def send_chat_message(
             provider=response.get("provider"),
             reasoning=response.get("reasoning"),
             execution_id=response.get("execution_id"),
+            error_code=response.get("error_code"),
         )
 
     except Exception as e:

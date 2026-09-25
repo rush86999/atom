@@ -5866,6 +5866,7 @@ class ChatOrchestrator:
             error_response = self._generate_error_response(
                 "I encountered an error processing your message. Please try again.", session_id
             )
+            error_response["execution_id"] = locals().get("_execution_id")
             self._finish_chat_execution(
                 _execution_id,
                 "failed",
