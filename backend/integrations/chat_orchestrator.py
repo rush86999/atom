@@ -6598,6 +6598,52 @@ class ChatOrchestrator:
         return corrected if corrected != streamed else None
 
     @classmethod
+    async def _m3_gate_stream_chunk(
+        cls,
+        pending: str,
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+        verified: Optional[Dict[str, bool]] = None,
+    ) -> Tuple[str, str]:
+        """Split unreleased stream text into (emit, hold).
+
+        Text before the first claim-shaped sentence is always released.
+        A claim-shaped sentence is released only after it verifies exactly
+        once per distinct sentence (cached for the stream); unverified
+        claims stay held so raw completion claims never reach the bubble
+        mid-stream — the stream-close reconciliation delivers the honest
+        wording instead. Any fault releases everything: this gate must
+        never stall a stream. Outside the M3 flag it is a passthrough.
+        """
+        if os.getenv("CHAT_FINALIZATION_M3") != "1" or not pending:
+            return pending, ""
+        if verified is None:
+            verified = {}
+        try:
+            match = cls._CANVAS_CLAIM_SENTENCE_RE.search(pending)
+            if match is None:
+                return pending, ""
+            emit, hold = pending[:match.start()], pending[match.start():]
+            sentence = match.group(0)
+            known = verified.get(sentence)
+            if known is None:
+                corrected = await cls._canvas_claim_correction(
+                    sentence, canvas_context, session_id, user_id,
+                    background_forked,
+                    execution_id=execution_id,
+                )
+                known = corrected == sentence
+                verified[sentence] = known
+            if known:
+                return pending, ""
+            return emit, hold
+        except Exception:
+            return pending, ""
+
+    @classmethod
     async def _canvas_write_for_operation(
         cls,
         canvas_id: str,
@@ -9094,6 +9140,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _stream_emitted = 0
                     _stream_residue_detected = False
+                    _m3_pending = ""
+                    _m3_verified: Dict[str, bool] = {}
                     while True:
                         # FIRST-VISIBLE DEADLINE, CHECKED ON EVERY CHUNK. The
                         # check below (in the timeout branch) only fires when a
@@ -9191,14 +9239,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if _stream_residue_detected:
                                 break
                             continue
-                        await _ws_manager.broadcast(f"user:{user_id}", {
-                            "type": "chat_token",
-                            "data": {
-                                "session_id": session_id,
-                                "execution_id": execution_id,
-                                "delta": _delta_out,
-                            },
-                        })
+                        if _delta_out and os.getenv("CHAT_FINALIZATION_M3") == "1":
+                            try:
+                                _m3_pending += _delta_out
+                                _delta_out, _m3_pending = await self._m3_gate_stream_chunk(
+                                    _m3_pending, canvas_context, session_id,
+                                    user_id, async_continuation_forked,
+                                    execution_id=execution_id,
+                                    verified=_m3_verified,
+                                )
+                            except Exception:
+                                _m3_pending = ""
+                        if _delta_out:
+                            await _ws_manager.broadcast(f"user:{user_id}", {
+                                "type": "chat_token",
+                                "data": {
+                                    "session_id": session_id,
+                                    "execution_id": execution_id,
+                                    "delta": _delta_out,
+                                },
+                            })
                         if _stream_residue_detected:
                             break
                     _full = "".join(_buf).strip()
@@ -9663,6 +9723,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 )
                                 if _reconciled is not None:
                                     _stream_done_content = _reconciled
+                                elif (_m3_pending and _streamed
+                                        and os.getenv("CHAT_FINALIZATION_M3") == "1"):
+                                    try:
+                                        _end_check = await self._canvas_claim_correction(
+                                            _m3_pending, canvas_context,
+                                            session_id, user_id,
+                                            async_continuation_forked,
+                                            execution_id=execution_id,
+                                        )
+                                    except Exception:
+                                        _end_check = None
+                                    if _end_check == _m3_pending:
+                                        _stream_done_content = _streamed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {

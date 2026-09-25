@@ -282,3 +282,120 @@ async def test_m3b_correction_failure_keeps_legacy_empty(monkeypatch, verify_db)
             execution_id="execution-1",
         )
     assert out is None
+
+
+@pytest.mark.asyncio
+async def test_m3c_flag_off_passes_chunks_through(monkeypatch):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.delenv("CHAT_FINALIZATION_M3", raising=False)
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        "I've updated item 4 to reflect that pricing.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert (emit, hold) == ("I've updated item 4 to reflect that pricing.", "")
+
+
+@pytest.mark.asyncio
+async def test_m3c_claim_free_text_streams_unchanged(monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        "The price is 8880 and the draft is attached.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert emit == "The price is 8880 and the draft is attached."
+    assert hold == ""
+
+
+@pytest.mark.asyncio
+async def test_m3c_unverified_claim_is_held_not_emitted(monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        "Update noted. I've updated item 4 to reflect that pricing.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert emit == "Update noted."
+    assert "I've updated item 4" in hold
+
+
+@pytest.mark.asyncio
+async def test_m3c_verified_claim_streams_unchanged(monkeypatch, verify_db):
+    from unittest.mock import AsyncMock, patch
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    text = "Update noted. I've updated item 4 to reflect that pricing."
+    with patch.object(
+        ChatOrchestrator,
+        "_canvas_claim_correction",
+        new=AsyncMock(side_effect=lambda sentence, *args, **kwargs: sentence),
+    ):
+        emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+            text,
+            {"canvas_id": "canvas-1"},
+            "session-1",
+            "user-1",
+            False,
+            execution_id="execution-1",
+        )
+    assert (emit, hold) == (text, "")
+
+
+@pytest.mark.asyncio
+async def test_m3c_cached_verdict_holds_without_db(monkeypatch):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    sentence = "I've updated item 4 to reflect that pricing."
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        sentence,
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+        verified={sentence: False},
+    )
+    assert emit == ""
+    assert hold == sentence
+
+
+@pytest.mark.asyncio
+async def test_m3c_guard_failure_releases_everything(monkeypatch, verify_db):
+    from unittest.mock import patch
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    text = "Update noted. I've updated item 4 to reflect that pricing."
+    with patch.object(
+        ChatOrchestrator,
+        "_canvas_claim_correction",
+        side_effect=RuntimeError("guard down"),
+    ):
+        emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+            text,
+            {"canvas_id": "canvas-1"},
+            "session-1",
+            "user-1",
+            False,
+            execution_id="execution-1",
+        )
+    assert (emit, hold) == (text, "")
