@@ -293,38 +293,71 @@ def _xlsx_raw_grid_frames(content: bytes) -> List[tuple]:
 
             header_row_num = None
             for rn in sorted(grid)[:10]:
-                if len(grid[rn]) >= 3 and _header_like(rn):
+                if len(grid[rn]) >= 2 and _header_like(rn):
                     header_row_num = rn
                     break
-            if header_row_num is None:
-                for rn in sorted(grid)[:10]:
-                    if len(grid[rn]) >= 2 and _header_like(rn):
-                        header_row_num = rn
+            header_rows: List[int] = []
+            if header_row_num is not None:
+                header_rows.append(header_row_num)
+                for rn in sorted(grid):
+                    if rn <= header_row_num:
+                        continue
+                    if len(header_rows) >= 3:
                         break
-            headerless = header_row_num is None
+                    if len(grid[rn]) < 2 or not _header_like(rn):
+                        break
+                    vals = [str(v).strip() for v in grid[rn].values() if str(v).strip()]
+                    has_label = any(
+                        re.search(
+                            r"id|name|code|sku|item|model|part|product|description|"
+                            r"date|time|status|version|quantity|qty|stock|weight|"
+                            r"price|cost|amount|value|rate|lead|expiry|expiration|"
+                            r"certification|organization|company|minimum|required",
+                            value,
+                            re.IGNORECASE,
+                        )
+                        for value in vals
+                    )
+                    if not has_label:
+                        break
+                    header_rows.append(rn)
+            headerless = not header_rows
+            n_cols = (max((max(r) for r in grid.values()), default=0)) + 1
             if headerless:
-                n_cols = (max((max(r) for r in grid.values()), default=0)) + 1
                 columns = _normalize_columns([f"c{i + 1}" for i in range(n_cols)])
+                data_start = 0
             else:
-                header_cells = grid[header_row_num]
-                n_cols = max(header_cells) + 1
-                columns = _normalize_columns([header_cells.get(i, "") for i in range(n_cols)])
+                combined: Dict[int, List[str]] = {}
+                for header_rn in header_rows:
+                    for column_index, value in grid[header_rn].items():
+                        text = str(value).strip()
+                        if text and text not in combined.setdefault(column_index, []):
+                            combined[column_index].append(text)
+                columns = _normalize_columns([
+                    " ".join(combined.get(i, [])) for i in range(n_cols)
+                ])
+                data_start = max(header_rows)
             data: List[List[str]] = []
             row_numbers: List[int] = []
-            header_vals = set(grid[header_row_num].values()) if not headerless else set()
+            header_vals = {
+                str(value).strip()
+                for header_rn in header_rows
+                for value in grid[header_rn].values()
+            }
             for rn in sorted(grid):
-                if not headerless and rn < header_row_num:
+                if not headerless and rn < data_start:
                     continue
                 row_cells = grid[rn]
                 values = [row_cells.get(i, "") for i in range(n_cols)]
                 if not any(str(v).strip() for v in values):
                     continue
                 if not headerless and set(row_cells.values()) <= header_vals:
-                    continue  # repeated section header — not data
+                    continue
                 data.append(values)
                 row_numbers.append(rn)
             if not data:
                 continue
+            source_row_count = len(data)
             data = data[:_MAX_ROWS_PER_SHEET]
             row_numbers = row_numbers[: len(data)]
             df = pd.DataFrame(data, columns=columns)
@@ -332,6 +365,8 @@ def _xlsx_raw_grid_frames(content: bytes) -> List[tuple]:
             for col in df.columns:
                 if col != SHEET_ROW_COL:
                     df[col] = _promote_numeric_strings(df[col])
+            df.attrs["_atom_source_row_count"] = source_row_count
+            df.attrs["_atom_truncated"] = source_row_count > len(data)
             out.append((str(sheet_name), df))
         return out
 
@@ -353,7 +388,9 @@ def _extract_sheet_frames(content: bytes, file_ext: str, file_name: str) -> List
         # sheet_name=None → ALL sheets (the text extractor dropped a real
         # pricing sheet when a 5-sheet cap existed; caps here bound rows,
         # never sheets).
-        frames = pd.read_excel(io.BytesIO(content), sheet_name=None)
+        frames = pd.read_excel(
+            io.BytesIO(content), sheet_name=None, header=None
+        )
     except Exception as pd_err:
         # Zoho Sheet exports trip openpyxl's sharedStrings reader — the same
         # quirk the text path's raw-XML fallback exists for (live 2026-09-07:
@@ -369,11 +406,12 @@ def _extract_sheet_frames(content: bytes, file_ext: str, file_name: str) -> List
         raise
     out: List[tuple] = []
     for sheet_name, df in frames.items():
-        out.append((str(sheet_name), _frame_with_sheet_rows(df)))
+        out.append((str(sheet_name), _frame_with_inferred_headers(df)))
     return out
 
 
 def _frame_with_sheet_rows(df):
+    source_row_count = len(df.index)
     df = df.iloc[:_MAX_ROWS_PER_SHEET].copy()
     df.columns = _normalize_columns(list(df.columns))
     # R# convention: pandas index 0 == sheet row 2 (row 1 is the header).
@@ -381,10 +419,100 @@ def _frame_with_sheet_rows(df):
     for col in df.columns:
         if col != SHEET_ROW_COL:
             df[col] = _stabilize_column(df[col])
+    df.attrs["_atom_source_row_count"] = source_row_count
+    df.attrs["_atom_truncated"] = source_row_count > len(df.index)
     return df
 
 
-def _column_schema_json(df) -> str:
+def _frame_coverage(df) -> Dict[str, Any]:
+    source_rows = df.attrs.get("_atom_source_row_count")
+    return {
+        "known": source_rows is not None,
+        "source_row_count": int(source_rows) if source_rows is not None else None,
+        "materialized_row_count": int(len(df.index)),
+        "truncated": bool(df.attrs.get("_atom_truncated", False)),
+        "row_cap": _MAX_ROWS_PER_SHEET,
+    }
+
+
+def _frame_with_inferred_headers(df):
+    import pandas as pd
+
+    raw = df.copy()
+    values = raw.to_numpy(dtype=object)
+    primary = None
+    for index, row in enumerate(values[:12]):
+        nonempty = [str(value).strip() for value in row if str(value).strip()]
+        if len(nonempty) < 2:
+            continue
+        numeric = sum(
+            bool(re.fullmatch(r"[-+]?\d+(?:\.\d+)?", value))
+            for value in nonempty
+        )
+        if numeric <= max(1, int(len(nonempty) * 0.4)):
+            primary = index
+            break
+    if primary is None:
+        primary = 0
+        header_indices = []
+    else:
+        header_indices = [primary]
+        for index in range(primary + 1, min(len(values), primary + 4)):
+            row = values[index]
+            nonempty = [str(value).strip() for value in row if str(value).strip()]
+            if len(nonempty) < 2:
+                break
+            numeric = sum(
+                bool(re.fullmatch(r"[-+]?\d+(?:\.\d+)?", value))
+                for value in nonempty
+            )
+            has_label = any(
+                re.search(
+                    r"id|name|code|sku|item|model|part|product|description|"
+                    r"date|time|status|version|quantity|qty|stock|weight|"
+                    r"price|cost|amount|value|rate|lead|expiry|expiration|"
+                    r"certification|organization|company|minimum|required",
+                    value,
+                    re.IGNORECASE,
+                )
+                for value in nonempty
+            )
+            if numeric > max(1, int(len(nonempty) * 0.4)) or not has_label:
+                break
+            header_indices.append(index)
+    width = max((len(row) for row in values), default=0)
+    labels: List[List[str]] = [[] for _ in range(width)]
+    for index in header_indices:
+        for column_index, value in enumerate(values[index]):
+            try:
+                missing = bool(pd.isna(value))
+            except (TypeError, ValueError):
+                missing = False
+            text = "" if value is None or missing else str(value).strip()
+            if text and text not in labels[column_index]:
+                labels[column_index].append(text)
+    if not any(labels):
+        labels = [[f"c{index + 1}"] for index in range(width)]
+    data_start = (header_indices[-1] + 1) if header_indices else 0
+    source_data = raw.iloc[data_start:]
+    source_row_count = len(source_data.index)
+    data = source_data.iloc[:_MAX_ROWS_PER_SHEET].copy().reset_index(drop=True)
+    data.columns = _normalize_columns([" ".join(items) for items in labels])
+    source_rows = [
+        int(index) + 1 if str(index).isdigit() else index + 1
+        for index in source_data.index[:_MAX_ROWS_PER_SHEET]
+    ]
+    data[SHEET_ROW_COL] = source_rows
+    for col in data.columns:
+        if col != SHEET_ROW_COL:
+            data[col] = _stabilize_column(data[col])
+    data.attrs["_atom_source_row_count"] = source_row_count
+    data.attrs["_atom_truncated"] = source_row_count > len(data.index)
+    data.attrs["_atom_header_rows"] = [index + 1 for index in header_indices]
+    return data
+
+
+def _column_schema_json(df, coverage: Optional[Dict[str, Any]] = None) -> str:
     """Per-column name + up to 3 sample values — the semantic layer of this
     catalog. Sample values are what let the NL→SQL step pick types and the
     right sheet without reading the Parquet files first (the Genie/Fabric
@@ -402,6 +530,8 @@ def _column_schema_json(df) -> str:
                 if len(samples) >= 3:
                     break
         schema.append({"name": col, "samples": samples})
+    if coverage is not None:
+        return _json.dumps({"columns": schema, "coverage": coverage})
     return _json.dumps(schema)
 
 
@@ -685,7 +815,30 @@ def _column_letters(names: List[str]) -> Dict[str, str]:
 def _entry_to_dict(row) -> Dict[str, Any]:
     import json as _json
 
-    schema = _json.loads(row.columns_json) if row.columns_json else []
+    raw_schema = row.columns_json
+    if isinstance(raw_schema, str):
+        try:
+            schema = _json.loads(raw_schema or "[]")
+        except (TypeError, ValueError):
+            schema = []
+    elif isinstance(raw_schema, (list, dict)):
+        schema = raw_schema
+    else:
+        schema = []
+    coverage = {"known": False}
+    if isinstance(schema, dict):
+        coverage = schema.get("coverage") or {"known": False}
+        schema = schema.get("columns") or []
+    if not coverage.get("known") and row.row_count is not None:
+        materialized_rows = int(row.row_count)
+        coverage = {
+            "known": materialized_rows < _MAX_ROWS_PER_SHEET,
+            "source_row_count": materialized_rows,
+            "materialized_row_count": materialized_rows,
+            "truncated": materialized_rows >= _MAX_ROWS_PER_SHEET,
+            "row_cap": _MAX_ROWS_PER_SHEET,
+            "backfilled_from_catalog": True,
+        }
     columns = [c["name"] if isinstance(c, dict) else str(c) for c in schema][:40]
     samples = {
         c["name"]: c.get("samples", [])
@@ -700,10 +853,13 @@ def _entry_to_dict(row) -> Dict[str, Any]:
         "source_kind": row.source_kind,
         "external_id": row.external_id,
         "content_hash": row.content_hash,
+        "content_hash_algorithm": "sha1",
+        "source_metadata": getattr(row, "source_metadata", None) or {},
         "row_count": row.row_count or 0,
         "column_count": row.column_count or 0,
         "columns": columns,
         "column_samples": samples,
+        "coverage": coverage,
         "source_modified_at": row.source_modified_at.isoformat() if row.source_modified_at else None,
         "ingested_at": row.ingested_at.isoformat() if row.ingested_at else None,
         "parquet_path": row.parquet_path,
@@ -867,10 +1023,11 @@ def materialize_sheet_bytes_sync(
                 .first()
             )
             if already:
+                coverage = _frame_coverage(df)
+                if not (_entry_to_dict(already).get("coverage") or {}).get("known"):
+                    already.columns_json = _column_schema_json(df, coverage)
+                    db.flush()
                 registered.append(_entry_to_dict(already))
-                # Self-heal: a dataset materialized before the formula sidecar
-                # existed (or crashed between Parquet and sidecar) picks its
-                # sidecar up on the next materialization of the same bytes.
                 if not _formula_sidecar_path(already.parquet_path).exists():
                     _write_formula_sidecar(
                         Path(already.parquet_path),
@@ -890,6 +1047,7 @@ def materialize_sheet_bytes_sync(
             _write_formula_sidecar(
                 target, sheet_name, formula_map.get(sheet_name, {})
             )
+            coverage = _frame_coverage(df)
             row = DatasetEntry(
                 workspace_id=ws_id,
                 created_by=user_id,
@@ -903,7 +1061,7 @@ def materialize_sheet_bytes_sync(
                 parquet_path=str(target),
                 row_count=int(len(df)),
                 column_count=int(len(df.columns)),
-                columns_json=_column_schema_json(df),
+                columns_json=_column_schema_json(df, coverage),
                 source_modified_at=effective_mtime,
                 status="active",
             )
@@ -2222,6 +2380,9 @@ async def answer_from_datasets(
                 "dataset_name": chosen_entry["dataset_name"],
                 "entity_name": chosen_entry["entity_name"],
                 "file_name": chosen_entry.get("file_name"),
+                "source": chosen_entry.get("source"),
+                "source_kind": chosen_entry.get("source_kind"),
+                "external_id": chosen_entry.get("external_id"),
                 "content_hash": chosen_entry.get("content_hash"),
                 "source_modified_at": chosen_entry.get("source_modified_at"),
                 "ingested_at": chosen_entry.get("ingested_at"),
@@ -2276,7 +2437,9 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
 
     lines = [
         f"SQL RESULT from '{result.get('file_name')}' sheet '{result.get('entity_name')}' "
-        f"(query-verified copy, source modified {result.get('source_modified_at') or 'unknown'}); "
+        f"(materialized copy, source modified {result.get('source_modified_at') or 'unknown'}, "
+        f"ingested {result.get('ingested_at') or 'unknown'}, "
+        f"content hash {str(result.get('content_hash') or 'unknown')[:20]}); "
         f"executed: {' '.join(str(result.get('sql', '')) .split())[:160]}"
     ]
     cols = [c for c in result.get("columns", [])][:12]
@@ -2325,8 +2488,8 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
         shown = matched[:40]
         if shown:
             lines.append(
-                "FORMULAS FOR THE MATCHED ROW(S) — the derivation the original "
-                "workbook computes (cell=formula): "
+                "FORMULAS (original workbook): FORMULAS FOR THE MATCHED ROW(S) "
+                "— the derivation the original workbook computes (cell=formula): "
                 + " | ".join(f"{cell}={_fmt(f)}" for cell, f in shown)
             )
         elif formulas:

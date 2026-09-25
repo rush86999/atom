@@ -233,10 +233,14 @@ def test_raw_grid_sectioned_sheet_repeated_header():
     ws = wbk.active
     ws.title = "S"
     ws["A1"] = "Acme Price List"          # banner
-    ws["A2"] = "Item"; ws["B2"] = "Price"  # header
-    ws["A3"] = "A-1"; ws["B3"] = 10
-    ws["A5"] = "Item"; ws["B5"] = "Price"  # section 2 header (repeat)
-    ws["A6"] = "B-2"; ws["B6"] = 20
+    ws["A2"] = "Item"
+    ws["B2"] = "Price"
+    ws["A3"] = "A-1"
+    ws["B3"] = 10
+    ws["A5"] = "Item"
+    ws["B5"] = "Price"
+    ws["A6"] = "B-2"
+    ws["B6"] = 20
     buf = io.BytesIO()
     wbk.save(buf)
 
@@ -272,6 +276,27 @@ def test_raw_grid_header_skips_title_banner():
     assert list(df.columns) == ["Item Number", "List Price", SHEET_ROW_COL]
     assert df["Item Number"].iloc[0] == "WG-350DSAV"
     assert df[SHEET_ROW_COL].tolist() == [3]  # real worksheet row numbers
+
+
+def test_multi_row_headers_materialize_combined_schema():
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        pd.DataFrame([
+            ["Inventory", "Commercial", None],
+            ["Item", "Quantity", "Weight kg"],
+            ["A-1", 12, 4.5],
+        ]).to_excel(writer, sheet_name="Stock", index=False, header=False)
+    result = _materialize(
+        content=buffer.getvalue(), file_name="stock.xlsx", external_id="multi-header"
+    )
+    assert result["status"] == "materialized"
+    dataset = result["datasets"][0]
+    frame = pd.read_parquet(dataset["parquet_path"])
+    assert list(frame.columns) == [
+        "Inventory Item", "Commercial Quantity", "Weight kg", SHEET_ROW_COL
+    ]
+    assert frame[SHEET_ROW_COL].tolist() == [3]
+    assert frame["Commercial Quantity"].tolist() == [12]
 
 
 def test_header_normalization_blank_and_duplicate_names():

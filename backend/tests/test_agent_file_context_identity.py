@@ -287,8 +287,8 @@ class TestBuilders:
         })
         assert "VERIFIED" in block
         assert "Consolidated Price List 2019.xlsx" in block
-        assert "cached ingestion EXCERPTS" in block
-        assert "verify specific values" in block
+        assert "EXCERPTS from a materialized copy" in block
+        assert "materialized copy" in block and "do not invent rows" in block
 
     def test_unverified_block_forbids_presenting_candidates(self):
         block = afc.build_file_block("acme xlsx", {

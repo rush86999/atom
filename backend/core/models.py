@@ -1325,6 +1325,7 @@ class ExchangeExample(Base):
     # consolidated — already distilled into a recurring-pattern lesson.
     embedded = Column(Boolean, nullable=False, default=False)
     consolidated = Column(Boolean, nullable=False, default=False)
+    feedback_classification = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

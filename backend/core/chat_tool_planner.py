@@ -3649,9 +3649,39 @@ def _match_rows_by_figure_tokens(
     return [r for _, _, r in scored[:limit]]
 
 
+def ingested_row_source_observations(
+    row: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    message_id = str((row or {}).get("id") or "ingested-message")
+    text = str((row or {}).get("content") or "")
+    if not text.strip():
+        return []
+    observations = outlook_source_observations(
+        {
+            "id": message_id,
+            "subject": (row or {}).get("subject"),
+            "sender": (row or {}).get("sender"),
+            "sender_name": (row or {}).get("sender_name"),
+            "display_name": (row or {}).get("display_name"),
+            "received_date_time": (row or {}).get("timestamp"),
+        },
+        {"text": text, "truncated": False},
+        context,
+    )
+    for observation in observations:
+        observation.setdefault("source", {})["source_type"] = "message"
+        observation["locator"] = {
+            **dict(observation.get("locator") or {}),
+            "message_id": message_id,
+        }
+    return observations
+
+
 def _search_ingested_by_tokens(
     user_id, tokens: List[str], limit: int = 4,
     date_window: Optional[Tuple[str, str]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """Deterministic LanceDB lookup of ingested messages containing the
     query's figure tokens (amounts, model codes). Graph $search handles
@@ -3665,11 +3695,17 @@ def _search_ingested_by_tokens(
     if not tokens:
         return out
     try:
-        for i, row in enumerate(
-            _match_rows_by_figure_tokens(
-                _comms_store_records(), tokens, limit=limit,
-                date_window=date_window)
-        ):
+        rows = _match_rows_by_figure_tokens(
+            _comms_store_records(), tokens, limit=limit,
+            date_window=date_window
+        )
+        for i, row in enumerate(rows):
+            if isinstance(context, dict):
+                existing = context.setdefault("_source_observations", [])
+                if isinstance(existing, list):
+                    existing.extend(
+                        ingested_row_source_observations(row, context)
+                    )
             out.append(
                 _ingested_line_from_row(
                     row,
@@ -3686,7 +3722,31 @@ def _search_ingested_by_tokens(
             )
     except Exception as e:
         logger.debug(f"ingested figure-token search skipped: {e}")
+        return out
     return out
+
+
+def _search_ingested_by_tokens_observed(
+    user_id,
+    tokens: List[str],
+    limit: int,
+    date_window: Optional[Tuple[str, str]],
+    context: Dict[str, Any],
+) -> List[str]:
+    try:
+        return _search_ingested_by_tokens(
+            user_id,
+            tokens,
+            limit,
+            date_window,
+            context=context,
+        )
+    except TypeError as error:
+        if "context" not in str(error):
+            raise
+        return _search_ingested_by_tokens(
+            user_id, tokens, limit, date_window
+        )
 
 
 async def _ingested_mailbox_lines(
@@ -3729,8 +3789,8 @@ async def _ingested_mailbox_lines(
     _inherited_figs: List[str] = []
     if _fig_tokens:
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2),
-            _window
+            _search_ingested_by_tokens_observed, user_id, _fig_tokens,
+            max(cap - 2, 2), _window, context or {}
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
@@ -3773,8 +3833,8 @@ async def _ingested_mailbox_lines(
     if _inherited_figs and len(store_lines) < cap:
         # Spare capacity only: the named participant's thread has had its pick.
         for _line in await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, _inherited_figs,
-            max(cap - len(store_lines), 2), _window
+            _search_ingested_by_tokens_observed, user_id, _inherited_figs,
+            max(cap - len(store_lines), 2), _window, context or {}
         ):
             if _line not in store_lines:
                 store_lines.append(_line)
@@ -4363,6 +4423,62 @@ def _validate_mail_ids(
     return allowed, rejected
 
 
+def outlook_source_observations(
+    email: Dict[str, Any],
+    body: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    text = str((body or {}).get("text") or "")
+    if not text.strip():
+        return []
+    from core.workbook_read_artifact import (
+        extract_field_requests,
+        extract_targets,
+        observations_from_text,
+    )
+
+    ctx = context or {}
+    message = str(ctx.get("message") or "")
+    subject = str((email or {}).get("subject") or "")
+    requested_entities = [
+        str(item)
+        for item in ctx.get("requested_targets") or []
+        if str(item).strip()
+    ]
+    if not requested_entities:
+        requested_entities = extract_targets(
+            message, [subject, str(ctx.get("query") or "")]
+        )
+    requested_fields = extract_field_requests([
+        message,
+        subject,
+        str(ctx.get("query") or ""),
+    ])
+    if not requested_fields and re.search(
+        r"[$€£¥₹₩₽₺]\s*\d|\b(?:price|quote|cost)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        requested_fields = ["price"]
+    source = {
+        "source_id": str((email or {}).get("id") or "outlook-message"),
+        "source_type": "message",
+        "version": str((email or {}).get("id") or "outlook-message"),
+        "subject": subject,
+        "sender": (email or {}).get("sender"),
+        "sender_name": (email or {}).get("sender_name"),
+        "display_name": (email or {}).get("display_name"),
+        "received_date_time": (email or {}).get("received_date_time"),
+    }
+    return observations_from_text(
+        text,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        source=source,
+        verification="excerpt" if (body or {}).get("truncated") else "verified",
+    )
+
+
 async def _outlook_read_by_ids(
     user_id: Optional[str],
     ids: List[str],
@@ -4412,7 +4528,16 @@ async def _outlook_read_by_ids(
                          "detail": "message retrieved but body empty"}
         return eid, {
             "outcome": "excerpt" if truncated else "full",
-            "text": text, "detail": "",
+            "text": text,
+            "detail": "",
+            "email": {
+                "id": str(msg.get("id") or eid),
+                "subject": str(msg.get("subject") or ""),
+                "sender": msg.get("sender"),
+                "sender_name": msg.get("sender_name"),
+                "display_name": msg.get("display_name"),
+                "received_date_time": msg.get("received_date_time"),
+            },
         }
 
     loop = asyncio.get_event_loop()
@@ -4779,7 +4904,13 @@ async def _mailbox_figure_lines(
             or _window_from_iso_date((context or {}).get("mentioned_date"))
         )
         return await asyncio.to_thread(
-            _search_ingested_by_tokens, user_id, figs, limit, window)
+            _search_ingested_by_tokens_observed,
+            user_id,
+            figs,
+            limit,
+            window,
+            context or {},
+        )
     except Exception as e:  # noqa: BLE001 — a lane supplement must never break a turn
         logger.debug(f"mailbox figure leg skipped: {e}")
         return []
@@ -5086,6 +5217,806 @@ async def _memory_hybrid_block(
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")
         return None
+
+
+
+def _named_file_targets(
+    query: str, context: Optional[Dict[str, Any]],
+    candidate_probe_tokens: Any,
+) -> List[str]:
+    # ENTITY FILTER (2026-09-24 review round 5): extractor output is
+    # post-filtered — filename words are the SOURCE, never an item, and
+    # pronoun/demonstrative fragments or bare common nouns are not
+    # identifiers (live: "check the latest version of <file> for that
+    # price" probed 'Consolidated Price List' and 'that' and rendered
+    # junk ABSENT rows). Digit-bearing codes, hyphenated ids, and
+    # capitalized names survive; caller-supplied requested_targets are
+    # trusted and never filtered.
+    _identity_bad_tokens = {
+        "that", "this", "those", "these", "them", "it", "its", "they",
+        "price", "prices", "value", "values", "cost", "costs", "latest",
+        "version", "list", "copy", "file", "workbook", "spreadsheet",
+        "sheet", "document", "total", "totals", "availability",
+    }
+
+    def _canon(text: str) -> str:
+        return re.sub(r"[^0-9a-z]+", "", text.lower())
+
+    def _plausible(text: str) -> bool:
+        low_tokens = re.findall(r"[a-z]+", text.lower())
+        if any(tok in _identity_bad_tokens for tok in low_tokens):
+            return False
+        if not any(ch.isdigit() for ch in text) and "-" not in text \
+                and not any(word[:1].isupper() for word in text.split()):
+            return False
+        return True
+
+    explicit = (context or {}).get("requested_targets")
+    if isinstance(explicit, str):
+        explicit = [explicit]
+    values: List[str] = []
+    if isinstance(explicit, (list, tuple, set)):
+        values.extend(str(value).strip() for value in explicit if str(value).strip())
+    if not values:
+        try:
+            from core.workbook_read_artifact import extract_targets
+
+            texts = [str(query or "")]
+            current = _current_message_text(context)
+            if current:
+                texts.append(current)
+            for entry in (context or {}).get("history") or []:
+                if isinstance(entry, dict) and entry.get("message"):
+                    texts.append(str(entry["message"]))
+            values.extend(extract_targets(query, texts))
+        except Exception:
+            values = []
+        # PHRASE-FRAGMENT GUARD (2026-09-24): the quoted/list-phrase
+        # lanes must not turn whole sentences into targets — require
+        # identity-shape (a code with digit+letter, hyphenated token, or
+        # 2-4 capitalized words) and drop prose fragments.
+        def _identity_shaped(candidate: str) -> bool:
+            c = str(candidate or "").strip()
+            if not c or len(c) > 60:
+                return False
+            words = c.split()
+            if len(words) > 4:
+                return False
+            if len(words) == 1:
+                return bool(re.search(r"[A-Za-z]", c) and re.search(r"\d", c)) or (
+                    "-" in c and len(c) >= 3)
+            return all(w[:1].isupper() or "-" in w or w.isdigit()
+                       for w in words) and any(w[:1].isupper() for w in words)
+
+        lookup_text = " ".join(texts)
+        quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", lookup_text)
+        values.extend(q for q in quoted if _identity_shaped(q))
+        list_match = re.search(
+            r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
+            r"(?:for|of|:)\s+(.+)",
+            lookup_text,
+            re.IGNORECASE,
+        )
+        if list_match:
+            ignored = {
+                "prices", "price", "models", "model", "items", "item",
+                "machines", "machine", "parts", "part", "these", "this",
+                "the", "and", "from", "in", "for", "of", "with",
+                "no", "number", "model", "part", "item", "machine", "type",
+            }
+            for part in re.split(r",|\band\b", list_match.group(1), flags=re.IGNORECASE):
+                cleaned = part.strip(" .:;?!()[]'\"")
+                if (
+                    cleaned
+                    and len(cleaned) <= 80
+                    and not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower()))
+                    and not re.search(r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)$", cleaned, re.IGNORECASE)
+                ):
+                    values.append(cleaned)
+        # Post-filter extractor/quoted values (NOT the caller's explicit
+        # targets): drop identity-implausible fragments and anything that
+        # is really the FILE name, not an item. File-name detection uses
+        # EXTENSION-STEM ADJACENCY (the target canon must end exactly
+        # before the extension inside the mention canon) — raw substring
+        # containment against a sloppy prose span ("sle16-8 and u-38 in
+        # consolidated price list 2019.xlsx") would swallow legitimate
+        # identifiers (live 2026-09-25: SLE16-8/U-38 vanished).
+        try:
+            from core.agent_file_context import detect_file_task_mentions
+
+            file_canons = [
+                re.sub(r"[^0-9a-z]+", "", m.lower())
+                for m in detect_file_task_mentions(" ".join(texts)) if m
+            ]
+        except Exception:
+            file_canons = []
+        _FILE_EXTS = ("xlsx", "xlsm", "xls", "csv", "tsv", "pdf",
+                      "docx", "doc")
+
+        def _is_file_name(text: str) -> bool:
+            canon = _canon(text)
+            if not canon:
+                return False
+            for fc in file_canons:
+                if canon == fc:
+                    return True
+                for ext in _FILE_EXTS:
+                    if fc.endswith(ext) and len(fc) > len(ext):
+                        stem = fc[: len(fc) - len(ext)]
+                        if stem.endswith(canon) and len(stem) > len(canon):
+                            return True
+            return False
+
+        def _filter_target_values(candidates: List[str]) -> List[str]:
+            out: List[str] = []
+            for value in candidates:
+                text = str(value or "").strip()
+                if not text:
+                    continue
+                if _is_file_name(text):
+                    continue  # the file name is the source, not an item
+                if _plausible(text):
+                    out.append(text)
+            return out
+
+        values = _filter_target_values(values)
+    if not values:
+        try:
+            texts = [str(query or "")]
+            current = _current_message_text(context)
+            if current:
+                texts.append(current)
+            # The fallback probe yields FILE-name tokens — the same
+            # entity filter applies, or the junk returns by the back
+            # door (review round 5).
+            values = _filter_target_values(
+                candidate_probe_tokens(texts, max_tokens=64))
+        except Exception:
+            values = []
+    out: List[str] = []
+    seen: set = set()
+    for value in values:
+        text = str(value or "").strip()
+        key = re.sub(r"[^0-9a-z]+", "", text.lower())
+        if text and key and key not in seen:
+            seen.add(key)
+            out.append(text)
+    return out[:64]
+
+
+def _named_file_aliases(value: str) -> List[str]:
+    text = str(value or "").strip()
+    variants: List[str] = []
+    seen: set = set()
+
+    def add(candidate: str) -> None:
+        candidate = str(candidate or "").strip()
+        key = candidate.lower()
+        if candidate and key not in seen:
+            seen.add(key)
+            variants.append(candidate)
+
+    add(text)
+    add(re.sub(r"\s+", " ", text).lower())
+    add(re.sub(r"[^0-9a-zA-Z]+", "", text).lower())
+    parts = re.findall(r"[A-Za-z]+|\d+", text)
+    if len(parts) > 1:
+        add("".join(parts).lower())
+        add(" ".join(parts).lower())
+        for part in parts:
+            if len(part) >= 2:
+                add(part.lower())
+    return variants[:8]
+
+
+def _set_rendered_answer(plan: Any, text: str) -> None:
+    if plan is None:
+        return
+    meta = getattr(plan, "_result_meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        plan._result_meta = meta
+    storage = meta.get("storage_read")
+    if isinstance(storage, dict):
+        storage["rendered_answer"] = _user_facing_workbook_answer(text)[:24000]
+
+
+def _user_facing_workbook_answer(text: str) -> str:
+    lines: List[str] = []
+    for raw_line in str(text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+        if line.startswith("LIVE TOOL RESULTS"):
+            parts = re.split(r"\s+[—-]\s+", line, maxsplit=1)
+            line = (
+                "Workbook read: " + parts[1]
+                if len(parts) == 2 else "Workbook read completed"
+            )
+        elif line.startswith("MATERIALIZED COPY —"):
+            line = line.replace("MATERIALIZED COPY —", "Source: MATERIALIZED COPY —", 1)
+        elif line.startswith("COVERAGE LIMITS —"):
+            line = line.replace("COVERAGE LIMITS —", "Coverage —", 1)
+        elif line.startswith("PER-ITEM OUTCOMES"):
+            line = "Per-item results:"
+        elif line.startswith(("WORKBOOK READ ARTIFACT:", "WORKBOOK COVERAGE LIMITS:")):
+            continue
+        elif line.startswith(("TARGET ", "PRICE ")):
+            continue
+        elif line.startswith("SQL RESULT from"):
+            line = "Workbook rows: " + line.split(";", 1)[-1].strip()
+        elif line.startswith("executed:"):
+            continue
+        line = re.sub(
+            r"reproduce VERBATIM; do not recount or re-derive",
+            "values are copied from the scan",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"Report them as NOT FOUND IN THE INDEXED CONTENT SEARCHED,?\s*"
+            r"with the coverage limits above;?",
+            "Misses are reported as NOT FOUND IN THE INDEXED CONTENT SEARCHED.",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"do not claim absence from the workbook and do not substitute other "
+            r"files' rows\.?",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(
+            r"do not substitute other files' rows\.?",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        line = re.sub(r"\s{2,}", " ", line).strip()
+        if line:
+            lines.append(line)
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _stamp_named_file_meta(
+    plan: Any, key: tuple, names: Dict[tuple, str], tokens: List[str],
+    prov: Optional[Dict[str, Any]] = None,
+    *, coverage_complete: bool = True,
+    coverage_limits: Optional[Dict[str, Any]] = None,
+    workbook_read: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Stamp the same structured outcome the storage read stamps, from the
+    lane that actually served the evidence. Without this, a datasets-served
+    workbook answer never marks the pending file task served (the strict
+    lifecycle contract reads ``storage_read`` meta only) and the task would
+    re-resume on a later stray confirmation."""
+    try:
+        if plan is None:
+            return
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        storage_read = _meta.get("storage_read")
+        if not isinstance(storage_read, dict):
+            storage_read = {}
+        storage_read.update({
+            "service": "datasets",
+            "file_id": key[1] or None,
+            "resource_id": key[1] or None,
+            "file_name": names.get(key),
+            "source": (prov or {}).get("source"),
+            "evidence_kind": "materialized_copy",
+            "content_hash": (prov or {}).get("content_hash"),
+            "content_hash_algorithm": "sha1",
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "version_verified": bool(
+                (prov or {}).get("resource_id")
+                and (
+                    (prov or {}).get("content_hash")
+                    or (prov or {}).get("ingested_at")
+                )
+            ),
+            "sheets_indexed": (prov or {}).get("sheets_indexed"),
+            "sheets_searched": (prov or {}).get("sheets_searched"),
+            "identity_verified": True,
+            "completed": True,
+            "coverage_complete": bool(coverage_complete),
+            "coverage_limits": dict(coverage_limits or {}),
+            "probed_tokens": list(tokens[:64]),
+            "aliases_tried": (prov or {}).get("aliases_tried") or {},
+            "workbook_read": workbook_read,
+            "note": "named-file scoped datasets read (materialized copy)",
+        })
+        _meta["storage_read"] = storage_read
+    except Exception:  # noqa: BLE001 — meta is best-effort
+        pass
+
+
+async def _datasets_named_file_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
+    plan: Any = None,
+) -> Optional[str]:
+    """A query that NAMES a catalogued file resolves to THAT file.
+
+    Unique resolution first (exact/normalized name against the dataset
+    catalog), an explicit ambiguity block when several catalogued files
+    carry the name, and a fall-through to the catalog-wide probe when the
+    named file is not catalogued (its rows carry their own file names, so
+    the reply can report the named file absent).
+
+    Rationale (live replay 2026-09-24, scratch wb-replay-1790248976): the
+    query 'Consolidated Price List 2019.xlsx 381 U-22 …' executed as a
+    catalog-wide content probe and returned rows from 'All Prices For All
+    Parts INDUSTRIAL Sept 2026.xlsx' — the content token ('prices')
+    outranked the named file. A wrong-file row is exactly the evidence
+    substitution the workbook answer contract forbids; a named file must
+    scope the evidence, not merely bias it.
+    """
+    try:
+        from core.agent_file_context import (
+            detect_file_mentions,
+            score_file_match,
+        )
+        from core.sheet_dataset_service import (
+            SHEET_ROW_COL,
+            _probe_cached,
+            _probe_named_file,
+            candidate_probe_tokens,
+            entries_for_file_sync,
+            find_entries_sync,
+            render_dataset_answer,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+    msg_text = _current_message_text(context) or ""
+    lookup_text = " ".join(value for value in (query, msg_text) if value)
+    mentions = detect_file_mentions(lookup_text)
+    if not mentions:
+        return None
+    ws = (context or {}).get("workspace_id")
+    entries = await asyncio.to_thread(
+        find_entries_sync, "", user_id, ws, 500)
+    catalog_rows_seen = len(entries or [])
+    catalog_truncated = catalog_rows_seen >= 500
+    by_file: Dict[tuple, List[Dict[str, Any]]] = {}
+    names: Dict[tuple, str] = {}
+    for entry in entries or []:
+        key = (
+            str(entry.get("source") or ""),
+            str(entry.get("external_id") or ""),
+        )
+        by_file.setdefault(key, []).append(entry)
+        names.setdefault(key, str(entry.get("file_name") or ""))
+
+    def _keys_at(tiers) -> set:
+        return {
+            key for key, file_name in names.items()
+            if any(
+                score_file_match(mention, file_name) in tiers
+                for mention in mentions
+            )
+        }
+
+    exact_keys = _keys_at(("exact", "normalized"))
+    if not exact_keys:
+        contain_keys = _keys_at(("containment",))
+        if len(contain_keys) == 1:
+            exact_keys = contain_keys
+        elif len(contain_keys) > 1:
+            exact_keys = contain_keys
+    if not exact_keys:
+        if plan is None:
+            return None
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        _meta["storage_read"] = {
+            "service": "datasets",
+            "file_name": mentions[0],
+            "identity_verified": False,
+            "completed": False,
+            "coverage_complete": False,
+            "evidence_kind": "materialized_copy",
+            "note": "named file was not resolved in the indexed catalog",
+        }
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the named file "
+            f"'{mentions[0]}' is not present in the catalogued file index "
+            f"({catalog_rows_seen} rows searched"
+            + (", catalog limit reached" if catalog_truncated else "")
+            + "). Report NOT FOUND IN THE INDEXED CONTENT SEARCHED; do not "
+            "search or substitute another workbook."
+        )
+    if len(exact_keys) > 1:
+        dup = ", ".join(
+            f"'{names[key]}'" for key in sorted(exact_keys)
+        )[:400]
+        if plan is not None:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["storage_read"] = {
+                "service": "datasets",
+                "file_name": mentions[0],
+                "identity_verified": False,
+                "completed": False,
+                "coverage_complete": False,
+                "note": "multiple catalogued files match the named file",
+            }
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the query names "
+            f"'{mentions[0]}' but MULTIPLE catalogued files match: {dup}. "
+            "Identity is ambiguous: ask the user which one, and do NOT "
+            "present any of their rows as the named file."
+        )
+
+    key = next(iter(exact_keys))
+    file_entries = list(by_file.get(key) or [])
+    if key[1]:
+        try:
+            full_entries = await asyncio.to_thread(
+                entries_for_file_sync, key[0], key[1]
+            )
+            if full_entries:
+                file_entries = list(full_entries)
+                catalog_truncated = len(full_entries) >= 500
+        except Exception as file_entries_error:
+            logger.debug(
+                "named-file full catalog lookup failed: %r",
+                file_entries_error,
+            )
+    has_materialized_rows = bool(file_entries) and all(
+        entry.get("parquet_path") for entry in file_entries
+    )
+    unmaterialized_sheets = [
+        str(entry.get("entity_name") or entry.get("sheet_name") or "<unnamed sheet>")
+        for entry in file_entries if not entry.get("parquet_path")
+    ]
+    if not file_entries:
+        return None
+
+    e0 = file_entries[0]
+    hashes = {
+        str(entry.get("content_hash") or "")
+        for entry in file_entries
+        if str(entry.get("content_hash") or "")
+    }
+    if len(hashes) > 1:
+        if plan is not None:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["storage_read"] = {
+                "service": "datasets",
+                "file_id": key[1] or None,
+                "resource_id": key[1] or None,
+                "file_name": names.get(key),
+                "identity_verified": False,
+                "completed": False,
+                "coverage_complete": False,
+                "content_hashes": sorted(hashes),
+                "note": "multiple active content versions share the named file",
+            }
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.named-file) — the named file has "
+            "MULTIPLE active content versions in the catalog: "
+            + ", ".join(sorted(hashes))
+            + ". Do not select a version by name; ask which source version "
+            "to use."
+        )
+
+    sheet_names = sorted({
+        str(entry.get("entity_name") or "").strip()
+        for entry in file_entries
+        if str(entry.get("entity_name") or "").strip()
+    })
+    ingested_values = sorted(
+        str(entry.get("ingested_at") or "") for entry in file_entries
+        if entry.get("ingested_at")
+    )
+    prov = {
+        "source": e0.get("source"),
+        "resource_id": e0.get("external_id"),
+        "content_hash": e0.get("content_hash"),
+        "ingested_at": ingested_values[-1] if ingested_values else None,
+        "source_modified_at": e0.get("source_modified_at"),
+        "sheets_indexed": len(sheet_names),
+        "sheets_searched": len(file_entries),
+    }
+    provenance_line = (
+        f"MATERIALIZED COPY — this evidence comes from the materialized "
+        f"copy of '{names[key]}' (NOT a fresh read of the live file): "
+        f"source={prov['source'] or '?'}, resource="
+        f"{str(prov['resource_id'] or '?')[:44]}, ingested="
+        f"{prov['ingested_at'] or '?'}, content_hash="
+        f"{str(prov['content_hash'] or '?')[:20]} (sha1), "
+        f"source_modified={prov['source_modified_at'] or 'unknown'}, "
+        f"{prov['sheets_indexed']} sheet(s) indexed."
+    )
+
+    item_tokens = _named_file_targets(query, context, candidate_probe_tokens)
+    aliases_tried: Dict[str, List[str]] = {}
+    per_item: Dict[str, Optional[Dict[str, Any]]] = {}
+    probe_failed = False
+    for token in item_tokens:
+        record = None
+        tried: List[str] = []
+        for variant in _named_file_aliases(token):
+            tried.append(variant)
+            try:
+                record = await asyncio.to_thread(
+                    _probe_cached, file_entries, variant, 8
+                )
+            except Exception as probe_error:
+                probe_failed = True
+                logger.debug(
+                    "named-file probe failed for %s on %s: %r",
+                    token, variant, probe_error,
+                )
+                record = None
+            if record:
+                break
+        aliases_tried[token] = tried
+        per_item[token] = record
+    recs = [record for record in per_item.values() if record]
+    if not recs and not item_tokens:
+        record = await asyncio.to_thread(
+            _probe_named_file, file_entries, 20
+        )
+        if record:
+            recs.append(record)
+
+    workbook_read: Optional[Dict[str, Any]] = None
+    render_artifact: Optional[str] = None
+    if has_materialized_rows:
+        try:
+            from core.workbook_read_artifact import (
+                inspect_dataset_entries,
+                render_workbook_artifact,
+            )
+
+            context_texts = [query]
+            if msg_text:
+                context_texts.append(msg_text)
+            for entry in (context or {}).get("history") or []:
+                if isinstance(entry, dict) and entry.get("message"):
+                    context_texts.append(str(entry["message"]))
+            _field_requests = []
+            try:
+                from core.workbook_read_artifact import (
+                    extract_attributes,
+                    extract_field_requests,
+                )
+
+                _attr_words = extract_attributes(
+                    [query] + ([msg_text] if msg_text else []),
+                    item_tokens,
+                )
+                _field_requests = extract_field_requests(
+                    [query] + ([msg_text] if msg_text else [])
+                )
+            except Exception:  # noqa: BLE001 — attribute extraction optional
+                _attr_words = []
+                _field_requests = []
+            workbook_read = await asyncio.to_thread(
+                inspect_dataset_entries,
+                file_entries,
+                names[key],
+                query=query,
+                context_texts=context_texts,
+                targets=item_tokens,
+                attributes=_attr_words,
+                requested_fields=_field_requests,
+                provider=prov["source"],
+                resource_id=prov["resource_id"],
+                source_metadata=e0.get("source_metadata") or {},
+                content_hash=prov["content_hash"],
+                content_hash_algorithm="sha1",
+                ingested_at=prov["ingested_at"],
+                disambiguation=(context or {}).get("disambiguation"),
+            )
+            render_artifact = render_workbook_artifact(workbook_read)
+        except Exception as artifact_error:
+            logger.debug(
+                "named-file dataset artifact unavailable: %r", artifact_error
+            )
+            workbook_read = None
+            render_artifact = None
+
+    artifact_outcomes = {
+        str(outcome.get("target")): outcome
+        for outcome in ((workbook_read or {}).get("coverage") or {}).get(
+            "outcomes", []
+        )
+    }
+    artifact_complete = bool(
+        workbook_read
+        and workbook_read.get("all_sheets_searched")
+        and not workbook_read.get("truncated")
+        and ((workbook_read.get("coverage") or {}).get("complete"))
+    )
+    coverage_complete = bool(
+        not catalog_truncated
+        and not unmaterialized_sheets
+        and (
+            artifact_complete
+            if has_materialized_rows
+            else not probe_failed
+        )
+    )
+    coverage_limits = {
+        "catalog_rows_seen": catalog_rows_seen,
+        "catalog_truncated": catalog_truncated,
+        "indexed_sheets": len(sheet_names),
+        "scanned_sheets": len(file_entries),
+        "row_display_cap": 8,
+        "alias_probes": aliases_tried,
+        "artifact_available": bool(workbook_read),
+        "artifact_complete": artifact_complete,
+        "probe_failed": probe_failed,
+        "unmaterialized_sheets": unmaterialized_sheets,
+    }
+    prov["sheets_searched"] = len(file_entries)
+    prov["aliases_tried"] = aliases_tried
+    _stamp_named_file_meta(
+        plan,
+        key,
+        names,
+        item_tokens,
+        prov,
+        coverage_complete=coverage_complete,
+        coverage_limits=coverage_limits,
+        workbook_read=workbook_read,
+    )
+    coverage_note = (
+        "COVERAGE LIMITS — indexed sheets="
+        f"{len(sheet_names)}; scanned entries={len(file_entries)}; "
+        f"catalog_truncated={catalog_truncated}; row display cap=8. "
+        "'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under "
+        "case-insensitive substring and normalized alias probes. It does "
+        "NOT prove absence from the live workbook; unindexed sheets, later "
+        "versions, or formatting variants may still contain the item."
+    )
+    if not recs and not workbook_read:
+        miss_lines = [
+            "LIVE TOOL RESULTS (datasets.named-file) — '"
+            f"{names[key]}' resolved uniquely; {provenance_line}",
+            coverage_note,
+            f"None of the requested identifiers ({item_tokens}) matched "
+            "the indexed content. Report them as NOT FOUND IN THE INDEXED "
+            "CONTENT SEARCHED, with the coverage limits above; do not "
+            "claim absence from the workbook and do not substitute other "
+            "files' rows.",
+        ]
+        _set_rendered_answer(plan, "\n".join(miss_lines))
+        return _with_grounding("\n".join(miss_lines))
+
+    def _row_summary(record: Dict[str, Any]) -> str:
+        out: List[str] = []
+        columns = list(record.get("columns") or [])
+        letters = record.get("column_letters") or {}
+        for row in (record.get("rows") or [])[:2]:
+            row_number = (
+                row.get(SHEET_ROW_COL) or row.get("__row__") or "?"
+            )
+            values = [
+                f"{column}={row.get(column)}"
+                for column in columns[:6]
+                if row.get(column) is not None
+            ]
+            refs = []
+            for column in columns:
+                value = row.get(column)
+                if value is None:
+                    continue
+                if re.search(
+                    r"price|cost|amount|rate|value|list|total|dealer",
+                    str(column), re.IGNORECASE,
+                ):
+                    letter = letters.get(column)
+                    if letter:
+                        refs.append(f"{letter}{row_number}={value}")
+            sheet = record.get("entity_name") or "?"
+            out.append(
+                f"{sheet} R{row_number}"
+                + (f" [{', '.join(refs)}]" if refs else "")
+                + ": "
+                + ", ".join(str(value)[:40] for value in values)[:170]
+            )
+        return " ; ".join(out) or "matched sheet carries no row detail"
+
+    def _artifact_summary(outcome: Dict[str, Any]) -> str:
+        evidence = outcome.get("evidence") or []
+        if not evidence:
+            return "no matching cell in the indexed rows"
+        pieces: List[str] = []
+        for item in evidence[:3]:
+            sheet = item.get("sheet") or "?"
+            cell = item.get("cell") or "?"
+            row_number = item.get("row")
+            values = item.get("values") or item.get("prices") or []
+            price_refs = []
+            for value in values[:4]:
+                if not value.get("cell"):
+                    continue
+                basis = (
+                    value.get("field")
+                    or value.get("price_basis")
+                    or value.get("column")
+                    or "value"
+                )
+                unit = value.get("unit")
+                unit_label = f"; unit={unit}" if unit else ""
+                currency = value.get("currency") or "unspecified"
+                price_refs.append(
+                    f"{value.get('cell')}={value.get('value')} "
+                    f"[basis={basis}{unit_label}; currency={currency}]"
+                )
+            suffix = f" (values: {', '.join(price_refs)})" if price_refs else ""
+            row_suffix = f" R{row_number}" if row_number is not None else ""
+            pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
+        return " ; ".join(pieces)
+
+    table = [
+        "PER-ITEM OUTCOMES (deterministic, rendered from the scan — "
+        "reproduce VERBATIM; do not recount or re-derive):",
+        "",
+        "| item | outcome | evidence |",
+        "|---|---|---|",
+    ]
+    for token in item_tokens:
+        outcome = artifact_outcomes.get(token)
+        if outcome is not None:
+            status = str(outcome.get("status") or "incomplete").upper()
+            if status == "ABSENT" and not coverage_complete:
+                status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+            evidence = _artifact_summary(outcome)
+        else:
+            record = per_item.get(token)
+            if record:
+                status = "FOUND"
+                evidence = _row_summary(record)
+            elif coverage_complete:
+                status = "NOT FOUND IN INDEXED CONTENT"
+                evidence = (
+                    f"all {len(sheet_names)} indexed sheets probed "
+                    "(substring + alias)"
+                )
+            else:
+                status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+                evidence = "coverage incomplete; see COVERAGE LIMITS"
+        table.append(f"| {token} | {status} | {evidence} |")
+
+    lines = [
+        "LIVE TOOL RESULTS (datasets.named-file, file='"
+        f"{names[key]}') — the query NAMED this file, so the evidence is "
+        "SCOPED to its materialized copy:",
+        provenance_line,
+        coverage_note,
+        "",
+    ]
+    lines.extend(table)
+    if render_artifact:
+        lines.extend(["", render_artifact])
+    else:
+        for record in recs:
+            lines.extend(["", render_dataset_answer(record)])
+    rendered = "\n".join(lines)[:32000]
+    _set_rendered_answer(plan, rendered)
+    return _with_grounding(rendered)
 
 
 async def _datasets_search_block(
@@ -6403,6 +7334,15 @@ async def execute_tool_plan(
     if service == "memory":
         block = await _memory_search_block(user_id, query, context)
         if block:
+            source_observations = list(
+                (context or {}).get("_source_observations") or []
+            )
+            if source_observations:
+                result_meta = getattr(plan, "_result_meta", None)
+                if not isinstance(result_meta, dict):
+                    result_meta = {}
+                    setattr(plan, "_result_meta", result_meta)
+                result_meta["source_observations"] = source_observations
             return block
         return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}'): "
@@ -6484,7 +7424,10 @@ async def execute_tool_plan(
                     "scan timed out — no result; do not conclude the value "
                     "is absent.")
             return _with_grounding(render_find_all_result(scan))
-        block = await _datasets_search_block(user_id, query, context)
+        block = await _datasets_named_file_block(
+            user_id, query, context, plan=plan)
+        if block is None:
+            block = await _datasets_search_block(user_id, query, context)
         if block:
             return block
         return _with_grounding(
@@ -6529,6 +7472,8 @@ async def execute_tool_plan(
                 )
                 lines: List[str] = []
                 meta_outcomes: List[Dict[str, Any]] = []
+                meta_observations: List[Dict[str, Any]] = []
+                observation_context = {**(context or {}), "query": query}
                 for eid in _query_ids:
                     res = outcomes.get(eid) or {
                         "outcome": "not_attempted", "text": "",
@@ -6541,6 +7486,14 @@ async def execute_tool_plan(
                                 else "FULL BODY (EXCERPT — middle elided)")
                         lines.append(
                             f"- READ OK ({mark}) | message_id: {eid}\n{res['text']}")
+                        meta_observations.extend(outlook_source_observations(
+                            res.get("email") or {"id": eid},
+                            {
+                                "text": res.get("text") or "",
+                                "truncated": outcome == "excerpt",
+                            },
+                            observation_context,
+                        ))
                     elif outcome == "failed":
                         lines.append(
                             f"- READ FAILED | message_id: {short_id}… — "
@@ -6558,6 +7511,12 @@ async def execute_tool_plan(
                             f"- READ NOT ATTEMPTED | message_id: {short_id} — "
                             f"{res.get('detail') or 'budget exhausted'}")
                 plan._result_meta["read_outcomes"] = meta_outcomes
+                if meta_observations:
+                    plan._result_meta["source_observations"] = list({
+                        item.get("observation_id"): item
+                        for item in meta_observations
+                        if isinstance(item, dict) and item.get("observation_id")
+                    }.values())
                 _ok = sum(
                     1 for m in meta_outcomes if m["outcome"] in ("full", "excerpt"))
                 return _with_grounding(
@@ -6753,12 +7712,26 @@ async def execute_tool_plan(
                         store_lines = await _ingested_mailbox_lines(user_id, query, context)
                     else:
                         ingest_note = (
-                            "\n(on-demand mailbox pull ran but found no candidate "
-                            "message to ingest)"
+                            "\n\nON-DEMAND PULL ran but found no candidate "
+                            "message to ingest"
                             if not ing_core["lines"] else
-                            "\n(on-demand mailbox pull ran: its candidates are "
-                            "already in memory — no new content above)"
+                            "\n\nON-DEMAND PULL ran with no candidate "
+                            "message to ingest"
                         )
+
+            source_observations: List[Dict[str, Any]] = []
+            observation_context = {**(context or {}), "query": query}
+            for email in emails:
+                body = full_bodies.get(email.get("id")) or {}
+                source_observations.extend(outlook_source_observations(
+                    email, body, observation_context
+                ))
+            if source_observations:
+                plan._result_meta["source_observations"] = list({
+                    item.get("observation_id"): item
+                    for item in source_observations
+                    if isinstance(item, dict) and item.get("observation_id")
+                }.values())
 
             if not emails and not store_lines:
                 # A mailbox miss is not the whole story: the question may be
@@ -7056,6 +8029,11 @@ async def execute_tool_plan(
                     "file_name": data.get("file_name"),
                     "identity_verified": bool(data.get("identity_verified")),
                     "source_metadata": data.get("source_metadata") or {},
+                    "evidence_kind": data.get("evidence_kind"),
+                    "content_hash": data.get("content_hash"),
+                    "ingested_at": data.get("ingested_at"),
+                    "source_modified_at": data.get("source_modified_at"),
+                    "rendered_answer": data.get("rendered_answer"),
                     "served": bool(data.get("served", data.get("found"))),
                     "read_completed": bool(data.get("read_completed", False)),
                     "coverage_complete": bool(data.get("coverage_complete", False)),
@@ -7204,17 +8182,34 @@ async def execute_tool_plan(
                 f"returned nothing usable ({reason}).{ingest_note}"
             )
         if action == "read_file" and isinstance(data, dict):
-            plan._result_meta["file_read"] = {
+            file_read_meta = {
                 "served": bool(data.get("served", data.get("found"))),
                 "identity_verified": bool(data.get("identity_verified")),
                 "resource_id": data.get("resource_id") or data.get("file_id"),
                 "provider": data.get("provider") or service,
                 "file_name": data.get("file_name"),
                 "source_metadata": data.get("source_metadata") or {},
+                "evidence_kind": data.get("evidence_kind"),
+                "content_hash": data.get("content_hash"),
+                "ingested_at": data.get("ingested_at"),
+                "source_modified_at": data.get("source_modified_at"),
                 "read_completed": bool(data.get("read_completed", False)),
                 "coverage_complete": bool(data.get("coverage_complete", False)),
                 "workbook_read": data.get("workbook_read"),
+
                 "content_sha256": data.get("content_sha256"),
+            }
+            plan._result_meta["file_read"] = file_read_meta
+            plan._result_meta["storage_read"] = {
+                **file_read_meta,
+                "service": service,
+                "file_id": data.get("file_id"),
+                "resource_id": data.get("resource_id") or data.get("file_id"),
+                "completed": bool(
+                    data.get("read_completed")
+                    and data.get("served", data.get("found"))
+                ),
+                "rendered_answer": data.get("rendered_answer"),
             }
             # The file was OPENED — render the excerpt as first-class
             # evidence rather than str(dict) noise. found=False /

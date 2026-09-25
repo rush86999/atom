@@ -2278,15 +2278,95 @@ class UniversalIntegrationService:
                 try:
                     from core.sheet_dataset_service import (
                         answer_from_datasets,
+                        entries_for_file_sync,
                         find_entries_sync,
                         render_dataset_answer,
                         sheet_datasets_enabled,
                     )
 
                     if sheet_datasets_enabled():
-                        entries = await asyncio.to_thread(
-                            find_entries_sync, query, user_id, None, 5
-                        )
+                        requested_names: List[str] = []
+                        try:
+                            from core.agent_file_context import (
+                                detect_file_mentions,
+                                score_file_match,
+                            )
+
+                            requested_names = detect_file_mentions(query)
+                        except Exception:
+                            requested_names = []
+                        if requested_names:
+                            all_entries = await asyncio.to_thread(
+                                find_entries_sync,
+                                "",
+                                user_id,
+                                context.get("workspace_id"),
+                                500,
+                            )
+                            matched: Dict[tuple, Dict[str, Any]] = {}
+                            for entry in all_entries or []:
+                                name = str(entry.get("file_name") or "")
+                                tiers = {
+                                    score_file_match(requested, name)
+                                    for requested in requested_names
+                                }
+                                if "exact" in tiers or "normalized" in tiers:
+                                    matched[
+                                        (str(entry.get("source") or ""),
+                                         str(entry.get("external_id") or ""))
+                                    ] = entry
+                            if not matched:
+                                for entry in all_entries or []:
+                                    name = str(entry.get("file_name") or "")
+                                    if any(
+                                        score_file_match(requested, name)
+                                        == "containment"
+                                        for requested in requested_names
+                                    ):
+                                        matched[
+                                            (str(entry.get("source") or ""),
+                                             str(entry.get("external_id") or ""))
+                                        ] = entry
+                            if len(matched) > 1:
+                                return {"status": "success", "data": {
+                                    "found": False,
+                                    "served": False,
+                                    "identity_verified": False,
+                                    "ambiguous": True,
+                                    "candidates": [
+                                        {"id": item.get("external_id"),
+                                         "name": item.get("file_name")}
+                                        for item in matched.values()
+                                    ],
+                                    "message": "More than one catalogued file matched the requested name.",
+                                }}
+                            if not matched:
+                                return {"status": "success", "data": {
+                                    "found": False,
+                                    "served": False,
+                                    "identity_verified": False,
+                                    "named_file_not_found": True,
+                                    "file_name": requested_names[0],
+                                    "coverage_complete": False,
+                                    "message": (
+                                        "The named file was not found in the "
+                                        "indexed catalog; no other file was searched."
+                                    ),
+                                }}
+                            key = next(iter(matched))
+                            entries = await asyncio.to_thread(
+                                entries_for_file_sync, key[0], key[1]
+                            ) or [matched[key]]
+                            file_id = str(key[1] or "")
+                            identity_verified = True
+                        else:
+                            entries = await asyncio.to_thread(
+                                find_entries_sync,
+                                query,
+                                user_id,
+                                context.get("workspace_id"),
+                                5,
+                            )
                         if entries:
                             best = entries[0]
                             ds_result = await answer_from_datasets(
@@ -2314,7 +2394,18 @@ class UniversalIntegrationService:
                                 return {"status": "success", "data": {
                                     "found": True,
                                     "file_id": best["external_id"],
+                                    "resource_id": best["external_id"],
                                     "file_name": ds_result.get("file_name") or best.get("file_name"),
+                                    "provider": service,
+                                    "source_metadata": best.get("source_metadata") or {},
+                                    "content_hash": ds_result.get("content_hash"),
+                                    "ingested_at": ds_result.get("ingested_at"),
+                                    "source_modified_at": ds_result.get("source_modified_at"),
+                                    "evidence_kind": "materialized_copy",
+                                    "identity_verified": bool(best.get("identity_verified", True)),
+                                    "served": True,
+                                    "read_completed": True,
+                                    "coverage_complete": False,
                                     "chars_extracted": ds_result.get("row_count", 0),
                                     "excerpt": render_dataset_answer(ds_result),
                                     "dataset": {
@@ -2494,6 +2585,10 @@ class UniversalIntegrationService:
                                 "resource_id": str(file_id),
                                 "provider": service,
                                 "source_metadata": identity.get("source_metadata") or {},
+                                "content_hash": ds_result.get("content_hash"),
+                                "ingested_at": ds_result.get("ingested_at"),
+                                "source_modified_at": ds_result.get("source_modified_at"),
+                                "evidence_kind": "materialized_copy",
                                 "read_completed": True,
                                 "coverage_complete": False,
                                 "file_id": file_id,
