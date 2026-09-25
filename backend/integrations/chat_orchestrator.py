@@ -6466,8 +6466,17 @@ class ChatOrchestrator:
         text = str(content or "")
         if not text or not isinstance(canvas_context, dict):
             return text
-        if not cls._CANVAS_CLAIM_SENTENCE_RE.search(text):
-            return text
+        # OUTCOME-BASED INVOCATION (2026-09-25 review round 10): the
+        # finalization runs whenever the turn is canvas-bound — whether
+        # or not the prose matches a claim pattern. Prose detection is
+        # the LEGACY layer only (it replaces known-shaped unsupported
+        # sentences); the structured statement below is generated from
+        # the operation's outcome and is the authoritative mutation
+        # confirmation. Known legacy-guard limitation: an unknown-shaped
+        # workflow claim ('I sent the email.') outside the matcher is
+        # superseded by — not stripped with — the section; generation-
+        # side prevention lives in the unified finalizer.
+        claim_found = bool(cls._CANVAS_CLAIM_SENTENCE_RE.search(text))
         canvas_id = str(canvas_context.get("canvas_id") or "")
         verification = await cls._canvas_write_for_operation(
             canvas_id, session_id, user_id, execution_id,
@@ -6475,22 +6484,41 @@ class ChatOrchestrator:
         verdict = (verification or {}).get("verdict") or "unverified"
         review_status = (verification or {}).get("review_status")
         if verdict == "result_verified":
-            # STRUCTURED FINALIZATION (2026-09-25 review round 9): the
-            # confirmation is GENERATED from the verified entity/field
-            # set — a qualifier under the model's own sentences cannot
-            # validate an unchecked specific claim ('I updated item 4'
-            # stays unsupported when only item 1 was checked), so the
-            # claim sentences are replaced by what the criteria actually
-            # establish. Sending/approval/submission are workflow actions
-            # with their own evidence and are never generated here — at
-            # ANY review status.
+            # STRUCTURED SECTION from the operation's outcome: generated
+            # from the verified entity/field set, carrying the review
+            # status as the audit records it. Workflow actions
+            # (sent/approved/submitted) are never generated — they need
+            # their own operation evidence.
             statement = cls._verified_finalization_statement(verification)
-            rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
-                lambda _m: statement, text)
-            if rewritten == text:  # matcher missed — append the facts
-                rewritten = f"{text}\n\n{statement}"
-            return rewritten
+            section = f"— Operation status: {statement}"
+            if claim_found:
+                # The FIRST replaced sentence becomes the labeled section;
+                # any further matches collapse into the bare statement —
+                # exactly one authoritative section per reply.
+                seen = []
+
+                def _sectioned(_m):
+                    if not seen:
+                        seen.append(True)
+                        return f"Operation status: {statement}"
+                    return statement
+
+                rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
+                    _sectioned, text)
+                if rewritten == text:
+                    rewritten = f"{text}\n\n{section}"
+                return rewritten
+            return f"{text}\n\n{section}"
         if verdict == "write_recorded":
+            if not claim_found:
+                # Outcome reported even without matching prose: the turn
+                # DID write; the user gets the honest status either way.
+                return (
+                    f"{text}\n\n— Operation status: a canvas write from "
+                    "this operation is recorded, but the requested "
+                    "change is not confirmed as served — unconfirmed "
+                    "until reviewed."
+                )
             replacement = (
                 "*(Recorded, not verified: a canvas write from this "
                 "operation is on the audit trail, but the requested "
@@ -6502,12 +6530,14 @@ class ChatOrchestrator:
                 "*(The canvas edit is still running in the background — "
                 "nothing is confirmed changed yet.)*"
             )
-        else:
+        elif claim_found:
             replacement = (
                 "*(Unverified: no canvas write from this operation is on "
                 "the audit trail — treat the canvas as unchanged and any "
                 "values above as proposed.)*"
             )
+        else:
+            return text  # read-only canvas turn: nothing to report
         logger.warning(
             "[canvas-claim-guard] reply claimed a canvas change; "
             "verification=%s (canvas=%s, session=%s, execution=%s) — "
@@ -6870,7 +6900,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "claim you updated, changed, edited, or applied anything "
                     "to the canvas. If you found values that belong on the "
                     "canvas, present them as PROPOSED values the user can "
-                    "ask to apply."
+                    "ask to apply. Mutation, send, approval, and submission "
+                    "confirmations are reported ONLY in the platform's "
+                    "'Operation status' section, generated from operation "
+                    "evidence — never state them yourself."
                 )
 
             messages = [

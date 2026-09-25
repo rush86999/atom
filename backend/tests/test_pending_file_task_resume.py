@@ -2754,6 +2754,104 @@ class TestCanvasTruthGate:
         assert verdict["verdict"] == "write_recorded"
 
     @pytest.mark.asyncio
+    async def test_unknown_shaped_workflow_claim_gets_the_section(self):
+        """Round 10 counterexample: 'I sent the email.' does not match the
+        legacy sentence shapes — outcome-based invocation still attaches
+        the structured section (generated from evidence), which is the
+        authoritative status; the section never reinforces the send."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I sent the email."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "Operation status:" in out
+        assert "Verified on the canvas as served: 381 — price." in out
+        # the section is the ONLY place confirmations come from
+        assert out.count("Verified on the canvas as served") == 1
+
+    @pytest.mark.asyncio
+    async def test_mixed_claims_get_single_authoritative_section(self):
+        """Round 10 counterexample: the first sentence is legacy-replaced,
+        the unknown-shaped second survives in the body — but exactly ONE
+        authoritative Operation status section rides the reply."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I updated the draft. I sent the email."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert out.count("Operation status:") == 1
+        assert out.count("Verified on the canvas as served") == 1
+
+    @pytest.mark.asyncio
+    async def test_write_recorded_reported_even_without_matching_prose(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"body": "x"}, "accepted")
+        text = "The quote is ready below."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert "Operation status:" in out
+        assert "not confirmed as served" in out
+
+    @pytest.mark.asyncio
+    async def test_read_only_turn_without_claim_is_untouched(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        text = "The recorded checks: U-22 is 1777.0 in the indexed copy."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=f"exec-{uuid4().hex[:12]}",
+        )
+        assert out == text  # a read-only turn acquires no status section
+
+    def test_prompt_keeps_workflow_confirmations_in_the_section(self):
+        import inspect
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        source = inspect.getsource(ChatOrchestrator._get_qwen_response)
+        assert "ONLY in the platform's" in source
+        assert "'Operation status' section" in source
+
+    @pytest.mark.asyncio
     async def test_enforced_guard_ignores_non_claims_and_canvasless(self):
         from integrations.chat_orchestrator import ChatOrchestrator
 
