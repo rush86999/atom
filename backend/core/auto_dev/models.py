@@ -106,9 +106,14 @@ class SkillImpactEntry(Base):
     ``rejection_history`` so a rejected intervention is never re-proposed —
     the paper credits this acceptance history with keeping proposals useful.
 
-    The ledger is write-side knowledge for the OFFLINE evolvers only; it is
-    never injected into runtime agent prompts (WikiSkill W4: the inference
-    agent must not read the raw wiki).
+    The ledger is APPEND-ONLY HISTORY. Its primary readers remain the
+    OFFLINE evolvers (WikiSkill W4: the inference agent must not read the
+    raw wiki). ONE explicit runtime exception (2026-09-24): rows with
+    source="lesson_promotion" feed the VALIDATED active-lesson
+    projection (core/active_lessons.py), which enforces candidate
+    metadata, expiry, tenant scope, override specs, and rollback state
+    before any value reaches runtime. No other ledger row is ever read
+    at inference time, and the raw ledger is never injected into prompts.
     """
 
     __tablename__ = "skill_impact_entries"

@@ -32,6 +32,17 @@ DEFAULT_THRESHOLDS: Dict[str, float] = {
 
 PILOT_RESUMPTION_LESSON: Dict[str, Any] = {
     "candidate_id": "lesson-confirmed-source-resumption-001",
+    "experimental_claim": (
+        "EXPERIMENT SCOPE (2026-09-24 review): this pilot tests a "
+        "CONFIGURABLE WAIT-POLICY intervention (resume-turn planner wait "
+        "cap) through the learning loop's plumbing — NOT the "
+        "effectiveness of the generalized learning process. Demonstrating "
+        "the broader process requires tracing feedback -> candidate -> "
+        "evaluation -> approved behavior -> verified improvement, which "
+        "awaits the frozen evaluation."),
+    "runtime_overrides": {
+        "resume_planner_wait_max_seconds": 55.0,
+    },
     "version": CANDIDATE_VERSION,
     "state": "shadow",
     "title": "A confirmed source identity resumes an unresolved lookup",
@@ -136,7 +147,13 @@ def extract_lesson_candidate(
             "capabilities": ["task execution and verification"],
             "model_scope": "all",
         },
-        "expected_behavioral_change": instruction,
+        "expected_behavioral_change": (
+            "apply the explicitly requested verification step before "
+            "answering when its precondition is present"
+        ),
+        "strategy_fingerprint": hashlib.sha256(
+            instruction.encode("utf-8")
+        ).hexdigest(),
         "observable_metrics": [
             "goal_completion",
             "unsupported_claims",
@@ -224,12 +241,13 @@ def transition_candidate(
     if target not in STATES or target not in _TRANSITIONS.get(current_state, set()):
         return None
     if target in {"limited", "active"}:
-        if not actor_id or not evaluation or not evaluation.get("promote"):
+        if (
+            not actor_id
+            or not evaluation
+            or not evaluation.get("promote")
+            or not evaluation.get("threshold_hash")
+        ):
             return None
-    if target == "active" and (
-        not evaluation or not evaluation.get("threshold_hash")
-    ):
-        return None
     updated = copy.deepcopy(current)
     updated["parent_version"] = current.get("version", CANDIDATE_VERSION)
     updated["version"] = int(current.get("version") or CANDIDATE_VERSION) + 1
@@ -254,6 +272,27 @@ def transition_candidate(
         return None
 
 
+def promote_candidate(
+    candidate: Dict[str, Any],
+    evaluation: Dict[str, Any],
+    *,
+    actor_id: str,
+    reason: str = "held-out evaluation passed",
+    db: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """Promote only through a signed, threshold-bound evaluation."""
+    if not evaluation.get("promote") or not evaluation.get("threshold_hash"):
+        return None
+    return transition_candidate(
+        candidate,
+        "active",
+        actor_id=actor_id,
+        evaluation=evaluation,
+        reason=reason,
+        db=db,
+    )
+
+
 def rollback_candidate(
     candidate: Dict[str, Any],
     *,
@@ -273,9 +312,70 @@ def rollback_candidate(
     )
 
 
-def all_candidates() -> List[Dict[str, Any]]:
-    """Return the built-in shadow candidate without granting it behavior."""
-    return [copy.deepcopy(PILOT_RESUMPTION_LESSON)]
+def _stored_candidate(db: Any, candidate_id: str) -> Optional[Dict[str, Any]]:
+    try:
+        from core.auto_dev.models import SkillImpactEntry
+
+        rows = (
+            db.query(SkillImpactEntry)
+            .filter(SkillImpactEntry.target == f"lesson:{candidate_id}")
+            .order_by(SkillImpactEntry.created_at.desc())
+            .limit(50)
+            .all()
+        )
+        for row in rows or []:
+            payload = row.payload if isinstance(row.payload, dict) else {}
+            candidate = payload.get("candidate")
+            if isinstance(candidate, dict):
+                return _copy_candidate(candidate)
+    except Exception:
+        return None
+    return None
+
+
+def load_candidate(candidate_id: str, *, db: Any = None) -> Optional[Dict[str, Any]]:
+    """Load the latest durable lifecycle snapshot for a candidate."""
+    if candidate_id == PILOT_RESUMPTION_LESSON.get("candidate_id"):
+        return copy.deepcopy(PILOT_RESUMPTION_LESSON)
+    try:
+        if db is None:
+            from core.database import get_db_session
+
+            with get_db_session() as session:
+                return _stored_candidate(session, candidate_id)
+        return _stored_candidate(db, candidate_id)
+    except Exception:
+        return None
+
+
+def all_candidates(*, db: Any = None) -> List[Dict[str, Any]]:
+    """Return built-in and durable candidates without activating them."""
+    candidates = [copy.deepcopy(PILOT_RESUMPTION_LESSON)]
+    if db is None:
+        return candidates
+    try:
+        from core.auto_dev.models import SkillImpactEntry
+
+        rows = (
+            db.query(SkillImpactEntry)
+            .filter(SkillImpactEntry.target.like("lesson:%"))
+            .order_by(SkillImpactEntry.created_at.desc())
+            .limit(200)
+            .all()
+        )
+        seen = {str(item.get("candidate_id")) for item in candidates}
+        for row in rows or []:
+            payload = row.payload if isinstance(row.payload, dict) else {}
+            candidate = payload.get("candidate")
+            if not isinstance(candidate, dict):
+                continue
+            identifier = str(candidate.get("candidate_id") or "")
+            if identifier and identifier not in seen:
+                candidates.append(_copy_candidate(candidate))
+                seen.add(identifier)
+    except Exception:
+        return candidates
+    return candidates
 
 
 def _threshold_hash(thresholds: Mapping[str, Any]) -> str:

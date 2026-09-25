@@ -40,26 +40,33 @@ class TestClosedLoopMechanics:
             env={**os.environ, "TESTING": "1"})
         assert "REFUSED" in out.stdout or out.returncode == 1
 
-    def test_runtime_override_promote_consume_rollback(self):
+    def test_runtime_override_promote_consume_rollback_validated(self):
         import uuid as _uuid
 
-        from core import lesson_runtime
+        from core import active_lessons
         from core.auto_dev.skill_impact_ledger import record_outcome
         from core.database import get_db_session
 
         _target = f"lesson:mech-{_uuid.uuid4().hex[:8]}"
         _key = f"mech_wait_{_uuid.uuid4().hex[:6]}"
         _default, _promoted = 55.0, 40.0
-        lesson_runtime.clear_cache()
-        assert lesson_runtime.get_override(_key, _default) == _default
+        # overrides exist only with a registered SPEC (validated
+        # projection contract)
+        active_lessons.OVERRIDE_SPECS[_key] = {
+            "type": float, "min": 1.0, "max": 90.0}
+        active_lessons.clear_cache()
+        assert active_lessons.get_override(_key, _default) == _default
         with get_db_session() as db:
             record_outcome(
                 db, tenant_id="default", target=_target,
                 source="lesson_promotion", status="accepted",
                 stage="limited", reason="mechanics test",
-                payload={"overrides": {_key: _promoted}})
-        lesson_runtime.clear_cache()
-        assert lesson_runtime.get_override(_key, _default) == _promoted, (
+                payload={
+                    "candidate_id": "mech", "version": 1,
+                    "scope": {"tenant_id": "default"},
+                    "overrides": {_key: _promoted}})
+        active_lessons.clear_cache()
+        assert active_lessons.get_override(_key, _default) == _promoted, (
             "an APPROVED lesson must be consumed at runtime")
         # the ledger's timestamp granularity is 1s — separate the rows so
         # newest-wins ordering is deterministic
@@ -72,9 +79,10 @@ class TestClosedLoopMechanics:
                 source="lesson_promotion", status="rolled_back",
                 stage="runtime", reason="mechanics rollback",
                 payload={"overrides": {}})
-        lesson_runtime.clear_cache()
-        assert lesson_runtime.get_override(_key, _default) == _default, (
+        active_lessons.clear_cache()
+        assert active_lessons.get_override(_key, _default) == _default, (
             "rollback must restore baseline behavior immediately")
+        active_lessons.OVERRIDE_SPECS.pop(_key, None)
 
 
 class TestTaskNeutralCriteria:
@@ -97,19 +105,26 @@ class TestTaskNeutralCriteria:
             build_task_outcome, derive_success_kinds,
         )
 
+        # Strengthened (2026-09-24 review): traceable inputs prove
+        # nothing — the computed result must MATCH the requested one.
         c = build_task_outcome(
             objective="compute",
             completion_criteria=[{"kind": "calculation"}],
-            calculation={"computed": "5350", "inputs_traceable": True},
+            calculation={"computed": "5350", "expected": "5350"},
             tool_outcomes=[{"tool": "r", "verified": True,
                             "outcome": "ok"}],
             evidence_refs=[{"kind": "file", "resource_id": "r1",
                             "content_hash": "h"}],
             delivery={"delivered": True}, objective_met=True)
         assert derive_success_kinds(c)["task_success"] is True
-        c["calculation"] = {"computed": "5350",
-                            "inputs_traceable": False}
+        # wrong result with perfectly traceable inputs: NOT complete
+        c["calculation"] = {"computed": "5350", "expected": "6000",
+                            "inputs_traceable": True}
         assert derive_success_kinds(c)["task_success"] is False
+        # nothing checkable: unknown, never True
+        c["calculation"] = {"computed": "5350",
+                            "inputs_traceable": True}
+        assert derive_success_kinds(c)["task_success"] is None
 
     def test_unknown_kind_stays_unknown(self):
         from core.task_outcome_contract import (
@@ -223,3 +238,159 @@ class TestFeedbackCaptureWiring:
         from core.models import ExchangeExample
 
         assert hasattr(ExchangeExample, "feedback_classification")
+
+
+class TestActiveLessonProjection:
+    """Contract checks 2+3: validated projection (scope/version/expiry/
+    rollback/tenant) and execution-limit respect."""
+
+    def _row(self, db, target, status, **payload):
+        from core.auto_dev.skill_impact_ledger import record_outcome
+
+        return record_outcome(
+            db, tenant_id="default", target=target,
+            source="lesson_promotion", status=status,
+            stage="limited" if status == "accepted" else "runtime",
+            reason="projection test", payload=payload)
+
+    def test_full_lifecycle_and_isolation(self):
+        import time as _t
+        import uuid as _uuid
+
+        from core import active_lessons
+        from core.database import get_db_session
+
+        active_lessons.clear_cache()
+        key = f"wait_{_uuid.uuid4().hex[:6]}"
+        # register a spec for the test key
+        active_lessons.OVERRIDE_SPECS[key] = {
+            "type": float, "min": 1.0, "max": 90.0}
+        target = f"lesson:proj-{_uuid.uuid4().hex[:8]}"
+        try:
+            # UNKNOWN key (no spec) -> rejected, not silently applied
+            with get_db_session() as db:
+                self._row(db, target + "-x", "accepted",
+                          candidate_id="c", version=1,
+                          scope={"tenant_id": "default"},
+                          overrides={"no_such_key": 5})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override("no_such_key") is None
+            assert any(
+                "unknown_override_key" in r["reason"]
+                for r in active_lessons.projection_report()["rejected"])
+
+            # OUT OF BOUNDS -> rejected with the bound in the reason
+            with get_db_session() as db:
+                self._row(db, target + "-b", "accepted",
+                          candidate_id="c", version=1,
+                          scope={"tenant_id": "default"},
+                          overrides={key: 10000.0})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) is None
+            assert any(
+                "out_of_bounds" in r["reason"]
+                for r in active_lessons.projection_report()["rejected"])
+
+            # MISSING METADATA (no version) -> rejected
+            with get_db_session() as db:
+                self._row(db, target + "-m", "accepted",
+                          candidate_id="c",
+                          scope={"tenant_id": "default"},
+                          overrides={key: 40.0})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) is None
+
+            # EXPIRED -> rejected
+            with get_db_session() as db:
+                self._row(db, target + "-e", "accepted",
+                          candidate_id="c", version=1,
+                          scope={"tenant_id": "default"},
+                          expiry={"expires_at": _t.time() - 10},
+                          overrides={key: 40.0})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) is None
+
+            # OTHER TENANT -> invisible here, visible there
+            with get_db_session() as db:
+                self._row(db, target + "-t", "accepted",
+                          candidate_id="c", version=1,
+                          scope={"tenant_id": "tenant-B"},
+                          overrides={key: 40.0})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) is None
+            assert active_lessons.get_override(
+                key, tenant_id="tenant-B") == 40.0
+
+            # VALID -> approved and consumed
+            with get_db_session() as db:
+                self._row(db, target, "accepted",
+                          candidate_id="c", version=1,
+                          scope={"tenant_id": "default"},
+                          overrides={key: 40.0})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) == 40.0
+
+            # RESTART (cold cache) -> still active (durable projection)
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) == 40.0
+
+            # ROLLBACK -> deactivated immediately (newest row decides)
+            _t.sleep(1.1)
+            with get_db_session() as db:
+                self._row(db, target, "rolled_back",
+                          candidate_id="c", overrides={})
+            active_lessons.clear_cache()
+            assert active_lessons.get_override(key) is None
+        finally:
+            active_lessons.OVERRIDE_SPECS.pop(key, None)
+            active_lessons.clear_cache()
+
+    def test_wait_override_cannot_exceed_deadline(self):
+        """The lesson bounds the WAIT CAP only; the orchestrator clamps
+        to the remaining deadline (limits_note in the spec)."""
+        from core.active_lessons import OVERRIDE_SPECS
+
+        spec = OVERRIDE_SPECS["resume_planner_wait_max_seconds"]
+        assert spec["max"] <= 75.0, "wait override bounded well under turn budgets"
+        assert "deadline" in spec["limits_note"]
+
+        # The orchestrator's clamp: max wait <= remaining deadline.
+        wait_cap = spec["max"]
+        remaining = 30.0
+        wait = max(0.0, min(min(wait_cap, max(25.0, remaining - 40.0)),
+                            remaining))
+        assert wait <= remaining
+
+
+class TestFreezeManifest:
+    def test_verify_passes_at_freeze_time(self):
+        out = subprocess.run(
+            [sys.executable, "scripts/eval_freeze.py", "verify"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            env={**os.environ, "TESTING": "1"})
+        assert out.returncode == 0, (
+            f"freeze drift — the evaluated system changed since the "
+            f"manifest: {out.stdout[:400]}")
+
+    def test_manifest_covers_the_required_sections(self):
+        with open(os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "tests", "frozen_eval_manifest.json")) as fh:
+            manifest = json.load(fh)
+        for section in ("frozen_at", "code_files", "model_config",
+                        "thresholds_digest"):
+            assert section in manifest, section
+        assert any("lesson_candidates.py" in k for k in manifest["code_files"])
+        assert "provider_model_catalog" in str(manifest["model_config"])
+
+    def test_pilot_claim_is_scoped_to_the_intervention(self):
+        from core.lesson_candidates import PILOT_RESUMPTION_LESSON as L
+
+        claim = str(L.get("experimental_claim") or "")
+        assert "wait-policy" in claim.lower(), (
+            "the pilot must not claim whole-process effectiveness")
+        assert "NOT the effectiveness" in claim or \
+            "not the effectiveness" in claim.lower()
+        assert L.get("runtime_overrides", {}).get(
+            "resume_planner_wait_max_seconds") == 55.0

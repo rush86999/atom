@@ -3,7 +3,7 @@
 
 The ONE manual promotion path: attaches evaluation results, checks the
 pre-registered gate, appends an ACCEPTED ledger row with runtime
-overrides (consumed via core.lesson_runtime), or refuses. Rollback
+overrides (consumed via the validated core.active_lessons projection), or refuses. Rollback
 (demote) appends a rolled_back row — the override disappears
 immediately. Nothing here is autonomous; a human runs it.
 
@@ -62,6 +62,9 @@ def promote(candidate_id: str, eval_file: str) -> int:
     payload = {
         "title": candidate.get("title"),
         "candidate_id": candidate_id,
+        "version": candidate.get("version", 1),
+        "scope": {"tenant_id": "default"},
+        "expiry": candidate.get("expiry") or {},
         "gate": gate,
         "overrides": overrides,
     }
@@ -86,7 +89,7 @@ def promote(candidate_id: str, eval_file: str) -> int:
 
 
 def demote(candidate_id: str) -> int:
-    from core.lesson_runtime import clear_cache
+    from core.active_lessons import clear_cache
 
     with get_db_session() as db:
         row = _record(

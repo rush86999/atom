@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 CONTRACT_VERSION = 2
 FAILURE_LAYERS = frozenset(
@@ -81,6 +81,7 @@ def _criterion_results(value: Any) -> List[Dict[str, Any]]:
                 {
                     "criterion": _bounded_text(item.get("criterion"), 500),
                     "met": _tri_state(item.get("met")),
+                    "verifier": _bounded_text(item.get("verifier"), 120),
                     "evidence_refs": [
                         _copy_ref(ref) for ref in (item.get("evidence_refs") or [])
                         if isinstance(ref, dict)
@@ -309,9 +310,7 @@ def build_task_outcome(
 # registered verifier, not the contract's definition of success;
 # calculation, scheduling, and mutation register their own.
 # ---------------------------------------------------------------------------
-from typing import Callable as _Callable
-
-CriteriaVerifier = _Callable[[Dict[str, Any]], "bool | None"]
+CriteriaVerifier = Callable[[Dict[str, Any]], "bool | None"]
 
 _VERIFIERS: Dict[str, CriteriaVerifier] = {}
 
@@ -332,24 +331,44 @@ def criteria_verdict(outcome: Dict[str, Any]) -> "tuple[str, bool | None]":
         for c in criteria
         if (c.get("kind") if isinstance(c, dict) else c)
     }
-    # Pre-computed criterion_results (the concurrent data form of this
-    # interface) take precedence — one interface, two carriers.
     results = [
         r for r in (outcome.get("criterion_results") or [])
         if isinstance(r, dict)
     ]
-    if results:
-        if any(r.get("met") is False for r in results):
-            return "criteria_not_met", False
-        if all(r.get("met") is True for r in results):
-            return "criteria_met", True
-        return "criteria_unknown", None
-    if not kinds:
-        return "criteria_not_declared", None
+    # TRUSTED PROVENANCE ONLY (2026-09-24 review): pre-computed results
+    # count only when a REGISTERED verifier produced them; a model
+    # assertion of 'met' is an unverified claim -> unknown, never True.
+    trusted = [
+        r for r in results
+        if r.get("verifier") and str(r.get("verifier")) in _VERIFIERS
+    ]
+    untrusted = len(results) - len(trusted)
     verdicts: list = []
+    if trusted:
+        if any(r.get("met") is False for r in trusted):
+            return "criteria_not_met", False
+        verdicts.append(
+            True if (all(r.get("met") is True for r in trusted)
+                     and not untrusted) else None
+        )
+    elif results:
+        verdicts.append(None)
+    if not kinds:
+        return (
+            ("criteria_not_declared", None)
+            if not results
+            else ("criteria_met", True)
+            if verdicts[0] is True
+            else ("criteria_unknown", None)
+        )
     for kind in sorted(kinds):
         fn = _VERIFIERS.get(kind)
         if fn is None:
+            if any(
+                str(result.get("verifier") or "") == kind
+                for result in trusted
+            ):
+                continue
             return f"no_verifier:{kind}", None
         verdicts.append(fn(outcome))
     if any(v is False for v in verdicts):
@@ -387,24 +406,61 @@ def _calculation_verifier(outcome: Dict[str, Any]) -> "bool | None":
     calc = (outcome.get("calculation") or {})
     if not calc.get("computed"):
         return None
-    return bool(
-        calc.get("inputs_traceable") is True
-        and _has_verified_evidence(outcome, [
-            t for t in (outcome.get("tool_outcomes") or [])
-            if isinstance(t, dict)])
-    )
+    computed = calc.get("computed")
+    checks: list = []
+    expected = calc.get("expected")
+    if expected is not None:
+        checks.append(str(computed) == str(expected))
+    recomputed = calc.get("recomputed")
+    if recomputed is not None:
+        checks.append(str(computed) == str(recomputed))
+    if not checks:
+        return None  # nothing checkable — unknown stays unknown
+    return all(checks)
 
 
 register_criteria_verifier("calculation", _calculation_verifier)
+
+
+def _source_comparison_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    results = [
+        result for result in (outcome.get("criterion_results") or [])
+        if isinstance(result, dict)
+        and result.get("verifier") == "source_comparison"
+    ]
+    if not results:
+        return None
+    if any(result.get("met") is False for result in results):
+        return False
+    if all(result.get("met") is True for result in results):
+        return True
+    return None
+
+
+register_criteria_verifier("source_comparison", _source_comparison_verifier)
 
 
 def _mutation_verifier(outcome: Dict[str, Any]) -> "bool | None":
     """Mutation criteria (edits, writes, scheduling): the declared
     change was confirmed by READBACK after the write."""
     mutation = (outcome.get("mutation") or {})
-    if not mutation.get("requested"):
+    matched = mutation.get("readback_matched")
+    if isinstance(matched, bool):
+        return bool(matched)
+    requested = mutation.get("requested")
+    if not requested:
         return None
-    return mutation.get("readback_matched") is True
+    fields = (requested.get("fields") if isinstance(requested, dict)
+              else None) or {}
+    readback_fields = (mutation.get("readback") or {}).get("fields") or {}
+    if not fields:
+        return None
+    for name, expected in fields.items():
+        if name not in readback_fields:
+            return False
+        if str(readback_fields[name]) != str(expected):
+            return False
+    return True
 
 
 register_criteria_verifier("mutation", _mutation_verifier)
@@ -506,12 +562,12 @@ def derive_success_kinds(outcome: Dict[str, Any]) -> Dict[str, Any]:
     elif tools and tool_success is not True:
         task_success = None
         basis = "tool_unknown"
-    elif not _has_verified_evidence(outcome, tools):
-        task_success = None
-        basis = "insufficient_evidence"
     elif _cv_verdict is True:
         task_success = True
         basis = _cv_basis
+    elif not _has_verified_evidence(outcome, tools):
+        task_success = None
+        basis = "insufficient_evidence"
     elif _cv_basis not in ("criteria_not_declared",):
         task_success = None
         basis = _cv_basis

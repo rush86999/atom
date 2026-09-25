@@ -1753,12 +1753,14 @@ _CANVAS_TARGET_RE = re.compile(
 )
 _CANVAS_ADVISORY_OBJECTIVE_RE = re.compile(
     r"\b(?:explain|whether|which\s+[^\n.?!]{0,80}\s+should|"
-    r"should\s+(?:i|we)|do\s+(?:i|we)\s+need|decide\s+whether)\b",
+    r"should\s+(?:i|we)|do\s+(?:i|we)\s+need|decide\s+whether|"
+    r"let\s+me\s+know\s+if|tell\s+me\s+if)\b",
     re.IGNORECASE,
 )
 _CANVAS_EXPLICIT_EDIT_RE = re.compile(
-    r"\b(?:please\s+)?(?:update|edit|replace|change|set|apply|fill|add|"
-    r"remove|delete|restore|rebuild|rewrite|revise|reformat|reword)\s+"
+    r"(?:\A|;\s*|,\s*|\band\s+|\bplease\s+|\bnow\s+|"
+    r"\bgo\s+ahead\s+and\s+)(?:update|edit|replace|change|set|apply|fill|"
+    r"add|remove|delete|restore|rebuild|rewrite|revise|reformat|reword)\s+"
     r"(?:the\s+|this\s+|that\s+)?(?:draft|canvas|email|document|content|"
     r"subject|body|table|sheet|slide|presentation|price|value|row|entry|"
     r"field)\b",
@@ -3171,9 +3173,17 @@ class ChatOrchestrator:
                 and str(result_execution_id) != str(execution_id)
             ):
                 result = {}
-            identity = result.get("identity") or session.get(
+            session_identity = session.get(
                 "_resolved_file_identity"
             ) or {}
+            identity = result.get("identity") or {}
+            if not identity and (
+                allow_persisted_evidence
+                or not execution_id
+                or str(session_identity.get("execution_id") or "")
+                == str(execution_id)
+            ):
+                identity = session_identity
             mentions: List[str] = []
             try:
                 from core.agent_file_context import detect_file_mentions
@@ -3186,6 +3196,13 @@ class ChatOrchestrator:
                     mentions = [str(task.get("mention"))]
             except Exception:
                 mentions = []
+            identity_name = str(identity.get("file_name") or "").casefold()
+            if identity_name and mentions and not any(
+                identity_name in str(mention).casefold()
+                or str(mention).casefold() in identity_name
+                for mention in mentions
+            ):
+                identity = {}
             comparison = (
                 (response.get("data") or {}).get("objective_evidence")
                 or (ai_response or {}).get("objective_evidence")
@@ -3218,6 +3235,7 @@ class ChatOrchestrator:
             comparison_covered = sum(
                 status not in {
                     "unverified", "evidence_missing", "unresolved",
+                    "partially_comparable",
                 }
                 for status in comparison_statuses
             )
@@ -3259,7 +3277,12 @@ class ChatOrchestrator:
                     for status in comparison_statuses
                 ),
                 "unverified": sum(
-                    status == "unverified" for status in comparison_statuses
+                    status == "unverified"
+                    or "evidence_unverified" in reasons
+                    for status, reasons in zip(
+                        comparison_statuses,
+                        comparison_reason_sets,
+                    )
                 ),
                 "covered": comparison_covered,
                 "total": comparison_total,
@@ -3307,8 +3330,10 @@ class ChatOrchestrator:
                             "unverified",
                             "evidence_missing",
                             "unresolved",
+                            "partially_comparable",
                         }
                     ),
+                    "verifier": "source_comparison",
                     "evidence_refs": refs,
                 })
             comparison_gaps = [
@@ -3346,6 +3371,26 @@ class ChatOrchestrator:
                     else canvas_edit.get("review_status")
                 ),
             }
+            if (
+                canvas_edit.get("updated") is True
+                and mutation["readback_matched"] is True
+            ):
+                comparison_actions = [
+                    {
+                        **item,
+                        "status": (
+                            "applied"
+                            if item.get("status") == "ready"
+                            and item.get("authorized") is True
+                            else item.get("status")
+                        ),
+                        "applied": (
+                            item.get("status") == "ready"
+                            and item.get("authorized") is True
+                        ),
+                    }
+                    for item in comparison_actions
+                ]
             delivered = bool(
                 status not in {"failed", "cancelled"}
                 and response.get("success", True)
@@ -3938,6 +3983,21 @@ class ChatOrchestrator:
                                 _pending_file_task.get("original_message"))
             except Exception as _pft_err:  # noqa: BLE001 — resume is best-effort
                 logger.debug(f"pending file task resume check skipped: {_pft_err}")
+            if _pending_file_task is not None:
+                # THREE OPERATIONS (2026-09-24 review round 3): stamp what
+                # THIS continuation turn asks for — re-deliver / re-run /
+                # refresh — so the executor treats them differently: a
+                # refresh must verify the upstream source, a re-run may
+                # search the current copy, an approval re-delivers.
+                try:
+                    from core.pending_file_task import (
+                        classify_file_operation,
+                    )
+
+                    _pending_file_task["operation"] = (
+                        classify_file_operation(message))
+                except Exception:  # noqa: BLE001 — stamp is best-effort
+                    pass
             # DELIVERY RETRY WITHOUT RE-READING (2026-09-24 review): a
             # RETRIEVED structured result whose delivery never reached the
             # user (reply-model failure, budget overrun, restart) is
@@ -4214,6 +4274,14 @@ class ChatOrchestrator:
                             _direct_result.get("rendered_answer")
                             or _direct_result.get("block") or ""
                         )
+                    # REFRESH verdict (2026-09-24 review round 3): a
+                    # source-freshness request ships its verdict with the
+                    # answer — refreshed, failed, or unverified — so an
+                    # old copy can never pass as current.
+                    _freshness = _direct_result.get("freshness") or {}
+                    if _freshness.get("note"):
+                        _direct_content = (
+                            _direct_content + str(_freshness["note"]))
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         session["_resolved_file_identity"] = _direct_identity
@@ -4231,6 +4299,9 @@ class ChatOrchestrator:
                             _direct_result.get("meta") or {}
                         ).get("workbook_read"),
                         "coverage_complete": _direct_complete,
+                        # A refresh operation's verdict rides the durable
+                        # record: refreshed / refresh_failed / unverified.
+                        "freshness": _freshness.get("status") or None,
                         "execution_id": _execution_id,
                         "retrieved_at": time.time(),
                     }
@@ -4268,6 +4339,7 @@ class ChatOrchestrator:
                             "workbook_read": _direct_result_row["workbook_read"],
                             "coverage_complete": _direct_complete,
                             "resumable": not _direct_complete,
+                            "freshness": _freshness.get("status") or None,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4333,15 +4405,22 @@ class ChatOrchestrator:
                 # lesson candidate (ledger -> core.lesson_runtime); the
                 # code default below is the rollback state.
                 try:
-                    from core.lesson_runtime import get_override
+                    from core.active_lessons import get_override
 
                     _wait_cap = float(get_override(
-                        "resume_planner_wait_max_seconds", 55.0))
+                        "resume_planner_wait_max_seconds", 55.0,
+                        tenant_id=self.tenant_id or "default"))
                 except Exception:  # noqa: BLE001 — runtime lessons optional
                     _wait_cap = 55.0
                 _resume_plan_wait_seconds = (
                     min(_wait_cap, max(25.0, _pft_remaining - 40.0))
                     if _pft_remaining is not None else _wait_cap)
+                if _pft_remaining is not None:
+                    # EXECUTION LIMIT: a lesson bounds the WAIT CAP only;
+                    # the turn's deadline still governs.
+                    _resume_plan_wait_seconds = max(
+                        0.0, min(_resume_plan_wait_seconds,
+                                 _pft_remaining))
                 logger.info(
                     "[pending-file-task] confirmation resumes the stored file "
                     "ask (file=%r, ask=%.160r, planner wait %.0fs)",
@@ -5876,7 +5955,7 @@ class ChatOrchestrator:
             "workbook_read": meta.get("workbook_read"),
             "execution_id": meta.get("execution_id"),
         }
-        return {
+        result = {
             "ok": bool(block),
             "block": block or "",
             "meta": meta,
@@ -5889,6 +5968,152 @@ class ChatOrchestrator:
             "rendered_answer": meta.get("rendered_answer") or "",
             "reason": "" if block else "file-scoped reader returned no result",
         }
+        if (pending_task or {}).get("operation") == "refresh":
+            # REFRESH (2026-09-24 review round 3): a source-freshness
+            # request must verify the UPSTREAM version and retrieve
+            # updated content — re-running the materialized copy search
+            # does not satisfy it. Bounded live re-fetch + one re-read;
+            # whatever happens, the result carries an explicit freshness
+            # verdict so an old copy can never pass as current.
+            result["freshness"] = await self._verify_source_freshness(
+                result, pending_task, user_id, workspace_id, deadline,
+            )
+        return result
+
+    async def _verify_source_freshness(
+        self,
+        result: Dict[str, Any],
+        pending_task: Dict[str, Any],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        deadline: Optional["TurnDeadline"],
+    ) -> Dict[str, Any]:
+        """Verify the upstream source for a REFRESH operation: re-fetch
+        the live file (the storage `read` action downloads the CURRENT
+        content and re-ingests it), re-run the scoped reader once on the
+        refreshed index, and return a deterministic freshness verdict.
+        Every outcome — refreshed, upstream-newer-but-refresh-failed, or
+        unverified — states exactly what happened; a stale copy is never
+        presented as current."""
+        identity = result.get("identity") or {}
+        service = str(identity.get("service") or "")
+        resource_id = (
+            identity.get("resource_id") or identity.get("file_id") or "")
+        ingested_at = identity.get("ingested_at") or "an unknown date"
+
+        def _verdict(status: str, note: str, **extra) -> Dict[str, Any]:
+            return {"status": status, "note": note, **extra}
+
+        if not service or not resource_id or service in (
+                "datasets", "documents"):
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the upstream version could NOT be "
+                f"verified ({service or 'no service'} identity for this "
+                "copy). This answer is the materialized copy ingested "
+                f"{ingested_at} — it may be stale; no current-version "
+                "claim is made.",
+                reason="no live source identity",
+            )
+        # Bounded live re-fetch: the storage `read` action downloads the
+        # CURRENT file and re-ingests it (warming the index).
+        fetch_timeout = 40.0
+        try:
+            if deadline is not None:
+                fetch_timeout = min(
+                    fetch_timeout, max(5.0, deadline.remaining() - 15.0))
+        except Exception:  # noqa: BLE001 — deadline optional
+            pass
+        try:
+            from integrations.universal_integration_service import (
+                UniversalIntegrationService,
+            )
+
+            uis = UniversalIntegrationService()
+            fetch = await asyncio.wait_for(
+                uis.execute(
+                    service, "read",
+                    {"file_id": resource_id, "query":
+                     str(pending_task.get("original_message") or "")[:200]},
+                    {"user_id": user_id or "",
+                     "workspace_id": workspace_id},
+                ),
+                timeout=fetch_timeout,
+            )
+            fetch_ok = isinstance(fetch, dict) and fetch.get("status") == \
+                "success"
+        except Exception as exc:
+            fetch_ok = False
+            fetch = None
+            fetch_error = str(exc)[:160]
+        else:
+            fetch_error = ""
+            if not fetch_ok:
+                fetch_error = str(
+                    (fetch or {}).get("message")
+                    or (fetch or {}).get("error") or "read failed")[:160]
+        if not fetch_ok:
+            return _verdict(
+                "refresh_failed",
+                "\n\nSOURCE FRESHNESS: the live source could NOT be "
+                f"re-fetched ({fetch_error or 'read failed'}). This "
+                f"answer is the materialized copy ingested {ingested_at} "
+                "— treat it as possibly OUTDATED; no current-version "
+                "claim is made.",
+                reason=fetch_error or "read failed",
+            )
+        # The index was just re-warmed — re-run the scoped reader ONCE
+        # against the refreshed copy.
+        if pending_task.get("refresh_attempted"):
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched, "
+                "but the refreshed read could not be completed — this "
+                f"answer is the copy ingested {ingested_at}.",
+                reason="re-read loop guard",
+            )
+        try:
+            pending_task["refresh_attempted"] = True
+            reread = await self._direct_confirmed_file_read(
+                pending_task,
+                [], user_id, "", workspace_id, deadline,
+            )
+        except Exception as exc:
+            reread = {"ok": False, "reason": str(exc)[:160]}
+        if not reread.get("ok"):
+            return _verdict(
+                "refresh_failed",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched "
+                "and re-ingested, but the refreshed read returned no "
+                f"result ({str(reread.get('reason'))[:120]}). This "
+                f"answer is the copy ingested {ingested_at} — treat it "
+                "as possibly outdated.",
+                reason="refreshed read empty",
+            )
+        new_identity = reread.get("identity") or {}
+        result.update({
+            "block": reread.get("block") or result.get("block") or "",
+            "meta": reread.get("meta") or result.get("meta"),
+            "identity": new_identity or identity,
+            "identity_verified": reread.get("identity_verified",
+                                            result.get("identity_verified")),
+            "coverage_complete": reread.get("coverage_complete",
+                                            result.get("coverage_complete")),
+            "retrieval_complete": reread.get("retrieval_complete",
+                                             result.get("retrieval_complete")),
+            "rendered_answer": reread.get("rendered_answer")
+            or result.get("rendered_answer") or "",
+        })
+        new_ingested = (new_identity or {}).get("ingested_at") or "now"
+        return _verdict(
+            "refreshed",
+            "\n\nSOURCE FRESHNESS: the live source was re-fetched and "
+            "re-ingested this turn — this answer comes from the UPDATED "
+            f"content (copy ingested {new_ingested}, content hash "
+            f"{(new_identity or {}).get('content_hash') or 'n/a'}), not "
+            "from the earlier copy.",
+            upstream=service,
+        )
 
     async def _get_qwen_response(
         self,
@@ -6320,15 +6545,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception:  # noqa: BLE001 — deadline is optional
                     _remaining = None
                 try:
-                    from core.lesson_runtime import get_override
+                    from core.active_lessons import get_override
 
                     _wait_cap = float(get_override(
-                        "resume_planner_wait_max_seconds", 55.0))
+                        "resume_planner_wait_max_seconds", 55.0,
+                        tenant_id=self.tenant_id or "default"))
                 except Exception:  # noqa: BLE001 — runtime lessons optional
                     _wait_cap = 55.0
                 _plan_wait_seconds = (
                     min(_wait_cap, max(25.0, _remaining - 40.0))
                     if _remaining is not None else _wait_cap)
+                if _remaining is not None:
+                    _plan_wait_seconds = max(
+                        0.0, min(_plan_wait_seconds, _remaining))
                 logger.info(
                     "[pending-file-task] resume turn: planner wait raised to "
                     "%.0fs (deadline-bounded)", _plan_wait_seconds)
