@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -8,6 +12,8 @@ from sqlalchemy.pool import StaticPool
 from core.finalization import UNKNOWN_OUTCOME_MESSAGE
 from core.models import AgentExecution
 from core.models_registration import Base
+from core.security_dependencies import get_current_user
+from integrations import chat_routes as cr
 from integrations.chat_routes import (
     ChatMessageResponse,
     _finalize_chat_response,
@@ -147,3 +153,42 @@ def test_m1_seam_fails_closed_on_lookup_failure(monkeypatch):
 
 def test_m1_production_response_carries_no_baseline():
     assert "baseline_id" not in ChatMessageResponse.model_fields
+
+
+@pytest.fixture
+def app():
+    application = FastAPI()
+    application.include_router(cr.router)
+    return application
+
+
+@pytest.fixture
+def client(app):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="user_1", tenant_id="t1")
+    return TestClient(app)
+
+
+@pytest.fixture
+def orch():
+    with patch.object(cr, "chat_orchestrator") as m:
+        m.session_manager = MagicMock()
+        yield m
+
+
+def test_m1_turn_budget_early_return_bypasses_finalizer(monkeypatch, client, orch):
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    orch.process_chat_message = AsyncMock(
+        return_value={
+            "success": False,
+            "message": "This turn ran past its time budget.",
+            "session_id": "session-1",
+            "execution_id": "execution-1",
+            "error_code": "turn_budget_exceeded",
+        }
+    )
+
+    body = client.post("/api/chat/message", json={"message": "hi", "user_id": "u"}).json()
+
+    assert body["error_code"] == "turn_budget_exceeded"
+    assert body["message"] == "This turn ran past its time budget."
+    assert "This turn failed" not in body["message"]
