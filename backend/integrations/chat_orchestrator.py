@@ -6407,6 +6407,24 @@ class ChatOrchestrator:
         r"price|cell|value)\b[^.\n]*[.\n]?",
         re.IGNORECASE,
     )
+    # Total-success vocabulary: a passing RECORDED criteria subset can
+    # never support it (2026-09-25 review round 8 — criteria coverage is
+    # not established by the operation's own record).
+    _ABSOLUTE_COMPLETION_RE = re.compile(
+        r"\b(?:all|everything|entire|entirely|fully|whole|complete|"
+        r"completed|completely)\b",
+        re.IGNORECASE,
+    )
+    # Stronger-than-content actions: acceptance/approval/sending are
+    # workflow facts, never implied by content verification.
+    _STRONG_ACTION_RE = re.compile(
+        r"[^.\n]*\b(?:accepted|approved|sent|submitted|finalized)\b"
+        r"[^.\n]*[.\n]?",
+        re.IGNORECASE,
+    )
+    _READY_FOR_REVIEW_NOTE = (
+        "The revised draft is verified and ready for review — not yet "
+        "accepted.")
 
     @classmethod
     async def _canvas_claim_correction(
@@ -6431,18 +6449,43 @@ class ChatOrchestrator:
         review_status = (verification or {}).get("review_status")
         if verdict == "result_verified":
             # CONTENT correctness is verified against the canonical read
-            # path. Review state is tracked SEPARATELY (2026-09-25 review
-            # round 6): a pending-review draft may truthfully be called
-            # updated/ready, but never accepted or sent.
-            if review_status == "pending_review" and not re.search(
-                r"\b(?:ready for review|pending review)\b", text,
-                re.IGNORECASE,
-            ):
-                return (
-                    f"{text}\n\n*(The revised draft is verified and "
-                    "ready for review — not yet accepted.)*"
+            # path — but only for the criteria the operation RECORDED.
+            # Until coverage is established, total-success wording is
+            # REPLACED with the bounded fact, and specific claims carry
+            # the recorded-checks qualifier (2026-09-25 review round 8).
+            if cls._ABSOLUTE_COMPLETION_RE.search(text):
+                bounded = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
+                    "The recorded checks for this change passed "
+                    "(verified against the canvas as served; only the "
+                    "operation's recorded criteria were checked).",
+                    text,
                 )
-            return text
+                if bounded == text:  # matcher missed — append the bound
+                    bounded = (
+                        f"{text}\n\n*(The recorded checks for this "
+                        "change passed; only the operation's recorded "
+                        "criteria were verified.)*"
+                    )
+            else:
+                bounded = (
+                    f"{text}\n\n*(The recorded checks for this change "
+                    "passed.)*"
+                )
+            if review_status == "pending_review":
+                if cls._STRONG_ACTION_RE.search(bounded):
+                    # Content verification cannot establish acceptance,
+                    # approval, or sending — those claims are REPLACED.
+                    return cls._STRONG_ACTION_RE.sub(
+                        f"{cls._READY_FOR_REVIEW_NOTE} ", bounded).strip()
+                if not re.search(
+                    r"\b(?:ready for review|pending review)\b", bounded,
+                    re.IGNORECASE,
+                ):
+                    return (
+                        f"{bounded}\n\n*({cls._READY_FOR_REVIEW_NOTE})*"
+                    )
+                return bounded
+            return bounded
         if verdict == "write_recorded":
             replacement = (
                 "*(Recorded, not verified: a canvas write from this "

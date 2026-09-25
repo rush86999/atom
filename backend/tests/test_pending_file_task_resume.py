@@ -2472,7 +2472,8 @@ class TestCanvasTruthGate:
                 text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
                 execution_id=exec_id,
             )
-        assert out == text  # verified content, accepted — claim stands
+        assert out.startswith(text)  # verified, accepted — claim stands
+        assert "The recorded checks for this change passed" in out
 
     @pytest.mark.asyncio
     async def test_verified_pending_draft_says_ready_for_review(self):
@@ -2578,6 +2579,170 @@ class TestCanvasTruthGate:
         ):
             verdict = await ChatOrchestrator._canvas_write_for_operation(
                 canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
+
+    @pytest.mark.asyncio
+    async def test_absolute_completion_claim_is_bounded(self):
+        """Round 8: a passing RECORDED criteria subset cannot support
+        total-success wording — the price may have changed correctly, but
+        an omitted condition (e.g. footer preservation) means 'all /
+        everything' must be REPLACED with the bounded fact."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                # only the price change is recorded — the footer-
+                # preservation condition was never stamped
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = ("I've updated all the prices and everything is done on "
+                "the canvas.")
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "everything is done" not in out, (
+            "total-success wording cannot survive incomplete criteria")
+        assert "The recorded checks for this change passed" in out
+        assert "recorded criteria" in out
+
+    @pytest.mark.asyncio
+    async def test_specific_verified_claim_carries_recorded_qualifier(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert out.startswith(text)
+        assert "The recorded checks for this change passed" in out
+
+    @pytest.mark.asyncio
+    async def test_pending_review_replaces_accepted_and_sent_claims(self):
+        """Round 8: appending review status does not remove contradictory
+        claims — an unsupported 'accepted/sent' claim is REPLACED with
+        the ready-for-review fact (content verification cannot establish
+        those actions)."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "pending_review",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        for verb in ("accepted", "sent", "approved"):
+            text = f"I've {verb} the updated quote on the canvas."
+            with self._patch_checker("requested-result"):
+                out = await ChatOrchestrator._canvas_claim_correction(
+                    text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                    execution_id=exec_id,
+                )
+            assert f"I've {verb}" not in out, verb
+            assert "ready for review" in out
+            assert "not yet accepted" in out
+
+    @pytest.mark.asyncio
+    async def test_integration_real_postconditions_real_checker(self):
+        """Integration: real stamped postconditions, the REAL evidence
+        checker, and the canonical readback (read_canvas over the audit
+        trail) — no patched seams. The recorded price change holds on the
+        served revision → result_verified, accepted → claim stands."""
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        body = (
+            "Quote below:\n\n"
+            "| item | price |\n|---|---|\n"
+            "| 381 | $8,880.00 |\n"
+            "| 622 | $2,421.00 |\n"
+        )
+        content = {"to": "steve@example.com", "subject": "Quote",
+                   "body": body}
+        postcondition = {
+            "entity_id": "381", "field": "price",
+            "expected": {"raw_value": "$8,880.00"},
+        }
+        self._seed_audit(
+            exec_id, canvas_id, content, "accepted",
+            postconditions=[postcondition])
+        with get_db_session() as db:
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by="u-g",
+                name="Quote", content=content,
+            ))
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "result_verified", verdict
+        text = "I've updated item 381 in the quote table."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "u-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert out.startswith(text)
+        assert "The recorded checks for this change passed" in out
+
+    @pytest.mark.asyncio
+    async def test_integration_real_checker_rejects_wrong_served_value(self):
+        """The real checker through canonical readback: when the served
+        revision's value does not match the recorded criterion, the
+        verdict is write_recorded even though the payload round-trips."""
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        from datetime import datetime, timedelta, timezone
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        recorded = {"body": "| item | price |\n|---|---|\n| 381 | $123.00 |"}
+        served = {"body": "| item | price |\n|---|---|\n| 381 | $999.00 |"}
+        now = datetime.now(timezone.utc)
+        self._seed_audit(
+            exec_id, canvas_id, recorded, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "$123.00"},
+            }], when=now - timedelta(minutes=5))
+        # a NEWER operation's write supersedes the served revision
+        self._seed_audit(
+            f"op-newer-{uuid4().hex[:6]}", canvas_id, served, "accepted",
+            when=now)
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
         assert verdict["verdict"] == "write_recorded"
 
     @pytest.mark.asyncio
