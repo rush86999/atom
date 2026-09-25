@@ -617,10 +617,14 @@ def _is_designation_match(
     # ALPHANUMERIC CODES ARE DESIGNATIONS wherever they appear (2026-09-24
     # review: entity search, not just product rows): 'RF-2' in a
     # Certificate column, 'U-22' in any text column — a code with letters
-    # is an identifier, never a numeric coincidence. Only PURE-NUMERIC
-    # matches need the column-header corroboration below.
+    # is an identifier, never a numeric coincidence. INCLUDING headerless
+    # sheets, whose materialized columns are positional c1..cn: rejecting
+    # codes there made every entity in a headerless sheet structurally
+    # 'absent' (2026-09-25 trace). Only #REF! columns are junk. Pure-NUMERIC
+    # matches still need the column-header corroboration below — a bare
+    # number in a positional column cannot be told apart from a value.
     if any(ch.isalpha() for ch in str(text or "")):
-        if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
+        if re.fullmatch(r"#ref!", header, re.IGNORECASE):
             return False
         return True
     if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):

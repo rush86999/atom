@@ -1067,10 +1067,20 @@ export default function CanvasDetailPage() {
                 });
                 setChatSessionId(prev => prev || sid!);
             } else {
+                // Stage the failure honestly (2026-09-25 review item 4): a
+                // timeout with a pollable session means the poll ran and
+                // found no late reply; a timeout with no session never
+                // polled; a real HTTP error is a failed turn — none of them
+                // may wear the others' message.
+                const failureDetail = !timedOut
+                    ? `request failed with agent error ${e?.response?.status ?? "unknown"}`
+                    : sid
+                        ? `no completed reply recovered within the poll window${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)})` : ""}`
+                        : "request timed out before a session was established; no poll ran";
                 setMessages(prev => [...prev, {
                     id: "err",
                     type: "system",
-                    content: `⚠️ Could not reach the agent${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)}: no completed reply recovered within the poll window)` : ""}. Please try again.`, 
+                    content: `⚠️ Could not reach the agent: ${failureDetail}. Please try again.`,
                     timestamp: new Date(),
                 }]);
             }

@@ -300,6 +300,70 @@ def test_dataset_sheet_name_does_not_override_conflicting_row_attribute(tmp_path
     assert outcome["evidence"] == []
 
 
+def test_headerless_sheet_code_match_is_a_designation(tmp_path):
+    """A letter-bearing code in a headerless sheet (positional c1..cn
+    parquet columns) is a designation candidate: the entity must not come
+    back 'absent' merely because the sheet carries no headers. A code with
+    letters is an identifier wherever it appears — the same invariant the
+    named-header path already enforces."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "headerless.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "c1": ["U-22"],
+        "c2": [1777.0],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "NoHeaders",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry],
+        "catalog.xlsx",
+        query="price for U-22",
+        targets=["U-22"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found"
+    assert outcome["evidence"][0]["value"] == "U-22"
+
+
+def test_headerless_sheet_bare_number_stays_coincidence(tmp_path):
+    """A PURE-numeric match in a positional column is still not a
+    designation: without a header, a bare number cannot be told apart
+    from a value cell (the coincidence guard is unchanged)."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "headerless_numeric.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "c1": [381],
+        "c2": [10.5],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "NoHeaders",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry],
+        "catalog.xlsx",
+        query="price for 381",
+        targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "absent"
+    assert "numeric coincidence" in outcome["note"]
+
+
 def test_inventory_quantity_fixture_selects_stock_field():
     artifact = inspect_workbook_bytes(
         _bytes_for_sheet(
