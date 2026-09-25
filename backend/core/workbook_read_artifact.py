@@ -585,6 +585,34 @@ def _cell_text(value: Any) -> str:
     return " ".join(str(value).split())
 
 
+def _left_drop_aliases(targets: Sequence[str]) -> Dict[str, List[str]]:
+    """Alias→targets map for multi-word targets (2026-09-25 review:
+    the ask's 'TK Multi Wheel Gang Slitter' vs the catalog's 'TK Gang
+    Slitter' — same machine, no shared substring). Catalog rows keep the
+    product NOUN-PHRASE tail while the ask prepends brand/series words,
+    so aliases are contiguous RIGHT tails of >= 2 significant words.
+    Pure-numeric targets never alias (381 must stay exact)."""
+    out: Dict[str, List[str]] = {}
+    requested = {str(t).lower() for t in targets}
+    for target in targets:
+        text = str(target or "").strip()
+        words = [
+            w for w in re.findall(r"[A-Za-z]+|\d+(?:-\d+)?", text)
+            if len(w) >= 2
+        ]
+        if len(words) < 3:
+            continue  # a 2-word name has no qualifier head to drop
+        for start in range(1, len(words) - 1):
+            alias = " ".join(words[start:])
+            if (
+                len(alias) >= 6
+                and alias.lower() not in requested
+                and alias.lower() != text.lower()
+            ):
+                out.setdefault(alias, []).append(text)
+    return out
+
+
 def _matches_target(target: str, value: Any) -> bool:
     text = _cell_text(value)
     target_text = str(target or "").strip()
@@ -984,6 +1012,7 @@ def inspect_workbook_bytes(
     """Read every worksheet once and return one outcome per requested target."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    alias_map = _left_drop_aliases(requested)
     try:
         import openpyxl
     except Exception as exc:
@@ -1069,9 +1098,22 @@ def inspect_workbook_bytes(
                     formula_states.append(formula_state)
                 else:
                     formula_state = "literal"
-                for target in requested:
-                    if not _matches_target(target, text):
-                        continue
+                _target_hits: List[tuple] = [
+                    (target, None)
+                    for target in requested
+                    if _matches_target(target, text)
+                ]
+                _target_hits.extend(
+                    (target, alias)
+                    for alias, alias_targets in alias_map.items()
+                    if _matches_target(alias, text)
+                    for target in alias_targets
+                    if not any(
+                        _canonical(target) == _canonical(direct)
+                        for direct, _ in _target_hits
+                    )
+                )
+                for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
                     for descriptor in selected_columns:
                         column = int(descriptor["position"]) + 1
@@ -1113,6 +1155,7 @@ def inspect_workbook_bytes(
                             "cell": cell.coordinate,
                             "value": text,
                             "column": header_map.get(cell.column, ""),
+                            "matched_alias": matched_alias,
                             "designation": _is_designation_match(
                                 text, header_map.get(cell.column, "")),
                             "formula": value if is_formula else None,
@@ -1136,6 +1179,11 @@ def inspect_workbook_bytes(
     outcomes: List[Dict[str, Any]] = []
     for target in requested:
         found = evidence[target]
+        # Direct (exact-target) hits outrank alias hits; an alias lane is
+        # only consulted when the exact target matched nothing anywhere.
+        direct_hits = [e for e in found if not e.get("matched_alias")]
+        alias_hits = [e for e in found if e.get("matched_alias")]
+        found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
@@ -1220,6 +1268,13 @@ def inspect_workbook_bytes(
         note: Optional[str] = None
         if selection.get("ambiguous"):
             note = "requested fields map to multiple columns"
+        alias_note = None
+        if alias_hits and not direct_hits:
+            alias_note = (
+                f"matched via alias '{alias_hits[0].get('matched_alias')}' "
+                "(the exact requested name has no cell in this copy)"
+            )
+            note = f"{note}; {alias_note}" if note else alias_note
         outcomes.append({
             "target": target,
             "status": status,
@@ -1230,6 +1285,8 @@ def inspect_workbook_bytes(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
             **({"note": note} if note else {}),
+            **({"matched_alias": alias_hits[0].get("matched_alias")}
+               if alias_hits and not direct_hits else {}),
         })
 
     return {
@@ -1296,6 +1353,7 @@ def inspect_dataset_entries(
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    alias_map = _left_drop_aliases(requested)
     evidence: Dict[str, List[Dict[str, Any]]] = {target: [] for target in requested}
     sheets: List[Dict[str, Any]] = []
     complete = bool(entries)
@@ -1405,9 +1463,22 @@ def inspect_dataset_entries(
                     continue
                 cell_ref = f"{_column_letter(column_index)}{row_number}"
                 formula_states.append("cached" if cell_ref in formula_map else "literal")
-                for target in requested:
-                    if not _matches_target(target, text):
-                        continue
+                _target_hits: List[tuple] = [
+                    (target, None)
+                    for target in requested
+                    if _matches_target(target, text)
+                ]
+                _target_hits.extend(
+                    (target, alias)
+                    for alias, alias_targets in alias_map.items()
+                    if _matches_target(alias, text)
+                    for target in alias_targets
+                    if not any(
+                        _canonical(target) == _canonical(direct)
+                        for direct, _ in _target_hits
+                    )
+                )
+                for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
                     for descriptor in selected_columns:
                         value_index = int(descriptor["position"])
@@ -1440,6 +1511,7 @@ def inspect_dataset_entries(
                         "cell": cell_ref,
                         "value": text,
                         "column": column,
+                        "matched_alias": matched_alias,
                         "headers": {
                             _column_letter(index + 1): label
                             for index, label in enumerate(value_columns)
@@ -1470,6 +1542,11 @@ def inspect_dataset_entries(
     outcomes = []
     for target in requested:
         found = evidence[target]
+        # Direct (exact-target) hits outrank alias hits; an alias lane is
+        # only consulted when the exact target matched nothing anywhere.
+        direct_hits = [e for e in found if not e.get("matched_alias")]
+        alias_hits = [e for e in found if e.get("matched_alias")]
+        found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
@@ -1562,6 +1639,16 @@ def inspect_dataset_entries(
                 "as product rows")
         if selection.get("ambiguous"):
             outcome["note"] = "requested fields map to multiple columns"
+        if alias_hits and not direct_hits:
+            outcome["matched_alias"] = alias_hits[0].get("matched_alias")
+            alias_note = (
+                f"matched via alias '{outcome['matched_alias']}' "
+                "(the exact requested name has no cell in this copy)"
+            )
+            outcome["note"] = (
+                f"{outcome['note']}; {alias_note}"
+                if outcome.get("note") else alias_note
+            )
         outcomes.append(outcome)
     digest = content_hash or sha256
     algorithm = content_hash_algorithm if content_hash else (

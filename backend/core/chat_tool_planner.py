@@ -5942,6 +5942,13 @@ async def _datasets_named_file_block(
         evidence = outcome.get("evidence") or []
         if not evidence:
             return "no matching cell in the indexed rows"
+        # Alias provenance rides the evidence cell so the user sees WHY a
+        # differently-spelled row answered their item (2026-09-25: 'TK
+        # Multi Wheel Gang Slitter' matched 'TK Gang Slitter').
+        alias_prefix = ""
+        if outcome.get("matched_alias"):
+            alias_prefix = (
+                f"[matched via alias '{outcome['matched_alias']}'] ")
         pieces: List[str] = []
         for item in evidence[:3]:
             sheet = item.get("sheet") or "?"
@@ -5968,7 +5975,7 @@ async def _datasets_named_file_block(
             suffix = f" (values: {', '.join(price_refs)})" if price_refs else ""
             row_suffix = f" R{row_number}" if row_number is not None else ""
             pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
-        return " ; ".join(pieces)
+        return alias_prefix + " ; ".join(pieces)
 
     table = [
         "PER-ITEM OUTCOMES (deterministic, rendered from the scan — "

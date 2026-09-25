@@ -670,20 +670,60 @@ _PROMISE_NO_EXECUTION_RE = re.compile(
 #: How far back recovery looks — the same bounded window the matcher uses.
 _RECOVERY_WINDOW = 12
 
+# An objective's entity set is an EXPLICIT ENUMERATION in the ask
+# ("...these 8 machines: 381, U-22, ... and U-38"), not any identifier
+# appearing anywhere in a same-file message (2026-09-25 review: unioning
+# same-file mentions mixes superseded asks, and user messages are NOT
+# clean by construction — this conversation carries pasted prices and
+# delivery terms). Items are taken from BETWEEN the separators, so
+# monetary figures inside the enumeration are cut by the item cleaner
+# rather than regex-harvested from raw text.
+_ENUMERATION_SPLIT_RE = re.compile(r",|;|\s+and\s+|\s+&\s+")
+# Cut an enumerated item at a value/delivery tail: spaced dash (" — "),
+# currency, or a bare-number+unit run ("$2,902.00", "10-11 weeks").
+# UNspaced hyphens stay — model syntax (SLE24-16, U-22).
+_ITEM_TAIL_RE = re.compile(
+    r"\s+[-–—]\s+|[$€£¥₹]|\b(?:CAD|USD)\b|\b\d+\s+(?:weeks?|days?|months?)\b",
+    re.IGNORECASE,
+)
+_ADDITION_RE = re.compile(
+    r"^\s*(?:also|and|add|plus|include|including)\b", re.IGNORECASE)
+
+
+def _enumeration_items(text: str) -> List[str]:
+    """The explicit item list from an ask, or [] when the ask has none.
+    An enumeration is a colon-introduced list of 2+ short items; the item
+    cleaner strips price/delivery tails so pasted values cannot ride."""
+    colon = text.rfind(":")
+    if colon < 0 or colon == len(text) - 1:
+        return []
+    tail = text[colon + 1:].strip()
+    if not tail or len(tail) > 400:
+        return []
+    items: List[str] = []
+    for raw in _ENUMERATION_SPLIT_RE.split(tail):
+        item = _ITEM_TAIL_RE.split(raw.strip())[0].strip(" .")
+        if not item or len(item.split()) > 6 or len(item) > 60:
+            return []  # prose, not an enumeration
+        items.append(item)
+    return items if len(items) >= 2 else []
+
 
 def identifier_targets_from_user_history(
     history: Optional[List[Dict[str, Any]]], mention: str = "",
 ) -> List[str]:
-    """Identifier-shaped targets the USER asked about for THIS file, from
-    the bounded history window (2026-09-25: a vague re-ask — "find all
-    these prices from price list 2019" — superseded the identifier-rich
-    ask — "8 machines: 381, U-22, SLE24-16, …" — so the resumed read
-    searched the canvas TITLE's phrases instead of the machines).
+    """Resolve the ACTIVE objective's entity set from the user's own asks.
 
-    USER entries only, always: assistant renders carry markdown tables of
-    canvas values — the exact contamination source target extraction was
-    hardened against. Identifiers from user asks are clean by
-    construction (verified: the 8-machine ask extracts exactly the eight).
+    2026-09-25 review round 2: the previous union-over-same-file-mentions
+    harvest was both too broad (merged items from superseded asks about
+    the same file) and too restrictive (required every message to name
+    the file). The active objective's set is the NEWEST explicit
+    enumeration in a user ask — file-named or not (a follow-up
+    "…machines: 381, U-22, …" belongs to the file objective established
+    around it) — plus pure-addition follow-ups ("also check TK 1624").
+    A later enumeration naming a DIFFERENT file supersedes and returns
+    that set alone. Assistant renders never contribute (they carry the
+    canvas value tables).
     """
     out: List[str] = []
     seen: set = set()
@@ -691,6 +731,18 @@ def identifier_targets_from_user_history(
         from core.agent_file_context import detect_file_task_mentions
         from core.workbook_read_artifact import extract_targets
 
+        def _add(items: Iterable[str]) -> None:
+            for item in items:
+                text = str(item or "").strip()
+                if not text:
+                    continue
+                key = re.sub(r"[^A-Z0-9]+", "", text.upper())
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                out.append(text)
+
+        user_texts: List[str] = []
         for entry in (history or [])[-_RECOVERY_WINDOW:]:
             if not isinstance(entry, dict):
                 continue
@@ -702,21 +754,52 @@ def identifier_targets_from_user_history(
                 or (entry.get("content") if role == "user" else "")
                 or ""
             ).strip()
-            if not text:
-                continue  # assistant turns in message/response shape
-            if mention:
-                mentions = detect_file_task_mentions(text)
-                if not any(_same_file_identity(m, mention) for m in mentions):
-                    continue
-            for target in extract_targets(text):
-                key = re.sub(r"[^A-Z0-9]+", "", str(target).upper())
-                if not key or key in seen:
-                    continue
-                seen.add(key)
-                out.append(str(target))
+            if text:
+                user_texts.append(text)
+
+        enumerated: Optional[tuple] = None  # (items, file_named, text_idx)
+        for index, text in enumerate(user_texts):
+            items = _enumeration_items(text)
+            if not items:
+                continue
+            mentions = detect_file_task_mentions(text)
+            named = any(
+                _same_file_identity(m, mention) for m in mentions
+            ) if mention else True
+            foreign = mention and mentions and not named
+            if enumerated is None:
+                if not foreign:
+                    enumerated = (items, bool(mentions), index)
+                continue
+            # A later enumeration: same-file (or file-agnostic) EXTENDS the
+            # active set only when it plausibly re-lists the objective
+            # (same file); a foreign enumeration SUPERSEDES.
+            if foreign:
+                return []  # a different objective owns the newest ask
+            if enumerated[1] and not mentions:
+                continue  # file-agnostic re-listing — additions handle it
+            enumerated = (items, bool(mentions) or enumerated[1], index)
+        if enumerated is None:
+            return []
+        _add(
+            target
+            for item in enumerated[0]
+            for target in (extract_targets(item) or [item])[:1]
+        )
+        # Pure-addition follow-ups after the chosen enumeration
+        # ("also check TK 1624 while you're in there").
+        for text in user_texts[enumerated[2] + 1:]:
+            if _ADDITION_RE.match(text):
+                _add(
+                    target
+                    for item in _ENUMERATION_SPLIT_RE.split(
+                        _ITEM_TAIL_RE.split(text)[0])
+                    for target in (extract_targets(item.strip()) or [])[:1]
+                )
+        return out[:64]
     except Exception as e:  # noqa: BLE001 — harvest is best-effort
         logger.debug(f"pending file task: user-history targets skipped: {e}")
-    return out[:64]
+    return []
 
 
 def _strip_mentions(

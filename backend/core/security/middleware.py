@@ -35,7 +35,22 @@ class _BodyTooLarge(Exception):
 
 class InputValidationMiddleware(BaseHTTPMiddleware):
     """
-    Middleware to block common malicious patterns (XSS, SQLi, etc.) in request parameters and body.
+    Middleware to block common malicious patterns (XSS, SQLi, etc.) in
+    request parameters and body.
+
+    KNOWN LIMITATION (kept explicit, 2026-09-25 review): this scanner
+    treats the ENTIRE decoded body as potential executable content — a
+    conversation payload that merely QUOTES script-like text (a user
+    pasting an error log containing ``onclick=``, an assistant answer
+    reproducing a payload for discussion) is rejected wholesale, because
+    quoted text is indistinguishable from injected text at this layer.
+    The 2026-09-25 anchoring fixed the mid-word false-positive class
+    (``content_hash=`` matching the event-handler rule); it did NOT make
+    quoted legitimate content pass. Field-aware validation (scanning
+    only fields that reach rendering/execution surfaces, with
+    context-appropriate rules per field) is the durable fix and remains
+    future work; until then, rejections carry rule id + JSON paths for
+    rapid diagnosis.
     """
 
     # Paths exempt from body-content validation. Skill import accepts CODE by

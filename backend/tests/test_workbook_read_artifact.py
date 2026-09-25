@@ -364,6 +364,102 @@ def test_headerless_sheet_bare_number_stays_coincidence(tmp_path):
     assert "numeric coincidence" in outcome["note"]
 
 
+def test_left_drop_alias_resolves_catalog_noun_phrase(tmp_path):
+    """2026-09-25 review: the ask's 'TK Multi Wheel Gang Slitter' vs the
+    catalog's 'TK Gang Slitter' — same machine, no shared substring. A
+    multi-word target with ZERO exact hits retries contiguous right-tail
+    aliases; the outcome records which alias matched."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "slitters.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "Model": ["TK Gang Slitter"],
+        "Price": [12838.0],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "TinKnocker",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry],
+        "catalog.xlsx",
+        query="price for TK Multi Wheel Gang Slitter",
+        targets=["TK Multi Wheel Gang Slitter"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found"
+    assert outcome["evidence"][0]["value"] == "TK Gang Slitter"
+    assert outcome["matched_alias"] == "Gang Slitter"
+    assert "matched via alias" in outcome["note"]
+
+
+def test_direct_hit_never_uses_alias_lane(tmp_path):
+    """When the exact target matches, alias hits must not widen the
+    outcome (direct evidence outranks and suppresses the alias lane)."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "direct.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2, 3],
+        "Model": ["Multi Wheel Gang Slitter", "TK Gang Slitter"],
+        "Price": [1.0, 2.0],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "S",
+        "parquet_path": str(path),
+        "row_count": 2,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry],
+        "catalog.xlsx",
+        query="price for Multi Wheel Gang Slitter",
+        targets=["Multi Wheel Gang Slitter"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found"
+    assert outcome["evidence"][0]["value"] == "Multi Wheel Gang Slitter"
+    assert not outcome.get("matched_alias")
+
+
+def test_numeric_target_gets_no_aliases(tmp_path):
+    """A bare numeric identifier must stay exact-match only — '381' can
+    never alias to a longer noun phrase."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "numeric.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "Model": ["381 Tail Assembly"],
+        "Price": [5.0],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "S",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry],
+        "catalog.xlsx",
+        query="price for 381",
+        targets=["381"],
+    )
+    # '381' IS a substring of '381 Tail Assembly' — exact lane matches it;
+    # the assertion is that no ALIAS lane exists for the numeric target.
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert not outcome.get("matched_alias")
+
+
 def test_inventory_quantity_fixture_selects_stock_field():
     artifact = inspect_workbook_bytes(
         _bytes_for_sheet(

@@ -644,6 +644,49 @@ describe("CanvasDetailPage", () => {
     );
   });
 
+  test("chat: http error names the failure stage, never claims a poll", async () => {
+    // A real 4xx/5xx is a failed turn — no recovery poll ran, so the
+    // message must surface the status instead of the timeout path's
+    // "poll window" text (2026-09-25 review item 4).
+    mockPost.mockRejectedValue({ response: { status: 500 } });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "hi" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/agent error 500/)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/poll window/)).not.toBeInTheDocument();
+  });
+
+  test("chat: request-security rejection surfaces its category", async () => {
+    // A middleware 400 carries {"error": "Invalid request content",
+    // "rejected_rule": ...} — the banner must name the rejection, not
+    // imply the agent was unreachable (live 2026-09-25: the canvas's own
+    // provenance line tripped the XSS scanner and bricked the panel).
+    mockPost.mockRejectedValue({
+      response: {
+        status: 400,
+        data: { error: "Invalid request content", rejected_rule: "xss_event_handler" },
+      },
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "hi" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Invalid request content/)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/rule: xss_event_handler/)).toBeInTheDocument();
+    expect(screen.queryByText(/poll window/)).not.toBeInTheDocument();
+  });
+
   test("shows agent responding indicator while awaiting reply", async () => {
     let resolvePost: (v: any) => void;
     mockPost.mockReturnValue(

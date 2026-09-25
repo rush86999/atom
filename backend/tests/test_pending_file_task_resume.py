@@ -2321,6 +2321,39 @@ class TestCanvasTruthGate:
         assert "CANVAS STATE: no change to the canvas has been" in source
         assert "present them as PROPOSED values" in source
 
+    def test_enforced_guard_corrects_unbacked_claim(self):
+        """The deterministic gate: a canvas-change claim with no recorded
+        write gets an appended correction — enforcement, not prompting."""
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        ctx = {"canvas_id": "cv-never-written"}
+        out = ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4 to reflect that pricing.",
+            ctx, "s-g", "u-g", False,
+        )
+        assert "Correction: no canvas change has been applied" in out
+        assert out.startswith("I've updated item 4")
+
+    def test_enforced_guard_background_fork_gets_pending_status(self):
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        out = ChatOrchestrator._canvas_claim_correction(
+            "I've updated the table.", {"canvas_id": "cv-x"},
+            "s", "u", True,
+        )
+        assert "still running in the background" in out
+        assert "Correction" not in out
+
+    def test_enforced_guard_ignores_non_claims_and_canvasless_turns(self):
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        assert ChatOrchestrator._canvas_claim_correction(
+            "The price is 8880.", {"canvas_id": "cv-x"}, "s", "u", False
+        ) == "The price is 8880."
+        assert ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4.", None, None, None, False
+        ) == "I've updated item 4."
+
 
 class TestLineageMatching:
     def test_intervening_confirmation_does_not_break_the_match(self):
@@ -2750,6 +2783,55 @@ class TestReDeliveryVsRefresh:
             "the fresh read re-drives the lifecycle")
         assert session_again[FILE_TASK_SESSION_KEY].get("refreshed") is \
             None or True  # lifecycle stamp; revival recorded on merge
+
+        # --- STALE-RESULT INVALIDATION (2026-09-25 review round 2): a
+        # persisted result built by an OLDER extractor (no version stamp,
+        # or a lower one) must NEVER replay — even a bare approval
+        # re-derives. Live instance: this conversation's contaminated
+        # 24-target row (no stamp) re-rendered until superseded.
+        for stale_version in (None, 2):
+            session_stale = {
+                "id": "s-stale", "history": list(LEGACY_HISTORY),
+                FILE_TASK_SESSION_KEY: dict(base_task),
+                "_pending_file_result": {
+                    "status": "delivered", "rendered": cached_render,
+                    "identity": {"file_id": "wd-77"},
+                    **({"target_extraction_version": stale_version}
+                       if stale_version is not None else {}),
+                },
+            }
+            with (
+                patch.object(orch, "_get_or_create_session",
+                             return_value=session_stale),
+                patch.object(orch, "_resolve_canvas_ctx",
+                             new=AsyncMock(return_value=None)),
+                patch.object(orch, "_start_chat_execution",
+                             return_value="rd-stale"),
+                patch.object(orch, "_record_chat_step", new=AsyncMock()),
+                patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+                patch.object(orch, "_finish_chat_execution"),
+                patch.object(orch, "_update_session"),
+                patch("core.chat_mini_app_authoring.try_handle",
+                      new=AsyncMock(return_value=None)),
+                patch.object(orch, "_try_zoho_crm_write",
+                             new=AsyncMock(return_value=None)),
+                patch.object(orch, "_route_to_features",
+                             new=AsyncMock(return_value={})),
+                patch.object(orch, "_load_pending_file_result",
+                             return_value=(
+                                 session_stale["_pending_file_result"])),
+                patch.object(orch, "_direct_confirmed_file_read",
+                             new=AsyncMock(return_value={
+                                 "success": True, "message": fresh_render,
+                                 "data": {},
+                             })) as stale_read,
+            ):
+                stale = await orch.process_chat_message(
+                    "u1", LEGACY_APPROVAL, "s-stale", context={})
+            assert cached_render not in str(stale.get("message", "")), (
+                f"a persisted result stamped {stale_version!r} must never "
+                "replay — its contaminated render is re-derived, not "
+                "re-delivered")
 
 
 # ---------------------------------------------------------------------------

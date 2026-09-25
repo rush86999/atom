@@ -6376,6 +6376,93 @@ class ChatOrchestrator:
             reason="index unchanged after refetch",
         )
 
+    # ENFORCED CANVAS-CLAIM VERIFICATION (2026-09-25 review round 2): the
+    # prompt-level CANVAS STATE rule reduces false edit claims; it cannot
+    # guarantee them away. This deterministic gate checks the FINAL reply
+    # against actual execution: a canvas-change claim with no recorded
+    # write for this canvas (audit readback) gets an appended correction.
+    # Structurally, an APPLIED edit returns deterministically and never
+    # reaches the reply model — the readback additionally catches a
+    # background continuation that already landed.
+    _CANVAS_CLAIM_RE = re.compile(
+        r"\b(?:i\s+(?:'ve|have)|we(?:'ve| have)|let\s+me|i'll|i\s+will)?"
+        r"\s*(?:updated|changed|edited|applied|modified|revised|wrote)\b"
+        r"[^.\n]{0,60}?\b(?:canvas|table|item|draft|quote|column|row|"
+        r"price|cell|value)\b",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _canvas_claim_correction(
+        cls,
+        content: Optional[str],
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+    ) -> str:
+        text = str(content or "")
+        if not text or not isinstance(canvas_context, dict):
+            return text
+        if not cls._CANVAS_CLAIM_RE.search(text):
+            return text
+        canvas_id = str(canvas_context.get("canvas_id") or "")
+        if canvas_id and cls._canvas_write_recent(
+            canvas_id, session_id, user_id,
+        ):
+            return text  # a write is on record — the claim may be true
+        logger.warning(
+            "[canvas-claim-guard] reply claimed a canvas change with no "
+            "recorded write (canvas=%s, session=%s, background=%s) — "
+            "appending correction",
+            canvas_id or "?", session_id or "?", background_forked,
+        )
+        correction = (
+            "\n\n*(Status: the canvas edit is still running in the "
+            "background — nothing is confirmed changed yet.)*"
+            if background_forked else
+            "\n\n*(Correction: no canvas change has been applied — the "
+            "canvas is unchanged; any values above are proposed only.)*"
+        )
+        return text + correction
+
+    @staticmethod
+    def _canvas_write_recent(
+        canvas_id: str,
+        session_id: Optional[str],
+        user_id: Optional[str],
+        window_minutes: int = 6,
+    ) -> bool:
+        """Audit readback: did a WRITE action land on this canvas within
+        the turn-scale window? Best-effort; on read failure returns False
+        (the structural invariant — applied edits never reach the reply
+        model — remains the primary guarantee)."""
+        try:
+            from datetime import datetime, timedelta, timezone
+
+            from core.database import get_db_session
+            from core.models import CanvasAudit
+
+            cutoff = datetime.now(timezone.utc) - timedelta(
+                minutes=window_minutes
+            )
+            with get_db_session() as db:
+                query = db.query(CanvasAudit).filter(
+                    CanvasAudit.canvas_id == canvas_id,
+                    CanvasAudit.action_type.notin_(("read", "view")),
+                    CanvasAudit.created_at >= cutoff,
+                )
+                if session_id:
+                    row = query.filter(
+                        CanvasAudit.session_id == session_id
+                    ).first()
+                    if row:
+                        return True
+                return query.first() is not None
+        except Exception as exc:  # noqa: BLE001 — readback is best-effort
+            logger.debug(f"canvas write readback skipped: {exc}")
+            return False
+
     async def _get_qwen_response(
         self,
         message: str,
@@ -10247,8 +10334,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     except Exception:
                         pass
+                _claimed_content = self._canvas_claim_correction(
+                    _content, canvas_context, session_id, user_id,
+                    async_continuation_forked,
+                )
                 return {
-                    "content": _content,
+                    "content": _claimed_content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
