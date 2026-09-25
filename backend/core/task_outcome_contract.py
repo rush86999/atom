@@ -322,6 +322,54 @@ def register_criteria_verifier(kind: str, fn: CriteriaVerifier) -> None:
     _VERIFIERS[str(kind)] = fn
 
 
+# TRUSTED ORIGINS (2026-09-24 review, carried into evaluation): naming
+# a registered verifier in a payload must NOT be sufficient — the
+# contract RE-COMPUTES the verdict from raw evidence and honors
+# pre-computed results only when they AGREE, and expected/recomputed
+# bases must declare origins this code recognizes.
+TRUSTED_EXPECTED_ORIGINS = frozenset({
+    "user_request",          # the requested result, from the user's words
+    "verified_evidence",     # a value read from verified evidence
+})
+TRUSTED_RECOMPUTED_ORIGINS = frozenset({
+    "deterministic_recompute",  # recomputed by deterministic code
+})
+
+
+def _cross_check_results(outcome: Dict[str, Any]) -> "bool | None":
+    """Honor pre-computed criterion_results ONLY when a fresh verifier
+    run over the SAME raw evidence agrees (code-enforced provenance — a
+    payload claiming 'met' with a verifier name is cross-checked, not
+    trusted)."""
+    criteria = outcome.get("completion_criteria") or []
+    kinds = [
+        str(c.get("kind") if isinstance(c, dict) else c).strip().lower()
+        for c in criteria
+        if (c.get("kind") if isinstance(c, dict) else c)
+    ]
+    kinds = [k for k in kinds if k]
+    results = [
+        r for r in (outcome.get("criterion_results") or [])
+        if isinstance(r, dict)
+        and r.get("verifier") and str(r.get("verifier")) in _VERIFIERS
+    ]
+    if not results:
+        return None
+    for kind in kinds:
+        fn = _VERIFIERS.get(kind)
+        if fn is None:
+            continue
+        fresh = fn(outcome)
+        claimed = [
+            r.get("met") for r in results
+            if str(r.get("verifier")) == kind or not kinds
+        ]
+        if claimed and fresh is not None and any(
+                c != fresh for c in claimed if c is not None):
+            return False  # payload disagrees with the recompute -> not met
+    return None  # agreement established; final verdict from fresh runs
+
+
 def criteria_verdict(outcome: Dict[str, Any]) -> "tuple[str, bool | None]":
     """(basis, verdict) for the outcome's declared criteria. Unknown
     criteria kinds and absent criteria return None — never a guess."""
@@ -345,6 +393,11 @@ def criteria_verdict(outcome: Dict[str, Any]) -> "tuple[str, bool | None]":
     untrusted = len(results) - len(trusted)
     verdicts: list = []
     if trusted:
+        # CODE-ENFORCED PROVENANCE: a fresh verifier run must agree with
+        # the claimed results — naming a verifier is not sufficient.
+        cross = _cross_check_results(outcome)
+        if cross is False:
+            return "provenance_mismatch", False
         if any(r.get("met") is False for r in trusted):
             return "criteria_not_met", False
         verdicts.append(
@@ -410,9 +463,14 @@ def _calculation_verifier(outcome: Dict[str, Any]) -> "bool | None":
     checks: list = []
     expected = calc.get("expected")
     if expected is not None:
+        if calc.get("expected_origin") not in TRUSTED_EXPECTED_ORIGINS:
+            return None  # untrusted expected basis — not checkable
         checks.append(str(computed) == str(expected))
     recomputed = calc.get("recomputed")
     if recomputed is not None:
+        if calc.get("recomputed_origin") not in (
+                TRUSTED_RECOMPUTED_ORIGINS):
+            return None  # untrusted recomputation — not checkable
         checks.append(str(computed) == str(recomputed))
     if not checks:
         return None  # nothing checkable — unknown stays unknown
