@@ -112,6 +112,17 @@ def test_m4_record_round_trips_through_storage():
         record_from_dict("not-a-record")
 
 
+def test_m4_loaded_records_are_detached_copies():
+    record = new_operation_record(operation_id="op-1", execution_id="exec-1")
+    transition(record, "execution_status", "running", producer="execution")
+    metadata = store_operation_record({}, record)
+
+    loaded = load_operation_records(metadata)
+    transition(loaded["op-1"], "execution_status", "succeeded", producer="execution")
+
+    assert load_operation_records(metadata)["op-1"]["execution_status"] == "running"
+
+
 def test_m4_stored_values_are_validated():
     stored = record_to_dict(new_operation_record())
     stored["result_verification"] = "maybe"

@@ -234,9 +234,7 @@ def _stored_operations(factory, execution_id):
 
     with factory() as db:
         row = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
-        meta = row.metadata_json or {}
-        if not isinstance(meta, dict):
-            return {}
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
         stored = meta.get(STORAGE_KEY) or {}
         return stored.get("operations") or {}
 
