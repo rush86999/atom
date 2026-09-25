@@ -2848,11 +2848,29 @@ async def test_refresh_with_live_source_reports_updated_content():
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
-        block = (
-            "| TOTAL | FOUND | Summary!B4 R4 |"
-            if reads["count"] > 1
-            else "| TOTAL | FOUND | Summary!B2 R2 |")
-        return _direct_read_result_meta(plan, block)
+        if reads["count"] > 1:
+            # The re-read of the REFRESHED copy: new ingestion stamp and
+            # changed content — the only evidence "refreshed" may claim.
+            plan._result_meta = {"storage_read": {
+                "service": "zoho_workdrive", "file_id": "wd-77",
+                "resource_id": "wd-77",
+                "file_name": "Q3 Billing Summary 2026.xlsx",
+                "completed": True, "identity_verified": True,
+                "coverage_complete": True,
+                "ingested_at": "2026-09-24T20:00:00",
+                "content_hash": "bbb222",
+            }}
+            return "| TOTAL | FOUND | Summary!B9 R9 |"
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": "2026-09-01T10:00:00",
+            "content_hash": "aaa111",
+        }}
+        return "| TOTAL | FOUND | Summary!B2 R2 |"
 
     with (
         patch.object(orch, "_get_or_create_session", return_value=session),
@@ -2885,5 +2903,274 @@ async def test_refresh_with_live_source_reports_updated_content():
     assert reads["count"] >= 2, (
         "the scoped reader runs on the refreshed copy")
     assert "SOURCE FRESHNESS" in result["message"]
-    assert "UPDATED" in result["message"]
+    assert "CHANGED" in result["message"], (
+        "'refreshed' requires provably changed content, read back")
+    assert "bbb222" in result["message"]
     assert result["data"]["freshness"] == "refreshed"
+
+
+@pytest.mark.asyncio
+async def test_refresh_unchanged_content_reports_current_not_refreshed():
+    """Upstream re-fetched and re-read successfully, content identical —
+    the honest verdict is CURRENT (verified unchanged), not 'refreshed'.
+    A new ingestion timestamp alone does not prove refreshed evidence."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-cur", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": ("2026-09-24T20:00:00" if reads["count"] > 1
+                            else "2026-09-01T10:00:00"),
+            "content_hash": "same333",
+        }}
+        return "| TOTAL | FOUND | Summary!B2 R2 |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e3"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-cur", context={"agent_id": "a1"})
+
+    assert result["data"]["freshness"] == "current", (
+        "identical content after a successful check is CURRENT, not "
+        "refreshed")
+    assert "UNCHANGED" in result["message"]
+    assert "verified current" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_unchanged_index_labels_the_old_copy():
+    """Re-fetch succeeded but the indexed copy still shows the OLD stamp
+    and hash — the answer must be labeled as the older copy, never as
+    refreshed."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-stale", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+    reads = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads["count"] += 1
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": True, "identity_verified": True,
+            "coverage_complete": True,
+            "ingested_at": "2026-09-01T10:00:00",
+            "content_hash": "aaa111",
+        }}
+        return "| OLD INDEXED COPY |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e4"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-stale", context={"agent_id": "a1"})
+
+    assert result["data"]["freshness"] == "stale_index"
+    assert "did NOT update" in result["message"]
+    assert "not verified current" in result["message"]
+    assert "OLD INDEXED COPY" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_incomplete_extraction_is_unverified():
+    """Re-fetch + re-read ran, but the extraction is incomplete — the
+    verdict must not claim refreshed or current."""
+    orch = _orch()
+    session = {
+        "id": "s-refresh-inc", "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            INVOICE_ASK, "q3 billing summary 2026.xlsx"),
+    }
+    reads_inc = {"count": 0}
+
+    async def live_read(service, action, params, context):
+        return {"status": "success", "data": {"file_id": "wd-77"}}
+
+    def fake_named_block(user_id, query, ctx, plan=None):
+        reads_inc["count"] += 1
+        done = reads_inc["count"] > 1
+        plan._result_meta = {"storage_read": {
+            "service": "zoho_workdrive", "file_id": "wd-77",
+            "resource_id": "wd-77",
+            "file_name": "Q3 Billing Summary 2026.xlsx",
+            "completed": done, "identity_verified": done,
+            "coverage_complete": False,
+            "ingested_at": ("2026-09-24T20:00:00" if done
+                            else "2026-09-01T10:00:00"),
+            "content_hash": "bbb222" if done else "aaa111",
+        }}
+        return "| PARTIAL EXTRACTION |"
+
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_start_chat_execution", return_value="rf-e5"),
+        patch.object(orch, "_record_chat_step", new=AsyncMock()),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch("core.chat_mini_app_authoring.try_handle",
+              new=AsyncMock(return_value=None)),
+        patch.object(orch, "_try_zoho_crm_write",
+                     new=AsyncMock(return_value=None)),
+        patch.object(orch, "_route_to_features",
+                     new=AsyncMock(return_value={})),
+        patch("integrations.universal_integration_service."
+              "UniversalIntegrationService", _fake_uis_cls(live_read)),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_block)),
+        patch.object(planner, "plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        result = await orch.process_chat_message(
+            "u1", "check the latest version of the billing summary",
+            "s-refresh-inc", context={"agent_id": "a1"})
+
+    assert result["data"]["freshness"] == "unverified"
+    assert "INCOMPLETE" in result["message"]
+    assert "does not reflect a verified-current read" in result["message"]
+
+
+def test_replacement_task_preserves_the_superseded_objective():
+    """Context preservation: a replacement task records WHICH objective it
+    supersedes — a new requested field or constraint replaces the task
+    explicitly, and the original is never silently discarded (review
+    round 4)."""
+    import core.pending_file_task as pft
+
+    original = pft.build_pending_task(
+        INVOICE_ASK, "q3 billing summary 2026.xlsx")
+    replaced = pft.merge_pending_task(
+        original, "check availability", "q3 billing summary 2026.xlsx")
+    assert replaced["original_message"] == "check availability"
+    assert replaced["supersedes"]["task_id"] == original["task_id"]
+    assert replaced["supersedes"]["original_message"] == INVOICE_ASK
+    assert replaced["supersedes"]["mention"] == (
+        "q3 billing summary 2026.xlsx")
+
+
+class TestTaskIntentAcrossDomains:
+    """The four intents pinned across unrelated domains (review round 4):
+    continuation, refinement, replacement, unresolved intent — identity is
+    structured, and a replacement preserves the superseded objective."""
+
+    def _inventory_pending(self):
+        import core.pending_file_task as pft
+
+        ask = "how many TX-4400 units are on hand in Stock Counts.xlsx"
+        return pft.build_pending_task(ask, "stock counts.xlsx"), ask
+
+    def test_continuation(self):
+        import core.pending_file_task as pft
+
+        pending, ask = self._inventory_pending()
+        assert pft._introduces_new_work(
+            "check that file again more carefully", ask) is False
+        assert pft.matching_pending_task(
+            pending, "yes",
+            [{"message": ask, "response": "x"},
+             {"message": "check that file again more carefully",
+              "response": "y"}]) is not None
+
+    def test_refinement(self):
+        import core.pending_file_task as pft
+
+        pending, ask = self._inventory_pending()
+        assert pft._introduces_new_work(
+            "how many of them are on hand and let me know", ask) is False
+
+    def test_replacement_preserves_context(self):
+        import core.pending_file_task as pft
+
+        pending, ask = self._inventory_pending()
+        assert pft._introduces_new_work(
+            "compare its reorder thresholds with actual stock",
+            ask) is True
+        replaced = pft.merge_pending_task(
+            pending, "compare its reorder thresholds with actual stock",
+            "stock counts.xlsx")
+        assert replaced["supersedes"]["original_message"] == ask
+
+    def test_unresolved_intent_never_silently_continues(self):
+        """One new object on the same file: ambiguous between extension
+        and replacement — resolves to a NEW task, and the new task
+        carries the superseded objective in its record (explicit, not
+        silent)."""
+        import core.pending_file_task as pft
+
+        pending, ask = self._inventory_pending()
+        assert pft._introduces_new_work(
+            "check availability", ask) is True
+        assert pft.matching_pending_task(
+            pending, "yes",
+            [{"message": ask, "response": "x"},
+             {"message": "check availability",
+              "response": "y"}]) is None, (
+            "an approval must not resume the old objective over the "
+            "unresolved newer one")
+        merged = pft.merge_pending_task(pending, "check availability",
+                                        "stock counts.xlsx")
+        assert merged["supersedes"]["original_message"] == ask

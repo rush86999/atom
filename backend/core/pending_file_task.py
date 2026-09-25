@@ -378,7 +378,19 @@ def merge_pending_task(
                 # pending until the new retrieval completes.
                 merged["status"] = "pending"
         return merged
-    return build_pending_task(message, mention, disambiguation)
+    replacement = build_pending_task(message, mention, disambiguation)
+    if isinstance(existing, dict) and existing.get("task_id"):
+        # CONTEXT PRESERVATION (2026-09-24 review round 4): a replacement
+        # records WHICH objective it supersedes — a new requested field or
+        # constraint replaces the task explicitly, and the original ask
+        # survives in the record instead of being silently discarded.
+        replacement["supersedes"] = {
+            "task_id": existing.get("task_id"),
+            "original_message": str(
+                existing.get("original_message") or "")[:200],
+            "mention": existing.get("mention"),
+        }
+    return replacement
 
 
 def supersedes_pending_task(pending: Optional[Any], message: str) -> bool:

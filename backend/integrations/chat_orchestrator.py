@@ -3981,8 +3981,11 @@ class ChatOrchestrator:
                                 "from history (file=%r, ask=%.160r)",
                                 _pending_file_task.get("mention"),
                                 _pending_file_task.get("original_message"))
-            except Exception as _pft_err:  # noqa: BLE001 — resume is best-effort
-                logger.debug(f"pending file task resume check skipped: {_pft_err}")
+            except Exception as _pft_err:  # noqa: BLE001 — observable:
+                # a defect here silently kills resume (review round 4)
+                logger.warning(
+                    "[pending-file-task] resume/recovery check failed: %r",
+                    _pft_err)
             if _pending_file_task is not None:
                 # THREE OPERATIONS (2026-09-24 review round 3): stamp what
                 # THIS continuation turn asks for — re-deliver / re-run /
@@ -3996,8 +3999,13 @@ class ChatOrchestrator:
 
                     _pending_file_task["operation"] = (
                         classify_file_operation(message))
-                except Exception:  # noqa: BLE001 — stamp is best-effort
-                    pass
+                except Exception as _op_err:  # noqa: BLE001 — observable,
+                    # never silent: a programming defect here must not
+                    # masquerade as ordinary fallback behavior (review
+                    # round 4: the 4df0ded0e freeze hid exactly this).
+                    logger.warning(
+                        "[pending-file-task] operation classification "
+                        "failed — refresh semantics degraded: %r", _op_err)
             # DELIVERY RETRY WITHOUT RE-READING (2026-09-24 review): a
             # RETRIEVED structured result whose delivery never reached the
             # user (reply-model failure, budget overrun, restart) is
@@ -5406,8 +5414,12 @@ class ChatOrchestrator:
                             "[pending-file-task] promise gate — reply "
                             "claimed work that never started; replaced "
                             "with the honest blocker")
-                except Exception:  # noqa: BLE001 — gate is best-effort
-                    pass
+                except Exception as _gate_err:  # noqa: BLE001 — observable,
+                    # never silent: a defect in the honest-status gate must
+                    # not quietly disable it (review round 4).
+                    logger.warning(
+                        "[pending-file-task] promise gate crashed — "
+                        "honest-status check skipped: %r", _gate_err)
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
@@ -6107,15 +6119,59 @@ class ChatOrchestrator:
             "rendered_answer": reread.get("rendered_answer")
             or result.get("rendered_answer") or "",
         })
-        new_ingested = (new_identity or {}).get("ingested_at") or "now"
+        # EVIDENCE-BASED VERDICT (2026-09-24 review round 4): a new
+        # ingestion timestamp alone does not prove refreshed evidence —
+        # the refreshed EXTRACTION must be complete, and the answer must
+        # come from a copy whose content provably changed (or is proven
+        # identical) versus the pre-refresh copy.
+        extraction_ok = bool(reread.get("retrieval_complete"))
+        new_hash = new_identity.get("content_hash")
+        new_ingested = new_identity.get("ingested_at")
+        old_hash = identity.get("content_hash")
+        old_ingested = identity.get("ingested_at")
+        stamp_updated = bool(new_ingested) and (
+            not old_ingested or str(new_ingested) != str(old_ingested))
+        content_changed = bool(new_hash) and bool(old_hash) and (
+            str(new_hash) != str(old_hash))
+        if not extraction_ok:
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched "
+                "and re-ingested, but the refreshed extraction is "
+                "INCOMPLETE — this answer comes from the copy ingested "
+                f"{ingested_at}; it does not reflect a verified-current "
+                "read.",
+                reason="refreshed extraction incomplete",
+            )
+        if stamp_updated and content_changed:
+            return _verdict(
+                "refreshed",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched "
+                "this turn and its content CHANGED — this answer reads "
+                "the updated extraction (copy ingested "
+                f"{new_ingested}, content hash {new_hash}).",
+                upstream=service,
+            )
+        if stamp_updated:
+            return _verdict(
+                "current",
+                "\n\nSOURCE FRESHNESS: the live source was re-fetched "
+                "and re-read this turn — its content is UNCHANGED "
+                f"(content hash {new_hash}, copy ingested "
+                f"{new_ingested}). These values are verified current as "
+                "of this check.",
+                upstream=service,
+            )
+        # The re-read still shows the OLD copy's stamp: the index did not
+        # materially update despite the successful re-fetch.
         return _verdict(
-            "refreshed",
-            "\n\nSOURCE FRESHNESS: the live source was re-fetched and "
-            "re-ingested this turn — this answer comes from the UPDATED "
-            f"content (copy ingested {new_ingested}, content hash "
-            f"{(new_identity or {}).get('content_hash') or 'n/a'}), not "
-            "from the earlier copy.",
-            upstream=service,
+            "stale_index",
+            "\n\nSOURCE FRESHNESS: the live source was re-fetched, but "
+            "the indexed copy did NOT update (unchanged ingestion stamp "
+            f"{old_ingested or 'unknown'}, hash {old_hash or 'n/a'}). "
+            "This answer is that older copy — treat it as not verified "
+            "current; re-ingestion may still be in progress.",
+            reason="index unchanged after refetch",
         )
 
     async def _get_qwen_response(
