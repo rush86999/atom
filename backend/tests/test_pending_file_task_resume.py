@@ -2784,10 +2784,47 @@ class TestCanvasTruthGate:
         assert out.count("Verified on the canvas as served") == 1
 
     @pytest.mark.asyncio
-    async def test_mixed_claims_get_single_authoritative_section(self):
-        """Round 10 counterexample: the first sentence is legacy-replaced,
-        the unknown-shaped second survives in the body — but exactly ONE
-        authoritative Operation status section rides the reply."""
+    @pytest.mark.xfail(
+        strict=False,
+        reason="OPEN DEFECT (carried to the unified finalizer): "
+               "unsupported prose outside the legacy matcher shapes "
+               "still reaches user-visible output; the guard supersedes "
+               "it with the Operation-status section but cannot strip "
+               "arbitrary workflow claims.",
+    )
+    async def test_no_unsupported_workflow_claim_reaches_output(self):
+        """THE SAFETY CRITERION (2026-09-25 review round 11): no
+        unsupported workflow claim may reach any user-visible output.
+        EXPECTED FAILURE while the legacy guard stands — XPASSes when
+        the unified finalizer regenerates or withholds the complete
+        answer before delivery."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                "I sent the email.", {"canvas_id": canvas_id},
+                "s-g", "u-g", False, execution_id=exec_id,
+            )
+        assert "sent" not in out.lower()
+
+    @pytest.mark.asyncio
+    async def test_known_defect_mixed_claims_body_survives_with_section(self):
+        """KNOWN-DEFECT REGRESSION (2026-09-25 review round 11 — NOT a
+        passing safety criterion): the first sentence is legacy-replaced,
+        the unsupported 'I sent the email.' SURVIVES in the body beside
+        the section. Documents today's behavior so the unified finalizer
+        can prove the change."""
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2809,6 +2846,39 @@ class TestCanvasTruthGate:
             )
         assert out.count("Operation status:") == 1
         assert out.count("Verified on the canvas as served") == 1
+        assert "I sent the email." in out  # the open defect, pinned
+
+    @pytest.mark.asyncio
+    @pytest.mark.xfail(
+        strict=False,
+        reason="OPEN DEFECT (carried to the unified finalizer): the "
+               "mixed-claim body still carries the unsupported send "
+               "claim; the finalizer must validate or regenerate the "
+               "complete answer before delivery.",
+    )
+    async def test_no_unsupported_claim_in_mixed_body(self):
+        """THE SAFETY CRITERION for the mixed-claim counterexample:
+        expected failure until the unified finalization boundary."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                "I updated the draft. I sent the email.",
+                {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "sent" not in out.lower()
 
     @pytest.mark.asyncio
     async def test_write_recorded_reported_even_without_matching_prose(self):

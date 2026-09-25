@@ -6393,14 +6393,25 @@ class ChatOrchestrator:
             reason="index unchanged after refetch",
         )
 
-    # ENFORCED CANVAS-CLAIM VERIFICATION (2026-09-25 review rounds 3-4):
-    # the prompt-level CANVAS STATE rule reduces false edit claims; it
-    # cannot guarantee them away. This deterministic gate checks the FINAL
-    # reply against THIS OPERATION's actual execution: a canvas-change
-    # claim is REWRITTEN (not contradicted-by-append) unless an audit
-    # readback binds a successful write to this execution (same session,
-    # at/after the execution's start, or stamped with this execution_id).
-    # Audit-read failure means UNVERIFIED — never "canvas unchanged".
+    # ENFORCED CANVAS-CLAIM VERIFICATION — A STRONGER LEGACY GUARD
+    # (2026-09-25 review rounds 3-10). NOT the finalization boundary.
+    #
+    # OPEN DEFECTS, carried to the unified finalizer (2026-09-25 review
+    # round 11) — do not close by expanding this guard:
+    #   1. UNSUPPORTED PROSE: a workflow claim whose shape the legacy
+    #      matcher does not know ('I sent the email.') reaches the user
+    #      beside the Operation-status section; the guard supersedes but
+    #      cannot strip arbitrary prose. (xfail-pinned safety criterion:
+    #      no_unsupported_workflow_claim_reaches_output.)
+    #   2. STREAMING BYPASS: streamed deltas reach the user BEFORE
+    #      finalization; only the final response returned here (what
+    #      persists and what recovery polling reads) carries the
+    #      structured section.
+    # The unified finalizer must validate or regenerate the COMPLETE
+    # answer before delivery — or withhold unvalidated narration and
+    # return structured results. This renderer (verified_criteria →
+    # statement) is the piece it carries forward; prompt instructions
+    # are supporting guidance, not enforcement.
     _CANVAS_CLAIM_SENTENCE_RE = re.compile(
         r"[^.\n]*\b(?:updated|changed|edited|applied|modified|revised|"
         r"wrote)\b[^.\n]*\b(?:canvas|table|item|draft|quote|column|row|"
