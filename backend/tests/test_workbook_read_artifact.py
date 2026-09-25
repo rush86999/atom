@@ -626,6 +626,57 @@ def test_inferred_attribute_corroborates_via_schema_not_assertion(tmp_path):
         evidence, ["Tin Knocker"], require_row_identity=True) is False
 
 
+def test_inferred_hint_ranks_but_never_resolves(tmp_path):
+    """2026-09-25 review round 6: an INFERRED (assistant/canvas) brand
+    that matches a sheet name proves the workbook contains the brand —
+    not that the user intended it. It may RANK candidates but must not
+    eliminate the other supplier; a USER-supplied phrase resolves."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    acme = tmp_path / "acmecorp.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2], "Supplier Code": ["V-101"],
+        "Payment Terms": ["Net 30"],
+    }).to_parquet(acme)
+    beta = tmp_path / "betallc.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2], "Supplier Code": ["V-101"],
+        "Payment Terms": ["Net 60"],
+    }).to_parquet(beta)
+    entries = [
+        {"entity_name": "AcmeCorp", "parquet_path": str(acme),
+         "row_count": 1, "coverage": {"known": True, "truncated": False}},
+        {"entity_name": "BetaLLC", "parquet_path": str(beta),
+         "row_count": 1, "coverage": {"known": True, "truncated": False}},
+    ]
+    # INFERRED provenance (an assistant answer or canvas body):
+    artifact = inspect_dataset_entries(
+        entries, "vendor master.xlsx",
+        query="payment terms for V-101",
+        attribute_texts=[("Acme Corp supplier V-101", "inferred")],
+        targets=["V-101"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "ambiguous", (
+        "an inferred hint must not silently resolve ambiguity")
+    assert outcome["evidence"][0]["sheet"] == "AcmeCorp", (
+        "the hinted candidate is ranked first")
+    assert "ambiguity kept" in (outcome.get("note") or "")
+
+    # USER provenance resolves:
+    artifact_user = inspect_dataset_entries(
+        entries, "vendor master.xlsx",
+        query="payment terms for V-101",
+        attribute_texts=[("Acme Corp supplier V-101", "user")],
+        targets=["V-101"],
+    )
+    assert artifact_user["coverage"]["outcomes"][0]["status"] == "found"
+    assert artifact_user["coverage"]["outcomes"][0]["evidence"][0][
+        "sheet"] == "AcmeCorp"
+
+
 def test_inventory_quantity_fixture_selects_stock_field():
     artifact = inspect_workbook_bytes(
         _bytes_for_sheet(

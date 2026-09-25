@@ -1101,7 +1101,7 @@ def _target_attribute_context(
     context: Dict[str, Dict[str, List[Any]]] = {}
     for target in targets:
         brands: List[tuple] = []
-        types: List[str] = []
+        types: List[tuple] = []
         seen_b: set = set()
         for entry in texts or []:
             if isinstance(entry, tuple):
@@ -1117,8 +1117,8 @@ def _target_attribute_context(
                     seen_b.add(key)
                     brands.append((phrase, source))
             for token in t:
-                if token not in types:
-                    types.append(token)
+                if token and token not in [tok for tok, _s in types]:
+                    types.append((token, source))
         if brands or types:
             context[str(target)] = {"brand": brands, "type": types}
     return context
@@ -1447,16 +1447,17 @@ def inspect_workbook_bytes(
         # disqualifies).
         hints = target_attributes.get(target) or {}
         brand_entries = hints.get("brand") or []
-        type_tokens = list(hints.get("type") or [])
+        type_entries = list(hints.get("type") or [])
         constrained_note: Optional[str] = None
         if brand_entries and len(designations) > 1:
-            # SCHEMA VALIDATION (2026-09-25 review round 5): a phrase
-            # constrains only when the candidates' own identity surface
-            # carries it — identity-column values, or the sheet name for
-            # USER-supplied phrases only. Inferred (assistant/canvas)
-            # phrases require row identity; unvalidated phrases stay
-            # unused — uncertain inferred attributes remain candidates
-            # and never constrain. No domain vocabulary decides.
+            # SCHEMA VALIDATION (2026-09-25 review rounds 5-6): a phrase
+            # is usable only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name.
+            # USER-supplied phrases may then RESOLVE ambiguity; INFERRED
+            # (assistant/canvas) phrases may only RANK candidates — a
+            # workbook containing the brand does not prove the user
+            # intended it, so an unsupported inference never silently
+            # eliminates a candidate supplier.
             schema_sheets = {
                 _canonical(item.get("sheet")) for item in designations
             }
@@ -1466,32 +1467,33 @@ def inspect_workbook_bytes(
                 if not brand:
                     continue
                 in_sheet = any(brand in s for s in schema_sheets if s)
-                if in_sheet or source == "user":
+                if in_sheet:
                     validated.append((phrase, source, in_sheet))
-            if validated:
-                corroborated = [
+
+            def _corroborated_subset(entries: List[tuple]) -> List[Any]:
+                return [
                     item for item in designations
                     if any(
                         _corroborates_brand(
                             item, [phrase],
-                            # An INFERRED phrase validated by the SHEET
-                            # NAME corroborates through the workbook's own
-                            # schema (data, not the assistant's claim);
-                            # a conflicting row attribute still outranks
-                            # it inside _corroborates_brand. Phrases the
-                            # schema does not carry at all require row
-                            # identity or stay candidates.
                             require_row_identity=not in_sheet,
                             target=target,
                         )
-                        for phrase, source, in_sheet in validated
+                        for phrase, _s, in_sheet in entries
                     )
                 ]
+
+            user_validated = [
+                e for e in validated if e[1] == "user"]
+            inferred_validated = [
+                e for e in validated if e[1] != "user"]
+            if user_validated:
+                corroborated = _corroborated_subset(user_validated)
                 if corroborated and len(corroborated) < len(designations):
                     designations = corroborated
                     in_sheet_phrases = [
-                        p for p, _s, v in validated if v
-                    ] or [p for p, _s, _v in validated]
+                        p for p, _s, v in user_validated if v
+                    ] or [p for p, _s, _v in user_validated]
                     best_phrase = max(
                         in_sheet_phrases,
                         key=lambda p: len(_canonical(p)),
@@ -1499,34 +1501,68 @@ def inspect_workbook_bytes(
                     constrained_note = (
                         f"identity constrained by '{best_phrase}' "
                         "(from the request)")
-                    # The validated brand's own words are identity, not
-                    # entity type — remove them from the type tokens.
                     brand_words = {
                         word.lower()
-                        for phrase, _s, _v in validated
+                        for phrase, _s, _v in user_validated
                         for word in str(phrase).split()
                     }
-                    type_tokens = [
-                        t for t in type_tokens
+                    type_entries = [
+                        (t, s) for t, s in type_entries
                         if t not in brand_words
                     ]
-        if type_tokens and len(designations) > 1:
-            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the user's
-            # own type words ('rotary machine') resolve machine-vs-
-            # accessory rows; an exact identifier alone does not prove
-            # the row IS the requested entity.
+            elif inferred_validated and len(designations) > 1:
+                ranked = _corroborated_subset(inferred_validated)
+                if ranked and len(ranked) < len(designations):
+                    # RANK ONLY: hinted candidates first, the rest kept —
+                    # ambiguity survives an inferred hint.
+                    designations = ranked + [
+                        item for item in designations
+                        if item not in ranked
+                    ]
+                    best_phrase = max(
+                        (p for p, _s, _v in inferred_validated),
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"inferred identity hint '{best_phrase}' — "
+                        "candidates ranked, ambiguity kept")
+        user_types = [t for t, s in type_entries if s == "user"]
+        if user_types and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the
+            # USER'S own type words ('rotary machine') resolve machine-
+            # vs-accessory rows; inferred type words only rank.
             typed = [
                 item for item in designations
-                if _row_contains_type(item, type_tokens)
+                if _row_contains_type(item, user_types)
             ]
             if typed and len(typed) < len(designations):
                 designations = typed
                 type_note = (
                     "entity type matched from the request "
-                    f"({' '.join(type_tokens[:3])})")
+                    f"({' '.join(user_types[:3])})")
                 constrained_note = (
                     f"{constrained_note}; {type_note}"
                     if constrained_note else type_note)
+        else:
+            inferred_types = [t for t, s in type_entries if s != "user"]
+            if inferred_types and len(designations) > 1:
+                typed = [
+                    item for item in designations
+                    if _row_contains_type(item, inferred_types)
+                ]
+                if typed and len(typed) < len(designations):
+                    designations = typed + [
+                        item for item in designations
+                        if item not in typed
+                    ]
+                    constrained_note = (
+                        f"{constrained_note}; inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept"
+                        if constrained_note else
+                        f"inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept")
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1910,16 +1946,17 @@ def inspect_dataset_entries(
         # disqualifies).
         hints = target_attributes.get(target) or {}
         brand_entries = hints.get("brand") or []
-        type_tokens = list(hints.get("type") or [])
+        type_entries = list(hints.get("type") or [])
         constrained_note: Optional[str] = None
         if brand_entries and len(designations) > 1:
-            # SCHEMA VALIDATION (2026-09-25 review round 5): a phrase
-            # constrains only when the candidates' own identity surface
-            # carries it — identity-column values, or the sheet name for
-            # USER-supplied phrases only. Inferred (assistant/canvas)
-            # phrases require row identity; unvalidated phrases stay
-            # unused — uncertain inferred attributes remain candidates
-            # and never constrain. No domain vocabulary decides.
+            # SCHEMA VALIDATION (2026-09-25 review rounds 5-6): a phrase
+            # is usable only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name.
+            # USER-supplied phrases may then RESOLVE ambiguity; INFERRED
+            # (assistant/canvas) phrases may only RANK candidates — a
+            # workbook containing the brand does not prove the user
+            # intended it, so an unsupported inference never silently
+            # eliminates a candidate supplier.
             schema_sheets = {
                 _canonical(item.get("sheet")) for item in designations
             }
@@ -1929,32 +1966,33 @@ def inspect_dataset_entries(
                 if not brand:
                     continue
                 in_sheet = any(brand in s for s in schema_sheets if s)
-                if in_sheet or source == "user":
+                if in_sheet:
                     validated.append((phrase, source, in_sheet))
-            if validated:
-                corroborated = [
+
+            def _corroborated_subset(entries: List[tuple]) -> List[Any]:
+                return [
                     item for item in designations
                     if any(
                         _corroborates_brand(
                             item, [phrase],
-                            # An INFERRED phrase validated by the SHEET
-                            # NAME corroborates through the workbook's own
-                            # schema (data, not the assistant's claim);
-                            # a conflicting row attribute still outranks
-                            # it inside _corroborates_brand. Phrases the
-                            # schema does not carry at all require row
-                            # identity or stay candidates.
                             require_row_identity=not in_sheet,
                             target=target,
                         )
-                        for phrase, source, in_sheet in validated
+                        for phrase, _s, in_sheet in entries
                     )
                 ]
+
+            user_validated = [
+                e for e in validated if e[1] == "user"]
+            inferred_validated = [
+                e for e in validated if e[1] != "user"]
+            if user_validated:
+                corroborated = _corroborated_subset(user_validated)
                 if corroborated and len(corroborated) < len(designations):
                     designations = corroborated
                     in_sheet_phrases = [
-                        p for p, _s, v in validated if v
-                    ] or [p for p, _s, _v in validated]
+                        p for p, _s, v in user_validated if v
+                    ] or [p for p, _s, _v in user_validated]
                     best_phrase = max(
                         in_sheet_phrases,
                         key=lambda p: len(_canonical(p)),
@@ -1962,34 +2000,68 @@ def inspect_dataset_entries(
                     constrained_note = (
                         f"identity constrained by '{best_phrase}' "
                         "(from the request)")
-                    # The validated brand's own words are identity, not
-                    # entity type — remove them from the type tokens.
                     brand_words = {
                         word.lower()
-                        for phrase, _s, _v in validated
+                        for phrase, _s, _v in user_validated
                         for word in str(phrase).split()
                     }
-                    type_tokens = [
-                        t for t in type_tokens
+                    type_entries = [
+                        (t, s) for t, s in type_entries
                         if t not in brand_words
                     ]
-        if type_tokens and len(designations) > 1:
-            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the user's
-            # own type words ('rotary machine') resolve machine-vs-
-            # accessory rows; an exact identifier alone does not prove
-            # the row IS the requested entity.
+            elif inferred_validated and len(designations) > 1:
+                ranked = _corroborated_subset(inferred_validated)
+                if ranked and len(ranked) < len(designations):
+                    # RANK ONLY: hinted candidates first, the rest kept —
+                    # ambiguity survives an inferred hint.
+                    designations = ranked + [
+                        item for item in designations
+                        if item not in ranked
+                    ]
+                    best_phrase = max(
+                        (p for p, _s, _v in inferred_validated),
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"inferred identity hint '{best_phrase}' — "
+                        "candidates ranked, ambiguity kept")
+        user_types = [t for t, s in type_entries if s == "user"]
+        if user_types and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the
+            # USER'S own type words ('rotary machine') resolve machine-
+            # vs-accessory rows; inferred type words only rank.
             typed = [
                 item for item in designations
-                if _row_contains_type(item, type_tokens)
+                if _row_contains_type(item, user_types)
             ]
             if typed and len(typed) < len(designations):
                 designations = typed
                 type_note = (
                     "entity type matched from the request "
-                    f"({' '.join(type_tokens[:3])})")
+                    f"({' '.join(user_types[:3])})")
                 constrained_note = (
                     f"{constrained_note}; {type_note}"
                     if constrained_note else type_note)
+        else:
+            inferred_types = [t for t, s in type_entries if s != "user"]
+            if inferred_types and len(designations) > 1:
+                typed = [
+                    item for item in designations
+                    if _row_contains_type(item, inferred_types)
+                ]
+                if typed and len(typed) < len(designations):
+                    designations = typed + [
+                        item for item in designations
+                        if item not in typed
+                    ]
+                    constrained_note = (
+                        f"{constrained_note}; inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept"
+                        if constrained_note else
+                        f"inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept")
         if len(designations) > 1:
             exact = [
                 item for item in designations

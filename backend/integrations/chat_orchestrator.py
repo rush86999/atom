@@ -6427,9 +6427,16 @@ class ChatOrchestrator:
         verification = cls._canvas_write_for_operation(
             canvas_id, session_id, user_id, execution_id,
         )
-        if verification == "written":
-            return text  # this operation's write is exactly bound
-        if background_forked:
+        if verification == "result_verified":
+            return text  # exactly bound AND served — the claim stands
+        if verification == "write_recorded":
+            replacement = (
+                "*(Recorded, not verified: a canvas write from this "
+                "operation is on the audit trail, but the requested "
+                "change is not confirmed in the canvas as served — treat "
+                "the result as unconfirmed until reviewed.)*"
+            )
+        elif background_forked:
             replacement = (
                 "*(The canvas edit is still running in the background — "
                 "nothing is confirmed changed yet.)*"
@@ -6463,19 +6470,21 @@ class ChatOrchestrator:
         user_id: Optional[str],
         execution_id: Optional[str],
     ) -> str:
-        """Exact structured verification: "written" | "unverified".
+        """Exact structured verification with SEPARATE VERDICTS:
+        "result_verified" | "write_recorded" | "unverified".
 
-        A write verifies the claim ONLY when an audit row's PARSED
-        details match this execution's operation set by field equality:
-        ``details.operation_id == execution_id`` (the interactive stamp)
-        or ``details.operation_id`` in the continuation ids this
-        execution forked / ``details.execution_id == execution_id`` —
-        and the row records a real mutation payload (content/data), the
-        readback of the applied change. Substring matches, session
-        proximity, and time windows do NOT verify (2026-09-25 review
-        round 5: an overlapping turn's write satisfied the old
-        same-session fallback). Anything else — including every read
-        failure — is UNVERIFIED."""
+        A write is RECORDED when an audit row's PARSED details match this
+        execution's operation set by field equality (``details.operation_id``
+        == execution_id — the interactive stamp — or in the continuation
+        ids this execution forked) and carry a mutation payload. The
+        RESULT is VERIFIED only when the served revision (Canvas.content,
+        mirrored on acceptance) canonically equals that payload and the
+        row is not pending review — a recorded write proves nothing about
+        the requested fields or what the UI serves. Substring matches,
+        session proximity, and time windows never verify (round 5); a
+        recorded-but-unverified write never supports a completion claim
+        (round 6). Anything else — including every read failure — is
+        UNVERIFIED."""
         if not canvas_id or not execution_id:
             return "unverified"
         try:
@@ -6540,7 +6549,44 @@ class ChatOrchestrator:
                     if details.get("content") is None and details.get(
                             "data") is None:
                         continue  # a marker row, not a recorded change
-                    return "written"
+                    # WRITE RECORDED ≠ RESULT VERIFIED (2026-09-25 review
+                    # round 6): a recorded mutation proves nothing about
+                    # whether the requested fields changed correctly or
+                    # what the UI serves. Result verified only when the
+                    # SERVED revision (Canvas.content, mirrored on
+                    # acceptance) canonically equals the bound row's
+                    # payload; pending-review writes are never verified
+                    # results.
+                    row_content = (
+                        details.get("content")
+                        if details.get("content") is not None
+                        else details.get("data")
+                    )
+                    if str(details.get("review_status") or "") == (
+                            "pending_review"):
+                        return "write_recorded"
+                    try:
+                        from core.models import Canvas as CanvasModel
+
+                        served_row = db.query(CanvasModel).filter(
+                            CanvasModel.id == canvas_id
+                        ).first()
+                        served_content = (
+                            served_row.content
+                            if served_row is not None else None
+                        )
+
+                        def _canon_payload(value) -> str:
+                            return _json.dumps(
+                                value, sort_keys=True, default=str,
+                            ) if value is not None else ""
+
+                        if _canon_payload(served_content) == (
+                                _canon_payload(row_content)):
+                            return "result_verified"
+                    except Exception:  # noqa: BLE001 — served readback is
+                        pass  # best-effort; recorded stays the verdict
+                    return "write_recorded"
                 return "unverified"
         except Exception as exc:  # noqa: BLE001 — readback is best-effort
             logger.debug(f"canvas write readback skipped: {exc}")

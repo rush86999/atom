@@ -2455,9 +2455,78 @@ class TestCanvasTruthGate:
             canvas_id, "s-g", "u-g", exec_id,
         ) == "unverified"
 
-    def test_enforced_guard_exact_stamp_verifies(self):
-        """details.operation_id == this execution AND a recorded change
-        payload (content) → written; the claim survives."""
+    def test_enforced_guard_exact_stamp_with_served_revision_verifies(self):
+        """Round 6: details.operation_id == this execution, an accepted
+        change payload, AND the canvas SERVES that exact revision →
+        result verified; the claim survives."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        payload = {"body": "new"}
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=datetime.now(timezone.utc),
+                details_json={"operation_id": exec_id,
+                              "content": payload,
+                              "review_status": "accepted"},
+            ))
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by="u-g",
+                name="Quote", content=payload,
+            ))
+        text = "I've updated item 4 to reflect that pricing."
+        out = ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert out == text  # exactly bound AND served
+
+    def test_enforced_guard_recorded_but_not_served_is_not_verified(self):
+        """Round 6: an exactly-bound write whose payload is NOT what the
+        canvas serves (superseded, or never mirrored) is RECORDED only —
+        the completion claim is rewritten to say so."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=datetime.now(timezone.utc),
+                details_json={"operation_id": exec_id,
+                              "content": {"body": "older"},
+                              "review_status": "accepted"},
+            ))
+            db.add(Canvas(  # serves a DIFFERENT (newer) revision
+                id=canvas_id, tenant_id="default", created_by="u-g",
+                name="Quote", content={"body": "newer"},
+            ))
+        out = ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4.", {"canvas_id": canvas_id},
+            "s-g", "u-g", False, execution_id=exec_id,
+        )
+        assert "I've updated item 4" not in out
+        assert "Recorded, not verified" in out
+
+    def test_enforced_guard_pending_review_is_recorded_only(self):
+        """Round 6: a pending-review write is never a verified result —
+        the UI does not serve it as final."""
         from datetime import datetime, timezone
         from uuid import uuid4
 
@@ -2474,14 +2543,14 @@ class TestCanvasTruthGate:
                 action_type="update", user_id="u-g",
                 created_at=datetime.now(timezone.utc),
                 details_json={"operation_id": exec_id,
-                              "content": {"body": "new"}},
+                              "content": {"body": "x"},
+                              "review_status": "pending_review"},
             ))
-        text = "I've updated item 4 to reflect that pricing."
         out = ChatOrchestrator._canvas_claim_correction(
-            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
-            execution_id=exec_id,
+            "I've updated item 4.", {"canvas_id": canvas_id},
+            "s-g", "u-g", False, execution_id=exec_id,
         )
-        assert out == text
+        assert "Recorded, not verified" in out
 
     def test_enforced_guard_continuation_write_verifies(self):
         """A background continuation forked by THIS execution stamps its
@@ -2517,7 +2586,7 @@ class TestCanvasTruthGate:
             ))
         assert ChatOrchestrator._canvas_write_for_operation(
             canvas_id, "s-g", "u-g", exec_id,
-        ) == "written"
+        ) == "write_recorded"  # bound, but nothing served-verifies it
 
     def test_enforced_guard_ignores_non_claims_and_canvasless_turns(self):
         from integrations.chat_orchestrator import ChatOrchestrator
