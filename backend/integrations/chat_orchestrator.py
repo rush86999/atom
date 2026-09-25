@@ -1734,7 +1734,7 @@ _DERIVATION_VALUE_RE = re.compile(
 # measured failure.
 _CANVAS_EDIT_SHAPE_RE = re.compile(
     r"\b(?:rebuild|rewrite|redraft|revise|reformat|reword|reorder|restore|"
-    r"restructure|rework|update|edit|change|fix|shorten|tighten|polish|"
+    r"restructure|rework|update|edit|change|fix|shorten|trim|tighten|polish|"
     r"add|remove|delete|replace|append|apply|insert|set|fill|include|rename|"
     r"sort|write|make it|turn it into)\b",
     re.IGNORECASE,
@@ -1752,20 +1752,29 @@ _CANVAS_TARGET_RE = re.compile(
     re.IGNORECASE,
 )
 _CANVAS_ADVISORY_OBJECTIVE_RE = re.compile(
-    r"\b(?:explain|whether|which\s+[^\n.?!]{0,80}\s+should|"
+    r"\b(?:explain|assess|analyse|analyze|evaluate|review|recommend|"
+    r"compare|whether|which\s+[^\n.?!]{0,80}\s+should|"
     r"should\s+(?:i|we)|do\s+(?:i|we)\s+need|decide\s+whether|"
-    r"let\s+me\s+know\s+if|tell\s+me\s+if)\b",
+    r"let\s+me\s+know\s+if|tell\s+me\s+if|say\s+if)\b",
     re.IGNORECASE,
 )
 _CANVAS_EXPLICIT_EDIT_RE = re.compile(
     r"(?:\A|;\s*|,\s*|\band\s+|\bplease\s+|\bnow\s+|"
-    r"\bgo\s+ahead\s+and\s+)(?:update|edit|replace|change|set|apply|fill|"
+    r"\bgo\s+ahead\s+and\s+)(?:update|edit|replace|change|set|apply|fill|trim|"
     r"add|remove|delete|restore|rebuild|rewrite|revise|reformat|reword)\s+"
     r"(?:the\s+|this\s+|that\s+)?(?:draft|canvas|email|document|content|"
     r"subject|body|table|sheet|slide|presentation|price|value|row|entry|"
     r"field)\b",
     re.IGNORECASE,
 )
+
+
+try:
+    from core.workbook_read_artifact import (
+        TARGET_EXTRACTION_VERSION as _TARGET_EXTRACTION_VERSION_NOW,
+    )
+except Exception:  # noqa: BLE001 — version stamp optional
+    _TARGET_EXTRACTION_VERSION_NOW = None
 
 
 def _canvas_edit_shaped(
@@ -3166,24 +3175,30 @@ class ChatOrchestrator:
             objective = str(task.get("original_message") or message or "")[:4000]
             result = session.get("_pending_file_result") or {}
             result_execution_id = result.get("execution_id")
-            if (
-                execution_id
-                and result_execution_id
-                and not allow_persisted_evidence
-                and str(result_execution_id) != str(execution_id)
+            if not allow_persisted_evidence and (
+                not execution_id
+                or str(result_execution_id or "") != str(execution_id)
             ):
                 result = {}
+            response_data = response.get("data") or {}
+            response_identity = response_data.get("file_identity")
             session_identity = session.get(
                 "_resolved_file_identity"
             ) or {}
-            identity = result.get("identity") or {}
+            identity = (
+                dict(response_identity)
+                if isinstance(response_identity, dict)
+                else dict(result.get("identity") or {})
+            )
             if not identity and (
                 allow_persisted_evidence
-                or not execution_id
-                or str(session_identity.get("execution_id") or "")
-                == str(execution_id)
+                or (
+                    execution_id
+                    and str(session_identity.get("execution_id") or "")
+                    == str(execution_id)
+                )
             ):
-                identity = session_identity
+                identity = dict(session_identity)
             mentions: List[str] = []
             try:
                 from core.agent_file_context import detect_file_mentions
@@ -3359,15 +3374,32 @@ class ChatOrchestrator:
             canvas_edit = (response.get("data") or {}).get(
                 "canvas_edit"
             ) or {}
+            review_status = str(canvas_edit.get("review_status") or "accepted")
+            review_accepted = bool(
+                canvas_edit.get("updated") is True
+                and canvas_edit.get("learning_mode") is not True
+                and review_status == "accepted"
+            )
+            evidence_mutation = any(
+                item.get("status") == "ready"
+                and item.get("authorized") is True
+                for item in comparison_actions
+            )
+            verification_present = "postcondition_verified" in canvas_edit
+            readback_matched = bool(
+                review_accepted
+                and (
+                    canvas_edit.get("postcondition_verified") is True
+                    if evidence_mutation or verification_present
+                    else True
+                )
+            )
             mutation = {
                 "requested": bool(canvas_edit),
-                "readback_matched": (
-                    canvas_edit.get("updated") is True
-                    and canvas_edit.get("postcondition_verified") is not False
-                ),
+                "readback_matched": readback_matched,
                 "status": (
                     canvas_edit.get("postcondition_verified")
-                    if "postcondition_verified" in canvas_edit
+                    if verification_present
                     else canvas_edit.get("review_status")
                 ),
             }
@@ -3382,11 +3414,15 @@ class ChatOrchestrator:
                             "applied"
                             if item.get("status") == "ready"
                             and item.get("authorized") is True
+                            and str(item.get("action_type") or "")
+                            in {"edit_artifact", "update_artifact"}
                             else item.get("status")
                         ),
                         "applied": (
                             item.get("status") == "ready"
                             and item.get("authorized") is True
+                            and str(item.get("action_type") or "")
+                            in {"edit_artifact", "update_artifact"}
                         ),
                     }
                     for item in comparison_actions
@@ -4024,7 +4060,10 @@ class ChatOrchestrator:
             # RETRIEVED structured result whose delivery never reached the
             # user (reply-model failure, budget overrun, restart) is
             # re-rendered directly from the persisted copy — no planner,
-            # no model, no second read of the file.
+            # no model, no second read of the file. EXTRACTION-CONTRACT
+            # GATE: a persisted result built by an OLDER target extractor
+            # is re-derived, not replayed (contaminated target lists must
+            # not survive the fix that diagnoses them).
             _pfr = session.get("_pending_file_result")
             if not isinstance(_pfr, dict) or not _pfr.get("rendered"):
                 try:
@@ -4035,6 +4074,8 @@ class ChatOrchestrator:
                 isinstance(_pfr, dict)
                 and _pfr.get("status") in ("retrieved", "delivered")
                 and _pfr.get("rendered")
+                and _pfr.get("target_extraction_version")
+                == _TARGET_EXTRACTION_VERSION_NOW
             ):
                 try:
                     from core.plan_relevance import _is_substantive_request
@@ -4242,6 +4283,8 @@ class ChatOrchestrator:
                         _ask_result.get("retrieval_complete"))
                     _ask_result_row = {
                         "status": "retrieved" if _ask_complete else "incomplete",
+                        "target_extraction_version":
+                            _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _ask_content[:24000],
                         "identity": _ask_identity,
                         "execution_id": _execution_id,
@@ -4273,6 +4316,7 @@ class ChatOrchestrator:
                             "file_identity": _ask_identity,
                             "coverage_complete": _ask_complete,
                             "resumable": not _ask_complete,
+                            "freshness": _ask_freshness.get("status") or None,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4352,6 +4396,10 @@ class ChatOrchestrator:
                             _direct_content + str(_freshness["note"]))
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
+                        _direct_identity = {
+                            **_direct_identity,
+                            "execution_id": _execution_id,
+                        }
                         session["_resolved_file_identity"] = _direct_identity
                     _direct_complete = bool(
                         _direct_result.get("retrieval_complete"))
@@ -5528,18 +5576,27 @@ class ChatOrchestrator:
             try:
                 from core.agent_file_context import detect_file_task_mentions
 
-                _live_identity = session.get("_resolved_file_identity")
-                if not isinstance(_live_identity, dict):
-                    try:
-                        _live_identity = self._load_pending_file_task(
-                            session_id)[1]
-                    except Exception:  # noqa: BLE001 — preview is best-effort
-                        _live_identity = None
+                _response_identity = (ai_response or {}).get(
+                    "file_identity"
+                )
+                if not isinstance(_response_identity, dict):
+                    _response_identity = ((ai_response or {}).get(
+                        "data") or {}).get("file_identity")
+                _session_identity = session.get("_resolved_file_identity")
+                if (
+                    not isinstance(_response_identity, dict)
+                    and isinstance(_session_identity, dict)
+                    and _execution_id
+                    and str(_session_identity.get("execution_id") or "")
+                    == str(_execution_id)
+                ):
+                    _response_identity = _session_identity
+                _live_identity = (
+                    _response_identity
+                    if isinstance(_response_identity, dict)
+                    else None
+                )
                 _preview_mentions = detect_file_task_mentions(message)
-                if not _preview_mentions and isinstance(_live_identity, dict):
-                    _live_name = _live_identity.get("file_name")
-                    if _live_name:
-                        _preview_mentions = [str(_live_name)]
                 for _filename in _preview_mentions[:1]:
                     _live_verified = bool(
                         isinstance(_live_identity, dict)
@@ -5634,11 +5691,28 @@ class ChatOrchestrator:
             )
             if isinstance(_objective_result, dict):
                 combined_data["objective_evidence"] = _objective_result
-            _objective_workbook = (
-                (session.get("_resolved_file_identity") or {}).get(
-                    "workbook_read"
+            _objective_workbook = (ai_response or {}).get("workbook_read")
+            if not isinstance(_objective_workbook, dict):
+                _current_identity = (ai_response or {}).get("file_identity")
+                if not isinstance(_current_identity, dict):
+                    _current_identity = ((ai_response or {}).get(
+                        "data") or {}).get("file_identity")
+                if (
+                    not isinstance(_current_identity, dict)
+                    and _execution_id
+                ):
+                    _session_identity = session.get(
+                        "_resolved_file_identity"
+                    ) or {}
+                    if str(_session_identity.get("execution_id") or "") == str(
+                        _execution_id
+                    ):
+                        _current_identity = _session_identity
+                _objective_workbook = (
+                    _current_identity.get("workbook_read")
+                    if isinstance(_current_identity, dict)
+                    else None
                 )
-            )
             if isinstance(_objective_workbook, dict):
                 combined_data["workbook_read"] = _objective_workbook
 
@@ -6066,6 +6140,7 @@ class ChatOrchestrator:
             # verdict so an old copy can never pass as current.
             result["freshness"] = await self._verify_source_freshness(
                 result, pending_task, user_id, workspace_id, deadline,
+                history=history,
             )
         return result
 
@@ -6076,6 +6151,7 @@ class ChatOrchestrator:
         user_id: Optional[str],
         workspace_id: Optional[str],
         deadline: Optional["TurnDeadline"],
+        history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """Verify the upstream source for a REFRESH operation: re-fetch
         the live file (the storage `read` action downloads the CURRENT
@@ -6181,7 +6257,7 @@ class ChatOrchestrator:
             pending_task["refresh_attempted"] = True
             reread = await self._direct_confirmed_file_read(
                 pending_task,
-                [], user_id, "", workspace_id, deadline,
+                history or [], user_id, "", workspace_id, deadline,
             )
         except Exception as exc:
             reread = {"ok": False, "reason": str(exc)[:160]}
@@ -6770,9 +6846,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             try:
                 from core.workbook_read_artifact import extract_targets
 
+                # CANVAS IDENTITY SOURCE ONLY (2026-09-24 review): the
+                # raw canvas string carries prices and delivery terms —
+                # as a target source it contaminated extraction with
+                # monetary fragments (live: 'No. 381 $2,902.00 10-11
+                # weeks' produced 902/00/10/11). Contribute only the
+                # canvas's TITLE/subject line; table VALUES must reach
+                # extraction as evidence, never as identifiers.
+                _canvas_identity = ""
+                if isinstance(canvas_context, dict):
+                    _canvas_identity = str(
+                        canvas_context.get("title")
+                        or (canvas_context.get("content") or {}).get(
+                            "subject")
+                        or "")
                 _requested_targets = extract_targets(
-                    _gate_msg,
-                    [str(canvas_context or "")],
+                    _gate_msg, [_canvas_identity],
                 )
             except Exception:
                 _requested_targets = []
@@ -7896,6 +7985,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # read still pins WHICH file, so retries and the
                         # preview reuse the same resource instead of
                         # re-deriving it from filenames.
+                        _resolved_file_identity = {
+                            **_resolved_file_identity,
+                            "execution_id": execution_id,
+                        }
                         session["_resolved_file_identity"] = (
                             _resolved_file_identity)
                     if _live_file_lookup_ran:
@@ -7912,6 +8005,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         }
                         session["_pending_file_result"] = {
                             "status": "retrieved",
+                            "target_extraction_version":
+                                _TARGET_EXTRACTION_VERSION_NOW,
                             "rendered": (
                                 _deterministic_answer or _tool_block or ""
                             )[:24000],
@@ -10873,6 +10968,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 else:
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_declined"
             return None
+        if not _edit_requested:
+            if shared_tool_state is not None:
+                shared_tool_state["canvas_edit_no_apply"] = True
+                shared_tool_state["canvas_edit_no_apply_reason"] = (
+                    "explicit_edit_required"
+                )
+            return None
         # P3 transparency: WHICH company playbooks guided this edit — the
         # chat response carries them (chat_routes maps `data`→`metadata`)
         # so the co-editor transcript can show "Following playbook: X".
@@ -10972,7 +11074,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             pending_review=learning_mode,
             evidence_contract=fresh.evidence_contract,
             require_evidence_postconditions=bool(
-                fresh.evidence_contract
+                fresh.needed or fresh.evidence_contract
             ),
         )
         # Tolerant unpack: tests (and any caller using the default
