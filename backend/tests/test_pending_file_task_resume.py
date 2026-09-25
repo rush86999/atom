@@ -2784,20 +2784,16 @@ class TestCanvasTruthGate:
         assert out.count("Verified on the canvas as served") == 1
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(
-        strict=False,
-        reason="OPEN DEFECT (carried to the unified finalizer): "
-               "unsupported prose outside the legacy matcher shapes "
-               "still reaches user-visible output; the guard supersedes "
-               "it with the Operation-status section but cannot strip "
-               "arbitrary workflow claims.",
-    )
     async def test_no_unsupported_workflow_claim_reaches_output(self):
-        """THE SAFETY CRITERION (2026-09-25 review round 11): no
-        unsupported workflow claim may reach any user-visible output.
-        EXPECTED FAILURE while the legacy guard stands — XPASSes when
-        the unified finalizer regenerates or withholds the complete
-        answer before delivery."""
+        """THE SAFETY CRITERION (2026-09-25 review round 11, strict-xfail
+        per round 12): no unsupported workflow claim may reach any
+        user-visible output. Expected failure AT THE SAFETY ASSERTION
+        ONLY while the legacy guard stands (setup/other errors surface
+        as errors, never masked as xfail). When the unified finalizer
+        lands: make this a mandatory passing test, retire the
+        known-defect survival regressions, and test streamed output as
+        well as final persisted text."""
+        import pytest as _pytest
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2816,7 +2812,22 @@ class TestCanvasTruthGate:
                 "I sent the email.", {"canvas_id": canvas_id},
                 "s-g", "u-g", False, execution_id=exec_id,
             )
-        assert "sent" not in out.lower()
+        # the structured section still rides (its contract is separate)
+        assert "Operation status:" in out
+        try:
+            assert "sent" not in out.lower(), (
+                "OPEN DEFECT (unified finalizer): the unsupported send "
+                "claim reaches user-visible output")
+        except AssertionError:
+            _pytest.xfail(
+                "OPEN DEFECT, carried to the unified finalizer: "
+                "unsupported prose outside the legacy matcher reaches "
+                "output; XPASS forces removal of this expectation and "
+                "promotion to a mandatory check")
+        _pytest.fail(
+            "Safety criterion holds — remove the xfail expectation from "
+            "this test and make it a mandatory passing check (with the "
+            "streamed-output variant)")
 
     @pytest.mark.asyncio
     async def test_known_defect_mixed_claims_body_survives_with_section(self):
@@ -2849,16 +2860,13 @@ class TestCanvasTruthGate:
         assert "I sent the email." in out  # the open defect, pinned
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(
-        strict=False,
-        reason="OPEN DEFECT (carried to the unified finalizer): the "
-               "mixed-claim body still carries the unsupported send "
-               "claim; the finalizer must validate or regenerate the "
-               "complete answer before delivery.",
-    )
     async def test_no_unsupported_claim_in_mixed_body(self):
-        """THE SAFETY CRITERION for the mixed-claim counterexample:
-        expected failure until the unified finalization boundary."""
+        """THE SAFETY CRITERION for the mixed-claim counterexample —
+        strict-xfail scoped to the safety assertion (round 12): unrelated
+        errors surface as errors, never masked as xfail. Finalizer-landing
+        duties: mandatory passing test, retire the known-defect survival
+        regression, add the streamed-output variant."""
+        import pytest as _pytest
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2878,7 +2886,19 @@ class TestCanvasTruthGate:
                 {"canvas_id": canvas_id}, "s-g", "u-g", False,
                 execution_id=exec_id,
             )
-        assert "sent" not in out.lower()
+        assert "Operation status:" in out
+        try:
+            assert "sent" not in out.lower(), (
+                "OPEN DEFECT (unified finalizer): the unsupported send "
+                "claim survives in the mixed body")
+        except AssertionError:
+            _pytest.xfail(
+                "OPEN DEFECT, carried to the unified finalizer: the "
+                "mixed body carries the unsupported send claim")
+        _pytest.fail(
+            "Safety criterion holds — remove the xfail expectation from "
+            "this test and make it a mandatory passing check (with the "
+            "streamed-output variant)")
 
     @pytest.mark.asyncio
     async def test_write_recorded_reported_even_without_matching_prose(self):
