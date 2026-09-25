@@ -671,6 +671,54 @@ _PROMISE_NO_EXECUTION_RE = re.compile(
 _RECOVERY_WINDOW = 12
 
 
+def identifier_targets_from_user_history(
+    history: Optional[List[Dict[str, Any]]], mention: str = "",
+) -> List[str]:
+    """Identifier-shaped targets the USER asked about for THIS file, from
+    the bounded history window (2026-09-25: a vague re-ask — "find all
+    these prices from price list 2019" — superseded the identifier-rich
+    ask — "8 machines: 381, U-22, SLE24-16, …" — so the resumed read
+    searched the canvas TITLE's phrases instead of the machines).
+
+    USER entries only, always: assistant renders carry markdown tables of
+    canvas values — the exact contamination source target extraction was
+    hardened against. Identifiers from user asks are clean by
+    construction (verified: the 8-machine ask extracts exactly the eight).
+    """
+    out: List[str] = []
+    seen: set = set()
+    try:
+        from core.agent_file_context import detect_file_task_mentions
+        from core.workbook_read_artifact import extract_targets
+
+        for entry in (history or [])[-_RECOVERY_WINDOW:]:
+            if not isinstance(entry, dict):
+                continue
+            role = str(entry.get("role") or "").lower()
+            if role == "assistant":
+                continue
+            text = str(
+                entry.get("message")
+                or (entry.get("content") if role == "user" else "")
+                or ""
+            ).strip()
+            if not text:
+                continue  # assistant turns in message/response shape
+            if mention:
+                mentions = detect_file_task_mentions(text)
+                if not any(_same_file_identity(m, mention) for m in mentions):
+                    continue
+            for target in extract_targets(text):
+                key = re.sub(r"[^A-Z0-9]+", "", str(target).upper())
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                out.append(str(target))
+    except Exception as e:  # noqa: BLE001 — harvest is best-effort
+        logger.debug(f"pending file task: user-history targets skipped: {e}")
+    return out[:64]
+
+
 def _strip_mentions(
     text: str, mentions: Optional[List[str]]
 ) -> str:
@@ -806,6 +854,15 @@ def recover_pending_task_from_history(
             task["recovered"] = True
             task["recovered_at"] = time.time()
             task["recovered_via"] = (message or "")[:160]
+            # IDENTIFIER INHERITANCE (2026-09-25): the recovered objective
+            # is the NEWEST seek-shaped ask — which can be vaguer than the
+            # identifier-rich ask it superseded. Carry the user's explicit
+            # identifiers forward so the resumed read searches the
+            # machines, not the canvas title's phrases.
+            _user_targets = identifier_targets_from_user_history(
+                history, mention)
+            if _user_targets:
+                task["requested_targets"] = _user_targets
             return task
     except Exception as e:  # noqa: BLE001 — recovery is best-effort
         logger.debug(f"pending file task: history recovery skipped: {e}")

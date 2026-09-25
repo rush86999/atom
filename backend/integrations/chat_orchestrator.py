@@ -6543,6 +6543,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if _identity_rule:
                 system_prompt += "\n\n" + _identity_rule
 
+            # CANVAS TRUTH GATE (2026-09-25, live defect: a read-only
+            # turn's reply claimed "I've updated item 4" while the
+            # canvas-edit leg had been SKIPPED — the canvas still showed
+            # TBD). By the time the reply model writes, no canvas
+            # mutation has been executed this turn (an APPLIED edit
+            # returns deterministically and never reaches this prompt;
+            # background continuations apply later with their own
+            # reply). The reply may PROPOSE values, but must never claim
+            # a change happened without a confirmed write in the tool
+            # results.
+            if canvas_context:
+                system_prompt += (
+                    "\n\nCANVAS STATE: no change to the canvas has been "
+                    "executed in this turn unless a LIVE TOOL RESULT below "
+                    "explicitly confirms a successful canvas write. Do not "
+                    "claim you updated, changed, edited, or applied anything "
+                    "to the canvas. If you found values that belong on the "
+                    "canvas, present them as PROPOSED values the user can "
+                    "ask to apply."
+                )
+
             messages = [
                 {
                     "role": "system",
@@ -6867,6 +6888,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _requested_targets = extract_targets(
                     _gate_msg, [_canvas_identity],
                 )
+                # IDENTIFIER INHERITANCE (2026-09-25): when the stored ask
+                # is VAGUER than the identifier-rich ask it superseded
+                # (live: "find all these prices…" lost "8 machines: 381,
+                # U-22, …"), the resumed read searched the canvas TITLE's
+                # phrases instead of the machines. The task carries the
+                # USER's own identifiers (user asks only — never assistant
+                # renders, the contamination source); they outrank
+                # title-derived phrases whenever the derivation found no
+                # digit/hyphen-bearing identifier of its own.
+                _task_targets = [
+                    str(item).strip()
+                    for item in (
+                        (_pending_file_task or {}).get("requested_targets")
+                        or []
+                    )
+                    if str(item).strip()
+                ] if isinstance(_pending_file_task, dict) else []
+                if _task_targets and not any(
+                    re.search(r"[\d-]", item) for item in _requested_targets
+                ):
+                    _requested_targets = _task_targets
             except Exception:
                 _requested_targets = []
             _live_file_lookup_ran = False

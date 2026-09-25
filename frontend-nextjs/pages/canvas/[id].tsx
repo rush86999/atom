@@ -1071,9 +1071,23 @@ export default function CanvasDetailPage() {
                 // timeout with a pollable session means the poll ran and
                 // found no late reply; a timeout with no session never
                 // polled; a real HTTP error is a failed turn — none of them
-                // may wear the others' message.
+                // may wear the others' message. Request-security rejections
+                // carry their category in the 400 body ("Invalid request
+                // content", rejected_rule) — surface it instead of implying
+                // the agent was unreachable.
+                const errData: any = e?.response?.data;
+                const rejection =
+                    typeof errData?.error === "string" && errData.error !== "Proxy error"
+                        ? errData.error
+                        : typeof errData?.detail === "string"
+                            ? errData.detail
+                            : undefined;
+                const rejectionRule =
+                    typeof errData?.rejected_rule === "string"
+                        ? ` (rule: ${errData.rejected_rule})`
+                        : "";
                 const failureDetail = !timedOut
-                    ? `request failed with agent error ${e?.response?.status ?? "unknown"}`
+                    ? `request failed with agent error ${e?.response?.status ?? "unknown"}${rejection ? `: ${rejection}${rejectionRule}` : ""}`
                     : sid
                         ? `no completed reply recovered within the poll window${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)})` : ""}`
                         : "request timed out before a session was established; no poll ran";

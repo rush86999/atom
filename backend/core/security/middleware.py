@@ -54,23 +54,34 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         # worker memory on every POST/PUT/PATCH. 64 MiB default covers the
         # 50 MiB multipart uploads allowed by the R21/R50 caps.
         self.max_body_bytes = int(os.getenv("MAX_BODY_BYTES", str(64 * 1024 * 1024)))
+        # (rule_id, pattern) — every pattern is LEFT-ANCHORED to a token
+        # boundary. The unanchored forms matched MID-WORD substrings of
+        # ordinary content and rejected legitimate requests wholesale
+        # (live 2026-09-25: the agent's own workbook provenance line
+        # 'content_hash=…' contains 'ontent_hash=' → the on\w+\s*= rule
+        # 400-blocked every subsequent canvas turn whose history carried a
+        # workbook answer — 'confirmation=', 'connection_id=' same class;
+        # 'retrieval(…)' matched eval\(). Anchors keep every real vector:
+        # handlers appear after whitespace/quotes/tag chars, code-exec and
+        # CSS vectors at token starts; the CSS contract pins '-moz-binding:'
+        # (hyphen-preceded), so behavior/binding exclude only word chars.
         self.malicious_patterns = [
-            r"<script[^>]*>.*?</script>",
-            r"javascript:",
-            r"on\w+\s*=",
-            r"union\s+select",
-            r"drop\s+table",
-            r"exec\(",
-            r"eval\(",
-            r"system\(",
+            ("xss_script_tag", r"<script[^>]*>.*?</script>"),
+            ("js_protocol", r"javascript:"),
+            ("xss_event_handler", r"(?<![A-Za-z0-9_\-])on\w+\s*="),
+            ("sqli_union_select", r"union\s+select"),
+            ("sqli_drop_table", r"drop\s+table"),
+            ("code_exec_exec", r"(?<![A-Za-z0-9_])exec\s*\("),
+            ("code_exec_eval", r"(?<![A-Za-z0-9_])eval\s*\("),
+            ("code_exec_system", r"(?<![A-Za-z0-9_])system\s*\("),
             # CSS-execution vectors (IE-era non-standard properties and URL
             # schemes). The canvas CSS security contract
             # (tests/integration/canvas/test_canvas_css_security.py) requires
             # these to be rejected, not persisted to the canvas audit trail.
-            r"expression\s*\(",
-            r"vbscript:",
-            r"behavior\s*:",
-            r"binding\s*:",
+            ("css_expression", r"(?<![A-Za-z0-9_])expression\s*\("),
+            ("vbscript_protocol", r"vbscript:"),
+            ("css_behavior", r"(?<![A-Za-z0-9])behavior\s*:"),
+            ("css_binding", r"(?<![A-Za-z0-9])binding\s*:"),
         ]
 
     async def _read_body_with_limit(self, request: Request) -> bytes:
@@ -96,10 +107,12 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Validate query parameters
-        for _, param_value in request.query_params.items():
-            if self._contains_malicious_content(str(param_value)):
+        for param_name, param_value in request.query_params.items():
+            rule = self._find_malicious_rule(str(param_value))
+            if rule is not None:
                 security_logger.warning(
-                    f"Malicious query parameter detected: {param_value[:50]}..."
+                    "Malicious query parameter detected: rule=%s param=%s path=%s",
+                    rule[0], param_name, request.url.path,
                 )
                 return JSONResponse(
                     status_code=400, content={"error": "Invalid request parameters"}
@@ -113,10 +126,20 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             try:
                 body = await self._read_body_with_limit(request)
                 body_str = body.decode("utf-8", errors="ignore")
-                if self._contains_malicious_content(body_str):
-                    security_logger.warning("Malicious content detected in body")
+                rule = self._find_malicious_rule(body_str)
+                if rule is not None:
+                    # Rule id + JSON leaf paths — identifiers only, never
+                    # body content (it can carry user text).
+                    security_logger.warning(
+                        "Malicious content detected in body: rule=%s paths=%s endpoint=%s",
+                        rule[0], self._malicious_field_paths(body_str), request.url.path,
+                    )
                     return JSONResponse(
-                        status_code=400, content={"error": "Invalid request content"}
+                        status_code=400,
+                        content={
+                            "error": "Invalid request content",
+                            "rejected_rule": rule[0],
+                        },
                     )
                 # Re-inject body for later handlers
                 request._body = body
@@ -140,17 +163,49 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
-    def _contains_malicious_content(self, content: str) -> bool:
+    def _find_malicious_rule(self, content: str):
+        """First (rule_id, match) on the content, or None. Shared by the
+        boolean gate and the rejection logger (rule id + field path only —
+        never body content, which may carry user text)."""
         # Decode HTML character references BEFORE matching: browsers decode
         # entities during parsing, so `onerror&#x3d;`, `jav&#x61;script:` and
         # `&lt;script&gt;` are the same payloads as the literal forms. Without
         # this, entity-encoded XSS bypassed the denylist and was persisted
         # verbatim to the canvas audit trail (stored-XSS vector).
         content_lower = html.unescape(content).lower()
-        for pattern in self.malicious_patterns:
-            if re.search(pattern, content_lower, re.IGNORECASE | re.MULTILINE):
-                return True
-        return False
+        for rule_id, pattern in self.malicious_patterns:
+            match = re.search(pattern, content_lower, re.IGNORECASE | re.MULTILINE)
+            if match:
+                return rule_id, match
+        return None
+
+    def _contains_malicious_content(self, content: str) -> bool:
+        return self._find_malicious_rule(content) is not None
+
+    def _malicious_field_paths(self, body_str: str, max_paths: int = 3) -> list:
+        """JSON leaf paths whose value trips a rule — identifiers for the
+        rejection log, not content. Bodies that are not JSON log no paths."""
+        try:
+            data = json.loads(body_str)
+        except Exception:
+            return []
+        paths: list = []
+
+        def walk(node, path) -> None:
+            if len(paths) >= max_paths:
+                return
+            if isinstance(node, str):
+                if self._find_malicious_rule(node) is not None:
+                    paths.append(path or "<root>")
+            elif isinstance(node, dict):
+                for key, value in node.items():
+                    walk(value, f"{path}.{key}" if path else str(key))
+            elif isinstance(node, (list, tuple)):
+                for index, value in enumerate(node):
+                    walk(value, f"{path}[{index}]")
+
+        walk(data, "")
+        return paths
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

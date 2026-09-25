@@ -2232,6 +2232,96 @@ class TestLegacyTaskRecovery:
         assert "invoice totals" in task["original_message"]
 
 
+class TestIdentifierInheritance:
+    """2026-09-25: a vague re-ask superseded the identifier-rich ask, and
+    the resumed read searched the canvas TITLE's phrases instead of the
+    machines. The task must carry the USER's explicit identifiers forward
+    — user asks only; assistant renders (markdown tables of canvas
+    values) are the contamination source and never contribute."""
+
+    MACHINES_ASK = (
+        "find the prices of these 8 machines in Consolidated Price List "
+        "2019.xlsx: 381, U-22, 622, SLE24-16, GSL48-16, GSL24-16, SLE16-8 "
+        "and U-38")
+    MACHINES = [
+        "381", "U-22", "622", "SLE24-16", "GSL48-16",
+        "GSL24-16", "SLE16-8", "U-38",
+    ]
+
+    def test_user_history_harvests_the_machines(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK,
+             "response": "searching now"},
+            {"message": LEGACY_ASK, "response": "unverified"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        for machine in self.MACHINES:
+            assert machine in targets, machine
+
+    def test_assistant_renders_never_contribute(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK, "response": "ok"},
+            # role-marked assistant render carrying the contaminating table
+            {"role": "assistant",
+             "content": "| 902 | ABSENT |\n| 00 | ABSENT |\n| 609 | ABSENT |"},
+            # message/response shape: the render lives in 'response'
+            {"message": "",
+             "response": "| 777 | ABSENT |\n| 880 | ABSENT |"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        assert not any(t in {"902", "00", "609", "777", "880"} for t in targets)
+
+    def test_different_file_asks_are_excluded(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK, "response": "ok"},
+            {"message": "check R-9 in Training Records.xlsx",
+             "response": "ok"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        assert "R-9" not in targets
+
+    def test_recovery_stamps_requested_targets(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = [
+            {"message": self.MACHINES_ASK,
+             "response": "the WorkDrive lookup came back unverified"},
+            {"message": LEGACY_ASK, "response": "unverified again"},
+            {"message": LEGACY_CONFIRM,
+             "response": "Noted that the filename to target is the 2019 list."},
+        ]
+        task = recover_pending_task_from_history(history, LEGACY_RETRY)
+        assert task is not None
+        assert task["original_message"] == LEGACY_ASK
+        stamped = task.get("requested_targets") or []
+        for machine in self.MACHINES:
+            assert machine in stamped, machine
+
+
+class TestCanvasTruthGate:
+    """2026-09-25 live defect: a read-only turn's reply claimed 'I've
+    updated item 4' while the canvas-edit leg was SKIPPED (the canvas kept
+    TBD). The reply model must be told no canvas change executed."""
+
+    def test_reply_prompt_carries_canvas_state_rule(self):
+        import inspect
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        source = inspect.getsource(ChatOrchestrator._get_qwen_response)
+        assert "CANVAS STATE: no change to the canvas has been" in source
+        assert "present them as PROPOSED values" in source
+
+
 class TestLineageMatching:
     def test_intervening_confirmation_does_not_break_the_match(self):
         """Even WITH stored state, the old history check hit the filename
