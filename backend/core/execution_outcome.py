@@ -13,6 +13,7 @@ Unknown stays unknown: an unset dimension is None, never a guess.
 """
 from __future__ import annotations
 
+import copy
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -184,8 +185,6 @@ def transition(
 
 def record_to_dict(record: Dict[str, Any]) -> Dict[str, Any]:
     """JSON-serializable copy for storage under the record's own keys."""
-    import copy
-
     return copy.deepcopy(record)
 
 
@@ -198,7 +197,7 @@ def record_from_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     record = new_operation_record()
     for key in record:
         if key in data:
-            record[key] = data[key]
+            record[key] = copy.deepcopy(data[key])
     dimensions = (
         "execution_status",
         "evidence_sufficiency",
@@ -236,7 +235,7 @@ def load_operation_records(metadata: Optional[Dict[str, Any]]) -> Dict[str, Dict
     out: Dict[str, Dict[str, Any]] = {}
     for operation_id, record in operations.items():
         if isinstance(record, dict) and record.get("record_version") == RECORD_VERSION:
-            out[str(operation_id)] = record
+            out[str(operation_id)] = copy.deepcopy(record)
     return out
 
 

@@ -3129,6 +3129,29 @@ class ChatOrchestrator:
             from core.models import AgentExecution
 
             execution_id = str(_uuid.uuid4())
+            _start_meta = {
+                "session_id": session_id,
+                "surface": "chat",
+                "user_id": user_id,
+                "workspace_id": workspace_id,
+            }
+            if os.getenv("CHAT_FINALIZATION_M1") == "1":
+                try:
+                    from core import execution_outcome as _outcome
+
+                    _op = _outcome.new_operation_record(
+                        operation_id=execution_id,
+                        execution_id=execution_id,
+                        operation_class="chat_turn",
+                        producer="chat_orchestrator",
+                    )
+                    _outcome.transition(
+                        _op, "execution_status", "running",
+                        producer="chat_orchestrator")
+                    _start_meta = _outcome.store_operation_record(
+                        _start_meta, _op)
+                except Exception:
+                    pass
             with get_db_session() as db:
                 db.add(AgentExecution(
                     id=execution_id,
@@ -3136,12 +3159,7 @@ class ChatOrchestrator:
                     status="running",
                     input_summary=(message or "")[:300],
                     triggered_by="chat",
-                    metadata_json={
-                        "session_id": session_id,
-                        "surface": "chat",
-                        "user_id": user_id,
-                        "workspace_id": workspace_id,
-                    },
+                    metadata_json=_start_meta,
                 ))
             return execution_id
         except Exception as e:
@@ -3662,6 +3680,38 @@ class ChatOrchestrator:
                             "execution_id": execution_id,
                         }
                         row.metadata_json = meta
+                    if os.getenv("CHAT_FINALIZATION_M1") == "1":
+                        try:
+                            from core import execution_outcome as _outcome
+
+                            _raw_meta = getattr(row, "metadata_json", None)
+                            if _raw_meta is None:
+                                _raw_meta = {}
+                            if isinstance(_raw_meta, dict):
+                                _records = _outcome.load_operation_records(
+                                    _raw_meta)
+                                _op = _records.get(execution_id) or (
+                                    _outcome.new_operation_record(
+                                        operation_id=execution_id,
+                                        execution_id=execution_id,
+                                        operation_class="chat_turn",
+                                        producer="chat_orchestrator"))
+                                _mapped = {
+                                    "success": "succeeded",
+                                    "failed": "failed",
+                                }.get(status)
+                                if _mapped is not None:
+                                    try:
+                                        _outcome.transition(
+                                            _op, "execution_status", _mapped,
+                                            producer="chat_orchestrator")
+                                    except _outcome.IllegalTransition:
+                                        pass
+                                row.metadata_json = (
+                                    _outcome.store_operation_record(
+                                        _raw_meta, _op))
+                        except Exception:
+                            pass
                     db.commit()
         except Exception as e:
             logger.warning(f"chat execution finish skipped: {e}")
