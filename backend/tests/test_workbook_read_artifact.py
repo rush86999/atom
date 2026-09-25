@@ -460,6 +460,52 @@ def test_numeric_target_gets_no_aliases(tmp_path):
     assert not outcome.get("matched_alias")
 
 
+def test_brand_constraint_from_objective_resolves_ambiguity(tmp_path):
+    """2026-09-25 review round 4: the objective already names each item's
+    manufacturer — apply that identity BEFORE reporting ambiguity (live:
+    'No. 381' resolved to RoperWhitney!A88 once 'Roper Whitney' was
+    applied). Uninformative constraints keep all candidates."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    rw = tmp_path / "roperwhitney.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2, 3],
+        "Model": ["381", "381"],
+        "Price": [10.0, 11.0],
+    }).to_parquet(rw)
+    other = tmp_path / "otherco.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "Model": ["381"],
+        "Price": [99.0],
+    }).to_parquet(other)
+    entries = [
+        {"entity_name": "RoperWhitney", "parquet_path": str(rw),
+         "row_count": 2, "coverage": {"known": True, "truncated": False}},
+        {"entity_name": "OtherCo", "parquet_path": str(other),
+         "row_count": 1, "coverage": {"known": True, "truncated": False}},
+    ]
+    artifact = inspect_dataset_entries(
+        entries,
+        "catalog.xlsx",
+        query="price for No. 381",
+        context_texts=["Roper Whitney 36\" Manual Roll Bender, No. 381"],
+        targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    # The brand constraint removes OtherCo; the two RoperWhitney rows
+    # remain (intra-brand multiplicity is honest ambiguity) — but the
+    # surviving evidence is brand-constrained and the note says so.
+    assert all(
+        e.get("sheet") == "RoperWhitney"
+        for e in outcome.get("evidence") or []
+    )
+    assert "identity constrained by 'Roper Whitney'" in (
+        outcome.get("note") or "")
+
+
 def test_inventory_quantity_fixture_selects_stock_field():
     artifact = inspect_workbook_bytes(
         _bytes_for_sheet(

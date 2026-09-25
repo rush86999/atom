@@ -671,42 +671,100 @@ _PROMISE_NO_EXECUTION_RE = re.compile(
 _RECOVERY_WINDOW = 12
 
 # An objective's entity set is an EXPLICIT ENUMERATION in the ask
-# ("...these 8 machines: 381, U-22, ... and U-38"), not any identifier
-# appearing anywhere in a same-file message (2026-09-25 review: unioning
-# same-file mentions mixes superseded asks, and user messages are NOT
-# clean by construction — this conversation carries pasted prices and
-# delivery terms). Items are taken from BETWEEN the separators, so
-# monetary figures inside the enumeration are cut by the item cleaner
-# rather than regex-harvested from raw text.
-_ENUMERATION_SPLIT_RE = re.compile(r",|;|\s+and\s+|\s+&\s+")
-# Cut an enumerated item at a value/delivery tail: spaced dash (" — "),
-# currency, or a bare-number+unit run ("$2,902.00", "10-11 weeks").
-# UNspaced hyphens stay — model syntax (SLE24-16, U-22).
+# ("...these 8 machines: 381, U-22, ... and U-38" or a numbered list),
+# not any identifier appearing anywhere in a same-file message (2026-09-25
+# review: unioning same-file mentions mixes superseded asks, and user
+# messages are NOT clean by construction — this conversation carries
+# pasted prices and delivery terms).
+# SEPARATORS NEVER SPLIT DECIMAL AMOUNTS: a comma between digits
+# ("$2,902.00") is a thousands separator — splitting on bare ',' made
+# '902.00' a standalone entity (2026-09-25 review round 4). Newlines
+# separate numbered/bulleted list items.
+_ENUMERATION_SPLIT_RE = re.compile(r",(?!\d)|;|\s+and\s+|\s+&\s+|\n")
+_LIST_LINE_RE = re.compile(r"^\s*(?:\d+[.)]|[-•*])\s+(.{3,80})$")
+# Cut an enumerated item at a value/delivery/correction tail: spaced dash
+# (" — "), currency (with its decimal tail), bare-number+unit run, or a
+# negation correction ("…No. 381 (not 0381)"). UNspaced hyphens stay —
+# model syntax (SLE24-16, U-22).
 _ITEM_TAIL_RE = re.compile(
-    r"\s+[-–—]\s+|[$€£¥₹]|\b(?:CAD|USD)\b|\b\d+\s+(?:weeks?|days?|months?)\b",
+    r"\s+[-–—]\s+|[$€£¥₹]\s*\d|[$€£¥₹]|\b(?:CAD|USD)\b"
+    r"|\b\d[\d,]*\.\d{2}\b|\b\d+\s+(?:weeks?|days?|months?)\b"
+    r"|\s*\(?\b(?:not|formerly)\b[^)]*\)?",
     re.IGNORECASE,
 )
+# A REMOVAL item never enters the objective set ("drop U-38", "not
+# 0381"). 'No.' is NUMERO, never negation — "No. 381" must survive.
+_ITEM_NEGATION_RE = re.compile(
+    r"^\s*(?:not|without|drop|remove|minus|exclude|except|skip)\b"
+    r"[\s:,]*|^\s*no\b(?![.\d])[\s:,]*",
+    re.IGNORECASE,
+)
+# Items that are pure value/attribute noise after tail-cutting.
+_ITEM_JUNK = {
+    "cad", "usd", "tbd", "each", "in stock", "stock", "units", "total",
+    "and", "tax", "taxes", "valid", "quote",
+}
 _ADDITION_RE = re.compile(
     r"^\s*(?:also|and|add|plus|include|including)\b", re.IGNORECASE)
 
 
+def _clean_enumeration_item(raw: str) -> Optional[str]:
+    """One enumerated item → its entity name, or None when the fragment
+    is noise (a price tail, a negation/removal, currency/unit words).
+    The FULL cleaned name is preserved — 'TK Manual Flanger' stays
+    'TK Manual Flanger'; it is not reduced to a bare code (2026-09-25
+    review round 4: preserve entity names and attributes)."""
+    item = _ITEM_TAIL_RE.split(raw.strip())[0].strip(" .,:;")
+    item = re.sub(r"^\d+[.)]\s*", "", item)  # numbered-list residue
+    if not item:
+        return None
+    if _ITEM_NEGATION_RE.match(raw.strip()):
+        return None  # a removal/correction target, not an entity
+    if item.lower() in _ITEM_JUNK:
+        return None
+    if len(item.split()) > 6 or len(item) > 60:
+        return None  # prose, not an enumeration item
+    # Identity-shaped: carries a digit (model code) or a capitalized word
+    # (proper name); bare lowercase prose fragments are not entities.
+    if not (any(ch.isdigit() for ch in item)
+            or any(word[:1].isupper() for word in item.split())):
+        return None
+    return item
+
+
 def _enumeration_items(text: str) -> List[str]:
     """The explicit item list from an ask, or [] when the ask has none.
-    An enumeration is a colon-introduced list of 2+ short items; the item
-    cleaner strips price/delivery tails so pasted values cannot ride."""
+    Two accepted forms (2026-09-25 review round 4: colon-only was too
+    narrow — the original quote ask is a NUMBERED list with prices):
+    (a) a colon-introduced comma/and list; (b) numbered/bulleted lines.
+    Decimal amounts never split; negation items are dropped; each item
+    keeps its full entity name."""
+    candidates: List[List[str]] = []
     colon = text.rfind(":")
-    if colon < 0 or colon == len(text) - 1:
-        return []
-    tail = text[colon + 1:].strip()
-    if not tail or len(tail) > 400:
-        return []
-    items: List[str] = []
-    for raw in _ENUMERATION_SPLIT_RE.split(tail):
-        item = _ITEM_TAIL_RE.split(raw.strip())[0].strip(" .")
-        if not item or len(item.split()) > 6 or len(item) > 60:
-            return []  # prose, not an enumeration
-        items.append(item)
-    return items if len(items) >= 2 else []
+    if 0 <= colon < len(text) - 1:
+        tail = text[colon + 1:].strip()
+        if tail and len(tail) <= 400:
+            candidates.append(_ENUMERATION_SPLIT_RE.split(tail))
+    list_lines = [
+        match.group(1)
+        for match in (_LIST_LINE_RE.match(line)
+                      for line in text.splitlines())
+        if match
+    ]
+    if len(list_lines) >= 2:
+        candidates.append(list_lines)
+    best: List[str] = []
+    for parts in candidates:
+        items = [
+            cleaned
+            for cleaned in (
+                _clean_enumeration_item(part) for part in parts
+            )
+            if cleaned
+        ]
+        if len(items) > len(best):
+            best = items
+    return best if len(best) >= 2 else []
 
 
 def identifier_targets_from_user_history(
@@ -781,20 +839,23 @@ def identifier_targets_from_user_history(
             enumerated = (items, bool(mentions) or enumerated[1], index)
         if enumerated is None:
             return []
-        _add(
-            target
-            for item in enumerated[0]
-            for target in (extract_targets(item) or [item])[:1]
-        )
+        # FULL entity names, not reduced identifiers: 'TK Manual Flanger'
+        # stays intact so brand/series attributes ride with the target
+        # (2026-09-25 review round 4) — the reader's own derivation and
+        # the artifact's alias lane consume the full name.
+        _add(enumerated[0])
         # Pure-addition follow-ups after the chosen enumeration
         # ("also check TK 1624 while you're in there").
         for text in user_texts[enumerated[2] + 1:]:
             if _ADDITION_RE.match(text):
                 _add(
-                    target
-                    for item in _ENUMERATION_SPLIT_RE.split(
-                        _ITEM_TAIL_RE.split(text)[0])
-                    for target in (extract_targets(item.strip()) or [])[:1]
+                    cleaned
+                    for cleaned in (
+                        _clean_enumeration_item(part)
+                        for part in _ENUMERATION_SPLIT_RE.split(
+                            _ITEM_TAIL_RE.split(text)[0])
+                    )
+                    if cleaned
                 )
         return out[:64]
     except Exception as e:  # noqa: BLE001 — harvest is best-effort

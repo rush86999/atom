@@ -6376,19 +6376,18 @@ class ChatOrchestrator:
             reason="index unchanged after refetch",
         )
 
-    # ENFORCED CANVAS-CLAIM VERIFICATION (2026-09-25 review round 2): the
-    # prompt-level CANVAS STATE rule reduces false edit claims; it cannot
-    # guarantee them away. This deterministic gate checks the FINAL reply
-    # against actual execution: a canvas-change claim with no recorded
-    # write for this canvas (audit readback) gets an appended correction.
-    # Structurally, an APPLIED edit returns deterministically and never
-    # reaches the reply model — the readback additionally catches a
-    # background continuation that already landed.
-    _CANVAS_CLAIM_RE = re.compile(
-        r"\b(?:i\s+(?:'ve|have)|we(?:'ve| have)|let\s+me|i'll|i\s+will)?"
-        r"\s*(?:updated|changed|edited|applied|modified|revised|wrote)\b"
-        r"[^.\n]{0,60}?\b(?:canvas|table|item|draft|quote|column|row|"
-        r"price|cell|value)\b",
+    # ENFORCED CANVAS-CLAIM VERIFICATION (2026-09-25 review rounds 3-4):
+    # the prompt-level CANVAS STATE rule reduces false edit claims; it
+    # cannot guarantee them away. This deterministic gate checks the FINAL
+    # reply against THIS OPERATION's actual execution: a canvas-change
+    # claim is REWRITTEN (not contradicted-by-append) unless an audit
+    # readback binds a successful write to this execution (same session,
+    # at/after the execution's start, or stamped with this execution_id).
+    # Audit-read failure means UNVERIFIED — never "canvas unchanged".
+    _CANVAS_CLAIM_SENTENCE_RE = re.compile(
+        r"[^.\n]*\b(?:updated|changed|edited|applied|modified|revised|"
+        r"wrote)\b[^.\n]*\b(?:canvas|table|item|draft|quote|column|row|"
+        r"price|cell|value)\b[^.\n]*[.\n]?",
         re.IGNORECASE,
     )
 
@@ -6400,68 +6399,119 @@ class ChatOrchestrator:
         session_id: Optional[str],
         user_id: Optional[str],
         background_forked: bool,
+        execution_id: Optional[str] = None,
     ) -> str:
         text = str(content or "")
         if not text or not isinstance(canvas_context, dict):
             return text
-        if not cls._CANVAS_CLAIM_RE.search(text):
+        if not cls._CANVAS_CLAIM_SENTENCE_RE.search(text):
             return text
         canvas_id = str(canvas_context.get("canvas_id") or "")
-        if canvas_id and cls._canvas_write_recent(
-            canvas_id, session_id, user_id,
-        ):
-            return text  # a write is on record — the claim may be true
+        verification = cls._canvas_write_for_operation(
+            canvas_id, session_id, user_id, execution_id,
+        )
+        if verification == "written":
+            return text  # this operation's write is on the audit trail
+        if verification == "unverified":
+            replacement = (
+                "*(Could not verify whether the canvas was changed — the "
+                "audit read failed; treat the canvas as unconfirmed.)*"
+            )
+        elif background_forked:
+            replacement = (
+                "*(The canvas edit is still running in the background — "
+                "nothing is confirmed changed yet.)*"
+            )
+        else:
+            replacement = (
+                "*(No canvas change has been applied — the canvas is "
+                "unchanged; values above are proposed only.)*"
+            )
         logger.warning(
-            "[canvas-claim-guard] reply claimed a canvas change with no "
-            "recorded write (canvas=%s, session=%s, background=%s) — "
-            "appending correction",
-            canvas_id or "?", session_id or "?", background_forked,
+            "[canvas-claim-guard] reply claimed a canvas change; "
+            "verification=%s (canvas=%s, session=%s, execution=%s) — "
+            "claim rewritten",
+            verification, canvas_id or "?", session_id or "?",
+            execution_id or "?",
         )
-        correction = (
-            "\n\n*(Status: the canvas edit is still running in the "
-            "background — nothing is confirmed changed yet.)*"
-            if background_forked else
-            "\n\n*(Correction: no canvas change has been applied — the "
-            "canvas is unchanged; any values above are proposed only.)*"
-        )
-        return text + correction
+        # REPLACE the unsupported claim sentences — leaving them intact
+        # and appending a contradiction says both things at once.
+        rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(replacement, text)
+        if rewritten == text:
+            # The sentence matcher missed (unusual formatting): fall back
+            # to appending so the user is never left with a bare claim.
+            rewritten = f"{text}\n\n{replacement}"
+        return rewritten
 
     @staticmethod
-    def _canvas_write_recent(
+    def _canvas_write_for_operation(
         canvas_id: str,
         session_id: Optional[str],
         user_id: Optional[str],
-        window_minutes: int = 6,
-    ) -> bool:
-        """Audit readback: did a WRITE action land on this canvas within
-        the turn-scale window? Best-effort; on read failure returns False
-        (the structural invariant — applied edits never reach the reply
-        model — remains the primary guarantee)."""
+        execution_id: Optional[str],
+    ) -> str:
+        """Tri-state audit readback for THIS operation: "written" | "
+        no_write" | "unverified".
+
+        A write verifies the claim only when the audit row binds to this
+        execution — created at/after the execution's own start, in this
+        session, with a mutation action (2026-09-25 review round 4: the
+        previous 6-minute any-session window let an unrelated earlier
+        write validate a false claim). Rows stamped with this
+        execution_id verify regardless of session (exact bind, for
+        writers that stamp it). Any read failure is UNVERIFIED."""
+        if not canvas_id:
+            return "no_write"
         try:
-            from datetime import datetime, timedelta, timezone
-
             from core.database import get_db_session
-            from core.models import CanvasAudit
+            from core.models import AgentExecution, CanvasAudit
 
-            cutoff = datetime.now(timezone.utc) - timedelta(
-                minutes=window_minutes
-            )
             with get_db_session() as db:
+                turn_start = None
+                if execution_id:
+                    row = db.query(AgentExecution).filter(
+                        AgentExecution.id == execution_id
+                    ).first()
+                    if row is not None:
+                        turn_start = (
+                            getattr(row, "started_at", None)
+                            or getattr(row, "created_at", None)
+                        )
+                if execution_id and turn_start is None:
+                    # The execution row itself is unreadable — we cannot
+                    # scope time; only an exact execution_id stamp can
+                    # verify.
+                    turn_start = None
                 query = db.query(CanvasAudit).filter(
                     CanvasAudit.canvas_id == canvas_id,
-                    CanvasAudit.action_type.notin_(("read", "view")),
-                    CanvasAudit.created_at >= cutoff,
+                    CanvasAudit.action_type.in_(
+                        ("update", "create", "edit", "delete", "restore")),
                 )
-                if session_id:
-                    row = query.filter(
-                        CanvasAudit.session_id == session_id
+                stamped = None
+                if execution_id:
+                    # details_json is JSON-over-TEXT on SQLite — a direct
+                    # substring probe finds a stamped execution id without
+                    # a cast (cast(str) is a constructor on this
+                    # SQLAlchemy version, not a type).
+                    stamped = query.filter(
+                        CanvasAudit.details_json.contains(execution_id)
                     ).first()
-                    if row:
-                        return True
-                return query.first() is not None
+                if stamped is not None:
+                    return "written"
+                if turn_start is None:
+                    # No exact stamp and no time anchor — this operation
+                    # cannot be verified either way.
+                    return "unverified"
+                if not session_id:
+                    return "no_write"
+                row = query.filter(
+                    CanvasAudit.session_id == session_id,
+                    CanvasAudit.created_at >= turn_start,
+                ).first()
+                return "written" if row is not None else "no_write"
         except Exception as exc:  # noqa: BLE001 — readback is best-effort
             logger.debug(f"canvas write readback skipped: {exc}")
-            return False
+            return "unverified"
 
     async def _get_qwen_response(
         self,
@@ -10337,6 +10387,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _claimed_content = self._canvas_claim_correction(
                     _content, canvas_context, session_id, user_id,
                     async_continuation_forked,
+                    execution_id=execution_id,
                 )
                 return {
                     "content": _claimed_content,

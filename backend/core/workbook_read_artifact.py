@@ -994,6 +994,115 @@ def _fallback_artifact(
     }
 
 
+_BRAND_STOPWORDS = {
+    "the", "and", "for", "with", "these", "those", "find", "check",
+    "price", "prices", "quote", "list", "no", "nos", "model", "item",
+    "part", "machine", "machines", "series", "gauge", "manual",
+    "single", "multi", "wheel", "combination", "rotary", "throat",
+    "roll", "roller", "bender", "bead", "edger", "flanger", "bandsaw",
+    "saw", "punch", "die", "dies", "press", "brake", "shear", "inch",
+    "inches", "stock",
+}
+
+
+_FILENAME_BLANK_RE = re.compile(
+    r"\b[A-Z0-9][A-Za-z0-9_()'\ -]*"
+    r"(?:\s+[A-Z0-9][A-Za-z0-9_()'\ -]*){0,6}"
+    r"\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?|pptx?|txt|md|json)\b",
+    re.IGNORECASE,
+)
+
+
+def _brand_phrases_near(text: str, target: str) -> List[str]:
+    """Manufacturer/brand phrases for a target, from the LINE that names
+    it ('Roper Whitney … No. 381', 'Tin Knocker TK Multi Wheel Gang
+    Slitter'). The brand LEADS the item line in catalogs and quotes, so
+    only line-initial capitalized runs count — mid-line runs are the
+    previous list item's tail or model codes ('… SLE24-16, TK' bled into
+    '1624' as the false brand 'SLE TK' before this rule). Filenames are
+    blanked first ('Consolidated' is a FILE word, never a brand).
+    Compared canonically downstream so 'Roper Whitney' matches the sheet
+    'RoperWhitney'."""
+    phrases: List[str] = []
+    seen: set = set()
+    cleaned = _FILENAME_BLANK_RE.sub(" ", str(text or ""))
+    for line in cleaned.splitlines():
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_-]){re.escape(str(target))}(?![A-Za-z0-9_-])",
+            line, re.IGNORECASE,
+        ):
+            before = line[:match.start()]
+            words = re.findall(r"[A-Za-z][A-Za-z'&.-]*", before)
+            run: List[str] = []
+            for word in words:
+                if word[:1].isupper() and word.strip(".-").lower() not in (
+                        _BRAND_STOPWORDS):
+                    run.append(word.strip(".-"))
+                else:
+                    break  # line-initial run only
+            if run:
+                # Trailing ultra-short tokens are series prefixes ('Tin
+                # Knocker TK' — 'TK' would break the canonical sheet
+                # match against 'tinknocker').
+                while run and len(run[-1]) <= 2:
+                    run.pop()
+            if run:
+                phrase = " ".join(run)
+                key = _canonical(phrase)
+                if len(key) >= 4 and key not in seen:
+                    seen.add(key)
+                    phrases.append(phrase)
+    return phrases[:2]
+
+
+def _target_attribute_context(
+    texts: Sequence[str], targets: Sequence[str],
+) -> Dict[str, List[str]]:
+    """Per-target identity constraints from the objective's own words
+    (2026-09-25 review round 4: apply retained identity constraints
+    before asking the user for information the objective already
+    supplied — 381/622 are Roper Whitney, the gang slitter is Tin
+    Knocker)."""
+    context: Dict[str, List[str]] = {}
+    for target in targets:
+        collected: List[str] = []
+        seen: set = set()
+        for text in texts or []:
+            for phrase in _brand_phrases_near(str(text or ""), target):
+                key = _canonical(phrase)
+                if key not in seen:
+                    seen.add(key)
+                    collected.append(phrase)
+        if collected:
+            context[str(target)] = collected[:4]
+    return context
+
+
+def _corroborates_brand(
+    evidence: Dict[str, Any], phrases: Sequence[str],
+) -> bool:
+    """Does this candidate row carry one of the target's brand
+    constraints — canonically, against the sheet name or an
+    identity-headed cell in the row?"""
+    sheet = _canonical(evidence.get("sheet"))
+    row_values = [
+        _canonical(value)
+        for value in _row_identity_values(evidence)
+    ]
+    for phrase in phrases or []:
+        brand = _canonical(phrase)
+        if not brand:
+            continue
+        if brand in sheet:
+            return True
+        if any(
+            brand in value or value in brand
+            for value in row_values if value
+        ):
+            return True
+    return False
+
+
 def inspect_workbook_bytes(
     content: bytes,
     file_name: str,
@@ -1008,11 +1117,22 @@ def inspect_workbook_bytes(
     source_metadata: Optional[Dict[str, Any]] = None,
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
+    attribute_texts: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Read every worksheet once and return one outcome per requested target."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
     alias_map = _left_drop_aliases(requested)
+    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+    # constraints may be mined from ANY text — user asks, assistant
+    # answers quoting the catalog/thread, the canvas body — because only
+    # line-initial brand runs are collected (never entities). Entity
+    # extraction still sees context_texts alone (assistant renders stay
+    # out of the contamination-sensitive path).
+    target_attributes = _target_attribute_context(
+        list(attribute_texts or []) or [query or "", *(context_texts or [])],
+        requested,
+    )
     try:
         import openpyxl
     except Exception as exc:
@@ -1226,6 +1346,24 @@ def inspect_workbook_bytes(
                 for item in designations
             ):
                 designations = []
+        # RETAINED IDENTITY CONSTRAINTS (2026-09-25 review round 4): the
+        # objective itself names each item's manufacturer — apply that
+        # BEFORE reporting ambiguity (381/622 are Roper Whitney per the
+        # quote; the gang slitter is Tin Knocker). Keep ALL candidates
+        # when none corroborate (an uninformative constraint never
+        # disqualifies).
+        brand_phrases = target_attributes.get(target) or []
+        constrained_note: Optional[str] = None
+        if brand_phrases and len(designations) > 1:
+            corroborated = [
+                item for item in designations
+                if _corroborates_brand(item, brand_phrases)
+            ]
+            if corroborated and len(corroborated) < len(designations):
+                designations = corroborated
+                constrained_note = (
+                    f"identity constrained by '{brand_phrases[0]}' "
+                    "(from the request)")
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1275,6 +1413,8 @@ def inspect_workbook_bytes(
                 "(the exact requested name has no cell in this copy)"
             )
             note = f"{note}; {alias_note}" if note else alias_note
+        if constrained_note:
+            note = f"{note}; {constrained_note}" if note else constrained_note
         outcomes.append({
             "target": target,
             "status": status,
@@ -1349,11 +1489,22 @@ def inspect_dataset_entries(
     content_hash_algorithm: str = "sha1",
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
+    attribute_texts: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
     alias_map = _left_drop_aliases(requested)
+    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+    # constraints may be mined from ANY text — user asks, assistant
+    # answers quoting the catalog/thread, the canvas body — because only
+    # line-initial brand runs are collected (never entities). Entity
+    # extraction still sees context_texts alone (assistant renders stay
+    # out of the contamination-sensitive path).
+    target_attributes = _target_attribute_context(
+        list(attribute_texts or []) or [query or "", *(context_texts or [])],
+        requested,
+    )
     evidence: Dict[str, List[Dict[str, Any]]] = {target: [] for target in requested}
     sheets: List[Dict[str, Any]] = []
     complete = bool(entries)
@@ -1588,6 +1739,24 @@ def inspect_dataset_entries(
                 for item in designations
             ):
                 designations = []
+        # RETAINED IDENTITY CONSTRAINTS (2026-09-25 review round 4): the
+        # objective itself names each item's manufacturer — apply that
+        # BEFORE reporting ambiguity (381/622 are Roper Whitney per the
+        # quote; the gang slitter is Tin Knocker). Keep ALL candidates
+        # when none corroborate (an uninformative constraint never
+        # disqualifies).
+        brand_phrases = target_attributes.get(target) or []
+        constrained_note: Optional[str] = None
+        if brand_phrases and len(designations) > 1:
+            corroborated = [
+                item for item in designations
+                if _corroborates_brand(item, brand_phrases)
+            ]
+            if corroborated and len(corroborated) < len(designations):
+                designations = corroborated
+                constrained_note = (
+                    f"identity constrained by '{brand_phrases[0]}' "
+                    "(from the request)")
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1648,6 +1817,11 @@ def inspect_dataset_entries(
             outcome["note"] = (
                 f"{outcome['note']}; {alias_note}"
                 if outcome.get("note") else alias_note
+            )
+        if constrained_note:
+            outcome["note"] = (
+                f"{outcome.get('note')}; {constrained_note}"
+                if outcome.get("note") else constrained_note
             )
         outcomes.append(outcome)
     digest = content_hash or sha256

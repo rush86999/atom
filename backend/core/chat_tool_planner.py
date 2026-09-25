@@ -5794,6 +5794,34 @@ async def _datasets_named_file_block(
             for entry in (context or {}).get("history") or []:
                 if isinstance(entry, dict) and entry.get("message"):
                     context_texts.append(str(entry["message"]))
+            # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+            # constraints may come from ANY text — assistant answers
+            # quoting the catalog/thread (the original conversation's
+            # 'Roper Whitney … No. 381' lines were assistant-rendered) and
+            # the canvas body. Entity extraction never sees these
+            # (context_texts stays user-only); the artifact mines only
+            # line-initial brand runs from them. Nested shapes are
+            # flattened — assistant text lives under response.message.
+            def _brand_entry_text(entry: Any) -> str:
+                def _walk(node: Any) -> str:
+                    if isinstance(node, dict):
+                        return " ".join(
+                            _walk(v) for v in node.values())
+                    if isinstance(node, (list, tuple)):
+                        return " ".join(_walk(v) for v in node)
+                    return str(node) if isinstance(
+                        node, (str, int, float)) else ""
+                return _walk(entry) if isinstance(entry, dict) else (
+                    str(entry or ""))
+
+            _brand_texts = [query]
+            if msg_text:
+                _brand_texts.append(msg_text)
+            for entry in (context or {}).get("history") or []:
+                _brand_texts.append(_brand_entry_text(entry))
+            _canvas_ctx = (context or {}).get("canvas")
+            if isinstance(_canvas_ctx, dict):
+                _brand_texts.append(_brand_entry_text(_canvas_ctx))
             _field_requests = []
             try:
                 from core.workbook_read_artifact import (
@@ -5827,6 +5855,7 @@ async def _datasets_named_file_block(
                 content_hash_algorithm="sha1",
                 ingested_at=prov["ingested_at"],
                 disambiguation=(context or {}).get("disambiguation"),
+                attribute_texts=_brand_texts,
             )
             render_artifact = render_workbook_artifact(workbook_read)
         except Exception as artifact_error:

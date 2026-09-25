@@ -2261,6 +2261,42 @@ class TestIdentifierInheritance:
         for machine in self.MACHINES:
             assert machine in targets, machine
 
+    def test_comma_formatted_amounts_never_become_entities(self):
+        """2026-09-25 review round 4: splitting on ',' BEFORE removing
+        monetary tails made '902.00' a standalone entity out of
+        '$2,902.00'. Thousands-separator commas must never split."""
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "find the prices: No. 381 — $2,902.00, U-22 — $1,777.00, "
+            "SLE24-16 — $8,880.00")
+        assert items == ["No. 381", "U-22", "SLE24-16"]
+        assert not any(
+            "902" in item or "777" in item or "880" in item
+            for item in items)
+
+    def test_numbered_price_list_is_an_enumeration(self):
+        """The ORIGINAL objective's shape (2026-09-25 review round 4:
+        colon-only parsing never matched it): a numbered list with
+        prices and delivery terms, full entity names preserved."""
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "quote these:\n"
+            "1. Roper Whitney No. 381 — $2,902.00 — 10–11 weeks\n"
+            "2. Linmac U-22 — $1,777.00 — 3–4 months\n"
+            "3. TK Manual Flanger — $1,609.00")
+        assert items == [
+            "Roper Whitney No. 381", "Linmac U-22", "TK Manual Flanger",
+        ]
+
+    def test_negation_items_are_removed_numero_survives(self):
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "check: 381, U-22, not 0381, SLE24-16, no U-38 and TK 1624")
+        assert items == ["381", "U-22", "SLE24-16", "TK 1624"]
+
     def test_assistant_renders_never_contribute(self):
         from core.pending_file_task import identifier_targets_from_user_history
 
@@ -2321,28 +2357,104 @@ class TestCanvasTruthGate:
         assert "CANVAS STATE: no change to the canvas has been" in source
         assert "present them as PROPOSED values" in source
 
-    def test_enforced_guard_corrects_unbacked_claim(self):
-        """The deterministic gate: a canvas-change claim with no recorded
-        write gets an appended correction — enforcement, not prompting."""
+    def test_enforced_guard_replaces_unbacked_claim(self):
+        """The deterministic gate: an unbacked canvas-change claim is
+        REPLACED, not contradicted-by-append (2026-09-25 review round 4).
+        Without an execution anchor the state is UNVERIFIED — never
+        'canvas unchanged'."""
         from integrations.chat_orchestrator import ChatOrchestrator
 
-        ctx = {"canvas_id": "cv-never-written"}
         out = ChatOrchestrator._canvas_claim_correction(
             "I've updated item 4 to reflect that pricing.",
-            ctx, "s-g", "u-g", False,
+            {"canvas_id": "cv-never"}, "s-g", "u-g", False,
         )
-        assert "Correction: no canvas change has been applied" in out
-        assert out.startswith("I've updated item 4")
+        assert "I've updated item 4" not in out, (
+            "the unsupported claim must not survive verbatim")
+        assert "Could not verify whether the canvas was changed" in out
 
-    def test_enforced_guard_background_fork_gets_pending_status(self):
+    def test_enforced_guard_no_write_with_execution_anchor(self):
+        """Execution row readable, no audit write for it, no stamp →
+        no_write: the claim is replaced with 'canvas unchanged'."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import AgentExecution
         from integrations.chat_orchestrator import ChatOrchestrator
 
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        with get_db_session() as db:
+            db.add(AgentExecution(
+                id=exec_id, status="running",
+                started_at=datetime.now(timezone.utc),
+            ))
         out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated the table.", {"canvas_id": "cv-x"},
-            "s", "u", True,
+            "I've updated item 4 to reflect that pricing.",
+            {"canvas_id": f"cv-{uuid4().hex[:8]}"}, "s-g", "u-g", False,
+            execution_id=exec_id,
         )
-        assert "still running in the background" in out
-        assert "Correction" not in out
+        assert "I've updated item 4" not in out
+        assert "No canvas change has been applied" in out
+
+    def test_enforced_guard_written_claim_survives(self):
+        """An audit write bound to THIS execution (same session, at/after
+        the execution's start) verifies the claim — it stays intact."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import AgentExecution, CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        started = datetime.now(timezone.utc)
+        with get_db_session() as db:
+            db.add(AgentExecution(
+                id=exec_id, status="running", started_at=started,
+            ))
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=started,
+            ))
+        text = "I've updated item 4 to reflect that pricing."
+        out = ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert out == text
+
+    def test_enforced_guard_unrelated_write_does_not_verify(self):
+        """An OLDER write (before this execution started) must NOT verify
+        this turn's claim — the round-4 defect (6-minute any-session
+        window validated a false 'I updated it')."""
+        from datetime import datetime, timedelta, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import AgentExecution, CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        started = datetime.now(timezone.utc)
+        with get_db_session() as db:
+            db.add(AgentExecution(
+                id=exec_id, status="running", started_at=started,
+            ))
+            db.add(CanvasAudit(  # twenty minutes OLD — different operation
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=started - timedelta(minutes=20),
+            ))
+        out = ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4.", {"canvas_id": canvas_id},
+            "s-g", "u-g", False, execution_id=exec_id,
+        )
+        assert "No canvas change has been applied" in out
 
     def test_enforced_guard_ignores_non_claims_and_canvasless_turns(self):
         from integrations.chat_orchestrator import ChatOrchestrator
