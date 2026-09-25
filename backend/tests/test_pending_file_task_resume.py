@@ -2472,8 +2472,9 @@ class TestCanvasTruthGate:
                 text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
                 execution_id=exec_id,
             )
-        assert out.startswith(text)  # verified, accepted — claim stands
-        assert "The recorded checks for this change passed" in out
+        assert "item 4" not in out  # replaced by the verified set
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: accepted." in out
 
     @pytest.mark.asyncio
     async def test_verified_pending_draft_says_ready_for_review(self):
@@ -2499,8 +2500,9 @@ class TestCanvasTruthGate:
                 text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
                 execution_id=exec_id,
             )
-        assert out.startswith(text)  # the update claim stands
-        assert "ready for review" in out and "not yet accepted" in out
+        assert "item 4" not in out  # replaced by the verified set
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: pending review — not yet accepted." in out
 
     @pytest.mark.asyncio
     async def test_accepted_base_vs_pending_draft_served(self):
@@ -2582,11 +2584,11 @@ class TestCanvasTruthGate:
         assert verdict["verdict"] == "write_recorded"
 
     @pytest.mark.asyncio
-    async def test_absolute_completion_claim_is_bounded(self):
-        """Round 8: a passing RECORDED criteria subset cannot support
-        total-success wording — the price may have changed correctly, but
-        an omitted condition (e.g. footer preservation) means 'all /
-        everything' must be REPLACED with the bounded fact."""
+    async def test_claim_replaced_by_generated_verified_set(self):
+        """Round 9: the confirmation is GENERATED from the verified
+        entity/field set — total-success wording AND unchecked specific
+        claims ('item 4' when only 381 was checked) cannot survive,
+        qualifier or not."""
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2597,25 +2599,32 @@ class TestCanvasTruthGate:
             exec_id, canvas_id, {"marker": "requested-result"},
             "accepted",
             postconditions=[{
-                # only the price change is recorded — the footer-
-                # preservation condition was never stamped
+                # only the 381 price is recorded — item 4 and the
+                # footer-preservation condition were never stamped
                 "entity_id": "381", "field": "price",
                 "expected": {"raw_value": "123.0"},
             }])
-        text = ("I've updated all the prices and everything is done on "
-                "the canvas.")
-        with self._patch_checker("requested-result"):
-            out = await ChatOrchestrator._canvas_claim_correction(
-                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
-                execution_id=exec_id,
-            )
-        assert "everything is done" not in out, (
-            "total-success wording cannot survive incomplete criteria")
-        assert "The recorded checks for this change passed" in out
-        assert "recorded criteria" in out
+        for text in (
+            "I've updated all the prices and everything is done on the "
+            "canvas.",
+            "I've updated item 4 to reflect that pricing.",
+        ):
+            with self._patch_checker("requested-result"):
+                out = await ChatOrchestrator._canvas_claim_correction(
+                    text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                    execution_id=exec_id,
+                )
+            assert "everything is done" not in out
+            assert "item 4" not in out, (
+                "an unchecked specific claim cannot survive a qualifier")
+            assert "Verified on the canvas as served: 381 — price." in out
+            assert "Review status: accepted." in out
 
     @pytest.mark.asyncio
-    async def test_specific_verified_claim_carries_recorded_qualifier(self):
+    async def test_unnamed_criteria_fall_back_to_generic_statement(self):
+        """Postconditions without entity/field cannot name what held —
+        the statement falls back to the generic recorded-checks sentence
+        rather than pretending specificity."""
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2624,26 +2633,23 @@ class TestCanvasTruthGate:
         canvas_id = f"cv-{uuid4().hex[:8]}"
         self._seed_audit(
             exec_id, canvas_id, {"marker": "requested-result"},
-            "accepted",
-            postconditions=[{
-                "entity_id": "381", "field": "price",
-                "expected": {"raw_value": "123.0"},
-            }])
+            "accepted", postconditions=[{"expected": {"raw_value": "x"}}])
         text = "I've updated item 4 to reflect that pricing."
         with self._patch_checker("requested-result"):
             out = await ChatOrchestrator._canvas_claim_correction(
                 text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
                 execution_id=exec_id,
             )
-        assert out.startswith(text)
+        assert "item 4" not in out
         assert "The recorded checks for this change passed" in out
+        assert "Review status: accepted." in out
 
     @pytest.mark.asyncio
-    async def test_pending_review_replaces_accepted_and_sent_claims(self):
-        """Round 8: appending review status does not remove contradictory
-        claims — an unsupported 'accepted/sent' claim is REPLACED with
-        the ready-for-review fact (content verification cannot establish
-        those actions)."""
+    async def test_action_claims_replaced_at_every_review_status(self):
+        """Round 9: acceptance does not prove sending — sent/approved/
+        submitted claims are unsupported at ANY review status, because
+        the generated statement only ever carries content criteria plus
+        the audit's own review status."""
         from uuid import uuid4
 
         from integrations.chat_orchestrator import ChatOrchestrator
@@ -2652,12 +2658,12 @@ class TestCanvasTruthGate:
         canvas_id = f"cv-{uuid4().hex[:8]}"
         self._seed_audit(
             exec_id, canvas_id, {"marker": "requested-result"},
-            "pending_review",
+            "accepted",
             postconditions=[{
                 "entity_id": "381", "field": "price",
                 "expected": {"raw_value": "123.0"},
             }])
-        for verb in ("accepted", "sent", "approved"):
+        for verb in ("sent", "approved", "submitted", "accepted"):
             text = f"I've {verb} the updated quote on the canvas."
             with self._patch_checker("requested-result"):
                 out = await ChatOrchestrator._canvas_claim_correction(
@@ -2665,8 +2671,8 @@ class TestCanvasTruthGate:
                     execution_id=exec_id,
                 )
             assert f"I've {verb}" not in out, verb
-            assert "ready for review" in out
-            assert "not yet accepted" in out
+            assert "Verified on the canvas as served: 381 — price." in out
+            assert "Review status: accepted." in out
 
     @pytest.mark.asyncio
     async def test_integration_real_postconditions_real_checker(self):
@@ -2710,8 +2716,10 @@ class TestCanvasTruthGate:
             text, {"canvas_id": canvas_id}, "u-g", "u-g", False,
             execution_id=exec_id,
         )
-        assert out.startswith(text)
-        assert "The recorded checks for this change passed" in out
+        assert "I've updated" not in out, (
+            "the claim is replaced by the generated verified set")
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: accepted." in out
 
     @pytest.mark.asyncio
     async def test_integration_real_checker_rejects_wrong_served_value(self):

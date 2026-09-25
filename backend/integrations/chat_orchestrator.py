@@ -6407,24 +6407,51 @@ class ChatOrchestrator:
         r"price|cell|value)\b[^.\n]*[.\n]?",
         re.IGNORECASE,
     )
-    # Total-success vocabulary: a passing RECORDED criteria subset can
-    # never support it (2026-09-25 review round 8 — criteria coverage is
-    # not established by the operation's own record).
-    _ABSOLUTE_COMPLETION_RE = re.compile(
-        r"\b(?:all|everything|entire|entirely|fully|whole|complete|"
-        r"completed|completely)\b",
-        re.IGNORECASE,
-    )
-    # Stronger-than-content actions: acceptance/approval/sending are
-    # workflow facts, never implied by content verification.
-    _STRONG_ACTION_RE = re.compile(
-        r"[^.\n]*\b(?:accepted|approved|sent|submitted|finalized)\b"
-        r"[^.\n]*[.\n]?",
-        re.IGNORECASE,
-    )
+    # (Round 8's absolute-vocabulary and strong-action REWRITING regexes
+    # are retired: round 9 generates the confirmation from the verified
+    # criteria set, so no model claim text survives to need rewriting.)
     _READY_FOR_REVIEW_NOTE = (
         "The revised draft is verified and ready for review — not yet "
         "accepted.")
+
+    @classmethod
+    def _verified_finalization_statement(
+        cls, verification: Dict[str, Any],
+    ) -> str:
+        """The finalization contract's output: generated ONLY from the
+        verified criteria and the audit's review status. Named criteria
+        become an explicit verified list; unnamed ones fall back to the
+        generic recorded-checks sentence. Review status is reported as
+        the fact the audit records — workflow actions (sent/approved/
+        submitted) are never generated: they require their own operation
+        evidence, at any review status."""
+        criteria = [
+            pc for pc in (
+                (verification or {}).get("verified_criteria") or []
+            ) if isinstance(pc, dict)
+        ]
+        named = [
+            pc for pc in criteria
+            if str(pc.get("entity_id") or "")
+            and str(pc.get("field") or "")
+        ]
+        if named:
+            listed = "; ".join(
+                f"{pc.get('entity_id')} — {pc.get('field')}"
+                for pc in named[:8]
+            )
+            parts = [f"Verified on the canvas as served: {listed}."]
+        else:
+            parts = [
+                "The recorded checks for this change passed (verified "
+                "against the canvas as served)."
+            ]
+        review_status = str((verification or {}).get("review_status") or "")
+        if review_status == "pending_review":
+            parts.append("Review status: pending review — not yet accepted.")
+        elif review_status:
+            parts.append(f"Review status: {review_status}.")
+        return " ".join(parts)
 
     @classmethod
     async def _canvas_claim_correction(
@@ -6448,44 +6475,21 @@ class ChatOrchestrator:
         verdict = (verification or {}).get("verdict") or "unverified"
         review_status = (verification or {}).get("review_status")
         if verdict == "result_verified":
-            # CONTENT correctness is verified against the canonical read
-            # path — but only for the criteria the operation RECORDED.
-            # Until coverage is established, total-success wording is
-            # REPLACED with the bounded fact, and specific claims carry
-            # the recorded-checks qualifier (2026-09-25 review round 8).
-            if cls._ABSOLUTE_COMPLETION_RE.search(text):
-                bounded = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
-                    "The recorded checks for this change passed "
-                    "(verified against the canvas as served; only the "
-                    "operation's recorded criteria were checked).",
-                    text,
-                )
-                if bounded == text:  # matcher missed — append the bound
-                    bounded = (
-                        f"{text}\n\n*(The recorded checks for this "
-                        "change passed; only the operation's recorded "
-                        "criteria were verified.)*"
-                    )
-            else:
-                bounded = (
-                    f"{text}\n\n*(The recorded checks for this change "
-                    "passed.)*"
-                )
-            if review_status == "pending_review":
-                if cls._STRONG_ACTION_RE.search(bounded):
-                    # Content verification cannot establish acceptance,
-                    # approval, or sending — those claims are REPLACED.
-                    return cls._STRONG_ACTION_RE.sub(
-                        f"{cls._READY_FOR_REVIEW_NOTE} ", bounded).strip()
-                if not re.search(
-                    r"\b(?:ready for review|pending review)\b", bounded,
-                    re.IGNORECASE,
-                ):
-                    return (
-                        f"{bounded}\n\n*({cls._READY_FOR_REVIEW_NOTE})*"
-                    )
-                return bounded
-            return bounded
+            # STRUCTURED FINALIZATION (2026-09-25 review round 9): the
+            # confirmation is GENERATED from the verified entity/field
+            # set — a qualifier under the model's own sentences cannot
+            # validate an unchecked specific claim ('I updated item 4'
+            # stays unsupported when only item 1 was checked), so the
+            # claim sentences are replaced by what the criteria actually
+            # establish. Sending/approval/submission are workflow actions
+            # with their own evidence and are never generated here — at
+            # ANY review status.
+            statement = cls._verified_finalization_statement(verification)
+            rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
+                lambda _m: statement, text)
+            if rewritten == text:  # matcher missed — append the facts
+                rewritten = f"{text}\n\n{statement}"
+            return rewritten
         if verdict == "write_recorded":
             replacement = (
                 "*(Recorded, not verified: a canvas write from this "
@@ -6660,6 +6664,12 @@ class ChatOrchestrator:
                                     (readback or {}).get("review_status")
                                     or review_status
                                 ),
+                                # STRUCTURED FINALIZATION (2026-09-25
+                                # review round 9): the confirmation is
+                                # generated from THIS set — the criteria
+                                # that actually held — never from the
+                                # model's claim text.
+                                "verified_criteria": postconditions,
                             }
                         return {
                             "verdict": "write_recorded",
