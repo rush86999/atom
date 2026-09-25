@@ -2357,25 +2357,60 @@ class TestCanvasTruthGate:
         assert "CANVAS STATE: no change to the canvas has been" in source
         assert "present them as PROPOSED values" in source
 
-    def test_enforced_guard_replaces_unbacked_claim(self):
-        """The deterministic gate: an unbacked canvas-change claim is
-        REPLACED, not contradicted-by-append (2026-09-25 review round 4).
-        Without an execution anchor the state is UNVERIFIED — never
-        'canvas unchanged'."""
+    # -- guard plumbing -------------------------------------------------
+    @staticmethod
+    def _seed_audit(op_id, canvas_id, payload, review_status,
+                    postconditions=None, when=None):
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        details = {
+            "operation_id": op_id,
+            "content": payload,
+            "review_status": review_status,
+        }
+        if postconditions is not None:
+            details["postconditions"] = postconditions
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=when or datetime.now(timezone.utc),
+                details_json=details,
+            ))
+
+    @staticmethod
+    def _patch_checker(marker):
+        """Isolate the guard from the editor's evidence checker (which has
+        its own suite): the checker 'holds' only on the canvas content
+        carrying the marker key."""
+        from unittest.mock import patch
+
+        def _applied(content, action):
+            return isinstance(content, dict) and content.get(
+                "marker") == marker
+        return patch(
+            "core.chat_canvas_editor._evidence_action_applied",
+            side_effect=_applied)
+
+    # -- verdicts --------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_unbound_claim_is_unverified_and_rewritten(self):
         from integrations.chat_orchestrator import ChatOrchestrator
 
-        out = ChatOrchestrator._canvas_claim_correction(
+        out = await ChatOrchestrator._canvas_claim_correction(
             "I've updated item 4 to reflect that pricing.",
             {"canvas_id": "cv-never"}, "s-g", "u-g", False,
         )
-        assert "I've updated item 4" not in out, (
-            "the unsupported claim must not survive verbatim")
+        assert "I've updated item 4" not in out
         assert "Unverified" in out
 
-    def test_enforced_guard_no_bound_write_is_unverified(self):
-        """Execution row readable, but no audit row carries THIS
-        execution's operation stamp → unverified (round 5: no time-window
-        or session fallback may claim a write)."""
+    @pytest.mark.asyncio
+    async def test_overlapping_turn_write_does_not_verify(self):
         from datetime import datetime, timezone
         from uuid import uuid4
 
@@ -2384,219 +2419,178 @@ class TestCanvasTruthGate:
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
         with get_db_session() as db:
             db.add(AgentExecution(
                 id=exec_id, status="running",
                 started_at=datetime.now(timezone.utc),
             ))
-        out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated item 4 to reflect that pricing.",
-            {"canvas_id": f"cv-{uuid4().hex[:8]}"}, "s-g", "u-g", False,
-            execution_id=exec_id,
-        )
-        assert "I've updated item 4" not in out
-        assert "Unverified" in out
+        self._seed_audit(
+            f"op-other-{uuid4().hex[:6]}", canvas_id,
+            {"marker": "other"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "unverified"
 
-    def test_enforced_guard_overlapping_turn_does_not_verify(self):
-        """Round 5: an OVERLAPPING turn's write in the same session (a
-        different execution's operation stamp) must NOT verify this
-        turn's claim — the old same-session/after-start fallback did."""
-        from datetime import datetime, timezone
+    @pytest.mark.asyncio
+    async def test_substring_operation_never_verifies(self):
         from uuid import uuid4
 
-        from core.database import get_db_session
-        from core.models import AgentExecution, CanvasAudit
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
-        other_op = f"op-other-{uuid4().hex[:8]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            f"{exec_id}-suffix", canvas_id, {"marker": "x"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "unverified"
+
+    @pytest.mark.asyncio
+    async def test_result_verified_when_postconditions_hold_on_served(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        payload = {"marker": "requested-result"}
+        self._seed_audit(
+            exec_id, canvas_id, payload, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "result_verified"
+        assert verdict["review_status"] == "accepted"
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert out == text  # verified content, accepted — claim stands
+
+    @pytest.mark.asyncio
+    async def test_verified_pending_draft_says_ready_for_review(self):
+        """Round 6: pending review and successful draft preparation are
+        COMPATIBLE — verified contents may be called updated/ready, never
+        accepted; the review state rides separately."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "pending_review",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert out.startswith(text)  # the update claim stands
+        assert "ready for review" in out and "not yet accepted" in out
+
+    @pytest.mark.asyncio
+    async def test_accepted_base_vs_pending_draft_served(self):
+        """Round 6 boundary pin: an OLDER ACCEPTED write whose payload
+        matches the stale Canvas.content fallback must NOT verify — the
+        canonical read path serves a NEWER pending-review draft. Only the
+        postconditions decide, and they hold on the pending draft, so the
+        older operation stays write_recorded."""
+        from datetime import datetime, timedelta, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
         canvas_id = f"cv-{uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)
+        accepted_payload = {"marker": "accepted-base"}
+        pending_payload = {"marker": "pending-draft"}
+        self._seed_audit(
+            exec_id, canvas_id, accepted_payload, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }], when=now - timedelta(minutes=5))
+        self._seed_audit(
+            f"op-newer-{uuid4().hex[:6]}", canvas_id, pending_payload,
+            "pending_review", when=now)
         with get_db_session() as db:
-            db.add(AgentExecution(
-                id=exec_id, status="running", started_at=now,
-            ))
-            db.add(CanvasAudit(  # the OTHER turn's write, same session
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g", created_at=now,
-                details_json={"operation_id": other_op,
-                              "content": {"body": "x"}},
-            ))
-        out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated item 4.", {"canvas_id": canvas_id},
-            "s-g", "u-g", False, execution_id=exec_id,
-        )
-        assert "Unverified" in out
-
-    def test_enforced_guard_substring_stamp_does_not_verify(self):
-        """Round 5: an audit row whose operation_id merely CONTAINS this
-        execution id (a longer operation string) must not verify —
-        structured field equality only, no substring."""
-        from datetime import datetime, timezone
-        from uuid import uuid4
-
-        from core.database import get_db_session
-        from core.models import CanvasAudit
-        from integrations.chat_orchestrator import ChatOrchestrator
-
-        exec_id = f"exec-{uuid4().hex[:12]}"
-        canvas_id = f"cv-{uuid4().hex[:8]}"
-        with get_db_session() as db:
-            db.add(CanvasAudit(
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g",
-                created_at=datetime.now(timezone.utc),
-                details_json={"operation_id": f"{exec_id}-suffix",
-                              "content": {"body": "x"}},
-            ))
-        assert ChatOrchestrator._canvas_write_for_operation(
-            canvas_id, "s-g", "u-g", exec_id,
-        ) == "unverified"
-
-    def test_enforced_guard_exact_stamp_with_served_revision_verifies(self):
-        """Round 6: details.operation_id == this execution, an accepted
-        change payload, AND the canvas SERVES that exact revision →
-        result verified; the claim survives."""
-        from datetime import datetime, timezone
-        from uuid import uuid4
-
-        from core.database import get_db_session
-        from core.models import Canvas, CanvasAudit
-        from integrations.chat_orchestrator import ChatOrchestrator
-
-        exec_id = f"exec-{uuid4().hex[:12]}"
-        canvas_id = f"cv-{uuid4().hex[:8]}"
-        payload = {"body": "new"}
-        with get_db_session() as db:
-            db.add(CanvasAudit(
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g",
-                created_at=datetime.now(timezone.utc),
-                details_json={"operation_id": exec_id,
-                              "content": payload,
-                              "review_status": "accepted"},
-            ))
-            db.add(Canvas(
+            db.add(Canvas(  # the STALE fallback the old guard trusted
                 id=canvas_id, tenant_id="default", created_by="u-g",
-                name="Quote", content=payload,
+                name="Quote", content=accepted_payload,
             ))
-        text = "I've updated item 4 to reflect that pricing."
-        out = ChatOrchestrator._canvas_claim_correction(
-            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
-            execution_id=exec_id,
-        )
-        assert out == text  # exactly bound AND served
+        with self._patch_checker("accepted-base"):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded", (
+            "the accepted base must not verify through the stale "
+            "Canvas.content fallback while the UI serves the pending draft")
 
-    def test_enforced_guard_recorded_but_not_served_is_not_verified(self):
-        """Round 6: an exactly-bound write whose payload is NOT what the
-        canvas serves (superseded, or never mirrored) is RECORDED only —
-        the completion claim is rewritten to say so."""
-        from datetime import datetime, timezone
+    @pytest.mark.asyncio
+    async def test_bound_write_without_criteria_is_recorded_only(self):
         from uuid import uuid4
 
-        from core.database import get_db_session
-        from core.models import Canvas, CanvasAudit
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
         canvas_id = f"cv-{uuid4().hex[:8]}"
-        with get_db_session() as db:
-            db.add(CanvasAudit(
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g",
-                created_at=datetime.now(timezone.utc),
-                details_json={"operation_id": exec_id,
-                              "content": {"body": "older"},
-                              "review_status": "accepted"},
-            ))
-            db.add(Canvas(  # serves a DIFFERENT (newer) revision
-                id=canvas_id, tenant_id="default", created_by="u-g",
-                name="Quote", content={"body": "newer"},
-            ))
-        out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated item 4.", {"canvas_id": canvas_id},
-            "s-g", "u-g", False, execution_id=exec_id,
-        )
-        assert "I've updated item 4" not in out
-        assert "Recorded, not verified" in out
+        self._seed_audit(
+            exec_id, canvas_id, {"body": "x"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
 
-    def test_enforced_guard_pending_review_is_recorded_only(self):
-        """Round 6: a pending-review write is never a verified result —
-        the UI does not serve it as final."""
-        from datetime import datetime, timezone
+    @pytest.mark.asyncio
+    async def test_read_failure_is_recorded_not_verified(self):
+        """read_canvas failing (ownership, DB) degrades to write_recorded
+        — never a verified result, never 'unchanged'."""
+        from unittest.mock import AsyncMock, patch
         from uuid import uuid4
 
-        from core.database import get_db_session
-        from core.models import CanvasAudit
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
         canvas_id = f"cv-{uuid4().hex[:8]}"
-        with get_db_session() as db:
-            db.add(CanvasAudit(
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g",
-                created_at=datetime.now(timezone.utc),
-                details_json={"operation_id": exec_id,
-                              "content": {"body": "x"},
-                              "review_status": "pending_review"},
-            ))
-        out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated item 4.", {"canvas_id": canvas_id},
-            "s-g", "u-g", False, execution_id=exec_id,
-        )
-        assert "Recorded, not verified" in out
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "x"}, "accepted",
+            postconditions=[{
+                "entity_id": "e", "field": "f",
+                "expected": {"raw_value": "v"},
+            }])
+        with patch(
+            "tools.canvas_crud_tool.read_canvas",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
 
-    def test_enforced_guard_continuation_write_verifies(self):
-        """A background continuation forked by THIS execution stamps its
-        own continuation_id as operation_id; the guard binds execution →
-        continuation rows (metadata.originating_execution_id) → audit."""
-        from datetime import datetime, timezone
-        from uuid import uuid4
-
-        from core.database import get_db_session
-        from core.models import AgentExecution, CanvasAudit
+    @pytest.mark.asyncio
+    async def test_enforced_guard_ignores_non_claims_and_canvasless(self):
         from integrations.chat_orchestrator import ChatOrchestrator
 
-        exec_id = f"exec-{uuid4().hex[:12]}"
-        cont_id = f"cont-{uuid4().hex[:12]}"
-        canvas_id = f"cv-{uuid4().hex[:8]}"
-        with get_db_session() as db:
-            db.add(AgentExecution(
-                id=cont_id, status="running", triggered_by="continuation",
-                started_at=datetime.now(timezone.utc),
-                metadata_json={
-                    "session_id": "s-g",
-                    "originating_execution_id": exec_id,
-                    "continuation": {"session_id": "s-g"},
-                },
-            ))
-            db.add(CanvasAudit(
-                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
-                tenant_id="default", session_id="s-g",
-                action_type="update", user_id="u-g",
-                created_at=datetime.now(timezone.utc),
-                details_json={"operation_id": cont_id,
-                              "content": {"body": "applied"}},
-            ))
-        assert ChatOrchestrator._canvas_write_for_operation(
-            canvas_id, "s-g", "u-g", exec_id,
-        ) == "write_recorded"  # bound, but nothing served-verifies it
-
-    def test_enforced_guard_ignores_non_claims_and_canvasless_turns(self):
-        from integrations.chat_orchestrator import ChatOrchestrator
-
-        assert ChatOrchestrator._canvas_claim_correction(
+        assert await ChatOrchestrator._canvas_claim_correction(
             "The price is 8880.", {"canvas_id": "cv-x"}, "s", "u", False
         ) == "The price is 8880."
-        assert ChatOrchestrator._canvas_claim_correction(
+        assert await ChatOrchestrator._canvas_claim_correction(
             "I've updated item 4.", None, None, None, False
         ) == "I've updated item 4."
+
 
 
 class TestLineageMatching:

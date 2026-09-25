@@ -6409,7 +6409,7 @@ class ChatOrchestrator:
     )
 
     @classmethod
-    def _canvas_claim_correction(
+    async def _canvas_claim_correction(
         cls,
         content: Optional[str],
         canvas_context: Optional[Dict[str, Any]],
@@ -6424,12 +6424,26 @@ class ChatOrchestrator:
         if not cls._CANVAS_CLAIM_SENTENCE_RE.search(text):
             return text
         canvas_id = str(canvas_context.get("canvas_id") or "")
-        verification = cls._canvas_write_for_operation(
+        verification = await cls._canvas_write_for_operation(
             canvas_id, session_id, user_id, execution_id,
         )
-        if verification == "result_verified":
-            return text  # exactly bound AND served — the claim stands
-        if verification == "write_recorded":
+        verdict = (verification or {}).get("verdict") or "unverified"
+        review_status = (verification or {}).get("review_status")
+        if verdict == "result_verified":
+            # CONTENT correctness is verified against the canonical read
+            # path. Review state is tracked SEPARATELY (2026-09-25 review
+            # round 6): a pending-review draft may truthfully be called
+            # updated/ready, but never accepted or sent.
+            if review_status == "pending_review" and not re.search(
+                r"\b(?:ready for review|pending review)\b", text,
+                re.IGNORECASE,
+            ):
+                return (
+                    f"{text}\n\n*(The revised draft is verified and "
+                    "ready for review — not yet accepted.)*"
+                )
+            return text
+        if verdict == "write_recorded":
             replacement = (
                 "*(Recorded, not verified: a canvas write from this "
                 "operation is on the audit trail, but the requested "
@@ -6451,7 +6465,7 @@ class ChatOrchestrator:
             "[canvas-claim-guard] reply claimed a canvas change; "
             "verification=%s (canvas=%s, session=%s, execution=%s) — "
             "claim rewritten",
-            verification, canvas_id or "?", session_id or "?",
+            verdict, canvas_id or "?", session_id or "?",
             execution_id or "?",
         )
         # REPLACE the unsupported claim sentences — leaving them intact
@@ -6463,30 +6477,38 @@ class ChatOrchestrator:
             rewritten = f"{text}\n\n{replacement}"
         return rewritten
 
-    @staticmethod
-    def _canvas_write_for_operation(
+    @classmethod
+    async def _canvas_write_for_operation(
+        cls,
         canvas_id: str,
         session_id: Optional[str],
         user_id: Optional[str],
         execution_id: Optional[str],
-    ) -> str:
-        """Exact structured verification with SEPARATE VERDICTS:
-        "result_verified" | "write_recorded" | "unverified".
+    ) -> Dict[str, Any]:
+        """Exact structured verification with SEPARATE VERDICTS — returns
+        ``{"verdict": "result_verified" | "write_recorded" | "unverified",
+        "review_status": <served review status or None>}``.
 
         A write is RECORDED when an audit row's PARSED details match this
         execution's operation set by field equality (``details.operation_id``
         == execution_id — the interactive stamp — or in the continuation
-        ids this execution forked) and carry a mutation payload. The
-        RESULT is VERIFIED only when the served revision (Canvas.content,
-        mirrored on acceptance) canonically equals that payload and the
-        row is not pending review — a recorded write proves nothing about
-        the requested fields or what the UI serves. Substring matches,
-        session proximity, and time windows never verify (round 5); a
-        recorded-but-unverified write never supports a completion claim
-        (round 6). Anything else — including every read failure — is
+        ids this execution forked) and carry a mutation payload.
+
+        The REQUESTED RESULT is verified only when every ``postconditions``
+        entry stamped on that bound row — the operation's requested-change
+        criteria (entity/field/expected value) — is satisfied by the
+        revision the CANONICAL READ PATH serves (tools.canvas_crud_tool
+        .read_canvas: the newest body-bearing audit row, including
+        pending-review drafts — NOT Canvas.content, which is a stale
+        fallback and can still show an older accepted base while the UI
+        displays a newer pending draft). Payload equality alone proves
+        consistent storage, not task completion. Review state rides
+        separately and never gates content correctness. Substring
+        matches, session proximity, and time windows never verify
+        (round 5). Anything else — including every read failure — is
         UNVERIFIED."""
         if not canvas_id or not execution_id:
-            return "unverified"
+            return {"verdict": "unverified", "review_status": None}
         try:
             import json as _json
 
@@ -6551,46 +6573,64 @@ class ChatOrchestrator:
                         continue  # a marker row, not a recorded change
                     # WRITE RECORDED ≠ RESULT VERIFIED (2026-09-25 review
                     # round 6): a recorded mutation proves nothing about
-                    # whether the requested fields changed correctly or
-                    # what the UI serves. Result verified only when the
-                    # SERVED revision (Canvas.content, mirrored on
-                    # acceptance) canonically equals the bound row's
-                    # payload; pending-review writes are never verified
-                    # results.
-                    row_content = (
-                        details.get("content")
-                        if details.get("content") is not None
-                        else details.get("data")
-                    )
-                    if str(details.get("review_status") or "") == (
-                            "pending_review"):
-                        return "write_recorded"
+                    # the requested fields. The requested result verifies
+                    # only when the operation's own postconditions — the
+                    # criteria the edit was planned against — all hold on
+                    # the revision the CANONICAL read path serves.
+                    postconditions = [
+                        pc for pc in (
+                            details.get("postconditions") or []
+                        ) if isinstance(pc, dict)
+                    ]
+                    review_status = str(
+                        details.get("review_status") or ""
+                    ) or None
+                    if not postconditions:
+                        return {
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
                     try:
-                        from core.models import Canvas as CanvasModel
+                        from tools.canvas_crud_tool import read_canvas
 
-                        served_row = db.query(CanvasModel).filter(
-                            CanvasModel.id == canvas_id
-                        ).first()
-                        served_content = (
-                            served_row.content
-                            if served_row is not None else None
+                        readback = await read_canvas(
+                            str(user_id) if user_id else "system",
+                            canvas_id,
+                        )
+                        if not (readback or {}).get("success"):
+                            return {
+                                "verdict": "write_recorded",
+                                "review_status": review_status,
+                            }
+                        served_content = (readback or {}).get("content")
+                        from core.chat_canvas_editor import (
+                            _evidence_action_applied,
                         )
 
-                        def _canon_payload(value) -> str:
-                            return _json.dumps(
-                                value, sort_keys=True, default=str,
-                            ) if value is not None else ""
-
-                        if _canon_payload(served_content) == (
-                                _canon_payload(row_content)):
-                            return "result_verified"
-                    except Exception:  # noqa: BLE001 — served readback is
-                        pass  # best-effort; recorded stays the verdict
-                    return "write_recorded"
-                return "unverified"
+                        if all(
+                            _evidence_action_applied(served_content, pc)
+                            for pc in postconditions
+                        ):
+                            return {
+                                "verdict": "result_verified",
+                                "review_status": (
+                                    (readback or {}).get("review_status")
+                                    or review_status
+                                ),
+                            }
+                        return {
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
+                    except Exception:  # noqa: BLE001 — readback is
+                        return {  # best-effort; recorded stays
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
+                return {"verdict": "unverified", "review_status": None}
         except Exception as exc:  # noqa: BLE001 — readback is best-effort
             logger.debug(f"canvas write readback skipped: {exc}")
-            return "unverified"
+            return {"verdict": "unverified", "review_status": None}
 
     async def _get_qwen_response(
         self,
@@ -8410,16 +8450,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if not _resp or _reply_claims_inability(_resp):
                         continue  # refusal wobble is what anchors a re-refusal
-                    if _resp not in _answered:
-                        _answered.append(_resp)
+                    _answer_marker = (
+                        "[already answered earlier; prior response omitted; "
+                        f"length={len(_resp[:600])}]"
+                    )
+                    if _answer_marker not in _answered:
+                        _answered.append(_answer_marker)
                 for _h in _user_turns:
                     messages.append({"role": "user", "content": _h["message"]})
                 # Bounded: enough to show what was answered, not a second
                 # transcript competing with this turn's evidence.
-                for _resp in _answered[-2:]:
+                for _answer_marker in _answered[-2:]:
                     messages.append({
                         "role": "assistant",
-                        "content": "[already answered earlier] " + _resp[:600],
+                        "content": _answer_marker,
                     })
             else:
                 for h in history:
@@ -10463,7 +10507,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     except Exception:
                         pass
-                _claimed_content = self._canvas_claim_correction(
+                _claimed_content = await self._canvas_claim_correction(
                     _content, canvas_context, session_id, user_id,
                     async_continuation_forked,
                     execution_id=execution_id,
