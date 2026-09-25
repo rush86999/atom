@@ -367,11 +367,16 @@ class TestActiveLessonProjection:
 
 class TestFreezeManifest:
     def test_verify_passes_at_freeze_time(self):
+        clean_env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "HOME": os.environ.get("HOME", "/tmp"),
+            "TESTING": "1",
+        }
         out = subprocess.run(
             [sys.executable, "scripts/eval_freeze.py", "verify"],
             capture_output=True, text=True,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            env={**os.environ, "TESTING": "1"})
+            env=clean_env)
         assert out.returncode == 0, (
             f"freeze drift — the evaluated system changed since the "
             f"manifest: {out.stdout[:400]}")

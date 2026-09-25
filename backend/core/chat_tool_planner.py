@@ -5271,9 +5271,26 @@ def _named_file_targets(
             values.extend(extract_targets(query, texts))
         except Exception:
             values = []
+        # PHRASE-FRAGMENT GUARD (2026-09-24): the quoted/list-phrase
+        # lanes must not turn whole sentences into targets — require
+        # identity-shape (a code with digit+letter, hyphenated token, or
+        # 2-4 capitalized words) and drop prose fragments.
+        def _identity_shaped(candidate: str) -> bool:
+            c = str(candidate or "").strip()
+            if not c or len(c) > 60:
+                return False
+            words = c.split()
+            if len(words) > 4:
+                return False
+            if len(words) == 1:
+                return bool(re.search(r"[A-Za-z]", c) and re.search(r"\d", c)) or (
+                    "-" in c and len(c) >= 3)
+            return all(w[:1].isupper() or "-" in w or w.isdigit()
+                       for w in words) and any(w[:1].isupper() for w in words)
+
         lookup_text = " ".join(texts)
         quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", lookup_text)
-        values.extend(quoted)
+        values.extend(q for q in quoted if _identity_shaped(q))
         list_match = re.search(
             r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
             r"(?:for|of|:)\s+(.+)",

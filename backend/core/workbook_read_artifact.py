@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
 
 _TARGET_RE = re.compile(
@@ -80,8 +81,9 @@ _FIELD_ALIASES: Dict[str, Sequence[str]] = {
 _UNIT_TOKENS = {
     "kg", "g", "mg", "lb", "lbs", "oz", "cm", "mm", "m", "in", "ft",
     "day", "days", "week", "weeks", "hour", "hours", "minute", "minutes",
-    "month", "months", "year", "years", "percent", "pct", "usd", "cad",
-    "eur", "gbp", "aud", "nzd", "jpy", "inr", "mxn", "brl", "zar",
+    "month", "months", "year", "years", "percent", "pct", "each", "unit",
+    "units", "piece", "pieces", "item", "items", "usd", "cad", "eur", "gbp",
+    "aud", "nzd", "jpy", "inr", "mxn", "brl", "zar",
 }
 def _normalize_field_text(value: Any) -> str:
     text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(value or ""))
@@ -267,7 +269,7 @@ def _select_value_columns(
         units = {item.get("unit") for item in candidates}
         if len(bases) == 1 and len(units) > 1:
             continue
-        if field in {"price", "quantity", "date", "version"}:
+        if field in {"quantity", "date", "version"}:
             continue
         ambiguous_fields.append(field)
     label_groups: Dict[tuple[str, Optional[str]], int] = {}
@@ -376,6 +378,12 @@ def extract_attributes(
                 out.append(cleaned)
     return out[:16]
 _TARGET_EVIDENCE_CAP = 128
+#: Extraction contract version. Bumped when target-construction rules
+#: change semantics (2026-09-24: v2 — monetary amounts, cents tails, and
+#: delivery durations excluded positionally; name targets merged
+#: identity-like; filename words never entities). Persisted target lists
+#: stamped with an older version are RE-DERIVED, not replayed.
+TARGET_EXTRACTION_VERSION = 2
 _CURRENCY_RE = re.compile(
     r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b|"
     r"\[[$€£¥₹₩₽₺-][^\]]*\]",
@@ -391,11 +399,51 @@ def _is_year(value: str) -> bool:
     return bool(_YEAR_RE.fullmatch(str(value or "").strip()))
 
 
+# VALUE CONTEXT: a numeric run that is part of a monetary amount or a
+# duration is a VALUE, not an identity. Positional guards — never a
+# blanket number filter (numeric identifiers like 381 stay valid).
+_MONEY_BEFORE_RE = re.compile(
+    r"[$€£¥₹₩₽₺]\s*$|\b(?:USD|CAD|EUR|GBP|INR|AUD)\s*$"
+    r"|[$€£¥₹₩₽₺]\s*[\d,]*\s*$")  # symbol + leading digits/commas of the same amount
+_DECIMAL_BEFORE_RE = re.compile(r"\d\s*[.,]\s*$")  # "2,902." then "00" = cents
+_CENTS_AFTER_RE = re.compile(r"^\s*[.,]\s*\d{2}\b")
+_DURATION_AFTER_RE = re.compile(
+    r"^\s*(?:[–—-]\s*\d+\s*)?(?:weeks?|days?|months?|hrs?|hours?)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_value_position(
+    text: str, start: int, end: int, match_run: str = "",
+) -> bool:
+    """Is the numeric run at text[start:end] part of a monetary amount or
+    a delivery duration? (2026-09-24 review: 'No. 381 $2,902.00 10-11
+    weeks' extracted 902/00/10/11 as identifiers.)"""
+    match_run = match_run or text[start:end]
+    match_run_is_numeric = match_run.isdigit()
+    before = text[max(0, start - 8):start]
+    after = text[end:end + 16]
+    if _MONEY_BEFORE_RE.search(before):
+        return True
+    if _CENTS_AFTER_RE.match(after):
+        return True
+    if (
+        _DECIMAL_BEFORE_RE.search(before)
+        and match_run_is_numeric
+        and len(match_run) <= 2
+    ):
+        return True  # the cents tail of a decimal amount
+    if _DURATION_AFTER_RE.match(after):
+        return True
+    return False
+
+
 def extract_targets(
     query: str = "", context_texts: Optional[Sequence[str]] = None,
     explicit: Optional[Sequence[str]] = None,
 ) -> List[str]:
-    """Extract likely item/model identifiers without treating years as targets."""
+    """Extract likely item/model identifiers without treating years,
+    monetary amounts, or delivery durations as targets."""
     values: List[str] = []
     seen: set[str] = set()
 
@@ -414,9 +462,19 @@ def extract_targets(
     if values:
         return values[:64]
     for text in [query or "", *(context_texts or [])]:
-        for match in _TARGET_RE.finditer(str(text or "")):
+        raw = str(text or "")
+        for match in _TARGET_RE.finditer(raw):
+            if _is_value_position(
+                    raw, match.start(), match.end(), match.group(0)):
+                continue
             add(match.group(0))
-    if not values:
+    # ALWAYS run name extraction; merge only IDENTITY-LIKE names when
+    # numeric targets already exist (a mixed list keeps its name-only
+    # entities without importing prose fragments); with no numeric
+    # targets, all extracted names ride (the pre-merge behavior).
+    _numeric_count = len(values)
+    _named: List[str] = []
+    if True:
         named_target = re.compile(
             r"\b(?:for|of|does|do|is|are)\s+"
             r"([A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,3})"
@@ -428,10 +486,23 @@ def extract_targets(
             "what", "which", "how", "many", "expire", "expiration", "on",
             "hand", "certification", "date",
         }
+        # Filename tokens: space-joined words each starting uppercase
+        # or a digit (real filenames: 'Consolidated Price List
+        # 2019.xlsx'); lowercase prose words terminate the token so the
+        # blanking cannot swallow the sentence ('ingest-api is
+        # supported in Platform Matrix.xlsx' keeps 'ingest-api').
+        _FILENAME_RE = re.compile(
+            r"\b(?:[A-Z0-9][A-Za-z0-9_()'\-]*"
+            r"(?:\s+[A-Z0-9][A-Za-z0-9_()'\-]*){0,6})"
+            r"\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?|pptx?|txt|md|json)\b"
+        )
         for text in [query or "", *(context_texts or [])]:
-            value_text = str(text or "")
+            # FILENAME WORDS ARE NOT ENTITIES: blank filename tokens
+            # before name extraction so 'Stock Status.xlsx' cannot
+            # contribute 'Stock'.
+            value_text = _FILENAME_RE.sub(" ", str(text or ""))
             for match in quoted_target.finditer(value_text):
-                add(match.group(1))
+                _named.append(match.group(1))
             for match in named_target.finditer(value_text):
                 words = match.group(1).split()
                 while words and words[0].lower() in ignored_words:
@@ -444,7 +515,22 @@ def extract_targets(
                         break
                     kept.append(word)
                 if kept:
-                    add(" ".join(kept))
+                    _named.append(" ".join(kept))
+    for name in _named:
+        text = str(name or "").strip()
+        canonical = _canonical(text)
+        if not text or len(canonical) < 2 or canonical in seen:
+            continue
+        if _numeric_count and not (
+            any(ch.isdigit() for ch in text)
+            or "-" in text
+            or any(w[:1].isupper() for w in text.split())
+        ):
+            continue  # prose fragment, not an identity
+        if len(text.split()) == 1 and text.isalpha() and len(text) <= 3:
+            continue  # e.g. 'No' from 'No. 381'
+        seen.add(canonical)
+        values.append(text)
     return values[:64]
 
 
@@ -456,19 +542,14 @@ def _cell_text(value: Any) -> str:
 
 def _matches_target(target: str, value: Any) -> bool:
     text = _cell_text(value)
-    if not text:
+    target_text = str(target or "").strip()
+    if not text or not target_text:
         return False
-    canonical = _canonical(target)
-    if not canonical:
-        return False
-    value_canonical = _canonical(text)
-    if canonical in value_canonical:
-        if canonical.isdigit():
-            return re.search(
-                rf"(?<!\d){re.escape(canonical)}(?!\d)", str(text)
-            ) is not None
-        return True
-    return False
+    return re.search(
+        rf"(?<![A-Za-z0-9_-]){re.escape(target_text)}(?![A-Za-z0-9_-])",
+        text,
+        re.IGNORECASE,
+    ) is not None
 
 
 
@@ -488,17 +569,31 @@ def _is_designation_match(
     identifies it as a product row rather than a bare number.
     """
     header = str(column_header or "").strip()
-    if any(ch.isalpha() for ch in text):
+    # ALPHANUMERIC CODES ARE DESIGNATIONS wherever they appear (2026-09-24
+    # review: entity search, not just product rows): 'RF-2' in a
+    # Certificate column, 'U-22' in any text column — a code with letters
+    # is an identifier, never a numeric coincidence. Only PURE-NUMERIC
+    # matches need the column-header corroboration below.
+    if any(ch.isalpha() for ch in str(text or "")):
+        if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
+            return False
         return True
     if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
         return False
-    if re.search(
-        r"model|part|item|sku|product|description|name|catalog|cat\.?\s*no|code",
+    if _VALUE_HEADER_RE.search(header) or re.search(
+        r"quantity|qty|stock|weight|mass|lead|delivery|date|time|"
+        r"expiry|expiration|version|revision|release",
         header,
         re.IGNORECASE,
     ):
-        return True
-    return not _PRICE_HEADER_RE.search(header)
+        return False
+    return bool(re.search(
+        r"model|part|item|sku|product|description|name|catalog|cat\.?\s*no|code|"
+        r"employee|staff|worker|person|component|software|application|"
+        r"certification|requirement",
+        header,
+        re.IGNORECASE,
+    ))
 
 def _criteria_values(value: Any) -> List[str]:
     if value is None:
@@ -530,6 +625,14 @@ def _add_criteria_value(
             values.append(text)
 
 
+_INTERROGATIVE_GUARD = {
+    "what", "which", "who", "whom", "whose", "when", "where", "why",
+    "how", "the", "this", "that", "these", "those", "it", "there",
+    "here", "name", "please", "kind", "sort", "type", "one", "find",
+    "search", "check", "tell", "show", "give",
+}
+
+
 def extract_natural_language_criteria(
     texts: Sequence[str],
 ) -> Dict[str, List[str]]:
@@ -547,21 +650,21 @@ def extract_natural_language_criteria(
         value_text = str(text or "")
         for match in possessive.finditer(value_text):
             parts = match.group(1).strip().split()
-            while parts and parts[0].lower() in _ATTRIBUTE_STOPWORDS:
+            # INTERROGATIVE GUARD (2026-09-24): "when does A. Kumar's
+            # certificate expire" is a QUESTION — the possessive phrase
+            # 'when does A. Kumar' must never become an organization
+            # constraint (it filtered out the only matching row).
+            while parts and (
+                parts[0].lower() in _ATTRIBUTE_STOPWORDS
+                or parts[0].lower() in _INTERROGATIVE_GUARD
+                or parts[0].lower() in {"does", "do", "did", "is", "are"}
+            ):
                 parts.pop(0)
-            if parts:
+            if parts and not parts[0].lower() in _INTERROGATIVE_GUARD:
                 _add_criteria_value(criteria, "organization", " ".join(parts))
         for match in labelled.finditer(value_text):
             _add_criteria_value(criteria, match.group(1), match.group(2).strip())
     return criteria
-
-
-_INTERROGATIVE_GUARD = {
-    "what", "which", "who", "whom", "whose", "when", "where", "why",
-    "how", "the", "this", "that", "these", "those", "it", "there",
-    "here", "name", "please", "kind", "sort", "type", "one", "find",
-    "search", "check", "tell", "show", "give",
-}
 
 
 def _disambiguation_criteria(
@@ -1416,6 +1519,7 @@ def inspect_dataset_entries(
         "sha256" if sha256 else None
     )
     return {
+        "target_extraction_version": TARGET_EXTRACTION_VERSION,
         "provider": provider,
         "resource_id": resource_id,
         "file_name": file_name,
@@ -1454,6 +1558,1036 @@ def inspect_dataset_entries(
             "target_evidence_capped": target_evidence_capped,
         },
     }
+
+
+_SOURCE_COMPARISON_VERSION = 1
+_PRICE_FIELDS = {"price", "cost", "amount", "rate", "value"}
+_UNIT_FIELDS = {"quantity", "weight", "lead_time"}
+
+
+def _comparison_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+
+
+def _explicit_unit(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text or _comparison_text(text) in {"unspecified", "unknown", "n/a", "none"}:
+        return None
+    return text
+
+
+def _explicit_currency(value: Any) -> Optional[str]:
+    text = str(value or "").strip().upper()
+    if not text or text in {"UNSPECIFIED", "UNKNOWN", "N/A", "NONE"}:
+        return None
+    return text
+
+
+def _comparison_number(value: Any) -> Optional[Decimal]:
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            return None
+        decimal_tuple = value.as_tuple()
+        if (
+            len(decimal_tuple.digits) > 256
+            or abs(int(decimal_tuple.exponent)) > 1000
+        ):
+            return None
+        number = value
+    else:
+        text = str(value if value is not None else "").strip()
+        if not text or len(text) > 256:
+            return None
+        negative = text.startswith("(") and text.endswith(")")
+        if negative:
+            text = text[1:-1].strip()
+        leading_minus = bool(
+            text.startswith("-")
+            or re.match(r"^-\s*[$€£¥₹₩₽₺]", text)
+            or re.match(r"^[$€£¥₹₩₽₺]\s*-", text)
+        )
+        matches = re.findall(
+            r"(?<![\w.])[-+]?(?:\d{1,3}(?:[ ,]\d{3})+|\d+)"
+            r"(?:\.\d+)?(?:[eE][-+]?\d{1,3})?(?![\w])",
+            text,
+        )
+        normalized = {
+            match.replace(" ", "").replace(",", "")
+            for match in matches
+        }
+        if len(normalized) != 1:
+            return None
+        token = next(iter(normalized))
+        try:
+            number = Decimal(token)
+        except InvalidOperation:
+            return None
+        if negative or leading_minus:
+            number = -abs(number)
+    if not number.is_finite():
+        return None
+    return number
+
+
+def _comparison_source(observation: Dict[str, Any]) -> Dict[str, Any]:
+    source = observation.get("source")
+    return dict(source) if isinstance(source, dict) else {}
+
+
+def _comparison_source_id(observation: Dict[str, Any]) -> str:
+    source = _comparison_source(observation)
+    return str(
+        source.get("source_id")
+        or source.get("id")
+        or source.get("resource_id")
+        or observation.get("source_id")
+        or observation.get("resource_id")
+        or "unknown"
+    )
+
+
+def _comparison_verified(observation: Dict[str, Any]) -> bool:
+    return str(observation.get("verification") or "").lower() in {
+        "verified",
+        "stored",
+        "calculated",
+    }
+
+
+def _text_target_match(text: str, target: str) -> Optional[re.Match[str]]:
+    value = str(target or "").strip()
+    if not value:
+        return None
+    return re.search(
+        rf"(?<![A-Za-z0-9_-]){re.escape(value)}(?![A-Za-z0-9_-])",
+        text,
+        re.IGNORECASE,
+    )
+
+
+def _text_source_currency(text: str) -> Optional[str]:
+    codes = {
+        match.upper()
+        for match in re.findall(
+            r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b",
+            text or "",
+            re.IGNORECASE,
+        )
+    }
+    return next(iter(codes)) if len(codes) == 1 else None
+
+
+def _text_source_basis(text: str) -> Optional[str]:
+    parts: List[str] = []
+    fob = re.search(
+        r"\bFOB\s+([^.;\n]+)", text or "", re.IGNORECASE
+    )
+    if fob:
+        parts.append("FOB " + fob.group(1).strip())
+    if re.search(r"\b(?:excluding|ex\.?)\s+tax(?:es)?\b", text or "", re.IGNORECASE):
+        parts.append("excluding taxes")
+    return "; ".join(parts) or None
+
+
+def _text_field_value(
+    text: str, field: str, source_currency: Optional[str]
+) -> Optional[str]:
+    if field in {"date", "certification_date", "expiration_date"}:
+        match = re.search(
+            r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b",
+            text,
+        )
+        return match.group(0) if match else None
+    if field in {"version", "required_version"}:
+        match = re.search(r"\b\d+(?:\.\d+){1,3}\b", text)
+        return match.group(0) if match else None
+    if field in _PRICE_FIELDS:
+        patterns = (
+            r"[$€£¥₹₩₽₺-]\s*-?\d[\d,]*(?:\.\d+)?",
+            r"\b(?:CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\s*"
+            r"-?\d[\d,]*(?:\.\d+)?",
+            r"-?\d[\d,]*\.\d{2}\b",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                return match.group(0)
+        if source_currency:
+            match = re.search(r"-?\d[\d,]*(?:\.\d+)?", text)
+            if match:
+                return f"{source_currency} {match.group(0)}"
+        return None
+    match = re.search(r"-?\d[\d,]*(?:\.\d+)?", text)
+    return match.group(0).strip() if match else None
+
+
+def _text_unit(text: str, field: str) -> Optional[str]:
+    if field not in _UNIT_FIELDS and field not in _PRICE_FIELDS:
+        return None
+    source = str(text or "")
+    per_unit = re.search(r"\bper\s+([A-Za-z%]+)\b", source, re.IGNORECASE)
+    if per_unit:
+        return per_unit.group(1)
+    number = re.search(r"-?\d[\d,]*(?:\.\d+)?", source)
+    if number is None:
+        return None
+    suffix = re.match(
+        r"\s*([A-Za-z%]+)\b", source[number.end():]
+    )
+    if suffix and suffix.group(1).casefold() in _UNIT_TOKENS:
+        return suffix.group(1)
+    return None
+
+
+def _text_organization(prefix: str) -> Optional[str]:
+    text = re.sub(r"\b(?:no\.?|model|item|product|part)\b", " ", prefix or "")
+    text = re.sub(r"[^A-Za-z0-9& -]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip(" -:")
+    if not text or len(text.split()) > 6:
+        return None
+    if _comparison_text(text) in {
+        "requested",
+        "requested machines",
+        "requested items",
+        "quote",
+        "machine",
+        "item",
+        "product",
+    }:
+        return None
+    return text
+
+
+def observations_from_text(
+    text: str,
+    *,
+    requested_entities: Sequence[str],
+    requested_fields: Sequence[str],
+    source: Dict[str, Any],
+    verification: str = "verified",
+) -> List[Dict[str, Any]]:
+    source_data = dict(source or {})
+    source_id = str(
+        source_data.get("source_id")
+        or source_data.get("id")
+        or source_data.get("resource_id")
+        or "text-source"
+    )
+    source_currency = _explicit_currency(
+        source_data.get("currency") or _text_source_currency(text)
+    )
+    source_basis = str(
+        source_data.get("basis") or _text_source_basis(text) or ""
+    ).strip() or None
+    received = str(
+        source_data.get("effective_date")
+        or source_data.get("received_date_time")
+        or source_data.get("sent_date_time")
+        or ""
+    )
+    effective_date = received[:10] if re.match(r"^\d{4}-\d{2}-\d{2}", received) else None
+    lines = str(text or "").splitlines()
+    observations: List[Dict[str, Any]] = []
+    for entity in requested_entities or []:
+        entity_text = str(entity or "").strip()
+        if not entity_text:
+            continue
+        for requested_field in requested_fields or []:
+            field = _canonical_field_name(requested_field)
+            for line_number, line in enumerate(lines, start=1):
+                match = _text_target_match(line, entity_text)
+                if match is None:
+                    continue
+                value_text = line[match.end():]
+                raw_value = _text_field_value(
+                    value_text, field, source_currency
+                )
+                if not raw_value:
+                    continue
+                organization = _text_organization(line[:match.start()])
+                currency_match = re.search(
+                    r"\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR)\b",
+                    raw_value,
+                    re.IGNORECASE,
+                )
+                line_currency = _text_source_currency(line)
+                currency_symbols = set(
+                    re.findall(r"[$€£¥₹₩₽₺]", raw_value)
+                )
+                if currency_match:
+                    value_currency = currency_match.group(1).upper()
+                elif line_currency:
+                    value_currency = line_currency
+                elif currency_symbols and currency_symbols != {"$"}:
+                    value_currency = None
+                else:
+                    value_currency = source_currency
+                line_basis = _text_source_basis(line) or source_basis
+                observations.append(_normalise_comparison_observation({
+                    "observation_id": f"{source_id}:{line_number}:{entity_text}:{field}",
+                    "entity_id": entity_text,
+                    "entity_attributes": (
+                        {"organization": organization} if organization else {}
+                    ),
+                    "field": field,
+                    "raw_value": raw_value,
+                    "currency": value_currency,
+                    "unit": _text_unit(value_text, field),
+                    "basis": line_basis,
+                    "field_meaning": field,
+                    "effective_date": effective_date,
+                    "observed_at": received or None,
+                    "source": {
+                        **source_data,
+                        "source_id": source_id,
+                        "source_type": source_data.get("source_type") or "text_source",
+                        "version": source_data.get("version") or source_id,
+                    },
+                    "locator": {
+                        "line": line_number,
+                        "source_id": source_id,
+                    },
+                    "verification": verification,
+                }))
+    return observations
+
+
+def _normalise_comparison_observation(observation: Dict[str, Any]) -> Dict[str, Any]:
+    item = dict(observation or {})
+    source = _comparison_source(item)
+    field = _canonical_field_name(
+        item.get("field") or item.get("column") or "value"
+    )
+    currency = _explicit_currency(item.get("currency"))
+    unit = _explicit_unit(item.get("unit"))
+    basis = str(
+        item.get("basis")
+        or item.get("price_basis")
+        or ""
+    ).strip() or None
+    raw_value = str(
+        item.get("raw_value")
+        if item.get("raw_value") is not None
+        else item.get("value") or ""
+    )
+    numeric = None if field in {
+        "date", "certification_date", "expiration_date", "version",
+        "required_version",
+    } else _comparison_number(
+        item.get("numeric_value")
+        if item.get("numeric_value") is not None
+        else raw_value
+    )
+    verification = str(item.get("verification") or "").strip().lower()
+    if not verification:
+        verification = "unverified" if raw_value else "field_missing"
+    return {
+        "observation_id": str(
+            item.get("observation_id")
+            or f"{_comparison_source_id(item)}:{item.get('entity_id')}:{field}"
+        ),
+        "entity_id": str(item.get("entity_id") or item.get("target") or ""),
+        "entity_attributes": {
+            str(key): str(value)
+            for key, value in (item.get("entity_attributes") or {}).items()
+            if value not in (None, "")
+        },
+        "field": field,
+        "raw_value": raw_value,
+        "numeric_value": str(numeric) if numeric is not None else None,
+        "currency": currency,
+        "unit": unit,
+        "basis": basis,
+        "effective_date": str(item.get("effective_date") or "").strip() or None,
+        "observed_at": str(item.get("observed_at") or "").strip() or None,
+        "field_meaning": str(
+            item.get("field_meaning") or item.get("column") or ""
+        ).strip() or None,
+        "derivation": dict(item.get("derivation") or {}),
+        "source": {
+            **source,
+            "source_id": _comparison_source_id(item),
+            "source_type": source.get("source_type") or item.get("source_type"),
+            "version": source.get("version") or item.get("version"),
+            "temporal_role": source.get("temporal_role")
+            or item.get("temporal_role"),
+        },
+        "locator": dict(item.get("locator") or {}),
+        "verification": verification,
+    }
+
+
+def _entity_key(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+
+def _entity_identity_reasons(
+    left: Dict[str, Any], right: Dict[str, Any]
+) -> List[str]:
+    left_values = {
+        _comparison_text(key): _comparison_text(value)
+        for key, value in (left.get("entity_attributes") or {}).items()
+    }
+    right_values = {
+        _comparison_text(key): _comparison_text(value)
+        for key, value in (right.get("entity_attributes") or {}).items()
+    }
+    if not left_values and not right_values:
+        return []
+    if not left_values or not right_values:
+        return ["identity_unresolved"]
+    shared = set(left_values).intersection(right_values)
+    if not shared:
+        return ["identity_unresolved"]
+    if any(left_values[key] != right_values[key] for key in shared):
+        return ["identity_conflict"]
+    return []
+
+
+def _price_field_meaning(observation: Dict[str, Any]) -> str:
+    text = _comparison_text(
+        observation.get("field_meaning")
+        or observation.get("column")
+        or observation.get("field")
+    ).replace("_", " ")
+    if "wholesale" in text:
+        return "wholesale"
+    if "retail" in text:
+        return "retail"
+    if "msrp" in text or "list price" in text:
+        return "list"
+    if any(term in text for term in ("quote", "quoted", "supplier")):
+        return "quoted"
+    if text not in {"", "price", "cost", "amount", "value", "rate"}:
+        return text
+    source = observation.get("source") or {}
+    if (
+        str(source.get("source_type") or "") == "supplier_quote"
+        or "quote" in _comparison_text(source.get("subject"))
+    ):
+        return "quoted"
+    return "unspecified"
+
+
+def _semantic_comparison_reasons(
+    left: Dict[str, Any], right: Dict[str, Any]
+) -> List[str]:
+    reasons = list(_entity_identity_reasons(left, right))
+    field = left.get("field")
+    if field in _PRICE_FIELDS:
+        left_meaning = _price_field_meaning(left)
+        right_meaning = _price_field_meaning(right)
+        if (
+            left_meaning != right_meaning
+            and "unspecified" not in {left_meaning, right_meaning}
+        ):
+            reasons.append("field_meaning_mismatch")
+        left_currency = left.get("currency")
+        right_currency = right.get("currency")
+        if not left_currency or not right_currency:
+            reasons.append("currency_unresolved")
+        elif left_currency != right_currency:
+            reasons.append("currency_mismatch")
+        left_basis = _comparison_text(left.get("basis"))
+        right_basis = _comparison_text(right.get("basis"))
+        if not left_basis or not right_basis:
+            reasons.append("basis_unresolved")
+        elif left_basis != right_basis:
+            reasons.append("basis_mismatch")
+        left_unit = _comparison_text(left.get("unit"))
+        right_unit = _comparison_text(right.get("unit"))
+        if left_unit or right_unit:
+            if not left_unit or not right_unit:
+                reasons.append("unit_unresolved")
+            elif left_unit != right_unit:
+                reasons.append("unit_mismatch")
+        source_types = {
+            str(left.get("source", {}).get("source_type") or ""),
+            str(right.get("source", {}).get("source_type") or ""),
+        }
+        if "artifact" not in source_types:
+            if not left.get("effective_date") or not right.get("effective_date"):
+                reasons.append("effective_date_unresolved")
+            elif left.get("effective_date") != right.get("effective_date"):
+                reasons.append("effective_date_differs")
+    else:
+        left_unit = _comparison_text(left.get("unit"))
+        right_unit = _comparison_text(right.get("unit"))
+        if left_unit or right_unit:
+            if not left_unit or not right_unit:
+                reasons.append("unit_unresolved")
+            elif left_unit != right_unit:
+                reasons.append("unit_mismatch")
+    return list(dict.fromkeys(reasons))
+
+
+def _numeric_relation(left: Dict[str, Any], right: Dict[str, Any]) -> str:
+    left_number = left.get("numeric_value")
+    right_number = right.get("numeric_value")
+    if left_number is not None and right_number is not None:
+        try:
+            return "equal" if Decimal(str(left_number)) == Decimal(str(right_number)) else "different"
+        except InvalidOperation:
+            pass
+    left_value = _comparison_text(left.get("raw_value"))
+    right_value = _comparison_text(right.get("raw_value"))
+    if not left_value or not right_value:
+        return "unknown"
+    return "equal" if left_value == right_value else "different"
+
+
+def _compare_observation_pair(
+    left: Dict[str, Any], right: Dict[str, Any]
+) -> Dict[str, Any]:
+    if (
+        left.get("verification") == "field_missing"
+        or right.get("verification") == "field_missing"
+        or not left.get("raw_value")
+        or not right.get("raw_value")
+    ):
+        status = "field_missing"
+        reasons = ["field_missing"]
+        comparable = False
+        relation = "unknown"
+    elif not _comparison_verified(left) or not _comparison_verified(right):
+        status = "unverified"
+        reasons = ["evidence_unverified"]
+        comparable = False
+        relation = _numeric_relation(left, right)
+    else:
+        reasons = _semantic_comparison_reasons(left, right)
+        comparable = not reasons
+        relation = _numeric_relation(left, right)
+        if comparable and relation == "equal":
+            status = "comparable_match"
+        elif comparable and relation == "different":
+            status = "comparable_changed"
+        elif relation == "equal":
+            status = "numeric_match_incomparable"
+        elif relation == "different":
+            status = "numeric_changed_incomparable"
+        else:
+            status = "unresolved"
+            reasons.append("value_unresolved")
+    return {
+        "status": status,
+        "comparable": comparable,
+        "numeric_relation": relation,
+        "reasons": list(dict.fromkeys(reasons)),
+        "left_observation_id": left.get("observation_id"),
+        "right_observation_id": right.get("observation_id"),
+        "left_source_id": left.get("source", {}).get("source_id"),
+        "right_source_id": right.get("source", {}).get("source_id"),
+    }
+
+
+def workbook_artifact_observations(
+    artifact: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    source_metadata = dict((artifact or {}).get("source_metadata") or {})
+    source = {
+        "source_id": str(
+            (artifact or {}).get("resource_id")
+            or (artifact or {}).get("file_name")
+            or "workbook"
+        ),
+        "source_type": "workbook",
+        "version": (artifact or {}).get("content_hash"),
+        "file_name": (artifact or {}).get("file_name"),
+        "resource_id": (artifact or {}).get("resource_id"),
+        "content_hash": (artifact or {}).get("content_hash"),
+        "temporal_role": source_metadata.get("temporal_role"),
+    }
+    effective_date = (
+        source_metadata.get("effective_date")
+        or source_metadata.get("source_modified_at")
+        or (artifact or {}).get("source_modified_at")
+    )
+    observations: List[Dict[str, Any]] = []
+    coverage = (artifact or {}).get("coverage") or {}
+    for outcome in coverage.get("outcomes") or []:
+        if not isinstance(outcome, dict):
+            continue
+        target = str(outcome.get("target") or "")
+        evidence_items = [
+            item for item in outcome.get("evidence") or [] if isinstance(item, dict)
+        ]
+        selection = outcome.get("field_selection")
+        if not isinstance(selection, dict):
+            selection = (
+                evidence_items[0].get("field_selection")
+                if evidence_items else {}
+            ) or {}
+        requested_fields = [
+            _canonical_field_name(field)
+            for field in selection.get("requested_fields") or []
+        ]
+        value_records: List[Dict[str, Any]] = []
+        for evidence in evidence_items:
+            attributes: Dict[str, str] = {}
+            for context in evidence.get("row_context") or []:
+                if not isinstance(context, dict):
+                    continue
+                field_name = _canonical_field_name(context.get("field") or "")
+                if field_name in {"organization", "category", "location"}:
+                    attributes[field_name] = str(context.get("value") or "")
+            for value in evidence.get("values") or evidence.get("prices") or []:
+                if isinstance(value, dict):
+                    value_records.append({
+                        "value": value,
+                        "evidence": evidence,
+                        "attributes": attributes,
+                    })
+        if not value_records and requested_fields:
+            for field in requested_fields:
+                value_records.append({
+                    "value": {"field": field, "value": ""},
+                    "evidence": evidence_items[0] if evidence_items else {},
+                    "attributes": {},
+                })
+        if not value_records:
+            value_records.append({
+                "value": {"field": "value", "value": ""},
+                "evidence": evidence_items[0] if evidence_items else {},
+                "attributes": {},
+            })
+        for record in value_records:
+            value = record["value"]
+            raw_value = str(
+                value.get("value")
+                if value.get("value") is not None
+                else ""
+            ).strip()
+            field = _canonical_field_name(
+                value.get("field") or value.get("column") or "value"
+            )
+            verification = "verified"
+            if not raw_value or outcome.get("status") == "absent":
+                verification = "field_missing"
+            elif outcome.get("status") in {"ambiguous", "incomplete"}:
+                verification = str(outcome.get("status"))
+            evidence = record["evidence"]
+            cell = str(value.get("cell") or evidence.get("cell") or "")
+            sheet = str(evidence.get("sheet") or "")
+            locator = {
+                key: item
+                for key, item in {
+                    "sheet": sheet,
+                    "cell": cell,
+                    "row": evidence.get("row"),
+                }.items()
+                if item not in (None, "")
+            }
+            observations.append(_normalise_comparison_observation({
+                "observation_id": (
+                    f"workbook:{source['source_id']}:{target}:{field}:{cell or 'missing'}"
+                ),
+                "entity_id": target,
+                "entity_attributes": record["attributes"],
+                "field": field,
+                "raw_value": raw_value,
+                "currency": value.get("currency"),
+                "unit": value.get("unit"),
+                "basis": value.get("price_basis") or value.get("column"),
+                "field_meaning": value.get("column"),
+                "effective_date": effective_date,
+                "observed_at": (artifact or {}).get("ingested_at"),
+                "derivation": {
+                    "formula": evidence.get("formula"),
+                    "formula_state": value.get("formula_state")
+                    or evidence.get("formula_state"),
+                },
+                "source": source,
+                "locator": locator,
+                "verification": verification,
+            }))
+    return observations
+
+
+def designated_source_ids(
+    text: str,
+    observations: Sequence[Dict[str, Any]],
+) -> List[str]:
+    objective = _comparison_text(text)
+    if not objective or re.search(
+        r"\b(?:historical|archive|archived|old|prior|previous)\b|"
+        r"\b(?:not|rather than|instead of|ignore|exclude|excluding|skip|"
+        r"do not use|don't use|never use)\b",
+        objective,
+    ):
+        return []
+    designated: List[str] = []
+    for observation in observations or []:
+        if not isinstance(observation, dict):
+            continue
+        source = observation.get("source") or {}
+        if (
+            str(source.get("source_type") or "")
+            not in {"message", "supplier_quote"}
+            or not _comparison_verified(observation)
+            or _comparison_text(source.get("temporal_role")) == "historical"
+            or not source.get("source_id")
+        ):
+            continue
+        descriptors = [
+            source.get("source_id"),
+            source.get("subject"),
+            source.get("sender"),
+            source.get("sender_name"),
+            source.get("display_name"),
+            *(
+                (observation.get("entity_attributes") or {}).values()
+                if isinstance(observation.get("entity_attributes"), dict)
+                else ()
+            ),
+        ]
+        normalized_descriptors = {
+            _comparison_text(item)
+            for item in descriptors
+            if len(_comparison_text(item)) >= 3
+        }
+        if any(item in objective for item in normalized_descriptors):
+            source_id = str(source.get("source_id"))
+            if source_id not in designated:
+                designated.append(source_id)
+    return designated if len(designated) == 1 else []
+
+
+def build_source_comparison(
+    observations: Sequence[Dict[str, Any]],
+    *,
+    requested_entities: Sequence[str],
+    requested_fields: Sequence[str],
+    artifact_source_ids: Optional[Sequence[str]] = None,
+    decision_source_ids: Optional[Sequence[str]] = None,
+    authorized_actions: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
+    normalized = [
+        _normalise_comparison_observation(item)
+        for item in observations or []
+        if isinstance(item, dict)
+    ]
+    artifact_ids = {str(item) for item in artifact_source_ids or [] if item}
+    decision_ids = {str(item) for item in decision_source_ids or [] if item}
+    actions_authorized = {
+        str(item).strip().lower()
+        for item in authorized_actions or []
+        if str(item).strip()
+    }
+    edit_authorized = bool(
+        actions_authorized.intersection({"edit_artifact", "update_artifact"})
+    )
+    outcomes: List[Dict[str, Any]] = []
+    gaps: List[Dict[str, Any]] = []
+    actions: List[Dict[str, Any]] = []
+    blocked_actions: List[Dict[str, Any]] = []
+    for entity in requested_entities or []:
+        entity_key = _entity_key(entity)
+        for requested_field in requested_fields or []:
+            field = _canonical_field_name(requested_field)
+            matching = [
+                item
+                for item in normalized
+                if _entity_key(item.get("entity_id")) == entity_key
+                and item.get("field") == field
+            ]
+            outcome: Dict[str, Any]
+            if not matching:
+                outcome = {
+                    "entity_id": str(entity),
+                    "field": field,
+                    "status": "evidence_missing",
+                    "comparisons": [],
+                    "evidence": [],
+                    "reasons": ["evidence_missing"],
+                }
+                outcomes.append(outcome)
+                gaps.append({
+                    "entity_id": str(entity),
+                    "field": field,
+                    "status": "evidence_missing",
+                    "next_evidence_needed": f"verified {field} evidence for {entity}",
+                })
+                continue
+            pairs: List[Dict[str, Any]] = []
+            for index, left in enumerate(matching):
+                for right in matching[index + 1:]:
+                    pairs.append(_compare_observation_pair(left, right))
+            statuses = [pair["status"] for pair in pairs]
+            if not statuses and matching and all(
+                item.get("verification") == "field_missing"
+                for item in matching
+            ):
+                statuses = ["field_missing"]
+            elif not statuses:
+                statuses = ["evidence_missing"]
+            has_comparable = any(
+                status.startswith("comparable_") for status in statuses
+            )
+            has_incomparable = any(
+                "incomparable" in status for status in statuses
+            )
+            if any(
+                status in {"field_missing", "evidence_missing"}
+                for status in statuses
+            ):
+                status = "partially_comparable" if has_comparable else (
+                    "field_missing"
+                    if "field_missing" in statuses
+                    else "evidence_missing"
+                )
+            elif has_comparable and has_incomparable:
+                status = "partially_comparable"
+            elif any(status == "unverified" for status in statuses):
+                status = (
+                    "partially_comparable"
+                    if has_comparable or has_incomparable
+                    else "unverified"
+                )
+            elif "comparable_changed" in statuses:
+                status = "comparable_changed"
+            elif "comparable_match" in statuses:
+                status = "comparable_match"
+            elif "numeric_match_incomparable" in statuses:
+                status = "numeric_match_incomparable"
+            elif "numeric_changed_incomparable" in statuses:
+                status = "numeric_changed_incomparable"
+            elif any(status == "unverified" for status in statuses):
+                status = "unverified"
+            else:
+                status = "unresolved"
+            reasons = list(dict.fromkeys(
+                reason for pair in pairs for reason in pair.get("reasons") or []
+            ))
+            if not reasons:
+                reasons = (
+                    ["field_missing"]
+                    if status == "field_missing"
+                    else ["evidence_missing"]
+                    if status == "evidence_missing"
+                    else ["value_unresolved"]
+                    if status == "unresolved"
+                    else []
+                )
+            outcome = {
+                "entity_id": str(entity),
+                "field": field,
+                "status": status,
+                "comparisons": pairs,
+                "evidence": matching,
+                "reasons": reasons,
+            }
+            outcomes.append(outcome)
+            if status not in {"comparable_match", "comparable_changed"}:
+                gaps.append({
+                    "entity_id": str(entity),
+                    "field": field,
+                    "status": status,
+                    "reasons": reasons,
+                    "next_evidence_needed": (
+                        f"matching currency, unit, basis, and effective date for {entity} {field}"
+                    ),
+                })
+            artifact_obs = [
+                item for item in matching
+                if item.get("source", {}).get("source_id") in artifact_ids
+            ]
+            decision_obs = [
+                item for item in matching
+                if item.get("source", {}).get("source_id") in decision_ids
+            ]
+            if len(artifact_obs) == 1 and len(decision_obs) == 1:
+                artifact_item = artifact_obs[0]
+                decision_item = decision_obs[0]
+                pair = _compare_observation_pair(artifact_item, decision_item)
+                historical_pair = any(
+                    _comparison_text(
+                        item.get("source", {}).get("temporal_role")
+                    ) == "historical"
+                    for item in (artifact_item, decision_item)
+                )
+                if (
+                    pair["status"] == "comparable_changed"
+                    and not historical_pair
+                    and _comparison_verified(artifact_item)
+                    and _comparison_verified(decision_item)
+                ):
+                    action = {
+                        "action_type": "edit_artifact",
+                        "entity_id": str(entity),
+                        "field": field,
+                        "current_value": artifact_item.get("raw_value"),
+                        "proposed_value": decision_item.get("raw_value"),
+                        "expected": {
+                            "raw_value": decision_item.get("raw_value"),
+                            "currency": decision_item.get("currency"),
+                            "unit": decision_item.get("unit"),
+                            "basis": decision_item.get("basis"),
+                            "field_meaning": _price_field_meaning(
+                                decision_item
+                            ),
+                            "destination_field_meaning": (
+                                _price_field_meaning(artifact_item)
+                            ),
+                            "entity_attributes": dict(
+                                decision_item.get("entity_attributes") or {}
+                            ),
+                        },
+                        "status": "ready" if edit_authorized else "not_authorized",
+                        "authorized": edit_authorized,
+                        "applied": False,
+                        "evidence_ids": [
+                            artifact_item.get("observation_id"),
+                            decision_item.get("observation_id"),
+                        ],
+                    }
+                    if edit_authorized:
+                        actions.append(action)
+                    else:
+                        blocked_actions.append(action)
+    historical = any(
+        _comparison_text(item.get("source", {}).get("temporal_role")) == "historical"
+        for item in normalized
+    )
+    implications: List[Dict[str, Any]] = []
+    if not actions and not blocked_actions:
+        historical_ids = [
+            item.get("observation_id")
+            for item in normalized
+            if _comparison_text(
+                item.get("source", {}).get("temporal_role")
+            ) == "historical"
+        ]
+        implications.append({
+            "statement": (
+                "No draft value should change from the workbook evidence "
+                "alone; the workbook is historical."
+                if historical else (
+                    "No draft value should change because the designated "
+                    "source does not support a comparable change."
+                    if decision_ids else
+                    "No draft value should change because no source was "
+                    "explicitly designated for the decision."
+                )
+            ),
+            "verification": "derived",
+            "evidence_ids": (
+                historical_ids
+                or [
+                    item.get("observation_id")
+                    for item in normalized
+                ]
+            )[:8],
+        })
+    if actions:
+        implications.append({
+            "statement": (
+                f"{len(actions)} source-backed artifact change(s) are ready; "
+                "none has been applied."
+            ),
+            "verification": "derived",
+            "evidence_ids": list(dict.fromkeys(
+                evidence_id
+                for action in actions
+                for evidence_id in action.get("evidence_ids") or []
+            ))[:8],
+        })
+    if blocked_actions:
+        implications.append({
+            "statement": (
+                f"{len(blocked_actions)} evidence-supported difference(s) were "
+                "not converted into changes because no edit was authorized."
+            ),
+            "verification": "derived",
+            "evidence_ids": list(dict.fromkeys(
+                evidence_id
+                for action in blocked_actions
+                for evidence_id in action.get("evidence_ids") or []
+            ))[:8],
+        })
+    outcome_count = len(outcomes)
+    verified_numeric_matches = sum(
+        outcome.get("status") == "numeric_match_incomparable"
+        for outcome in outcomes
+    )
+    field_missing = sum(
+        outcome.get("status") == "field_missing" for outcome in outcomes
+    )
+    return {
+        "contract_version": _SOURCE_COMPARISON_VERSION,
+        "coverage": {
+            "requested_entities": [str(item) for item in requested_entities or []],
+            "requested_fields": [
+                _canonical_field_name(item) for item in requested_fields or []
+            ],
+            "outcome_count": outcome_count,
+            "complete": bool(
+                outcome_count
+                and all(
+                    outcome.get("status") in {"comparable_match", "comparable_changed"}
+                    for outcome in outcomes
+                )
+            ),
+            "verified_numeric_matches": verified_numeric_matches,
+            "field_missing": field_missing,
+            "outcomes": outcomes,
+        },
+        "evidence": normalized,
+        "gaps": gaps,
+        "implications": implications,
+        "actions": actions,
+        "blocked_actions": blocked_actions,
+    }
+
+
+def render_source_comparison(comparison: Dict[str, Any]) -> str:
+    if not comparison:
+        return ""
+    coverage = comparison.get("coverage") or {}
+    lines = [
+        "SOURCE COMPARISON (structured evidence; no source is preferred "
+        "unless the user explicitly designated it):",
+        (
+            f"coverage={coverage.get('outcome_count', 0)} requested outcome(s); "
+            f"numeric matches with unresolved semantics="
+            f"{coverage.get('verified_numeric_matches', 0)}; "
+            f"field missing={coverage.get('field_missing', 0)}"
+        ),
+    ]
+    for outcome in coverage.get("outcomes") or []:
+        reasons = ", ".join(outcome.get("reasons") or []) or "none"
+        lines.append(
+            f"TARGET {outcome.get('entity_id')} / {outcome.get('field')}: "
+            f"{str(outcome.get('status') or 'unresolved').upper()} "
+            f"(reasons: {reasons})"
+        )
+        for pair in outcome.get("comparisons") or []:
+            lines.append(
+                "  "
+                f"{pair.get('left_source_id')} vs {pair.get('right_source_id')}: "
+                f"numeric={pair.get('numeric_relation')}; "
+                f"comparable={pair.get('comparable')}"
+            )
+    for implication in comparison.get("implications") or []:
+        lines.append(f"IMPLICATION: {implication.get('statement')}")
+    for action in comparison.get("actions") or []:
+        lines.append(
+            "READY CHANGE (not applied): "
+            f"{action.get('entity_id')} {action.get('field')} "
+            f"{action.get('current_value')} -> {action.get('proposed_value')}"
+        )
+    for action in comparison.get("blocked_actions") or []:
+        lines.append(
+            "BLOCKED CHANGE (not authorized): "
+            f"{action.get('entity_id')} {action.get('field')} "
+            f"{action.get('current_value')} -> {action.get('proposed_value')}"
+        )
+    lines.append(
+        "Use these comparisons to explain the decision. Do not silently convert "
+        "currency or units, select a preferred source, treat recency as "
+        "authority, or mutate an artifact without authorization."
+    )
+    return "\n".join(lines)
 
 
 def render_workbook_artifact(artifact: Dict[str, Any]) -> str:

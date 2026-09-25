@@ -57,6 +57,7 @@ _FILE_BACKREF_RE = re.compile(
     r"\b(?:that|this|the)\s+(?:file\s*name|filename|file|name|workbook|"
     r"spreadsheet|sheet|document|price\s*list|list|one)\b"
     r"|\bthat'?s\s+(?:the\s+one|correct|right|it)\b"
+    r"|\bthat\s+is\s+the\s+(?:right|correct)\s+file\b"
     r"|\bfilename\s+is\s+(?:correct|right)\b"
     r"|\bfile\s+name\s+is\s+(?:correct|right)\b",
     re.IGNORECASE,
