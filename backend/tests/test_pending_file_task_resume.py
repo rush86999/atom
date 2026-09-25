@@ -2370,11 +2370,12 @@ class TestCanvasTruthGate:
         )
         assert "I've updated item 4" not in out, (
             "the unsupported claim must not survive verbatim")
-        assert "Could not verify whether the canvas was changed" in out
+        assert "Unverified" in out
 
-    def test_enforced_guard_no_write_with_execution_anchor(self):
-        """Execution row readable, no audit write for it, no stamp →
-        no_write: the claim is replaced with 'canvas unchanged'."""
+    def test_enforced_guard_no_bound_write_is_unverified(self):
+        """Execution row readable, but no audit row carries THIS
+        execution's operation stamp → unverified (round 5: no time-window
+        or session fallback may claim a write)."""
         from datetime import datetime, timezone
         from uuid import uuid4
 
@@ -2394,11 +2395,12 @@ class TestCanvasTruthGate:
             execution_id=exec_id,
         )
         assert "I've updated item 4" not in out
-        assert "No canvas change has been applied" in out
+        assert "Unverified" in out
 
-    def test_enforced_guard_written_claim_survives(self):
-        """An audit write bound to THIS execution (same session, at/after
-        the execution's start) verifies the claim — it stays intact."""
+    def test_enforced_guard_overlapping_turn_does_not_verify(self):
+        """Round 5: an OVERLAPPING turn's write in the same session (a
+        different execution's operation stamp) must NOT verify this
+        turn's claim — the old same-session/after-start fallback did."""
         from datetime import datetime, timezone
         from uuid import uuid4
 
@@ -2407,17 +2409,72 @@ class TestCanvasTruthGate:
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
+        other_op = f"op-other-{uuid4().hex[:8]}"
         canvas_id = f"cv-{uuid4().hex[:8]}"
-        started = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         with get_db_session() as db:
             db.add(AgentExecution(
-                id=exec_id, status="running", started_at=started,
+                id=exec_id, status="running", started_at=now,
             ))
+            db.add(CanvasAudit(  # the OTHER turn's write, same session
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g", created_at=now,
+                details_json={"operation_id": other_op,
+                              "content": {"body": "x"}},
+            ))
+        out = ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4.", {"canvas_id": canvas_id},
+            "s-g", "u-g", False, execution_id=exec_id,
+        )
+        assert "Unverified" in out
+
+    def test_enforced_guard_substring_stamp_does_not_verify(self):
+        """Round 5: an audit row whose operation_id merely CONTAINS this
+        execution id (a longer operation string) must not verify —
+        structured field equality only, no substring."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        with get_db_session() as db:
             db.add(CanvasAudit(
                 id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
                 tenant_id="default", session_id="s-g",
                 action_type="update", user_id="u-g",
-                created_at=started,
+                created_at=datetime.now(timezone.utc),
+                details_json={"operation_id": f"{exec_id}-suffix",
+                              "content": {"body": "x"}},
+            ))
+        assert ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id,
+        ) == "unverified"
+
+    def test_enforced_guard_exact_stamp_verifies(self):
+        """details.operation_id == this execution AND a recorded change
+        payload (content) → written; the claim survives."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=datetime.now(timezone.utc),
+                details_json={"operation_id": exec_id,
+                              "content": {"body": "new"}},
             ))
         text = "I've updated item 4 to reflect that pricing."
         out = ChatOrchestrator._canvas_claim_correction(
@@ -2426,11 +2483,11 @@ class TestCanvasTruthGate:
         )
         assert out == text
 
-    def test_enforced_guard_unrelated_write_does_not_verify(self):
-        """An OLDER write (before this execution started) must NOT verify
-        this turn's claim — the round-4 defect (6-minute any-session
-        window validated a false 'I updated it')."""
-        from datetime import datetime, timedelta, timezone
+    def test_enforced_guard_continuation_write_verifies(self):
+        """A background continuation forked by THIS execution stamps its
+        own continuation_id as operation_id; the guard binds execution →
+        continuation rows (metadata.originating_execution_id) → audit."""
+        from datetime import datetime, timezone
         from uuid import uuid4
 
         from core.database import get_db_session
@@ -2438,23 +2495,29 @@ class TestCanvasTruthGate:
         from integrations.chat_orchestrator import ChatOrchestrator
 
         exec_id = f"exec-{uuid4().hex[:12]}"
+        cont_id = f"cont-{uuid4().hex[:12]}"
         canvas_id = f"cv-{uuid4().hex[:8]}"
-        started = datetime.now(timezone.utc)
         with get_db_session() as db:
             db.add(AgentExecution(
-                id=exec_id, status="running", started_at=started,
+                id=cont_id, status="running", triggered_by="continuation",
+                started_at=datetime.now(timezone.utc),
+                metadata_json={
+                    "session_id": "s-g",
+                    "originating_execution_id": exec_id,
+                    "continuation": {"session_id": "s-g"},
+                },
             ))
-            db.add(CanvasAudit(  # twenty minutes OLD — different operation
+            db.add(CanvasAudit(
                 id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
                 tenant_id="default", session_id="s-g",
                 action_type="update", user_id="u-g",
-                created_at=started - timedelta(minutes=20),
+                created_at=datetime.now(timezone.utc),
+                details_json={"operation_id": cont_id,
+                              "content": {"body": "applied"}},
             ))
-        out = ChatOrchestrator._canvas_claim_correction(
-            "I've updated item 4.", {"canvas_id": canvas_id},
-            "s-g", "u-g", False, execution_id=exec_id,
-        )
-        assert "No canvas change has been applied" in out
+        assert ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id,
+        ) == "written"
 
     def test_enforced_guard_ignores_non_claims_and_canvasless_turns(self):
         from integrations.chat_orchestrator import ChatOrchestrator

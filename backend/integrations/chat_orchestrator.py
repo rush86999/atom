@@ -4251,7 +4251,8 @@ class ChatOrchestrator:
                             "resolved_file"]
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
-                    (context or {}).get("workspace_id"), _deadline)
+                    (context or {}).get("workspace_id"), _deadline,
+                    canvas=_canvas_ctx)
                 if _ask_result.get("ok"):
                     try:
                         from core.chat_tool_planner import (
@@ -4370,6 +4371,7 @@ class ChatOrchestrator:
                         session_id,
                         (context or {}).get("workspace_id"),
                         _deadline,
+                        canvas=_canvas_ctx,
                     )
                 if _direct_result.get("ok"):
                     try:
@@ -4897,6 +4899,14 @@ class ChatOrchestrator:
                         _execution_id, (context or {}).get("agent_id"),
                         provenance=(context or {}).get("canvas_provenance"),
                         shared_tool_state=_shared_tool,
+                        # EXACT OPERATION STAMP (2026-09-25 review round 5):
+                        # the interactive write's audit row carries this
+                        # turn's execution id in details_json.operation_id,
+                        # so the canvas-claim guard binds verification to
+                        # THIS operation by structured field equality —
+                        # one logical operation per turn is also the
+                        # correct idempotency key.
+                        operation_id=_execution_id,
                     )
                     if _derivation_ask(message, context):
                         # A derivation ask is answered by the workbook row, and
@@ -6062,6 +6072,7 @@ class ChatOrchestrator:
         session_id: str,
         workspace_id: Optional[str],
         deadline: Optional["TurnDeadline"] = None,
+        canvas: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
@@ -6088,6 +6099,12 @@ class ChatOrchestrator:
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
                         "disambiguation": pending_task.get("disambiguation"),
+                        # CANVAS RIDES THE BRAND CHANNEL (2026-09-25
+                        # review round 5): the objective's item lines
+                        # ('Roper Whitney … No. 381') live on the canvas
+                        # table; without it the reader's 6-entry history
+                        # window loses every identity hint.
+                        "canvas": canvas,
                     },
                     plan=direct_plan,
                 ),
@@ -6411,21 +6428,17 @@ class ChatOrchestrator:
             canvas_id, session_id, user_id, execution_id,
         )
         if verification == "written":
-            return text  # this operation's write is on the audit trail
-        if verification == "unverified":
-            replacement = (
-                "*(Could not verify whether the canvas was changed — the "
-                "audit read failed; treat the canvas as unconfirmed.)*"
-            )
-        elif background_forked:
+            return text  # this operation's write is exactly bound
+        if background_forked:
             replacement = (
                 "*(The canvas edit is still running in the background — "
                 "nothing is confirmed changed yet.)*"
             )
         else:
             replacement = (
-                "*(No canvas change has been applied — the canvas is "
-                "unchanged; values above are proposed only.)*"
+                "*(Unverified: no canvas write from this operation is on "
+                "the audit trail — treat the canvas as unchanged and any "
+                "values above as proposed.)*"
             )
         logger.warning(
             "[canvas-claim-guard] reply claimed a canvas change; "
@@ -6450,65 +6463,85 @@ class ChatOrchestrator:
         user_id: Optional[str],
         execution_id: Optional[str],
     ) -> str:
-        """Tri-state audit readback for THIS operation: "written" | "
-        no_write" | "unverified".
+        """Exact structured verification: "written" | "unverified".
 
-        A write verifies the claim only when the audit row binds to this
-        execution — created at/after the execution's own start, in this
-        session, with a mutation action (2026-09-25 review round 4: the
-        previous 6-minute any-session window let an unrelated earlier
-        write validate a false claim). Rows stamped with this
-        execution_id verify regardless of session (exact bind, for
-        writers that stamp it). Any read failure is UNVERIFIED."""
-        if not canvas_id:
-            return "no_write"
+        A write verifies the claim ONLY when an audit row's PARSED
+        details match this execution's operation set by field equality:
+        ``details.operation_id == execution_id`` (the interactive stamp)
+        or ``details.operation_id`` in the continuation ids this
+        execution forked / ``details.execution_id == execution_id`` —
+        and the row records a real mutation payload (content/data), the
+        readback of the applied change. Substring matches, session
+        proximity, and time windows do NOT verify (2026-09-25 review
+        round 5: an overlapping turn's write satisfied the old
+        same-session fallback). Anything else — including every read
+        failure — is UNVERIFIED."""
+        if not canvas_id or not execution_id:
+            return "unverified"
         try:
+            import json as _json
+
+            from sqlalchemy import desc
+
             from core.database import get_db_session
             from core.models import AgentExecution, CanvasAudit
+            from core.sql_json import json_field_equals
 
             with get_db_session() as db:
-                turn_start = None
-                if execution_id:
-                    row = db.query(AgentExecution).filter(
-                        AgentExecution.id == execution_id
-                    ).first()
-                    if row is not None:
-                        turn_start = (
-                            getattr(row, "started_at", None)
-                            or getattr(row, "created_at", None)
-                        )
-                if execution_id and turn_start is None:
-                    # The execution row itself is unreadable — we cannot
-                    # scope time; only an exact execution_id stamp can
-                    # verify.
-                    turn_start = None
-                query = db.query(CanvasAudit).filter(
-                    CanvasAudit.canvas_id == canvas_id,
-                    CanvasAudit.action_type.in_(
-                        ("update", "create", "edit", "delete", "restore")),
+                operation_ids = {execution_id}
+                try:
+                    predicate = json_field_equals(
+                        db, AgentExecution.metadata_json,
+                        "$.originating_execution_id", execution_id,
+                    )
+                    cont_query = db.query(AgentExecution).filter(
+                        AgentExecution.triggered_by == "continuation"
+                    )
+                    cont_rows = cont_query.filter(
+                        *([predicate] if predicate is not None else [])
+                    ).all() if predicate is not None else [
+                        row for row in cont_query.limit(200).all()
+                        if isinstance(row.metadata_json, dict)
+                        and row.metadata_json.get(
+                            "originating_execution_id") == execution_id
+                    ]
+                    for row in cont_rows or []:
+                        operation_ids.add(str(row.id))
+                except Exception:
+                    pass  # continuation binding is best-effort; the
+                    # direct stamp still verifies exactly
+                audit_rows = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == canvas_id,
+                        CanvasAudit.action_type.in_(
+                            ("update", "create", "edit", "delete",
+                             "restore")),
+                    )
+                    .order_by(desc(CanvasAudit.created_at))
+                    .limit(200)
+                    .all()
                 )
-                stamped = None
-                if execution_id:
-                    # details_json is JSON-over-TEXT on SQLite — a direct
-                    # substring probe finds a stamped execution id without
-                    # a cast (cast(str) is a constructor on this
-                    # SQLAlchemy version, not a type).
-                    stamped = query.filter(
-                        CanvasAudit.details_json.contains(execution_id)
-                    ).first()
-                if stamped is not None:
+                for row in audit_rows or []:
+                    details = row.details_json
+                    if isinstance(details, str):
+                        try:
+                            details = _json.loads(details)
+                        except Exception:
+                            continue
+                    if not isinstance(details, dict):
+                        continue
+                    if not (
+                        details.get("operation_id") in operation_ids
+                        or details.get("execution_id") == execution_id
+                    ):
+                        continue  # exact field equality only — a substring
+                        # or another turn's operation never verifies
+                    if details.get("content") is None and details.get(
+                            "data") is None:
+                        continue  # a marker row, not a recorded change
                     return "written"
-                if turn_start is None:
-                    # No exact stamp and no time anchor — this operation
-                    # cannot be verified either way.
-                    return "unverified"
-                if not session_id:
-                    return "no_write"
-                row = query.filter(
-                    CanvasAudit.session_id == session_id,
-                    CanvasAudit.created_at >= turn_start,
-                ).first()
-                return "written" if row is not None else "no_write"
+                return "unverified"
         except Exception as exc:  # noqa: BLE001 — readback is best-effort
             logger.debug(f"canvas write readback skipped: {exc}")
             return "unverified"

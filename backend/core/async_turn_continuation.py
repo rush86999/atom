@@ -133,12 +133,16 @@ class AsyncTurnContinuation:
     # prices; edit applied placeholders). The continuation injects this
     # as existing_block so the retry REUSES it instead of re-searching.
     evidence_block: str = ""
+    evidence_contract: Optional[Dict[str, Any]] = None
     # Terminal state.
     outcome: str = ""
     summary: str = ""
     error: str = ""
     failure_stage: str = ""
     readback_required: bool = False
+    audit_id: str = ""
+    postcondition_verified: Optional[bool] = None
+    review_status: str = ""
 
 
 #: In-process handles (fast path). The DURABLE record is the AgentExecution
@@ -213,13 +217,35 @@ def get_continuation(continuation_id: str) -> Optional[AsyncTurnContinuation]:
     return _continuations.get(continuation_id)
 
 
-def cancel_continuation(session_id: str) -> bool:
+def cancel_continuation(
+    session_id: str, canvas_id: Optional[str] = None
+) -> bool:
     """Cancel the in-flight continuation for a session — used when a NEW
     user turn supersedes it, or on explicit stop. Returns True when one was
     cancelled."""
     cid = _SESSION_IN_FLIGHT.get(session_id)
     if not cid:
         return False
+    if canvas_id is not None:
+        active = _continuations.get(cid)
+        active_canvas = str((active.canvas or {}).get("canvas_id") or "") \
+            if active is not None else ""
+        if not active_canvas:
+            try:
+                from core.database import get_db_session
+                from core.models import AsyncContinuationClaim
+
+                with get_db_session() as db:
+                    row = db.query(AsyncContinuationClaim).filter(
+                        AsyncContinuationClaim.session_id == session_id
+                    ).first()
+                    active_canvas = str(
+                        (row.canvas_id if row is not None else "") or ""
+                    )
+            except Exception:  # noqa: BLE001
+                active_canvas = ""
+        if active_canvas != str(canvas_id):
+            return False
     task = _tasks.get(cid)
     if task and not task.done():
         task.cancel()
@@ -231,6 +257,68 @@ def _reap(continuation_id: str, session_id: str) -> None:
     if _SESSION_IN_FLIGHT.get(session_id) == continuation_id:
         _SESSION_IN_FLIGHT.pop(session_id, None)
     _release_claim(session_id)
+
+
+def _bounded_evidence_contract(
+    contract: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(contract, dict):
+        return None
+    coverage = contract.get("coverage") or {}
+    def _action(item: Any) -> Dict[str, Any]:
+        if not isinstance(item, dict):
+            return {}
+        expected = item.get("expected")
+        return {
+            "action_type": item.get("action_type"),
+            "entity_id": item.get("entity_id"),
+            "field": item.get("field"),
+            "current_value": item.get("current_value"),
+            "proposed_value": item.get("proposed_value"),
+            "status": item.get("status"),
+            "authorized": item.get("authorized") is True,
+            "applied": item.get("applied") is True,
+            "evidence_ids": [
+                str(value) for value in (item.get("evidence_ids") or [])[:16]
+                if value
+            ],
+            "expected": {
+                str(key): expected.get(key)
+                for key in (
+                    "raw_value", "currency", "unit", "basis",
+                    "field_meaning", "destination_field_meaning",
+                )
+                if isinstance(expected, dict) and expected.get(key) is not None
+            },
+        }
+    evidence_ids = [
+        str(item.get("observation_id"))
+        for item in contract.get("evidence") or []
+        if isinstance(item, dict) and item.get("observation_id")
+    ]
+    return {
+        "contract_version": contract.get("contract_version"),
+        "coverage": {
+            "requested_entities": [
+                str(item) for item in (coverage.get("requested_entities") or [])[:64]
+            ],
+            "requested_fields": [
+                str(item) for item in (coverage.get("requested_fields") or [])[:32]
+            ],
+            "outcome_count": coverage.get("outcome_count"),
+            "complete": coverage.get("complete") is True,
+        },
+        "actions": [_action(item) for item in (contract.get("actions") or [])[:50]],
+        "blocked_actions": [
+            _action(item) for item in (contract.get("blocked_actions") or [])[:50]
+        ],
+        "evidence_ids": list(dict.fromkeys(evidence_ids))[:100],
+        "implications": [
+            str(item.get("statement"))[:500]
+            for item in (contract.get("implications") or [])
+            if isinstance(item, dict) and item.get("statement")
+        ][:20],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +345,12 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                 metadata_json={
                     "session_id": cont.session_id,
                     "surface": "async_turn_continuation",
+                    # EXACT ORIGIN BINDING (2026-09-25 review round 5): the
+                    # canvas-claim guard verifies a write only against the
+                    # operation set of THIS execution — itself plus the
+                    # continuations it forked (which stamp their own
+                    # continuation_id as operation_id).
+                    "originating_execution_id": cont.execution_id,
                     "continuation": {
                         "session_id": cont.session_id,
                         "canvas_id": (cont.canvas or {}).get("canvas_id"),
@@ -265,6 +359,9 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                         "snapshot_content_hash": cont.snapshot_content_hash,
                         "snapshot_audit_ts": cont.snapshot_audit_ts,
                         "failure_stage": cont.failure_stage,
+                        "evidence_contract": _bounded_evidence_contract(
+                            cont.evidence_contract
+                        ),
                     },
                 },
             ))
@@ -320,6 +417,12 @@ def _finish_durable_record(
             cont_meta["summary"] = summary[:500]
             cont_meta["notified"] = True
             cont_meta["failure_stage"] = cont.failure_stage
+            cont_meta["evidence_contract"] = _bounded_evidence_contract(
+                cont.evidence_contract
+            )
+            cont_meta["audit_id"] = cont.audit_id or None
+            cont_meta["postcondition_verified"] = cont.postcondition_verified
+            cont_meta["review_status"] = cont.review_status or None
             meta["continuation"] = cont_meta
             row.metadata_json = meta
             # JSON columns need an explicit dirty flag when the value is
@@ -470,14 +573,10 @@ def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _operation_landed(cont: AsyncTurnContinuation) -> bool:
-    """DEFINITIVE idempotency probe: does any CanvasAudit row for the canvas
-    carry THIS continuation's operation_id? The retry stamps every write it
-    makes with ``details_json.operation_id = continuation_id``, so a landed
-    write is a query, not a timestamp inference (review 2026-09-22)."""
+def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
-        return False
+        return None
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
@@ -490,10 +589,23 @@ def _operation_landed(cont: AsyncTurnContinuation) -> bool:
             rows = db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id, *([q] if q is not None else [])
             ).all()
-            return bool(rows)
+            for row in rows or []:
+                details = row.details_json or {}
+                if isinstance(details, str):
+                    try:
+                        details = json.loads(details)
+                    except Exception:
+                        details = {}
+                if isinstance(details, dict):
+                    return str(details.get("review_status") or "unknown")
+            return None
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"operation-landed probe skipped: {e}")
-        return False
+        logger.debug(f"operation-status probe skipped: {e}")
+        return None
+
+
+def _operation_landed(cont: AsyncTurnContinuation) -> bool:
+    return _operation_status(cont) == "accepted"
 
 
 def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
@@ -522,6 +634,11 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
         return None
     if _operation_landed(cont):
         return OUTCOME_ALREADY_APPLIED
+    operation_status = _operation_status(cont)
+    if operation_status == "pending_review":
+        return OUTCOME_AWAITING_APPROVAL
+    if operation_status not in {None, "unknown"}:
+        return OUTCOME_CONFLICT
     latest = _latest_audit(canvas_id)
     if latest and cont.snapshot_audit_ts and (
             latest["created_at"] > cont.snapshot_audit_ts):
@@ -596,11 +713,28 @@ def start_continuation(
             # 2026-09-22): if this operation's write already landed, the
             # honest outcome is applied/already_applied with its effects —
             # only an un-landed operation reports cancelled.
+            operation_status: Optional[str]
             if _operation_landed(cont):
+                operation_status = "accepted"
+            else:
+                operation_status = _operation_status(cont)
+            if operation_status == "accepted":
                 cont.outcome = OUTCOME_ALREADY_APPLIED
                 cont.summary = (
                     "The write had already landed when the cancellation "
                     "arrived — nothing was undone.")
+                _finish_durable_record(
+                    cont, cont.outcome, cont.summary)
+                try:
+                    await _apply_effects(cont)
+                finally:
+                    _reap(cid, cont.session_id)
+                raise
+            if operation_status == "pending_review":
+                cont.outcome = OUTCOME_AWAITING_APPROVAL
+                cont.summary = (
+                    "The proposal was already awaiting review when the "
+                    "cancellation arrived; it was not cancelled or reapplied.")
                 _finish_durable_record(
                     cont, cont.outcome, cont.summary)
                 try:
@@ -714,6 +848,12 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                     "id": cont.continuation_id,
                     "outcome": outcome,
                     "canvas_id": (cont.canvas or {}).get("canvas_id"),
+                    "evidence_contract": _bounded_evidence_contract(
+                        cont.evidence_contract
+                    ),
+                    "audit_id": cont.audit_id or None,
+                    "postcondition_verified": cont.postcondition_verified,
+                    "review_status": cont.review_status or None,
                 }}),
             ))
     except Exception as e:  # noqa: BLE001
@@ -783,6 +923,9 @@ async def run_canvas_edit_continuation(
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
         if attempt > 1:
             latest = _latest_turn_evidence(orchestrator, cont)
+            latest_contract = _latest_turn_contract(orchestrator, cont)
+            if isinstance(latest_contract, dict):
+                cont.evidence_contract = latest_contract
             if latest and latest != cont.evidence_block:
                 logger.info(
                     "[async-continuation] %s retry %d: refreshed evidence "
@@ -807,6 +950,10 @@ async def run_canvas_edit_continuation(
                 "The canvas edit from your earlier request had already "
                 "landed before the background attempt ran — nothing was "
                 "applied twice.")
+        if pre == OUTCOME_AWAITING_APPROVAL:
+            return pre, (
+                "The canvas edit is already saved as a proposal awaiting "
+                "review; it was not applied again.")
         if pre == OUTCOME_CONFLICT:
             return pre, (
                 "The canvas changed while the background update was "
@@ -817,6 +964,7 @@ async def run_canvas_edit_continuation(
         blackboard: Dict[str, Any] = {
             "plan_task": None,
             "block": (cont.evidence_block or "") or None,
+            "objective_evidence": cont.evidence_contract,
         }
         prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
         expected_prior = (prior or {}).get("id")
@@ -879,6 +1027,11 @@ async def run_canvas_edit_continuation(
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
+            cont.audit_id = str(edit_meta.get("audit_id") or "")
+            cont.postcondition_verified = edit_meta.get(
+                "postcondition_verified"
+            )
+            cont.review_status = str(edit_meta.get("review_status") or "")
             if edit_meta.get("updated") is not True:
                 last_note = str(
                     (edit_meta.get("reason") or "edit response did not confirm a write")
@@ -886,7 +1039,11 @@ async def run_canvas_edit_continuation(
             else:
                 cont.failure_stage = f"attempt-{attempt}-readback"
                 readback_ok = True
-                if cont.readback_required:
+                if cont.evidence_contract and edit_meta.get(
+                        "postcondition_verified") is not True:
+                    readback_ok = False
+                    last_note = "source-backed read-back was not verified"
+                if cont.readback_required and readback_ok:
                     readback_ok = _operation_landed(cont)
                     if readback_ok:
                         try:
@@ -957,7 +1114,14 @@ def supersede_pending_continuation(
             return False
     except Exception:  # noqa: BLE001 — classification is best-effort
         return False
-    return cancel_continuation(session_id)
+    current_canvas_id = str(
+        (context or {}).get("canvas_id")
+        or ((context or {}).get("canvas") or {}).get("canvas_id")
+        or ""
+    )
+    if not current_canvas_id:
+        return False
+    return cancel_continuation(session_id, canvas_id=current_canvas_id)
 
 
 def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str:
@@ -985,6 +1149,24 @@ def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str
         return ""
 
 
+def _latest_turn_contract(
+    orchestrator: Any, cont: AsyncTurnContinuation
+) -> Optional[Dict[str, Any]]:
+    try:
+        orch = getattr(cont, "_orchestrator", None)
+        if orch is None or not cont.execution_id:
+            return None
+        session = orch.conversation_sessions.get(cont.session_id)
+        if not session:
+            return None
+        contract = session.get(
+            f"_objective_evidence_{cont.execution_id}"
+        )
+        return dict(contract) if isinstance(contract, dict) else None
+    except Exception:
+        return None
+
+
 def fork_canvas_edit_continuation(
     orchestrator: Any,
     *,
@@ -997,6 +1179,7 @@ def fork_canvas_edit_continuation(
     agent_id: Optional[str],
     provenance: Optional[Dict[str, Any]] = None,
     evidence_block: str = "",
+    evidence_contract: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
     branch. Snapshots the idempotency state at fork time. Returns the
@@ -1016,6 +1199,11 @@ def fork_canvas_edit_continuation(
         snapshot_content_hash=_content_hash(canvas or {}),
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
         evidence_block=evidence_block or "",
+        evidence_contract=(
+            dict(evidence_contract)
+            if isinstance(evidence_contract, dict)
+            else None
+        ),
         readback_required=True,
     )
     # Dataclass: stash the orchestrator for the in-memory session append

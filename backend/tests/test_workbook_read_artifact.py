@@ -506,6 +506,126 @@ def test_brand_constraint_from_objective_resolves_ambiguity(tmp_path):
         outcome.get("note") or "")
 
 
+def test_row_identity_outranks_sheet_name(tmp_path):
+    """2026-09-25 review round 5: an EXPLICIT conflicting row attribute
+    must outrank the sheet name — the contract closed 2026-09-24 and
+    reintroduced by sheet-first corroboration. A row in the
+    'RoperWhitney'-named sheet whose Brand column says 'Other Co' is NOT
+    corroborated by the 'Roper Whitney' constraint."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import (
+        _corroborates_brand, inspect_dataset_entries,
+    )
+
+    evidence_conflict = {
+        "sheet": "RoperWhitney",
+        "row_context": [
+            {"field": "Brand", "value": "Other Co"},
+            {"field": "Model", "value": "381"},
+        ],
+    }
+    evidence_match = {
+        "sheet": "RoperWhitney",
+        "row_context": [
+            {"field": "Brand", "value": "Roper Whitney"},
+            {"field": "Model", "value": "381"},
+        ],
+    }
+    phrases = ["Roper Whitney"]
+    assert _corroborates_brand(evidence_conflict, phrases) is False
+    assert _corroborates_brand(evidence_match, phrases) is True
+
+    # End-to-end: the conflicting row drops out, the matching row wins.
+    rw = tmp_path / "roperwhitney.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2, 3],
+        "Brand": ["Other Co", "Roper Whitney"],
+        "Model": ["381", "381"],
+        "Price": [10.0, 2421.0],
+    }).to_parquet(rw)
+    artifact = inspect_dataset_entries(
+        [{"entity_name": "RoperWhitney", "parquet_path": str(rw),
+          "row_count": 2, "coverage": {"known": True, "truncated": False}}],
+        "catalog.xlsx",
+        query="price for Roper Whitney No. 381",
+        targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found"
+    assert outcome["evidence"][0]["row"] == 3  # the Brand-matching row
+
+
+def test_attribute_constraints_are_domain_independent(tmp_path):
+    """2026-09-25 review round 5: NO machinery vocabulary may decide —
+    a vendor-payments example (Acme Corp supplier code V-101) resolves
+    through the same schema-driven mechanism."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    acme = tmp_path / "acmecorp.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "Supplier Code": ["V-101"],
+        "Payment Terms": ["Net 30"],
+    }).to_parquet(acme)
+    beta = tmp_path / "betallc.parquet"
+    pd.DataFrame({
+        "__sheet_row": [2],
+        "Supplier Code": ["V-101"],
+        "Payment Terms": ["Net 60"],
+    }).to_parquet(beta)
+    artifact = inspect_dataset_entries(
+        [
+            {"entity_name": "AcmeCorp", "parquet_path": str(acme),
+             "row_count": 1, "coverage": {"known": True, "truncated": False}},
+            {"entity_name": "BetaLLC", "parquet_path": str(beta),
+             "row_count": 1, "coverage": {"known": True, "truncated": False}},
+        ],
+        "vendor master.xlsx",
+        query="payment terms for Acme Corp supplier V-101",
+        targets=["V-101"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found"
+    assert outcome["evidence"][0]["sheet"] == "AcmeCorp"
+    assert "identity constrained by 'Acme Corp'" in (
+        outcome.get("note") or "")
+
+
+def test_inferred_attribute_corroborates_via_schema_not_assertion(tmp_path):
+    """Provenance contract (2026-09-25 review round 5): an inferred
+    (assistant/canvas) phrase corroborates through the workbook's OWN
+    schema — the sheet name is data, not the assertion — but a
+    CONFLICTING explicit row attribute always outranks it. An inferred
+    phrase with neither schema agreement nor row identity stays an
+    unused candidate."""
+    from core.workbook_read_artifact import _corroborates_brand
+
+    # Row carries no identity column: sheet-schema agreement corroborates
+    evidence = {
+        "sheet": "TinKnocker",
+        "row_context": [{"field": "Model", "value": "TK Gang Slitter"}],
+    }
+    assert _corroborates_brand(
+        evidence, ["Tin Knocker"]) is True
+    # A CONFLICTING row attribute outranks the sheet name:
+    conflicting = {
+        "sheet": "TinKnocker",
+        "row_context": [
+            {"field": "Brand", "value": "Tennsmith"},
+            {"field": "Model", "value": "TK Gang Slitter"},
+        ],
+    }
+    assert _corroborates_brand(
+        conflicting, ["Tin Knocker"]) is False
+    # No schema agreement and no row identity: the strict flag keeps an
+    # unvalidated inferred phrase from ever corroborating.
+    assert _corroborates_brand(
+        evidence, ["Tin Knocker"], require_row_identity=True) is False
+
+
 def test_inventory_quantity_fixture_selects_stock_field():
     artifact = inspect_workbook_bytes(
         _bytes_for_sheet(

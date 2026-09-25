@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import datetime as _dt_module
 import asyncio
+import json
 import logging
 import re
 import time
@@ -5794,34 +5795,43 @@ async def _datasets_named_file_block(
             for entry in (context or {}).get("history") or []:
                 if isinstance(entry, dict) and entry.get("message"):
                     context_texts.append(str(entry["message"]))
-            # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
-            # constraints may come from ANY text — assistant answers
-            # quoting the catalog/thread (the original conversation's
-            # 'Roper Whitney … No. 381' lines were assistant-rendered) and
-            # the canvas body. Entity extraction never sees these
-            # (context_texts stays user-only); the artifact mines only
-            # line-initial brand runs from them. Nested shapes are
-            # flattened — assistant text lives under response.message.
-            def _brand_entry_text(entry: Any) -> str:
-                def _walk(node: Any) -> str:
-                    if isinstance(node, dict):
-                        return " ".join(
-                            _walk(v) for v in node.values())
-                    if isinstance(node, (list, tuple)):
-                        return " ".join(_walk(v) for v in node)
-                    return str(node) if isinstance(
-                        node, (str, int, float)) else ""
-                return _walk(entry) if isinstance(entry, dict) else (
-                    str(entry or ""))
+            # BRAND-CONTEXT CHANNEL (2025-09-25 review round 5): identity
+            # hints may come from any text, tagged with PROVENANCE — the
+            # user's ask (supplied), assistant answers and the canvas body
+            # (inferred assertions requiring row-identity schema
+            # confirmation). Entity extraction still sees user-only
+            # context_texts; the contamination rule holds.
+            def _brand_entry_parts(entry: Any) -> tuple:
+                if not isinstance(entry, dict):
+                    return [(str(entry or ""), "user")]
+                parts = []
+                if str(entry.get("message") or "").strip():
+                    parts.append((str(entry["message"]), "user"))
+                response = entry.get("response")
+                response_text = ""
+                if isinstance(response, dict):
+                    response_text = str(
+                        response.get("message") or "")
+                elif isinstance(response, str):
+                    response_text = response
+                content = entry.get("content")
+                if isinstance(content, str) and content.strip():
+                    response_text = content  # panel {role, content} shape
+                if response_text.strip():
+                    parts.append((response_text, "inferred"))
+                return parts or [(" ".join(
+                    str(v) for v in entry.values()
+                    if isinstance(v, (str, int, float))), "inferred")]
 
-            _brand_texts = [query]
+            _brand_texts: List[Any] = [(query, "user")]
             if msg_text:
-                _brand_texts.append(msg_text)
+                _brand_texts.append((msg_text, "user"))
             for entry in (context or {}).get("history") or []:
-                _brand_texts.append(_brand_entry_text(entry))
+                _brand_texts.extend(_brand_entry_parts(entry))
             _canvas_ctx = (context or {}).get("canvas")
             if isinstance(_canvas_ctx, dict):
-                _brand_texts.append(_brand_entry_text(_canvas_ctx))
+                _canvas_json = json.dumps(_canvas_ctx, default=str)
+                _brand_texts.append((_canvas_json, "inferred"))
             _field_requests = []
             try:
                 from core.workbook_read_artifact import (
@@ -6017,6 +6027,10 @@ async def _datasets_named_file_block(
         outcome = artifact_outcomes.get(token)
         if outcome is not None:
             status = str(outcome.get("status") or "incomplete").upper()
+            if "identity constrained" in str(outcome.get("note") or ""):
+                status += " (identity constrained from the request)"
+            if "entity type matched" in str(outcome.get("note") or ""):
+                status += " (entity type matched)"
             if status == "ABSENT" and not coverage_complete:
                 status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
             evidence = _artifact_summary(outcome)

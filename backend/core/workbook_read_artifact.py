@@ -994,17 +994,24 @@ def _fallback_artifact(
     }
 
 
-_BRAND_STOPWORDS = {
-    "the", "and", "for", "with", "these", "those", "find", "check",
-    "price", "prices", "quote", "list", "no", "nos", "model", "item",
-    "part", "machine", "machines", "series", "gauge", "manual",
-    "single", "multi", "wheel", "combination", "rotary", "throat",
-    "roll", "roller", "bender", "bead", "edger", "flanger", "bandsaw",
-    "saw", "punch", "die", "dies", "press", "brake", "shear", "inch",
-    "inches", "stock",
+# GENERIC attribute vocabulary only — ask words, function words, and
+# filename words. NO domain terms (2026-09-25 review round 5: the previous
+# list embedded machinery vocabulary — slitter, flanger, rotary, …).
+# Domain filtering is done by the DATA: phrases must validate against the
+# workbook's schema (sheet names / identity-column values) before they can
+# constrain, so a descriptor like 'Roll Bender' dies on validation, not on
+# a hardcoded list.
+_GENERIC_ATTRIBUTE_STOPWORDS = {
+    "the", "and", "for", "with", "these", "those", "this", "that",
+    "find", "check", "price", "prices", "quote", "list", "no", "nos",
+    "model", "item", "part", "please", "when", "does", "do", "did",
+    "what", "which", "where", "how", "much", "many", "are", "is", "was",
+    "were", "have", "has", "had", "all", "any", "each", "per", "into",
+    "about", "give", "show", "tell", "get", "file", "files", "sheet",
+    "sheets", "workbook", "spreadsheet", "excel", "table", "row", "rows",
+    "column", "columns", "value", "values", "data", "in", "on", "of",
+    "to", "from", "by", "at", "or", "as", "an", "a",
 }
-
-
 _FILENAME_BLANK_RE = re.compile(
     r"\b[A-Z0-9][A-Za-z0-9_()'\ -]*"
     r"(?:\s+[A-Z0-9][A-Za-z0-9_()'\ -]*){0,6}"
@@ -1012,95 +1019,181 @@ _FILENAME_BLANK_RE = re.compile(
     re.IGNORECASE,
 )
 
+#: Provenance grades for attribute phrases. ``user`` phrases come from
+#: the user's own ask (supplied attributes); ``inferred`` phrases come
+#: from assistant answers or canvas bodies (assertions, not verified
+#: evidence) and therefore require ROW-identity schema confirmation —
+#: a sheet-name match alone never verifies an inferred attribute.
+_ATTRIBUTE_PROVENANCES = ("user", "inferred")
 
-def _brand_phrases_near(text: str, target: str) -> List[str]:
-    """Manufacturer/brand phrases for a target, from the LINE that names
-    it ('Roper Whitney … No. 381', 'Tin Knocker TK Multi Wheel Gang
-    Slitter'). The brand LEADS the item line in catalogs and quotes, so
-    only line-initial capitalized runs count — mid-line runs are the
-    previous list item's tail or model codes ('… SLE24-16, TK' bled into
-    '1624' as the false brand 'SLE TK' before this rule). Filenames are
-    blanked first ('Consolidated' is a FILE word, never a brand).
-    Compared canonically downstream so 'Roper Whitney' matches the sheet
-    'RoperWhitney'."""
-    phrases: List[str] = []
-    seen: set = set()
+
+def _attribute_hints_near(text: str, target: str) -> tuple:
+    """(brand candidates, type tokens) from the LINE naming the target.
+
+    Brand candidates: capitalized non-function-word runs and their
+    prefixes of 1-3 words ('Roper Whitney Rotary Machine' yields
+    'Roper', 'Roper Whitney', 'Roper Whitney Rotary' — schema validation
+    downstream picks the meaningful one; no domain vocabulary decides).
+    Type tokens: the line's remaining descriptor words (>=4 chars,
+    lowercased, generic stopwords and target tokens removed) — the
+    ENTITY TYPE the user supplied ('rotary machine'), used only after
+    brand validation removes the brand's own words."""
+    brands: List[str] = []
+    types: List[str] = []
+    target_tokens = set(
+        t.lower() for t in re.findall(r"[A-Za-z0-9]+", str(target or ""))
+    )
     cleaned = _FILENAME_BLANK_RE.sub(" ", str(text or ""))
     for line in cleaned.splitlines():
         for match in re.finditer(
             rf"(?<![A-Za-z0-9_-]){re.escape(str(target))}(?![A-Za-z0-9_-])",
             line, re.IGNORECASE,
         ):
-            before = line[:match.start()]
-            words = re.findall(r"[A-Za-z][A-Za-z'&.-]*", before)
+            words = re.findall(r"[A-Za-z][A-Za-z'&.-]*", line[:match.start()])
             run: List[str] = []
+            runs: List[List[str]] = []
             for word in words:
                 if word[:1].isupper() and word.strip(".-").lower() not in (
-                        _BRAND_STOPWORDS):
+                        _GENERIC_ATTRIBUTE_STOPWORDS):
                     run.append(word.strip(".-"))
                 else:
-                    break  # line-initial run only
+                    if run:
+                        runs.append(run)
+                    run = []
             if run:
-                # Trailing ultra-short tokens are series prefixes ('Tin
-                # Knocker TK' — 'TK' would break the canonical sheet
-                # match against 'tinknocker').
-                while run and len(run[-1]) <= 2:
-                    run.pop()
-            if run:
-                phrase = " ".join(run)
-                key = _canonical(phrase)
-                if len(key) >= 4 and key not in seen:
-                    seen.add(key)
-                    phrases.append(phrase)
-    return phrases[:2]
+                runs.append(run)
+            for run in runs:
+                for size in (2, 3, 1):  # prefer 2-word brands
+                    if len(run) >= size:
+                        phrase = " ".join(run[:size])
+                        if (
+                            len(_canonical(phrase)) >= 4
+                            and phrase not in brands
+                        ):
+                            brands.append(phrase)
+                # ENTITY-TYPE tail: the product-name words beyond the
+                # brand prefix ('Roper Whitney | Rotary Machine') —
+                # positional, not vocabulary-driven. Arbitrary line words
+                # ('stock', 'machines') are not type tokens.
+                for word in run[2:]:
+                    lowered = word.lower()
+                    if (
+                        len(lowered) >= 4
+                        and lowered not in _GENERIC_ATTRIBUTE_STOPWORDS
+                        and lowered not in target_tokens
+                        and lowered not in types
+                    ):
+                        types.append(lowered)
+    return brands[:4], types[:4]
 
 
 def _target_attribute_context(
-    texts: Sequence[str], targets: Sequence[str],
-) -> Dict[str, List[str]]:
-    """Per-target identity constraints from the objective's own words
-    (2026-09-25 review round 4: apply retained identity constraints
-    before asking the user for information the objective already
-    supplied — 381/622 are Roper Whitney, the gang slitter is Tin
-    Knocker)."""
-    context: Dict[str, List[str]] = {}
+    texts: Sequence[Any], targets: Sequence[str],
+) -> Dict[str, Dict[str, List[Any]]]:
+    """Per-target identity hints from the objective's own words, with
+    PROVENANCE (2026-09-25 review round 5): entries are ``str`` (treated
+    as user-supplied — the ask itself) or ``(text, source)`` where
+    source is 'user' | 'inferred' (assistant answers and canvas bodies
+    are assertions, not verified evidence). Validation against the
+    workbook schema happens at USE time; unvalidated phrases stay
+    unused (uncertain inferred attributes remain candidates, they never
+    constrain)."""
+    context: Dict[str, Dict[str, List[Any]]] = {}
     for target in targets:
-        collected: List[str] = []
-        seen: set = set()
-        for text in texts or []:
-            for phrase in _brand_phrases_near(str(text or ""), target):
-                key = _canonical(phrase)
-                if key not in seen:
-                    seen.add(key)
-                    collected.append(phrase)
-        if collected:
-            context[str(target)] = collected[:4]
+        brands: List[tuple] = []
+        types: List[str] = []
+        seen_b: set = set()
+        for entry in texts or []:
+            if isinstance(entry, tuple):
+                text, source = str(entry[0] or ""), str(entry[1] or "")
+            else:
+                text, source = str(entry or ""), "user"
+            if source not in _ATTRIBUTE_PROVENANCES:
+                source = "inferred"
+            b, t = _attribute_hints_near(text, target)
+            for phrase in b:
+                key = (re.sub(r"[^A-Z0-9]+", "", phrase.upper()), source)
+                if key[0] and key not in seen_b:
+                    seen_b.add(key)
+                    brands.append((phrase, source))
+            for token in t:
+                if token not in types:
+                    types.append(token)
+        if brands or types:
+            context[str(target)] = {"brand": brands, "type": types}
     return context
 
 
 def _corroborates_brand(
     evidence: Dict[str, Any], phrases: Sequence[str],
+    require_row_identity: bool = False, target: str = "",
 ) -> bool:
-    """Does this candidate row carry one of the target's brand
-    constraints — canonically, against the sheet name or an
-    identity-headed cell in the row?"""
+    """Does this candidate row carry one of the target's identity
+    phrases — canonically, with ROW IDENTITY OUTRANKING THE SHEET NAME
+    (2026-09-25 review round 5: a sheet-name match must never override
+    an explicit conflicting row attribute — the contract closed on
+    2026-09-24 and reintroduced by the earlier sheet-first order). When
+    the row carries identity-column values, ONLY those verify; the sheet
+    name corroborates solely when the row has no explicit identity.
+    ``require_row_identity`` (inferred-provenance phrases) always
+    demands row identity — an assistant assertion never verifies on a
+    sheet name alone."""
     sheet = _canonical(evidence.get("sheet"))
+    target_key = _canonical(target)
+    # Row identity values that merely restate the TARGET'S OWN code are
+    # the entity identifier, not an attribute — only genuinely
+    # conflicting attributes (some OTHER identity value) can block the
+    # sheet name.
     row_values = [
         _canonical(value)
         for value in _row_identity_values(evidence)
+        if _canonical(value)
+        and not (target_key and (
+            target_key in _canonical(value)
+            or _canonical(value) in target_key))
     ]
+    has_conflicting_identity = any(row_values)
+
+    def _row_carries(brand: str) -> bool:
+        return any(
+            brand in value or value in brand
+            for value in row_values if value
+        )
+
     for phrase in phrases or []:
         brand = _canonical(phrase)
         if not brand:
             continue
+        if require_row_identity:
+            # Inferred (assistant/canvas) assertion: only ROW identity
+            # verifies — the sheet name never does.
+            if _row_carries(brand):
+                return True
+            continue
+        if has_conflicting_identity:
+            # An explicit conflicting row attribute outranks the sheet
+            # name (contract re-closed 2026-09-25).
+            if _row_carries(brand):
+                return True
+            continue
         if brand in sheet:
             return True
-        if any(
-            brand in value or value in brand
-            for value in row_values if value
-        ):
-            return True
     return False
+
+
+def _row_contains_type(
+    evidence: Dict[str, Any], tokens: Sequence[str],
+) -> bool:
+    """Does the row's own text carry the user-supplied ENTITY TYPE
+    ('rotary machine' vs accessory rows)? Stemmed containment over the
+    row's cells and sheet name; ALL tokens must hit."""
+    haystack = " ".join(
+        str(item.get("value") or "")
+        for item in evidence.get("row_context") or []
+        if isinstance(item, dict)
+    ) + " " + str(evidence.get("sheet") or "") + " " + str(
+        evidence.get("value") or "")
+    return all(_stem(t) in _stem(haystack.lower()) for t in tokens if t)
 
 
 def inspect_workbook_bytes(
@@ -1352,18 +1445,88 @@ def inspect_workbook_bytes(
         # quote; the gang slitter is Tin Knocker). Keep ALL candidates
         # when none corroborate (an uninformative constraint never
         # disqualifies).
-        brand_phrases = target_attributes.get(target) or []
+        hints = target_attributes.get(target) or {}
+        brand_entries = hints.get("brand") or []
+        type_tokens = list(hints.get("type") or [])
         constrained_note: Optional[str] = None
-        if brand_phrases and len(designations) > 1:
-            corroborated = [
+        if brand_entries and len(designations) > 1:
+            # SCHEMA VALIDATION (2026-09-25 review round 5): a phrase
+            # constrains only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name for
+            # USER-supplied phrases only. Inferred (assistant/canvas)
+            # phrases require row identity; unvalidated phrases stay
+            # unused — uncertain inferred attributes remain candidates
+            # and never constrain. No domain vocabulary decides.
+            schema_sheets = {
+                _canonical(item.get("sheet")) for item in designations
+            }
+            validated: List[tuple] = []
+            for phrase, source in brand_entries:
+                brand = _canonical(phrase)
+                if not brand:
+                    continue
+                in_sheet = any(brand in s for s in schema_sheets if s)
+                if in_sheet or source == "user":
+                    validated.append((phrase, source, in_sheet))
+            if validated:
+                corroborated = [
+                    item for item in designations
+                    if any(
+                        _corroborates_brand(
+                            item, [phrase],
+                            # An INFERRED phrase validated by the SHEET
+                            # NAME corroborates through the workbook's own
+                            # schema (data, not the assistant's claim);
+                            # a conflicting row attribute still outranks
+                            # it inside _corroborates_brand. Phrases the
+                            # schema does not carry at all require row
+                            # identity or stay candidates.
+                            require_row_identity=not in_sheet,
+                            target=target,
+                        )
+                        for phrase, source, in_sheet in validated
+                    )
+                ]
+                if corroborated and len(corroborated) < len(designations):
+                    designations = corroborated
+                    in_sheet_phrases = [
+                        p for p, _s, v in validated if v
+                    ] or [p for p, _s, _v in validated]
+                    best_phrase = max(
+                        in_sheet_phrases,
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"identity constrained by '{best_phrase}' "
+                        "(from the request)")
+                    # The validated brand's own words are identity, not
+                    # entity type — remove them from the type tokens.
+                    brand_words = {
+                        word.lower()
+                        for phrase, _s, _v in validated
+                        for word in str(phrase).split()
+                    }
+                    type_tokens = [
+                        t for t in type_tokens
+                        if t not in brand_words
+                    ]
+        if type_tokens and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the user's
+            # own type words ('rotary machine') resolve machine-vs-
+            # accessory rows; an exact identifier alone does not prove
+            # the row IS the requested entity.
+            typed = [
                 item for item in designations
-                if _corroborates_brand(item, brand_phrases)
+                if _row_contains_type(item, type_tokens)
             ]
-            if corroborated and len(corroborated) < len(designations):
-                designations = corroborated
+            if typed and len(typed) < len(designations):
+                designations = typed
+                type_note = (
+                    "entity type matched from the request "
+                    f"({' '.join(type_tokens[:3])})")
                 constrained_note = (
-                    f"identity constrained by '{brand_phrases[0]}' "
-                    "(from the request)")
+                    f"{constrained_note}; {type_note}"
+                    if constrained_note else type_note)
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1745,18 +1908,88 @@ def inspect_dataset_entries(
         # quote; the gang slitter is Tin Knocker). Keep ALL candidates
         # when none corroborate (an uninformative constraint never
         # disqualifies).
-        brand_phrases = target_attributes.get(target) or []
+        hints = target_attributes.get(target) or {}
+        brand_entries = hints.get("brand") or []
+        type_tokens = list(hints.get("type") or [])
         constrained_note: Optional[str] = None
-        if brand_phrases and len(designations) > 1:
-            corroborated = [
+        if brand_entries and len(designations) > 1:
+            # SCHEMA VALIDATION (2026-09-25 review round 5): a phrase
+            # constrains only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name for
+            # USER-supplied phrases only. Inferred (assistant/canvas)
+            # phrases require row identity; unvalidated phrases stay
+            # unused — uncertain inferred attributes remain candidates
+            # and never constrain. No domain vocabulary decides.
+            schema_sheets = {
+                _canonical(item.get("sheet")) for item in designations
+            }
+            validated: List[tuple] = []
+            for phrase, source in brand_entries:
+                brand = _canonical(phrase)
+                if not brand:
+                    continue
+                in_sheet = any(brand in s for s in schema_sheets if s)
+                if in_sheet or source == "user":
+                    validated.append((phrase, source, in_sheet))
+            if validated:
+                corroborated = [
+                    item for item in designations
+                    if any(
+                        _corroborates_brand(
+                            item, [phrase],
+                            # An INFERRED phrase validated by the SHEET
+                            # NAME corroborates through the workbook's own
+                            # schema (data, not the assistant's claim);
+                            # a conflicting row attribute still outranks
+                            # it inside _corroborates_brand. Phrases the
+                            # schema does not carry at all require row
+                            # identity or stay candidates.
+                            require_row_identity=not in_sheet,
+                            target=target,
+                        )
+                        for phrase, source, in_sheet in validated
+                    )
+                ]
+                if corroborated and len(corroborated) < len(designations):
+                    designations = corroborated
+                    in_sheet_phrases = [
+                        p for p, _s, v in validated if v
+                    ] or [p for p, _s, _v in validated]
+                    best_phrase = max(
+                        in_sheet_phrases,
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"identity constrained by '{best_phrase}' "
+                        "(from the request)")
+                    # The validated brand's own words are identity, not
+                    # entity type — remove them from the type tokens.
+                    brand_words = {
+                        word.lower()
+                        for phrase, _s, _v in validated
+                        for word in str(phrase).split()
+                    }
+                    type_tokens = [
+                        t for t in type_tokens
+                        if t not in brand_words
+                    ]
+        if type_tokens and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the user's
+            # own type words ('rotary machine') resolve machine-vs-
+            # accessory rows; an exact identifier alone does not prove
+            # the row IS the requested entity.
+            typed = [
                 item for item in designations
-                if _corroborates_brand(item, brand_phrases)
+                if _row_contains_type(item, type_tokens)
             ]
-            if corroborated and len(corroborated) < len(designations):
-                designations = corroborated
+            if typed and len(typed) < len(designations):
+                designations = typed
+                type_note = (
+                    "entity type matched from the request "
+                    f"({' '.join(type_tokens[:3])})")
                 constrained_note = (
-                    f"identity constrained by '{brand_phrases[0]}' "
-                    "(from the request)")
+                    f"{constrained_note}; {type_note}"
+                    if constrained_note else type_note)
         if len(designations) > 1:
             exact = [
                 item for item in designations
