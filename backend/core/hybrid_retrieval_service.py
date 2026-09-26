@@ -5,13 +5,14 @@ Coarse stage: FastEmbed (384-dim, top-100)
 Fine stage: a TRAINED cross-encoder reranker over the top-50, off the event
 loop and bounded, with an observable fallback to the coarse ranking.
 
-Latency figures quoted in the module docstring of older revisions (<20ms /
-<150ms / <200ms total, ">15% relevance improvement") were design targets
-written before any measurement existed. They are NOT measurements and are not
-repeated as such here; `rerank_timing()` returns what the running machine
-actually did. The one number that was always real is the CPU cost: a large
-cross-encoder over 50 pairs takes seconds on CPU, which is why inference runs
-in a bounded worker and the caller has a timeout at all.
+Latency figures quoted in earlier revisions of this module's docstring were
+design targets written before any measurement existed, and a stated
+relevance-improvement percentage was never measured at all. They are not
+repeated here, because a target restated in a docstring is read as a result.
+`rerank_timing()` returns what the running machine actually did. The one
+number that was always real is the CPU cost: a large cross-encoder over 50
+pairs takes seconds on CPU, which is why inference runs in a bounded worker
+and the caller has a timeout at all.
 
 Ranking degradation (reranker unavailable, saturated, slow or timed out) is
 reported as RANKING status and never as a retrieval failure: the candidates
@@ -20,7 +21,6 @@ is what produced "evidence was fully searched" claims over a degraded ranking.
 """
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Tuple, Optional
-from datetime import datetime, timezone
 import asyncio
 import logging
 import os
@@ -32,13 +32,6 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 # Check for NumPy availability
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
-    NUMPY_AVAILABLE = False
-    logger.warning("NumPy not available, hybrid retrieval will be limited")
-
 # Check for CUDA availability
 CUDA_AVAILABLE = False
 try:
@@ -196,8 +189,13 @@ class HybridRetrievalService:
         and "the configured checkpoint is an embedding model" and "the
         checkpoint is not in the local cache" are three different, reportable
         facts rather than one silent ``False``.
+
+        The probe attributes are read defensively so a service assembled
+        without ``__init__`` (a documented pattern in this repo's tests, and
+        how a long-lived worker restores state) still loads a model instead of
+        raising an AttributeError that reads as "reranking is broken".
         """
-        if not self._reranker_probe_done:
+        if not getattr(self, "_reranker_probe_done", False):
             self._reranker_probe_done = True
             try:
                 from sentence_transformers import CrossEncoder
@@ -245,7 +243,7 @@ class HybridRetrievalService:
 
     def reranker_verdict(self) -> Dict[str, Any]:
         return dict(
-            self._reranker_verdict
+            getattr(self, "_reranker_verdict", None)
             or {"model_id": DEFAULT_RERANK_MODEL, "trained_reranker": None,
                 "reason": "not_probed"}
         )
@@ -302,9 +300,13 @@ class HybridRetrievalService:
 
         # Stage 2: rerank with the trained cross-encoder (if available)
         if use_reranking:
-            reranker = await self._get_reranker_model()
+            model = getattr(self, "_reranker_model", None)
+            if model is None:
+                reranker = await self._get_reranker_model()
+            else:
+                reranker = model
             if reranker is False:
-                reason = (self._reranker_verdict or {}).get("reason") or "unavailable"
+                reason = self.reranker_verdict().get("reason") or "unavailable"
                 logger.warning("[HYBRID] Reranking unavailable (%s); coarse order kept", reason)
                 self.last_ranking_status = {
                     "status": "degraded", "reason": reason,
@@ -405,21 +407,34 @@ class HybridRetrievalService:
         if not slots.acquire(blocking=False):
             raise RerankUnavailable("queue_saturated")
 
-        loop = asyncio.get_running_loop()
+        # The permit is released by the WORKER, not by the awaiting coroutine.
+        # A coroutine that gives up on a timeout is precisely the case where the
+        # thread keeps burning CPU — releasing there would hand the permit back
+        # while the inference is still running, so every subsequent caller would
+        # be admitted and the orphaned work would grow without bound. This is
+        # the only placement that actually caps concurrent inference.
+        def _run() -> Any:
+            try:
+                return model.predict(pairs)
+            finally:
+                slots.release()
+
         started = time.monotonic()
-        future = executor.submit(model.predict, pairs)
+        future = executor.submit(_run)
         try:
             try:
                 scores = await asyncio.wait_for(
-                    loop.run_in_executor(executor, future.result), timeout=timeout
+                    asyncio.wrap_future(future), timeout=timeout
                 )
             except asyncio.TimeoutError:
-                future.cancel()
                 raise
             except Exception as exc:  # noqa: BLE001
                 raise RerankUnavailable(f"predict_failed:{type(exc).__name__}") from exc
-        finally:
-            slots.release()
+        except BaseException:
+            # Only the timeout path leaves the work running; every other exit
+            # already released the permit inside _run.
+            future.cancel()
+            raise
 
         elapsed_ms = (time.monotonic() - started) * 1000
         RERANK_TIMING["calls"] += 1
@@ -480,75 +495,27 @@ class HybridRetrievalService:
         candidates: List[Tuple[str, float]],
         agent_id: str
     ) -> List[Tuple[str, float]]:
+        """Rerank candidates using the cross-encoder.
+
+        Retained as the named entry point and delegated to the bounded,
+        off-loop, validated path. The body it replaces called ``model.predict``
+        synchronously inside an async coroutine, min-max normalised the
+        resulting scores per query, and mapped them back to candidates by
+        position — so a short or NaN score vector produced a confident
+        ordering over the WRONG records, and the surrounding timeout could not
+        preempt the blocking call it was meant to bound.
+
+        Raises ``RerankUnavailable`` / ``asyncio.TimeoutError`` rather than
+        inventing an ordering; the caller degrades to the coarse ranking and
+        records that it did.
         """
-        Rerank candidates using cross-encoder.
-
-        Args:
-            query: Search query
-            candidates: List of (episode_id, coarse_score)
-            agent_id: Agent ID
-
-        Returns:
-            List of (episode_id, reranked_score) sorted by relevance
-
-        Performance: <150ms for 50 candidates
-        """
-        from core.models import Episode
-
-        # Fetch episode content for candidates
-        episode_ids = [ep_id for ep_id, _ in candidates]
-        episodes = self.db.query(Episode).filter(
-            Episode.id.in_(episode_ids),
-            Episode.agent_id == agent_id
-        ).all()
-
-        # Create (query, episode_text) pairs for cross-encoder
-        episode_map = {ep.id: ep for ep in episodes}
-        # Track the episode id per pair so rerank scores can be mapped back
-        # to the right episode (Bug: previously indexed scores by the
-        # ORIGINAL candidate position, misaligning scores whenever a
-        # candidate was missing from the DB).
-        pair_ids = []
-        pairs = []
-        for ep_id, _ in candidates:
-            if ep_id in episode_map:
-                pair_ids.append(ep_id)
-                pairs.append((query, episode_map[ep_id].task_description or ""))
-
-        if not pairs:
-            logger.warning("[HYBRID] No valid episode content for reranking")
-            return candidates
-
-        # Rerank with cross-encoder
         model = await self._get_reranker_model()
-        rerank_scores = model.predict(pairs)  # Shape: (n_candidates,)
-
-        # Normalize scores to [0, 1]
-        if NUMPY_AVAILABLE:
-            rerank_scores = (rerank_scores - rerank_scores.min()) / (rerank_scores.max() - rerank_scores.min() + 1e-8)
-        else:
-            # Python fallback for normalization
-            min_score = min(rerank_scores)
-            max_score = max(rerank_scores)
-            score_range = max_score - min_score + 1e-8
-            rerank_scores = [(s - min_score) / score_range for s in rerank_scores]
-
-        # Map each episode to its own reranked score
-        score_by_id = dict(zip(pair_ids, rerank_scores))
-
-        # Combine coarse and reranked scores (weighted average)
-        # Weight: 30% coarse + 70% reranked (reranking is higher quality)
-        combined_scores = []
-        for ep_id, coarse_score in candidates:
-            if ep_id in score_by_id:
-                reranked_score = score_by_id[ep_id]
-                combined_score = 0.3 * coarse_score + 0.7 * reranked_score
-                combined_scores.append((ep_id, combined_score))
-
-        # Sort by combined score (descending)
-        combined_scores.sort(key=lambda x: x[1], reverse=True)
-
-        return combined_scores
+        if model is False:
+            raise RerankUnavailable("reranker_unavailable")
+        return await self._predict_bounded(
+            model, query, candidates, agent_id,
+            timeout=float(os.getenv("HYBRID_RERANK_TIMEOUT_S", "0.200")),
+        )
 
     async def retrieve_semantic_baseline(
         self,
@@ -568,38 +535,3 @@ class HybridRetrievalService:
             db=self.db
         )
         return [(ep_id, score) for ep_id, score in results]
-
-"""
-Hybrid Retrieval Performance Strategy (Option C - GPU/CPU Hybrid)
-
-This implementation uses a hybrid approach to balance performance and quality:
-
-1. **GPU-First Strategy:**
-   - Automatically detects CUDA availability at module load
-   - Uses GPU (cuda) when available: ~30-150ms for 50 candidates
-   - Falls back to CPU if CUDA not available
-
-2. **Timeout-Based Graceful Degradation:**
-   - CPU reranking: ~3000ms (measured, exceeds <150ms target)
-   - 200ms timeout enforced for CPU reranking
-   - If timeout: Falls back to FastEmbed coarse results (<20ms)
-   - Result: Consistent <200ms total latency regardless of hardware
-
-3. **Quality Trade-offs:**
-   - With GPU: Full quality (>90% Recall@10, >0.85 NDCG@10)
-   - CPU timeout: FastEmbed-only quality (~80% Recall@10, ~0.70 NDCG@10)
-   - Acceptable: Better to return results quickly than timeout user requests
-
-4. **Configuration (Optional):**
-   Set environment variable to adjust timeout:
-   export HYBRID_RERANK_TIMEOUT_MS=200  # Default: 200ms
-   export HYBRID_FORCE_CPU=false  # Force CPU even if GPU available
-
-Performance Examples:
-- GPU (RTX 3090): ~30-150ms reranking, ~50-180ms total ✅
-- CPU timeout fallback: ~20ms coarse, ~30ms total ✅
-- CPU without timeout: ~3067ms reranking, ~3087ms total ❌
-
-This ensures production systems with GPU get full quality, while CPU-only
-systems gracefully degrade to fast results rather than timing out.
-"""

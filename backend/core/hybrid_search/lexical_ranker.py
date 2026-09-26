@@ -415,11 +415,20 @@ def search_documents_lexical(
     since: Optional[datetime] = None,
     source: Optional[str] = None,
     author: Optional[str] = None,
+    *,
+    raise_on_error: bool = False,
 ) -> List[Dict[str, Any]]:
     """BM25 lexical search over ingested + knowledge documents.
 
     Returns a list of dicts: {source, id, title, preview, score, rank, modified,
-    lexical_mode}. Skips trivial queries (<2 safe tokens). Never raises.
+    lexical_mode}. Skips trivial queries (<2 safe tokens).
+
+    A backend error previously returned ``[]``, which is byte-identical to a
+    corpus that matched nothing — so a broken index produced a clean
+    "semantic_only / no_results" answer and a bounded-sounding absence claim
+    about documents that were never read. ``raise_on_error=True`` propagates
+    the failure to the caller, which records it as a leg outcome; the default
+    keeps the historical never-raises behaviour for any other caller.
     """
     if not query or len(query.strip()) < 3:
         return []
@@ -506,6 +515,8 @@ def search_documents_lexical(
         return _search_iliike_fallback(db, query, limit, since, source, author)
     except Exception as e:
         logger.error("search_documents_lexical failed: %s", e)
+        if raise_on_error:
+            raise
         return []
 
 

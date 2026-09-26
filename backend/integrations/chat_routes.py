@@ -1605,12 +1605,44 @@ def _turn_message_id(session_id: Optional[str],
     return None
 
 
+def _mark_replay_pin(response_obj: Any, marker: Dict[str, Any]) -> None:
+    """Attach the replay-pin status to the response the client receives.
+
+    Mutating the result of ``model_dump()`` would be useless: it returns a
+    FRESH dict, so the marker would land on a copy and never reach the
+    caller. Set the field on the response object itself.
+    """
+    try:
+        metadata = getattr(response_obj, "metadata", None)
+        if not isinstance(metadata, dict):
+            metadata = {}
+            try:
+                response_obj.metadata = metadata
+            except Exception:
+                return
+        metadata["replay_pin"] = dict(marker)
+    except Exception:
+        pass
+
+
 def _complete_transport_request(db: _Session, treq: Any,
-                                response_obj: Any) -> None:
+                                response_obj: Any) -> bool:
     """Persist keyed-transport completion with the finalized response.
-    Never raises into the response path."""
+
+    Returns whether the pin became durable. The ANSWER is always delivered
+    — the turn already executed and withholding it would punish the user
+    for a bookkeeping failure — but a failed pin must not be presented as
+    durable replay protection. On failure the response is marked so the
+    client knows a retry cannot be served from the pin, and the record is
+    annotated for an operator.
+
+    A failed pin never causes the turn to run again: the reservation stays
+    unfinished, and an unfinished reservation answers in-progress rather
+    than executing a second time.
+    """
     if not treq:
-        return
+        return True
+    record = None
     try:
         record, _tenant = treq
         if hasattr(response_obj, "model_dump"):
@@ -1625,8 +1657,28 @@ def _complete_transport_request(db: _Session, treq: Any,
             assistant_message_id=_turn_message_id(
                 dumped.get("session_id"), dumped.get("execution_id")),
             finalized=dumped)
-    except Exception as exc:  # noqa: BLE001 — completion is best-effort
-        logger.warning(f"transport completion skipped: {exc}")
+        _mark_replay_pin(response_obj, {"status": "pinned",
+                                        "durable": True})
+        return True
+    except Exception as exc:  # noqa: BLE001 — never raised into delivery
+        logger.warning(f"transport completion FAILED (replay pin is not "
+                       f"durable): {exc}")
+        try:
+            if record is not None:
+                record.error = f"pin persistence failed: {exc}"[:500]
+                db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        _mark_replay_pin(response_obj, {
+            "status": "unavailable", "durable": False,
+            "detail": "this turn executed, but its retry pin could not be "
+                      "persisted; retrying this request id will not replay "
+                      "this answer and will not re-run the turn",
+        })
+        return False
 
 
 @router.post("/message")

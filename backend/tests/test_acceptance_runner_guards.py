@@ -226,3 +226,155 @@ def test_prose_lines_are_not_mistaken_for_target_rows():
         "Source: Consolidated Price List 2019.xlsx - saved copy.\n"
         "Coverage: indexed sheets=46; scanned entries=46.")
     assert rows == {}
+
+
+# ── Evaluator v3: artifact-native identity/value bindings ────────────────
+# The evaluator must validate IDENTITY and VALUE as separate bindings, and
+# must fail closed on each. These are the negative controls the plan
+# requires: wrong identity cell, wrong value cell, wrong basis/value, the
+# same suffix in another column, and missing evidence.
+
+def _artifact(targets):
+    return {"schema_version": "structured-result-2", "targets": targets}
+
+
+def _cand(ref, identity_status, refs, values):
+    return {"item": "U-22",
+            "identity": {"status": identity_status,
+                         "references": refs,
+                         "candidates": [{"ref": ref, "values": values,
+                                         "identity": {"status": identity_status,
+                                                      "references": refs}}]},
+            "field": {"status": "single", "values": values}}
+
+
+def _expect(**kw):
+    base = {"coverage": "found", "price": 1777.0, "cell": "linmac!A26",
+            "value_col": "C", "basis": "List Price"}
+    base.update(kw)
+    return base
+
+
+def _eval(artifact, expected=None):
+    return _ri.evaluate_artifact_bindings(
+        artifact, expected or {"U-22": _expect()})
+
+
+def test_identity_and_value_bind_independently_pass():
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "A26", "row": 26, "value": "U-22",
+          "role": "matched_target"}],
+        [{"col": "C26", "basis": "List Price", "value": 1777.0,
+          "display": "1,777"}])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is True
+    assert r["value_ok"] is True
+
+
+def test_wrong_identity_cell_fails_even_with_a_right_price():
+    """The price can be perfect and the identity still unproven."""
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "B26", "row": 26, "value": "U-22",
+          "role": "matched_target"}],
+        [{"col": "C26", "basis": "List Price", "value": 1777.0}])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is False
+    assert r["value_ok"] is True
+
+
+def test_row_locator_is_not_an_identity_cell():
+    art = _artifact([_cand("LINMAC!R26", "unverified", [],
+                           [{"col": "C26", "basis": "List Price",
+                             "value": 1777.0}])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is False
+    assert "unverified" in r["identity_detail"]
+
+
+def test_same_suffix_in_another_column_is_rejected():
+    """AA26 must never satisfy an A26 identity expectation."""
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "AA26", "row": 26, "value": "U-22",
+          "role": "matched_target"}],
+        [{"col": "C26", "basis": "List Price", "value": 1777.0}])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is False
+    assert "suffix-only matches rejected" in r["identity_detail"]
+
+
+def test_wrong_value_cell_fails():
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "A26", "row": 26, "role": "matched_target"}],
+        [{"col": "M26", "basis": "List Price", "value": 1777.0}])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is True
+    assert r["value_ok"] is False
+
+
+def test_wrong_value_fails():
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "A26", "row": 26, "role": "matched_target"}],
+        [{"col": "C26", "basis": "List Price", "value": 999.0}])])
+    assert _eval(art)["U-22"]["value_ok"] is False
+
+
+def test_wrong_basis_fails():
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "A26", "row": 26, "role": "matched_target"}],
+        [{"col": "C26", "basis": "Factory Price", "value": 1777.0}])])
+    assert _eval(art)["U-22"]["value_ok"] is False
+
+
+def test_missing_artifact_evidence_fails_closed():
+    r = _eval(None)["U-22"]
+    assert r["identity_ok"] is False
+    assert r["value_ok"] is False
+    assert "absent from artifact" in r["identity_detail"]
+
+
+def test_requested_item_absent_from_artifact_fails_closed():
+    art = _artifact([_cand("S!R1", "single",
+                           [{"sheet": "S", "cell": "A1", "row": 1}],
+                           [{"col": "C1", "basis": "P", "value": 1.0}])])
+    r = _ri.evaluate_artifact_bindings(
+        art, {"SOMETHING ELSE": _expect()})["SOMETHING ELSE"]
+    assert r["identity_ok"] is False
+    assert "absent from artifact" in r["identity_detail"]
+
+
+def test_identity_never_substitutes_for_a_missing_price():
+    """A bound identity with no value binding must not read as found."""
+    art = _artifact([_cand(
+        "LINMAC!R26", "single",
+        [{"sheet": "LINMAC", "cell": "A26", "row": 26, "role": "matched_target"}],
+        [])])
+    r = _eval(art)["U-22"]
+    assert r["identity_ok"] is True
+    assert r["value_ok"] is False
+
+
+def test_ambiguous_expectation_requires_multiple_identity_candidates():
+    art = _artifact([_cand(
+        "S!R88", "single",
+        [{"sheet": "S", "cell": "A88", "row": 88, "role": "matched_target"}],
+        [])])
+    r = _ri.evaluate_artifact_bindings(
+        art, {"U-22": _expect(coverage="ambiguous", price=None,
+                              cell=None, value_col=None, basis=None)}
+    )["U-22"]
+    assert r["identity_ok"] is False, "single identity cannot satisfy ambiguous"
+
+
+def test_frozen_expectations_are_not_rewritten_by_the_evaluator():
+    """The evaluator reads the frozen expectation; it must never mutate it."""
+    exp = {"U-22": _expect()}
+    before = repr(exp)
+    _ri.evaluate_artifact_bindings(
+        _artifact([_cand("LINMAC!R26", "single", [], [])]), exp)
+    assert repr(exp) == before

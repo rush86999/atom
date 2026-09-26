@@ -322,7 +322,12 @@ class TestProducerHelper:
             evidence_action="new_read",
             attempt_id="attempt-test-1",
         )
-        assert rec["schema_version"] == "structured-result-1"
+        # v2 adds per-candidate IDENTITY evidence (the exact cell the
+        # identity matched in), which v1 dropped when it grouped by row.
+        from core.answer_presentation import STRUCTURED_RESULT_SCHEMA
+
+        assert rec["schema_version"] == STRUCTURED_RESULT_SCHEMA
+        assert rec["schema_version"] == "structured-result-2"
         assert rec["requested_items"] == ["TK 1624", "381"]
         assert rec["evidence_action"] == "new_read"
         assert rec["evidence_revision"] == "abc:2026-09-07"
@@ -887,3 +892,141 @@ async def test_render_event_bound_to_execution_and_attempt():
     assert len(renders) == 1
     assert renders[0].attempt_id == rec["attempt_id"]
     assert renders[0].outcome == "ok"
+
+
+class TestIdentityEvidence:
+    """Contract v2: identity is a SEPARATE binding from value, carrying
+    the exact cell the identity matched in.
+
+    The candidate ``ref`` stays a row locator ("S!R1"), which is fine for
+    display and proves nothing: a row holds several prices, and a row ref
+    does not say which cell matched. These tests pin that the exact
+    coordinate survives, and that nothing is invented when it is absent.
+    """
+
+    def _record(self, outcomes):
+        import core.chat_tool_planner as planner
+
+        return planner._build_workbook_structured_record(
+            item_tokens=["381"], artifact_outcomes=outcomes, per_item={},
+            field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-identity")
+
+    def test_identity_binding_carries_the_exact_matched_cell(self):
+        rec = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [_ev("LINMAC", 26, "C26",
+                                     [_v("C26", "1777", "List Price")])]}})
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "bound"
+        ref = cand["identity"]["references"][0]
+        assert ref["cell"] == "C26"
+        assert ref["sheet"] == "LINMAC"
+        assert ref["role"] == "matched_target"
+        # The row locator is unchanged for display.
+        assert cand["ref"] == "LINMAC!R26"
+
+    def test_identity_may_live_outside_column_a(self):
+        """Identity is NOT assumed to be column A: models, descriptions,
+        aliases and merged labels all sit elsewhere."""
+        rec = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [_ev("Sheet1", 7, "D7",
+                                     [_v("E7", "9", "PRICE")])]}})
+        ref = rec["targets"][0]["identity"]["candidates"][0][
+            "identity"]["references"][0]
+        assert ref["cell"] == "D7"
+
+    def test_a101_does_not_match_aa101(self):
+        """Exact coordinates only. 'A101' must never be read as 'AA101'."""
+        rec_a = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [_ev("S", 101, "A101",
+                                     [_v("C101", "1", "PRICE")])]}})
+        rec_aa = self._record({
+            "381": {"target": "381", "status": "found",
+                     "evidence": [_ev("S", 101, "AA101",
+                                      [_v("AC101", "2", "PRICE")])]}})
+        cell_a = rec_a["targets"][0]["identity"]["candidates"][0][
+            "identity"]["references"][0]["cell"]
+        cell_aa = rec_aa["targets"][0]["identity"]["candidates"][0][
+            "identity"]["references"][0]["cell"]
+        assert cell_a == "A101"
+        assert cell_aa == "AA101"
+        assert cell_a != cell_aa
+
+    def test_row_display_notation_is_not_mistaken_for_a_cell(self):
+        """'R26' is a row locator. It must never be recorded as an
+        identity CELL reference."""
+        rec = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [{"sheet": "S", "row": 26, "value": "x",
+                                  "values": [_v("C26", "5", "PRICE")]}]}})
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        # No matched coordinate on the record -> explicitly unverified.
+        assert cand["identity"]["status"] == "unverified"
+        assert cand["identity"]["references"] == []
+        assert cand["ref"] == "S!R26"
+
+    def test_multiple_matching_cells_in_one_row_keep_each_reference(self):
+        """A88/B88/L88 are one row but three identity observations."""
+        rec = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [
+                        _ev("S", 88, "A88", [_v("C88", "1", "PRICE")]),
+                        _ev("S", 88, "B88", [_v("D88", "2", "PRICE")]),
+                    ]}})
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        # Still ONE candidate: same row.
+        assert cand["ref"] == "S!R88"
+        cells = [r["cell"] for r in cand["identity"]["references"]]
+        assert cells == ["A88", "B88"]
+
+    def test_identity_never_substitutes_for_value_evidence(self):
+        rec = self._record({
+            "381": {"target": "381", "status": "found",
+                    "evidence": [_ev("S", 26, "A26",
+                                     [_v("C26", "1777", "List Price")])]}})
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        assert cand["identity"]["references"][0]["cell"] == "A26"
+        # The price is proven by the VALUE cell, separately.
+        assert [v["col"] for v in cand["values"]] == ["C26"]
+        assert cand["values"][0]["basis"] == "List Price"
+
+    def test_legacy_record_without_coordinates_stays_limited(self):
+        """A row record with no matched coordinate must be reported
+        unverified, never reconstructed into a column-A reference."""
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["381"], artifact_outcomes={},
+            per_item={"381": {
+                "entity_name": "S", "columns": ["Model", "Price"],
+                "column_letters": {"Model": "A", "Price": "C"},
+                "rows": [{"Model": "No. 381", "Price": "1777",
+                          "__sheet_row": 26}]}},
+            field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-legacy")
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "unverified"
+        assert cand["identity"]["references"] == []
+        # The value binding is still exact and usable.
+        assert [v["col"] for v in cand["values"]] == ["C26"]
+
+    def test_absent_target_reports_no_identity_rather_than_a_guess(self):
+        rec = self._record({"381": {"target": "381", "status": "absent",
+                                     "evidence": []}})
+        assert rec["targets"][0]["identity"]["status"] == "none"
+
+    def test_schema_version_is_explicit_and_previous_is_declared(self):
+        from core.answer_presentation import (
+            STRUCTURED_RESULT_SCHEMA,
+            STRUCTURED_RESULT_SCHEMA_PREVIOUS,
+        )
+
+        assert STRUCTURED_RESULT_SCHEMA == "structured-result-2"
+        assert "structured-result-1" in STRUCTURED_RESULT_SCHEMA_PREVIOUS

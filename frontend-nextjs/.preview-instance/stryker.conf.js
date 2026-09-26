@@ -1,0 +1,1 @@
+/Users/rushiparikh/projects/atom/frontend-nextjs/stryker.conf.js

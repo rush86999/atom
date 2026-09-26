@@ -1,0 +1,2432 @@
+{
+ "layer": "layer1-production-search-stack",
+ "generated_at": "2026-09-26T19:20:02-0400",
+ "isolation": "TESTING=1 scratch SQLite, no shared store, no live DB",
+ "runs": [
+  {
+   "case_id": "exact_named_file_basic",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "exact_named_file_two_items",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16",
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "exact_named_file_version_bound",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_U-22_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "U-22X"
+     ],
+     "transmitted_identifiers": [
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_SLE24-16_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16",
+      "SLE24-160"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16",
+      "sle24-160"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_GSL48-16_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "GSL48-16": {
+     "classification": "not_retrieved"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "GSL48-16",
+      "GSL48-1"
+     ],
+     "transmitted_identifiers": [
+      "gsl48-1",
+      "gsl48-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "long_request_tail_identifiers",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "TK 1624": {
+     "classification": "not_retrieved"
+    },
+    "GSL48-16": {
+     "classification": "not_retrieved"
+    },
+    "U-22X": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1399.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-160": {
+     "classification": "not_retrieved"
+    },
+    "GSL48-1": {
+     "classification": "not_retrieved"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16",
+    "U-22X"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 6,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16",
+      "GSL48-16",
+      "SLE24-160",
+      "GSL48-1",
+      "U-22X",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "gsl48-1",
+      "gsl48-16",
+      "sle24-16",
+      "sle24-160",
+      "tk 1624",
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 6
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "long_request_unit_constraint",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 6,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16",
+      "GSL48-16",
+      "SLE24-160",
+      "GSL48-1",
+      "U-22X",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "gsl48-1",
+      "gsl48-16",
+      "sle24-16",
+      "sle24-160",
+      "tk 1624",
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 6
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "paraphrase_warranty_terms",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "warranty term": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel"
+    }
+   },
+   "resolution_order": [
+    "warranty term"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "paraphrase_expense_policy",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "receipt requirement": {
+     "classification": "supported",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d"
+    }
+   },
+   "resolution_order": [
+    "receipt requirement"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_exact_address",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "invoice 4417": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 4417",
+      "4417"
+     ],
+     "transmitted_identifiers": [
+      "4417",
+      "nvoice 4417"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_similar_sender",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "stand-down": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_long_address_tail",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "invoice 4417": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 6,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 4417",
+      "4417"
+     ],
+     "transmitted_identifiers": [
+      "4417",
+      "nvoice 4417"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 6
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 9th",
+      "9th"
+     ],
+     "transmitted_identifiers": [
+      "9th",
+      "the 9th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 10th",
+      "10th"
+     ],
+     "transmitted_identifiers": [
+      "10th",
+      "the 10th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 11th",
+      "11th"
+     ],
+     "transmitted_identifiers": [
+      "11th",
+      "the 11th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "owner_scope_other_user_excluded",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "pricing notes": {
+     "classification": "supported",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160"
+    }
+   },
+   "resolution_order": [
+    "pricing notes"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "ccount 90210",
+      "90210"
+     ],
+     "transmitted_identifiers": [
+      "90210",
+      "ccount 90210"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "date_restriction_pre_cutoff",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "agreed price": {
+     "classification": "supported",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160"
+    }
+   },
+   "resolution_order": [
+    "agreed price"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "06",
+      "30"
+     ],
+     "transmitted_identifiers": [
+      "06",
+      "30"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "source_restriction_explicit",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "receipt requirement": {
+     "classification": "supported",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d"
+    }
+   },
+   "resolution_order": [
+    "receipt requirement"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_two_lookalikes",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "No. 381": {
+     "classification": "not_retrieved"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "No. 381",
+      "381"
+     ],
+     "transmitted_identifiers": [
+      "381",
+      "no. 381"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_sender_name",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "the hold": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_unit_variant",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "GSL48-16": {
+     "classification": "not_retrieved"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "GSL48-16"
+     ],
+     "transmitted_identifiers": [
+      "gsl48-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_saved_only",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "absent:genuinely not in the corpus": {
+     "classification": "absent_within_coverage",
+     "claimable": true
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "XYZ-9999"
+     ],
+     "transmitted_identifiers": [
+      "xyz-9999"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "absent:the item exists elsewhere, not in the named source": {
+     "classification": "absent_within_coverage",
+     "claimable": true
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "absent:no such message": {
+     "classification": "absent_within_coverage",
+     "claimable": true
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 9999",
+      "9999"
+     ],
+     "transmitted_identifiers": [
+      "9999",
+      "nvoice 9999"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_3",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "absent:the policy genuinely does not cover parking": {
+     "classification": "absent_within_coverage",
+     "claimable": true
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_lexical_0",
+   "sources": [
+    "Competitor confidential pricing\n\nAccount 90210 internal cost basis: 61.00 per unit. Never share externally.",
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration",
+     "lexical"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_vector_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical"
+    ],
+    "unavailable": [
+     "vector"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_both_2",
+   "sources": [
+    "email \u2014 2024-03-10"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration"
+    ],
+    "unavailable": [
+     "lexical",
+     "vector"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_hydration_3",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_mailbox_4",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [
+     "conversations"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_corrupt_workbook",
+   "sources": [
+    "Competitor confidential pricing\n\nAccount 90210 internal cost basis: 61.00 per unit. Never share externally.",
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration",
+     "lexical"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "distractor_replacement",
+   "sources": [
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "TK 1624": {
+     "classification": "not_retrieved"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "sle24-16",
+      "tk 1624"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "distractor_restart_continuation",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "reranker_degraded_unavailable_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "checkpoint_not_local"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_slow_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "rerank_timeout"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_saturated_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "rerank_timeout"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_bad_scores_3",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "score_cardinality_mismatch"
+   }
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_0",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "price": {
+     "classification": "supported",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160"
+    },
+    "email or terms": {
+     "classification": "supported",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160"
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_1",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "price": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel"
+    },
+    "email or terms": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel"
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_2",
+   "sources": [
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "linmac_consolidated.xlsx",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "price": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel"
+    },
+    "email or terms": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel"
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "success",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    }
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  }
+ ]
+}

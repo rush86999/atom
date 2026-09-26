@@ -192,9 +192,7 @@ class DocumentsHybridSearch:
             "vector_hits": len(vector),
         }
 
-        fused, unbridged = await self._fuse_rrf(
-            lexical, vector, legs=legs
-        )
+        fused, unbridged = self._fuse_rrf(lexical, vector, legs=legs)
         stats["unbridged_hits"] = unbridged
 
         has_lexical = any("lexical" in e["legs"] for e in fused)
@@ -402,7 +400,8 @@ class DocumentsHybridSearch:
 
         with self._get_db() as db:
             return search_documents_lexical(
-                db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER, since=since, source=source, author=author
+                db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER,
+                since=since, source=source, author=author, raise_on_error=True,
             )
 
     async def _vector_leg(self, query: str, limit: int, source: Optional[str] = None) -> List[Dict[str, Any]]:

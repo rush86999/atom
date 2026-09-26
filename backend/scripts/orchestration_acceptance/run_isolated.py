@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "52e6193a7734bd1cd141e2f47f2ef8924bb7de52"
+PINNED_REV = "6995c7e275b476e5277d0846a85b439e485fa332"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -1167,6 +1167,161 @@ def check_claims(reply: str, *, verified_action_kinds: set,
             "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"}
 
 
+# ---------------------------------------------------------------------------
+# Artifact-native evaluation (evaluator v3)
+#
+# The reply is what the user saw; the ARTIFACT is what the system proved.
+# Parsing the reply's text is not stronger evidence than the artifact, and
+# it cannot express what the artifact now carries: an exact identity cell
+# (which cell the requested identity was matched in) kept SEPARATE from the
+# value cell and its basis.
+#
+# So the required evidence is checked against the artifact, per target:
+#   * IDENTITY binding — the exact cell the identity matched in, plus the
+#     role of that reference. A row locator is not an identity cell.
+#   * VALUE binding    — the actual value cell, its value and its basis.
+# Identity never stands in for a price, and a price never stands in for
+# identity.
+#
+# Failures are reported PER ASSERTION (identity / value / coverage), never
+# collapsed into one cause. The frozen expected cells are never edited to
+# make output pass.
+# ---------------------------------------------------------------------------
+
+EVALUATOR_VERSION = "artifact-bindings-v3"
+
+
+def load_structured_result(world: Path, session_id: str) -> Optional[Dict[str, Any]]:
+    """The durable structured artifact for a session's final turn."""
+    import sqlite3 as _sq
+
+    runs = sorted((world / "runs").glob("*"), key=lambda p: p.stat().st_mtime)
+    if not runs:
+        return None
+    db_path = runs[-1] / "data" / "atom.db"
+    if not db_path.exists():
+        return None
+    try:
+        con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
+        row = con.execute(
+            "SELECT metadata_json FROM chat_messages "
+            "WHERE conversation_id=? AND role='assistant' "
+            "ORDER BY created_at DESC LIMIT 1", (session_id,)).fetchone()
+        con.close()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        meta = json.loads(row[0] or "{}")
+    except Exception:
+        return None
+    pfr = meta.get("pending_file_result") or {}
+    if isinstance(pfr, dict) and pfr.get("structured_result"):
+        return pfr["structured_result"]
+    if meta.get("structured_result"):
+        return meta["structured_result"]
+    return None
+
+
+def _cell_coord(ref: str) -> Optional[str]:
+    m = re.match(r"^([A-Z]{1,3})(\d{1,7})$", str(ref or "").strip().upper())
+    return m.group(0) if m else None
+
+
+def evaluate_artifact_bindings(
+    artifact: Optional[Dict[str, Any]],
+    expected_map: Dict[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    """Per-target identity and value verdicts, from the artifact alone."""
+    out: Dict[str, Dict[str, Any]] = {}
+    targets = {}
+    for entry in (artifact or {}).get("targets") or []:
+        label = str(entry.get("item") or "")
+        if label:
+            targets[_norm_label(label)] = entry
+    for target, exp in expected_map.items():
+        keys = {_norm_label(target)} | {
+            _norm_label(a) for a in exp.get("label_aliases", [])}
+        entry = next((targets[k] for k in keys if k in targets), None)
+        record: Dict[str, Any] = {
+            "expected": exp["coverage"],
+            "identity_ok": False,
+            "identity_detail": "requested item absent from artifact",
+            "value_ok": False, "value_detail": "not evaluated",
+        }
+        if entry is None:
+            record["identity_detail"] = "requested item absent from artifact"
+            out[target] = record
+            continue
+        identity = entry.get("identity") or {}
+        identity_status = str(identity.get("status") or "")
+        references = identity.get("references") or []
+        want_cell = str((exp.get("cell") or "")).partition("!")[2] or ""
+        want_coord = _cell_coord(want_cell)
+
+        if not want_coord:
+            # Ambiguous/absent expectations carry no cell: the assertion is
+            # that the artifact reports multiple identity candidates.
+            want_multiple = exp["coverage"] in ("ambiguous",
+                                                "ambiguous_candidate")
+            record["identity_ok"] = (
+                identity_status == "multiple") == want_multiple
+            record["identity_detail"] = (
+                f"identity status {identity_status!r}, expected "
+                f"{'multiple' if want_multiple else 'not multiple'}")
+        else:
+            cells = [str((r or {}).get("cell") or "").upper()
+                     for r in references]
+            record["identity_ok"] = want_coord.upper() in cells
+            record["identity_detail"] = (
+                f"identity refs {cells or 'none'} (status "
+                f"{identity_status!r}); expected {want_coord.upper()}")
+            # Guard the column-confusion class explicitly: a suffix match
+            # is not a match.
+            if not record["identity_ok"] and cells:
+                record["identity_detail"] += (
+                    " | suffix-only matches rejected: "
+                    f"{[c for c in cells if c.endswith(want_coord.upper())]}")
+
+        if exp.get("price") is not None:
+            want_sheet, _, _ = str(exp.get("cell") or "").partition("!")
+            want_price = float(exp["price"])
+            want_basis = str(exp.get("basis") or "")
+            want_col = str(exp.get("value_col") or "").upper()
+            want_row = ""
+            if want_coord:
+                want_row = re.match(r"^[A-Z]{1,3}(\d{1,7})$",
+                                    want_coord).group(1)
+            hit = None
+            for cand in (identity.get("candidates") or []):
+                for v in cand.get("values") or []:
+                    vcoord = _cell_coord(v.get("col"))
+                    if not vcoord:
+                        continue
+                    vcol = re.match(r"^([A-Z]{1,3})", vcoord).group(1)
+                    vrow = re.match(r"^[A-Z]{1,3}(\d+)$", vcoord).group(1)
+                    if (abs(float(v.get("value", 1e18)) - want_price) < 0.005
+                            and (not want_basis
+                                 or want_basis.upper() in str(
+                                     v.get("basis") or "").upper())
+                            and (not want_col or vcol == want_col)
+                            and (not want_row or vrow == want_row)):
+                        hit = (vcoord, v.get("basis"), v.get("value"))
+                        break
+                if hit:
+                    break
+            record["value_ok"] = hit is not None
+            record["value_detail"] = (
+                f"value binding {hit}" if hit else
+                f"no value binding for {want_col or '?'}"
+                f"{want_row or '?'} = {want_price} basis {want_basis!r}")
+        else:
+            record["value_ok"] = True
+            record["value_detail"] = "no price expectation"
+        out[target] = record
+    return out
+
 def evaluate_rows(rows: List[Dict[str, str]], expected_map: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     groups: Dict[str, List[Dict[str, str]]] = {}
     for r in rows:
@@ -1913,6 +2068,13 @@ async def run_keyed_retry_probe(base: str, token: str, user_id: str,
         "execution_id": first.get("execution_id"),
         "message_sha_present": bool(first.get("message")),
     }
+    # A keyed turn must actually execute and answer: 200, success, an
+    # execution identity, and some content. Without an explicit verdict
+    # this step defaulted to FAIL in the summary and looked like a
+    # product failure when it never ran.
+    out["steps"]["first_send"]["pass"] = bool(
+        code1 == 200 and first.get("success") and first.get("execution_id")
+        and first.get("message"))
     code2, replay = await post({"message": ask, "session_id": session,
                                 "user_id": user_id, "request_id": rid})
     same_execution = bool(first.get("execution_id")) and \
@@ -1999,6 +2161,38 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
 
     reply = str(final.get("message") or "")
     per_target = evaluate_rows(parse_reply_table(reply), case["expected"]["per_target"])
+    # Artifact-native bindings, reported PER ASSERTION. The reply text
+    # establishes what the user was shown; the artifact establishes what
+    # was actually proven, and only the artifact carries an exact identity
+    # cell. Neither substitutes for the other, and a failure is never
+    # collapsed into a single cause.
+    artifact = load_structured_result(world, session)
+    bindings = evaluate_artifact_bindings(artifact,
+                                          case["expected"]["per_target"])
+    for _t, _b in bindings.items():
+        if _t in per_target:
+            per_target[_t]["identity_ok"] = _b["identity_ok"]
+            per_target[_t]["identity_detail"] = _b["identity_detail"]
+            per_target[_t]["value_ok"] = _b["value_ok"]
+            per_target[_t]["value_detail"] = _b["value_detail"]
+            # The binding assertions gate the case, independent of how the
+            # answer was phrased.
+            per_target[_t]["pass"] = bool(
+                per_target[_t]["pass"] and _b["identity_ok"]
+                and _b["value_ok"])
+    artifact_evidence = {
+        "evaluator": EVALUATOR_VERSION,
+        "schema_version": (artifact or {}).get("schema_version"),
+        "artifact_present": bool(artifact),
+        "identity_bound": sorted(
+            t for t, b in bindings.items() if b.get("identity_ok")),
+        "identity_unbound": sorted(
+            t for t, b in bindings.items() if not b.get("identity_ok")),
+        "value_bound": sorted(
+            t for t, b in bindings.items() if b.get("value_ok")),
+        "value_unbound": sorted(
+            t for t, b in bindings.items() if not b.get("value_ok")),
+    }
     trace_steps = await fetch_trace(base, token, session, replay_mod)
     claim = check_claims(reply, **_claim_context(case, final, per_target, trace_steps))
     ws = await _stop_and_measure(tap)
@@ -2016,6 +2210,8 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
         "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "path": "old", "harness_version": HARNESS_VERSION,
         "preflight": pre,
+        "artifact_evidence": artifact_evidence,
+        "raw_answer": reply,
         "baseline_id": f"primary-{PINNED_REV[:10]}",
         "config": {"ATOM_CHAT_STREAMING": "1 (WS tap active)",
                    "server_env": "whitelist, credential-free",
@@ -3059,7 +3255,13 @@ async def main_async(args: argparse.Namespace) -> int:
                           f"states={res.get('states')}")
                 for t, v in (res.get("per_target") or {}).items():
                     mark = "PASS" if v["pass"] else "FAIL"
-                    print(f"    [{mark}] {t}: expected={v['expected']} got={v['got']}")
+                    print(f"    [{mark}] {t}: expected={v['expected']} "
+                          f"got={v['got']} identity={v.get('identity_ok')} "
+                          f"value={v.get('value_ok')}")
+                    if not v.get("identity_ok", True):
+                        print(f"         identity: {v.get('identity_detail')}")
+                    if not v.get("value_ok", True):
+                        print(f"         value:    {v.get('value_detail')}")
                 for u in claims.get("unsupported", [])[:3]:
                     print(f"    [UNSUPPORTED-{u['kind']}] {u['sentence'][:100]}")
                 ws = res.get("ws_metrics") or {}

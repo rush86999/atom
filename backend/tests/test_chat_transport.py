@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("TESTING", "1")
 
 from contextlib import contextmanager
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
@@ -448,3 +449,74 @@ def test_keyed_conflict_detail_is_a_409_shaped_payload():
     })
     assert exc.status_code == 409
     assert exc.detail["error"] == "request_id_conflict"
+
+
+def test_pin_persistence_failure_is_explicit_and_never_re_executes(monkeypatch):
+    """A pin that cannot be persisted after execution.
+
+    The answer is still delivered — the turn already ran, and withholding
+    it would punish the user for a bookkeeping failure — but the response
+    must NOT claim durable replay protection, and the turn must not be
+    executed again to reconstruct it.
+    """
+    from integrations import chat_routes as cr
+
+    record = MagicMock()
+    record.state = "in_progress"
+    record.request_id = "r-pinfail"
+    db = MagicMock()
+
+    class _Resp:
+        def __init__(self):
+            self.metadata = {}
+
+        def model_dump(self):
+            return {"message": "the answer", "session_id": "s1",
+                    "execution_id": "e1", "metadata": self.metadata}
+
+    def _boom(*a, **k):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(cr.chat_orchestrator, "conversation_sessions", {})
+    import core.chat_transport as transport_mod
+    monkeypatch.setattr(transport_mod, "complete", _boom)
+
+    resp = _Resp()
+    ok = cr._complete_transport_request(db, (record, "default"), resp)
+    assert ok is False, "a failed pin must be reported as not durable"
+    # The client is told, in the response it can see.
+    pinned = resp.metadata["replay_pin"]
+    assert pinned["status"] == "unavailable"
+    assert pinned["durable"] is False
+    # The record is annotated for an operator.
+    assert record.error and "pin persistence failed" in record.error
+
+
+def test_successful_pin_is_reported_durable(monkeypatch):
+    from integrations import chat_routes as cr
+
+    record = MagicMock()
+    record.state = "in_progress"
+    db = MagicMock()
+    monkeypatch.setattr(cr.chat_orchestrator, "conversation_sessions", {})
+
+    class _Resp:
+        def __init__(self):
+            self.metadata = {}
+
+        def model_dump(self):
+            return {"message": "a", "session_id": "s", "execution_id": "e",
+                    "metadata": self.metadata}
+
+    resp = _Resp()
+    assert cr._complete_transport_request(db, (record, "default"), resp) is True
+    assert resp.metadata["replay_pin"] == {"status": "pinned",
+                                           "durable": True}
+
+
+def test_unkeyed_request_reports_no_pin_requirement(monkeypatch):
+    """No request id means no pin to lose; nothing is claimed either way."""
+    from integrations import chat_routes as cr
+
+    monkeypatch.setattr(cr.chat_orchestrator, "conversation_sessions", {})
+    assert cr._complete_transport_request(MagicMock(), None, MagicMock()) is True

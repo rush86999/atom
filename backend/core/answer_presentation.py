@@ -32,6 +32,7 @@ artifact-native path and is not evidence reconstruction.
 from __future__ import annotations
 
 import math
+import copy
 import re
 from typing import Any, Dict, List, Optional
 
@@ -537,8 +538,13 @@ def build_targets_from_scan(
                     key = f"{sheet}!R{row}"
                     grp = row_groups.get(key)
                     if grp is None:
-                        grp = {"ref": key, "values": [], "seen": set()}
+                        grp = {"ref": key, "values": [], "seen": set(),
+                               "identity": _identity_block([])}
                         row_groups[key] = grp
+                    _idref = _identity_reference(ev, sheet, row)
+                    if _idref is not None:
+                        grp["identity"]["references"].append(_idref)
+                        grp["identity"]["status"] = IDENTITY_BOUND
                     for v in ev.get("values") or ev.get("prices") or []:
                         if not isinstance(v, dict):
                             continue
@@ -568,7 +574,11 @@ def build_targets_from_scan(
                     key = f"{sheet}!R{rn}"
                     grp = row_groups.get(key)
                     if grp is None:
-                        grp = {"ref": key, "values": [], "seen": set()}
+                        # This record shape carries a row and column
+                        # letters but NOT the cell the identity matched
+                        # in, so the binding stays explicitly unverified.
+                        grp = {"ref": key, "values": [], "seen": set(),
+                               "identity": _identity_block([])}
                         row_groups[key] = grp
                     for column in columns:
                         if not re.search(
@@ -585,7 +595,9 @@ def build_targets_from_scan(
                             grp["seen"].add(vk)
                             grp["values"].append(
                                 {"col": col, "basis": str(column), **tv})
-        candidates = [{"ref": g["ref"], "values": list(g["values"])}
+        candidates = [{"ref": g["ref"], "values": list(g["values"]),
+                       "identity": copy.deepcopy(
+                           g.get("identity") or _identity_block([]))}
                       for g in row_groups.values()]
         values: List[Dict[str, Any]] = []
         for g in row_groups.values():
@@ -613,7 +625,56 @@ def build_targets_from_scan(
 # never re-inferred independently at each one.
 # ---------------------------------------------------------------------------
 
-STRUCTURED_RESULT_SCHEMA = "structured-result-1"
+STRUCTURED_RESULT_SCHEMA = "structured-result-2"
+STRUCTURED_RESULT_SCHEMA_PREVIOUS = ("structured-result-1",)
+
+
+# ---------------------------------------------------------------------------
+# IDENTITY EVIDENCE (contract v2)
+#
+# A candidate's ``ref`` is a ROW LOCATOR ("LINMAC!R26"). That is useful for
+# display and completely insufficient for proof: a row can hold several
+# prices, and nothing in "R26" says which cell the requested identity was
+# matched in, nor what was read there. Equally, the label cell alone does
+# not prove a price. Identity and value are SEPARATE bindings and are now
+# carried separately.
+#
+# The scan already knows the exact matched coordinate — it is
+# ``evidence[hit]["cell"]`` — and it was being dropped when candidates were
+# grouped by row. It is preserved here instead.
+#
+# Nothing is inferred. Where the source does not establish an identity
+# coordinate (the legacy row record, the rendered-text compat adapter),
+# the binding is reported UNVERIFIED with no references rather than
+# reconstructed from a row number or assumed to be column A: models,
+# descriptions, aliases and merged labels all live in different cells.
+# ---------------------------------------------------------------------------
+
+IDENTITY_BOUND = "bound"
+IDENTITY_UNVERIFIED = "unverified"
+
+
+def _identity_reference(ev: Dict[str, Any], sheet: str, row: Any,
+                        role: str = "matched_target") -> Optional[Dict[str, Any]]:
+    """One exact identity reference from a scan evidence record, or None
+    when the record carries no matched coordinate."""
+    cell = str(ev.get("cell") or "").strip()
+    if not cell or not re.match(r"^[A-Z]{1,3}\d{1,7}$", cell.upper()):
+        return None
+    return {
+        "sheet": sheet,
+        "cell": cell.upper(),
+        "row": row,
+        "value": str(ev.get("value") or "").strip() or None,
+        "role": role,
+    }
+
+
+def _identity_block(refs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "status": IDENTITY_BOUND if refs else IDENTITY_UNVERIFIED,
+        "references": list(refs),
+    }
 
 
 def new_attempt_id() -> str:

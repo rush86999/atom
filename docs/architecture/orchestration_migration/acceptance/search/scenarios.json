@@ -1,0 +1,1159 @@
+{
+ "version": "search-scenarios-1",
+ "built_by": "acceptance/search/build_scenarios.py",
+ "independence": "Required sources, required items and supporting values are declared in the generator from the fixture's own content. Nothing here is read back from the system under test, so a pass is evidence and a restatement of the incumbent is not.",
+ "heldout_policy": "Held out by CATEGORY, declared before any run, so a tuning decision cannot be fitted to the held-out cases. Re-running the generator reproduces the same split.",
+ "counts": {
+  "total": 51,
+  "development": 35,
+  "heldout": 16
+ },
+ "categories": [
+  "absent_within_coverage",
+  "ambiguous_identity",
+  "conflicting_stale_sources",
+  "crowded_lexical",
+  "distractors_replacement",
+  "exact_named_file",
+  "explicit_research",
+  "formatting_followup",
+  "long_request",
+  "mailbox_identity",
+  "multi_source",
+  "paraphrased_question",
+  "partial_failed_search",
+  "reranker_degraded",
+  "restart_retry",
+  "similar_identifiers",
+  "source_owner_restriction"
+ ],
+ "cases": [
+  {
+   "id": "exact_named_file_basic",
+   "category": "exact_named_file",
+   "query": "In linmac_consolidated.xlsx, what is the price for U-22?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The named-file + exact-identifier route. Phase D forbids routing this through approximate vector retrieval just to standardise the implementation, so the direct structured lookup is the expected path.",
+   "split": "development"
+  },
+  {
+   "id": "exact_named_file_two_items",
+   "category": "exact_named_file",
+   "query": "In linmac_consolidated.xlsx give me the list price for U-22 and SLE24-16",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00",
+     "basis": "list",
+     "unit": "CAD"
+    },
+    "SLE24-16": {
+     "value": "2499.50",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "",
+   "split": "development"
+  },
+  {
+   "id": "exact_named_file_version_bound",
+   "category": "exact_named_file",
+   "query": "What does linmac_consolidated.xlsx say about SLE24-16 in the 2024 revision?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {
+    "SLE24-16": {
+     "value": "2499.50",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "An absence claim here must be bounded to the searched revision.",
+   "split": "development"
+  },
+  {
+   "id": "similar_identifiers_U-22_0",
+   "category": "similar_identifiers",
+   "query": "What is the price of U-22? Do not confuse it with U-22X.",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "U-22X is present in the same sheet with a different price. Silently merging them is a fabricated binding.",
+   "split": "heldout"
+  },
+  {
+   "id": "similar_identifiers_SLE24-16_1",
+   "category": "similar_identifiers",
+   "query": "What is the price of SLE24-16? Do not confuse it with SLE24-160.",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {
+    "SLE24-16": {
+     "value": "2499.50",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "SLE24-160 is present in the same sheet with a different price. Silently merging them is a fabricated binding.",
+   "split": "heldout"
+  },
+  {
+   "id": "similar_identifiers_GSL48-16_2",
+   "category": "similar_identifiers",
+   "query": "What is the price of GSL48-16? Do not confuse it with GSL48-1.",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "GSL48-16"
+   ],
+   "support": {
+    "GSL48-16": {
+     "value": "875.25",
+     "basis": "list",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "GSL48-1 is present in the same sheet with a different price. Silently merging them is a fabricated binding.",
+   "split": "heldout"
+  },
+  {
+   "id": "long_request_tail_identifiers",
+   "category": "long_request",
+   "query": "Before I do anything else, and this matters more than the formatting: find the current list price in CAD for each of these eight machines in linmac_consolidated.xlsx \u2014 U-22, SLE24-16, TK 1624, TK Manual Flanger, GSL48-16, SLE24-160, GSL48-1, and finally U-22X \u2014 and tell me which of them are the ones I flagged last week as needing a quote, because the account manager asked for the whole list before the end of the day and I need the currency to be Canadian dollars and not US dollars",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22",
+    "SLE24-16",
+    "TK 1624",
+    "GSL48-16",
+    "U-22X",
+    "SLE24-160",
+    "GSL48-1"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00",
+     "unit": "CAD"
+    },
+    "SLE24-16": {
+     "value": "2499.50",
+     "unit": "CAD"
+    },
+    "GSL48-16": {
+     "value": "875.25",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The last three identifiers sit past character 200. A head-cut query searched the first five and reported a confident count for all eight.",
+   "split": "development"
+  },
+  {
+   "id": "long_request_unit_constraint",
+   "category": "long_request",
+   "query": "Before I do anything else, and this matters more than the formatting: find the current list price in CAD for each of these eight machines in linmac_consolidated.xlsx \u2014 U-22, SLE24-16, TK 1624, TK Manual Flanger, GSL48-16, SLE24-160, GSL48-1, and finally U-22X \u2014 and tell me which of them are the ones I flagged last week as needing a quote, because the account manager asked for the whole list before the end of the day and I need the currency to be Canadian dollars and not US dollars Also confirm none of these are priced in USD.",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The currency constraint is in the tail; a truncated query loses the constraint while still returning the price.",
+   "split": "development"
+  },
+  {
+   "id": "paraphrase_warranty_terms",
+   "category": "paraphrased_question",
+   "query": "What does the manufacturer guarantee on the plate steel saw?",
+   "required_sources": [
+    "policy_manual.pdf"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "warranty term"
+   ],
+   "support": {
+    "warranty term": {
+     "span": "24 months"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "No exact identifier. Must retrieve on meaning, not wording.",
+   "split": "development"
+  },
+  {
+   "id": "paraphrase_expense_policy",
+   "category": "paraphrased_question",
+   "query": "Can I expense a client dinner without a receipt?",
+   "required_sources": [
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "receipt requirement"
+   ],
+   "support": {
+    "receipt requirement": {
+     "span": "$75 or more"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "",
+   "split": "development"
+  },
+  {
+   "id": "mailbox_exact_address",
+   "category": "mailbox_identity",
+   "query": "Find the email from dana.whitfield@linmac.example about invoice 4417.",
+   "required_sources": [
+    "communication"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "invoice 4417"
+   ],
+   "support": {
+    "invoice 4417": {
+     "sender": "dana.whitfield@linmac.example"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Provider address syntax must resolve without substituting an unrelated sender of similar name.",
+   "split": "development"
+  },
+  {
+   "id": "mailbox_similar_sender",
+   "category": "mailbox_identity",
+   "query": "What did d.whitfield@linmac.example say about the stand-down?",
+   "required_sources": [
+    "communication"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "stand-down"
+   ],
+   "support": {
+    "stand-down": {
+     "sender": "d.whitfield@linmac.example"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "d.whitfield and dana.whitfield are different mailboxes; the wrong one is an access-scope issue, not just a ranking miss.",
+   "split": "development"
+  },
+  {
+   "id": "mailbox_long_address_tail",
+   "category": "mailbox_identity",
+   "query": "Please find the message in which the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the legal team explained the customs hold on invoice 4417 was released",
+   "required_sources": [
+    "communication"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "invoice 4417"
+   ],
+   "support": {
+    "invoice 4417": {
+     "sender": "dana.whitfield@linmac.example"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The identifier sits past character 200 in a long prose turn.",
+   "split": "development"
+  },
+  {
+   "id": "crowded_lexical_0",
+   "category": "crowded_lexical",
+   "query": "What did the operations team say about shift handover on the 9th?",
+   "required_sources": [
+    "mailbox",
+    "shift_handover_log.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "shift handover"
+   ],
+   "support": {
+    "shift handover": {
+     "span": "handover"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Many weak token matches ('the', 'team', 'about') crowd the candidate set; the relevant semantic evidence must still compete rather than be suppressed by a hit-count gate.",
+   "split": "heldout"
+  },
+  {
+   "id": "crowded_lexical_1",
+   "category": "crowded_lexical",
+   "query": "What did the operations team say about shift handover on the 10th?",
+   "required_sources": [
+    "mailbox",
+    "shift_handover_log.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "shift handover"
+   ],
+   "support": {
+    "shift handover": {
+     "span": "handover"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Many weak token matches ('the', 'team', 'about') crowd the candidate set; the relevant semantic evidence must still compete rather than be suppressed by a hit-count gate.",
+   "split": "heldout"
+  },
+  {
+   "id": "crowded_lexical_2",
+   "category": "crowded_lexical",
+   "query": "What did the operations team say about shift handover on the 11th?",
+   "required_sources": [
+    "mailbox",
+    "shift_handover_log.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "shift handover"
+   ],
+   "support": {
+    "shift handover": {
+     "span": "handover"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Many weak token matches ('the', 'team', 'about') crowd the candidate set; the relevant semantic evidence must still compete rather than be suppressed by a hit-count gate.",
+   "split": "heldout"
+  },
+  {
+   "id": "owner_scope_other_user_excluded",
+   "category": "source_owner_restriction",
+   "query": "What did the vendor say about account 90210?",
+   "required_sources": [
+    "communication"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "account 90210"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The mailbox is the surface that CLAIMS an ownership boundary (search_communications takes owner_user_id), so this is where the access-scope gate is meaningful. A second owner's message about the same account is in the corpus; using or exposing it is an access-scope violation, the hardest gate in the matrix.",
+   "split": "development"
+  },
+  {
+   "id": "date_restriction_pre_cutoff",
+   "category": "source_owner_restriction",
+   "query": "What was the agreed price as of 2023-06-30?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "agreed price"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The corpus holds a later revision. Answering with it would be a stale-evidence binding presented as current. The assertion is that the bound evidence is revision-qualified at all.",
+   "split": "development"
+  },
+  {
+   "id": "source_restriction_explicit",
+   "category": "source_owner_restriction",
+   "query": "Only look in the expense policy \u2014 do not search email for this.",
+   "required_sources": [
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [
+    "communication"
+   ],
+   "required_items": [
+    "receipt requirement"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "",
+   "split": "development"
+  },
+  {
+   "id": "ambiguous_two_lookalikes",
+   "category": "ambiguous_identity",
+   "query": "What is the price of No. 381?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "No. 381"
+   ],
+   "support": {
+    "No. 381": {
+     "alternatives": 2
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Two rows match. The correct behaviour is to retain both and say so, not to pick one confidently.",
+   "split": "development"
+  },
+  {
+   "id": "ambiguous_sender_name",
+   "category": "ambiguous_identity",
+   "query": "What did Whitfield say about the hold?",
+   "required_sources": [
+    "communication"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "the hold"
+   ],
+   "support": {
+    "the hold": {
+     "alternatives": 2
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Whitfield resolves to two mailboxes; both must be retained.",
+   "split": "development"
+  },
+  {
+   "id": "ambiguous_unit_variant",
+   "category": "ambiguous_identity",
+   "query": "How much is the GSL48-16 in US dollars?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "GSL48-16"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "The corpus is CAD only. Converting or answering from a USD row would be a fabricated binding; the honest answer is that the requested unit is not in the searched source.",
+   "split": "development"
+  },
+  {
+   "id": "conflicting_stale_0",
+   "category": "conflicting_stale_sources",
+   "query": "What is the current list price of SLE24-16?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {
+    "SLE24-16": {
+     "revision": "current"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A cached earlier revision disagrees with the live sheet. The difference must be visible, and a live read failure must not promote the saved copy to live truth.",
+   "split": "heldout"
+  },
+  {
+   "id": "conflicting_stale_1",
+   "category": "conflicting_stale_sources",
+   "query": "What is the current list price of SLE24-16?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {
+    "SLE24-16": {
+     "revision": "current"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A cached earlier revision disagrees with the live sheet. The difference must be visible, and a live read failure must not promote the saved copy to live truth.",
+   "split": "heldout"
+  },
+  {
+   "id": "conflicting_stale_2",
+   "category": "conflicting_stale_sources",
+   "query": "What is the current list price of SLE24-16?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {
+    "SLE24-16": {
+     "revision": "current"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A cached earlier revision disagrees with the live sheet. The difference must be visible, and a live read failure must not promote the saved copy to live truth.",
+   "split": "heldout"
+  },
+  {
+   "id": "conflicting_stale_saved_only",
+   "category": "conflicting_stale_sources",
+   "query": "What is the current list price of SLE24-16? (injected failure: vector)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "SLE24-16"
+   ],
+   "support": {},
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Same question with the LIVE source failing. The answer must report that the live source could not be read, not serve the cached value as if it were current.",
+   "split": "heldout"
+  },
+  {
+   "id": "absent_within_coverage_0",
+   "category": "absent_within_coverage",
+   "query": "What is the price of XYZ-9999 in linmac_consolidated.xlsx?",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "absent:genuinely not in the corpus"
+   ],
+   "support": {
+    "absent:genuinely not in the corpus": {
+     "claimable": true
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Absence is legitimate ONLY when every named source was successfully searched. This is the control for the false-absence cases: a system that abstains here is not distinguishing failure from absence either.",
+   "split": "heldout"
+  },
+  {
+   "id": "absent_within_coverage_1",
+   "category": "absent_within_coverage",
+   "query": "What is the price of U-22 in the service agreement?",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "absent:the item exists elsewhere, not in the named source"
+   ],
+   "support": {
+    "absent:the item exists elsewhere, not in the named source": {
+     "claimable": true
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Absence is legitimate ONLY when every named source was successfully searched. This is the control for the false-absence cases: a system that abstains here is not distinguishing failure from absence either.",
+   "split": "heldout"
+  },
+  {
+   "id": "absent_within_coverage_2",
+   "category": "absent_within_coverage",
+   "query": "Did anyone email about invoice 9999?",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "absent:no such message"
+   ],
+   "support": {
+    "absent:no such message": {
+     "claimable": true
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Absence is legitimate ONLY when every named source was successfully searched. This is the control for the false-absence cases: a system that abstains here is not distinguishing failure from absence either.",
+   "split": "heldout"
+  },
+  {
+   "id": "absent_within_coverage_3",
+   "category": "absent_within_coverage",
+   "query": "Does the expense policy mention parking?",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "expense_policy.md"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "absent:the policy genuinely does not cover parking"
+   ],
+   "support": {
+    "absent:the policy genuinely does not cover parking": {
+     "claimable": true
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Absence is legitimate ONLY when every named source was successfully searched. This is the control for the false-absence cases: a system that abstains here is not distinguishing failure from absence either.",
+   "split": "heldout"
+  },
+  {
+   "id": "partial_failed_lexical_0",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (injected failure: lexical)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Failure case with the BM25 index is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
+   "split": "development"
+  },
+  {
+   "id": "partial_failed_vector_1",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (injected failure: vector)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Failure case with the vector index is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
+   "split": "development"
+  },
+  {
+   "id": "partial_failed_both_2",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (injected failure: both)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Failure case with both indexes are unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
+   "split": "development"
+  },
+  {
+   "id": "partial_failed_hydration_3",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (injected failure: hydration)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Failure case with source identity could not be resolved. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
+   "split": "development"
+  },
+  {
+   "id": "partial_failed_mailbox_4",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (injected failure: mailbox)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "Failure case with the mailbox store is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
+   "split": "development"
+  },
+  {
+   "id": "partial_corrupt_workbook",
+   "category": "partial_failed_search",
+   "query": "What is the price of U-22? (workbook is corrupt)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "resolvable": false
+    }
+   },
+   "expect_status": "failed",
+   "multi_turn": [],
+   "notes": "A corrupt file is an I/O failure, not a missing row. The distinction is the whole assertion.",
+   "split": "development"
+  },
+  {
+   "id": "formatting_zero_retrieval_0",
+   "category": "formatting_followup",
+   "query": "What is the price of U-22? (then: make that a table)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 2,
+     "message": "make that a table",
+     "expect_retrieval": 0
+    }
+   ],
+   "notes": "Formatting performs no search. The previous delivery must be byte-identical in the reloaded history.",
+   "split": "development"
+  },
+  {
+   "id": "formatting_zero_retrieval_1",
+   "category": "formatting_followup",
+   "query": "What is the price of U-22? (then: put that in a bulleted list)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 2,
+     "message": "put that in a bulleted list",
+     "expect_retrieval": 0
+    }
+   ],
+   "notes": "Formatting performs no search. The previous delivery must be byte-identical in the reloaded history.",
+   "split": "development"
+  },
+  {
+   "id": "formatting_zero_retrieval_2",
+   "category": "formatting_followup",
+   "query": "What is the price of U-22? (then: shorter please)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 2,
+     "message": "shorter please",
+     "expect_retrieval": 0
+    }
+   ],
+   "notes": "Formatting performs no search. The previous delivery must be byte-identical in the reloaded history.",
+   "split": "development"
+  },
+  {
+   "id": "distractor_replacement",
+   "category": "distractors_replacement",
+   "query": "Actually forget SLE24-16 \u2014 I need TK 1624 instead.",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "TK 1624"
+   ],
+   "support": {
+    "TK 1624": {
+     "value": "875.00",
+     "unit": "CAD"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 1,
+     "message": "What is the price of SLE24-16?"
+    },
+    {
+     "turn": 2,
+     "message": "Actually forget SLE24-16 \u2014 I need TK 1624 instead.",
+     "expect_retrieval": 1
+    }
+   ],
+   "notes": "The CURRENT task revision determines the target. The superseded target must not leak back into the answer.",
+   "split": "development"
+  },
+  {
+   "id": "distractor_restart_continuation",
+   "category": "distractors_replacement",
+   "query": "carry on with the list we were doing",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 1,
+     "message": "List the price of U-22 and SLE24-16"
+    },
+    {
+     "turn": 2,
+     "message": "carry on with the list we were doing",
+     "expect_retrieval": 0
+    }
+   ],
+   "notes": "The identifier set must come from the durable task revision, not from a union of every historical list.",
+   "split": "development"
+  },
+  {
+   "id": "explicit_research_new_attempt",
+   "category": "explicit_research",
+   "query": "search again for U-22",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 1,
+     "message": "What is the price of U-22?"
+    },
+    {
+     "turn": 2,
+     "message": "search again for U-22",
+     "expect_retrieval": 1
+    }
+   ],
+   "notes": "An explicit re-search is a NEW read attempt even when the evidence revision is unchanged. Zero invocations here would mean the re-search was silently a replay.",
+   "split": "development"
+  },
+  {
+   "id": "reranker_degraded_unavailable_0",
+   "category": "reranker_degraded",
+   "query": "What is the price of U-22? (reranker unavailable)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A reranker fallback is RANKING degradation, not incomplete source coverage. The answer must not claim the evidence was fully searched on the strength of a degraded ordering, and resource use must stay bounded.",
+   "split": "heldout"
+  },
+  {
+   "id": "reranker_degraded_slow_1",
+   "category": "reranker_degraded",
+   "query": "What is the price of U-22? (reranker slow)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A reranker fallback is RANKING degradation, not incomplete source coverage. The answer must not claim the evidence was fully searched on the strength of a degraded ordering, and resource use must stay bounded.",
+   "split": "heldout"
+  },
+  {
+   "id": "reranker_degraded_saturated_2",
+   "category": "reranker_degraded",
+   "query": "What is the price of U-22? (reranker saturated)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A reranker fallback is RANKING degradation, not incomplete source coverage. The answer must not claim the evidence was fully searched on the strength of a degraded ordering, and resource use must stay bounded.",
+   "split": "development"
+  },
+  {
+   "id": "reranker_degraded_bad_scores_3",
+   "category": "reranker_degraded",
+   "query": "What is the price of U-22? (reranker bad_scores)",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {
+    "U-22": {
+     "value": "1284.00"
+    }
+   },
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "A reranker fallback is RANKING degradation, not incomplete source coverage. The answer must not claim the evidence was fully searched on the strength of a degraded ordering, and resource use must stay bounded.",
+   "split": "development"
+  },
+  {
+   "id": "restart_retry_keyed",
+   "category": "restart_retry",
+   "query": "What is the price of U-22?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [
+    {
+     "turn": 2,
+     "message": "(same request, same request_id)",
+     "expect_retrieval": 0
+    }
+   ],
+   "notes": "A keyed retry returns its pinned bytes and does NOT search again. Constraints and evidence must survive a restart.",
+   "split": "development"
+  },
+  {
+   "id": "restart_retry_survives_restart",
+   "category": "restart_retry",
+   "query": "What is the price of U-22?",
+   "required_sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "U-22"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "After a process restart the same request_id still returns the originally pinned response.",
+   "split": "development"
+  },
+  {
+   "id": "multi_source_0",
+   "category": "multi_source",
+   "query": "What is the price of U-22 and who emailed about it?",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "policy_manual.pdf"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "price",
+    "email or terms"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Both sources must be read; using one to answer for the other is a fabricated binding.",
+   "split": "development"
+  },
+  {
+   "id": "multi_source_1",
+   "category": "multi_source",
+   "query": "Show me the price list and the warranty terms together",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "policy_manual.pdf"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "price",
+    "email or terms"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Both sources must be read; using one to answer for the other is a fabricated binding.",
+   "split": "development"
+  },
+  {
+   "id": "multi_source_2",
+   "category": "multi_source",
+   "query": "Compare the invoice total in email with the policy limit",
+   "required_sources": [
+    "linmac_consolidated.xlsx",
+    "communication",
+    "policy_manual.pdf"
+   ],
+   "forbidden_sources": [],
+   "required_items": [
+    "price",
+    "email or terms"
+   ],
+   "support": {},
+   "expect_status": "success",
+   "multi_turn": [],
+   "notes": "Both sources must be read; using one to answer for the other is a fabricated binding.",
+   "split": "development"
+  }
+ ]
+}
