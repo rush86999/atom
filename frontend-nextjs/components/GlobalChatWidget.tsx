@@ -314,6 +314,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         _pendingStepsRef.current = [];
 
         try {
+            // Transport idempotency key for this submitted turn (reused
+            // only for network retries of the same turn).
+            const requestId = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `req_${Date.now()}_${Math.random().toString(36).slice(2)}`);
             const res = await authFetch("/api/chat/message", {
                 method: "POST",
                 headers: {
@@ -324,6 +329,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     message: text,
                     user_id: userId,
                     session_id: sessionId,
+                    request_id: requestId,
                     context: {
                         current_page: router.asPath,
                         // An open canvas (registered into window.atom.canvas)

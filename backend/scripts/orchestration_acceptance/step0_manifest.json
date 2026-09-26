@@ -1,0 +1,106 @@
+{
+ "generated_at": "2026-09-26T15:35:38-0400",
+ "commit": "2cdc2f98b7e0498729c99b86eeb96333377fc3fc",
+ "changed_files": {
+  "backend/core/chat_tool_planner.py": {
+   "status": "M",
+   "sha256": "438b224b7e5119d0e21cf88dca974f475f5aeb5f327e51af89e8fcd6cc4ba846"
+  },
+  "backend/core/models.py": {
+   "status": "M",
+   "sha256": "bf8980c9d8d7a65eacca9acab2258e43820e8c12833eff530428dc82817d75ec"
+  },
+  "backend/core/workbook_read_artifact.py": {
+   "status": "M",
+   "sha256": "956fc72b3d442d8e5807568725eceb4ce60a9e98c975bbd062ab06f17f819018"
+  },
+  "backend/integrations/chat_orchestrator.py": {
+   "status": "M",
+   "sha256": "f0f5f87a525b6db414060c10744cc50428c1019ca49f2a4ed483980c02a9ec90"
+  },
+  "backend/scripts/orchestration_acceptance/m1_overlay/apply.py": {
+   "status": "M",
+   "sha256": "f288b99c7b93b2464f49ff066b8032b03fb25a7f62c69e37a67bacdb9337c056"
+  },
+  "backend/scripts/orchestration_acceptance/run_isolated.py": {
+   "status": "M",
+   "sha256": "a221e0778a3b8689e65156cb444e48c118ef8b3b0df2eb6a50d15c2c8a6f843f"
+  },
+  "backend/tests/test_finalization_m2.py": {
+   "status": "M",
+   "sha256": "dd9c31670dc3dc57bb2a2d8f04f71b607d76dd694a6ede0950aafd3c112f35a6"
+  },
+  "backend/tests/test_pending_file_task_resume.py": {
+   "status": "M",
+   "sha256": "1f7f11d9afe5078c71137c94bd5941cd87cb9b040824cb47b78ef8ecdfaa23fd"
+  },
+  "backend/core/answer_presentation.py": {
+   "status": "??",
+   "sha256": "9dcb7e986fd1e4b742adceec850ce4c34979aec61a61c30cbb225b6ab7045b81"
+  },
+  "backend/core/chat_transport.py": {
+   "status": "??",
+   "sha256": "e236f0df0fcd72aa4b00b80c2c441f71e08e5b7e766636995c75ae6925a3bcea"
+  },
+  "backend/core/invocation_events.py": {
+   "status": "??",
+   "sha256": "f983b7abd3c66909638906a39fa8513caef563efdd9c1838d172a98a572d21c8"
+  },
+  "backend/core/task_lifecycle.py": {
+   "status": "??",
+   "sha256": "ff9e4ca1d21d86a6368fdf79d64795b17148096c68a728a0ce7445194274a424"
+  },
+  "backend/scripts/orchestration_acceptance/live_integration_acceptance.py": {
+   "status": "??",
+   "sha256": "0791626fe8c2d29d7ed66c6867d3fa64fec151e209bf9a1ee8e45701e215c4c1"
+  },
+  "backend/scripts/orchestration_acceptance/step0_manifest.json": {
+   "status": "??",
+   "sha256": "0f260223088e9dfbcf0d213645dda8e209d17c4a854e06d3f2bad33c299efa9e"
+  },
+  "backend/scripts/orchestration_acceptance/step0_manifest.py": {
+   "status": "??",
+   "sha256": "d1e989f1060cb3bec4643982a4c0aeaee5934c9cb45b1e4caba9afb59be8153a"
+  },
+  "backend/tests/test_acceptance_runner_guards.py": {
+   "status": "??",
+   "sha256": "5d5ef2949acaf6189ae05de86d907fe8ab3ce29a438eec8251311c51fee0a7f8"
+  },
+  "backend/tests/test_chat_transport.py": {
+   "status": "??",
+   "sha256": "fca64a7576ffb895bd770bc878c8ad52a2559019d140fabd8972e85c9e972ecc"
+  },
+  "backend/tests/test_task_lifecycle.py": {
+   "status": "??",
+   "sha256": "ff8b7c8ccf4107517f8b151bc757ee66b6156eb3cf8899336f0496ffb3eed9c1"
+  },
+  "backend/tests/test_workbook_structured_delivery.py": {
+   "status": "??",
+   "sha256": "fc9c2848685aefa1bb2d4437dd9931bbc1439cf5f7776de79d770f8c26c35e8e"
+  }
+ },
+ "export": {
+  "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/gate_world_v2/code",
+  "code_manifest_sha256": "417fb3a54af8e3ce8a01a6b6d1b7ec2b552b3e5bbcf14fb82ee90c3bff6fe7b1",
+  "overlay_applied": false,
+  "overlay_note": "clean production export (overlay retired from gates)"
+ },
+ "database": {
+  "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/gate_world_v2/runs/run-1d3667c9d81c/data/atom.db",
+  "snapshot_sha256": "5383c8be31121c6539c08fcd103ab86ffd606e4d4ab745f9790fa92c7533722f",
+  "hash_method": "backup-API snapshot (consistent)"
+ },
+ "server": {
+  "pid": 27990,
+  "port": 8026,
+  "effective_flags": {
+   "CHAT_FINALIZATION_M1": "1",
+   "CHAT_FINALIZATION_M2": "1",
+   "CHAT_FINALIZATION_M3": null
+  },
+  "identity_source": "server process environment (ps eww)"
+ },
+ "work_order": "WORKBOOK_DELIVERY_WORK_ORDER_2026_09_26.md",
+ "step": "0 \u2014 reproducible implementation snapshot",
+ "acceptance_exit_code": 1
+}

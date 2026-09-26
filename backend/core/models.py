@@ -1276,6 +1276,104 @@ class ChatMessage(Base):
     agent_id = Column(String, nullable=True)
     metadata_json = Column(Text, nullable=True)
 
+
+class InvocationEvent(Base):
+    """Turn-scoped invocation instrumentation (retrieval/render boundaries).
+
+    One row per boundary crossing: scan entry/exit around a file-copy scan,
+    render around deterministic answer rendering. Counts per execution_id
+    are the acceptance evidence for retrieval/render invocations — never
+    timestamps, log phrases, or persisted-artifact copies. Best-effort
+    writes: recording must never break delivery.
+    """
+    __tablename__ = "invocation_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    kind = Column(String, nullable=False, index=True)
+    execution_id = Column(String, nullable=True, index=True)
+    request_id = Column(String, nullable=True, index=True)
+    attempt_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)
+    outcome = Column(String, nullable=True)
+    evidence_revision = Column(String, nullable=True)
+    duration_ms = Column(Float, nullable=True)
+    detail = Column(Text, nullable=True)
+
+
+class TaskOperationRecord(Base):
+    """Durable uniqueness for task operation reservations.
+
+    The task's own JSON holds the operation for reading, but a JSON
+    column cannot arbitrate two processes racing to create the same
+    effect: both read "no such key", both write, and the effect happens
+    twice. This table is the arbiter. Uniqueness is enforced
+    transactionally by the database on (workspace_id, run_id,
+    idempotency_key), so concurrent reservations of the same key collapse
+    to exactly one row no matter how many workers race.
+
+    The key is bound to a CANONICAL PAYLOAD HASH, not to a
+    caller-supplied string: the same key with a different payload is a
+    conflict and is rejected rather than replayed, so a retry can never
+    be silently pointed at a different effect than the one it names.
+    """
+    __tablename__ = "task_operation_records"
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "run_id", "idempotency_key",
+                         name="uq_task_operation_identity"),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+    workspace_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    run_id = Column(String, nullable=False, index=True)
+    idempotency_key = Column(String, nullable=False, index=True)
+    payload_sha256 = Column(String, nullable=False)
+    operation_id = Column(String, nullable=False, index=True)
+    operation_type = Column(String, nullable=False)
+    status = Column(String, nullable=False, index=True)
+
+
+class ChatRequestRecord(Base):
+    """Keyed transport idempotency for chat turns (Stripe-style).
+
+    The client mints one request_id per submitted turn. Same identity +
+    same payload replays the stored finalized response without execution,
+    retrieval, rendering, or duplicate history rows; same identity +
+    different payload is a conflict; same identity while in progress
+    returns in-progress without launching a second execution. Uniqueness
+    is enforced transactionally by the database, so concurrent duplicate
+    reserves arbitrate to exactly one executor. A crashed turn retains
+    in-progress state rather than risk repeating a possibly completed
+    side effect; the client then mints a fresh ID for a new attempt.
+    """
+    __tablename__ = "chat_request_records"
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "user_id", "session_id", "request_id",
+                         name="uq_chat_request_identity"),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+    tenant_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    request_id = Column(String, nullable=False, index=True)
+    payload_sha256 = Column(String, nullable=False)
+    request_payload = Column(Text, nullable=True)
+    state = Column(String, nullable=False, index=True)
+    execution_id = Column(String, nullable=True)
+    assistant_message_id = Column(String, nullable=True)
+    finalized_response = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+
 class ExchangeExample(Base):
     """
     A rated (query, response) exchange pair — the atom of the positive/

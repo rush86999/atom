@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "work_order": "TASK_LIFECYCLE_WORK_ORDER_2026_09_26.md",
+  "purpose": "Whole-conversation evaluation scenarios (Step 5) — measure the lifecycle across capabilities: completed outcomes, missed constraints, false completion claims, duplicate effects, latency, cost",
+  "capabilities_under_test": ["workbook_retrieval", "canvas_editing", "sandboxed_outbound"],
+  "measurement_dimensions": [
+    "completed_outcomes",
+    "missed_constraints",
+    "false_completion_claims",
+    "duplicate_effects",
+    "latency_total_s",
+    "latency_per_turn_s",
+    "cost_usd"
+  ],
+  "scenarios": [
+    {
+      "id": "eval_changed_requirements",
+      "title": "Changed requirements mid-conversation",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"},
+        {"turn": 2, "message": "actually, drop GSL48-16 and add Tennsmith 135", "expected_transition": "revise_objective"},
+        {"turn": 3, "message": "use the factory price column instead", "expected_transition": "revise_fields"}
+      ],
+      "assertions": {
+        "turn_1": {"objective_created": true, "entity_count": 8, "retrieval_executed": true},
+        "turn_2": {"entity_count": 8, "dropped_entity": "GSL48-16", "added_entity": "Tennsmith 135", "stale_evidence_invalidated": true, "retained_evidence_reused": true},
+        "turn_3": {"requested_fields_changed": true, "no_new_retrieval_needed": true, "evidence_reselected": true}
+      }
+    },
+    {
+      "id": "eval_ambiguous_references",
+      "title": "Ambiguous references to prior context",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"},
+        {"turn": 2, "message": "what about the gang slitter from the other supplier?", "expected_transition": "clarification_needed"}
+      ],
+      "assertions": {
+        "turn_2": {"clarification_asked": true, "no_fabricated_answer": true, "ambiguous_reference_flagged": true}
+      }
+    },
+    {
+      "id": "eval_competing_tasks",
+      "title": "Two tasks interleaved in one session",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"},
+        {"turn": 2, "message": "also find the price of WG-350 DSAV in the Metric Dies workbook", "expected_transition": "new_request"},
+        {"turn": 3, "message": "make the first task's results cleaner", "expected_transition": "presentation_change"}
+      ],
+      "assertions": {
+        "turn_2": {"second_task_created": true, "first_task_not_disrupted": true},
+        "turn_3": {"presentation_applies_to_first_task_only": true, "second_task_unchanged": true}
+      }
+    },
+    {
+      "id": "eval_stale_sources",
+      "title": "Source becomes stale between turns",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"},
+        {"turn": 2, "message": "are those prices still current?", "expected_transition": "freshness_check"}
+      ],
+      "assertions": {
+        "turn_2": {"freshness_disclosed": true, "saved_copy_date_mentioned": true, "no_false_current_claim": true}
+      }
+    },
+    {
+      "id": "eval_partial_failures",
+      "title": "Partial retrieval failure",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"}
+      ],
+      "assertions": {
+        "turn_1": {"found_items_have_prices": true, "ambiguous_items_flagged": true, "absent_items_explained": true, "no_fabricated_values": true, "partial_coverage_disclosed": true}
+      }
+    },
+    {
+      "id": "eval_restart_recovery",
+      "title": "Restart mid-conversation",
+      "turns": [
+        {"turn": 1, "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16", "expected_transition": "new_request"},
+        {"restart": true},
+        {"turn": 2, "message": "make it cleaner", "expected_transition": "presentation_change"}
+      ],
+      "assertions": {
+        "post_restart": {"task_state_retained": true, "evidence_available": true, "objective_preserved": true},
+        "turn_2": {"presentation_applied": true, "evidence_reused": true}
+      }
+    },
+    {
+      "id": "eval_sandboxed_outbound",
+      "title": "Outbound action with authorization",
+      "turns": [
+        {"turn": 1, "message": "draft an email to Steve with the eight machine prices", "expected_transition": "new_request"},
+        {"turn": 2, "message": "send it", "expected_transition": "authorize_execute"}
+      ],
+      "assertions": {
+        "turn_1": {"draft_created": true, "no_email_sent": true},
+        "turn_2": {"authorization_checked": true, "email_sent_once": true, "duplicate_prevented": true}
+      }
+    }
+  ]
+}

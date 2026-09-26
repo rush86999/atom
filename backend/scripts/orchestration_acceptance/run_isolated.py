@@ -233,13 +233,17 @@ def preflight(world: Path) -> Dict[str, Any]:
         raise RuntimeError(f"worktree has modified tracked files (archive integrity at risk): "
                            f"{modified[:3]}")
     manifest = json.loads((world / "MANIFEST.json").read_text())
-    arch = _git_archive_sha()
-    if arch != manifest["code_archive_sha256"]:
-        raise RuntimeError("git-archive hash drifted — exported code is not the pinned content")
     code_manifest = json.loads((world / "code_manifest.json").read_text())
-    if _tree_manifest(world / "code") != code_manifest:
-        raise RuntimeError("extracted code tree drifted from archive-derived manifest — "
-                           "the files that would run are not the pinned export")
+    if manifest.get("code_snapshot_sha256"):
+        if _tree_manifest(world / "code") != code_manifest:
+            raise RuntimeError("extracted snapshot tree drifted from its manifest")
+    else:
+        arch = _git_archive_sha()
+        if arch != manifest.get("code_archive_sha256"):
+            raise RuntimeError("git-archive hash drifted — exported code is not the pinned content")
+        if _tree_manifest(world / "code") != code_manifest:
+            raise RuntimeError("extracted code tree drifted from archive-derived manifest — "
+                               "the files that would run are not the pinned export")
     if not manifest.get("network_boundary_verified", {}).get("external_blocked"):
         raise RuntimeError("network boundary was never proven for this world — rebuild")
     fixture_hash = _sha256_file(world / "fixture" / "atom.db")
@@ -255,14 +259,40 @@ def preflight(world: Path) -> Dict[str, Any]:
     if subprocess.run(["shasum", "-a", "256", "-c", "SHA256SUMS"],
                       cwd=FIXTURES, capture_output=True).returncode != 0:
         raise RuntimeError("fixtures/SHA256SUMS verification failed")
-    return {"source_revision": head, "code_archive_sha256": arch,
+    return {"source_revision": head,
+            "code_archive_sha256": manifest.get("code_archive_sha256"),
+            "code_snapshot_sha256": manifest.get("code_snapshot_sha256"),
             "db_sha256": fixture_hash, "credentials_scrubbed": True,
             "venv_verified": True, "fixtures_verified": True,
             "harness_version": HARNESS_VERSION}
 
 
 def refresh_working_db(world: Path) -> None:
+    # Remove stale WAL/SHM sidecars: a killed run leaves them behind, and a
+    # stale WAL applied to a fresh main DB corrupts it (observed twice).
+    for sidecar in ("atom.db-wal", "atom.db-shm"):
+        sp = world / "data" / sidecar
+        if sp.exists():
+            sp.unlink()
     shutil.copy2(world / "fixture" / "atom.db", world / "data" / "atom.db")
+
+
+def _working_tree_snapshot() -> bytes:
+    """Tar the LIVE checkout's working tree (uncommitted wiring included),
+    content-hashed by the caller. Labeled honestly: this pins uncommitted
+    work by hash - the owning stream's commit remains the durable pin."""
+    import io
+    import tarfile
+    proc = subprocess.run(
+        ["git", "-C", str(REPO), "ls-files", "-co", "--exclude-standard", "backend"],
+        capture_output=True, text=True)
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for f in sorted(line for line in proc.stdout.splitlines() if line.strip()):
+            fp = REPO / f
+            if fp.is_file():
+                tar.add(str(fp), arcname=f)
+    return buf.getvalue()
 
 
 def build_world(world: Path, refreeze_db: bool) -> None:
@@ -274,21 +304,31 @@ def build_world(world: Path, refreeze_db: bool) -> None:
 
     # Immutable code export for THIS pinned revision, verified as EXTRACTED
     # FILES (not just the archive stream) and made read-only.
-    archive = subprocess.run(["git", "-C", str(WORKTREE), "archive", "--format=tar", PINNED_REV],
-                             capture_output=True)
-    if archive.returncode != 0:
-        raise RuntimeError("git archive failed")
     code_dir = world / "code"
     _make_tree_writable(code_dir)
     if code_dir.exists():
         shutil.rmtree(code_dir)
     code_dir.mkdir(parents=True)
     import io
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-        tar.extractall(code_dir)
+    if getattr(build_world, "snapshot_working_tree", False):
+        _snap = _working_tree_snapshot()
+        with tarfile.open(fileobj=io.BytesIO(_snap)) as _tar:
+            _tar.extractall(code_dir)
+        manifest["code_snapshot_sha256"] = hashlib.sha256(_snap).hexdigest()
+        manifest["code_source"] = ("WORKING-TREE SNAPSHOT (includes uncommitted "
+                                   "changes; hash-pinned; owning stream's commit is "
+                                   "the durable pin)")
+        print(f"[world] snapshot export: sha256={manifest['code_snapshot_sha256'][:16]}...")
+    else:
+        archive = subprocess.run(["git", "-C", str(WORKTREE), "archive", "--format=tar", PINNED_REV],
+                                 capture_output=True)
+        if archive.returncode != 0:
+            raise RuntimeError("git archive failed")
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(code_dir)
+        manifest["code_archive_sha256"] = hashlib.sha256(archive.stdout).hexdigest()
+        manifest["code_source"] = f"git archive {PINNED_REV} (immutable export, file-manifested, read-only)"
     (world / "code_manifest.json").write_text(json.dumps(_tree_manifest(code_dir), indent=0))
-    manifest["code_archive_sha256"] = hashlib.sha256(archive.stdout).hexdigest()
-    manifest["code_source"] = f"git archive {PINNED_REV} (immutable export, file-manifested, read-only)"
     if getattr(build_world, "m1_overlay", False):
         import importlib.util as _ilu
         _spec = _ilu.spec_from_file_location(
@@ -378,7 +418,8 @@ def build_world(world: Path, refreeze_db: bool) -> None:
         "harness_version": HARNESS_VERSION,
     })
     manifest_path.write_text(json.dumps(manifest, indent=1))
-    print(f"[world] built: export {manifest['code_archive_sha256'][:12]}…, {copied} parquets verified, "
+    _export_ref = manifest.get("code_archive_sha256") or manifest.get("code_snapshot_sha256", "")
+    print(f"[world] built: export {_export_ref[:12]}…, {copied} parquets verified, "
           f"farm -> world/code @ {PINNED_REV[:10]}, seatbelt profile written")
 
 
@@ -401,14 +442,86 @@ class _SinkHandler(BaseHTTPRequestHandler):  # retained for proxy-attempt observ
     def log_message(self, *a): pass
 
 
-def launch_server(port: int, world: Path, provider_shim: bool = False) -> subprocess.Popen:
+def _seed_run_data(world: Path, run_dir: Path) -> None:
+    """Seed a fresh run data dir from the world fixture via the SQLite
+    backup API (consistent snapshot), rewrite dataset parquet paths, and
+    verify integrity before use (work order step 6)."""
+    import sqlite3 as _sq
+    data = run_dir / "data"
+    (data / "sheet_datasets" / "default" / WORKBOOK_HASH_DIR).mkdir(parents=True, exist_ok=True)
+    (data / "atom_memory").mkdir(parents=True, exist_ok=True)
+    src = _sq.connect(f"file:{world / 'fixture' / 'atom.db'}?mode=ro", uri=True)
+    dst = _sq.connect(str(data / "atom.db"))
+    with dst:
+        src.backup(dst)
+    src.close()
+    con = _sq.connect(str(data / "atom.db"))
+    con.execute(
+        "UPDATE dataset_entries SET parquet_path = REPLACE(parquet_path, ?, ?) "
+        "WHERE parquet_path LIKE ?",
+        (str(LIVE_SHEET_ROOT) + "/", str(data / "sheet_datasets") + "/",
+         str(LIVE_SHEET_ROOT) + "/%"))
+    # SELF-CONSISTENCY (work order step 6): the live snapshot registers
+    # datasets whose parquets were never copied into the world. Delete those
+    # rows so the scan only sees datasets with real files - otherwise every
+    # scan fails on unrelated missing files and fault injection is ambiguous.
+    removed = 0
+    for (pp,) in con.execute("SELECT parquet_path FROM dataset_entries").fetchall():
+        if pp and not os.path.exists(pp):
+            con.execute("DELETE FROM dataset_entries WHERE parquet_path=?", (pp,))
+            removed += 1
+    con.commit()
+    ic = con.execute("PRAGMA integrity_check").fetchone()[0]
+    con.close()
+    if removed:
+        print(f"[world] pruned {removed} dataset_entries without files (self-consistent world)")
+    if ic != "ok":
+        raise RuntimeError(f"seeded run DB failed integrity_check: {ic}")
+    fx = FIXTURES / f"workbook_sheet_datasets_{WORKBOOK_HASH_DIR}"
+    dst_sheets = data / "sheet_datasets" / "default" / WORKBOOK_HASH_DIR
+    import shutil as _sh
+    for pq in fx.glob("*.parquet"):
+        _sh.copy2(pq, dst_sheets / pq.name)
+
+
+def current_run_db(world: Path) -> Path:
+    """The CURRENT launch's database path. Selection is by MTIME (lexical
+    name sort handed the runner a stale run dir - the root cause of the
+    'zero assistant rows' observation, review round 34)."""
+    runs = sorted((world / "runs").glob("run-*"), key=lambda p: p.stat().st_mtime)
+    if not runs:
+        raise RuntimeError("no runs found - launch the server first")
+    return runs[-1] / "data" / "atom.db"
+
+
+def launch_server(port: int, world: Path, provider_shim: bool = False,
+                  reuse_run_dir: Optional[Path] = None) -> subprocess.Popen:
+    # FRESH DATABASE DIRECTORY PER RUN (work order step 6): each launch gets
+    # its own data directory seeded from the world fixture; the farm's data
+    # symlink is re-pointed at it. Never delete WAL/SHM beside a live DB -
+    # the fresh directory makes sidecar handling moot.
+    import uuid as _uuid
+    if reuse_run_dir is not None:
+        run_dir = Path(reuse_run_dir)  # RESTART: same DB dir, no re-seed
+    else:
+        run_dir = world / "runs" / f"run-{_uuid.uuid4().hex[:12]}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        _seed_run_data(world, run_dir)
+    world = world  # world root unchanged; run db path recorded on the proc
+    farm = world / "backend_root"
+    _data_link = farm / "data"
+    if _data_link.is_symlink() or _data_link.exists():
+        _data_link.unlink()
+    _data_link.symlink_to(run_dir / "data", target_is_directory=True)
+    launch_server.last_run_dir = run_dir
+    launch_server.last_proc = None  # set by the caller after Popen
     farm = world / "backend_root"
     profile = world / "local_only.sb"
     profile.write_text(_sandbox_profile(port, extra_ports=(SHIM_PORT,) if provider_shim else ()))
     env = {k: os.environ[k] for k in SERVER_ENV_WHITELIST if k in os.environ}
     env.update({
-        "DATABASE_URL": f"sqlite:///{world / 'data' / 'atom.db'}",
-        "ATOM_DATA_DIR": str(world / "data"),
+        "DATABASE_URL": f"sqlite:///{launch_server.last_run_dir / 'data' / 'atom.db'}",
+        "ATOM_DATA_DIR": str(launch_server.last_run_dir / "data"),
         "LANCEDB_URI": str(world / "data" / "atom_memory"),
         "ATOM_SHEET_DATASETS": "1",
         "ATOM_CHAT_STREAMING": "1",
@@ -418,8 +531,11 @@ def launch_server(port: int, world: Path, provider_shim: bool = False) -> subpro
         # keep the read-only export pristine: no bytecode writes into world/code
         "PYTHONDONTWRITEBYTECODE": "1",
     })
-    if getattr(launch_server, "m1", False):
+    if getattr(launch_server, "m1", False) or getattr(launch_server, "gate", False):
         env["CHAT_FINALIZATION_M1"] = "1"
+    if getattr(launch_server, "gate", False):
+        env["CHAT_FINALIZATION_M2"] = "1"
+        env["CHAT_TASK_LIFECYCLE"] = "1"
     if provider_shim:
         # Recorded-response rig: production router dispatches to the local
         # shim (env-key registration + SDK base-url override). Only the
@@ -440,6 +556,21 @@ def launch_server(port: int, world: Path, provider_shim: bool = False) -> subpro
             "OPENAI_BASE_URL": f"http://127.0.0.1:{SHIM_PORT}/v1",
             "ATOM_PROVIDER_MODEL_CATALOG_PATH": str(catalog_path),
         })
+    import httpx as _hx0
+    try:
+        _pre = _hx0.get(f"http://127.0.0.1:{port}/api/health", timeout=2, trust_env=False)
+        _pid = ((_pre.json() or {}).get("identity") or {}).get("pid")
+        _cwd = ((_pre.json() or {}).get("identity") or {}).get("cwd", "")
+        raise RuntimeError(
+            f"PORT {port} ALREADY SERVED by pid {_pid} (cwd {_cwd}) - a foreign or "
+            f"stale server holds it. Refusing to launch: observations would attribute "
+            f"to the wrong world. Stop that server or choose another port.")
+    except _hx0.HTTPError:
+        pass  # 404/connection refused = port free for this launch
+    except RuntimeError:
+        raise
+    except Exception:
+        pass  # nothing listening
     log = open(world / "server.log", "ab")
     proc = subprocess.Popen(
         ["/usr/bin/sandbox-exec", "-f", str(profile),
@@ -447,17 +578,62 @@ def launch_server(port: int, world: Path, provider_shim: bool = False) -> subpro
         cwd=str(farm), env=env, stdout=log, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
-    import httpx
+    launch_server.last_proc = proc
+    # PORT PREFLIGHT + LAUNCH DESCRIPTOR (work order step 0/1): a server on
+    # this port must be THIS launch - a foreign world's server (observed:
+    # another stream's wb_verify world holding :8024) invalidates every
+    # observation. Verify via the app's own health identity.
+    import httpx as _hx
     base = f"http://127.0.0.1:{port}"
+    descriptor = {
+        "run_id": launch_server.last_run_dir.name,
+        "pid": proc.pid,
+        "port": port,
+        "export_path": str((world / "backend_root").resolve()),
+        "db_path": str((launch_server.last_run_dir / "data" / "atom.db").resolve()),
+        "world": str(world),
+        "log_path": str(world / "server.log"),
+        "expected_cwd": str((world / "backend_root").resolve()),
+    }
     deadline = time.time() + 240
     while time.time() < deadline:
         if proc.poll() is not None:
             raise RuntimeError(f"server exited early rc={proc.returncode}; see {world/'server.log'}")
         try:
-            if httpx.get(f"{base}/api/health", timeout=3, trust_env=False).status_code == 200:
-                print(f"[server] healthy on :{port} (pid {proc.pid}, seatbelt: external blocked / "
-                      f"loopback restricted to :{port}, credential-free env)")
+            h = _hx.get(f"{base}/api/health", timeout=3, trust_env=False)
+            if h.status_code == 200:
+                _ident = (h.json() or {}).get("identity") or {}
+                _cwd = _ident.get("cwd", "")
+                if Path(_cwd).resolve() != Path(descriptor["expected_cwd"]).resolve():
+                    proc.kill()
+                    raise RuntimeError(
+                        f"FOREIGN SERVER on :{port}: health identity cwd={_cwd} "
+                        f"(pid {_ident.get('pid')}) is not this launch's world "
+                        f"({descriptor['expected_cwd']}). Another stream's server is "
+                        f"holding the port - coordinate or choose another port.")
+                descriptor["health_identity"] = {
+                    "pid": _ident.get("pid"), "cwd": _cwd,
+                    "source_id": _ident.get("source_id"),
+                    "instance_id": _ident.get("instance_id")}
+                # DB PATH (review round 34, corrected by the lsof probe): the
+                # app opens the ENV path (the fresh run dir) - the probe
+                # verifies it in-flight. The health-cwd derivation was wrong.
+                descriptor["db_path"] = str(
+                    (launch_server.last_run_dir / "data" / "atom.db").resolve())
+                launch_server.descriptor = descriptor
+                launch_server.last_run_dir = launch_server.last_run_dir
+                # ALWAYS write the fresh descriptor - a stale descriptor file
+                # fails the identity gate by design (observed in verification).
+                _dpath = world / "launch_descriptor.json"
+                _dpath.write_text(json.dumps(descriptor, indent=1))
+                descriptor["descriptor_path"] = str(_dpath)
+                print(f"[server] healthy on :{port} (pid {proc.pid}, world identity verified: "
+                      f"{_ident.get('source_id', '')[:24]}, seatbelt, credential-free)")
                 return proc
+        except _hx.HTTPError:
+            pass
+        except RuntimeError:
+            raise
         except Exception:
             pass
         time.sleep(2)
@@ -1025,9 +1201,19 @@ class WSTap:
     """Tap the user websocket during a case to measure progress-event and
     first-answer-token latencies (old-path proxy for first validated text)."""
 
-    def __init__(self, port: int, token: str):
+    def __init__(self, port: int, token: str, session_filter: str = "",
+                 ready_timeout: float = 10.0):
         self.events: List[Tuple[float, str, str]] = []
+        # Parsed per-event identity, retained alongside events so overlapping
+        # turns in one session can be told apart AFTER the run: select the
+        # exact execution before assembling streamed text.
+        self.parsed: List[Dict[str, Any]] = []
         self.streamed_text: str = ""
+        self.session_filter = session_filter
+        self.ready_timeout = ready_timeout
+        self.ready = asyncio.Event()
+        self.connected = False
+        self.connected_event = asyncio.Event()
         self._stop = asyncio.Event()
         self._task = None
         self.port, self.token = port, token
@@ -1041,13 +1227,42 @@ class WSTap:
         try:
             uri = f"ws://127.0.0.1:{self.port}/ws/default?token={self.token}"
             async with websockets.connect(uri, open_timeout=10, max_size=4 * 1024 * 1024) as ws:
+                self.connected = True
+                self.connected_event.set()
                 while not self._stop.is_set():
                     try:
                         msg = await asyncio.wait_for(ws.recv(), timeout=0.25)
                     except asyncio.TimeoutError:
                         continue
                     kind = self._kind(msg)
+                    # SESSION FILTER (work order step 1.10): other sessions'
+                    # token events never enter this turn's observation.
+                    if self.session_filter:
+                        try:
+                            d = json.loads(msg)
+                            sid = (d.get("session_id")
+                                   or (d.get("data") or {}).get("session_id")
+                                   or d.get("session"))
+                            if sid and sid != self.session_filter:
+                                continue
+                        except Exception:
+                            pass
+                    if not self.ready.is_set():
+                        self.ready.set()  # first server frame = subscribed
                     self.events.append((time.time(), kind, str(msg)[:600]))
+                    try:
+                        _d = json.loads(msg)
+                        _data = _d.get("data") if isinstance(
+                            _d.get("data"), dict) else {}
+                        self.parsed.append({
+                            "kind": kind,
+                            "session_id": _d.get("session_id")
+                            or _data.get("session_id") or _d.get("session"),
+                            "execution_id": _d.get("execution_id")
+                            or _data.get("execution_id"),
+                        })
+                    except Exception:
+                        self.parsed.append({"kind": kind})
                     if "chat_token" in kind and "done" not in kind:
                         try:
                             d = json.loads(msg)
@@ -1069,6 +1284,60 @@ class WSTap:
     def mark_request(self) -> None:
         self.t_request = time.time()
 
+    def frames_for(self, execution_id=None, session_id=None) -> list:
+        """Raw frames for the exact execution (then session). A frame is
+        excluded only when it positively identifies as a DIFFERENT
+        execution/session; unattributed frames (chat_token carries no
+        execution id) are retained because session scoping already
+        isolates the turn. Index alignment with self.events is
+        positional."""
+        out = []
+        for (t, kind, raw), p in zip(self.events, self.parsed):
+            if session_id:
+                ps = p.get("session_id")
+                if ps not in (None, "", session_id):
+                    continue
+            if execution_id:
+                pe = p.get("execution_id")
+                if pe not in (None, "", execution_id):
+                    continue
+            out.append(raw)
+        return out
+
+    def text_for(self, execution_id=None, session_id=None) -> str:
+        """Assemble streamed text for the exact execution. When the
+        protocol emits a final completion event carrying the whole
+        content (chat_token_done), that content wins: replaying client
+        assembly semantics, concatenating raw chunks is not equivalent
+        where final-replacement events exist."""
+        frames = self.frames_for(execution_id=execution_id,
+                                 session_id=session_id)
+        done_content = None
+        for raw in frames:
+            try:
+                d = json.loads(raw)
+            except Exception:
+                continue
+            kind = str(d.get("type") or d.get("event") or "")
+            if "chat_token" in kind and "done" in kind:
+                content = (d.get("data") or {}).get("content")
+                if content:
+                    done_content = str(content)
+        if done_content is not None:
+            return done_content
+        text = ""
+        for raw in frames:
+            try:
+                d = json.loads(raw)
+            except Exception:
+                continue
+            kind = str(d.get("type") or d.get("event") or "")
+            if "chat_token" in kind and "done" not in kind:
+                delta = (d.get("data") or {}).get("delta") or d.get(
+                    "delta") or ""
+                text += str(delta)
+        return text
+
     async def stop(self) -> None:
         self._stop.set()
         if self._task:
@@ -1076,6 +1345,18 @@ class WSTap:
                 await asyncio.wait_for(self._task, timeout=3)
             except asyncio.TimeoutError:
                 self._task.cancel()
+
+    async def wait_ready(self) -> bool:
+        """Subscription readiness: the server subscribes the socket
+        synchronously inside connect(), so a SUCCESSFUL CONNECTION is the
+        handshake. Awaits the connection event (bounded) - correct when the
+        caller awaits before the tap task's first cycle."""
+        try:
+            await asyncio.wait_for(self.connected_event.wait(),
+                                   timeout=self.ready_timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
 
     def metrics(self) -> Dict[str, Any]:
         t0 = self.t_request or 0.0
@@ -2194,7 +2475,11 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.regrade:
         return regrade()
     world = BACKEND / "data" / "acceptance_worlds" / args.name
+    if args.gate and args.m1:
+        p.error("--gate refuses --m1: no second finalizer in production exports "
+                "(the overlay is retained only for labelled historical-baseline tests)")
     build_world.m1_overlay = bool(args.m1)
+    build_world.snapshot_working_tree = bool(args.snapshot_working_tree)
     if args.m1:
         args.rebuild_world = True  # the overlay changes the export; rebuild to apply coherently
     if args.rebuild_world or not (world / "MANIFEST.json").exists():
@@ -2203,7 +2488,8 @@ async def main_async(args: argparse.Namespace) -> int:
     pre = preflight(world)
     refresh_working_db(world)
     baseline_id = f"primary-{PINNED_REV[:10]}"  # dependency/m1 pins recorded per-run when introduced
-    print(f"[preflight] rev={pre['source_revision'][:10]} archive={pre['code_archive_sha256'][:10]} "
+    _ref = pre.get("code_archive_sha256") or pre.get("code_snapshot_sha256") or ""
+    print(f"[preflight] rev={pre['source_revision'][:10]} export={_ref[:10]} "
           f"db={pre['db_sha256'][:10]} scrubbed venv fixtures ok — working DB reset from fixture")
 
     cases_doc = json.loads((ACC / "cases.json").read_text())
@@ -2234,6 +2520,7 @@ async def main_async(args: argparse.Namespace) -> int:
         capture_path = world / "shim_requests.jsonl"
         shim_proc = launch_shim(FIXTURES / "provider_shim" / script_name, capture=capture_path)
     launch_server.m1 = bool(args.m1)
+    launch_server.gate = bool(args.gate)
     proc = launch_server(args.port, world, provider_shim=shim_mode)
     ok = True
     try:
@@ -2362,6 +2649,10 @@ def main() -> int:
     p.add_argument("--refreeze-db", action="store_true")
     p.add_argument("--selftest", action="store_true")
     p.add_argument("--collect", action="store_true")
+    p.add_argument("--snapshot-working-tree", action="store_true",
+                   help="export the LIVE working tree (uncommitted wiring) hash-pinned")
+    p.add_argument("--gate", action="store_true",
+                   help="set the M1/M2 finalization flags explicitly for the acceptance gate")
     p.add_argument("--m1", action="store_true",
                    help="overlay the M1 finalization seam onto the exported code and enable CHAT_FINALIZATION_M1")
     p.add_argument("--regrade", action="store_true",

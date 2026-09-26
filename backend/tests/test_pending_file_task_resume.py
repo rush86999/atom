@@ -1426,8 +1426,8 @@ async def test_acceptance_planner_and_narration_unavailable():
     for item in ("381", "U-22", "622", "SLE24-16", "GSL48-16",
                  "GSL24-16", "SLE16-8", "U-38"):
         assert item in msg, f"missing per-item outcome: {item}"
-    assert "1777" in msg and "8880" in msg
-    assert "materialized copy" in msg.lower() or "MATERIALIZED COPY" in msg
+    assert "1,777" in msg and "8,880" in msg  # readable formatting (pres-v2)
+    assert "saved copy" in msg.lower() or "materialized copy" in msg.lower()
     # Misses carry the honest scoped vocabulary (INCOMPLETE when the
     # fixture's coverage flags are partial, NOT FOUND otherwise) — never
     # a bare claim of absence from the workbook.
@@ -1524,7 +1524,7 @@ async def test_ask_turn_never_ships_fabricated_prices():
             "fab1", context={"agent_id": "a1"})
     assert result["success"] is True
     assert result.get("model") == "deterministic"
-    assert "8880" in result["message"], "the REAL workbook price must ship"
+    assert "8,880" in result["message"], "the REAL workbook price must ship"
     assert "5,850" not in result["message"], "fabricated values must not"
     orch.llm_service.generate_completion.assert_not_awaited()
 
@@ -1594,7 +1594,7 @@ async def test_non_price_fields_flow_through_the_same_pipeline():
     assert "R-15" in msg and "120" in msg and "21" in msg, (
         "requested non-price fields must ship from the matched row")
     assert "Spec Sheet 2025.xlsx" in msg
-    assert "MATERIALIZED COPY" in msg
+    assert "saved copy" in msg.lower()  # provenance (was MATERIALIZED COPY)
     # Field labels come from the schema (column headers), not price vocab.
     assert "Weight kg" in msg and "Lead Time days" in msg
 

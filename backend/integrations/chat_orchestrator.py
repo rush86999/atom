@@ -1818,6 +1818,58 @@ _CANVAS_ACTION_SHAPE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Continuation routing vocabulary (NLU-fallback layer — the established
+# place for routing keywords, same class as the fallback's own
+# find/search/where list). Presentation preferences ONLY; retrieval
+# operations come from the file-task classifier. Fail-closed: anything
+# unrecognized is not a continuation.
+_PRESENTATION_TABLE_RE = re.compile(
+    r"\b(?:as\s+a\s+table|in\s+a\s+table|tabular|tabulate|make\s+it\s+a\s+table)\b",
+    re.IGNORECASE,
+)
+_PRESENTATION_COMPACT_RE = re.compile(
+    r"\b(?:clean(?:er|est|ly)?|clean\s*up|readable|easier\s+to\s+read|"
+    r"concise|shorter|brief(?:er|ly)?|simplif\w*|tidy|tidier|neat(?:er)?|"
+    r"compact)\b",
+    re.IGNORECASE,
+)
+# Control verbs that end a line of work, never continue a delivery.
+_HALT_RE = re.compile(
+    r"\b(?:stop|cancel(?:ling)?|halt|hold\s+on|never\s*mind|forget\s+it)\b",
+    re.IGNORECASE,
+)
+# Field selection needs an explicit selection verb: a bare field word in
+# passing prose ("thanks for the quick delivery") is not a selection.
+_FIELD_SELECT_RE = re.compile(
+    r"\b(?:use|using|show|showing|display|prefer|switch(?:ing)?(?:\s+to)?|"
+    r"change(?:\s+to)?|give(?:\s+me)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _match_field_preference(text: str) -> Optional[str]:
+    """Longest known field phrase present in the turn (word-boundary,
+    token-subsequence match over the scan layer's field vocabulary).
+    Returns the matched phrase or None."""
+    try:
+        from core.workbook_read_artifact import _FIELD_ALIASES
+    except Exception:
+        return None
+    phrases: List[str] = []
+    for _group, _aliases in (_FIELD_ALIASES or {}).items():
+        phrases.extend(str(a) for a in (_aliases or []))
+    normed = re.sub(r"[^a-z0-9]+", " ", str(text or "").lower()).strip()
+    words = normed.split(" ")
+    for phrase in sorted(set(phrases), key=len, reverse=True):
+        ptoks = [w for w in re.sub(
+            r"[^a-z0-9]+", " ", phrase.lower()).split(" ") if w]
+        if not ptoks:
+            continue
+        for i in range(len(words) - len(ptoks) + 1):
+            if words[i:i + len(ptoks)] == ptoks:
+                return phrase
+    return None
+
 # Read/lookup shape for a file-data ask ("find the prices…", "what does the
 # workbook say about…").
 _FILE_READ_SHAPE_RE = re.compile(
@@ -2896,6 +2948,245 @@ def _canvas_id_from_context(context: Any) -> Optional[str]:
     return None
 
 
+def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
+    """The active objective's ordered items from the latest structured
+    file result carried on the session (memory only; DB reload path
+    stays untouched). Follow-up reads inherit these instead of
+    re-mining history; the producer still prefers the current turn's
+    own explicit items when it names any."""
+    try:
+        stored = ((session or {}).get("_pending_file_result") or {})
+        items = ((stored.get("structured_result") or {})
+                 .get("requested_items") or [])
+        return [str(v).strip() for v in items if str(v).strip()]
+    except Exception:
+        return []
+
+
+def _task_lifecycle_for(tenant_id: Any,
+                        workspace_id: Any) -> Optional[Any]:
+    """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
+
+    Returns None unless ``ATOM_TASK_LIFECYCLE_ENABLED=1``. Every failure
+    also returns None: lifecycle recording is best-effort and delivery
+    never depends on it. Callers wrap use in try/except regardless.
+    """
+    if os.getenv("ATOM_TASK_LIFECYCLE_ENABLED") != "1":
+        return None
+    try:
+        from core.database import get_db_session
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+
+        workspace = workspace_id or "default"
+        tenant = tenant_id or "default"
+        return TaskLifecycle(
+            GoalRunService(workspace_id=workspace, tenant_id=tenant,
+                           session_factory=get_db_session),
+            GoalService(workspace_id=workspace, tenant_id=tenant,
+                        session_factory=get_db_session),
+        )
+    except Exception as exc:  # noqa: BLE001 — best-effort only
+        logger.debug("task lifecycle unavailable: %r", exc)
+        return None
+
+
+def _canvas_edit_scope_validator(action: str, message: str,
+                                 context: Dict[str, Any]) -> bool:
+    """Approve widening a task's scope to ``edit`` for this turn.
+
+    Delegates to the turn's EXISTING edit-shape classifier rather than
+    inventing a second vocabulary of edit words — one notion of "this
+    message asks for a canvas change", already load-bearing across this
+    file. The lifecycle RUNS this; a caller asserting the validator's name
+    proves nothing on its own.
+    """
+    if action != "edit":
+        return False
+    if not str(message or "").strip():
+        return False
+    canvas = (context or {}).get("canvas")
+    try:
+        return bool(_canvas_edit_shaped(message, {"canvas": canvas or {}}))
+    except Exception as exc:  # noqa: BLE001 — a validator must not crash open
+        logger.warning("canvas edit scope validator failed closed: %r", exc)
+        return False
+
+
+# Registered at import so the lifecycle can resolve and RUN it. A name
+# that is not registered cannot approve anything.
+_tm = None
+try:
+    from core import task_lifecycle as _tm
+except Exception as _tm_import_error:  # noqa: BLE001
+    logger.debug("task lifecycle import deferred: %r", _tm_import_error)
+
+if _tm is not None:
+    _tm.register_scope_validator("chat_orchestrator.canvas_edit_lane")(
+        _canvas_edit_scope_validator)
+
+
+def _begin_task_edit(tenant_id: Any, workspace_id: Any,
+                     session: Optional[Dict[str, Any]],
+                     session_id: Optional[str], message: str,
+                     execution_id: Optional[str],
+                     canvas_ctx: Optional[Dict[str, Any]] = None,
+                     ) -> dict:
+    """Flag-gated pre-execution reservation for a canvas edit.
+
+    Returns a decision dict with ``status``:
+
+    * ``reserved``   — ``(run_id, operation_id)`` are set; mutate.
+    * ``denied``     — authorization refused (cancelled/revoked task, or
+      a scope that does not name ``edit`` and cannot be widened). The
+      mutation must not happen.
+    * ``unavailable`` — persistence failed. The mutation must not happen
+      either, but the reason is DIFFERENT and must stay distinguishable:
+      this is an infrastructure fault, not a policy decision, and the two
+      are reported separately rather than collapsed.
+
+    A flag-off world returns ``legacy`` so the lane behaves exactly as it
+    did before the lifecycle existed.
+    """
+    legacy = {"status": "legacy", "run_id": None, "operation_id": None,
+              "reason": None}
+    try:
+        from core import task_lifecycle as _tlm
+
+        denial_error = _tlm.TaskAuthorizationError
+        claimed_error = _tlm.OperationExecutionClaimed
+    except Exception as exc:  # noqa: BLE001 — module unavailable
+        logger.warning(
+            "task lifecycle unavailable — edit blocked: %r", exc)
+        return {"status": "unavailable", "run_id": None,
+                "operation_id": None, "reason": f"{type(exc).__name__}: {exc}"}
+    try:
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return legacy
+        # The user's OWN text is the grant evidence; the registered
+        # validator (not a label) decides whether that text asks for a
+        # canvas change, and the grant is persisted before execution.
+        run_id, operation_id = _tlm.begin_edit_turn(
+            lifecycle, session if isinstance(session, dict) else {},
+            session_id or "", message, execution_id,
+            idempotency_key=execution_id,
+            scope_grant={
+                "granted_by_message": message,
+                "validator": "chat_orchestrator.canvas_edit_lane",
+                "context": {"canvas": canvas_ctx},
+            })
+        return {"status": "reserved", "run_id": run_id,
+                "operation_id": operation_id, "reason": None}
+    except claimed_error as claimed:
+        # Another caller holds this effect. The record is singular; the
+        # loser must wait or replay, never mutate as well.
+        logger.info("task lifecycle: edit already claimed: %s", claimed)
+        return {"status": "already_claimed", "run_id": None,
+                "operation_id": None, "reason": str(claimed)}
+    except denial_error as denial:
+        logger.info("task lifecycle denied canvas edit: %s", denial)
+        return {"status": "denied", "run_id": None, "operation_id": None,
+                "reason": str(denial)}
+    except Exception as exc:  # noqa: BLE001 — denial on any failure
+        logger.warning(
+            "task edit reservation failed — edit blocked: %r", exc)
+        return {"status": "unavailable", "run_id": None,
+                "operation_id": None, "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _finish_task_edit(tenant_id: Any, workspace_id: Any,
+                      session: Optional[Dict[str, Any]],
+                      session_id: Optional[str], message: str,
+                      execution_id: Optional[str],
+                      edit_data: Optional[Dict[str, Any]],
+                      success: bool,
+                      reserved: Optional[dict] = None,
+                      canvas_ctx: Optional[Dict[str, Any]] = None
+                      ) -> Optional[str]:
+    """Flag-gated settlement of a canvas edit (Step 2 wiring).
+
+    When the lane reserved an operation before mutating, that reservation
+    is settled here; otherwise the retrospective recorder runs (the
+    compatibility path for callers that never reserved). Maps the lane's
+    outcome shape to operation statuses; declined edits record nothing.
+    Never raises: lifecycle recording is best-effort after the fact, and
+    delivery never depends on it.
+    """
+    try:
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return None
+        from core import task_lifecycle as _tlm
+
+        edit_data = edit_data or {}
+        outcome = {
+            "updated": bool(edit_data.get("updated")),
+            "needs_review": bool(edit_data.get("learning_mode"))
+            or edit_data.get("review_status") == "pending_review",
+            "success": bool(success),
+        }
+        reservation = reserved or {}
+        run_id = reservation.get("run_id")
+        operation_id = reservation.get("operation_id")
+        if run_id and operation_id:
+            return _tlm.finish_edit_turn(
+                lifecycle, run_id, operation_id, execution_id, **outcome)
+        # Compatibility path (nothing was reserved): this lane has already
+        # judged the turn to be an edit request, so it presents the user's
+        # own text as the grant and names itself as the validator.
+        return _tlm.record_edit_turn(
+            lifecycle, session if isinstance(session, dict) else {},
+            session_id or "", message, execution_id,
+            scope_grant={
+                "granted_by_message": message,
+                "validator": "chat_orchestrator.canvas_edit_lane",
+                "context": {"canvas": canvas_ctx},
+            },
+            **outcome)
+    except Exception as exc:  # noqa: BLE001 — best-effort only
+        logger.debug("task edit record skipped: %r", exc)
+        return None
+
+
+class _ForcedTurnFailure(Exception):
+    """Isolated-acceptance fault injection (never production traffic).
+
+    Raised AFTER the provisional answer is persisted so the failure
+    path (execution failed -> M1 transform -> M2 rewrite + pin sync)
+    can be proven against captured pre/post text. Armed ONLY by
+    ATOM_TEST_FORCE_TURN_FAILURE=1 plus a [force-fail] turn marker.
+    """
+
+    def __init__(self, provisional: str = ""):
+        super().__init__(
+            "forced turn failure after render: " + str(provisional or "")[:200])
+        self.provisional = provisional or ""
+
+
+def _maybe_force_turn_failure(session: Optional[Dict[str, Any]],
+                              execution_id: Optional[str],
+                              provisional: str,
+                              message: Optional[str] = None,
+                              context: Optional[Dict[str, Any]] = None) -> None:
+    if os.getenv("ATOM_TEST_FORCE_TURN_FAILURE") != "1":
+        return
+    armed = "[force-fail]" in str(message or "") or bool(
+        (context or {}).get("test_force_fail"))
+    if not armed:
+        return
+    try:
+        if isinstance(session, dict):
+            # The provisional row already stands as this turn's row; the
+            # outer handler must not append a second error row for the
+            # same execution (exact binding requires one row per turn).
+            session["_provisional_persisted_for"] = execution_id
+    except Exception:
+        pass
+    raise _ForcedTurnFailure(provisional)
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -3891,6 +4182,36 @@ class ChatOrchestrator:
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
             try:
+                # TASK LIFECYCLE (Step 1, flag-gated): resolve the
+                # conversation's active task at turn entry so every lane
+                # below shares one record instead of re-resolving it. A
+                # halt-shaped turn ends the line of work: the active task
+                # transitions to cancelled (completed work is reported,
+                # outstanding work marked) and later retrieval starts a
+                # new task rather than appending to the stopped one.
+                _tl_entry = _task_lifecycle_for(
+                    getattr(self, "tenant_id", None),
+                    (context or {}).get("workspace_id"))
+                if _tl_entry is not None and isinstance(session, dict):
+                    _tl_record = None
+                    _tl_known = session.get("_task_run_id")
+                    if _tl_known:
+                        try:
+                            _tl_record = _tl_entry.get_task(_tl_known)
+                        except Exception:
+                            _tl_record = None
+                    if _tl_record is None:
+                        _tl_record = _tl_entry.find_active_task(session_id)
+                    if _tl_record is not None:
+                        session["_task_run_id"] = _tl_record["run_id"]
+                    if _HALT_RE.search(message or ""):
+                        from core import task_lifecycle as _tlm
+
+                        _tlm.cancel_task(
+                            _tl_entry, session, session_id, message)
+            except Exception as _tl_err:  # noqa: BLE001 — best-effort only
+                logger.debug("task lifecycle resolve skipped: %r", _tl_err)
+            try:
                 from core.pending_file_task import (
                     FILE_TASK_SESSION_KEY,
                     supersedes_pending_task,
@@ -4138,12 +4459,27 @@ class ChatOrchestrator:
 
                     _new_substantive = _is_substantive_request(message)
                     # RE-DELIVERY vs RE-RETRIEVAL (2026-09-24 review): a
-                    # bare approval may re-render the persisted result;
+                    # bare approval may re-serve the persisted result;
                     # "search again"/"refresh"/"check the latest version"
                     # is a NEW retrieval — it bypasses the cached copy and
                     # re-runs the file-scoped reader (the matching path
                     # re-opens a terminal task for refresh requests).
                     _refresh_request = is_retrieval_refresh_request(message)
+                    # CONTINUATION (work order Step 2): the NLU routing
+                    # layer resolves retrieval operation + presentation
+                    # preference as two independent fields BEFORE this
+                    # branch (no plan exists yet here; confident plan
+                    # fields win downstream). No speculative retrieval
+                    # starts while deciding — this verdict is pure text.
+                    _continuation = self._continuation_decision(message)
+                    _format_request = (
+                        _continuation is not None
+                        and _continuation.get("retrieval") == "none"
+                        and not _refresh_request
+                        and not _canvas_edit_shaped(message, context)
+                        and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
+                        and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
+                    )
                     _delivery_retry = (
                         (is_filename_confirmation(message)
                          or not _new_substantive)
@@ -4151,40 +4487,202 @@ class ChatOrchestrator:
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
-                if _delivery_retry:
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
-
-                        _deliver_content = _user_facing_workbook_answer(
-                            str(_pfr["rendered"]))
-                    except Exception:  # noqa: BLE001 — renderer optional
-                        _deliver_content = str(_pfr["rendered"])
+                    _continuation = None
+                    _format_request = False
+                if _format_request or _delivery_retry:
+                    _pfr_structured = _pfr.get("structured_result")
+                    if not isinstance(_pfr_structured, dict):
+                        _pfr_structured = None
+                    # None unless the formatting path below records a new
+                    # delivery on the task (transport retries record
+                    # nothing new by design).
+                    _tl_fmt_recorded = None
+                    # Objective comparison evidence rides both re-delivery
+                    # shapes (preserved from the pre-wiring path — a
+                    # comparison turn keeps its comparison block).
                     _objective_retry = _pfr.get("objective_evidence")
+                    _comparison_retry = ""
                     if isinstance(_objective_retry, dict):
                         try:
                             from core.workbook_read_artifact import (
                                 render_source_comparison,
                             )
 
-                            _comparison_retry = render_source_comparison(
-                                _objective_retry
+                            _comparison_retry = (
+                                render_source_comparison(_objective_retry)
+                                or ""
                             )
+                        except Exception:
+                            _comparison_retry = ""
+                    if _format_request and _pfr_structured is not None:
+                        # FORMATTING FOLLOW-UP (work order Step 2): a NEW
+                        # turn and delivery rendered from existing evidence
+                        # — zero retrieval calls. The routing decision's
+                        # presentation preference visibly changes the
+                        # rendering (compact/table/field); the new delivery
+                        # gets its own pin while history rows keep theirs.
+                        # serve_on_transport_retry is NEVER consulted here:
+                        # transport identity belongs to the keyed request
+                        # contract, not to conversation redelivery.
+                        from core.answer_presentation import (
+                            mark_delivered,
+                            present_from_record,
+                            set_presentation_intent,
+                        )
+                        from core.invocation_events import (
+                            RENDER as _RENDER_KIND,
+                        )
+                        from core.invocation_events import (
+                            Timer as _Timer,
+                        )
+                        from core.invocation_events import (
+                            record as _record_event,
+                        )
+
+                        _fmt_presentation = (
+                            (_continuation or {}).get("presentation") or {})
+                        _pres_action = set_presentation_intent(
+                            _pfr_structured,
+                            {"action": "re-render",
+                             "requested_message": str(message or "")[:200],
+                             "style": _fmt_presentation.get("style")
+                             or "default",
+                             "field": _fmt_presentation.get("field")},
+                        )
+                        _render_timer = _Timer()
+                        try:
+                            _re_rendered = present_from_record(
+                                _pfr_structured,
+                                presentation_action=_pres_action,
+                            )
+                            _re_core = str(
+                                _re_rendered.get("answer") or "")
+                            if not _re_core:
+                                raise ValueError("empty re-render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_pfr_structured.get("attempt_id"),
+                                evidence_revision=_pfr_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                        except Exception:
+                            _re_core = ""
+                        if not _re_core:
+                            _re_core = str(_pfr.get("rendered") or "")
+                        _deliver_content = _re_core
+                        if _comparison_retry and (
+                                _comparison_retry not in _deliver_content):
+                            _deliver_content += f"\n\n{_comparison_retry}"
+                        # TASK LIFECYCLE (milestone: controls delivery):
+                        # record BEFORE mutating anything. When the flag is
+                        # on and recording fails, the previous delivery is
+                        # preserved byte-for-byte with its original pin —
+                        # the turn must not claim a durable new delivery.
+                        _tl_fmt_previous = str(_pfr.get("rendered") or "")
+                        _tl_fmt_lifecycle = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None),
+                            (context or {}).get("workspace_id"))
+                        if _tl_fmt_lifecycle is not None:
+                            try:
+                                # A selected field additionally narrows the
+                                # requested fields so later renders
+                                # re-select from retained evidence instead
+                                # of re-reading.
+                                from core import task_lifecycle as _tlm
+                                _tl_field = (_fmt_presentation or {}).get(
+                                    "field")
+                                _tlm.record_presentation_turn(
+                                    _tl_fmt_lifecycle, session, session_id,
+                                    message,
+                                    (_fmt_presentation or {}).get("style")
+                                    or "default",
+                                    _tl_field,
+                                    requested_fields=[_tl_field]
+                                    if _tl_field else None)
+                                _tl_fmt_recorded = True
+                            except Exception as _tl_err:  # noqa: BLE001
+                                logger.warning(
+                                    "task lifecycle record failed — "
+                                    "previous delivery preserved: %r",
+                                    _tl_err)
+                                _tl_fmt_recorded = False
+                        if _tl_fmt_recorded is False:
+                            _deliver_content = _tl_fmt_previous
+                            _deliver_action_summary = None
+                        else:
+                            _pfr["status"] = "delivered"
+                            _pfr["delivered_at"] = time.time()
+                            _pfr["presentation_action"] = _pres_action
+                            _pfr["rendered_core"] = _re_core[:24000]
+                            try:
+                                _pfr = mark_delivered(
+                                    _pfr, _deliver_content[:24000])
+                            except Exception:  # noqa: BLE001 — pin optional
+                                _pfr["delivery_pin"] = {
+                                    "delivered_text":
+                                        _deliver_content[:24000]}
+                            _pfr["rendered"] = _deliver_content[:24000]
+                            session["_pending_file_result"] = _pfr
+                            _deliver_action_summary = {
+                            k: _pres_action.get(k) for k in (
+                                "action",
+                                "references_attempt_id",
+                                "references_evidence_revision",
+                                "created_at")
+                        }
+                    else:
+                        # TRANSPORT RETRY: the pinned delivered answer goes
+                        # back verbatim — no retrieval, no re-rendering (a
+                        # renderer upgrade must never rewrite history).
+                        _pinned = None
+                        try:
+                            from core.answer_presentation import (
+                                mark_delivered,
+                                serve_on_transport_retry,
+                            )
+
+                            _pinned = serve_on_transport_retry(_pfr)
+                        except Exception:  # noqa: BLE001 — pin optional
+                            _pinned = None
+                        if _pinned and not _comparison_retry:
+                            _deliver_content = _pinned
+                        else:
+                            try:
+                                from core.chat_tool_planner import (
+                                    _user_facing_workbook_answer,
+                                )
+
+                                _deliver_content = (
+                                    _user_facing_workbook_answer(
+                                        str(_pfr["rendered"])))
+                            except Exception:  # noqa: BLE001
+                                _deliver_content = str(_pfr["rendered"])
                             if _comparison_retry:
                                 _deliver_content += (
                                     f"\n\n{_comparison_retry}"
                                 )
-                        except Exception:
-                            pass
-                    _deliver_content += (
-                        "\n\n(Delivered from the persisted scan result — "
-                        "re-rendered without re-reading the file; the "
-                        "narration model was not used.)"
-                    )
-                    _pfr["status"] = "delivered"
-                    _pfr["delivered_at"] = time.time()
-                    session["_pending_file_result"] = _pfr
+                            _deliver_content += (
+                                "\n\n(Delivered from the persisted scan "
+                                "result — re-rendered without re-reading "
+                                "the file; the narration model was not used.)"
+                            )
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark,
+                                )
+
+                                _pfr = _mark(
+                                    _pfr, _deliver_content[:24000])
+                            except Exception:  # noqa: BLE001
+                                pass
+                            _pfr["rendered"] = _deliver_content[:24000]
+                        _pfr["status"] = "delivered"
+                        _pfr["delivered_at"] = time.time()
+                        session["_pending_file_result"] = _pfr
+                        _deliver_action_summary = None
                     _task_row = session.get(FILE_TASK_SESSION_KEY)
                     if isinstance(_task_row, dict):
                         session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
@@ -4193,6 +4691,7 @@ class ChatOrchestrator:
                         "success": True,
                         "message": _deliver_content,
                         "session_id": session_id,
+                        "execution_id": _execution_id,
                         "intent": "search",
                         "confidence": 0.9,
                         "model": "deterministic",
@@ -4202,6 +4701,9 @@ class ChatOrchestrator:
                             "file_identity": _pfr.get("identity"),
                             "objective_evidence": _objective_retry
                             if isinstance(_objective_retry, dict) else None,
+                            "presentation_action": _deliver_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_recorded": _tl_fmt_recorded,
                         },
                         "requires_confirmation": False,
                         "next_steps": [],
@@ -4264,6 +4766,12 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
+                _ask_active = _stored_requested_items(session)
+                if _ask_active:
+                    # Active-objective inheritance for vague follow-up
+                    # asks; the producer still prefers the turn's own
+                    # explicit items and never unions history.
+                    _ask_task["requested_targets"] = _ask_active
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -4299,27 +4807,162 @@ class ChatOrchestrator:
                             "resolved_file"):
                         _ask_task["resolved_file"] = _stored_ctx[
                             "resolved_file"]
+                _tl_begin = (None, None)
+                _tl_lifecycle = _task_lifecycle_for(
+                    getattr(self, "tenant_id", None),
+                    (context or {}).get("workspace_id"))
+                if _tl_lifecycle is not None:
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # persist the retrieval INTENTION before execution.
+                        # A failure between here and the settle below
+                        # leaves a durable pending operation with zero
+                        # tool effects.
+                        from core import task_lifecycle as _tlm
+                        _tl_begin = _tlm.begin_retrieval_turn(
+                            _tl_lifecycle, session, session_id, message,
+                            _execution_id,
+                            items=list(
+                                _ask_task.get("requested_targets") or []))
+                    except Exception as _tl_err:  # noqa: BLE001
+                        # FAIL-CLOSED: the operation could not be
+                        # recorded, so the read does not run. No tool
+                        # effects; the failure is reported honestly.
+                        logger.warning(
+                            "task lifecycle begin failed — read blocked: "
+                            "%r", _tl_err)
+                        _tl_blocked_reason = (
+                            "its operation could not be recorded on the "
+                            "task, so the read did not run")
+                        _tl_blocked_response = {
+                            "success": False,
+                            "message": (
+                                "I couldn't start this lookup safely: "
+                                + _tl_blocked_reason + ". Nothing was "
+                                "retrieved and nothing changed. You can "
+                                "retry the request."),
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "search",
+                            "confidence": 0.9,
+                            "data": {
+                                "deterministic_delivery": False,
+                                "blocked_reason": "operation_not_recorded",
+                                "task_run_id": session.get("_task_run_id"),
+                                "task_operation": None,
+                                "reconciliation_required": False,
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": [],
+                        }
+                        self._update_session(
+                            session, message, _tl_blocked_response,
+                            {"primary_intent": "search", "confidence": 0.9})
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            "failed")
+                        self._finish_chat_execution(
+                            _execution_id,
+                            "failed",
+                            "task operation could not be recorded; "
+                            "read blocked",
+                            session=session,
+                            message=message,
+                            response=_tl_blocked_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=[],
+                        )
+                        return _tl_blocked_response
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
                     (context or {}).get("workspace_id"), _deadline,
-                    canvas=_canvas_ctx)
+                    canvas=_canvas_ctx, execution_id=_execution_id,
+                    request_id=(context or {}).get("request_id"))
                 if _ask_result.get("ok"):
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
+                    _ask_structured = _ask_result.get("structured_result")
+                    _ask_action_summary = None
+                    _ask_full_action = None
+                    if isinstance(_ask_structured, dict):
+                        # ARTIFACT-NATIVE (structured renderer is the one
+                        # presentation path); legacy text-only results fall
+                        # through to the compatibility cleaner below.
+                        try:
+                            from core.answer_presentation import (
+                                present_from_record,
+                                set_presentation_intent,
+                            )
+                            from core.invocation_events import (
+                                RENDER as _RENDER_KIND,
+                            )
+                            from core.invocation_events import (
+                                Timer as _Timer,
+                            )
+                            from core.invocation_events import (
+                                record as _record_event,
+                            )
 
-                        _ask_content = _user_facing_workbook_answer(
-                            str(_ask_result.get("rendered_answer")
-                                or _ask_result.get("block") or ""))
-                    except Exception:  # noqa: BLE001 — renderer optional
-                        _ask_content = str(
-                            _ask_result.get("rendered_answer")
-                            or _ask_result.get("block") or "")
+                            _ask_action = set_presentation_intent(
+                                _ask_structured,
+                                {"action": "render",
+                                 "requested_message": str(
+                                     _ask_task.get("original_message")
+                                     or "")[:200]},
+                            )
+                            _render_timer = _Timer()
+                            _ask_content = str(
+                                present_from_record(
+                                    _ask_structured,
+                                    presentation_action=_ask_action,
+                                ).get("answer") or "")
+                            if not _ask_content:
+                                raise ValueError("empty structured render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_ask_structured.get("attempt_id"),
+                                evidence_revision=_ask_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                            _ask_full_action = _ask_action
+                            _ask_action_summary = {
+                                k: _ask_action.get(k) for k in (
+                                    "action",
+                                    "references_attempt_id",
+                                    "references_evidence_revision",
+                                    "created_at")
+                            }
+                        except Exception:  # noqa: BLE001 — compat fallback
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _ask_content = _user_facing_workbook_answer(
+                                str(_ask_result.get("rendered_answer")
+                                    or _ask_result.get("block") or ""))
+                    else:
+                        try:
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _ask_content = _user_facing_workbook_answer(
+                                str(_ask_result.get("rendered_answer")
+                                    or _ask_result.get("block") or ""))
+                        except Exception:  # noqa: BLE001 — renderer optional
+                            _ask_content = str(
+                                _ask_result.get("rendered_answer")
+                                or _ask_result.get("block") or "")
                     # REFRESH verdict rides the ask-turn answer too — a
                     # version request served by the ask lane ships the
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
+                    _ask_core = _ask_content
                     if _ask_freshness.get("note"):
                         _ask_content = (
                             _ask_content + str(_ask_freshness["note"]))
@@ -4337,12 +4980,87 @@ class ChatOrchestrator:
                         "target_extraction_version":
                             _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _ask_content[:24000],
+                        "rendered_core": _ask_core[:24000],
+                        "presentation_action": _ask_full_action,
                         "identity": _ask_identity,
                         "execution_id": _execution_id,
                         "coverage_complete": _ask_complete,
                         "retrieved_at": time.time(),
+                        "structured_result": _ask_structured
+                        if isinstance(_ask_structured, dict) else None,
+                        "attempt_id": (_ask_structured or {}).get("attempt_id")
+                        if isinstance(_ask_structured, dict) else None,
+                        "evidence_revision": (
+                            _ask_structured or {}).get("evidence_revision")
+                        if isinstance(_ask_structured, dict) else None,
+                        "evidence_action": (
+                            _ask_structured or {}).get("evidence_action")
+                        if isinstance(_ask_structured, dict) else None,
                     }
+                    try:
+                        # PIN-AFTER-FINALIZATION: the pinned text is the
+                        # message as actually delivered (freshness verdict
+                        # included); the M1 finalizer leaves success
+                        # deliveries untouched and M2 persists the same
+                        # text, so this pin matches HTTP, history, reload.
+                        from core.answer_presentation import mark_delivered
+
+                        _ask_result_row = mark_delivered(
+                            _ask_result_row, _ask_content[:24000])
+                    except Exception:  # noqa: BLE001 — pin optional
+                        pass
                     session["_pending_file_result"] = _ask_result_row
+                    _tl_outcome_uncertain = False
+                    _tl_operation_ref = None
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # settle the begun retrieval — running→applied with
+                        # observed evidence, or running when incomplete.
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            from core import task_lifecycle as _tlm
+                            _tlm.finish_retrieval_turn(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                _ask_structured if isinstance(
+                                    _ask_structured, dict) else {},
+                                _execution_id, _ask_complete)
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                    except Exception as _tl_err:  # noqa: BLE001
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            # FAIL-CLOSED on recording: the observed answer
+                            # is kept, but its outcome is explicitly
+                            # uncertain — retained for reconciliation via
+                            # the operation identity, never re-read.
+                            logger.warning(
+                                "task lifecycle settle failed — uncertain "
+                                "delivery retained: %r", _tl_err)
+                            _tl_outcome_uncertain = True
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                            _ask_content += (
+                                "\n\nNote: this answer could not be "
+                                "recorded on the task "
+                                f"(operation {_tl_begin[1]}); it is "
+                                "retained for reconciliation and the "
+                                "lookup will not be repeated automatically.")
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark_uncertain,
+                                )
+
+                                _ask_result_row = _mark_uncertain(
+                                    _ask_result_row, _ask_content[:24000])
+                                session["_pending_file_result"] = (
+                                    _ask_result_row)
+                            except Exception:
+                                pass
+                        else:
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
                     if not _ask_complete:
                         from core.pending_file_task import (
                             FILE_TASK_SESSION_KEY,
@@ -4368,6 +5086,10 @@ class ChatOrchestrator:
                             "coverage_complete": _ask_complete,
                             "resumable": not _ask_complete,
                             "freshness": _ask_freshness.get("status") or None,
+                            "presentation_action": _ask_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_operation": _tl_operation_ref,
+                            "reconciliation_required": _tl_outcome_uncertain,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4378,6 +5100,12 @@ class ChatOrchestrator:
                     self._update_session(
                         session, message, _ask_response,
                         {"primary_intent": "search", "confidence": 0.9})
+                    # Isolated fault injection (env + marker gated): fail
+                    # AFTER the provisional delivery persists, so the
+                    # failure path is provable against captured pre/post.
+                    _maybe_force_turn_failure(
+                        session, _execution_id, _ask_content, message,
+                        context)
                     if _ask_complete:
                         _ask_result_row["status"] = "delivered"
                         _ask_result_row["delivered_at"] = time.time()
@@ -4414,35 +5142,205 @@ class ChatOrchestrator:
                         "reason": "objective requires source comparison",
                     }
                 else:
-                    _direct_result = await self._direct_confirmed_file_read(
-                        _pending_file_task,
-                        history,
-                        user_id,
-                        session_id,
-                        (context or {}).get("workspace_id"),
-                        _deadline,
-                        canvas=_canvas_ctx,
-                    )
+                            _direct_task = _pending_file_task
+                            _direct_active = _stored_requested_items(session)
+                            _direct_presentation = None
+                            try:
+                                _direct_decision = (
+                                    self._continuation_decision(message))
+                                if (_direct_decision is not None
+                                        and _direct_decision.get("retrieval")
+                                        in ("rerun", "refresh")):
+                                    # Compound re-search: both intents ride
+                                    # the fresh attempt (new retrieval +
+                                    # requested presentation of its result).
+                                    _direct_presentation = (
+                                        _direct_decision.get("presentation")
+                                        or {})
+                            except Exception:
+                                _direct_presentation = None
+                            if _direct_active and isinstance(_direct_task, dict):
+                                # The stored objective's ordered items ride the
+                                # read; the producer inherits them for vague
+                                # follow-ups and never unions history.
+                                _direct_task = dict(
+                                    _direct_task,
+                                    requested_targets=_direct_active,
+                                )
+                            _tl_begin = (None, None)
+                            _tl_lifecycle = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None),
+                                (context or {}).get("workspace_id"))
+                            if _tl_lifecycle is not None:
+                                try:
+                                    # TASK LIFECYCLE (milestone: controls
+                                    # execution): persist the retrieval
+                                    # INTENTION before execution (durable
+                                    # pending operation on pre-execution
+                                    # failure, zero tool effects).
+                                    from core import task_lifecycle as _tlm
+                                    _tl_begin = _tlm.begin_retrieval_turn(
+                                        _tl_lifecycle, session, session_id,
+                                        message, _execution_id,
+                                        items=list(
+                                            (_direct_task or {}).get(
+                                                "requested_targets") or []))
+                                except Exception as _tl_err:  # noqa: BLE001
+                                    # FAIL-CLOSED: the operation could not
+                                    # be recorded, so the read does not run.
+                                    logger.warning(
+                                        "task lifecycle begin failed — read "
+                                        "blocked: %r", _tl_err)
+                                    _tl_blocked_response = {
+                                        "success": False,
+                                        "message": (
+                                            "I couldn't resume this lookup "
+                                            "safely: its operation could not "
+                                            "be recorded on the task, so the "
+                                            "read did not run. Nothing was "
+                                            "retrieved and nothing changed. "
+                                            "You can retry the request."),
+                                        "session_id": session_id,
+                                        "execution_id": _execution_id,
+                                        "intent": "search",
+                                        "confidence": 0.9,
+                                        "data": {
+                                            "deterministic_delivery": False,
+                                            "blocked_reason":
+                                                "operation_not_recorded",
+                                            "task_run_id": session.get(
+                                                "_task_run_id"),
+                                            "task_operation": None,
+                                            "reconciliation_required": False,
+                                        },
+                                        "model": "deterministic",
+                                        "provider": "structured",
+                                        "requires_confirmation": False,
+                                        "next_steps": [],
+                                        "suggested_actions": [],
+                                    }
+                                    self._update_session(
+                                        session, message,
+                                        _tl_blocked_response,
+                                        {"primary_intent": "search",
+                                         "confidence": 0.9})
+                                    await self._emit_agent_status(
+                                        session_id, _trace_agent_id,
+                                        _execution_id, "failed")
+                                    self._finish_chat_execution(
+                                        _execution_id,
+                                        "failed",
+                                        "task operation could not be "
+                                        "recorded; read blocked",
+                                        session=session,
+                                        message=message,
+                                        response=_tl_blocked_response,
+                                        deadline=_deadline,
+                                        pending_task=session.get(
+                                            "_pending_file_task"),
+                                        authorized_actions=[],
+                                    )
+                                    return _tl_blocked_response
+                            _direct_result = await self._direct_confirmed_file_read(
+                                _direct_task,
+                                history,
+                                user_id,
+                                session_id,
+                                (context or {}).get("workspace_id"),
+                                _deadline,
+                                canvas=_canvas_ctx,
+                                execution_id=_execution_id,
+                                request_id=(context or {}).get("request_id"),
+                            )
                 if _direct_result.get("ok"):
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
+                    _direct_structured = _direct_result.get("structured_result")
+                    _direct_full_action = None
+                    _direct_action_summary = None
+                    if isinstance(_direct_structured, dict):
+                        # ARTIFACT-NATIVE (one presentation path);
+                        # text-only results use the compat cleaner below.
+                        try:
+                            from core.answer_presentation import (
+                                present_from_record,
+                                set_presentation_intent,
+                            )
+                            from core.invocation_events import (
+                                RENDER as _RENDER_KIND,
+                            )
+                            from core.invocation_events import (
+                                Timer as _Timer,
+                            )
+                            from core.invocation_events import (
+                                record as _record_event,
+                            )
 
-                        _direct_content = _user_facing_workbook_answer(
-                            str(_direct_result.get("rendered_answer")
-                                or _direct_result.get("block") or "")
-                        )
-                    except Exception:
-                        _direct_content = str(
-                            _direct_result.get("rendered_answer")
-                            or _direct_result.get("block") or ""
-                        )
+                            _direct_action = set_presentation_intent(
+                                _direct_structured,
+                                {"action": "render",
+                                 "requested_message": str(
+                                     (_pending_file_task or {}).get(
+                                         "original_message") or message
+                                     or "")[:200],
+                                 "style": (_direct_presentation or {}).get(
+                                     "style") or "default",
+                                 "field": (_direct_presentation or {}).get(
+                                     "field")},
+                            )
+                            _render_timer = _Timer()
+                            _direct_content = str(
+                                present_from_record(
+                                    _direct_structured,
+                                    presentation_action=_direct_action,
+                                ).get("answer") or "")
+                            if not _direct_content:
+                                raise ValueError("empty structured render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_direct_structured.get("attempt_id"),
+                                evidence_revision=_direct_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                            _direct_full_action = _direct_action
+                            _direct_action_summary = {
+                                k: _direct_action.get(k) for k in (
+                                    "action",
+                                    "references_attempt_id",
+                                    "references_evidence_revision",
+                                    "created_at")
+                            }
+                        except Exception:  # noqa: BLE001 — compat fallback
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _direct_content = _user_facing_workbook_answer(
+                                str(_direct_result.get("rendered_answer")
+                                    or _direct_result.get("block") or "")
+                            )
+                    else:
+                        try:
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _direct_content = _user_facing_workbook_answer(
+                                str(_direct_result.get("rendered_answer")
+                                    or _direct_result.get("block") or "")
+                            )
+                        except Exception:
+                            _direct_content = str(
+                                _direct_result.get("rendered_answer")
+                                or _direct_result.get("block") or ""
+                            )
                     # REFRESH verdict (2026-09-24 review round 3): a
                     # source-freshness request ships its verdict with the
                     # answer — refreshed, failed, or unverified — so an
                     # old copy can never pass as current.
                     _freshness = _direct_result.get("freshness") or {}
+                    _direct_core = _direct_content
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
@@ -4461,7 +5359,11 @@ class ChatOrchestrator:
                         "status": (
                             "retrieved" if _direct_complete
                             else "incomplete"),
+                        "target_extraction_version":
+                            _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _direct_content[:24000],
+                        "rendered_core": _direct_core[:24000],
+                        "presentation_action": _direct_full_action,
                         "identity": _direct_identity,
                         "workbook_read": (
                             _direct_result.get("meta") or {}
@@ -4472,7 +5374,28 @@ class ChatOrchestrator:
                         "freshness": _freshness.get("status") or None,
                         "execution_id": _execution_id,
                         "retrieved_at": time.time(),
+                        "structured_result": _direct_structured
+                        if isinstance(_direct_structured, dict) else None,
+                        "attempt_id": (_direct_structured or {}).get(
+                            "attempt_id")
+                        if isinstance(_direct_structured, dict) else None,
+                        "evidence_revision": (
+                            _direct_structured or {}).get("evidence_revision")
+                        if isinstance(_direct_structured, dict) else None,
+                        "evidence_action": (
+                            _direct_structured or {}).get("evidence_action")
+                        if isinstance(_direct_structured, dict) else None,
                     }
+                    try:
+                        # PIN-AFTER-FINALIZATION (as the ask lane): the
+                        # pinned text is the delivered message including
+                        # its freshness verdict.
+                        from core.answer_presentation import mark_delivered
+
+                        _direct_result_row = mark_delivered(
+                            _direct_result_row, _direct_content[:24000])
+                    except Exception:  # noqa: BLE001 — pin optional
+                        pass
                     # LAST-KNOWN-GOOD PRESERVATION (review round 5): a
                     # refresh that did NOT actually refresh (stale index,
                     # failed, unverified) must not erase the previously
@@ -4491,6 +5414,57 @@ class ChatOrchestrator:
                             _direct_result_row["previous_status"] = (
                                 _prior_row.get("status"))
                     session["_pending_file_result"] = _direct_result_row
+                    _tl_outcome_uncertain = False
+                    _tl_operation_ref = None
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # settle the begun retrieval with the observed
+                        # outcome.
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            from core import task_lifecycle as _tlm
+                            _tlm.finish_retrieval_turn(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                _direct_structured if isinstance(
+                                    _direct_structured, dict) else {},
+                                _execution_id, _direct_complete)
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                    except Exception as _tl_err:  # noqa: BLE001
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            # FAIL-CLOSED on recording: keep the observed
+                            # answer, disclose the unrecorded outcome,
+                            # retain the identity, never repeat the read.
+                            logger.warning(
+                                "task lifecycle settle failed — uncertain "
+                                "delivery retained: %r", _tl_err)
+                            _tl_outcome_uncertain = True
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                            _direct_content += (
+                                "\n\nNote: this answer could not be "
+                                "recorded on the task "
+                                f"(operation {_tl_begin[1]}); it is "
+                                "retained for reconciliation and the "
+                                "lookup will not be repeated automatically.")
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark_uncertain,
+                                )
+
+                                _direct_result_row = _mark_uncertain(
+                                    _direct_result_row,
+                                    _direct_content[:24000])
+                                session["_pending_file_result"] = (
+                                    _direct_result_row)
+                            except Exception:
+                                pass
+                        else:
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
                     try:
                         from core.pending_file_task import (
                             FILE_TASK_SESSION_KEY,
@@ -4525,6 +5499,10 @@ class ChatOrchestrator:
                             "coverage_complete": _direct_complete,
                             "resumable": not _direct_complete,
                             "freshness": _freshness.get("status") or None,
+                            "presentation_action": _direct_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_operation": _tl_operation_ref,
+                            "reconciliation_required": _tl_outcome_uncertain,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4646,8 +5624,8 @@ class ChatOrchestrator:
             # earlier leg (edit/action) already answered.
             # Turn-scoped execution identity for durable stamping (see
             # _update_session): the assistant row carries the execution id
-            # so UI recovery matches the exact turn.
-            session["_last_execution_id"] = _execution_id
+            # so UI recovery matches the exact turn. (No shared session
+            # field: concurrent turns must not relabel each other's rows.)
             _tool_plan_task = None
             try:
                 from core.chat_tool_planner import plan_tool_use, _provenance_menu
@@ -4944,11 +5922,24 @@ class ChatOrchestrator:
                         "file-data ask (the reply leg runs the lookup)")
                     _edit_response = None
                 elif _canvas_ctx and not _canvas_action_bypassed:
-                    _edit_leg = self._try_canvas_edit(
-                        message, history, _canvas_ctx, user_id, session_id,
-                        _execution_id, (context or {}).get("agent_id"),
-                        provenance=(context or {}).get("canvas_provenance"),
-                        shared_tool_state=_shared_tool,
+                    # TASK LIFECYCLE (Step 2, flag-gated): reserve the edit
+                    # BEFORE the mutation, so an intention that cannot be
+                    # persisted never reaches the canvas. A denied
+                    # reservation skips the leg entirely.
+                    _edit_task_reserved = _begin_task_edit(
+                        getattr(self, "tenant_id", None),
+                        (context or {}).get("workspace_id"),
+                        session, session_id, message, _execution_id,
+                        canvas_ctx=_canvas_ctx)
+                    # Only a RESERVED decision may mutate. "denied" and
+                    # "unavailable" both block the leg, for different
+                    # reasons, and neither may be downgraded to a
+                    # fall-through that another route would then perform.
+                    _edit_leg = self._try_canvas_edit( \
+                        message, history, _canvas_ctx, user_id, session_id, \
+                        _execution_id, (context or {}).get("agent_id"), \
+                        provenance=(context or {}).get("canvas_provenance"), \
+                        shared_tool_state=_shared_tool, \
                         # EXACT OPERATION STAMP (2026-09-25 review round 5):
                         # the interactive write's audit row carries this
                         # turn's execution id in details_json.operation_id,
@@ -4956,9 +5947,36 @@ class ChatOrchestrator:
                         # THIS operation by structured field equality —
                         # one logical operation per turn is also the
                         # correct idempotency key.
-                        operation_id=_execution_id,
-                    )
-                    if _derivation_ask(message, context):
+                        operation_id=_execution_id) \
+                        if _edit_task_reserved["status"] in (
+                            "reserved", "legacy") else None
+                    if _edit_leg is None:
+                        # Refused before execution: nothing ran, so there
+                        # is no edit leg to await and no outcome to settle
+                        # beyond any pending reservation. The reason is
+                        # carried through so the two refusals stay
+                        # distinguishable to the operator and the client.
+                        _tl_status = _edit_task_reserved.get("status")
+                        logger.info(
+                            "[canvas-edit] lane blocked — task lifecycle "
+                            "status=%s reason=%s",
+                            _tl_status, _edit_task_reserved.get("reason"))
+                        _shared_tool.setdefault("canvas_edit_no_apply", True)
+                        _shared_tool.setdefault(
+                            "canvas_edit_no_apply_reason",
+                            {"denied": "edit_not_authorized",
+                             "already_claimed": "edit_already_claimed",
+                             }.get(_tl_status, "edit_not_persistable"))
+                        # The client's message is chosen by no_apply_reason
+                        # above; the machine-readable block rides alongside
+                        # it so an operator can tell an authorization
+                        # refusal from a persistence outage.
+                        _shared_tool["task_lifecycle_block"] = {
+                            "status": _tl_status,
+                            "reason": _edit_task_reserved.get("reason"),
+                        }
+                        _edit_response = None
+                    elif _derivation_ask(message, context):
                         # A derivation ask is answered by the workbook row, and
                         # this leg declines it anyway (see the constant). Give
                         # it a short slice: a fast answer still wins, a slow
@@ -5090,6 +6108,27 @@ class ChatOrchestrator:
                                 else []
                             ),
                         )
+                        try:
+                            # TASK LIFECYCLE (Step 2, flag-gated): settle
+                            # the edit reserved before the mutation. Declined
+                            # edits record nothing — fall-through lanes own
+                            # the turn.
+                            _edit_task_run = _finish_task_edit(
+                                getattr(self, "tenant_id", None),
+                                (context or {}).get("workspace_id"),
+                                session, session_id, message, _execution_id,
+                                ((_edit_response.get("data") or {}).get(
+                                    "canvas_edit") or {}),
+                                _edit_response.get("success", True),
+                                reserved=_edit_task_reserved,
+                                canvas_ctx=_canvas_ctx)
+                            if _edit_task_run is not None:
+                                _edit_response.setdefault(
+                                    "data", {})["task_run_id"] = (
+                                        _edit_task_run)
+                        except Exception as _tl_err:  # noqa: BLE001
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
                         return _edit_response
 
                     if (
@@ -5283,6 +6322,9 @@ class ChatOrchestrator:
                     }
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _canvas_edit_data["plan_unavailable"] = True
+                    if _shared_tool.get("task_lifecycle_block"):
+                        _canvas_edit_data["task_lifecycle_block"] = (
+                            _shared_tool["task_lifecycle_block"])
                     if _shared_tool.get("canvas_planning_outcome"):
                         _canvas_edit_data["planner_outcome"] = _shared_tool[
                             "canvas_planning_outcome"
@@ -5927,16 +6969,22 @@ class ChatOrchestrator:
                 deadline=locals().get("_deadline"),
                 pending_task=locals().get("_pending_file_task"),
             )
-            try:
-                self._update_session(
-                    locals().get("session") or {"id": session_id, "history": []},
-                    message,
-                    error_response,
-                    locals().get("intent_analysis")
-                    or {"primary_intent": "error", "confidence": 0.0},
-                )
-            except Exception:
-                pass
+            # A fault-injection turn already persisted its provisional row
+            # for this execution: appending a second error row would break
+            # exact per-turn binding, so the persisted provisional stands.
+            _already = (locals().get("session") or {}).pop(
+                "_provisional_persisted_for", None)
+            if _already != locals().get("_execution_id"):
+                try:
+                    self._update_session(
+                        locals().get("session") or {"id": session_id, "history": []},
+                        message,
+                        error_response,
+                        locals().get("intent_analysis")
+                        or {"primary_intent": "error", "confidence": 0.0},
+                    )
+                except Exception:
+                    pass
             return error_response
         finally:
             if _interactive_token is not None:
@@ -6124,6 +7172,8 @@ class ChatOrchestrator:
         workspace_id: Optional[str],
         deadline: Optional["TurnDeadline"] = None,
         canvas: Optional[Dict[str, Any]] = None,
+        execution_id: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
@@ -6150,6 +7200,11 @@ class ChatOrchestrator:
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
                         "disambiguation": pending_task.get("disambiguation"),
+                        "requested_targets": (
+                            pending_task.get("requested_targets") or []),
+                        "execution_id": execution_id,
+                        "session_id": session_id,
+                        "request_id": request_id,
                         # CANVAS RIDES THE BRAND CHANNEL (2026-09-25
                         # review round 5): the objective's item lines
                         # ('Roper Whitney … No. 381') live on the canvas
@@ -6201,6 +7256,7 @@ class ChatOrchestrator:
                 meta.get("completed") and identity_verified and coverage_complete
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
+            "structured_result": meta.get("structured_result"),
             "reason": "" if block else "file-scoped reader returned no result",
         }
         if (pending_task or {}).get("operation") == "refresh":
@@ -6356,6 +7412,10 @@ class ChatOrchestrator:
                                              result.get("retrieval_complete")),
             "rendered_answer": reread.get("rendered_answer")
             or result.get("rendered_answer") or "",
+            # A re-read is a NEW attempt with its own identity even when
+            # the evidence revision is unchanged (same copy, new read).
+            "structured_result": reread.get("structured_result")
+            or result.get("structured_result"),
         })
         # EVIDENCE-BASED VERDICT (2026-09-24 review rounds 4-5): a new
         # ingestion timestamp alone does not prove refreshed evidence.
@@ -7450,20 +8510,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # IDENTIFIER INHERITANCE (2026-09-25): when the stored ask
                 # is VAGUER than the identifier-rich ask it superseded
                 # (live: "find all these prices…" lost "8 machines: 381,
-                # U-22, …"), the resumed read searched the canvas TITLE's
+                # U-22, …), the resumed read searched the canvas TITLE's
                 # phrases instead of the machines. The task carries the
                 # USER's own identifiers (user asks only — never assistant
                 # renders, the contamination source); they outrank
                 # title-derived phrases whenever the derivation found no
                 # digit/hyphen-bearing identifier of its own.
+                # NOTE: this reads the `pending_file_task` PARAMETER of
+                # _get_qwen_response. It previously referenced
+                # `_pending_file_task`, a name that does not exist in this
+                # scope, so the NameError was swallowed by the bare
+                # `except Exception` below and this feature silently never
+                # applied. Assert the identifiers actually REACH
+                # extract_targets — an "it did not raise" test cannot
+                # detect a regression swallowed by that handler.
                 _task_targets = [
                     str(item).strip()
                     for item in (
-                        (_pending_file_task or {}).get("requested_targets")
+                        (pending_file_task or {}).get("requested_targets")
                         or []
                     )
                     if str(item).strip()
-                ] if isinstance(_pending_file_task, dict) else []
+                ] if isinstance(pending_file_task, dict) else []
                 if _task_targets and not any(
                     re.search(r"[\d-]", item) for item in _requested_targets
                 ):
@@ -8506,7 +9574,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 {"message": _gate_msg,
                                  "workspace_id": workspace_id,
                                  "history": (planner_history
-                                             or history or [])[-6:]},
+                                             or history or [])[-6:],
+                                 "requested_targets": _stored_requested_items(
+                                     session)},
                                 plan=_direct_plan),
                             timeout=25,
                         )
@@ -8622,6 +9692,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "objective_evidence": _objective_comparison,
                             "execution_id": execution_id,
                             "retrieved_at": time.time(),
+                            "structured_result": (
+                                _storage_read_meta.get("structured_result")
+                                if isinstance(_storage_read_meta, dict)
+                                else None),
+                            "attempt_id": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("attempt_id")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
+                            "evidence_revision": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("evidence_revision")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
+                            "evidence_action": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("evidence_action")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
                         }
                         session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
                             session.get(FILE_TASK_SESSION_KEY), _identity)
@@ -12340,6 +13432,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "source": "tool_plan",
         }
 
+    def _continuation_from_plan(self, plan: Any) -> Optional[Dict[str, Any]]:
+        """Prefer the planner-resolved continuation when it ran confidently
+        (same 0.6 contract as suggested_intent); the early branch resolves
+        via the NLU decision because no plan exists yet at that point."""
+        if plan is None:
+            return None
+        op = str(getattr(plan, "retrieval_operation", None) or "").strip().lower()
+        if op not in ("none", "read", "rerun", "refresh"):
+            return None
+        try:
+            conf = float(getattr(plan, "routing_confidence", None) or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if conf < 0.6:
+            return None
+        style = str(getattr(plan, "presentation_preference", None)
+                    or "default").strip().lower()
+        if style not in ("default", "compact", "table"):
+            style = "default"
+        field = str(getattr(plan, "field_preference", None) or "").strip() or None
+        return {"retrieval": op,
+                "presentation": {"style": style, "field": field},
+                "source": "tool_plan"}
+
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""
         try:
@@ -12413,6 +13529,69 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "platforms": [],
             "command_type": "search"
         }
+
+    def _continuation_decision(self, message: str) -> Optional[Dict[str, Any]]:
+        """Explicit continuation decision for turns on a delivered file
+        result (work order Step 2): two independent fields — retrieval
+        operation (none/read/rerun/refresh) and presentation preference
+        ({style, field}). None means NOT a continuation: normal flow.
+
+        Fail-closed by construction: only positively recognized shapes
+        (refresh/rerun operations from the existing file-task classifier,
+        or presentation/field routing vocabulary below) resolve; new work,
+        questions, outbound actions, halt words, and canvas-shaped turns
+        all return None. The vocabulary lives HERE in the established NLU
+        fallback layer (the same class as its find/search/where keywords),
+        never in a single-purpose sidecar detector.
+        """
+        from core.pending_file_task import (
+            _CONFIRMATION_ACTION_RE,
+            _OUTBOUND_ACTION_RE,
+            is_retrieval_refresh_request,
+            is_source_refresh_request,
+        )
+
+        t = (message or "").strip()
+        if not t:
+            return None
+        low = t.lower()
+        style = "default"
+        if _PRESENTATION_TABLE_RE.search(t):
+            style = "table"
+        elif _PRESENTATION_COMPACT_RE.search(t):
+            style = "compact"
+        field = None
+        if _FIELD_SELECT_RE.search(t):
+            field = _match_field_preference(t)
+        if is_retrieval_refresh_request(t):
+            operation = ("refresh" if is_source_refresh_request(t)
+                         else "rerun")
+            return {"retrieval": operation,
+                    "presentation": {"style": style, "field": field}}
+        if _HALT_RE.search(t):
+            return None
+        if "?" in t:
+            return None
+        if _CONFIRMATION_ACTION_RE.search(t) or _OUTBOUND_ACTION_RE.search(t):
+            return None
+        try:
+            from core.agent_file_context import detect_file_mentions
+
+            if detect_file_mentions(t):
+                return None
+        except Exception:
+            pass
+        try:
+            from core.workbook_read_artifact import extract_targets
+
+            if extract_targets(t, [t]):
+                return None
+        except Exception:
+            return None
+        if style == "default" and field is None:
+            return None
+        return {"retrieval": "none",
+                "presentation": {"style": style, "field": field}}
 
     async def _route_to_features(
         self,
@@ -13322,6 +14501,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "intent": intent,
             "timestamp": datetime.now().isoformat(),
             "error": _is_error_turn,
+            # Exact assistant-message identity, allocated by this initial
+            # writer and propagated to the DB row below: later stages bind
+            # final writes by (message id, session, execution id) — never
+            # latest-in-session. Filled in after the DB insert.
+            "assistant_message_id": None,
         })
 
         # Session-dedup write-side: index this turn's content so future turns
@@ -13391,7 +14575,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # capture (feedback training) can pick it up.
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
+                        import uuid as _uuid_msg
+
+                        _asst_msg_id = str(_uuid_msg.uuid4())
+                        try:
+                            session["history"][-1]["assistant_message_id"] = (
+                                _asst_msg_id)
+                        except Exception:
+                            pass
                         _msg_meta: Dict[str, Any] = {}
+                        _msg_meta["assistant_message_id"] = _asst_msg_id
                         _turn_execution_id = (
                             response.get("execution_id")
                             if isinstance(response, dict) else None
@@ -13421,9 +14614,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # must match the EXACT execution, not 'latest
                         # unseen by session' — overlapping or repeated
                         # turns otherwise adopt each other's replies.
-                        _exec_stamp = session.get("_last_execution_id")
-                        if _exec_stamp:
-                            _msg_meta["execution_id"] = _exec_stamp
+                        # The response/turn identity stands as written
+                        # above; shared session fields never override it
+                        # (a concurrent turn reassigning the session field
+                        # must not relabel this row).
                         # PENDING FILE TASK (2026-09-23 review, gap 5): the
                         # session dict is NOT durable (restart rebuilds a
                         # projection), so the task and the resolved file
@@ -13463,6 +14657,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "_pending_file_task"
                         )
                         db.add(ChatMessageModel(
+                            id=_asst_msg_id,
                             conversation_id=session_id,
                             tenant_id=tenant_id,
                             role="assistant",
@@ -13481,6 +14676,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
         except Exception as e:
             logger.debug(f"Session metadata persistence skipped: {e}")
+        try:
+            return (session.get("history") or [{}])[-1].get(
+                "assistant_message_id")
+        except Exception:
+            return None
 
     def _load_conversation_mail_handles(
         self, session_id: Optional[str],

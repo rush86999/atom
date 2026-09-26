@@ -486,6 +486,15 @@ class ChatMessageRequest(BaseModel):
     )
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
     agent_id: Optional[str] = Field(None, description="Explicit agent selection — session-linked agent chats record graduation episodes")
+    request_id: Optional[str] = Field(
+        None,
+        description="Client-allocated idempotency key for this turn (Stripe-style): "
+        "the client mints one ID per submitted turn and reuses it ONLY for "
+        "network retries of that same turn. Same ID + same payload replays "
+        "the stored finalized response without re-execution; same ID + "
+        "different payload is a 409 conflict. Requests without an ID keep "
+        "the legacy no-dedup behavior.",
+    )
 
 
 class ChatMessageResponse(BaseModel):
@@ -1279,13 +1288,30 @@ def _persist_finalized_outcome(
     history reloads, hydration, and recovery polling would keep serving the
     concealed text after HTTP delivered the finalized outcome. The row is
     matched by exact execution id within this session — never another
-    turn's row, never a new row. Failures leave delivery untouched.
+    turn's row, never a new row.
+
+    The outcome is explicit on the response's ``data.persistence`` record:
+    ``persisted`` only after commit, ``failed`` with a reason otherwise —
+    a persistence failure is never silently treated as a persisted
+    delivery. When the finalized text differs, the overwritten
+    pre-finalization content is captured (hash + head) so the
+    transformation is provable.
     """
     if not isinstance(response, dict) or not _m2_persistence_enabled():
         return response
     execution_id = response.get("execution_id")
     if not execution_id or not session_id:
         return response
+    data = response.get("data")
+    if not isinstance(data, dict):
+        data = {}
+        response["data"] = data
+
+    def _outcome(status: str, **extra) -> Dict[str, Any]:
+        outcome = {"status": status, **extra}
+        data["persistence"] = outcome
+        return response
+
     try:
         from core.models import ChatMessage as ChatMessageModel
 
@@ -1309,7 +1335,10 @@ def _persist_finalized_outcome(
                 target = row
                 break
         if target is None:
-            return response
+            logger.warning(
+                "M2 outcome persistence skipped: no assistant row for "
+                "execution %s in session %s", execution_id, session_id)
+            return _outcome("failed", reason="no matching assistant row")
         try:
             meta = json.loads(target.metadata_json or "{}")
         except Exception:
@@ -1323,17 +1352,107 @@ def _persist_finalized_outcome(
                 meta["quality"] = "error"
         if response.get("error_code") is not None:
             meta["error_code"] = str(response.get("error_code"))
-        target.content = str(response.get("message") or "")
+        _record_lifecycle_delivery(
+            response, str(target.id), str(execution_id), target)
+        final_text = str(response.get("message") or "")
+        if final_text and final_text != (target.content or ""):
+            # Pre-finalization capture: the overwritten text's hash proves
+            # whether finalization changed the answer (acceptance compares
+            # captured pre vs delivered post; absence of change is explicit).
+            try:
+                import hashlib as _hashlib
+
+                meta["pre_finalization"] = {
+                    "sha256": _hashlib.sha256(
+                        (target.content or "").encode()).hexdigest(),
+                    "head": (target.content or "")[:160],
+                }
+            except Exception:
+                pass
+            target.content = final_text
         target.metadata_json = json.dumps(meta)
         db.commit()
-        return response
+        return _outcome("persisted")
     except Exception as persist_error:
         try:
             db.rollback()
         except Exception:
             pass
         logger.warning(f"M2 outcome persistence skipped: {persist_error}")
-        return response
+        return _outcome("failed", reason=f"{type(persist_error).__name__}")
+
+
+def _record_lifecycle_delivery(
+    response: Dict[str, Any],
+    message_id: str,
+    execution_id: str,
+    row: Any,
+) -> None:
+    """Append this send to the task's delivery ledger (flag-gated).
+
+    The lifecycle's final boundary: the exact message row id, the exact
+    bytes about to be committed, and the operations/evidence the turn
+    was built from. Recorded BEFORE the commit so a commit failure
+    cannot leave the ledger claiming a delivery that never persisted;
+    a duplicate replay is deduplicated by the lifecycle itself.
+
+    Never raises: the durable row write below is the load-bearing
+    delivery record, and the ledger is the task's own audit trail.
+    """
+    if os.getenv("ATOM_TASK_LIFECYCLE_ENABLED") != "1":
+        return
+    data = response.get("data")
+    if not isinstance(data, dict):
+        return
+    run_id = data.get("task_run_id")
+    if not run_id:
+        return
+    try:
+        import hashlib as _hashlib
+
+        from integrations.chat_orchestrator import _task_lifecycle_for
+
+        content = str(response.get("message") or "")
+        lifecycle = _task_lifecycle_for(
+            (response.get("data") or {}).get("tenant_id") or "default",
+            (response.get("data") or {}).get("workspace_id") or "default")
+        if lifecycle is None:
+            return
+        try:
+            operations = [
+                str(op.get("operation_id"))
+                for op in (lifecycle.get_task(str(run_id)) or {}).get(
+                    "operations") or []
+                if op.get("execution_id") in (None, execution_id)
+                or str(op.get("execution_id")) == str(execution_id)]
+        except Exception:
+            operations = []
+        try:
+            meta = json.loads(getattr(row, "metadata_json", None) or "{}")
+        except Exception:
+            meta = {}
+        evidence_refs = [
+            str(ev.get("evidence_id"))
+            for ev in ((meta or {}).get("evidence") or [])
+            if isinstance(ev, dict) and ev.get("evidence_id")]
+        delivery = lifecycle.record_delivery(
+            str(run_id), execution_id=execution_id,
+            operation_ids=operations, message_id=message_id,
+            content_sha256=_hashlib.sha256(content.encode()).hexdigest(),
+            finalization_version=str(
+                (response.get("data") or {}).get("finalization_version")
+                or ""),
+            evidence_refs=evidence_refs)
+        data["delivery"] = {
+            "status": "recorded",
+            "delivery_id": delivery.get("delivery_id"),
+            "message_id": message_id,
+        }
+    except Exception as exc:  # noqa: BLE001 — audit trail is best-effort
+        logger.warning(f"task delivery ledger skipped: {exc}")
+        if isinstance(data, dict):
+            data["delivery"] = {
+                "status": "failed", "reason": type(exc).__name__}
 
 
 def _finalize_chat_response(
@@ -1467,6 +1586,49 @@ def _store_delivery_record(
 
 
 # API Routes
+def _turn_message_id(session_id: Optional[str],
+                      execution_id: Optional[str]) -> Optional[str]:
+    """The exact assistant-message ID allocated by the initial writer for
+    this execution, from the live in-memory projection. None when the
+    projection is unavailable (a different process, a legacy turn)."""
+    if not session_id or not execution_id:
+        return None
+    try:
+        live = chat_orchestrator.conversation_sessions.get(session_id)
+        for entry in reversed((live or {}).get("history", []) or []):
+            resp = (entry or {}).get("response") or {}
+            if isinstance(resp, dict) and str(
+                    resp.get("execution_id") or "") == str(execution_id):
+                return entry.get("assistant_message_id")
+    except Exception:
+        pass
+    return None
+
+
+def _complete_transport_request(db: _Session, treq: Any,
+                                response_obj: Any) -> None:
+    """Persist keyed-transport completion with the finalized response.
+    Never raises into the response path."""
+    if not treq:
+        return
+    try:
+        record, _tenant = treq
+        if hasattr(response_obj, "model_dump"):
+            dumped = response_obj.model_dump()
+        else:
+            dumped = dict(response_obj or {})
+        from core import chat_transport as _transport
+
+        _transport.complete(
+            db, record,
+            execution_id=dumped.get("execution_id"),
+            assistant_message_id=_turn_message_id(
+                dumped.get("session_id"), dumped.get("execution_id")),
+            finalized=dumped)
+    except Exception as exc:  # noqa: BLE001 — completion is best-effort
+        logger.warning(f"transport completion skipped: {exc}")
+
+
 @router.post("/message")
 async def send_chat_message(
     request: ChatMessageRequest,
@@ -1504,6 +1666,77 @@ async def send_chat_message(
         session_id = request.session_id
         if session_id == "new":
             session_id = None
+
+        # Keyed transport idempotency (Stripe-style): reserve BEFORE any
+        # execution. Same ID + same payload replays the stored finalized
+        # response; same ID + different payload conflicts; same ID while
+        # running returns in-progress without a second execution. Requests
+        # without an ID keep the legacy no-dedup behavior.
+        _treq = None
+        _req_id = getattr(request, "request_id", None) or None
+        if _req_id:
+            from core import chat_transport as _transport
+
+            _tenant = getattr(current_user, "tenant_id", None) or "default"
+            _digest = _transport.payload_hash(
+                message=request.message, session_id=session_id,
+                user_id=active_user_id, context=request.context,
+                agent_id=getattr(request, "agent_id", None),
+                images=request.images)
+            _action, _record = _transport.check(
+                db, tenant_id=_tenant, user_id=active_user_id,
+                session_id=session_id, request_id=str(_req_id),
+                digest=_digest,
+                payload_text=json.dumps({
+                    "message": request.message, "session_id": session_id,
+                    "user_id": active_user_id, "context": request.context,
+                    "agent_id": getattr(request, "agent_id", None)}, default=str))
+            if _action == "replay":
+                _stored = _transport.stored_response(_record)
+                if _stored is None:
+                    logger.error(
+                        "transport replay payload unparseable "
+                        f"(request {_req_id})")
+                    raise HTTPException(
+                        status_code=500,
+                        detail={"error": "idempotent_replay_unavailable",
+                                "request_id": str(_req_id)})
+                try:
+                    from core.invocation_events import (
+                        record as _record_event,
+                    )
+
+                    _record_event(
+                        "transport_hit", request_id=str(_req_id),
+                        execution_id=(_stored or {}).get("execution_id"),
+                        session_id=session_id, outcome="replayed")
+                except Exception:
+                    pass
+                return ChatMessageResponse(**_stored)
+            if _action == "in_progress":
+                http_response.status_code = 202
+                return ChatMessageResponse(
+                    success=False,
+                    message=f"Request {str(_req_id)} is already in progress; "
+                            "retry with the same request ID for its result.",
+                    session_id=session_id or request.session_id or "unknown",
+                    intent="unknown",
+                    confidence=0.5,
+                    suggested_actions=[],
+                    requires_confirmation=False,
+                    next_steps=[],
+                    timestamp=datetime.utcnow().isoformat(),
+                    error_code="request_in_progress",
+                )
+            if _action == "conflict":
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": "request_id_conflict",
+                            "request_id": str(_req_id),
+                            "detail": "this request ID was already used with "
+                                      "a different payload; mint a new ID "
+                                      "for a new turn."})
+            _treq = (_record, _tenant)
 
         # Parse optional x-atom-* routing override headers.
         try:
@@ -1786,7 +2019,7 @@ async def send_chat_message(
             response.get("session_id") or session_id or request.session_id,
         )
 
-        return ChatMessageResponse(
+        _final = ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),
             session_id=response.get("session_id", request.session_id or "unknown"),
@@ -1804,6 +2037,8 @@ async def send_chat_message(
             execution_id=response.get("execution_id"),
             error_code=response.get("error_code"),
         )
+        _complete_transport_request(db, _treq, _final)
+        return _final
 
     except Exception as e:
         logger.error(f"Chat message processing failed: {str(e)}")

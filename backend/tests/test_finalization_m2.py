@@ -217,3 +217,191 @@ def test_m2_http_and_history_agree_on_failed_turn(monkeypatch, app, orch, sessio
     row, meta = _row_for(session, "execution-1")
     assert row.content == body["message"]
     assert meta["execution_id"] == "execution-1"
+
+
+def test_forced_failure_hook_armed_only_by_env_and_marker(monkeypatch):
+    from integrations.chat_orchestrator import (
+        _ForcedTurnFailure,
+        _maybe_force_turn_failure,
+    )
+
+    session = {}
+    monkeypatch.delenv("ATOM_TEST_FORCE_TURN_FAILURE", raising=False)
+    _maybe_force_turn_failure(session, "e1", "provisional", "ask [force-fail]")
+    assert session == {}
+    monkeypatch.setenv("ATOM_TEST_FORCE_TURN_FAILURE", "1")
+    _maybe_force_turn_failure(session, "e1", "provisional", "plain ask")
+    assert session == {}
+    try:
+        _maybe_force_turn_failure(session, "e1", "provisional", "ask [force-fail]")
+    except _ForcedTurnFailure as forced:
+        assert forced.provisional == "provisional"
+    else:
+        raise AssertionError("hook must raise when armed")
+    assert session.get("_provisional_persisted_for") == "e1"
+
+
+def test_m2_rewrite_captures_pre_finalization(monkeypatch, session):
+    import hashlib
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    session.add(_assistant_row("session-1", "execution-1", "provisional text here"))
+    session.commit()
+    response = {
+        "success": False,
+        "message": "This turn failed and nothing it attempted should be assumed complete.",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+    }
+
+    _persist_finalized_outcome(session, response, "session-1")
+
+    row, meta = _row_for(session, "execution-1")
+    assert row.content == response["message"]
+    assert meta["pre_finalization"]["sha256"] == hashlib.sha256(
+        b"provisional text here").hexdigest()
+    assert "provisional" in meta["pre_finalization"]["head"]
+    assert response["data"]["persistence"]["status"] == "persisted"
+
+
+def test_m2_unchanged_content_writes_no_pre_capture(monkeypatch, session):
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    session.add(_assistant_row("session-1", "execution-1", "same text"))
+    session.commit()
+    response = {
+        "success": True,
+        "message": "same text",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+    }
+
+    _persist_finalized_outcome(session, response, "session-1")
+
+    _, meta = _row_for(session, "execution-1")
+    assert "pre_finalization" not in meta
+
+
+# ── M2 + task lifecycle: the delivery ledger ────────────────────────────
+# The durable row is the load-bearing delivery record; the task's ledger
+# is the audit trail that says which operations and evidence produced the
+# exact bytes that left.
+
+def _fake_lifecycle(record_calls):
+    lifecycle = MagicMock()
+    lifecycle.get_task.return_value = {
+        "operations": [
+            {"operation_id": "op-1", "execution_id": "execution-1"},
+            {"operation_id": "op-2", "execution_id": "execution-other"},
+        ],
+    }
+
+    def _record(run_id, **kwargs):
+        record_calls.append({"run_id": run_id, **kwargs})
+        return {"delivery_id": "del-1"}
+
+    lifecycle.record_delivery.side_effect = _record
+    return lifecycle
+
+
+def test_m2_records_the_delivery_in_the_task_ledger(monkeypatch, session):
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    monkeypatch.setenv("ATOM_TASK_LIFECYCLE_ENABLED", "1")
+    session.add(_assistant_row("session-1", "execution-1", "before"))
+    session.commit()
+    calls = []
+    monkeypatch.setattr(
+        "integrations.chat_orchestrator._task_lifecycle_for",
+        lambda *a, **k: _fake_lifecycle(calls))
+    response = {
+        "success": True,
+        "message": "delivered bytes",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+        "data": {"task_run_id": "run-1", "finalization_version": "v4"},
+    }
+
+    _persist_finalized_outcome(session, response, "session-1")
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["run_id"] == "run-1"
+    assert call["execution_id"] == "execution-1"
+    # Only this turn's operations, never another execution's.
+    assert call["operation_ids"] == ["op-1"]
+    assert call["finalization_version"] == "v4"
+    # The exact row and the exact delivered bytes.
+    assert call["message_id"] and len(call["message_id"]) > 0
+    import hashlib
+    assert call["content_sha256"] == hashlib.sha256(
+        b"delivered bytes").hexdigest()
+    assert response["data"]["delivery"]["status"] == "recorded"
+    assert response["data"]["delivery"]["delivery_id"] == "del-1"
+
+
+def test_m2_no_task_run_records_no_delivery(monkeypatch, session):
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    monkeypatch.setenv("ATOM_TASK_LIFECYCLE_ENABLED", "1")
+    session.add(_assistant_row("session-1", "execution-1", "before"))
+    session.commit()
+    calls = []
+    monkeypatch.setattr(
+        "integrations.chat_orchestrator._task_lifecycle_for",
+        lambda *a, **k: _fake_lifecycle(calls))
+    response = {
+        "success": True,
+        "message": "no task here",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+    }
+
+    result = _persist_finalized_outcome(session, response, "session-1")
+
+    assert calls == []
+    assert "delivery" not in result["data"]
+
+
+def test_m2_ledger_failure_does_not_block_the_row(monkeypatch, session):
+    """The durable row is the load-bearing record; a ledger failure is
+    reported, never raised into the response."""
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    monkeypatch.setenv("ATOM_TASK_LIFECYCLE_ENABLED", "1")
+    session.add(_assistant_row("session-1", "execution-1", "before"))
+    session.commit()
+    lifecycle = _fake_lifecycle([])
+    lifecycle.record_delivery.side_effect = RuntimeError("store down")
+    monkeypatch.setattr(
+        "integrations.chat_orchestrator._task_lifecycle_for",
+        lambda *a, **k: lifecycle)
+    response = {
+        "success": True,
+        "message": "still delivered",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+        "data": {"task_run_id": "run-1"},
+    }
+
+    result = _persist_finalized_outcome(session, response, "session-1")
+
+    row, _ = _row_for(session, "execution-1")
+    assert row.content == "still delivered"
+    assert result["data"]["persistence"]["status"] == "persisted"
+    assert result["data"]["delivery"]["status"] == "failed"
+    assert result["data"]["delivery"]["reason"] == "RuntimeError"
+
+
+def test_m2_ledger_off_records_nothing(monkeypatch, session):
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    monkeypatch.delenv("ATOM_TASK_LIFECYCLE_ENABLED", raising=False)
+    session.add(_assistant_row("session-1", "execution-1", "before"))
+    session.commit()
+    response = {
+        "success": True,
+        "message": "delivered bytes",
+        "session_id": "session-1",
+        "execution_id": "execution-1",
+        "data": {"task_run_id": "run-1"},
+    }
+
+    _persist_finalized_outcome(session, response, "session-1")
+
+    assert "delivery" not in response["data"]

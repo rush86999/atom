@@ -618,11 +618,21 @@ def _matches_target(target: str, value: Any) -> bool:
     target_text = str(target or "").strip()
     if not text or not target_text:
         return False
-    return re.search(
-        rf"(?<![A-Za-z0-9_-]){re.escape(target_text)}(?![A-Za-z0-9_-])",
-        text,
-        re.IGNORECASE,
-    ) is not None
+    candidates = [target_text]
+    # Number-abbreviation honorific ("No. 381" vs a cell holding "381"):
+    # the designation is the same machine, so match the bare form too.
+    # Display keeps the user's literal text; only matching normalizes.
+    bare = re.sub(r"(?i)^no\.\s*", "", target_text)
+    if bare and bare != target_text:
+        candidates.append(bare)
+    return any(
+        re.search(
+            rf"(?<![A-Za-z0-9_-]){re.escape(cand)}(?![A-Za-z0-9_-])",
+            text,
+            re.IGNORECASE,
+        ) is not None
+        for cand in candidates
+    )
 
 
 

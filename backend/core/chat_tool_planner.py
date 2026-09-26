@@ -523,6 +523,14 @@ Rules:
   when the goal is to SEND/forward/reply/draft to a recipient. Give honest
   routing_confidence 0.0–1.0 (a bare number, e.g. 0.9); below 0.6 the
   consumer falls back to a deeper classifier, so don't pad it.
+- CONTINUATION on a delivered file result: when this turn continues (not
+  replaces) earlier file work, set retrieval_operation (none = show saved
+  evidence again; rerun = search the saved copy again; refresh = check the
+  live source; read = initial lookup) and presentation_preference (default
+  | compact | table) plus field_preference (a column word like
+  "factory price" when the turn selects one). A turn asking to search
+  again AND present cleanly carries rerun + compact together. New,
+  unrelated, halted, or questioned work leaves all three null.
 - VALUE LOOKUPS WITHOUT A NAMED SOURCE ("what's the price of WG-350DSAV?",
   "find invoice 123", "look up policy 7.2"): plan service "datasets",
   intent "search", query = the exact code/value ALONE. The dataset catalog
@@ -732,6 +740,16 @@ class ToolPlan(BaseModel):
     # consumers then fall back to the raw verdict.
     relevance_verdict: Optional[str] = None
     relevance_basis: Optional[str] = None
+    # CONTINUATION DECISION (work order Step 2): when this turn continues a
+    # delivered file result, resolve retrieval operation (none/read/rerun/
+    # refresh) and presentation preference (default/compact/table plus an
+    # optional field word) here so consumers share one routing verdict
+    # instead of re-inferring per site. Optional by contract: absent or
+    # low-confidence -> the NLU continuation decision, exactly like
+    # suggested_intent/routing_confidence above.
+    retrieval_operation: Optional[str] = None
+    presentation_preference: Optional[str] = None
+    field_preference: Optional[str] = None
     # STRUCTURED RESULT METADATA (2026-09-22): unread-mail handles and
     # per-ID read outcomes the executor reports back. A PrivateAttr, NOT a
     # field — the planning LLM can never set it (it is not in the structured
@@ -5289,16 +5307,22 @@ def _named_file_targets(
             return all(w[:1].isupper() or "-" in w or w.isdigit()
                        for w in words) and any(w[:1].isupper() for w in words)
 
-        lookup_text = " ".join(texts)
-        quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", lookup_text)
-        values.extend(q for q in quoted if _identity_shaped(q))
-        list_match = re.search(
-            r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
-            r"(?:for|of|:)\s+(.+)",
-            lookup_text,
-            re.IGNORECASE,
-        )
-        if list_match:
+        # TURN-BOUNDARY HYGIENE (live 2026-09-26: a re-search turn mined
+        # "U-38 give me a cleaner response" — the list phrase of the
+        # ORIGINAL ask glued to the follow-up's prose across the joined
+        # texts). Quoted and list phrases never span turns: match per
+        # text, never on the joined span.
+        for _text in texts:
+            quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", _text)
+            values.extend(q for q in quoted if _identity_shaped(q))
+            list_match = re.search(
+                r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
+                r"(?:for|of|:)\s+(.+)",
+                _text,
+                re.IGNORECASE,
+            )
+            if not list_match:
+                continue
             ignored = {
                 "prices", "price", "models", "model", "items", "item",
                 "machines", "machine", "parts", "part", "these", "this",
@@ -5306,11 +5330,28 @@ def _named_file_targets(
                 "no", "number", "model", "part", "item", "machine", "type",
             }
             for part in re.split(r",|\band\b", list_match.group(1), flags=re.IGNORECASE):
+                # A leading "File.xlsx: first item" glue: the filename and
+                # the first list entry arrive in one chunk — keep the text
+                # after the filename boundary as the candidate item.
+                glued = re.search(
+                    r"\.(?:xlsx|xlsm|xls|csv|tsv|pdf|docx?)\s*:\s*(.+)$",
+                    part, re.IGNORECASE)
+                if glued:
+                    part = glued.group(1)
                 cleaned = part.strip(" .:;?!()[]'\"")
+                # Number-abbreviation honorific ("No. 381"): "no" is
+                # otherwise an ignored word, but a leading "No. "+digits
+                # unambiguously denotes a numbered item — keep the user's
+                # literal text. Matching stays honorific-insensitive
+                # (see _matches_target), so recall is unchanged.
+                honorific = bool(re.match(r"(?i)^no\.\s*\d", cleaned))
+                # No length cap: turn boundaries (per-text matching above)
+                # confine phrases; explicit filters below drop file names
+                # and implausible fragments. Long product names survive.
                 if (
                     cleaned
                     and len(cleaned) <= 80
-                    and not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower()))
+                    and (honorific or not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower())))
                     and not re.search(r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)$", cleaned, re.IGNORECASE)
                 ):
                     values.append(cleaned)
@@ -5385,6 +5426,37 @@ def _named_file_targets(
     return out[:64]
 
 
+def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
+                          candidate_probe_tokens: Any) -> List[str]:
+    """Follow-ups inherit the active objective; they never union history.
+
+    - The current turn alone yields items -> the latest explicit
+      (replacement) list wins; older mentions stay out.
+    - Otherwise the active list carried on the context
+      (``requested_targets``: the stored objective's ordered items) is
+      inherited without re-mining history.
+    - Otherwise (fresh asks) the full history mining runs as before.
+    Probe tokens and historical aliases remain search aids downstream;
+    this list is the presentation authority.
+    """
+    active = (context or {}).get("requested_targets")
+    if isinstance(active, str):
+        active = [active]
+    active = [str(v).strip() for v in (active or []) if str(v).strip()]
+    own_ctx = dict(context or {})
+    own_ctx["history"] = []
+    own_ctx.pop("requested_targets", None)
+    try:
+        own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
+    except Exception:
+        own = []
+    if own:
+        return own
+    if active:
+        return list(active)
+    return _named_file_targets(query, context, candidate_probe_tokens)
+
+
 def _named_file_aliases(value: str) -> List[str]:
     text = str(value or "").strip()
     variants: List[str] = []
@@ -5408,6 +5480,77 @@ def _named_file_aliases(value: str) -> List[str]:
             if len(part) >= 2:
                 add(part.lower())
     return variants[:8]
+
+
+def _set_structured_result(plan: Any, record: Dict[str, Any]) -> None:
+    """Persist the versioned structured workbook artifact beside the
+    rendered text. The plan meta is transient — durability comes from the
+    orchestrator copying this record into the session result row and the
+    ChatMessage metadata carrier (same path as ``rendered_answer``)."""
+    if plan is None or not isinstance(record, dict):
+        return
+    meta = getattr(plan, "_result_meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        plan._result_meta = meta
+    storage = meta.get("storage_read")
+    if not isinstance(storage, dict):
+        storage = {}
+        meta["storage_read"] = storage
+    storage["structured_result"] = record
+
+
+def _build_workbook_structured_record(
+    *, item_tokens: List[str],
+    artifact_outcomes: Dict[str, Any],
+    per_item: Dict[str, Any],
+    field_requests: List[str],
+    file_name: Optional[str],
+    prov: Dict[str, Any],
+    coverage_limits: Dict[str, Any],
+    evidence_action: str,
+    attempt_id: str,
+    order_hint: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Artifact-native record for one scan attempt (one attempt id even
+    when the evidence revision is unchanged). Pure build — no retrieval,
+    no writes; the caller stamps it via ``_set_structured_result``.
+    ``evidence_action``/``attempt_id`` are caller-observed: the attempt is
+    allocated before retrieval and the action reflects the executed scan —
+    building the record never establishes either."""
+    from core.answer_presentation import (
+        build_structured_record,
+        build_targets_from_scan,
+        resolve_requested_items,
+    )
+
+    resolved = resolve_requested_items(item_tokens, order_hint=order_hint)
+    revision = (
+        f"{prov.get('content_hash') or '?'}:"
+        f"{prov.get('ingested_at') or '?'}"
+    )
+    targets = build_targets_from_scan(
+        resolved, artifact_outcomes or {}, per_item or {})
+    return build_structured_record(
+        source_identity={
+            "file_name": file_name,
+            "service": "datasets",
+            "source": (prov or {}).get("source"),
+            "resource_id": (prov or {}).get("resource_id"),
+            "content_hash": (prov or {}).get("content_hash"),
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "live_vs_saved": "saved copy",
+            "evidence_kind": "materialized_copy",
+        },
+        evidence_revision=revision,
+        attempt_id=attempt_id,
+        evidence_action=evidence_action,
+        requested_items=resolved,
+        requested_fields=list(field_requests or ["price"]),
+        targets=targets,
+        coverage=dict(coverage_limits or {}),
+    )
 
 
 def _set_rendered_answer(plan: Any, text: str) -> None:
@@ -5748,7 +5891,28 @@ async def _datasets_named_file_block(
         f"{prov['sheets_indexed']} sheet(s) indexed."
     )
 
-    item_tokens = _named_file_targets(query, context, candidate_probe_tokens)
+    item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # Attempt identity is allocated BEFORE retrieval: every invocation
+    # outcome below binds to this id, including failures. Scan entry/exit
+    # rows make retrieval invocations countable per execution/attempt.
+    from core.answer_presentation import new_attempt_id
+    from core.invocation_events import (
+        SCAN_END,
+        SCAN_START,
+        Timer,
+        record as record_event,
+    )
+
+    _scan_attempt_id = new_attempt_id()
+    _scan_timer = Timer()
+    _scan_ctx = {
+        "execution_id": (context or {}).get("execution_id"),
+        "session_id": (context or {}).get("session_id")
+        or (context or {}).get("conversation_id"),
+        "request_id": (context or {}).get("request_id"),
+        "attempt_id": _scan_attempt_id,
+    }
+    record_event(SCAN_START, **_scan_ctx)
     aliases_tried: Dict[str, List[str]] = {}
     per_item: Dict[str, Optional[Dict[str, Any]]] = {}
     probe_failed = False
@@ -5920,6 +6084,45 @@ async def _datasets_named_file_block(
         coverage_limits=coverage_limits,
         workbook_read=workbook_read,
     )
+    _sheets = (workbook_read or {}).get("sheets") or []
+    _scanned_ok = any(
+        isinstance(s, dict) and s.get("searched") for s in _sheets)
+    # Observation tristate (boundary evidence, not object existence): a
+    # completed zero-match read is new_read; entries existed but nothing
+    # was observable (total I/O failure) is read_failed; nothing to scan
+    # at all is unverified (missing observation, never proof of failure).
+    if bool(recs) or _scanned_ok:
+        _scan_action = "new_read"
+    elif not file_entries:
+        _scan_action = "unverified"
+    else:
+        _scan_action = "read_failed"
+    _scan_revision = (
+        f"{prov.get('content_hash') or '?'}:"
+        f"{prov.get('ingested_at') or '?'}"
+    )
+    try:
+        _set_structured_result(
+            plan,
+            _build_workbook_structured_record(
+                item_tokens=item_tokens,
+                artifact_outcomes=artifact_outcomes,
+                per_item=per_item,
+                field_requests=_field_requests,
+                file_name=names.get(key),
+                prov=prov,
+                coverage_limits=coverage_limits,
+                evidence_action=_scan_action,
+                attempt_id=_scan_attempt_id,
+                order_hint=" ".join(
+                    value for value in (query, msg_text) if value),
+            ),
+        )
+    except Exception as _sr_err:  # noqa: BLE001 — structured record optional
+        logger.debug("workbook structured record skipped: %r", _sr_err)
+    record_event(SCAN_END, outcome=_scan_action,
+                 evidence_revision=_scan_revision,
+                 duration_ms=_scan_timer.ms(), **_scan_ctx)
     coverage_note = (
         "COVERAGE LIMITS — indexed sheets="
         f"{len(sheet_names)}; scanned entries={len(file_entries)}; "

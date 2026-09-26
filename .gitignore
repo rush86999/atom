@@ -820,3 +820,8 @@ workflow_states/
 
 # SQLite in-memory session markers
 :memory:.ses
+
+# Acceptance run artifacts (machine-generated per run; the manifest is the
+# deliverable, not the raw per-case dumps).
+backend/scripts/orchestration_acceptance/live_integration_results/
+docs/architecture/orchestration_migration/acceptance/results/

@@ -832,11 +832,17 @@ export default function CanvasDetailPage() {
             // the identity in (audit-row provenance).
             const fromChat = router.query.from === "chat";
             const agentId = (router.query.agent_id as string) || trainingCtx?.agent?.id || undefined;
+            // Transport idempotency key for this submitted turn (reused
+            // only for network retries of the same turn).
+            const requestId = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `req_${Date.now()}_${Math.random().toString(36).slice(2)}`);
             const resp = await apiClient.post("/api/chat/message", {
                 message: chatInput,
                 user_id: userId,
                 session_id: chatSessionId || (fromChat ? (router.query.session as string) : undefined) || "new",
                 agent_id: agentId,
+                request_id: requestId,
                 context: {
                     current_page: `/canvas/${canvasId}`,
                     canvas_id: canvasId,
