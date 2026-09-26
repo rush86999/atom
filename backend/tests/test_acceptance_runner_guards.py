@@ -120,3 +120,109 @@ def test_new_actions_detects_only_fresh_ones():
 def test_diff_attempt_ids_is_id_based():
     assert diff_attempt_ids({"a", "b"}, {"b", "c"}) == {"c"}
     assert diff_attempt_ids({"a"}, {"a"}) == set()
+
+
+# ── Bullet-form reply parsing (acceptance run, 2026-09-26) ─────────────
+# The presentation renderer answers in per-target bullets, not a pipe
+# table. The evaluator only understood pipe tables, so a CORRECT reply
+# scored `missing_row` on every target. These tests pin the adapter AND,
+# more importantly, pin that it fails closed: it must never invent a
+# price binding that the renderer's text does not contain.
+
+import importlib.util as _ilu
+import os as _os
+import sys as _sys
+
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(
+    _os.path.abspath(__file__))))
+_spec = _ilu.spec_from_file_location(
+    "acc_runner_guards_ri",
+    _os.path.join(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__))),
+        "scripts", "orchestration_acceptance", "run_isolated.py"))
+_ri = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_ri)
+
+
+def _bullets(reply):
+    return {r["target"]: r for r in _ri.parse_reply_table(reply)}
+
+
+def test_bullet_labels_keep_hyphenated_identifiers_intact():
+    rows = _bullets(
+        "- **U-22** - 1,777 (LINMAC!R26, column C26 'List Price')\n"
+        "- **SLE24-16** - 8,880 (Tennsmith!R101, column E101 'PRICE')\n"
+        "- **GSL48-16** - 14,166 (Tennsmith!R106, column E106 'PRICE')")
+    assert set(rows) == {"U-22", "SLE24-16", "GSL48-16"}
+
+
+def test_bullet_label_suffix_does_not_eat_the_body():
+    rows = _bullets(
+        "- **TK Multi Wheel Gang Slitter** (matched via 'Gang Slitter') - "
+        "14,166 (Tennsmith!R106, column E106 'PRICE')")
+    row = rows["TK Multi Wheel Gang Slitter"]
+    assert _ri.classify(row["status"]) == "found"
+    assert "E106=14,166" in row["evidence"]
+
+
+def test_bullet_lead_value_binds_to_the_first_cited_pair():
+    rows = _bullets("- **U-22** - 1,777 (LINMAC!R26, column C26 'List Price')")
+    assert "C26=1,777" in rows["U-22"]["evidence"]
+
+
+def test_bullet_lead_value_never_overrides_a_stated_pair_value():
+    """The stated price and the cited price must not be conflated."""
+    rows = _bullets(
+        "- **GSL48-16** - 14,166 (Tennsmith!R106, column E106 'PRICE' 14,166)")
+    evidence = rows["GSL48-16"]["evidence"]
+    assert evidence.count("14,166") >= 1
+    assert "E106=99" not in evidence
+
+
+def test_ambiguous_bullets_classify_ambiguous_not_found():
+    rows = _bullets(
+        "- **No. 381** - several rows match (RoperWhitney!R88 (PRICE blank)); "
+        "which one is yours needs your confirmation")
+    assert _ri.classify(rows["No. 381"]["status"]) == "ambiguous"
+
+
+def test_absent_bullets_classify_absent():
+    rows = _bullets(
+        "- **SLE24-16** - NOT FOUND IN INDEXED CONTENT (all 46 sheets probed)")
+    assert _ri.classify(rows["SLE24-16"]["status"]) == "absent_from_indexed"
+
+
+def test_adapter_invents_no_binding_when_there_is_no_citation():
+    """FAIL CLOSED: a bullet with prose and no Sheet!Cell citation must
+    yield no evidence, so no price can verify against it."""
+    rows = _bullets(
+        "- **No. 381** - several rows match; which one is yours needs your "
+        "confirmation")
+    assert rows["No. 381"]["evidence"] == ""
+    # No citation means no pairs, so no price can verify against it.
+    assert all(not seg["pairs"] for seg in _ri.parse_segments(
+        rows["No. 381"]["evidence"]))
+
+
+def test_adapter_preserves_the_renderer_wording_verbatim():
+    body = ("1,777 (LINMAC!R26, column C26 'List Price'; also M26 "
+            "'List Price_2' 1,777)")
+    rows = _bullets(f"- **U-22** - {body}")
+    assert rows["U-22"]["evidence_raw"] == body
+
+
+def test_pipe_tables_still_take_priority_and_are_unchanged():
+    reply = ("| item | status | evidence |\n"
+             "| --- | --- | --- |\n"
+             "| U-22 | FOUND | LINMAC!R26 ; C26=1777 [basis=List Price] |")
+    rows = _ri.parse_reply_table(reply)
+    assert len(rows) == 1
+    assert rows[0]["target"] == "U-22"
+    assert _ri.classify(rows[0]["status"]) == "found"
+
+
+def test_prose_lines_are_not_mistaken_for_target_rows():
+    rows = _bullets(
+        "Source: Consolidated Price List 2019.xlsx - saved copy.\n"
+        "Coverage: indexed sheets=46; scanned entries=46.")
+    assert rows == {}

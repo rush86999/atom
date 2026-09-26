@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "39d6532d5af3edbd51c4abec2c3f98ab026cf13b"
+PINNED_REV = "52e6193a7734bd1cd141e2f47f2ef8924bb7de52"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -219,6 +219,98 @@ def verify_scrubbed(con: sqlite3.Connection) -> List[str]:
             if n:
                 violations.append(f"{table}.{col}={n}")
     return violations
+
+
+# Tables the lifecycle authority needs. Absent from a frozen fixture they
+# fail at RUNTIME, not at boot — and because the lanes are fail-closed,
+# the symptom is a turn that quietly declines to read. Verify them at
+# startup instead.
+LIFECYCLE_REQUIRED_TABLES = (
+    "goal_runs", "goal_objectives", "task_operation_records",
+    "chat_request_records", "invocation_events",
+)
+
+
+def runtime_contract_preflight(world: Path, port: int, *,
+                               lifecycle_expected: bool) -> Dict[str, Any]:
+    """Verify the EFFECTIVE production contract, not the requested one.
+
+    Two mistakes already happened here and both were silent:
+
+    * the harness set ``CHAT_TASK_LIFECYCLE``, a flag no production code
+      reads, so a "lifecycle on" run exercised the legacy path;
+    * the frozen fixture is a DATA snapshot, so the tables the lifecycle
+      needs were absent — and the first operation reservation raised,
+      the fail-closed lane blocked the read, and the turn answered with
+      no rows and no error.
+
+    So check what the SERVER actually sees: the flag inside the world's
+    process environment, and the tables in the database it will use.
+    """
+    import sqlite3 as _sq
+
+    report: Dict[str, Any] = {
+        "lifecycle_expected": lifecycle_expected,
+        "lifecycle_flag_effective": None,
+        "lifecycle_flag_source": None,
+        "required_tables_present": [],
+        "required_tables_missing": [],
+        "ok": True,
+    }
+    run_dirs = sorted((world / "runs").glob("*"), key=lambda p: p.stat().st_mtime)
+    db_path = None
+    if run_dirs:
+        candidate = run_dirs[-1] / "data" / "atom.db"
+        if candidate.exists():
+            db_path = candidate
+    if db_path is None:
+        report["ok"] = False
+        report["error"] = "no run database found to verify the contract against"
+        return report
+    try:
+        con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
+        present = {r[0] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        con.close()
+    except Exception as exc:  # noqa: BLE001
+        report["ok"] = False
+        report["error"] = f"could not inspect the run database: {exc}"
+        return report
+    missing = [t for t in LIFECYCLE_REQUIRED_TABLES if t not in present]
+    report["required_tables_present"] = [
+        t for t in LIFECYCLE_REQUIRED_TABLES if t in present]
+    report["required_tables_missing"] = missing
+    if lifecycle_expected and missing:
+        report["ok"] = False
+        report["error"] = (
+            f"lifecycle requested but the database is missing {missing}; the "
+            f"fail-closed lanes would decline to read and the case would "
+            f"fail with no rows and no error")
+    # The flag the server process actually received.
+    env_path = run_dirs[-1] / "server_env.json"
+    if env_path.exists():
+        try:
+            server_env = json.loads(env_path.read_text())
+            report["lifecycle_flag_effective"] = server_env.get(
+                "ATOM_TASK_LIFECYCLE_ENABLED")
+            report["lifecycle_flag_source"] = "server_env.json"
+        except Exception:
+            pass
+    if report["lifecycle_flag_effective"] is None:
+        env_txt = run_dirs[-1] / "server_env.txt"
+        if env_txt.exists():
+            for line in env_txt.read_text().splitlines():
+                if line.startswith("ATOM_TASK_LIFECYCLE_ENABLED="):
+                    report["lifecycle_flag_effective"] = line.split("=", 1)[1]
+                    report["lifecycle_flag_source"] = "server_env.txt"
+    if lifecycle_expected and str(
+            report["lifecycle_flag_effective"]) != "1":
+        report["ok"] = False
+        report["error"] = (
+            "lifecycle requested but ATOM_TASK_LIFECYCLE_ENABLED is not '1' "
+            "in the server environment; the run would exercise the legacy "
+            "path and report coverage it does not have")
+    return report
 
 
 def preflight(world: Path) -> Dict[str, Any]:
@@ -442,6 +534,76 @@ class _SinkHandler(BaseHTTPRequestHandler):  # retained for proxy-attempt observ
     def log_message(self, *a): pass
 
 
+def _model_metadata(world: Path):
+    """The schema the CODE UNDER TEST declares.
+
+    Read from the world's immutable export, never from the mutable
+    checkout: the export is what the server runs, so it is what defines
+    the schema the run must have.
+    """
+    code_backend = world / "code" / "backend"
+    if not code_backend.exists():
+        code_backend = BACKEND
+    saved = list(sys.path)
+    saved_env = os.environ.get("TESTING")
+    try:
+        sys.path.insert(0, str(code_backend))
+        os.environ["TESTING"] = "1"
+        for stale in [m for m in list(sys.modules)
+                      if m == "core" or m.startswith("core.")]:
+            del sys.modules[stale]
+        from core.models_registration import Base
+
+        import core.models  # noqa: F401  (registers models on Base)
+        return Base.metadata
+    finally:
+        sys.path[:] = saved
+        for stale in [m for m in list(sys.modules)
+                      if m == "core" or m.startswith("core.")]:
+            del sys.modules[stale]
+        if saved_env is None:
+            os.environ.pop("TESTING", None)
+        else:
+            os.environ["TESTING"] = saved_env
+
+
+def _sync_missing_tables(con, world: Path) -> list:
+    """CREATE TABLE for anything the code declares but the frozen fixture
+    lacks. Returns the names created, for the run record."""
+    created: list = []
+    try:
+        metadata = _model_metadata(world)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[world] schema sync skipped (models unavailable: {exc})")
+        return created
+    existing = {
+        row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    for name, table in sorted(metadata.tables.items()):
+        if name in existing:
+            continue
+        try:
+            # Compile for SQLite explicitly. The models declare
+            # server_default=func.now(), which renders as the PostgreSQL
+            # `now()`; emitted with the default dialect that is a syntax
+            # error in this SQLite world ("near "("). The model is right
+            # for the deployment target — the WORLD is SQLite, so the DDL
+            # has to be rendered for the world.
+            from sqlalchemy.dialects import sqlite as _sqlite_dialect
+            from sqlalchemy.schema import CreateTable
+
+            ddl = str(CreateTable(table).compile(
+                dialect=_sqlite_dialect.dialect())).strip()
+            con.execute(ddl)
+            created.append(name)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[world] schema sync could not create {name}: {exc}")
+    if created:
+        con.commit()
+    return created
+
+
 def _seed_run_data(world: Path, run_dir: Path) -> None:
     """Seed a fresh run data dir from the world fixture via the SQLite
     backup API (consistent snapshot), rewrite dataset parquet paths, and
@@ -471,6 +633,19 @@ def _seed_run_data(world: Path, run_dir: Path) -> None:
             con.execute("DELETE FROM dataset_entries WHERE parquet_path=?", (pp,))
             removed += 1
     con.commit()
+    # SCHEMA SYNC (acceptance run, 2026-09-26). The fixture is a frozen
+    # DATA snapshot; the schema must come from the code under test. When
+    # the code adds a table, the frozen dump does not have it, and the
+    # first thing that touches it fails at runtime — which is exactly
+    # what happened: task_operation_records was absent, so every
+    # operation reservation raised, the fail-closed lane blocked the
+    # read, and the turn answered with no rows. Create any missing table
+    # from the code's own metadata and RECORD it, so a run against an
+    # out-of-date fixture is visible in the evidence rather than silent.
+    added = _sync_missing_tables(con, world)
+    if added:
+        print(f"[world] schema sync: created {len(added)} table(s) absent "
+              f"from the frozen fixture: {', '.join(added)}")
     ic = con.execute("PRAGMA integrity_check").fetchone()[0]
     con.close()
     if removed:
@@ -535,7 +710,15 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
         env["CHAT_FINALIZATION_M1"] = "1"
     if getattr(launch_server, "gate", False):
         env["CHAT_FINALIZATION_M2"] = "1"
-        env["CHAT_TASK_LIFECYCLE"] = "1"
+    # TASK LIFECYCLE. The production authority is
+    # ATOM_TASK_LIFECYCLE_ENABLED; the harness used to set
+    # CHAT_TASK_LIFECYCLE, which no production code reads, so every
+    # "lifecycle on" run silently exercised the legacy path instead. A
+    # run that claims lifecycle coverage must set the real flag, and the
+    # world is recorded with it.
+    if getattr(launch_server, "lifecycle", False) or \
+            getattr(launch_server, "gate", False):
+        env["ATOM_TASK_LIFECYCLE_ENABLED"] = "1"
     if provider_shim:
         # Recorded-response rig: production router dispatches to the local
         # shim (env-key registration + SDK base-url override). Only the
@@ -624,8 +807,20 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
                 launch_server.last_run_dir = launch_server.last_run_dir
                 # ALWAYS write the fresh descriptor - a stale descriptor file
                 # fails the identity gate by design (observed in verification).
+                # Record the EFFECTIVE launch environment for the
+                # contract preflight. Reading it back from the file the
+                # server was started with is the only honest way to prove
+                # a production flag arrived; asserting it from the
+                # runner's own intent is how CHAT_TASK_LIFECYCLE went
+                # unnoticed for so long.
+                descriptor["effective_env"] = {
+                    k: v for k, v in env.items()
+                    if k.startswith(("ATOM_", "CHAT_", "ENABLE_"))
+                }
                 _dpath = world / "launch_descriptor.json"
                 _dpath.write_text(json.dumps(descriptor, indent=1))
+                (run_dir / "server_env.json").write_text(
+                    json.dumps(descriptor["effective_env"], indent=1))
                 descriptor["descriptor_path"] = str(_dpath)
                 print(f"[server] healthy on :{port} (pid {proc.pid}, world identity verified: "
                       f"{_ident.get('source_id', '')[:24]}, seatbelt, credential-free)")
@@ -682,6 +877,110 @@ def _norm_label(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(s).lower()).strip()
 
 
+_BULLET_ROW = re.compile(
+    r"^[-*]\s*\*\*(?P<label>[^*]+?)\*\*"
+    r"(?:\s*\([^)]*\))?"          # optional "(matched via '...')" suffix
+    r"\s*[-–—:]\s*(?P<body>.+)$")
+# The presentation renderer emits per-target bullets of the form
+#   - **U-22** - 1,777 (LINMAC!R26, column C26 'List Price'; also M26 'List Price_2' 1,777)
+#   - **No. 381** - several rows match (...); which one is yours needs your confirmation
+# The frozen evaluator only understood pipe tables, so every target scored
+# `missing_row` even when the reply was correct. This maps the bullet form
+# onto the SAME {target, status, evidence} shape the pipe path produces.
+#
+# Two rules keep this a FORMAT ADAPTER rather than a source of passes:
+#   * the target label is taken verbatim from the bullet (aliases still
+#     decide matching, as before);
+#   * the evidence is a MECHANICAL re-spelling of the renderer's own
+#     wording. Nothing is inferred, defaulted, or filled in — a bullet
+#     with no citation yields no segment, and therefore cannot verify a
+#     price. See the negative tests in tests/test_acceptance_runner_guards.py.
+_BULLET_PAIR = re.compile(
+    r"(?:column\s+)?(?P<cell>[A-Z]{1,3}\d{1,7})\s+'(?P<basis>[^']+)'"
+    r"(?:\s+(?P<value>-?\$?[\d,]+(?:\.\d+)?))?")
+_BULLET_LEAD_VALUE = re.compile(r"^(?P<value>-?\$?[\d,]+(?:\.\d+)?)\b")
+
+
+def _bullet_evidence(body: str) -> str:
+    """Re-spell a renderer evidence fragment into evaluator segments.
+
+    ``LINMAC!R26, column C26 'List Price'; also M26 'List Price_2' 1,777``
+    becomes ``LINMAC!R26 ; C26=1777 [basis=List Price] ; M26=1777
+    [basis=List Price_2]`` — the same bindings, in the evaluator's
+    grammar. A leading scalar (``1,777 (evidence)``) is attached to the
+    first segment's first pair ONLY when that pair carries no value of its
+    own, so a stated price and a cited price can never be conflated.
+    """
+    body = body.strip()
+    lead = _BULLET_LEAD_VALUE.match(body)
+    lead_value = lead.group("value") if lead else None
+    if lead:
+        body = body[lead.end():].lstrip(" —–-(")
+    open_paren = body.find("(")
+    if open_paren >= 0:
+        body = body[open_paren + 1:]
+    body = body.rstrip(")").strip()
+    # Split on the citation boundary: a new segment starts at a Sheet!Ref.
+    parts = _SEGMENT_SPLIT.split(body) if body else []
+    if not parts:
+        return ""
+    segments: List[str] = []
+    for part in parts:
+        part = part.strip()
+        cite = _CITE_RE.search(part)
+        if not cite:
+            continue
+        pairs = []
+        for match in _BULLET_PAIR.finditer(part):
+            value = match.group("value")
+            if value is None and lead_value is not None and not pairs:
+                value = lead_value
+            if value is None:
+                continue
+            pairs.append(f"{match.group('cell')}={value} "
+                         f"[basis={match.group('basis')}]")
+        if not pairs:
+            continue
+        segments.append(f"{cite.group(1).strip()}!{cite.group(2)} ; "
+                        + " ; ".join(pairs))
+    return " ; ".join(segments)
+
+
+def parse_reply_bullets(reply: str) -> List[Dict[str, str]]:
+    """Per-target rows from the presentation renderer's bullet form.
+
+    ``evidence`` holds the evaluator-grammar re-spelling so price↔cell
+    binding can be checked; ``evidence_raw`` keeps the renderer's own
+    wording verbatim so a human reading the record sees exactly what the
+    user saw, and so a row with no citable price is visibly empty rather
+    than quietly filled in.
+    """
+    rows: List[Dict[str, str]] = []
+    for line in (reply or "").splitlines():
+        line = line.strip()
+        match = _BULLET_ROW.match(line)
+        if not match:
+            continue
+        label = match.group("label").strip().strip("*").strip()
+        body = match.group("body").strip()
+        if not label or not body:
+            continue
+        upper = body.upper()
+        if "SEVERAL ROWS MATCH" in upper or "NEEDS YOUR CONFIRMATION" in upper \
+                or "AMBIGUOUS" in upper:
+            status = "AMBIGUOUS"
+        elif "NOT FOUND" in upper or "ABSENT" in upper:
+            status = "NOT FOUND IN INDEXED CONTENT"
+        elif _BULLET_LEAD_VALUE.match(body):
+            status = "FOUND"
+        else:
+            status = body[:60]
+        rows.append({"target": label, "status": status,
+                     "evidence": _bullet_evidence(body),
+                     "evidence_raw": body, "row_text": line})
+    return rows
+
+
 def parse_reply_table(reply: str) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     for line in reply.splitlines():
@@ -695,6 +994,12 @@ def parse_reply_table(reply: str) -> List[Dict[str, str]]:
             continue
         rows.append({"target": cells[0], "status": cells[1],
                      "evidence": "|".join(cells[2:]), "row_text": line})
+    if not rows:
+        # The presentation renderer may answer in per-target bullets
+        # rather than a pipe table. Both are the SAME reply shape, so
+        # fall back to the bullet form instead of scoring every target
+        # `missing_row` on a correct answer.
+        rows = parse_reply_bullets(reply)
     return rows
 
 
@@ -1559,6 +1864,101 @@ def _claim_context(case: Dict[str, Any], final: Dict[str, Any],
     }
 
 
+async def run_keyed_retry_probe(base: str, token: str, user_id: str,
+                               case: Dict[str, Any], sample: int,
+                               pre: Dict[str, Any], world: Path,
+                               replay_mod) -> Dict[str, Any]:
+    """Keyed request identity, at the public boundary.
+
+    Four things must hold, and each is a lifecycle guarantee:
+
+    * the first send with an id reserves and executes;
+    * the SAME id + SAME payload replays the pinned response with no new
+      execution (a retry must not repeat an effect);
+    * the SAME id + DIFFERENT payload is a conflict, never a second turn;
+    * after a server restart on the same database, the same id still
+      returns the response it was pinned with.
+
+    Records what actually happened per step; a step that could not run is
+    reported as unexercised rather than passed.
+    """
+    import uuid as _uuid
+
+    import httpx as _hx
+
+    session = f"acc-keyed-{int(time.time())}-{sample}"
+    rid = f"acc-req-{_uuid.uuid4().hex[:12]}"
+    ask = case["inputs"]["ask_verbatim"]
+    headers = {"Authorization": f"Bearer {token}"}
+    out: Dict[str, Any] = {
+        "case_id": "keyed_retry", "sample": sample, "session_id": session,
+        "request_id": rid, "path": "old",
+        "harness_version": HARNESS_VERSION, "preflight": pre,
+        "steps": {},
+    }
+
+    async def post(payload):
+        async with _hx.AsyncClient(trust_env=False, timeout=300) as client:
+            resp = await client.post(f"{base}/api/chat/message",
+                                     headers=headers, json=payload)
+            try:
+                return resp.status_code, resp.json()
+            except Exception:
+                return resp.status_code, {}
+
+    code1, first = await post({"message": ask, "session_id": session,
+                               "user_id": user_id, "request_id": rid})
+    out["steps"]["first_send"] = {
+        "status_code": code1, "success": first.get("success"),
+        "execution_id": first.get("execution_id"),
+        "message_sha_present": bool(first.get("message")),
+    }
+    code2, replay = await post({"message": ask, "session_id": session,
+                                "user_id": user_id, "request_id": rid})
+    same_execution = bool(first.get("execution_id")) and \
+        first.get("execution_id") == replay.get("execution_id")
+    out["steps"]["same_key_same_payload"] = {
+        "status_code": code2,
+        "replayed_response": replay.get("message") == first.get("message"),
+        "same_execution_id": same_execution,
+        "new_execution": bool(replay.get("execution_id")) and not same_execution,
+        "pass": bool(replay.get("message") == first.get("message")
+                     and not (replay.get("execution_id")
+                              and not same_execution)),
+    }
+    code3, conflict = await post({"message": ask + " (different payload)",
+                                  "session_id": session, "user_id": user_id,
+                                  "request_id": rid})
+    out["steps"]["same_key_different_payload"] = {
+        "status_code": code3,
+        "conflict": code3 == 409 or conflict.get("error_code") == "request_id_conflict",
+        "detail": conflict.get("detail"),
+    }
+    out["steps"]["same_key_different_payload"]["pass"] = \
+        out["steps"]["same_key_different_payload"]["conflict"]
+
+    # Count the durable reservation rows the run actually produced.
+    import sqlite3 as _sq
+
+    runs = sorted((world / "runs").glob("*"), key=lambda q: q.stat().st_mtime)
+    db_path = runs[-1] / "data" / "atom.db" if runs else None
+    if db_path and db_path.exists():
+        con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            out["chat_request_records"] = con.execute(
+                "SELECT count(*) FROM chat_request_records").fetchone()[0]
+            out["states"] = [
+                r[0] for r in con.execute(
+                    "SELECT state FROM chat_request_records ORDER BY created_at")
+            ]
+        except Exception as exc:  # noqa: BLE001
+            out["chat_request_records"] = f"unavailable: {exc}"
+        con.close()
+    else:
+        out["chat_request_records"] = "no run database found"
+    return out
+
+
 async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, Any],
                          sample: int, pre: Dict[str, Any], world: Path, tap: WSTap,
                          replay_mod) -> Dict[str, Any]:
@@ -1567,11 +1967,18 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
     headers = {"Authorization": f"Bearer {token}"}
     client = httpx.AsyncClient(trust_env=False, timeout=300)
 
-    async def send(msg: str) -> Dict[str, Any]:
+    async def send(msg: str, request_id: Optional[str] = None) -> Dict[str, Any]:
         tap.mark_request()
         t0 = time.time()
+        payload = {"message": msg, "session_id": session, "user_id": user_id}
+        if request_id:
+            # Keyed transport identity. The runner previously sent NO
+            # request_id, so chat_request_records stayed empty and the
+            # contract was unexercised rather than broken — which is
+            # indistinguishable from "it works" if nobody looks.
+            payload["request_id"] = request_id
         r = (await client.post(f"{base}/api/chat/message", headers=headers,
-                               json={"message": msg, "session_id": session, "user_id": user_id})).json()
+                               json=payload)).json()
         r["_latency_s"] = round(time.time() - t0, 2)
         return r
 
@@ -1595,8 +2002,13 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
     trace_steps = await fetch_trace(base, token, session, replay_mod)
     claim = check_claims(reply, **_claim_context(case, final, per_target, trace_steps))
     ws = await _stop_and_measure(tap)
+    # The true-eight path runs no fault injection, so there is no injected
+    # claim to correlate: the claim checker alone decides whether an
+    # unsupported claim reached the user. (The injected/corrected-marker
+    # terms belong to the injection variant further down, where they are
+    # defined; referencing them here raised NameError and aborted the run.)
     safety_outcome = ("unsupported claims reached user-visible output"
-                      if (claim["unsupported_count"] > 0 or (injected and claim_in_final and not corrected_markers))
+                      if claim["unsupported_count"] > 0
                       else "no unsupported claims in user-visible output")
     return {
         "case_id": case["id"], "sample": sample, "session_id": session,
@@ -2504,7 +2916,9 @@ async def main_async(args: argparse.Namespace) -> int:
               "no_apply": "planner_down_no_apply",
               "overlap": "overlap_concurrent_reads",
               "narration_clean": "narration_followup_clean",
-              "narration_poisoned": "narration_followup_poisoned"}
+              "narration_poisoned": "narration_followup_poisoned",
+              # Lifecycle coverage, driven through the public boundary.
+              "keyed_retry": "original_incident_workbook_true_eight"}
 
     case_list = args.cases.split(",")
     shim_mode = any(c in ("narration_clean", "narration_poisoned", "overlap_edits", "single_edit", "m1")
@@ -2521,7 +2935,20 @@ async def main_async(args: argparse.Namespace) -> int:
         shim_proc = launch_shim(FIXTURES / "provider_shim" / script_name, capture=capture_path)
     launch_server.m1 = bool(args.m1)
     launch_server.gate = bool(args.gate)
+    launch_server.lifecycle = bool(args.lifecycle)
     proc = launch_server(args.port, world, provider_shim=shim_mode)
+    # Verify the EFFECTIVE contract before spending a case on it. A run
+    # that cannot prove the flag reached the server, or that the schema
+    # the lifecycle needs exists, must not be reported as coverage.
+    contract = runtime_contract_preflight(
+        world, args.port, lifecycle_expected=bool(args.lifecycle or args.gate))
+    print(f"[contract] lifecycle_flag_effective="
+          f"{contract.get('lifecycle_flag_effective')!r} "
+          f"missing_tables={contract.get('required_tables_missing')} "
+          f"ok={contract.get('ok')}")
+    if not contract.get("ok"):
+        raise RuntimeError(
+            f"runtime contract preflight failed: {contract.get('error')}")
     ok = True
     try:
         replay_mod = _load_replay_module()
@@ -2542,6 +2969,9 @@ async def main_async(args: argparse.Namespace) -> int:
                         await tap.stop()
                 elif short in ("absent", "no_apply", "overlap"):
                     res = await run_generic(base, token, user_id, case, s, pre, world, short, replay_mod)
+                elif short == "keyed_retry":
+                    res = await run_keyed_retry_probe(
+                        base, token, user_id, case, s, pre, world, replay_mod)
                 elif short == "m1":
                     res = await run_m1_case(base, token, user_id, case, s, pre, world)
                 elif short == "single_edit":
@@ -2615,8 +3045,18 @@ async def main_async(args: argparse.Namespace) -> int:
                 out.parent.mkdir(exist_ok=True)
                 out.write_text(json.dumps(res, indent=1))
                 claims = res.get("claim_check") or {}
-                print(f"[case {short} sample {s}] correct_completion={res['correct_completion']} "
-                      f"total_s={res.get('total_s')} unsupported_claims={res.get('unsupported_claims')}")
+                # Probes (e.g. keyed_retry) have no per-target table and no
+                # completion verdict; printing one unconditionally aborted the
+                # whole run with a KeyError before any result was written.
+                if "correct_completion" in res:
+                    print(f"[case {short} sample {s}] "
+                          f"correct_completion={res['correct_completion']} "
+                          f"total_s={res.get('total_s')} "
+                          f"unsupported_claims={res.get('unsupported_claims')}")
+                else:
+                    print(f"[case {short} sample {s}] "
+                          f"request_records={res.get('chat_request_records')} "
+                          f"states={res.get('states')}")
                 for t, v in (res.get("per_target") or {}).items():
                     mark = "PASS" if v["pass"] else "FAIL"
                     print(f"    [{mark}] {t}: expected={v['expected']} got={v['got']}")
@@ -2628,6 +3068,12 @@ async def main_async(args: argparse.Namespace) -> int:
                           f"first_token={ws['first_answer_token_latency_s']}s")
                 if short == "invoices":
                     ok = ok and res["correct_completion"] and res.get("retrieval_verified") is True
+                elif short == "keyed_retry":
+                    for _name, _st in (res.get("steps") or {}).items():
+                        _mark = "PASS" if _st.get("pass") else "FAIL"
+                        print(f"    [{_mark}] {_name}")
+                    ok = ok and all(_st.get("pass") for _st
+                                    in (res.get("steps") or {}).values())
                 else:
                     ok = ok and res["correct_completion"] and (res.get("unsupported_claims") == 0)
     finally:
@@ -2653,6 +3099,9 @@ def main() -> int:
                    help="export the LIVE working tree (uncommitted wiring) hash-pinned")
     p.add_argument("--gate", action="store_true",
                    help="set the M1/M2 finalization flags explicitly for the acceptance gate")
+    p.add_argument("--lifecycle", action="store_true",
+                   help="enable ATOM_TASK_LIFECYCLE_ENABLED in the world so the "
+                        "lifecycle authority is actually exercised")
     p.add_argument("--m1", action="store_true",
                    help="overlay the M1 finalization seam onto the exported code and enable CHAT_FINALIZATION_M1")
     p.add_argument("--regrade", action="store_true",

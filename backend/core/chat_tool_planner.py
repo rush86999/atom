@@ -3896,9 +3896,23 @@ async def _ingested_mailbox_lines(
                 DocumentsHybridSearch,
             )
 
-            store_result = await DocumentsHybridSearch().search(
-                query=query[:200], limit=6, owner_user_id=user_id
+            store_result = await _hybrid_search_preserving_constraints(
+                DocumentsHybridSearch(), query, limit=6, owner_user_id=user_id
             )
+            if store_result.get("status") == "failed" and not store_lines:
+                # No sibling leg answered and the semantic leg could not run:
+                # say so. Returning an empty list here is indistinguishable
+                # from "the mailbox has nothing", and the turn then answers
+                # with a bounded-sounding absence built on a source that was
+                # never read.
+                store_lines.append(
+                    "- [ingested mailbox] SEARCH UNAVAILABLE — the ingested "
+                    "mailbox could not be searched ("
+                    + (", ".join((store_result.get("coverage") or {}).get("unavailable") or [])
+                       or "required source unreachable")
+                    + "); no claim about these messages is supported."
+                )
+                return store_lines
             for hit in (store_result or {}).get("results") or []:
                 if str(hit.get("source") or "") != "communication":
                     continue
@@ -5072,6 +5086,111 @@ async def _datasets_evidence(
     return "\n".join(lines)
 
 
+async def _hybrid_search_preserving_constraints(
+    service: Any,
+    query: str,
+    *,
+    limit: int,
+    owner_user_id: Optional[str] = None,
+    max_chars: int = 200,
+    max_variants: int = 6,
+) -> Dict[str, Any]:
+    """Run a hybrid search without letting a character cap drop constraints.
+
+    The two call sites this replaces both read ``query[:200]``. A turn that
+    named twenty machines with the last ten past the cut searched the first
+    ten, and because a truncated query is a perfectly valid query, the search
+    reported a clean zero-match answer for the half it never sent — an absence
+    claim about items the system had no way to see. A different number would
+    not have fixed it, so this decomposes instead: overlapping windows of the
+    original text, merged, with every leg outcome preserved.
+
+    The merged envelope reports the WORST status across the pieces — one
+    failing window makes the whole search partial/failed, because coverage of
+    the union is only as good as its weakest part.
+    """
+    from core.hybrid_search.documents_hybrid import (
+        STATUS_FAILED,
+        STATUS_PARTIAL,
+        STATUS_SUCCESS,
+    )
+    from core.identifier_search import bounded_query_variants, query_coverage
+
+    variants = bounded_query_variants(
+        query, max_chars=max_chars, max_variants=max_variants
+    )
+    if not variants:
+        return {
+            "success": False, "status": STATUS_FAILED, "query": query,
+            "results": [], "hybrid": "no_results", "stats": {},
+            "legs": {}, "coverage": {"searched": [], "unavailable": [], "skipped": []},
+            "ranking": {"status": "as_fused", "reason": None},
+            "absence_claimable": False,
+            "error": {"reason": "empty_query", "legs": []},
+        }
+
+    merged: List[Dict[str, Any]] = []
+    seen: set = set()
+    legs: Dict[str, Any] = {}
+    unavailable: set = set()
+    searched: set = set()
+    stats: Dict[str, Any] = {}
+    label = "no_results"
+    for variant in variants:
+        piece = await service.search(
+            query=variant, limit=limit, owner_user_id=owner_user_id
+        )
+        piece = piece or {}
+        for name, leg in (piece.get("legs") or {}).items():
+            prior = legs.get(name)
+            if leg.get("status") == "failed":
+                unavailable.add(name)
+            elif leg.get("status") == "ok":
+                searched.add(name)
+            if prior is None or leg.get("status") == "failed":
+                legs[name] = leg
+        piece_label = str(piece.get("hybrid") or "")
+        if piece_label and piece_label != "no_results":
+            label = piece_label if label == "no_results" else label
+        for key, value in (piece.get("stats") or {}).items():
+            if isinstance(value, (int, float)):
+                stats[key] = stats.get(key, 0) + value
+        for hit in piece.get("results") or []:
+            key = (str(hit.get("source") or ""), str(hit.get("id") or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(hit)
+
+    status = STATUS_SUCCESS
+    if unavailable:
+        status = STATUS_PARTIAL if merged else STATUS_FAILED
+    coverage = query_coverage(query, variants)
+    if not coverage["complete"] and status == STATUS_SUCCESS:
+        status = STATUS_PARTIAL
+
+    return {
+        "success": status != STATUS_FAILED,
+        "status": status,
+        "query": query,
+        "results": merged[:limit],
+        "hybrid": label,
+        "stats": stats,
+        "legs": legs,
+        "coverage": {
+            "searched": sorted(searched),
+            "unavailable": sorted(unavailable),
+            "skipped": sorted(
+                n for n, leg in legs.items() if leg.get("status") == "skipped"
+            ),
+            "query_variants": len(variants),
+            "query_coverage": coverage,
+        },
+        "ranking": {"status": "as_fused", "reason": None},
+        "absence_claimable": status == STATUS_SUCCESS,
+    }
+
+
 async def _memory_hybrid_block(
     user_id: Optional[str],
     query: str,
@@ -5086,13 +5205,25 @@ async def _memory_hybrid_block(
     ``figure_lines`` (see _mailbox_figure_lines) are PREPENDED ahead of the
     8-line cap: hybrid hits are relevance-ranked and routinely filled every
     slot with unrelated documents while the amount the query named sat in an
-    ingested email (live 2026-09-13)."""
+    ingested email (live 2026-09-13).
+
+    A retrieval FAILURE is announced, never dropped: returning None here for
+    both "nothing matched" and "the store could not be read" is what let a
+    broken source become a confident absence claim."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
-        result = await DocumentsHybridSearch().search(
-            query[:200], limit=8, owner_user_id=user_id
+        result = await _hybrid_search_preserving_constraints(
+            DocumentsHybridSearch(), query, limit=8, owner_user_id=user_id
         )
+        if not (result or {}).get("results") and result.get("status") == "failed":
+            legs = ", ".join(sorted((result.get("coverage") or {}).get("unavailable") or []))
+            return (
+                "INGESTED WORKSPACE SEARCH UNAVAILABLE — the memory store could "
+                f"not be searched ({legs or 'required source unreachable'}). "
+                "Nothing below is evidence about this workspace; do not report "
+                "these items as absent."
+            )
         # Excerpt corpus: the tool query names the SUBJECT; the user's own
         # words name what they want to KNOW about it. Both locate the region.
         excerpt_corpus = query + " " + " ".join(
@@ -5100,6 +5231,15 @@ async def _memory_hybrid_block(
         )
         lines: List[str] = []
         seen_ids = set()
+        if result.get("status") == "partial":
+            unavailable = ", ".join(
+                sorted((result.get("coverage") or {}).get("unavailable") or [])
+            )
+            lines.append(
+                f"- [search coverage] PARTIAL — {unavailable or 'a source'} "
+                "was unavailable; these are the sources that answered, and an "
+                "item not among them is unresolved, not absent."
+            )
         # SYNC-OFF-LOOP: excerpt extraction needs the FULL documents table —
         # load it once, off-loop (it was previously a full table load PER
         # HIT, up to 8 loads per search, all on the event loop).

@@ -344,3 +344,107 @@ def test_pin_survives_restart_and_later_refinalization(db):
                 finalized={"success": True, "message": "second turn bytes"})
     assert ct.stored_response(rec4)["message"] == "second turn bytes"
     session4.close()
+
+
+def test_pin_survives_a_huge_metadata_blob(db):
+    """A workbook turn's metadata is the whole structured result and
+    coverage report. The pin must not be truncated by it.
+
+    This is a real regression: the pin used to be sliced to a byte limit,
+    which cut the JSON mid-string, so a correct turn answered 500 on
+    retry with `idempotent_replay_unavailable`.
+    """
+    factory = db
+    huge = {"rows": [{"i": i, "cell": "X" * 400} for i in range(4000)]}
+    response = {
+        "success": True, "message": "the answer", "session_id": "s1",
+        "execution_id": "e1", "intent": "file_ask",
+        "metadata": huge,
+    }
+    session = factory()
+    _, rec = ct.check(session, **_scope(request_id="r-huge"),
+                      digest="h", payload_text="{}")
+    ct.complete(session, rec, execution_id="e1", assistant_message_id="m1",
+                finalized=response)
+    session.close()
+
+    session2 = factory()
+    action, rec2 = ct.check(session2, **_scope(request_id="r-huge"),
+                            digest="h", payload_text="{}")
+    assert action == "replay"
+    stored = ct.stored_response(rec2)
+    assert stored is not None, "the pin must be parseable JSON"
+    # The retry contract survives verbatim.
+    assert stored["message"] == "the answer"
+    assert stored["execution_id"] == "e1"
+    assert stored["session_id"] == "s1"
+    # The oversized metadata is not duplicated into the pin; it lives on
+    # the assistant message row this record points at.
+    assert "metadata" not in stored
+    assert len(rec2.finalized_response) < 60000
+    session2.close()
+
+
+def test_replay_projection_keeps_the_retry_contract():
+    response = {
+        "success": False, "message": "m", "session_id": "s", "intent": "i",
+        "confidence": 0.5, "execution_id": "e", "error_code": "boom",
+        "model": "x", "provider": "y", "timestamp": "t",
+        "suggested_actions": [], "next_steps": [], "requires_confirmation": False,
+        "metadata": {"anything": 1},
+    }
+    projection = ct.replay_projection(response)
+    assert projection["message"] == "m"
+    assert projection["execution_id"] == "e"
+    assert projection["error_code"] == "boom"
+    assert "metadata" not in projection
+    assert ct.replay_projection(None) == {}
+    assert ct.replay_projection("not a dict") == {}
+
+
+def test_route_error_handler_preserves_deliberate_statuses():
+    """A deliberate status must survive the route's error handler.
+
+    The handler converted EVERY exception to 500, so the keyed-conflict
+    409 reached the client as a server failure. The acceptance run read
+    that as a broken conflict contract when the conflict had been
+    detected correctly all along.
+    """
+    import inspect
+
+    from fastapi import HTTPException
+
+    from integrations import chat_routes as cr
+
+    source = inspect.getsource(cr.send_chat_message)
+    assert "except HTTPException:" in source, (
+        "send_chat_message must re-raise HTTPException, not convert a "
+        "deliberate 409/429/503 into a 500")
+    rethrow = source.index("except HTTPException:")
+    # The blanket handler that FOLLOWS the passthrough, not any earlier
+    # unrelated `except Exception` inside the function.
+    blanket = source.index("except Exception", rethrow)
+    assert rethrow < blanket, (
+        "the HTTPException passthrough must come BEFORE the blanket "
+        "Exception -> 500 conversion")
+    between = source[rethrow:blanket]
+    assert "raise" in between, (
+        "the HTTPException branch must re-raise, not fall through")
+
+    # And the conversion still applies to a genuine unexpected failure.
+    assert "status_code=500" in source
+
+
+def test_keyed_conflict_detail_is_a_409_shaped_payload():
+    """The conflict the route raises must carry a machine-readable code
+    so a client can distinguish it from a transient failure."""
+    from fastapi import HTTPException
+
+    exc = HTTPException(status_code=409, detail={
+        "error": "request_id_conflict",
+        "request_id": "r-1",
+        "detail": "this request ID was already used with a different "
+                  "payload; mint a new ID for a new turn.",
+    })
+    assert exc.status_code == 409
+    assert exc.detail["error"] == "request_id_conflict"

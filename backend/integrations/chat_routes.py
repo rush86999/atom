@@ -2040,6 +2040,12 @@ async def send_chat_message(
         _complete_transport_request(db, _treq, _final)
         return _final
 
+    except HTTPException:
+        # A deliberate status (409 keyed-request conflict, 429, 503) must
+        # survive. Converting it to 500 told the client the turn failed
+        # when the real answer was "this request id carries a different
+        # payload" — and it hid the conflict path from the acceptance run.
+        raise
     except Exception as e:
         logger.error(f"Chat message processing failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Chat processing failed")

@@ -1,0 +1,137 @@
+{
+  "generated_at": "2026-09-26T18:31:56.139616-04:00",
+  "frozen_source": {
+    "commit": "52e6193a7734bd1cd141e2f47f2ef8924bb7de52",
+    "worktree": "/Users/rushiparikh/projects/atom-mig-baseline",
+    "worktree_clean_at_freeze": true,
+    "export_archive_sha256": "86361f78a237d0940c5d784589372135ef1f586f33f9ad15cb796e8330ebb920",
+    "export_mechanism": "git archive 52e6193a7734bd1cd141e2f47f2ef8924bb7de52 (immutable export, file-manifested, read-only)",
+    "key_file_sha256": {
+      "core/task_lifecycle.py": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "integrations/chat_orchestrator.py": "30c9140640791702d7f1b3585096c69d240e008b3e3bbbf55937804727b97a19",
+      "integrations/chat_routes.py": "9932c0959981c4095abd2abd38b2d24660122880be11b3603bd1a965500e1b28",
+      "core/chat_transport.py": "c060d9bcf435edf3d1fd30695e1fdc1384680de7c696cccd0f701648d37d3570",
+      "core/models.py": "2db171a9271be585557adf5ffd0d4bf472135d79911c5bbae8769f1e01540e30",
+      "core/answer_presentation.py": "9dcb7e986fd1e4b742adceec850ce4c34979aec61a61c30cbb225b6ab7045b81",
+      "core/chat_tool_planner.py": "438b224b7e5119d0e21cf88dca974f475f5aeb5f327e51af89e8fcd6cc4ba846",
+      "core/workbook_read_artifact.py": "956fc72b3d442d8e5807568725eceb4ce60a9e98c975bbd062ab06f17f819018"
+    }
+  },
+  "world": {
+    "name": "lifecycle_final",
+    "fixture_db_sha256": "a87d4f5d9186cc79e057df7a975f7cf0fa71db94b76c4af4a158143707b89494",
+    "working_db_sha256": null,
+    "server_source_id": null,
+    "server_pid": 50961,
+    "port": 8047,
+    "network_boundary": "macOS seatbelt: external denied, loopback to the test port only",
+    "credentials": "fixture scrubbed; credential-free server",
+    "schema_sync": {
+      "reason": "frozen fixture is a DATA snapshot; the schema comes from the code under test",
+      "tables_created": [
+        "chat_request_records",
+        "invocation_events",
+        "task_operation_records"
+      ]
+    },
+    "harness_version": "enforced-isolation-v3.2",
+    "network_boundary_verified": {
+      "loopback": true,
+      "external_blocked": true
+    },
+    "venv_freeze_sha256": "70aedee442940759490bea13dc32bc0526af274d7fd1fb13f573886df403d060",
+    "credential_scrub": {
+      "integration_tokens(rows deleted)": 9
+    }
+  },
+  "effective_flags": {
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "ATOM_CHAT_STREAMING": "1",
+    "CHAT_FINALIZATION_M1": "(unset \u2014 --gate not passed)",
+    "CHAT_FINALIZATION_M2": "(unset \u2014 --gate not passed)"
+  },
+  "cases": {
+    "original_incident_workbook_true_eight": {
+      "result_file": "docs/architecture/orchestration_migration/acceptance/results/original_incident_workbook_true_eight__sample1__1790461896.json",
+      "correct_completion": false,
+      "unsupported_claims": 0,
+      "safety_outcome": "no unsupported claims in user-visible output",
+      "per_target": {
+        "U-22": {
+          "expected": "found",
+          "got": "found",
+          "pass": false
+        },
+        "SLE24-16": {
+          "expected": "found",
+          "got": "found",
+          "pass": false
+        },
+        "TK 1624": {
+          "expected": "found",
+          "got": "found",
+          "pass": false
+        },
+        "TK Manual Flanger": {
+          "expected": "found",
+          "got": "found",
+          "pass": false
+        },
+        "GSL48-16": {
+          "expected": "found",
+          "got": "found",
+          "pass": false
+        },
+        "No. 381": {
+          "expected": "ambiguous",
+          "got": "ambiguous",
+          "pass": true
+        },
+        "No. 622": {
+          "expected": "ambiguous",
+          "got": "ambiguous",
+          "pass": true
+        },
+        "TK Multi Wheel Gang Slitter": {
+          "expected": "ambiguous_candidate",
+          "got": "ambiguous",
+          "pass": false
+        }
+      },
+      "ws_metrics": {
+        "ws_events_total": 2,
+        "progress_event_latency_s": 0.35,
+        "first_answer_token_latency_s": null,
+        "ws_event_kinds": [
+          "agent_status_change"
+        ],
+        "streamed_chars": 0
+      }
+    }
+  },
+  "lifecycle_effects_observed": {
+    "db_counts": {
+      "goal_runs_with_lifecycle": 1,
+      "task_operation_records": 0,
+      "chat_request_records": 0,
+      "invocation_events": 3
+    },
+    "task_entities_in_order": [
+      "No. 381",
+      "U-22",
+      "No. 622",
+      "TK Manual Flanger",
+      "SLE24-16",
+      "TK 1624",
+      "TK Multi Wheel Gang Slitter",
+      "GSL48-16"
+    ],
+    "operations": [
+      {
+        "type": "retrieve",
+        "status": "applied"
+      }
+    ],
+    "deliveries": []
+  }
+}

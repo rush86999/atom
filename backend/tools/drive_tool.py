@@ -52,20 +52,30 @@ async def integration_search_index(
     ws = workspace_id or "default"
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+        from core.identifier_search import bounded_query_variants
 
-        result = await DocumentsHybridSearch().search(
-            query=query[:500], limit=limit, source=f"{integration_id}-index"
-        )
         hits = []
-        for hit in (result or {}).get("results", []) or []:
-            hits.append(
-                {
-                    "name": hit.get("title"),
-                    "source": hit.get("source"),
-                    "preview": (hit.get("preview") or "")[:200],
-                    "external_id": (hit.get("metadata") or {}).get("external_id"),
-                }
+        seen = set()
+        # Bounded decomposition instead of query[:500]: an integration index
+        # search that dropped the tail of a long query answered for the part
+        # it saw and stayed silent about the rest.
+        for variant in bounded_query_variants(query, max_chars=500, max_variants=4):
+            result = await DocumentsHybridSearch().search(
+                query=variant, limit=limit, source=f"{integration_id}-index"
             )
+            for hit in (result or {}).get("results", []) or []:
+                key = (str(hit.get("source") or ""), str(hit.get("id") or ""))
+                if key in seen:
+                    continue
+                seen.add(key)
+                hits.append(
+                    {
+                        "name": hit.get("title"),
+                        "source": hit.get("source"),
+                        "preview": (hit.get("preview") or "")[:200],
+                        "external_id": (hit.get("metadata") or {}).get("external_id"),
+                    }
+                )
         return {"success": True, "integration_id": integration_id, "hits": hits}
     except Exception as search_err:
         logger.debug(f"index search failed: {search_err}")

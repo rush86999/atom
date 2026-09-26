@@ -112,6 +112,32 @@ def check(db, *, tenant_id: str, user_id: str, session_id: Optional[str],
     return "execute", record
 
 
+def replay_projection(finalized: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The retry contract, bounded on purpose.
+
+    A retry must return the SAME answer, and the answer is the message
+    plus the identity it was delivered under. The full response also
+    carries ``metadata`` — for a workbook turn that is the entire
+    structured result, coverage report and evidence, hundreds of
+    kilobytes — which is already durably persisted on the assistant
+    message row this record points at. Duplicating it per retry record
+    served no purpose and, once a byte-slicing limit was applied to
+    protect the column, it truncated the stored JSON mid-string so the
+    replay could not be parsed at all: a correct turn answered 500 on
+    retry.
+
+    So the pin stores what a retry needs and points at the row that
+    holds the rest. Never slice serialized JSON.
+    """
+    if not isinstance(finalized, dict):
+        return {}
+    keep = ("success", "message", "session_id", "intent", "confidence",
+            "suggested_actions", "requires_confirmation", "next_steps",
+            "timestamp", "execution_id", "error_code", "model", "provider",
+            "reasoning", "recovery_url")
+    return {k: finalized[k] for k in keep if k in finalized}
+
+
 def complete(db, record: Any, *, execution_id: Optional[str] = None,
              assistant_message_id: Optional[str] = None,
              finalized: Optional[Dict[str, Any]] = None) -> None:
@@ -141,7 +167,11 @@ def complete(db, record: Any, *, execution_id: Optional[str] = None,
         if assistant_message_id:
             record.assistant_message_id = str(assistant_message_id)
         if finalized is not None:
-            record.finalized_response = json.dumps(finalized)[:60000]
+            # Bounded by CONSTRUCTION (an explicit projection), never by
+            # slicing: a byte-sliced JSON document is unparseable, and an
+            # unparseable pin turns a correct turn into a 500 on retry.
+            record.finalized_response = json.dumps(
+                replay_projection(finalized))
         db.commit()
     except Exception as exc:
         try:
