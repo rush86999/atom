@@ -57,6 +57,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -348,6 +349,12 @@ def cmd_up(args: argparse.Namespace) -> int:
     print(f"[preview] seeding run data -> {run_dir}")
     R._seed_run_data(world, run_dir)
 
+    byok = {"skipped": True}
+    if not args.no_user_byok:
+        byok = seed_byok_store(run_dir)
+        print(f"[preview] BYOK store seeded into run dir: "
+              f"providers={','.join(byok['provider_ids_present']) or 'none'}")
+
     farm = world / "backend_root"
     link = farm / "data"
     if link.is_symlink() or link.exists():
@@ -398,6 +405,7 @@ def cmd_up(args: argparse.Namespace) -> int:
         "frontend_port": frontend_port,
         "frontend_pid": fe,
         "effective_flags": flags,
+        "byok": byok,
         "source_snapshot_sha256": _world_snapshot_sha(world),
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "seatbelt": False,
@@ -526,6 +534,66 @@ def _terminate(proc: subprocess.Popen, grace: float = 15.0) -> None:
             proc.kill()
 
 
+# --------------------------------------------------------------------------
+# Model credentials: the app's OWN encrypted BYOK store.
+#
+# Why this exists. The plan requires at least one REAL configured model to
+# serve a browser-visible turn, and forbids inventing or hardcoding a
+# credential. The repo's real provider keys are not in backend/.env at all --
+# they live in backend/data/byok_keys.json, encrypted at rest with a Fernet
+# key in backend/data/byok_encryption_key, and they are exactly the
+# "existing credential mechanism" the plan requires us to use.
+#
+# `core/llm` resolves those paths against <backend>/data, which inside a world
+# is the farm's `data` symlink -> the per-run directory. So a fresh world
+# auto-creates an EMPTY key store and the preview has no provider access: the
+# only thing that worked was the OPENROUTER_API_KEY env var, whose account is
+# out of credits (HTTP 402, observed). Seeding the run directory with the
+# user's own three BYOK files restores real provider access through the
+# supported path, with no production change and no secret ever rendered.
+#
+# The store is copied, never moved, and only the encrypted form is copied, so
+# the app's own encryption boundary is preserved end to end. Values are not
+# printed, and the target files are chmod 600.
+# --------------------------------------------------------------------------
+BYOK_SEED_FILES = ("byok_keys.json", "byok_config.json", "byok_encryption_key")
+
+
+def seed_byok_store(run_dir: Path) -> Dict[str, Any]:
+    """Copy the encrypted BYOK store into the run dir. Returns a summary with
+    provider NAMES only -- never a key, a hash, or a length."""
+    src_dir = BACKEND / "data"
+    dst_dir = run_dir / "data"
+    copied, missing = [], []
+    for name in BYOK_SEED_FILES:
+        src, dst = src_dir / name, dst_dir / name
+        if not src.exists():
+            missing.append(name)
+            continue
+        if dst.exists() and dst.stat().st_size:
+            # A previous run already seeded it; the world is per-run so this
+            # is only reachable on a reused run dir. Overwrite deliberately.
+            pass
+        shutil.copy2(src, dst)
+        dst.chmod(0o600)
+        copied.append(name)
+    providers: List[str] = []
+    keys_file = dst_dir / "byok_keys.json"
+    if keys_file.exists():
+        try:
+            raw = json.loads(keys_file.read_text())
+            providers = sorted({v.get("provider_id", "?")
+                                for v in (raw.get("keys") or {}).values()
+                                if isinstance(v, dict)})
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"files_copied": copied, "files_missing": missing,
+            "provider_ids_present": providers,
+            "note": "encrypted store copied verbatim; no secret was read or printed"}
+
+
+# --------------------------------------------------------------------------
+# up
 # --------------------------------------------------------------------------
 # status / verify / down
 # --------------------------------------------------------------------------
@@ -692,6 +760,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = sub.add_parser("up", help="build nothing; seed a run dir and launch backend+frontend")
     p.add_argument("--backend-port", type=int, default=DEFAULT_BACKEND_PORT)
     p.add_argument("--frontend-port", type=int, default=DEFAULT_FRONTEND_PORT)
+    p.add_argument("--no-user-byok", action="store_true",
+                   help="do NOT seed the run dir with the repo's encrypted BYOK "
+                        "store; the preview then has no real provider access")
     p.set_defaults(fn=cmd_up)
 
     p = sub.add_parser("verify", help="prove the running stack is the claimed world")

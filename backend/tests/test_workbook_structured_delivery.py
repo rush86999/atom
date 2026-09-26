@@ -1030,3 +1030,99 @@ class TestIdentityEvidence:
 
         assert STRUCTURED_RESULT_SCHEMA == "structured-result-2"
         assert "structured-result-1" in STRUCTURED_RESULT_SCHEMA_PREVIOUS
+
+
+class TestProbeMatchedCells:
+    """The content probe knows WHICH cells matched; that coordinate must
+    survive into identity evidence instead of a bare row locator."""
+
+    def test_matched_cells_in_row_is_an_exact_value_comparison(self):
+        from core.sheet_dataset_service import _matched_cells_in_row
+
+        letters = {"Model": "A", "Price": "C", "Note": "D"}
+        row = {"Model": "U-22", "Price": "1777", "Note": "n/a",
+               "__sheet_row": 26}
+        hits = _matched_cells_in_row(row, "U-22", letters, 26)
+        assert [h["cell"] for h in hits] == ["A26"]
+        assert hits[0]["value"] == "U-22"
+        assert hits[0]["column"] == "Model"
+
+    def test_identity_outside_column_a_is_still_found(self):
+        from core.sheet_dataset_service import _matched_cells_in_row
+
+        letters = {"Description": "D", "Price": "C"}
+        row = {"Description": "Linmac Bead Roller U-22", "Price": "1777"}
+        hits = _matched_cells_in_row(row, "U-22", letters, 26)
+        assert [h["cell"] for h in hits] == ["D26"]
+
+    def test_several_matching_cells_yield_several_references(self):
+        from core.sheet_dataset_service import _matched_cells_in_row
+
+        letters = {"A": "A", "B": "B"}
+        row = {"A": "381", "B": "No. 381"}
+        hits = _matched_cells_in_row(row, "381", letters, 88)
+        assert sorted(h["cell"] for h in hits) == ["A88", "B88"]
+
+    def test_no_match_yields_no_reference(self):
+        from core.sheet_dataset_service import _matched_cells_in_row
+
+        letters = {"Model": "A", "Price": "C"}
+        assert _matched_cells_in_row({"Model": "U-22", "Price": "1"},
+                                     "GSL48-16", letters, 5) == []
+
+    def test_digit_boundary_is_respected(self):
+        """'5216' must not match inside '15.5216250' — the whole-number
+        rule the probe itself applies."""
+        from core.sheet_dataset_service import _matched_cells_in_row
+
+        letters = {"V": "A"}
+        assert _matched_cells_in_row({"V": "15.521625000000002"},
+                                     "5216", letters, 1) == []
+        assert _matched_cells_in_row({"V": "TK 5216"}, "5216",
+                                     letters, 1) != []
+
+    def test_probe_record_identity_binds_end_to_end(self):
+        """A probe record carrying matched_cells produces BOUND identity
+        evidence on the candidate."""
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["U-22"], artifact_outcomes={},
+            per_item={"U-22": {
+                "entity_name": "LINMAC",
+                "columns": ["Model", "Price"],
+                "column_letters": {"Model": "A", "Price": "C"},
+                "matched_cells": [{"cell": "A26", "column": "Model",
+                                   "value": "U-22"}],
+                "rows": [{"Model": "U-22", "Price": "1777",
+                          "__sheet_row": 26}]}},
+            field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-probe")
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "bound"
+        ref = cand["identity"]["references"][0]
+        assert ref["cell"] == "A26"
+        assert ref["sheet"] == "LINMAC"
+        assert ref["value"] == "U-22"
+        # Identity and value remain separate bindings.
+        assert [v["col"] for v in cand["values"]] == ["C26"]
+
+    def test_probe_record_without_matched_cells_stays_unverified(self):
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["U-22"], artifact_outcomes={},
+            per_item={"U-22": {
+                "entity_name": "LINMAC", "columns": ["Model", "Price"],
+                "column_letters": {"Model": "A", "Price": "C"},
+                "rows": [{"Model": "U-22", "Price": "1777",
+                          "__sheet_row": 26}]}},
+            field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-probe2")
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "unverified"
+        assert cand["identity"]["references"] == []

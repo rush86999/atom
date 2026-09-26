@@ -22,6 +22,11 @@ globalThis.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
+    "/chat": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/chat.js"
+    ],
     "/login": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",

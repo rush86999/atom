@@ -574,12 +574,29 @@ def build_targets_from_scan(
                     key = f"{sheet}!R{rn}"
                     grp = row_groups.get(key)
                     if grp is None:
-                        # This record shape carries a row and column
-                        # letters but NOT the cell the identity matched
-                        # in, so the binding stays explicitly unverified.
                         grp = {"ref": key, "values": [], "seen": set(),
                                "identity": _identity_block([])}
                         row_groups[key] = grp
+                    # The content probe records the exact cells whose text
+                    # matched, so identity is bound to a real coordinate
+                    # rather than left unverified. A record WITHOUT them
+                    # keeps the explicit unverified status.
+                    for _m in (record.get("matched_cells") or []):
+                        if not isinstance(_m, dict):
+                            continue
+                        _coord = str(_m.get("cell") or "").strip().upper()
+                        if not re.match(r"^[A-Z]{1,3}\d{1,7}$", _coord):
+                            continue
+                        if _coord not in {r["cell"] for r in
+                                          grp["identity"]["references"]}:
+                            grp["identity"]["references"].append({
+                                "sheet": sheet,
+                                "cell": _coord,
+                                "row": rn,
+                                "value": str(_m.get("value") or "") or None,
+                                "role": "matched_target",
+                            })
+                            grp["identity"]["status"] = IDENTITY_BOUND
                     for column in columns:
                         if not re.search(
                                 r"price|cost|amount|rate|value|list|total|dealer",

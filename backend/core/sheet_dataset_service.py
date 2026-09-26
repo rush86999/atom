@@ -1895,6 +1895,41 @@ def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[
     }
 
 
+def _matched_cells_in_row(row: Dict[str, Any], token: str,
+                          letters: Dict[str, str],
+                          row_number: Any) -> List[Dict[str, Any]]:
+    """Exact cells in this row whose TEXT matches the probe token.
+
+    The content probe knows a row matched but not WHICH cell did, so the
+    matched coordinate was thrown away and only a row locator survived.
+    A row is not an identity: several cells in one row can carry the
+    token, and identity may sit in any column (a model, a description, an
+    alias, a merged label) — never assume column A.
+
+    This is an exact value comparison against the token, not a positional
+    guess, so a cell is only reported when its own text matches. Several
+    matching cells stay several references.
+    """
+    out: List[Dict[str, Any]] = []
+    for column, value in (row or {}).items():
+        if column == "__sheet_row__":
+            continue
+        text = "" if value is None else str(value)
+        if not text.strip():
+            continue
+        if not re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", text):
+            continue
+        letter = letters.get(str(column))
+        if not letter:
+            continue
+        out.append({
+            "cell": f"{letter}{row_number}",
+            "column": str(column),
+            "value": text,
+        })
+    return out
+
+
 def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) -> Optional[Dict[str, Any]]:
     """Deterministic content probe for identifier lookups (SKUs, model codes).
 
@@ -1938,6 +1973,17 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         return None
     count, e, hit = best
     head = hit.head(max_rows)
+    # Capture the identity coordinates HERE, where the match happened: the
+    # probe knows which cells matched the token, and that fact was being
+    # discarded in favour of a bare row locator.
+    _letters = _column_letters([str(c) for c in head.columns])
+    _rows_all = head.to_dict("records")
+    _row_numbers = list(head[_SHEET_ROW_COL]) if _SHEET_ROW_COL in head.columns \
+        else list(range(1, len(_rows_all) + 1))
+    _matched_cells = []
+    for _rn, _row in zip(_row_numbers, _rows_all):
+        for _ref in _matched_cells_in_row(_row, token, _letters, _rn):
+            _matched_cells.append(_ref)
     # Column NAME -> LETTER travels with the rows: the workbook's formulas
     # address cells by letter, so without it a verifier cannot connect a value
     # to the formula that produces it (see _column_letters).
@@ -1965,6 +2011,7 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
             if re.search(
                 rf"(?<![0-9.]){re.escape(token)}(?![0-9])", _line
             ):
+                _rows = _rows_all
                 return {
                     "file_name": e.get("file_name"),
                     "entity_name": e.get("entity_name"),
@@ -1972,13 +2019,15 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
                     "source_modified_at": e.get("source_modified_at"),
                     "sql": f"-- content probe: scanned for '{token}' (whole-number match)",
                     "columns": head.columns.tolist(),
-                    "column_letters": _column_letters(head.columns.tolist()),
-                    "rows": head.to_dict("records"),
+                    "column_letters": _letters,
+                    "rows": _rows,
                     "row_count": count,
+                    "matched_cells": _matched_cells,
                     "formulas": load_formulas_for_parquet(str(e.get("parquet_path") or "")),
                 }
         return None  # only float-tail/substring matches — not this number
     rows = head.astype(object).where(head.notna(), None).to_dict(orient="records")
+    _rows = _rows_all
     return {
         "dataset_name": e["dataset_name"],
         "entity_name": e["entity_name"],
@@ -1991,8 +2040,10 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         "sql": f"-- content probe: every sheet scanned for '{token}'",
         "row_count": int(count),
         "columns": [str(c) for c in head.columns],
-        "column_letters": _column_letters([str(c) for c in head.columns]),
+        "column_letters": _letters,
         "rows": rows,
+        # Identity coordinates, captured where the match actually happened.
+        "matched_cells": _matched_cells,
         # FORMULAS on the deterministic path too (gap fix 2026-09-16): the
         # sidecar exists at materialization time; only the LLM-SQL path
         # attached it before, so a Stage-0 answer rendered values without

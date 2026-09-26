@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "6995c7e275b476e5277d0846a85b439e485fa332"
+PINNED_REV = "72590256eae836a7f2a5517738caa2bcd0477227"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -417,7 +417,40 @@ def build_world(world: Path, refreeze_db: bool) -> None:
         if archive.returncode != 0:
             raise RuntimeError("git archive failed")
         with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-            tar.extractall(code_dir)
+            # Extract defensively. The export can contain symlinks that
+            # point at ABSOLUTE host paths (the repo tracks several under
+            # frontend-nextjs/.preview-instance). Materialising one inside
+            # the world would hand the isolated server a live path into the
+            # mutable checkout — breaking the isolation the export exists to
+            # provide — and Python 3.14's tarfile refuses them outright, so
+            # the run would abort before any case executed.
+            #
+            # Skip absolute links and any link that would escape the export
+            # root, and RECORD them. The backend is the code under test; a
+            # frontend preview convenience link is not, so skipping is
+            # lossless for what is being measured — and it is recorded so
+            # the omission is visible rather than silent.
+            skipped_links: List[str] = []
+            members = []
+            for member in tar.getmembers():
+                if member.issym() or member.islnk():
+                    target = member.linkname or ""
+                    if member.issym() and (
+                            target.startswith("/")
+                            or os.path.normpath(
+                                os.path.join(code_dir, os.path.dirname(
+                                    member.name), target)
+                            ).startswith(str(code_dir.parent)) is False
+                            and target.startswith("..")):
+                        skipped_links.append(f"{member.name} -> {target}")
+                        continue
+                members.append(member)
+            tar.extractall(code_dir, members=members, filter="tar")
+            if skipped_links:
+                manifest["skipped_absolute_links"] = skipped_links
+                print(f"[world] skipped {len(skipped_links)} absolute/"
+                      f"escaping symlink(s) that would breach isolation "
+                      f"(first: {skipped_links[0]})")
         manifest["code_archive_sha256"] = hashlib.sha256(archive.stdout).hexdigest()
         manifest["code_source"] = f"git archive {PINNED_REV} (immutable export, file-manifested, read-only)"
     (world / "code_manifest.json").write_text(json.dumps(_tree_manifest(code_dir), indent=0))
