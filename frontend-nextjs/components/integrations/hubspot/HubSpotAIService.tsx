@@ -367,7 +367,7 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                   <CardContent className="pt-6">
                     <div className="text-center text-gray-600 dark:text-gray-400">
                       <Brain className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                      <p>Click "Analyze Lead" to get AI-powered insights</p>
+                      <p>Click &quot;Analyze Lead&quot; to get AI-powered insights</p>
                     </div>
                   </CardContent>
                 </Card>

@@ -169,7 +169,7 @@ export const CitationViewer: React.FC<CitationViewerProps> = ({
 
       {!results && (
         <p className="text-xs text-muted-foreground">
-          Click "Verify All" to check citation status
+          Click &quot;Verify All&quot; to check citation status
         </p>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, RefreshCw, Clock, Repeat, Calendar } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,11 +75,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
         { value: 'monthly', label: 'Monthly (1st day)', expression: '0 9 1 * *' },
     ];
 
-    useEffect(() => {
-        loadScheduledJobs();
-    }, [workflowId]);
-
-    const loadScheduledJobs = async () => {
+    const loadScheduledJobs = useCallback(async () => {
         try {
             setRefreshing(true);
             const response = await fetch('/api/v1/scheduler/jobs');
@@ -95,7 +91,11 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
         } finally {
             setRefreshing(false);
         }
-    };
+    }, [workflowId]);
+
+    useEffect(() => {
+        void loadScheduledJobs();
+    }, [loadScheduledJobs]);
 
     const handleSchedule = async () => {
         if (!workflowId) {
@@ -361,7 +361,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
                                     className="font-mono"
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Format: minute hour day month day_of_week (e.g., "0 9 * * *" = Daily at 9 AM)
+                                    Format: minute hour day month day_of_week (e.g., &quot;0 9 * * *&quot; = Daily at 9 AM)
                                 </p>
                             </div>
 

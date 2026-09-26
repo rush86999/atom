@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useCallback } from "react";
 
 interface RetryOptions {
   maxRetries?: number;
@@ -13,8 +12,6 @@ interface RetryOptions {
  * Provides retry logic with exponential backoff for failed operations.
  */
 export const useRetry = () => {
-  const { toast } = useToast();
-
   const retry = useCallback(
     async <T,>(
       fn: () => Promise<T>,
@@ -44,7 +41,7 @@ export const useRetry = () => {
 
       throw lastError;
     },
-    [toast]
+    []
   );
 
   return { retry };

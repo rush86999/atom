@@ -72,6 +72,41 @@ interface WakeWordDetectorProps {
     compactView?: boolean;
 }
 
+const DEFAULT_MODELS: WakeWordModel[] = [
+    {
+        id: "default_wakeword",
+        name: "Default Wake Word",
+        description: "Standard wake word detection model",
+        version: "1.0.0",
+        wakeWord: "Hey Atom",
+        sensitivity: 0.7,
+        isActive: true,
+        performance: {
+            accuracy: 92,
+            falsePositives: 2,
+            detections: 0,
+        },
+        fileSize: 2.4,
+        lastUpdated: new Date(),
+    },
+    {
+        id: "custom_wakeword",
+        name: "Custom Wake Word",
+        description: "Train your own wake word",
+        version: "1.0.0",
+        wakeWord: "Custom",
+        sensitivity: 0.8,
+        isActive: false,
+        performance: {
+            accuracy: 0,
+            falsePositives: 0,
+            detections: 0,
+        },
+        fileSize: 0,
+        lastUpdated: new Date(),
+    },
+];
+
 const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     onDetection,
     onModelChange,
@@ -81,14 +116,17 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     showNavigation = true,
     compactView = false,
 }) => {
+    const initialModelList = initialModels.length > 0 ? initialModels : DEFAULT_MODELS;
+    const initialSelectedModel = initialModels.length > 0
+        ? initialModels.find((model) => model.isActive) || initialModels[0]
+        : DEFAULT_MODELS[0];
+
     const [isListening, setIsListening] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [detections, setDetections] = useState<WakeWordDetection[]>([]);
-    const [models, setModels] = useState<WakeWordModel[]>(initialModels);
-    const [selectedModel, setSelectedModel] = useState<WakeWordModel | null>(
-        null,
-    );
-    const [sensitivity, setSensitivity] = useState(0.7);
+    const [models, setModels] = useState<WakeWordModel[]>(initialModelList);
+    const [selectedModel, setSelectedModel] = useState<WakeWordModel | null>(initialSelectedModel);
+    const sensitivity = selectedModel?.sensitivity ?? 0.7;
     const [audioLevel, setAudioLevel] = useState(0);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -98,79 +136,36 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const audioContextRef = useRef<AudioContext | null>(null);
     const isListeningRef = useRef(false);
     const audioLevelRef = useRef(0);
-    const sensitivityRef = useRef(0.7);
+    const sensitivityRef = useRef(initialSelectedModel.sensitivity);
     const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { toast } = useToast();
-
-    // Default models if none provided.
-    // NOTE: held in a ref so the identity is stable across renders — a fresh
-    // array literal here (plus the `initialModels = []` prop default, which is
-    // also re-created per render) made the [initialModels] effect re-run on
-    // every render and loop forever (setModels -> render -> effect -> ...).
-    const defaultModels = useRef<WakeWordModel[]>([
-        {
-            id: "default_wakeword",
-            name: "Default Wake Word",
-            description: "Standard wake word detection model",
-            version: "1.0.0",
-            wakeWord: "Hey Atom",
-            sensitivity: 0.7,
-            isActive: true,
-            performance: {
-                accuracy: 92,
-                falsePositives: 2,
-                detections: 0,
-            },
-            fileSize: 2.4,
-            lastUpdated: new Date(),
-        },
-        {
-            id: "custom_wakeword",
-            name: "Custom Wake Word",
-            description: "Train your own wake word",
-            version: "1.0.0",
-            wakeWord: "Custom",
-            sensitivity: 0.8,
-            isActive: false,
-            performance: {
-                accuracy: 0,
-                falsePositives: 0,
-                detections: 0,
-            },
-            fileSize: 0,
-            lastUpdated: new Date(),
-        },
-    ]).current;
 
     // The `initialModels = []` prop default is a fresh array identity on every
     // render, so this effect cannot depend on identity alone: without a guard it
     // re-runs every render and clobbers the user's model selection/sensitivity
     // (and, pre-ref, looped forever). Process only once for the default case,
     // and only on genuine prop changes otherwise.
-    const lastInitialModelsRef = useRef<WakeWordModel[] | null>(null);
+    const lastInitialModelsRef = useRef<WakeWordModel[] | null>(
+        initialModels.length > 0 ? initialModels : null
+    );
 
     useEffect(() => {
-        if (initialModels.length === 0) {
-            if (lastInitialModelsRef.current !== null) return;
-            lastInitialModelsRef.current = initialModels;
-            setModels(defaultModels);
-            setSelectedModel(defaultModels[0]);
-            return;
-        }
-        if (lastInitialModelsRef.current === initialModels) return;
+        if (initialModels.length === 0 || lastInitialModelsRef.current === initialModels) return;
         lastInitialModelsRef.current = initialModels;
-        setModels(initialModels);
-        const activeModel = initialModels.find((model) => model.isActive);
-        setSelectedModel(activeModel || initialModels[0]);
+        let cancelled = false;
+        Promise.resolve().then(() => {
+            if (cancelled) return;
+            setModels(initialModels);
+            const activeModel = initialModels.find((model) => model.isActive);
+            const nextModel = activeModel || initialModels[0];
+            setSelectedModel(nextModel);
+            sensitivityRef.current = nextModel.sensitivity;
+        });
+        return () => {
+            cancelled = true;
+        };
     }, [initialModels]);
-
-    useEffect(() => {
-        if (selectedModel) {
-            setSensitivity(selectedModel.sensitivity);
-            sensitivityRef.current = selectedModel.sensitivity;
-        }
-    }, [selectedModel]);
 
     // BUG-077: Stop mic + AudioContext + animation frame on unmount.
     // Previously no cleanup ran, so the mic stayed on and the detection
@@ -350,6 +345,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
 
     const handleModelChange = (model: WakeWordModel) => {
         setSelectedModel(model);
+        sensitivityRef.current = model.sensitivity;
         onModelChange?.(model);
 
         toast({
@@ -391,7 +387,6 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
 
     const handleSensitivityChange = (value: number) => {
         const newSensitivity = value;
-        setSensitivity(newSensitivity);
         sensitivityRef.current = newSensitivity;
         if (selectedModel) {
             const updatedModel = { ...selectedModel, sensitivity: newSensitivity };

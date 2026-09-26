@@ -347,7 +347,7 @@ describe('GoogleDriveIntegration', () => {
     await waitFor(() => {
       expect(screen.getByText('deck.pdf')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getAllByRole('button', { name: '' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Google Drive' }));
 
     expect(openSpy).toHaveBeenCalledWith('https://drive.google.com/f2', '_blank');
   });
@@ -357,7 +357,7 @@ describe('GoogleDriveIntegration', () => {
     const ingestHandler = jest.fn();
     server.use(
       rest.post('/api/ingest-gdrive-document', (req, res, ctx) => {
-        ingestHandler(req.body);
+        ingestHandler(typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
         return res(ctx.status(200), ctx.json({ success: true }));
       })
     );
@@ -367,7 +367,7 @@ describe('GoogleDriveIntegration', () => {
     await waitFor(() => {
       expect(screen.getByText('deck.pdf')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getAllByRole('button', { name: '' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Ingest into ATOM Memory' }));
 
     await waitFor(() => {
       expect(getToastMock()).toHaveBeenCalledWith({
@@ -391,13 +391,13 @@ describe('GoogleDriveIntegration', () => {
     await waitFor(() => {
       expect(screen.getByText('deck.pdf')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getAllByRole('button', { name: '' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Ingest into ATOM Memory' }));
 
     await waitFor(() => {
       expect(getToastMock()).toHaveBeenCalledWith({
-        title: 'Error',
-        description: 'Failed to ingest file',
-        variant: 'error',
+        title: 'Ingestion Error',
+        description: 'Request failed (500)',
+        variant: 'destructive',
       });
     });
   });
@@ -522,7 +522,7 @@ describe('GoogleDriveIntegration', () => {
       expect(getToastMock()).toHaveBeenCalledWith({
         title: 'Error',
         description: 'Failed to disconnect Google Drive',
-        variant: 'error',
+        variant: 'destructive',
       });
     });
     expect(screen.getByText('Connected')).toBeInTheDocument();

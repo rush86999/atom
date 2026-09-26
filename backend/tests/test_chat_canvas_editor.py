@@ -811,7 +811,7 @@ async def test_canvas_edit_replies_honestly_on_noop():
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
              return_value=(None, "no_change"))):
         resp = await orch._try_canvas_edit(
-            "mark is the dealer and not end user", [], _canvas(),
+            "update the draft: mark is the dealer and not end user", [], _canvas(),
             "user-1", "s-1", "exec-1", "hire-1",
         )
     assert resp and resp["success"]

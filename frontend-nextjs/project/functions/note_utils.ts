@@ -27,9 +27,11 @@ export function formatNoteForDisplay(note: any): string {
 }
 
 // Default export for backward compatibility
-export default {
+const noteUtils = {
   createNoteFromText,
   extractNoteSummary,
   sanitizeNoteContent,
   formatNoteForDisplay
 };
+
+export default noteUtils;

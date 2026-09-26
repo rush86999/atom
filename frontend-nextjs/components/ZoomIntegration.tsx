@@ -3,7 +3,7 @@
  * Complete Zoom video conferencing and collaboration integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -381,7 +381,7 @@ const ZoomIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -393,12 +393,6 @@ const ZoomIntegration: React.FC = () => {
                 const isConnected = providers?.zoom?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadMeetings();
-                    loadUsers();
-                    loadRecordings();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -408,10 +402,10 @@ const ZoomIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Zoom data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/zoom/profile", {
@@ -431,9 +425,9 @@ const ZoomIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadMeetings = async () => {
+    const loadMeetings = useCallback(async () => {
         setLoading((prev) => ({ ...prev, meetings: true }));
         try {
             const response = await authFetch("/api/integrations/zoom/meetings", {
@@ -460,9 +454,9 @@ const ZoomIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, meetings: false }));
         }
-    };
+    }, [toast]);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/zoom/users", {
@@ -483,9 +477,9 @@ const ZoomIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
-    const loadRecordings = async () => {
+    const loadRecordings = useCallback(async () => {
         setLoading((prev) => ({ ...prev, recordings: true }));
         try {
             const response = await authFetch("/api/integrations/zoom/recordings", {
@@ -510,7 +504,7 @@ const ZoomIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, recordings: false }));
         }
-    };
+    }, []);
 
     // Create operations
     const createMeeting = async () => {
@@ -635,7 +629,7 @@ const ZoomIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -644,7 +638,7 @@ const ZoomIntegration: React.FC = () => {
             loadUsers();
             loadRecordings();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadMeetings, loadUsers, loadRecordings]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

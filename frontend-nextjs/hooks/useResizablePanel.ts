@@ -22,7 +22,12 @@
  */
 
 import type * as React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+
+const subscribeToNothing = (): (() => void) => () => {};
+const getClientTrue = () => true;
+const getServerFalse = () => false;
+const getServerNull = (): null => null;
 
 export interface UseResizablePanelOptions {
     /** Width used before any stored value is restored. */
@@ -77,11 +82,6 @@ export function useResizablePanel({
     storageKey,
     viewportReserve = 320,
 }: UseResizablePanelOptions): UseResizablePanelResult {
-    // Keep the SSR/first-client render at the default width; the stored value
-    // is adopted in an effect (see module docstring).
-    const [width, setWidthState] = useState(() =>
-        Math.min(Math.max(Math.round(defaultWidth), minWidth), Math.max(minWidth, maxWidth))
-    );
     const [isResizing, setIsResizing] = useState(false);
 
     const clamp = useCallback(
@@ -99,6 +99,61 @@ export function useResizablePanel({
         [defaultWidth, minWidth, maxWidth, viewportReserve]
     );
 
+    const storageReady = useSyncExternalStore(
+        subscribeToNothing,
+        getClientTrue,
+        getServerFalse
+    );
+    const subscribeToStorage = useCallback(
+        (onStoreChange: () => void) => {
+            if (typeof window === "undefined") return () => {};
+            const onStorage = (event: StorageEvent) => {
+                if (event.key === storageKey) onStoreChange();
+            };
+            window.addEventListener("storage", onStorage);
+            return () => window.removeEventListener("storage", onStorage);
+        },
+        [storageKey]
+    );
+    const readStoredWidth = useCallback((): number | null => {
+        if (!storageKey || typeof window === "undefined") return null;
+        try {
+            const raw = window.localStorage.getItem(storageKey);
+            const parsed = raw == null ? NaN : Number(raw);
+            return Number.isFinite(parsed) && parsed > 0 ? clamp(parsed) : null;
+        } catch {
+            return null;
+        }
+    }, [storageKey, clamp]);
+    const storedWidth = useSyncExternalStore(
+        subscribeToStorage,
+        readStoredWidth,
+        getServerNull
+    );
+    const [manualWidth, setManualWidth] = useState<{
+        storageKey?: string;
+        value: number;
+    } | null>(null);
+    const defaultClampedWidth = clamp(defaultWidth);
+    const setWidthState = useCallback(
+        (value: number | ((current: number) => number)) => {
+            setManualWidth((current) => {
+                const currentWidth = current !== null && current.storageKey === storageKey
+                    ? clamp(current.value)
+                    : storedWidth ?? defaultClampedWidth;
+                return {
+                    storageKey,
+                    value: clamp(typeof value === "function" ? value(currentWidth) : value)
+                };
+            });
+        },
+        [clamp, defaultClampedWidth, storageKey, storedWidth]
+    );
+    const currentManualWidth = manualWidth !== null && manualWidth.storageKey === storageKey
+        ? clamp(manualWidth.value)
+        : null;
+    const width = currentManualWidth ?? storedWidth ?? defaultClampedWidth;
+
     const widthRef = useRef(width);
     useEffect(() => {
         widthRef.current = width;
@@ -106,46 +161,19 @@ export function useResizablePanel({
 
     const setWidth = useCallback(
         (value: number) => setWidthState(clamp(value)),
-        [clamp]
+        [clamp, setWidthState]
     );
 
-    const reset = useCallback(() => setWidthState(clamp(defaultWidth)), [clamp, defaultWidth]);
-
-    // ── Restore / persist ────────────────────────────────────────────────
-    // `loadedKeyRef` gates the persist effect so a mount-time (or key-change)
-    // write cannot clobber the stored value before it has been read back.
-    const loadedKeyRef = useRef<string | null>(null);
-    const [restored, setRestored] = useState(false);
+    const reset = useCallback(() => setWidthState(clamp(defaultWidth)), [clamp, defaultWidth, setWidthState]);
 
     useEffect(() => {
-        if (!storageKey || typeof window === "undefined") {
-            loadedKeyRef.current = storageKey ?? null;
-            setRestored(true);
-            return;
-        }
-        if (loadedKeyRef.current !== storageKey) {
-            try {
-                const raw = window.localStorage.getItem(storageKey);
-                const parsed = raw == null ? NaN : Number(raw);
-                if (Number.isFinite(parsed) && parsed > 0) {
-                    setWidthState(clamp(parsed));
-                }
-            } catch {
-                // Private mode / storage disabled — fall back to the default.
-            }
-            loadedKeyRef.current = storageKey;
-        }
-        setRestored(true);
-    }, [storageKey, clamp]);
-
-    useEffect(() => {
-        if (!storageKey || !restored || loadedKeyRef.current !== storageKey) return;
+        if (!storageReady || !storageKey || typeof window === "undefined") return;
         try {
             window.localStorage.setItem(storageKey, String(Math.round(width)));
         } catch {
             // Persisting is best-effort.
         }
-    }, [storageKey, restored, width]);
+    }, [storageKey, storageReady, width]);
 
     // Keep the panel inside the window when the window shrinks.
     useEffect(() => {
@@ -153,7 +181,7 @@ export function useResizablePanel({
         const onWindowResize = () => setWidthState((current) => clamp(current));
         window.addEventListener("resize", onWindowResize);
         return () => window.removeEventListener("resize", onWindowResize);
-    }, [clamp]);
+    }, [clamp, setWidthState]);
 
     // ── Drag ─────────────────────────────────────────────────────────────
     const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -189,7 +217,7 @@ export function useResizablePanel({
             window.removeEventListener("pointerup", stop);
             window.removeEventListener("pointercancel", stop);
         };
-    }, [isResizing, side, clamp]);
+    }, [isResizing, side, clamp, setWidthState]);
 
     // While dragging, suppress text selection + show the resize cursor
     // everywhere (the pointer outruns the 6px handle).
@@ -225,7 +253,7 @@ export function useResizablePanel({
                 setWidthState(clamp(Number.MAX_SAFE_INTEGER));
             }
         },
-        [clamp, keyboardStep, minWidth, side]
+        [clamp, keyboardStep, minWidth, setWidthState, side]
     );
 
     const handleDoubleClick = useCallback(

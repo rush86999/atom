@@ -203,7 +203,7 @@ export default function IntegrationDataIngestion() {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground -mt-2">
-        Map your integrations' structure so agents learn what exists — file
+        Map your integrations&apos; structure so agents learn what exists — file
         contents are pulled just-in-time, one file at a time, only when a task
         needs them.
       </p>

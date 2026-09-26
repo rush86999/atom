@@ -276,7 +276,7 @@ describe('OneDriveIntegration (extended coverage)', () => {
 
     await waitFor(() => {
       expect(getToastMock()).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'Error', description: 'Failed to ingest file' })
+        expect.objectContaining({ title: 'Ingestion Error', variant: 'destructive' })
       );
     });
   });

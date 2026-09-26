@@ -21,7 +21,7 @@ const PerformanceBadge = ({ analytics }: { analytics: { duration: number; status
 
 
 
-export const TriggerNode = memo(({ data, isConnectable }: any) => {
+export const TriggerNode = memo(function TriggerNode({ data, isConnectable }: any) {
     return (
         <Card className={`min-w-[250px] border-l-4 border-l-blue-500 shadow-md relative overflow-visible`}>
             {data._analytics && <PerformanceBadge analytics={data._analytics} />}
@@ -53,7 +53,7 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
     );
 });
 
-export const ActionNode = memo(({ data, isConnectable }: any) => {
+export const ActionNode = memo(function ActionNode({ data, isConnectable }: any) {
     const [testStatus, setTestStatus] = React.useState<'idle' | 'testing' | 'success' | 'error'>('idle');
     const [testDuration, setTestDuration] = React.useState<number | null>(null);
     const [isConnected, setIsConnected] = React.useState<boolean | null>(null);
@@ -263,7 +263,7 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
     );
 });
 
-export const ConditionNode = memo(({ data, isConnectable }: any) => {
+export const ConditionNode = memo(function ConditionNode({ data, isConnectable }: any) {
     const type = data.conditionType || 'expression'; // 'expression' | 'llm' | 'code'
 
     return (
@@ -343,7 +343,7 @@ export const ConditionNode = memo(({ data, isConnectable }: any) => {
     );
 });
 
-export const AINode = memo(({ data, isConnectable }: any) => {
+export const AINode = memo(function AINode({ data, isConnectable }: any) {
     return (
         <Card className={`min-w-[220px] border-l-4 border-l-purple-600 shadow-md bg-purple-50 relative overflow-visible`}>
             <Handle
@@ -378,7 +378,7 @@ export const AINode = memo(({ data, isConnectable }: any) => {
     );
 });
 
-export const DesktopNode = memo(({ data, isConnectable }: any) => {
+export const DesktopNode = memo(function DesktopNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[200px] border-l-4 border-l-cyan-500 shadow-md">
             <Handle
@@ -410,7 +410,7 @@ export const DesktopNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Email Node - for sending emails
-export const EmailNode = memo(({ data, isConnectable }: any) => {
+export const EmailNode = memo(function EmailNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[200px] border-l-4 border-l-red-500 shadow-md bg-red-50">
             <Handle
@@ -442,7 +442,7 @@ export const EmailNode = memo(({ data, isConnectable }: any) => {
 });
 
 // HTTP Request Node - for making API calls
-export const HttpNode = memo(({ data, isConnectable }: any) => {
+export const HttpNode = memo(function HttpNode({ data, isConnectable }: any) {
     const methodColors: Record<string, string> = {
         'GET': 'bg-green-100 text-green-700',
         'POST': 'bg-blue-100 text-blue-700',
@@ -488,7 +488,7 @@ export const HttpNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Timer/Delay Node - for adding delays in workflow
-export const TimerNode = memo(({ data, isConnectable }: any) => {
+export const TimerNode = memo(function TimerNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[180px] border-l-4 border-l-indigo-500 shadow-md bg-indigo-50">
             <Handle
@@ -522,7 +522,7 @@ export const TimerNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Loop Node - for iterating over arrays (Activepieces-style)
-export const LoopNode = memo(({ data, isConnectable }: any) => {
+export const LoopNode = memo(function LoopNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[220px] border-l-4 border-l-teal-500 shadow-md bg-teal-50">
             <Handle
@@ -583,7 +583,7 @@ export const LoopNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Approval Node - Human-in-the-loop (Activepieces-style)
-export const ApprovalNode = memo(({ data, isConnectable }: any) => {
+export const ApprovalNode = memo(function ApprovalNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[220px] border-l-4 border-l-amber-500 shadow-md bg-amber-50">
             <Handle
@@ -649,7 +649,7 @@ export const ApprovalNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Code Node - Custom JavaScript/TypeScript (Activepieces-style)
-export const CodeNode = memo(({ data, isConnectable }: any) => {
+export const CodeNode = memo(function CodeNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[240px] border-l-4 border-l-slate-700 shadow-md bg-slate-50 dark:bg-slate-900">
             <Handle
@@ -702,7 +702,7 @@ export const code = async (inputs) => {
 });
 
 // Table Node - for database operations (Activepieces-style)
-export const TableNode = memo(({ data, isConnectable }: any) => {
+export const TableNode = memo(function TableNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[220px] border-l-4 border-l-teal-600 shadow-md bg-teal-50">
             <Handle
@@ -740,7 +740,7 @@ export const TableNode = memo(({ data, isConnectable }: any) => {
 });
 
 // SubFlow Node - for calling other flows (Activepieces-style)
-export const SubFlowNode = memo(({ data, isConnectable }: any) => {
+export const SubFlowNode = memo(function SubFlowNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[220px] border-l-4 border-l-violet-600 shadow-md bg-violet-50">
             <Handle
@@ -786,7 +786,7 @@ export const SubFlowNode = memo(({ data, isConnectable }: any) => {
 
 
 // Human-in-the-Loop Form Input Node
-export const FormInputNode = memo(({ data, isConnectable }: any) => {
+export const FormInputNode = memo(function FormInputNode({ data, isConnectable }: any) {
     const fields = data.fields || [
         { name: 'input1', type: 'text', label: 'Input 1' }
     ];
@@ -856,7 +856,7 @@ export const FormInputNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Table Trigger Node - triggers workflow on table row changes
-export const TableTriggerNode = memo(({ data, isConnectable }: any) => {
+export const TableTriggerNode = memo(function TableTriggerNode({ data, isConnectable }: any) {
     const eventType = data.eventType || 'row_created'; // row_created, row_updated, row_deleted
 
     const eventConfig: Record<string, { label: string; color: string }> = {
@@ -910,7 +910,7 @@ export const TableTriggerNode = memo(({ data, isConnectable }: any) => {
 });
 
 // Chat Interface Trigger Node - starts workflows from chat messages
-export const ChatTriggerNode = memo(({ data, isConnectable }: any) => {
+export const ChatTriggerNode = memo(function ChatTriggerNode({ data, isConnectable }: any) {
     return (
         <Card className="min-w-[220px] border-l-4 border-l-indigo-500 shadow-md bg-indigo-50">
             <CardHeader className="p-3 pb-0">

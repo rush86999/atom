@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from 'next/router';
 import { Button } from "../../components/ui/button";
 import { Menu, PanelRightOpen, X } from "lucide-react";
@@ -6,9 +6,30 @@ import ChatHistorySidebar from "../../components/chat/ChatHistorySidebar";
 import ChatInterface from "../../components/chat/ChatInterface";
 import AgentWorkspace from "../../components/chat/AgentWorkspace";
 
+const SESSION_STORAGE_KEY = "atom_chat_session_id";
 const AUTO_HIDE_STORAGE_KEY = "atom_workspace_autohide";
 /** How long a settled run stays open before auto-hiding. */
 const AUTO_HIDE_DELAY_MS = 8000;
+
+const subscribeToStorageKey = (key: string, onStoreChange: () => void): (() => void) => {
+    if (typeof window === "undefined") return () => {};
+    const onStorage = (event: StorageEvent) => {
+        if (event.key === key) onStoreChange();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+};
+const getSavedSession = () => {
+    if (typeof window === "undefined") return null;
+    const saved = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    return saved && saved !== "new" ? saved : null;
+};
+const getSavedAutoHide = () => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(AUTO_HIDE_STORAGE_KEY) !== "off";
+};
+const getServerNull = (): null => null;
+const getServerTrue = () => true;
 
 const ChatPage = () => {
     const router = useRouter();
@@ -21,20 +42,19 @@ const ChatPage = () => {
     // Restore the last active session after a page reload so the conversation
     // isn't lost (the chat sidebar lists sessions, but the middle pane should
     // resume where the user left off).
-    // Mount-guarded: reading localStorage during initial render produced
-    // server/client hydration mismatches ("Text content does not match").
-    // Start empty; restore the last session right after mount.
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const saved =
-            typeof window === "undefined"
-                ? null
-                : window.localStorage.getItem("atom_chat_session_id");
-        if (saved && saved !== "new") {
-            setSelectedSessionId(saved);
-        }
-    }, []);
+    const subscribeToSession = useCallback(
+        (onStoreChange: () => void) => subscribeToStorageKey(SESSION_STORAGE_KEY, onStoreChange),
+        []
+    );
+    const restoredSessionId = useSyncExternalStore(
+        subscribeToSession,
+        getSavedSession,
+        getServerNull
+    );
+    const [sessionOverride, setSessionOverride] = useState<string | null | undefined>(undefined);
+    const selectedSessionId = sessionOverride === undefined
+        ? restoredSessionId
+        : sessionOverride;
     // Mobile drawer state.
     const [showSidebar, setShowSidebar] = useState(false);
     const [showWorkspace, setShowWorkspace] = useState(false);
@@ -46,15 +66,20 @@ const ChatPage = () => {
     // unless the user grabbed control (manual close suppresses auto-open
     // for the rest of that run; any interaction cancels the pending hide).
     const [workspaceOpen, setWorkspaceOpen] = useState(true);
-    const [autoHideEnabled, setAutoHideEnabled] = useState(true);
+    const subscribeToAutoHide = useCallback(
+        (onStoreChange: () => void) => subscribeToStorageKey(AUTO_HIDE_STORAGE_KEY, onStoreChange),
+        []
+    );
+    const restoredAutoHide = useSyncExternalStore(
+        subscribeToAutoHide,
+        getSavedAutoHide,
+        getServerTrue
+    );
+    const [autoHideOverride, setAutoHideOverride] = useState<boolean | undefined>(undefined);
+    const autoHideEnabled = autoHideOverride ?? restoredAutoHide;
     const autoOpenedRef = useRef(false);
     const userClosedThisRunRef = useRef(false);
     const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        const saved = window.localStorage.getItem(AUTO_HIDE_STORAGE_KEY);
-        if (saved !== null) setAutoHideEnabled(saved !== "off");
-    }, []);
 
     const cancelSettleTimer = useCallback(() => {
         if (settleTimerRef.current) {
@@ -112,20 +137,20 @@ const ChatPage = () => {
     }, [cancelSettleTimer]);
 
     const handleAutoHideToggle = useCallback((enabled: boolean) => {
-        setAutoHideEnabled(enabled);
+        setAutoHideOverride(enabled);
         window.localStorage.setItem(AUTO_HIDE_STORAGE_KEY, enabled ? "on" : "off");
         if (!enabled) cancelSettleTimer();
     }, [cancelSettleTimer]);
 
     const handleSessionCreated = (sessionId: string) => {
-        setSelectedSessionId(sessionId);
+        setSessionOverride(sessionId);
         if (sessionId && sessionId !== "new" && sessionId !== "unknown") {
             window.localStorage.setItem("atom_chat_session_id", sessionId);
         }
     };
 
     const handleSelectSession = (id: string) => {
-        setSelectedSessionId(id);
+        setSessionOverride(id);
         if (id && id !== "new") {
             window.localStorage.setItem("atom_chat_session_id", id);
         }

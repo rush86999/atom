@@ -464,16 +464,22 @@ const AzureIntegration: React.FC = () => {
     ).length;
 
     useEffect(() => {
-        checkConnection();
+        const initialize = () => {
+            void checkConnection();
+        };
+        void initialize();
     }, []);
 
     useEffect(() => {
-        if (connected && selectedSubscription) {
-            loadResourceGroups();
-            loadVirtualMachines();
-            loadStorageAccounts();
-            loadAppServices();
-        }
+        const loadResources = () => {
+            if (connected && selectedSubscription) {
+                void loadResourceGroups();
+                void loadVirtualMachines();
+                void loadStorageAccounts();
+                void loadAppServices();
+            }
+        };
+        void loadResources();
     }, [
         connected,
         selectedSubscription,

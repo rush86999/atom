@@ -90,7 +90,7 @@ export default function NewSkillPage() {
                             <Cpu className="text-primary h-8 w-8" />
                             Skill Builder
                         </h1>
-                        <p className="text-zinc-400 mt-1">Create portable "Skill Skill" packages for your agents.</p>
+                        <p className="text-zinc-400 mt-1">Create portable &quot;Skill Skill&quot; packages for your agents.</p>
                     </div>
                 </div>
 

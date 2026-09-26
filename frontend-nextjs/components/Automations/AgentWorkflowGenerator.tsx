@@ -265,7 +265,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
             confidenceScore: agent.confidenceScore,
             canDeployDirectly: agent.canDeployDirectly,
         } : null;
-    }, [agentGovernanceData]);
+    }, [agentGovernanceData, agents]);
 
     const handleGenerateWorkflow = async () => {
         if (!prompt.trim() || !selectedAgent) return;
@@ -573,7 +573,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                         Tell me what you want to automate
                                     </h3>
                                     <p className="text-sm text-gray-500 mb-6">
-                                        I'll create a workflow tailored to your needs
+                                        I&apos;ll create a workflow tailored to your needs
                                     </p>
 
                                     {/* Suggested Prompts */}

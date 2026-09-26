@@ -626,6 +626,11 @@ def _matches_target(target: str, value: Any) -> bool:
 
 
 
+_QUANTITY_WITH_UNIT_RE = re.compile(
+    r"^\s*[+-]?\d[\d,]*(?:\.\d+)?\s*([A-Za-z][A-Za-z0-9/]*)\s*$"
+)
+
+
 def _is_designation_match(
     text: str, column_header: str
 ) -> bool:
@@ -642,6 +647,22 @@ def _is_designation_match(
     identifies it as a product row rather than a bare number.
     """
     header = str(column_header or "").strip()
+    raw_text = _cell_text(text)
+    quantity_unit = _QUANTITY_WITH_UNIT_RE.fullmatch(raw_text)
+    if (
+        quantity_unit
+        and quantity_unit.group(1).casefold() in _UNIT_TOKENS
+        and (
+            _VALUE_HEADER_RE.search(header)
+            or re.search(
+                r"quantity|qty|stock|weight|mass|lead|delivery|date|time|"
+                r"expiry|expiration|version|revision|release",
+                header,
+                re.IGNORECASE,
+            )
+        )
+    ):
+        return False
     # ALPHANUMERIC CODES ARE DESIGNATIONS wherever they appear (2026-09-24
     # review: entity search, not just product rows): 'RF-2' in a
     # Certificate column, 'U-22' in any text column — a code with letters
@@ -651,7 +672,7 @@ def _is_designation_match(
     # 'absent' (2026-09-25 trace). Only #REF! columns are junk. Pure-NUMERIC
     # matches still need the column-header corroboration below — a bare
     # number in a positional column cannot be told apart from a value.
-    if any(ch.isalpha() for ch in str(text or "")):
+    if any(ch.isalpha() for ch in raw_text):
         if re.fullmatch(r"#ref!", header, re.IGNORECASE):
             return False
         return True

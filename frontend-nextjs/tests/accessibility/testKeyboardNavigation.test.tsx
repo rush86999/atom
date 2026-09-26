@@ -1,5 +1,6 @@
 import { renderWithProviders, screen, waitFor } from '../test-utils';
 import React from 'react';
+import Link from 'next/link';
 import userEvent from '@testing-library/user-event';
 import {
   axeCheckViolations,
@@ -44,7 +45,7 @@ describe('Keyboard Navigation Tests', () => {
 
           <button type="submit">Sign In</button>
 
-          <a href="/forgot-password">Forgot password?</a>
+          <Link href="/forgot-password">Forgot password?</Link>
         </form>
       );
 
@@ -81,7 +82,7 @@ describe('Keyboard Navigation Tests', () => {
 
           <button type="submit">Submit</button>
 
-          <a href="/cancel">Cancel</a>
+          <Link href="/cancel">Cancel</Link>
         </form>
       );
 
@@ -147,9 +148,9 @@ describe('Keyboard Navigation Tests', () => {
       renderWithProviders(
         <div>
           <nav aria-label="Main navigation">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/agents">Agents</a>
-            <a href="/workflows">Workflows</a>
+            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/agents">Agents</Link>
+            <Link href="/workflows">Workflows</Link>
           </nav>
 
           <main>
@@ -170,8 +171,8 @@ describe('Keyboard Navigation Tests', () => {
 
           <aside>
             <nav aria-label="Secondary navigation">
-              <a href="/settings">Settings</a>
-              <a href="/help">Help</a>
+              <Link href="/settings">Settings</Link>
+              <Link href="/help">Help</Link>
             </nav>
           </aside>
         </div>
@@ -453,6 +454,7 @@ describe('Keyboard Navigation Tests', () => {
                 key={item}
                 ref={el => { refs.current[idx] = el; }}
                 role="option"
+                aria-selected={focusedIndex === idx}
                 tabIndex={focusedIndex === idx ? 0 : -1}
               >
                 {item}

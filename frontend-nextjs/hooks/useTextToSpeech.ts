@@ -1,5 +1,48 @@
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useSyncExternalStore } from 'react';
+
+const EMPTY_VOICES: SpeechSynthesisVoice[] = [];
+const subscribeToNothing = () => () => {};
+const getServerFalse = () => false;
+const hasSpeechSynthesis = () =>
+    typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+type VoiceStore = {
+    snapshot: SpeechSynthesisVoice[];
+    listeners: Set<() => void>;
+};
+
+function createVoiceStore(): VoiceStore {
+    return {
+        snapshot: hasSpeechSynthesis() ? window.speechSynthesis.getVoices() : EMPTY_VOICES,
+        listeners: new Set(),
+    };
+}
+
+function subscribeToVoiceStore(store: VoiceStore, onStoreChange: () => void) {
+    if (!hasSpeechSynthesis()) return () => {};
+    const synthesis = window.speechSynthesis;
+    store.listeners.add(onStoreChange);
+    const updateVoices = () => {
+        store.snapshot = synthesis.getVoices();
+        store.listeners.forEach((listener) => listener());
+    };
+    if (typeof synthesis.addEventListener === 'function') {
+        synthesis.addEventListener('voiceschanged', updateVoices);
+        return () => {
+            store.listeners.delete(onStoreChange);
+            synthesis.removeEventListener('voiceschanged', updateVoices);
+        };
+    }
+    const previous = synthesis.onvoiceschanged;
+    synthesis.onvoiceschanged = updateVoices;
+    return () => {
+        store.listeners.delete(onStoreChange);
+        if (synthesis.onvoiceschanged === updateVoices) {
+            synthesis.onvoiceschanged = previous;
+        }
+    };
+}
 
 interface UseTextToSpeechReturn {
     speak: (text: string) => void;
@@ -16,46 +59,33 @@ interface UseTextToSpeechReturn {
 export const useTextToSpeech = (): UseTextToSpeechReturn => {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [isSupported, setIsSupported] = useState(false);
-    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-    const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-    // Track whether the user explicitly chose a voice, so updateVoices doesn't
-    // clobber their selection on every voiceschanged event (BUG-045: the effect
-    // has [] deps, so the selectedVoice closure was always null, resetting the
-    // voice on every browser voiceschanged fire).
-    const userChoseVoiceRef = useRef(false);
+    const isSupported = useSyncExternalStore(
+        subscribeToNothing,
+        hasSpeechSynthesis,
+        getServerFalse
+    );
+    const [voiceStore] = useState(createVoiceStore);
+    const voices = useSyncExternalStore(
+        useCallback(
+            (onStoreChange: () => void) => subscribeToVoiceStore(voiceStore, onStoreChange),
+            [voiceStore]
+        ),
+        useCallback(() => voiceStore.snapshot, [voiceStore]),
+        () => EMPTY_VOICES
+    );
+    const [voiceSelection, setVoiceSelection] = useState<{
+        explicit: boolean;
+        voice: SpeechSynthesisVoice | null;
+    }>({ explicit: false, voice: null });
+    const defaultVoice = voices.find(voice => voice.name.includes("Google US English")) ||
+        voices.find(voice => voice.lang.startsWith("en-US")) ||
+        voices[0] || null;
+    const selectedVoice = voiceSelection.explicit
+        ? voiceSelection.voice
+        : defaultVoice;
 
-    // Wrap setSelectedVoice so we track explicit user choices.
     const setVoice = useCallback((voice: SpeechSynthesisVoice | null) => {
-        userChoseVoiceRef.current = true;
-        setSelectedVoice(voice);
-    }, []);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            setIsSupported(true);
-
-            const updateVoices = () => {
-                const availableVoices = window.speechSynthesis.getVoices();
-                setVoices(availableVoices);
-                // Only set a default voice if the user hasn't explicitly chosen one.
-                if (!userChoseVoiceRef.current && !selectedVoice) {
-                    const defaultVoice = availableVoices.find(v => v.name.includes("Google US English")) ||
-                        availableVoices.find(v => v.lang.startsWith("en-US")) ||
-                        availableVoices[0];
-                    setSelectedVoice(defaultVoice || null);
-                }
-            };
-
-            updateVoices();
-
-            // Chrome loads voices asynchronously
-            window.speechSynthesis.onvoiceschanged = updateVoices;
-
-            return () => {
-                window.speechSynthesis.onvoiceschanged = null;
-            };
-        }
+        setVoiceSelection({ explicit: true, voice });
     }, []);
 
     const speak = useCallback((text: string) => {

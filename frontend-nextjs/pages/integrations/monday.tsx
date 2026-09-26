@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useSyncExternalStore } from "react";
 import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import Head from "next/head";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,13 +6,26 @@ import MondayIntegration from "@/components/integrations/monday/MondayIntegratio
 
 const TOKEN_KEY = "monday_access_token";
 
-const MondayPage: React.FC = () => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+const subscribeToToken = (onStoreChange: () => void): (() => void) => {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === TOKEN_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+};
+const getStoredToken = () =>
+  typeof window === "undefined" ? null : window.localStorage.getItem(TOKEN_KEY);
+const getServerNull = (): null => null;
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setAccessToken(window.localStorage.getItem(TOKEN_KEY));
-  }, []);
+const MondayPage: React.FC = () => {
+  const storedToken = useSyncExternalStore(
+    subscribeToToken,
+    getStoredToken,
+    getServerNull
+  );
+  const [tokenOverride, setTokenOverride] = useState<string | null | undefined>(undefined);
+  const accessToken = tokenOverride === undefined ? storedToken : tokenOverride;
 
   const handleConnect = useCallback(async () => {
     try {
@@ -30,7 +43,7 @@ const MondayPage: React.FC = () => {
   const handleDisconnect = useCallback(() => {
     if (typeof window === "undefined") return;
     window.localStorage.removeItem(TOKEN_KEY);
-    setAccessToken(null);
+    setTokenOverride(null);
   }, []);
 
   return (

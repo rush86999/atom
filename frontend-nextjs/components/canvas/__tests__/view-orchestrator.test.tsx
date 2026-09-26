@@ -23,20 +23,36 @@ const mockSocket = {
 };
 
 // Shared mutable state driving the mocked hook's lastMessage
-const mockWsState: { lastMessage: any; force: (() => void) | null } = {
+type MockMessageHandler = (message: any) => void;
+
+const mockWsState: {
+  lastMessage: any;
+  force: (() => void) | null;
+  listeners: Set<MockMessageHandler>;
+} = {
   lastMessage: null,
-  force: null
+  force: null,
+  listeners: new Set()
+};
+
+const mockOnMessage = (handler: MockMessageHandler) => {
+  mockWsState.listeners.add(handler);
+  mockWsState.force = () => {
+    mockWsState.listeners.forEach(listener => listener(mockWsState.lastMessage));
+  };
+  return () => {
+    mockWsState.listeners.delete(handler);
+    if (mockWsState.listeners.size === 0) mockWsState.force = null;
+  };
 };
 
 jest.mock('@/hooks/useWebSocket', () => {
-  const React = require('react');
   const useMockWebSocket = () => {
-    const [, force] = React.useReducer((x: number) => x + 1, 0);
-    mockWsState.force = force;
     return {
       socket: mockSocket,
       connected: true,
       lastMessage: mockWsState.lastMessage,
+      onMessage: mockOnMessage,
       sendMessage: (msg: any) => mockSend(JSON.stringify(msg))
     };
   };

@@ -1,0 +1,179 @@
+{
+ "case_id": "original_incident_workbook_true_eight",
+ "sample": 3,
+ "session_id": "acc-true8-1790355809-3",
+ "captured_at": "2026-09-25T13:03:32-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "1 (WS tap active)",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 38",
+   "success": true,
+   "latency_s": 2.59,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 2.59,
+ "progress_event_latency_s": 0.01,
+ "first_validated_answer_text_s": null,
+ "answer_availability_latency_s": 2.59,
+ "answer_availability_basis": "HTTP response receipt (deterministic lane delivers the full answer at receipt; no token events expected)",
+ "ws_metrics": {
+  "ws_events_total": 2,
+  "progress_event_latency_s": 0.01,
+  "first_answer_token_latency_s": null,
+  "ws_event_kinds": [
+   "agent_status_change"
+  ]
+ },
+ "deterministic_delivery": true,
+ "per_target": {
+  "U-22": {
+   "expected": "found",
+   "got": "found",
+   "label": "U-22",
+   "binding": {
+    "sheet": "LINMAC",
+    "cell": "A26",
+    "price_cell": "C26",
+    "basis": "List Price"
+   },
+   "row": {
+    "target": "U-22",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "SLE24-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "SLE24-16",
+   "binding": {
+    "sheet": "Tennsmith",
+    "cell": "A101",
+    "price_cell": "E101",
+    "basis": "PRICE"
+   },
+   "row": {
+    "target": "SLE24-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK 1624": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK 1624",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A101",
+    "price_cell": "D101",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK 1624",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK Manual Flanger": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK Manual Flanger",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A42",
+    "price_cell": "D42",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK Manual Flanger",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "GSL48-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "GSL48-16",
+   "binding": {
+    "sheet": "Tennsmith",
+    "cell": "A106",
+    "price_cell": "E106",
+    "basis": "PRICE"
+   },
+   "row": {
+    "target": "GSL48-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "No. 381": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "label": "381",
+   "binding": null,
+   "row": {
+    "target": "381",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  },
+  "No. 622": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "label": "622",
+   "binding": null,
+   "row": {
+    "target": "622",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  },
+  "TK Multi Wheel Gang Slitter": {
+   "expected": "ambiguous_candidate",
+   "got": "ambiguous",
+   "label": "TK Multi Wheel Gang Slitter",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A100",
+    "price_cell": "D100",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK Multi Wheel Gang Slitter",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  }
+ },
+ "claim_check": {
+  "ruleset": "v2",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true
+ },
+ "claim_calibration": {
+  "trace_steps": []
+ },
+ "claim_gate_eligible": true,
+ "correct_completion": true,
+ "unsupported_claims_detected_by_ruleset": 0,
+ "unsupported_claims": 0,
+ "reply": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) |\n| U-22 | FOUND | LINMAC!A26 R26 (values: C26=1777.0 [basis=List Price; currency=unspecified], M26=1777.0 [basis=List Price_2; currency=unspecified]) |\n| 622 | AMBIGUOUS | RoperWhitney !B265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !D265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) |\n| SLE24-16 | FOUND | Tennsmith !A101 R101 (values: E101=8880 [basis=PRICE; currency=unspecified], M101=4500.0 [basis=U.S. LIST; currency=unspecified], O101=3600.0 [basis=U.S. COST; currency=unspecified], W101=6250.96 [basis=FULL COST CDN; currency=unspecified]) |\n| 1624 | FOUND | Tinknocker!A101 R101 (values: D101=8040.0 [basis=Price; currency=unspecified], H101=3950.0 [basis=Factory Price; currency=unspecified]) |\n| GSL48-16 | FOUND | Tennsmith !A106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified]) |\n| Manual Flanger | FOUND | Tinknocker!A42 R42 (values: D42=1609.0 [basis=Price; currency=unspecified], H42=950.0 [basis=Factory Price; currency=unspecified]) |\n| Multi Wheel Gang Slitter | AMBIGUOUS | [matched via alias 'Gang Slitter'] Tennsmith !A105 R105 (values: E105= [basis=PRICE; currency=unspecified], M105=nan [basis=U.S. LIST; currency=unspecified], O105=nan [basis=U.S. COST; currency=unspecified], W105=nan [basis=FULL COST CDN; currency=unspecified]) ; Tennsmith !D106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified]) ; Tinknocker!A100 R100 (values: D100=12838.0 [basis=Price; currency=unspecified], H100=5450.0 [basis=Factory Price; currency=unspecified]) |\n| TK Manual Flanger | FOUND | Tinknocker!A42 R42 (values: D42=1609.0 [basis=Price; currency=unspecified], H42=950.0 [basis=Factory Price; currency=unspecified]) |\n| TK 1624 | FOUND | Tinknocker!A101 R101 (values: D101=8040.0 [basis=Price; currency=unspecified], H101=3950.0 [basis=Factory Price; currency=unspecified]) |\n| TK Multi Wheel Gang Slitter | AMBIGUOUS | [matched via alias 'Gang Slitter'] Tennsmith !A105 R105 (values: E105= [basis=PRICE; currency=unspecified], M105=nan [basis=U.S. LIST; currency=unspecified], O105=nan [basis=U.S. COST; currency=unspecified], W105=nan [basis=FULL COST CDN; currency=unspecified]) ; Tennsmith !D106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified]) ; Tinknocker!A100 R100 (values: D100=12838.0 [basis=Price; currency=unspecified], H100=5450.0 [basis=Factory Price; currency=unspecified]) |\n\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE 381 | E88 | | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | M88 | | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | P88 | 0.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | R88 | 0.0 | field=CANADIAN COST INCL. MISC | basis=CANADIAN COST INCL. MISC | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | X88 | 166.60000000000002 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | AB88 | 35.0 | field=CDN LIST MULT | basis=CDN LIST MULT | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | AD88 | 236.65530000000004 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE 381 | E88 | | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | M88 | | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | P88 | 0.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | R88 | 0.0 | field=CANADIAN COST INCL. MISC | basis=CANADIAN COST INCL. MISC | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | X88 | 166.60000000000002 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | AB88 | 35.0 | field=CDN LIST MULT | basis=CDN LIST MULT | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 381 | AD88 | 236.65530000000004 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (list price)\nVALUE U-22 | C26 | 1777.0 | field=List Price | basis=List Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE U-22 | M26 | 1777.0 | field=List Price_2 | basis=List Price_2 | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE 622 | E265 | 670 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | M265 | 350 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | P265 | 280.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | R265 | 400.4 | field=CANADIAN COST INCL. MISC | basis=CANADIAN COST INCL. MISC | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | X265 | 428.428 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | AB265 | 35.0 | field=CDN LIST MULT | basis=CDN LIST MULT | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | AD265 | 669.4187499999999 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE 622 | E265 | 670 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | M265 | 350 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | P265 | 280.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | R265 | 400.4 | field=CANADIAN COST INCL. MISC | basis=CANADIAN COST INCL. MISC | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | X265 | 428.428 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | AB265 | 35.0 | field=CDN LIST MULT | basis=CDN LIST MULT | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 622 | AD265 | 669.4187499999999 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE SLE24-16 | E101 | 8880 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | M101 | 4500.0 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | O101 | 3600.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | W101 | 6250.96 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | AA101 | 8879.48868 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE 1624 | D101 | 8040.0 | field=Price | basis=Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE 1624 | H101 | 3950.0 | field=Factory Price | basis=Factory Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE GSL48-16 | E106 | 14166 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE GSL48-16 | M106 | 6575.0 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE GSL48-16 | O106 | 5260.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE GSL48-16 | W106 | 9972.236 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE GSL48-16 | AA106 | 14165.561238 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE Manual Flanger | D42 | 1609.0 | field=Price | basis=Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Manual Flanger | H42 | 950.0 | field=Factory Price | basis=Factory Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE Multi Wheel Gang Slitter | E105 | | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | M105 | nan | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | O105 | nan | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | W105 | nan | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | AA105 | nan | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE Multi Wheel Gang Slitter | E106 | 14166 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | M106 | 6575.0 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | O106 | 5260.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | W106 | 9972.236 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE Multi Wheel Gang Slitter | AA106 | 14165.561238 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE TK Manual Flanger | D42 | 1609.0 | field=Price | basis=Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE TK Manual Flanger | H42 | 950.0 | field=Factory Price | basis=Factory Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE TK 1624 | D101 | 8040.0 | field=Price | basis=Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE TK 1624 | H101 | 3950.0 | field=Factory Price | basis=Factory Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE TK Multi Wh",
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecifi"
+}

@@ -77,6 +77,7 @@ C_BUDGET = "Planner & Reply Budgets"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
 C_BPE = "BPE Agent Workspace"
+C_DECISION = "Decision Plane (Ollaya)"
 
 
 SETTING_CATALOG: tuple[SettingSpec, ...] = (
@@ -416,6 +417,21 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("ATOM_TRUST_CALIBRATION_REFIT_TTL", 300, C_TRUST, "Posterior cache seconds"),
     F("ATOM_TRUST_CALIBRATION_TAU_LOW", 0.35, C_TRUST, "p below → block"),
     F("ATOM_TRUST_CALIBRATION_TAU_UNCERTAIN", 0.15, C_TRUST, "Variance above → ask"),
+    # ------------------------------------------------------------------
+    # Decision plane (Ollaya local sidecar — Phase 1, default OFF)
+    # ------------------------------------------------------------------
+    B("ATOM_OLLAYA_ENABLED", False, C_DECISION, "Master switch (off = no HTTP)"),
+    S("ATOM_OLLAYA_URL", "http://127.0.0.1:11435", C_DECISION, "Sidecar base URL"),
+    S("ATOM_OLLAYA_MODEL", "laya", C_DECISION, "Default decision model"),
+    F("ATOM_OLLAYA_TIMEOUT_S", 0.8, C_DECISION, "Per-call HTTP timeout (s)"),
+    B("ATOM_OLLAYA_FORCE_ENFORCE", False, C_DECISION, "Live gating (shadow until certified)"),
+    B("ATOM_OLLAYA_SHADOW_INTENT", False, C_DECISION, "Shadow intent routing audit (opt-in)"),
+    B("ATOM_OLLAYA_SHADOW_TURN", False, C_DECISION, "Shadow turn-judgment audit (opt-in)"),
+    B("ATOM_OLLAYA_SHADOW_GATE", False, C_DECISION, "Shadow pre-action gate audit (opt-in)"),
+    F("ATOM_OLLAYA_GATE_SAMPLE_RATE", 0.1, C_DECISION, "Fraction of tool calls shadowed"),
+    S("ATOM_DECISION_AUTO_ENFORCE", "off", C_DECISION, "off|notify|approve|auto"),
+    I("ATOM_DECISION_AUTO_INTERVAL_MIN", 60, C_DECISION, "Automation pass cadence (min)"),
+    F("ATOM_OLLAYA_INTENT_ACT_THRESHOLD", 0.6, C_DECISION, "Min ollaya confidence to act"),
     # ------------------------------------------------------------------
     # Ontology drafts
     # ------------------------------------------------------------------

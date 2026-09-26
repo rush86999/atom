@@ -1,7 +1,7 @@
 // WhatsApp WebSocket Hook
 // React hook for real-time WebSocket connection to WhatsApp Business
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 
 interface WebSocketMessage {
   type: string;
@@ -27,6 +27,65 @@ interface UseWhatsAppWebSocketOptions {
   pingInterval?: number;
 }
 
+type WebSocketSnapshot = {
+  state: WebSocketState;
+  websocket: WebSocket | null;
+};
+
+type WebSocketConnectionStore = {
+  snapshot: WebSocketSnapshot;
+  listeners: Set<() => void>;
+};
+
+const SERVER_WEBSOCKET_SNAPSHOT: WebSocketSnapshot = {
+  state: {
+    isConnected: false,
+    isConnecting: false,
+    error: null,
+    lastMessage: null,
+    connectionAttempts: 0,
+    reconnectCount: 0,
+  },
+  websocket: null,
+};
+
+function createWebSocketConnectionStore(autoConnect: boolean): WebSocketConnectionStore {
+  return {
+    snapshot: {
+      state: {
+        ...SERVER_WEBSOCKET_SNAPSHOT.state,
+        isConnecting: autoConnect,
+      },
+      websocket: null,
+    },
+    listeners: new Set(),
+  };
+}
+
+function subscribeWebSocketStore(
+  store: WebSocketConnectionStore,
+  onStoreChange: () => void
+) {
+  store.listeners.add(onStoreChange);
+  return () => store.listeners.delete(onStoreChange);
+}
+
+function getWebSocketSnapshot(store: WebSocketConnectionStore) {
+  return store.snapshot;
+}
+
+function getServerWebSocketSnapshot() {
+  return SERVER_WEBSOCKET_SNAPSHOT;
+}
+
+function updateWebSocketStore(
+  store: WebSocketConnectionStore,
+  update: (snapshot: WebSocketSnapshot) => WebSocketSnapshot
+) {
+  store.snapshot = update(store.snapshot);
+  store.listeners.forEach((listener) => listener());
+}
+
 export const useWhatsAppWebSocket = (
   options: UseWhatsAppWebSocketOptions = {},
 ) => {
@@ -38,18 +97,24 @@ export const useWhatsAppWebSocket = (
     pingInterval = 30000,
   } = options;
 
-  const [state, setState] = useState<WebSocketState>({
-    isConnected: false,
-    isConnecting: false,
-    error: null,
-    lastMessage: null,
-    connectionAttempts: 0,
-    reconnectCount: 0,
-  });
+  const [connectionStore] = useState(() => createWebSocketConnectionStore(autoConnect));
+  const { state, websocket } = useSyncExternalStore(
+    useCallback(
+      (onStoreChange: () => void) => subscribeWebSocketStore(connectionStore, onStoreChange),
+      [connectionStore]
+    ),
+    useCallback(
+      () => getWebSocketSnapshot(connectionStore),
+      [connectionStore]
+    ),
+    getServerWebSocketSnapshot
+  );
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectCountRef = useRef(0);
+    const connectRef = useRef<() => void>(() => {});
 
   // Clear any existing timeouts
   const clearTimeouts = useCallback(() => {
@@ -66,13 +131,25 @@ export const useWhatsAppWebSocket = (
   // Set WebSocket state - accepts both partial object and function updater
   const setWebSocketState = useCallback(
     (updates: Partial<WebSocketState> | ((prev: WebSocketState) => Partial<WebSocketState>)) => {
-      setState((prev) => {
-        const newUpdates = typeof updates === 'function' ? updates(prev) : updates;
-        return { ...prev, ...newUpdates };
+      updateWebSocketStore(connectionStore, (snapshot) => {
+        const newUpdates = typeof updates === 'function'
+          ? updates(snapshot.state)
+          : updates;
+        return {
+          ...snapshot,
+          state: { ...snapshot.state, ...newUpdates },
+        };
       });
     },
-    [],
+    [connectionStore],
   );
+
+  const setWebSocket = useCallback((nextWebSocket: WebSocket | null) => {
+    updateWebSocketStore(connectionStore, (snapshot) => ({
+      ...snapshot,
+      websocket: nextWebSocket,
+    }));
+  }, [connectionStore]);
 
   // Send ping message to keep connection alive
   const sendPing = useCallback(() => {
@@ -102,7 +179,7 @@ export const useWhatsAppWebSocket = (
 
     // Start ping interval
     pingIntervalRef.current = setInterval(sendPing, pingInterval);
-  }, [clearTimeouts, pingInterval, sendPing]);
+  }, [clearTimeouts, pingInterval, sendPing, setWebSocketState]);
 
   // Handle WebSocket message
   const handleMessage = useCallback((event: MessageEvent) => {
@@ -135,7 +212,7 @@ export const useWhatsAppWebSocket = (
         error: "Error parsing WebSocket message",
       });
     }
-  }, []);
+  }, [setWebSocketState]);
 
   // Handle WebSocket error
   const handleError = useCallback(
@@ -148,7 +225,7 @@ export const useWhatsAppWebSocket = (
         error: "WebSocket connection error",
       });
     },
-    [clearTimeouts],
+    [clearTimeouts, setWebSocketState],
   );
 
   // Handle WebSocket close
@@ -164,19 +241,21 @@ export const useWhatsAppWebSocket = (
       }));
 
       // Auto-reconnect if not manually closed
-      if (event.code !== 1000 && state.reconnectCount < reconnectAttempts) {
+      const reconnectCount = reconnectCountRef.current;
+      if (event.code !== 1000 && reconnectCount < reconnectAttempts) {
         console.log(
-          `Attempting to reconnect in ${reconnectDelay}ms (attempt ${state.reconnectCount + 1}/${reconnectAttempts})`,
+          `Attempting to reconnect in ${reconnectDelay}ms (attempt ${reconnectCount + 1}/${reconnectAttempts})`,
         );
         reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectCountRef.current += 1;
           setWebSocketState((prev) => ({
             reconnectCount: prev.reconnectCount + 1,
           }));
-          connect();
+          connectRef.current();
         }, reconnectDelay);
       }
     },
-    [clearTimeouts, reconnectAttempts, reconnectDelay, state.reconnectCount],
+    [clearTimeouts, reconnectAttempts, reconnectDelay, setWebSocketState],
   );
 
   // Connect to WebSocket
@@ -200,6 +279,7 @@ export const useWhatsAppWebSocket = (
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
+      setWebSocket(ws);
 
       ws.onopen = handleOpen;
       ws.onmessage = handleMessage;
@@ -212,17 +292,23 @@ export const useWhatsAppWebSocket = (
         error: "Failed to create WebSocket connection",
       });
     }
-  }, [url, handleOpen, handleMessage, handleError, handleClose]);
+  }, [url, handleOpen, handleMessage, handleError, handleClose, setWebSocket, setWebSocketState]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
     console.log("Disconnecting from WebSocket");
     clearTimeouts();
+    reconnectCountRef.current = 0;
 
     if (wsRef.current) {
       wsRef.current.close(1000, "Manual disconnect");
       wsRef.current = null;
     }
+    setWebSocket(null);
 
     setWebSocketState({
       isConnected: false,
@@ -230,7 +316,7 @@ export const useWhatsAppWebSocket = (
       error: null,
       reconnectCount: 0,
     });
-  }, [clearTimeouts]);
+  }, [clearTimeouts, setWebSocket, setWebSocketState]);
 
   // Send message through WebSocket
   const sendMessage = useCallback((message: any) => {
@@ -254,7 +340,7 @@ export const useWhatsAppWebSocket = (
       });
       return false;
     }
-  }, []);
+  }, [setWebSocketState]);
 
   // Subscribe to specific events
   const subscribeToEvents = useCallback(
@@ -290,7 +376,7 @@ export const useWhatsAppWebSocket = (
     return () => {
       disconnect();
     };
-  }, [autoConnect]); // Only run once on mount
+  }, [autoConnect, connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -300,7 +386,7 @@ export const useWhatsAppWebSocket = (
         wsRef.current.close(1000, "Component unmount");
       }
     };
-  }, []);
+  }, [clearTimeouts]);
 
   return {
     // Connection state
@@ -325,7 +411,7 @@ export const useWhatsAppWebSocket = (
     unsubscribeFromEvents,
 
     // Raw WebSocket reference
-    websocket: wsRef.current,
+    websocket,
   };
 };
 

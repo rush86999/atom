@@ -320,6 +320,20 @@ class TestEffectsAndContextContinuity:
         cont = _cont("s1")
         cont.outcome = "awaiting_approval"
         cont.summary = "draft ready"
+        cont.evidence_contract = {
+            "coverage": {"requested_entities": ["U-22"], "outcome_count": 1},
+            "actions": [{
+                "action_type": "edit_artifact",
+                "entity_id": "U-22",
+                "field": "price",
+                "status": "ready",
+                "authorized": True,
+                "evidence_ids": ["quote:U-22"],
+            }],
+            "evidence": [{"observation_id": "quote:U-22"}],
+        }
+        cont.postcondition_verified = True
+        cont.review_status = "pending_review"
         added = []
         db = SimpleNamespace(add=added.append)
         with patch("core.database.get_db_session", _fake_db(db)), \
@@ -336,6 +350,11 @@ class TestEffectsAndContextContinuity:
         import json as _json
         meta = _json.loads(row.metadata_json)
         assert meta["continuation"]["outcome"] == "awaiting_approval"
+        assert meta["continuation"]["evidence_contract"]["actions"][0][
+            "entity_id"
+        ] == "U-22"
+        assert meta["continuation"]["postcondition_verified"] is True
+        assert meta["continuation"]["review_status"] == "pending_review"
 
     async def test_notification_distinguishes_review_from_completion(self):
         for outcome, expected_type in (
@@ -621,7 +640,17 @@ class TestOperationIdIdempotency:
         assert outcome == "already_applied"
         orch._try_canvas_edit.assert_not_awaited()
 
-    async def test_retry_passes_operation_id_and_revision_token(self):
+    async def test_pending_review_operation_is_not_already_applied(self):
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock()
+        cont = _cont("s1")
+        with patch.object(atc, "_operation_status", return_value="pending_review"):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+        assert outcome == "awaiting_approval"
+        assert "awaiting review" in summary
+        orch._try_canvas_edit.assert_not_awaited()
+
         """The retry stamps its writes with the operation id and enforces
         the revision token captured at retry start."""
         orch = MagicMock()
@@ -809,13 +838,20 @@ class TestConditionalSupersede:
     def test_new_edit_instruction_cancels(self):
         cancelled = []
         with patch.object(atc, "cancel_continuation",
-                          side_effect=lambda sid: cancelled.append(sid)
+                          side_effect=lambda sid, **kwargs: cancelled.append(sid)
                           or True):
             got = atc.supersede_pending_continuation(
                 "s1", "rebuild the draft with the new quotes",
                 {"canvas_id": "cv1"})
         assert got is True
         assert cancelled == ["s1"]
+
+    def test_new_edit_on_another_canvas_does_not_cancel(self):
+        cont = _cont("s1")
+        atc._continuations[cont.continuation_id] = cont
+        atc._SESSION_IN_FLIGHT["s1"] = cont.continuation_id
+        assert atc.cancel_continuation("s1", canvas_id="cv2") is False
+        assert atc.cancel_continuation("s1", canvas_id="cv1") is True
 
 
 class TestRestartVisibility:

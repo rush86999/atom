@@ -44,6 +44,17 @@ interface GraphData {
   links: Link[];
 }
 
+const colors: Record<string, string> = {
+  User: '#3b82f6',      // blue
+  Workspace: '#10b981', // emerald
+  Team: '#f59e0b',      // amber
+  Ticket: '#ef4444',    // red
+  Formula: '#8b5cf6',   // violet
+  Task: '#6366f1',      // indigo
+  Concept: '#6b7280',   // gray
+  default: '#14b8a6'    // teal
+};
+
 async function readJsonResponse(response: Response) {
   const contentType = response.headers.get('content-type') || '';
 
@@ -81,16 +92,6 @@ export default function GraphVisualization() {
   // Constants
   const width = 1000;
   const height = 800;
-  const colors: Record<string, string> = {
-    User: '#3b82f6',      // blue
-    Workspace: '#10b981', // emerald
-    Team: '#f59e0b',      // amber
-    Ticket: '#ef4444',    // red
-    Formula: '#8b5cf6',   // violet
-    Task: '#6366f1',      // indigo
-    Concept: '#6b7280',   // gray
-    default: '#14b8a6'    // teal
-  };
 
   useEffect(() => {
     fetchGraphData();

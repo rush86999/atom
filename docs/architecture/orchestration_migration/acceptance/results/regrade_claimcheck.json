@@ -1,0 +1,525 @@
+{
+ "regenerated_at": "2026-09-25T15:45:03-0400",
+ "runs": [
+  {
+   "result_file": "invoice_field_retrieval__sample1__1790365443.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "invoice_field_retrieval__sample2__1790365443.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "invoice_field_retrieval__sample3__1790365443.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample1__1790358445.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample1__1790358483.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample1__1790358537.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample1__1790358630.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample2__1790358448.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "narration_followup_poisoned__sample2__1790358486.json",
+   "evaluator": "narration-binding-v2",
+   "verdict": "harness-blocked",
+   "reason": "provider never reached (rig catalog blocker at collection time)",
+   "correct_completion": null
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample10__1790354582.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample11__1790354584.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample12__1790354587.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample13__1790354589.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample14__1790354592.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample15__1790354594.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample16__1790354597.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample17__1790354599.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample18__1790354602.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample19__1790354605.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790343356.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790343639.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790353695.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790353744.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790354133.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790354559.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790355411.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample1__1790355806.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample20__1790354608.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample2__1790354562.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample2__1790355415.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample2__1790355809.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample3__1790354564.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample3__1790355418.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample3__1790355812.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample4__1790354567.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample5__1790354569.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample6__1790354572.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample7__1790354574.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample8__1790354577.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "original_incident_workbook_true_eight__sample9__1790354579.json",
+   "excerpt_limited": true,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample1__1790355455.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample1__1790355845.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample2__1790355457.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample2__1790355847.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample3__1790355460.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "overlap_concurrent_reads__sample3__1790355849.json",
+   "ruleset": "v2.1",
+   "excerpt_limited": false,
+   "unsupported_count": 0,
+   "subturn_aggregated": 2
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample1__1790355421.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample1__1790355814.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample2__1790355422.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample2__1790355815.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample3__1790355424.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "partial_failure_absent_targets__sample3__1790355816.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample1__1790355440.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample1__1790355830.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample2__1790355446.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample2__1790355837.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample3__1790355453.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "planner_down_no_apply__sample3__1790355844.json",
+   "excerpt_limited": false,
+   "ruleset": "v2.1",
+   "unsupported": [],
+   "unsupported_count": 0,
+   "measured": true,
+   "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+  },
+  {
+   "result_file": "redelivery_probe__invoice_field_retrieval__1790365443.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "unrelated_domain_invoices__sample1__1790365242.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "unrelated_domain_invoices__sample2__1790365242.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  },
+  {
+   "result_file": "unrelated_domain_invoices__sample3__1790365242.json",
+   "evaluator": "invoice-expectation-audit-v1",
+   "verdict": "superseded-expectation-artifact",
+   "reason": "authoring error (value_col D; schema truth C) \u2014 product behavior correct",
+   "correct_completion": null
+  }
+ ]
+}

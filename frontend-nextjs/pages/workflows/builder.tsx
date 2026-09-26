@@ -86,20 +86,7 @@ export default function WorkflowBuilder() {
     const [isRunning, setIsRunning] = useState(false);
     const { toast } = useToast();
 
-    // Fetch templates on mount
-    useEffect(() => {
-        fetchTemplates();
-    }, []);
-
-    // Auto-load template from URL
-    useEffect(() => {
-        if (router.isReady && router.query.template_id) {
-            const tid = router.query.template_id as string;
-            loadTemplate(tid);
-        }
-    }, [router.isReady, router.query.template_id]);
-
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             const token = localStorage.getItem('auth_token');
             const res = await fetch('/api/workflow-templates', {
@@ -114,7 +101,7 @@ export default function WorkflowBuilder() {
         } catch (error) {
             console.error("Failed to fetch templates", error);
         }
-    };
+    }, []);
 
     const onConnect = useCallback(
         (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -207,7 +194,7 @@ export default function WorkflowBuilder() {
         }
     };
 
-    const loadTemplate = async (templateId: string) => {
+    const loadTemplate = useCallback(async (templateId: string) => {
         try {
             const token = localStorage.getItem('auth_token');
             const res = await fetch(`/api/workflow-templates/${templateId}`, {
@@ -257,7 +244,18 @@ export default function WorkflowBuilder() {
         } catch (error) {
             toast({ title: 'Error', description: 'Failed to load template.', variant: 'error' });
         }
-    };
+    }, [setEdges, setNodes, toast]);
+
+    useEffect(() => {
+        fetchTemplates();
+    }, [fetchTemplates]);
+
+    useEffect(() => {
+        if (router.isReady && router.query.template_id) {
+            const tid = router.query.template_id as string;
+            loadTemplate(tid);
+        }
+    }, [router.isReady, router.query.template_id, loadTemplate]);
 
     return (
         <>

@@ -32,25 +32,46 @@ const STATUS_GRAPH: Record<string, string[]> = {
   done: ['todo'],
 };
 
+interface TaskDraft {
+  taskKey: string;
+  title: string;
+  description: string;
+  newComment: string;
+}
+
+function createTaskDraft(taskKey: string, task: BoardTask | null): TaskDraft {
+  return {
+    taskKey,
+    title: task?.title ?? '',
+    description: task?.description || '',
+    newComment: '',
+  };
+}
+
 export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Props) {
   const patchTask = usePatchTask(boardId);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const taskKey = `${boardId}:${task?.id ?? ''}`;
+  const [draft, setDraft] = useState<TaskDraft>(() => createTaskDraft(taskKey, task));
+  const activeDraft = draft.taskKey === taskKey ? draft : createTaskDraft(taskKey, task);
   const [comments, setComments] = useState<BoardComment[]>([]);
-  const [newComment, setNewComment] = useState('');
   const [showDecomposeModal, setShowDecomposeModal] = useState(false);
+  const taskId = task?.id ?? null;
 
   useEffect(() => {
-    if (!task) return;
-    setTitle(task.title);
-    setDescription(task.description || '');
-    setNewComment('');
-    listComments(boardId, task.id).then(setComments).catch(() => setComments([]));
-  }, [boardId, task?.id]);
+    if (!taskId) return;
+    listComments(boardId, taskId).then(setComments).catch(() => setComments([]));
+  }, [boardId, taskId]);
 
   if (!task) {
     return null;
   }
+
+  const updateDraft = (updates: Partial<Omit<TaskDraft, 'taskKey'>>) => {
+    setDraft(previous => ({
+      ...(previous.taskKey === taskKey ? previous : createTaskDraft(taskKey, task)),
+      ...updates,
+    }));
+  };
 
   const saveField = (field: 'title' | 'description', value: string) => {
     if (!task) return;
@@ -69,11 +90,11 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
   };
 
   const submitComment = async () => {
-    if (!newComment.trim()) return;
+    if (!activeDraft.newComment.trim()) return;
     try {
-      const msg = await postComment(boardId, task.id, newComment.trim());
+      const msg = await postComment(boardId, task.id, activeDraft.newComment.trim());
       setComments((prev) => [...prev, msg]);
-      setNewComment('');
+      updateDraft({ newComment: '' });
     } catch (e) {
       toast.error(`Couldn't post comment: ${(e as Error).message}`);
     }
@@ -94,9 +115,9 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
           <div className="flex items-center justify-between border-b p-4">
             <input
               className="flex-1 text-lg font-semibold focus:outline-none"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => saveField('title', title)}
+              value={activeDraft.title}
+              onChange={(e) => updateDraft({ title: e.target.value })}
+              onBlur={() => saveField('title', activeDraft.title)}
             />
             <button onClick={onClose} aria-label="Close" className="ml-2 rounded p-1 hover:bg-gray-100">
               <X className="h-5 w-5" />
@@ -126,9 +147,9 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
               <textarea
                 className="mt-1 w-full rounded border p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => saveField('description', description)}
+                value={activeDraft.description}
+                onChange={(e) => updateDraft({ description: e.target.value })}
+                onBlur={() => saveField('description', activeDraft.description)}
               />
             </div>
 
@@ -166,8 +187,8 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
                 <input
                   className="flex-1 rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Add a comment…"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  value={activeDraft.newComment}
+                  onChange={(e) => updateDraft({ newComment: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -220,38 +241,36 @@ function DecomposeModal({
   task: BoardTask;
   onClose: () => void;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rationale, setRationale] = useState('');
   const [subtasks, setSubtasks] = useState<
     { title: string; column_name: string; description?: string }[]
   >([]);
 
-  const runPropose = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await proposeDecompose(boardId, task.id);
-      setRationale(result.rationale);
-      setSubtasks(result.subtasks.map((s) => ({
-        title: s.title,
-        column_name: s.column_name,
-        description: s.description || undefined,
-      })));
-    } catch (e) {
-      if (e instanceof DecomposeNeedsKeyError) {
-        setError(e.message);
-      } else {
-        setError((e as Error).message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    runPropose();
-  }, []);
+    let cancelled = false;
+    proposeDecompose(boardId, task.id)
+      .then((result) => {
+        if (cancelled) return;
+        setRationale(result.rationale);
+        setSubtasks(result.subtasks.map((s) => ({
+          title: s.title,
+          column_name: s.column_name,
+          description: s.description || undefined,
+        })));
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof DecomposeNeedsKeyError ? e.message : (e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId, task.id]);
 
   const confirm = async () => {
     setLoading(true);

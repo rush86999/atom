@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
     BadgeCheck,
     CheckCircle,
@@ -698,7 +699,7 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                     </div>
                     <ul className="text-xs text-gray-500 dark:text-gray-400 list-disc pl-4 space-y-0.5">
                         <li>New employees are trainees: they show you what they plan to do and ask before acting.</li>
-                        <li>Run tasks with the Run button; approve their training plans under <a href="/approvals" className="text-blue-600 underline">Approvals</a>.</li>
+                        <li>Run tasks with the Run button; approve their training plans under <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.</li>
                         <li>Finish training with a performance score to promote them — each level unlocks more they can do on their own.</li>
                     </ul>
                     <div className="pt-1">

@@ -54,9 +54,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
 
 // Wrapper factory over an externally-owned QueryClient (needed when a test
 // must seed the cache before/after a mutation runs).
-const makeWrapper = (qc: QueryClient) => ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-);
+const makeWrapper = (qc: QueryClient) =>
+  function BoardQueryWrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  };
 
 describe('useBoard hooks', () => {
   beforeEach(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Clock,
   CheckCircle,
@@ -98,8 +98,9 @@ const ZoomIntegration: React.FC = () => {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const isConnected = connectionStatus?.is_connected ?? false;
 
-  const fetchConnectionStatus = async () => {
+  const fetchConnectionStatus = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -117,10 +118,10 @@ const ZoomIntegration: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMeetings = async () => {
-    if (!connectionStatus?.is_connected) return;
+  const fetchMeetings = useCallback(async () => {
+    if (!isConnected) return;
 
     try {
       setIsLoadingData(true);
@@ -139,10 +140,10 @@ const ZoomIntegration: React.FC = () => {
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [isConnected]);
 
-  const fetchUsers = async () => {
-    if (!connectionStatus?.is_connected) return;
+  const fetchUsers = useCallback(async () => {
+    if (!isConnected) return;
 
     try {
       setIsLoadingData(true);
@@ -159,10 +160,10 @@ const ZoomIntegration: React.FC = () => {
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [isConnected]);
 
-  const fetchRecordings = async () => {
-    if (!connectionStatus?.is_connected) return;
+  const fetchRecordings = useCallback(async () => {
+    if (!isConnected) return;
 
     try {
       setIsLoadingData(true);
@@ -187,10 +188,10 @@ const ZoomIntegration: React.FC = () => {
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [isConnected]);
 
-  const fetchAnalytics = async () => {
-    if (!connectionStatus?.is_connected) return;
+  const fetchAnalytics = useCallback(async () => {
+    if (!isConnected) return;
 
     try {
       const fromDate = new Date();
@@ -207,7 +208,7 @@ const ZoomIntegration: React.FC = () => {
     } catch (err) {
       console.error("Failed to fetch analytics:", err);
     }
-  };
+  }, [isConnected]);
 
   const handleConnectZoom = async () => {
     try {
@@ -325,16 +326,16 @@ const ZoomIntegration: React.FC = () => {
 
   useEffect(() => {
     fetchConnectionStatus();
-  }, []);
+  }, [fetchConnectionStatus]);
 
   useEffect(() => {
-    if (connectionStatus?.is_connected) {
+    if (isConnected) {
       fetchMeetings();
       fetchUsers();
       fetchRecordings();
       fetchAnalytics();
     }
-  }, [connectionStatus]);
+  }, [fetchAnalytics, fetchMeetings, fetchRecordings, fetchUsers, isConnected]);
 
   if (isLoading) {
     return (

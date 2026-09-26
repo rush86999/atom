@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Card,
     CardContent,
@@ -43,7 +43,7 @@ const DevStudio = () => {
     const [currentDirectory, setCurrentDirectory] = useState<string>("");
 
     // Load system information
-    const loadSystemInfo = async () => {
+    const fetchSystemInfo = useCallback(async (): Promise<any | null> => {
         if (!invoke) {
             try {
                 const res = await fetch("/api/dev/desktop-bridge", {
@@ -51,17 +51,15 @@ const DevStudio = () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ command: "get_system_info" })
                 });
-                const info = await res.json();
-                setSystemInfo(info);
+                return await res.json();
             } catch (error) {
                 console.error("Failed to load system info:", error);
+                return null;
             }
-            return;
         }
 
         try {
-            const info = await invoke("get_system_info");
-            setSystemInfo(info);
+            return await invoke("get_system_info");
         } catch (error) {
             console.error("Failed to load system info:", error);
             toast({
@@ -69,8 +67,14 @@ const DevStudio = () => {
                 description: "Failed to load system information",
                 variant: "error",
             });
+            return null;
         }
-    };
+    }, [toast]);
+
+    const loadSystemInfo = useCallback(async () => {
+        const info = await fetchSystemInfo();
+        if (info !== null) setSystemInfo(info);
+    }, [fetchSystemInfo]);
 
     // Open file dialog
     const openFile = async () => {
@@ -288,8 +292,14 @@ const DevStudio = () => {
     };
 
     useEffect(() => {
-        loadSystemInfo();
-    }, []);
+        let active = true;
+        fetchSystemInfo().then((info) => {
+            if (active && info !== null) setSystemInfo(info);
+        });
+        return () => {
+            active = false;
+        };
+    }, [fetchSystemInfo]);
 
     const commonCommands = [
         { name: "npm install", description: "Install dependencies" },

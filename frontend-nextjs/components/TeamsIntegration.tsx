@@ -3,7 +3,7 @@
  * Complete Microsoft Teams collaboration and communication integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -308,7 +308,7 @@ const TeamsIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -320,12 +320,6 @@ const TeamsIntegration: React.FC = () => {
                 const isConnected = providers?.teams?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadTeams();
-                    loadUsers();
-                    loadMeetings();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -335,10 +329,10 @@ const TeamsIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Microsoft Teams data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/teams/profile", {
@@ -358,9 +352,9 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadTeams = async () => {
+    const loadTeams = useCallback(async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
             const response = await authFetch("/api/integrations/teams/teams", {
@@ -386,9 +380,9 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, teams: false }));
         }
-    };
+    }, [toast]);
 
-    const loadChannels = async (teamId?: string) => {
+    const loadChannels = useCallback(async (teamId?: string) => {
         if (!teamId && !currentTeam) return;
 
         setLoading((prev) => ({ ...prev, channels: true }));
@@ -412,9 +406,9 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, channels: false }));
         }
-    };
+    }, [currentTeam]);
 
-    const loadMessages = async (channelId?: string) => {
+    const loadMessages = useCallback(async (channelId?: string) => {
         if (!channelId && !currentChannel) return;
 
         setLoading((prev) => ({ ...prev, messages: true }));
@@ -439,9 +433,9 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, messages: false }));
         }
-    };
+    }, [currentTeam, currentChannel]);
 
-    const loadMeetings = async () => {
+    const loadMeetings = useCallback(async () => {
         setLoading((prev) => ({ ...prev, meetings: true }));
         try {
             const response = await authFetch("/api/integrations/teams/meetings", {
@@ -466,9 +460,9 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, meetings: false }));
         }
-    };
+    }, []);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/teams/users", {
@@ -489,7 +483,7 @@ const TeamsIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
     // Create operations
     const createTeam = async () => {
@@ -746,7 +740,7 @@ const TeamsIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -755,19 +749,19 @@ const TeamsIntegration: React.FC = () => {
             loadUsers();
             loadMeetings();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadTeams, loadUsers, loadMeetings]);
 
     useEffect(() => {
         if (currentTeam) {
             loadChannels();
         }
-    }, [currentTeam]);
+    }, [currentTeam, loadChannels]);
 
     useEffect(() => {
         if (currentChannel) {
             loadMessages();
         }
-    }, [currentChannel]);
+    }, [currentChannel, loadMessages]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

@@ -394,9 +394,10 @@ function ExcelEditor({
     const padded = rows.map((r) => Array.from({ length: colCount }, (_, i) => r?.[i] ?? ""));
 
     // Selected cell drives the formula bar (kept on blur, like Excel).
-    const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
-    // Sheet switch invalidates the selection — coordinates are per-sheet.
-    useEffect(() => { setSelected(null); }, [activeSheet]);
+    const [selection, setSelection] = useState<{ sheet: string; row: number; col: number } | null>(null);
+    const selected = selection?.sheet === activeSheet
+        ? { row: selection.row, col: selection.col }
+        : null;
 
     // The backend snapshot keeps computed values in `rows` and the '=...'
     // source in `formulas[Sheet][coord]` — a cell can only be a formula via
@@ -509,7 +510,7 @@ function ExcelEditor({
                                             key={`${cellPath}:${String(cell)}`}
                                             onFocus={(e) => {
                                                 onFocusKey(cellPath);
-                                                setSelected({ row: rowIdx, col: colIdx });
+                                                setSelection({ sheet: activeSheet, row: rowIdx, col: colIdx });
                                                 // Excel behavior: the cell shows
                                                 // the '=...' source while editing.
                                                 if (formulaStr) e.currentTarget.value = formulaStr;

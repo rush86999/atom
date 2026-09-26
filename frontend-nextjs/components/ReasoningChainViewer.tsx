@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -55,19 +55,7 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
         });
     }, []);
 
-    useEffect(() => {
-        if (chainId && !chainData) {
-            fetchChain();
-        }
-    }, [chainId]);
-
-    useEffect(() => {
-        if (chain?.mermaid_diagram && mermaidRef.current) {
-            renderMermaid();
-        }
-    }, [chain]);
-
-    const fetchChain = async () => {
+    const fetchChain = useCallback(async () => {
         try {
             setLoading(true);
             // W45: was /api/v1/voice/reasoning/{chainId} — a dead 404 endpoint.
@@ -88,9 +76,9 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
         } finally {
             setLoading(false);
         }
-    };
+    }, [chainId]);
 
-    const renderMermaid = async () => {
+    const renderMermaid = useCallback(async () => {
         if (!mermaidRef.current || !chain?.mermaid_diagram) return;
 
         try {
@@ -100,7 +88,19 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
         } catch (err) {
             console.error('Mermaid render error:', err);
         }
-    };
+    }, [chain]);
+
+    useEffect(() => {
+        if (chainId && !chainData) {
+            fetchChain();
+        }
+    }, [chainId, chainData, fetchChain]);
+
+    useEffect(() => {
+        if (chain?.mermaid_diagram && mermaidRef.current) {
+            renderMermaid();
+        }
+    }, [chain, renderMermaid]);
 
     const getStepIcon = (type: string) => {
         const icons: Record<string, string> = {

@@ -265,7 +265,7 @@ export default function StartGoalRunDialog({
                         {!canSupervise && (
                             <p className="text-xs text-muted-foreground">
                                 Autonomous runs need a supervisor. Your run is seeded from
-                                your role's approved playbooks.
+                                your role&apos;s approved playbooks.
                             </p>
                         )}
                     </div>

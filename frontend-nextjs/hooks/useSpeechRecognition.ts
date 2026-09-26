@@ -1,4 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
+
+const subscribeToNothing = () => () => {};
+const getServerFalse = () => false;
+const hasSpeechRecognition = () =>
+    typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
 declare global {
     interface Window {
@@ -21,17 +26,20 @@ export interface UseSpeechRecognitionReturn {
 export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
-    const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
-    const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState(false);
+    const browserSupportsSpeechRecognition = useSyncExternalStore(
+        subscribeToNothing,
+        hasSpeechRecognition,
+        getServerFalse
+    );
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
 
     const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                setBrowserSupportsSpeechRecognition(true);
-                const recognitionInstance = new SpeechRecognition();
+            const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognitionConstructor) {
+                const recognitionInstance = new SpeechRecognitionConstructor();
                 recognitionInstance.continuous = true;
                 recognitionInstance.interimResults = true;
                 recognitionInstance.lang = 'en-US';
@@ -89,13 +97,16 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
                     }
                 };
 
-                setRecognition(recognitionInstance);
+                recognitionRef.current = recognitionInstance;
 
                 // Cleanup: stop the recognition instance when the effect
                 // re-runs (wakeWordEnabled change) or the component unmounts.
                 // Without this, the mic stays active after unmount and old
                 // instances pile up on every toggle (BUG-044).
                 return () => {
+                    if (recognitionRef.current === recognitionInstance) {
+                        recognitionRef.current = null;
+                    }
                     try {
                         recognitionInstance.onresult = null;
                         recognitionInstance.onerror = null;
@@ -110,6 +121,7 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }, [wakeWordEnabled]);
 
     const startListening = useCallback(() => {
+        const recognition = recognitionRef.current;
         if (recognition && !isListening) {
             try {
                 recognition.start();
@@ -118,15 +130,16 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
                 console.error("Error starting speech recognition:", error);
             }
         }
-    }, [recognition, isListening]);
+    }, [isListening]);
 
     const stopListening = useCallback(() => {
+        const recognition = recognitionRef.current;
         if (recognition && isListening) {
             recognition.stop();
             setIsListening(false);
             setWakeWordEnabled(false); // Disable wake word loop on manual stop
         }
-    }, [recognition, isListening]);
+    }, [isListening]);
 
     const resetTranscript = useCallback(() => {
         setTranscript('');

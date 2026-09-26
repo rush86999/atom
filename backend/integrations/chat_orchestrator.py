@@ -6469,6 +6469,24 @@ class ChatOrchestrator:
         r"price|cell|value)\b[^.\n]*[.\n]?",
         re.IGNORECASE,
     )
+    # M3 PRE-DELIVERY VALIDATION BOUNDARY (2026-09-25): the legacy guard
+    # above is FROZEN — do not add verbs to it. These M3-only patterns
+    # withhold unvalidated narration mid-stream and strip it at close:
+    # - workflow completion ("I sent the email.") needs its own operation
+    #   evidence; canvas evidence never verifies a send/approve/submit.
+    # - split prefixes ("I've updated") reuse the legacy canvas verbs only
+    #   to detect a trailing fragment that could become a claim with more
+    #   text; they never broaden what counts as a complete claim.
+    _M3_WORKFLOW_CLAIM_RE = re.compile(
+        r"[^.\n]*\bI(?:['\u2019]ve\s+|\s+have\s+|\s+had\s+|\s+)"
+        r"(?:sent|emailed?|forwarded?|dispatched?|approved?|submitted?)"
+        r"\b[^.\n]*[.\n]?",
+        re.IGNORECASE,
+    )
+    _M3_SPLIT_PREFIX_RE = re.compile(
+        r"[^.\n]*\bI(?:['\u2019]ve\b| have\b| had\b)?\s*\w{0,30}$",
+        re.IGNORECASE,
+    )
     # (Round 8's absolute-vocabulary and strong-action REWRITING regexes
     # are retired: round 9 generates the confirmation from the verified
     # criteria set, so no model claim text survives to need rewriting.)
@@ -6634,6 +6652,14 @@ class ChatOrchestrator:
         flag, run the same guard over the streamed text and return it only
         when a claim was actually rewritten; any error or no-op yields
         None and the caller emits the legacy empty content.
+
+        M3 PRE-DELIVERY BOUNDARY (no verb-list expansion): workflow
+        completion narration ("I sent the email.") needs its own operation
+        evidence — canvas evidence never verifies a send. The frozen legacy
+        guard supersedes but cannot strip it, so M3 strips unsupported
+        workflow sentences here while preserving the authoritative
+        Operation-status section. Pure chat without workflow shape flows
+        untouched (None).
         """
         if not streamed or os.getenv("CHAT_FINALIZATION_M3") != "1":
             return None
@@ -6645,6 +6671,32 @@ class ChatOrchestrator:
             )
         except Exception:
             return None
+        # Strip unsupported workflow narration in canvas-bound turns only.
+        # Legacy _CANVAS_CLAIM_SENTENCE_RE is frozen; this M3-only pattern
+        # is the pre-delivery boundary, not an expansion.
+        try:
+            canvas_id = (
+                canvas_context.get("canvas_id")
+                if isinstance(canvas_context, dict) else None
+            )
+            if canvas_id and cls._M3_WORKFLOW_CLAIM_RE.search(corrected):
+                stripped = cls._M3_WORKFLOW_CLAIM_RE.sub("", corrected)
+                stripped = re.sub(r"\n\s*\n\s*\n+", "\n\n", stripped).strip()
+                stripped = re.sub(r"[ \t]{2,}", " ", stripped)
+                if stripped != corrected:
+                    if stripped:
+                        return stripped
+                    # Body was only the unsupported workflow claim and no
+                    # section survived: withhold with an honest notice
+                    # rather than releasing the hallucination or an empty
+                    # bubble.
+                    return (
+                        "*(Unverified: no canvas write from this operation "
+                        "is on the audit trail — treat the canvas as "
+                        "unchanged.)*"
+                    )
+        except Exception:
+            pass
         return corrected if corrected != streamed else None
 
     @classmethod
@@ -6665,33 +6717,59 @@ class ChatOrchestrator:
         once per distinct sentence (cached for the stream); unverified
         claims stay held so raw completion claims never reach the bubble
         mid-stream — the stream-close reconciliation delivers the honest
-        wording instead. Any fault releases everything: this gate must
-        never stall a stream. Outside the M3 flag it is a passthrough.
+        wording instead. Verifier faults hold from the failure point
+        (fail-closed): releasing on fault would stream an unvalidated
+        completion claim. Split prefixes ("I've updated") and unknown
+        workflow shapes ("I sent the email.") are held via the M3-only
+        boundary without expanding the frozen legacy verb list; pure chat
+        without those shapes streams untouched. Outside the M3 flag it is
+        a passthrough.
         """
         if os.getenv("CHAT_FINALIZATION_M3") != "1" or not pending:
             return pending, ""
         if verified is None:
             verified = {}
+        legacy_match = cls._CANVAS_CLAIM_SENTENCE_RE.search(pending)
+        if legacy_match is not None:
+            emit, hold = pending[:legacy_match.start()], pending[legacy_match.start():]
+            sentence = legacy_match.group(0)
+            try:
+                known = verified.get(sentence)
+                if known is None:
+                    corrected = await cls._canvas_claim_correction(
+                        sentence, canvas_context, session_id, user_id,
+                        background_forked,
+                        execution_id=execution_id,
+                    )
+                    known = corrected == sentence
+                    verified[sentence] = known
+                if known:
+                    return pending, ""
+                return emit, hold
+            except Exception:
+                # Fail-closed: hold from the failure point so a guard
+                # outage never streams an unvalidated claim.
+                return emit, hold
         try:
-            match = cls._CANVAS_CLAIM_SENTENCE_RE.search(pending)
-            if match is None:
+            canvas_id = (
+                canvas_context.get("canvas_id")
+                if isinstance(canvas_context, dict) else None
+            )
+            if not canvas_id:
+                # Non-canvas turns carry no operation outcome: no boundary.
                 return pending, ""
-            emit, hold = pending[:match.start()], pending[match.start():]
-            sentence = match.group(0)
-            known = verified.get(sentence)
-            if known is None:
-                corrected = await cls._canvas_claim_correction(
-                    sentence, canvas_context, session_id, user_id,
-                    background_forked,
-                    execution_id=execution_id,
-                )
-                known = corrected == sentence
-                verified[sentence] = known
-            if known:
-                return pending, ""
-            return emit, hold
+            m3_match = cls._M3_WORKFLOW_CLAIM_RE.search(
+                pending
+            ) or cls._M3_SPLIT_PREFIX_RE.search(pending)
+            if m3_match is not None:
+                # Always hold mid-stream; close-time reconciliation (with
+                # full verification) decides release vs strip. No DB, no
+                # fault path — this boundary never stalls.
+                return pending[:m3_match.start()], pending[m3_match.start():]
         except Exception:
-            return pending, ""
+            # Fail-closed on boundary faults as well.
+            return "", pending
+        return pending, ""
 
     @classmethod
     async def _canvas_write_for_operation(

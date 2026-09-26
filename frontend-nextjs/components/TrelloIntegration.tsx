@@ -3,7 +3,7 @@
  * Complete Trello project management and task tracking integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -335,7 +335,7 @@ const TrelloIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -347,11 +347,6 @@ const TrelloIntegration: React.FC = () => {
                 const isConnected = providers?.trello?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadBoards();
-                    loadMembers();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -361,10 +356,10 @@ const TrelloIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Trello data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/trello/profile", {
@@ -384,9 +379,9 @@ const TrelloIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadBoards = async () => {
+    const loadBoards = useCallback(async () => {
         setLoading((prev) => ({ ...prev, boards: true }));
         try {
             const response = await authFetch("/api/integrations/trello/boards", {
@@ -412,9 +407,9 @@ const TrelloIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, boards: false }));
         }
-    };
+    }, [toast]);
 
-    const loadLists = async (boardId?: string) => {
+    const loadLists = useCallback(async (boardId?: string) => {
         if (!boardId && !selectedBoard) return;
 
         setLoading((prev) => ({ ...prev, lists: true }));
@@ -438,9 +433,9 @@ const TrelloIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, lists: false }));
         }
-    };
+    }, [selectedBoard]);
 
-    const loadCards = async (listId?: string) => {
+    const loadCards = useCallback(async (listId?: string) => {
         if (!listId && !selectedList) return;
 
         setLoading((prev) => ({ ...prev, cards: true }));
@@ -466,9 +461,9 @@ const TrelloIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, cards: false }));
         }
-    };
+    }, [selectedBoard, selectedList]);
 
-    const loadMembers = async () => {
+    const loadMembers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, members: true }));
         try {
             const response = await authFetch("/api/integrations/trello/members", {
@@ -489,7 +484,7 @@ const TrelloIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, members: false }));
         }
-    };
+    }, []);
 
     const createCard = async () => {
         if (!cardForm.name || !cardForm.list_id) return;
@@ -609,7 +604,7 @@ const TrelloIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -617,20 +612,18 @@ const TrelloIntegration: React.FC = () => {
             loadBoards();
             loadMembers();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadBoards, loadMembers]);
 
     useEffect(() => {
         if (selectedBoard) {
             loadLists();
-            loadCards();
+            if (selectedList) {
+                loadCards(selectedList);
+            }
+        } else if (selectedList) {
+            loadCards(selectedList);
         }
-    }, [selectedBoard]);
-
-    useEffect(() => {
-        if (selectedList) {
-            loadCards();
-        }
-    }, [selectedList]);
+    }, [selectedBoard, selectedList, loadLists, loadCards]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

@@ -62,11 +62,7 @@ export const BreakpointMarker: React.FC<BreakpointMarkerProps> = ({
   const [newHitLimit, setNewHitLimit] = useState<string>('');
   const [newLogMessage, setNewLogMessage] = useState('');
 
-  useEffect(() => {
-    fetchBreakpoints();
-  }, [workflowId, debugSessionId]);
-
-  const fetchBreakpoints = async () => {
+  const fetchBreakpoints = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -83,7 +79,11 @@ export const BreakpointMarker: React.FC<BreakpointMarkerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowId, currentUserId, onBreakpointsChange]);
+
+  useEffect(() => {
+    fetchBreakpoints();
+  }, [workflowId, debugSessionId, fetchBreakpoints]);
 
   const addBreakpoint = async () => {
     if (!newBreakpointNode) {

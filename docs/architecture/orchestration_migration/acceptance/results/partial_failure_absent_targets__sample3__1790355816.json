@@ -1,0 +1,83 @@
+{
+ "case_id": "partial_failure_absent_targets",
+ "sample": 3,
+ "session_id": "acc-absent-1790355815-3",
+ "captured_at": "2026-09-25T13:03:35-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "1",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "message": "find the prices of GSL24-16, SLE16-8 and U-38 in Consolidated Price List 2019.xl",
+   "success": true,
+   "latency_s": 1.15,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 1.15,
+ "answer_availability_latency_s": 1.15,
+ "answer_availability_basis": "HTTP response receipt",
+ "claim_calibration": {
+  "trace_steps": []
+ },
+ "per_target": {
+  "GSL24-16": {
+   "expected": "absent_from_indexed",
+   "got": "absent_from_indexed",
+   "label": "GSL24-16",
+   "binding": null,
+   "row": {
+    "target": "GSL24-16",
+    "status": "ABSENT"
+   },
+   "pass": true
+  },
+  "SLE16-8": {
+   "expected": "absent_from_indexed",
+   "got": "absent_from_indexed",
+   "label": "SLE16-8",
+   "binding": null,
+   "row": {
+    "target": "SLE16-8",
+    "status": "ABSENT"
+   },
+   "pass": true
+  },
+  "U-38": {
+   "expected": "absent_from_indexed",
+   "got": "absent_from_indexed",
+   "label": "U-38",
+   "binding": null,
+   "row": {
+    "target": "U-38",
+    "status": "ABSENT"
+   },
+   "pass": true
+  }
+ },
+ "claim_check": {
+  "ruleset": "v2",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true
+ },
+ "claim_gate_eligible": true,
+ "correct_completion": true,
+ "unsupported_claims_detected_by_ruleset": 0,
+ "unsupported_claims": 0,
+ "reply": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| GSL24-16 | ABSENT | no matching cell in the indexed rows |\n| SLE16-8 | ABSENT | no matching cell in the indexed rows |\n| U-38 | ABSENT | no matching cell in the indexed rows |",
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| GSL24-16 | ABSENT | no matching cell in the indexed rows |\n| SLE16-8 | ABSENT | no matching cell in the indexed rows |\n| U-38 | ABSENT | no matching cell in the indexed rows |"
+}

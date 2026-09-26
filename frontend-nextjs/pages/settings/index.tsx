@@ -1,5 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PreferencesTab } from "@/components/Settings/PreferencesTab";
 import { DataPipelinesTab } from "@/components/Settings/DataPipelinesTab"; // Import
@@ -51,16 +52,16 @@ export default function SettingsPage() {
                     <div className="pt-6 border-t border-border mt-6">
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">Advanced</h3>
                         <div className="flex flex-wrap gap-3 text-sm">
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/ai">AI Providers</a>
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/account">Account, Password & 2FA</a>
+                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/ai">AI Providers</Link>
+                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/account">Account, Password & 2FA</Link>
                             {showAdminLinks && (
-                                <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</a>
+                                <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</Link>
                             )}
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</a>
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</a>
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</a>
+                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</Link>
+                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</Link>
+                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</Link>
                             {showAdminLinks && (
-                                <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</a>
+                                <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</Link>
                             )}
                         </div>
                     </div>

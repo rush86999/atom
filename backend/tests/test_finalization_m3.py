@@ -378,7 +378,7 @@ async def test_m3c_cached_verdict_holds_without_db(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_m3c_guard_failure_releases_everything(monkeypatch, verify_db):
+async def test_m3c_guard_failure_holds_from_failure_point(monkeypatch, verify_db):
     from unittest.mock import patch
 
     from integrations.chat_orchestrator import ChatOrchestrator
@@ -398,4 +398,108 @@ async def test_m3c_guard_failure_releases_everything(monkeypatch, verify_db):
             False,
             execution_id="execution-1",
         )
-    assert (emit, hold) == (text, "")
+    assert emit == "Update noted."
+    assert "I've updated item 4" in hold
+
+
+def _seed_bound_write(factory, execution_id, canvas_id="canvas-1"):
+    from datetime import datetime, timezone
+
+    from core.models import CanvasAudit
+
+    with factory() as db:
+        db.add(CanvasAudit(
+            id=f"audit-{execution_id[-6:]}",
+            canvas_id=canvas_id,
+            tenant_id="default",
+            session_id="session-1",
+            action_type="update",
+            user_id="user-1",
+            created_at=datetime.now(timezone.utc),
+            details_json={
+                "operation_id": execution_id,
+                "content": {"body": "x"},
+                "review_status": "accepted",
+            },
+        ))
+        db.commit()
+
+
+@pytest.mark.asyncio
+async def test_m3d_split_claim_held_until_complete(monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        "I've updated",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert emit == ""
+    assert hold == "I've updated"
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        hold + " the draft.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert emit == ""
+    assert "I've updated the draft" in hold
+
+
+@pytest.mark.asyncio
+async def test_m3d_unknown_shape_held_midstream(monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    emit, hold = await ChatOrchestrator._m3_gate_stream_chunk(
+        "I sent the email.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert emit == ""
+    assert hold == "I sent the email."
+
+
+@pytest.mark.asyncio
+async def test_m3d_unknown_shape_removed_at_close_with_bound_write(
+        monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    _seed_bound_write(verify_db, "execution-1")
+    out = await ChatOrchestrator._m3_reconcile_stream_done(
+        "I sent the email.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert out is not None
+    assert "sent" not in out.lower()
+
+
+@pytest.mark.asyncio
+async def test_m3d_pure_chat_without_rows_flows_untouched(
+        monkeypatch, verify_db):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    out = await ChatOrchestrator._m3_reconcile_stream_done(
+        "I recommend checking the draft tomorrow.",
+        {"canvas_id": "canvas-1"},
+        "session-1",
+        "user-1",
+        False,
+        execution_id="execution-1",
+    )
+    assert out is None

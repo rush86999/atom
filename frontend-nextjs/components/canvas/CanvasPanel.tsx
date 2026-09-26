@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
@@ -1108,9 +1109,13 @@ function CanvasContent({
                     </div>
                     {data.screenshot ? (
                         <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden shadow-sm relative group bg-zinc-900">
-                            <img
+                            <Image
                                 src={data.screenshot.startsWith('data:') ? data.screenshot : `data:image/png;base64,${data.screenshot}`}
                                 alt="Browser Snapshot"
+                                width={1920}
+                                height={1080}
+                                sizes="100vw"
+                                unoptimized
                                 className="w-full h-auto cursor-zoom-in"
                             />
                         </div>

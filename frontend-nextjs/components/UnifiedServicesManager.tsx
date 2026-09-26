@@ -12,6 +12,17 @@ interface ServicesManagerProps {
   className?: string;
 }
 
+const apiConfig = {
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || '',
+  endpoints: {
+    implementations: '/implementations',
+    health: '/health',
+    switch: '/implementations/switch',
+    workspaces: '/workspaces',
+    channels: '/channels'
+  }
+};
+
 export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
   onImplementationChange,
   onServiceHealthChange,
@@ -41,16 +52,30 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const deferredHealthCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const apiConfig = {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
-    endpoints: {
-      implementations: '/implementations',
-      health: '/health',
-      switch: '/implementations/switch',
-      workspaces: '/workspaces',
-      channels: '/channels'
+  // Fetch individual service health
+  const fetchServiceHealth = useCallback(async (serviceName: string): Promise<ServiceHealth> => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.health}`);
+      if (!response.ok) {
+        return { status: 'error', error: `HTTP ${response.status}` };
+      }
+
+      const healthData = await response.json();
+      const serviceHealth = healthData.services?.[serviceName.toLowerCase()] || {};
+
+      return {
+        status: serviceHealth.status || 'unknown',
+        api_healthy: serviceHealth.api_healthy,
+        config_healthy: serviceHealth.config_healthy,
+        token_valid: serviceHealth.token_valid,
+        last_check: serviceHealth.checked_at,
+        error: serviceHealth.error
+      };
+
+    } catch (err) {
+      return { status: 'error', error: err instanceof Error ? err.message : 'Health check failed' };
     }
-  };
+  }, []);
 
   // Fetch current implementation status
   const fetchImplementationStatus = useCallback(async () => {
@@ -82,32 +107,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Fetch individual service health
-  const fetchServiceHealth = useCallback(async (serviceName: string): Promise<ServiceHealth> => {
-    try {
-      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.health}`);
-      if (!response.ok) {
-        return { status: 'error', error: `HTTP ${response.status}` };
-      }
-
-      const healthData = await response.json();
-      const serviceHealth = healthData.services?.[serviceName.toLowerCase()] || {};
-
-      return {
-        status: serviceHealth.status || 'unknown',
-        api_healthy: serviceHealth.api_healthy,
-        config_healthy: serviceHealth.config_healthy,
-        token_valid: serviceHealth.token_valid,
-        last_check: serviceHealth.checked_at,
-        error: serviceHealth.error
-      };
-
-    } catch (err) {
-      return { status: 'error', error: err instanceof Error ? err.message : 'Health check failed' };
-    }
-  }, []);
+  }, [fetchServiceHealth]);
 
   // Switch implementation for a service
   const switchImplementation = useCallback(async (serviceName: string, implementationType: string) => {

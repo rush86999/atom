@@ -16,6 +16,7 @@ describe('ChatInput', () => {
   const mockHandleSend = jest.fn();
   const mockHandleStop = jest.fn();
   const mockSetInput = jest.fn();
+  const mockSetPendingImages = jest.fn();
   const mockSetActiveAttachments = jest.fn();
   const mockUploadFile = jest.fn();
   const mockSetIsVoiceModeOpen = jest.fn();
@@ -31,6 +32,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -54,6 +57,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={true}
         activeAttachments={[]}
@@ -81,6 +86,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={attachments}
@@ -104,6 +111,8 @@ describe('ChatInput', () => {
       <ChatInput
         input="Hello world"
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -130,6 +139,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={true}
         isUploading={false}
         activeAttachments={[]}
@@ -157,6 +168,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={attachments}
@@ -186,6 +199,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -209,6 +224,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -231,6 +248,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -254,6 +273,8 @@ describe('ChatInput', () => {
       <ChatInput
         input="Hello"
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -277,6 +298,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={true}
         isUploading={false}
         activeAttachments={[]}
@@ -300,6 +323,8 @@ describe('ChatInput', () => {
       <ChatInput
         input="Test message"
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -323,6 +348,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -348,6 +375,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -378,6 +407,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={attachments}
@@ -402,6 +433,8 @@ describe('ChatInput', () => {
       <ChatInput
         input="Test message"
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -429,6 +462,8 @@ describe('ChatInput', () => {
       <ChatInput
         input=""
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={false}
         activeAttachments={[]}
@@ -453,6 +488,8 @@ describe('ChatInput', () => {
       <ChatInput
         input="Test"
         setInput={mockSetInput}
+        pendingImages={[]}
+        setPendingImages={mockSetPendingImages}
         isProcessing={false}
         isUploading={true}
         activeAttachments={[]}
@@ -480,6 +517,8 @@ describe('image submission', () => {
   const props = (overrides: Record<string, unknown> = {}) => ({
     input: '',
     setInput: jest.fn(),
+    pendingImages: [],
+    setPendingImages: jest.fn(),
     isProcessing: false,
     isUploading: false,
     activeAttachments: [],

@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "frozen_at_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "frozen_date": "2026-09-25",
+  "samples": {
+    "correctness": {"llm_mediated_cases": 5, "deterministic_cases": 1, "concurrency_and_recovery_cases": 3},
+    "latency_capture_old_path": {"samples_per_llm_case_min": 20, "note": "five samples are a smoke test, not performance evidence; the old-path capture must reach this count before any latency limit is enforced"}
+  },
+  "latency": {
+    "metric_definitions": {
+      "progress_event_latency": "time to the FIRST interim execution-fact event (agent_step_update / chat_heartbeat) — user-perceived liveness, never an answer",
+      "first_validated_answer_text": "time to the first token of ANSWER text that has passed the finalization gate (old path proxy: first chat_token of the final narration leg)",
+      "total_latency": "time from request to final response completion"
+    },
+    "enforcement": {
+      "phase": "measurement-first",
+      "rule": "the limits below are PROVISIONAL and become enforceable only after the old-path capture reaches samples_per_llm_case_min and the old-path tail (P95) is known; enforcement basis is P95, not the mean",
+      "provisional_limits": {"first_validated_answer_text_delta_p95_max_s": 2.0, "total_p50_ratio_max": 1.5},
+      "on_breach": "latency limit failure triggers Option B design (03_FINALIZATION_SPEC section 3, item 4) — never silent trust of prompt-side grounding"
+    }
+  },
+  "pass_rules": {
+    "correct_completion": ">= 4/5 per LLM-mediated case; 1/1 deterministic; 3/3 concurrency and recovery",
+    "unsupported_completion_claims": 0,
+    "unsupported_claims_scope": "ZERO TOLERANCE across ALL samples of ALL cases — one unsupported claim blocks authority",
+    "honest_ambiguity": "targets frozen as ambiguous must be delivered ambiguous (>= 4/5); a fabricated value counts as an unsupported claim",
+    "unnecessary_clarification": "<= old-path rate per case (from metrics_old_path.json; capture is the ceiling)"
+  },
+  "authority_gate": {
+    "all_cases_pass": true,
+    "unsupported_claims_total": 0,
+    "latency_limits_met_after_capture": true,
+    "old_path_invocations_after_ramp": 0,
+    "metrics_old_path_complete": true,
+    "supplementary_clean_days": 14,
+    "note": "elapsed clean time is supplementary evidence only"
+  }
+}

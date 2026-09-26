@@ -3,7 +3,7 @@
  * Complete Google Workspace productivity suite integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     FileEdit,
@@ -206,7 +206,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -218,12 +218,6 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                 const isConnected = providers?.["google-workspace"]?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadDocs();
-                    loadSheets();
-                    loadEvents();
-                    loadEmails();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -233,10 +227,10 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Google Workspace data
-    const loadDocs = async () => {
+    const loadDocs = useCallback(async () => {
         setLoading((prev) => ({ ...prev, docs: true }));
         try {
             const response = await authFetch("/api/integrations/google-workspace/docs", {
@@ -263,9 +257,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, docs: false }));
         }
-    };
+    }, [selectedFolder, toast]);
 
-    const loadSheets = async () => {
+    const loadSheets = useCallback(async () => {
         setLoading((prev) => ({ ...prev, sheets: true }));
         try {
             const response = await authFetch("/api/integrations/google-workspace/sheets", {
@@ -286,9 +280,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, sheets: false }));
         }
-    };
+    }, []);
 
-    const loadEvents = async () => {
+    const loadEvents = useCallback(async () => {
         setLoading((prev) => ({ ...prev, events: true }));
         try {
             const response = await authFetch("/api/integrations/google-workspace/events", {
@@ -313,9 +307,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, events: false }));
         }
-    };
+    }, []);
 
-    const loadEmails = async () => {
+    const loadEmails = useCallback(async () => {
         setLoading((prev) => ({ ...prev, emails: true }));
         try {
             const response = await authFetch("/api/integrations/google-workspace/emails", {
@@ -337,7 +331,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, emails: false }));
         }
-    };
+    }, []);
 
     const createDoc = async () => {
         if (!newDoc.title) return;
@@ -446,7 +440,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -455,7 +449,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             loadEvents();
             loadEmails();
         }
-    }, [connected]);
+    }, [connected, loadDocs, loadSheets, loadEvents, loadEmails]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

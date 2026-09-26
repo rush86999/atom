@@ -87,13 +87,11 @@ interface ConfidenceBarProps {
   className?: string;
 }
 
-function ConfidenceBar({ score, label, animate = true, className }: ConfidenceBarProps) {
+function ConfidenceFill({ score, animate }: Pick<ConfidenceBarProps, 'score' | 'animate'>) {
   const [displayed, setDisplayed] = useState(animate ? 0 : score * 100);
-  const pct = Math.round(score * 100);
 
   useEffect(() => {
     if (!animate) return;
-    setDisplayed(0);
     const t = setTimeout(() => {
       setDisplayed(score * 100);
     }, 80);
@@ -101,20 +99,28 @@ function ConfidenceBar({ score, label, animate = true, className }: ConfidenceBa
   }, [score, animate]);
 
   return (
+    <div
+      className={cn(
+        'h-full rounded-full bg-gradient-to-r',
+        confidenceColor(score),
+        'shadow-[0_0_6px_rgba(16,185,129,0.5)]',
+        animate && 'transition-all duration-700 ease-out'
+      )}
+      style={{ width: `${displayed}%` }}
+    />
+  );
+}
+
+function ConfidenceBar({ score, label, animate = true, className }: ConfidenceBarProps) {
+  const pct = Math.round(score * 100);
+
+  return (
     <div className={cn('flex items-center gap-3', className)}>
       {label && (
         <span className="text-[10px] font-semibold text-white/50 w-14 shrink-0">{label}</span>
       )}
       <div className="relative flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <div
-          className={cn(
-            'h-full rounded-full bg-gradient-to-r',
-            confidenceColor(score),
-            'shadow-[0_0_6px_rgba(16,185,129,0.5)]',
-            animate && 'transition-all duration-700 ease-out'
-          )}
-          style={{ width: `${displayed}%` }}
-        />
+        <ConfidenceFill key={`${score}:${animate}`} score={score} animate={animate} />
       </div>
       <span
         className={cn(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Card,
     CardHeader,
@@ -170,7 +170,7 @@ const AgentStudio: React.FC = () => {
     const [feedbackText, setFeedbackText] = useState("");
 
     // --- Fetch Agents ---
-    const fetchAgents = async () => {
+    const fetchAgents = useCallback(async () => {
         try {
             setIsLoading(true);
             const res = await apiClient.get("/api/agents/");
@@ -181,11 +181,11 @@ const AgentStudio: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
-        fetchAgents();
-    }, []);
+        void fetchAgents();
+    }, [fetchAgents]);
 
     // --- Handlers ---
     const handleOpenCreate = () => {
@@ -591,7 +591,7 @@ const AgentStudio: React.FC = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Provide Feedback</DialogTitle>
-                        <CardDescription>Critique the agent's reasoning to help it learn.</CardDescription>
+                        <CardDescription>Critique the agent&apos;s reasoning to help it learn.</CardDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         {feedbackStep && (

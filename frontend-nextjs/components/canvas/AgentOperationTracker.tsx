@@ -5,7 +5,7 @@
  * context explanations, and live operation logs.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 export interface OperationLog {
@@ -46,31 +46,24 @@ export interface AgentOperationTrackerProps {
 /**
  * AgentOperationTracker - Displays live agent operation progress
  */
-export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
+export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = (props) => (
+  <AgentOperationTrackerContent key={props.operationId ?? 'all'} {...props} />
+);
+
+const AgentOperationTrackerContent: React.FC<AgentOperationTrackerProps> = ({
   operationId,
   userId,
   className = ''
 }) => {
   const [operation, setOperation] = useState<AgentOperationData | null>(null);
   const [logsExpanded, setLogsExpanded] = useState(false);
-  const { lastMessage } = useWebSocket();
+  const { onMessage } = useWebSocket();
 
-  // Reset when the requested operation changes so stale data for a previous
-  // operation is never shown under a different operationId.
-  const trackedOperationId = useRef(operationId);
-  useEffect(() => {
-    if (trackedOperationId.current !== operationId) {
-      trackedOperationId.current = operationId;
-      setOperation(null);
-      setLogsExpanded(false);
-    }
-  }, [operationId]);
-
-  useEffect(() => {
-    if (!lastMessage || lastMessage.type !== 'canvas:update') return;
+  useEffect(() => onMessage((message) => {
+    if (message.type !== 'canvas:update') return;
 
     try {
-      const data = lastMessage.data;
+      const data = message.data;
 
       // Handle operation present
       if (data?.component === 'agent_operation_tracker') {
@@ -95,7 +88,7 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, operationId]);
+  }), [onMessage, operationId]);
 
   if (!operation) {
     return (
@@ -211,7 +204,7 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
 
           {operation.context.what && (
             <div className="mb-2">
-              <p className="text-sm font-medium text-blue-800">What I'm doing:</p>
+              <p className="text-sm font-medium text-blue-800">What I&apos;m doing:</p>
               <p className="text-sm text-blue-700">{operation.context.what}</p>
             </div>
           )}
@@ -225,7 +218,7 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
 
           {operation.context.next && (
             <div>
-              <p className="text-sm font-medium text-blue-800">What's next:</p>
+              <p className="text-sm font-medium text-blue-800">What&apos;s next:</p>
               <p className="text-sm text-blue-700">{operation.context.next}</p>
             </div>
           )}

@@ -877,6 +877,20 @@ class GenericAgent:
             except Exception as tf_err:
                 logger.debug(f"turn-fact extraction dispatch failed: {tf_err}")
 
+            # Decision-plane turn judgments (shadow telemetry, record-only) —
+            # own digest (independent of the extraction flag above), own task,
+            # never blocks, never raises. Opt-in via ATOM_OLLAYA_SHADOW_TURN.
+            try:
+                from core import decision_shadow as _dsh
+                _dsh.schedule_turn_shadow(
+                    getattr(self, "workspace_id", None),
+                    _dsh.build_turn_digest(task_input, steps, final_answer),
+                    execution_id=(context or {}).get("execution_id"),
+                    session_id=(context or {}).get("session_id"),
+                )
+            except Exception as _dsh_err:
+                logger.debug(f"decision turn-shadow dispatch failed: {_dsh_err}")
+
         # R84c: close out the audit trail for this run — execution_complete
         # bracket + completeness gate (expected = tool steps + one LLM call
         # per ReAct step). A shortfall means part of the run escaped the

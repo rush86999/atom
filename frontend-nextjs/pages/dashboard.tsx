@@ -2,7 +2,7 @@
  * Main ATOM Dashboard with Integrations
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 import {
   Card,
@@ -53,7 +53,7 @@ const DashboardPage: React.FC = () => {
   const router = useRouter();
   const workspaceId = "default"; // Consistent with other components
 
-  const integrationIcons: Record<string, any> = {
+  const integrationIcons = useMemo<Record<string, any>>(() => ({
     zoho: List,
     microsoft: CheckSquare,
     outlook: Mail,
@@ -67,11 +67,11 @@ const DashboardPage: React.FC = () => {
     trello: List,
     asana: CheckSquare,
     stripe: CreditCard,
-  };
+  }), []);
 
   // Real OAuth connections only — providers the user actually granted via
   // the consent flow (IntegrationToken/OAuthToken store). No hardcoded list.
-  const providerMeta: Record<string, { name: string; category: string }> = {
+  const providerMeta = useMemo<Record<string, { name: string; category: string }>>(() => ({
     zoho: { name: "Zoho Suite (CRM · Books · Inventory · Projects · WorkDrive)", category: "business" },
     microsoft: { name: "Microsoft 365", category: "productivity" },
     outlook: { name: "Outlook", category: "communication" },
@@ -88,9 +88,9 @@ const DashboardPage: React.FC = () => {
     salesforce: { name: "Salesforce", category: "crm" },
     whatsapp: { name: "WhatsApp Business", category: "communication" },
     stripe: { name: "Stripe", category: "finance" },
-  };
+  }), []);
 
-  const refreshDashboardData = async () => {
+  const refreshDashboardData = useCallback(async () => {
     // BUG-102: AbortController + 10s timeout so one hung fetch can't freeze
     // the loading state forever.
     const controller = new AbortController();
@@ -168,7 +168,7 @@ const DashboardPage: React.FC = () => {
       clearTimeout(timeout);
       setLoading(false);
     }
-  };
+  }, [integrationIcons, providerMeta, toast]);
 
   const handleIntegrationClick = (integrationId: string) => {
     router.push(`/integrations/${integrationId}`);
@@ -202,7 +202,7 @@ const DashboardPage: React.FC = () => {
     // Auto-refresh every 2 minutes
     const interval = setInterval(refreshDashboardData, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshDashboardData]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">

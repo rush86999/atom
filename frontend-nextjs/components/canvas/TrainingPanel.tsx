@@ -177,6 +177,7 @@ export function TrainingPanel({
   }, [load]);
 
   const agent = ctx?.agent ?? null;
+  const agentId = agent?.id ?? null;
   const isSupervisor = ctx?.viewer_is_supervisor ?? false;
   const session = ctx?.linked_session ?? null;
   const sessionActive =
@@ -200,18 +201,18 @@ export function TrainingPanel({
 
   // Readiness (supervisors only — the promote decision needs it).
   useEffect(() => {
-    if (!isSupervisor || !agent || !nextTier) {
+    if (!isSupervisor || !agentId || !nextTier) {
       setReadiness(null);
       return;
     }
     let cancelled = false;
-    getGraduationReadiness(agent.id, nextTier.toUpperCase())
+    getGraduationReadiness(agentId, nextTier.toUpperCase())
       .then((r) => !cancelled && setReadiness(r))
       .catch(() => !cancelled && setReadiness(null));
     return () => {
       cancelled = true;
     };
-  }, [isSupervisor, agent?.id, nextTier]);
+  }, [isSupervisor, agentId, nextTier]);
 
   const handleTeach = async () => {
     if (!agent || !lesson.trim()) return;
@@ -861,7 +862,7 @@ export function TrainingPanel({
                   )}
                   {tp.canvas && (
                     <p className="text-[10px] text-muted-foreground" data-testid="teaching-point-canvas">
-                      · canvas "{tp.canvas.name}"
+                      · canvas &quot;{tp.canvas.name}&quot;
                       {tp.canvas.label ? ` (${tp.canvas.label})` : ""}
                     </p>
                   )}

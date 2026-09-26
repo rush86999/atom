@@ -594,7 +594,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             {historyError && messages.length <= 1 && (
                                 <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 text-xs">
                                     <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                                    <span className="flex-1">Couldn't load chat history.</span>
+                                    <span className="flex-1">Couldn&apos;t load chat history.</span>
                                     <Button
                                         variant="outline"
                                         size="sm"

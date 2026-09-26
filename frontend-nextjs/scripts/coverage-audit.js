@@ -76,18 +76,18 @@ function aggregateModuleCoverage(coverage) {
   }
 
   // Calculate percentages
-  for (const module of Object.values(modules)) {
-    module.lines.pct = module.lines.total > 0
-      ? Math.round((module.lines.covered / module.lines.total) * 100)
+  for (const moduleEntry of Object.values(modules)) {
+    moduleEntry.lines.pct = moduleEntry.lines.total > 0
+      ? Math.round((moduleEntry.lines.covered / moduleEntry.lines.total) * 100)
       : 0;
-    module.branches.pct = module.branches.total > 0
-      ? Math.round((module.branches.covered / module.branches.total) * 100)
+    moduleEntry.branches.pct = moduleEntry.branches.total > 0
+      ? Math.round((moduleEntry.branches.covered / moduleEntry.branches.total) * 100)
       : 0;
-    module.functions.pct = module.functions.total > 0
-      ? Math.round((module.functions.covered / module.functions.total) * 100)
+    moduleEntry.functions.pct = moduleEntry.functions.total > 0
+      ? Math.round((moduleEntry.functions.covered / moduleEntry.functions.total) * 100)
       : 0;
-    module.gap = Math.max(0, module.threshold - module.lines.pct);
-    module.status = module.lines.pct >= module.threshold ? 'PASS' : 'GAP';
+    moduleEntry.gap = Math.max(0, moduleEntry.threshold - moduleEntry.lines.pct);
+    moduleEntry.status = moduleEntry.lines.pct >= moduleEntry.threshold ? 'PASS' : 'GAP';
   }
 
   total.pct = total.lines.total > 0

@@ -24,7 +24,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
     const { data: session } = useSession();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const [ws, setWs] = useState<WebSocket | null>(null);
+    const socketRef = useRef<WebSocket | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -63,12 +63,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
             }
         };
 
-        setWs(socket);
+        socketRef.current = socket;
 
         // BUG-066: Removed hardcoded mock messages. Comments load from the
         // WebSocket / API, not from fake data.
 
         return () => {
+            socketRef.current = null;
             if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({ type: 'unsubscribe', channel }));
                 socket.close();
@@ -83,7 +84,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
     }, [messages]);
 
     const handleSend = () => {
-        if (!input.trim() || !ws) return;
+        const socket = socketRef.current;
+        if (!input.trim() || !socket) return;
 
         const newMessage = {
             type: 'comment',
@@ -93,7 +95,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
             senderType: 'user'
         };
 
-        ws.send(JSON.stringify(newMessage));
+        socket.send(JSON.stringify(newMessage));
 
         // Optimistic UI update
         setMessages(prev => [...prev, {

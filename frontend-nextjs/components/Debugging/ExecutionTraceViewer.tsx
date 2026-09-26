@@ -4,7 +4,7 @@
  * Displays detailed execution trace logs for debugging workflows.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -69,11 +69,7 @@ export const ExecutionTraceViewer: React.FC<ExecutionTraceViewerProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetchTraces();
-  }, [executionId, debugSessionId]);
-
-  const fetchTraces = async () => {
+  const fetchTraces = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -94,7 +90,11 @@ export const ExecutionTraceViewer: React.FC<ExecutionTraceViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [executionId, debugSessionId, toast]);
+
+  useEffect(() => {
+    fetchTraces();
+  }, [executionId, debugSessionId, fetchTraces]);
 
   const toggleExpand = (traceId: string) => {
     const newExpanded = new Set(expandedTraces);

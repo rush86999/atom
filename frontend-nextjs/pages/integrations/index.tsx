@@ -3,7 +3,7 @@
  * Display all available ATOM integrations
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import { useRouter } from "next/router";
 import { authHeaders } from "@/lib/auth-headers";
@@ -107,7 +107,7 @@ const IntegrationsPage: React.FC = () => {
   const { toast } = useToast();
   const router = useRouter();
 
-  const integrationList: Integration[] = [
+  const integrationList = useMemo<Integration[]>(() => [
     // Storage & File Management
     {
       id: "box",
@@ -554,7 +554,7 @@ const IntegrationsPage: React.FC = () => {
       color: "text-blue-600",
       documentation: "https://docs.microsoft.com/en-us/rest/api/azure/",
     },
-  ];
+  ], []);
 
   const categories = [
     { id: "all", name: "All Integrations", count: integrationList.length },
@@ -617,7 +617,7 @@ const IntegrationsPage: React.FC = () => {
     },
   ];
 
-  const checkIntegrationsHealth = async () => {
+  const checkIntegrationsHealth = useCallback(async () => {
     try {
       // Map integration IDs to their health-check URLs so results are keyed
       // by ID, not by array position (which was causing misaligned status pills).
@@ -732,7 +732,7 @@ const IntegrationsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [integrationList]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -769,7 +769,7 @@ const IntegrationsPage: React.FC = () => {
     // Auto-refresh every 2 minutes
     const interval = setInterval(checkIntegrationsHealth, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [checkIntegrationsHealth]);
 
   // Deep-link support: /integrations?connect=<provider> highlights and
   // prompts that provider's card. Readiness CTAs on imported workflow
@@ -794,7 +794,7 @@ const IntegrationsPage: React.FC = () => {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
     return () => clearTimeout(scrollTimer);
-  }, [router.isReady, router.query.connect, router, toast]);
+  }, [integrationList, router.isReady, router.query.connect, router, toast]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -904,7 +904,7 @@ const IntegrationsPage: React.FC = () => {
               </div>
 
               <p className="text-sm text-center text-gray-500 dark:text-gray-400">
-                Click "View Health Dashboard" for detailed monitoring and
+                Click &quot;View Health Dashboard&quot; for detailed monitoring and
                 auto-refresh
               </p>
             </div>

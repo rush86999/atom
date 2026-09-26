@@ -37,6 +37,8 @@ interface ReasoningChainProps {
     onFeedback?: (stepIndex: number, type: "thumbs_up" | "thumbs_down", comment?: string) => Promise<void>;
 }
 
+const createManualRunId = () => `manual_run_${Date.now()}`;
+
 const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: ReasoningStep, idx: number, localFeedback?: { type: string, comment?: string }, onFeedback: (type: 'thumbs_up' | 'thumbs_down', comment?: string) => void }) => {
     const [showComment, setShowComment] = useState(false);
     const [comment, setComment] = useState(localFeedback?.comment || "");
@@ -169,7 +171,7 @@ export function ReasoningChain({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     agent_id: agentId,
-                    run_id: runId || 'manual_run_' + Date.now(),
+                    run_id: runId || createManualRunId(),
                     step_index: idx,
                     // The step's thought IS what the user is judging — the
                     // backend stores step_content.thought as the feedback's

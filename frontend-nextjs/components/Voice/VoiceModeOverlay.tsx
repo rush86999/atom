@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { VoiceVisualizer } from './VoiceVisualizer'
 import { Button } from '@/components/ui/button'
 import { X, Mic, MicOff } from 'lucide-react'
@@ -14,12 +14,78 @@ interface VoiceModeOverlayProps {
     lastAgentMessage: string | null
 }
 
+type VoiceMode = 'idle' | 'listening' | 'processing' | 'speaking'
+
+const startRecognition = (
+    stopSpeaking: () => void,
+    setMode: (mode: VoiceMode) => void,
+    setTranscript: (transcript: string) => void,
+    handleSend: (text: string) => void,
+    recognitionRef: { current: any },
+) => {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Voice not supported in this browser. Try Chrome/Edge.")
+        return
+    }
+
+    stopSpeaking()
+
+    try {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = true
+        recognition.lang = 'en-US'
+
+        recognition.onstart = () => {
+            setMode('listening')
+            setTranscript('')
+        }
+
+        recognition.onresult = (event: any) => {
+            let interimTranscript = ''
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                interimTranscript += event.results[i][0].transcript
+            }
+            setTranscript(interimTranscript)
+        }
+
+        recognition.onend = () => {
+        }
+
+        recognition.onresult = (event: any) => {
+            let finalTx = ''
+            let interimTx = ''
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTx += event.results[i][0].transcript
+                } else {
+                    interimTx += event.results[i][0].transcript
+                }
+            }
+
+            setTranscript(finalTx || interimTx)
+
+            if (finalTx) {
+                handleSend(finalTx)
+                recognition.stop()
+            }
+        }
+
+        recognitionRef.current = recognition
+        recognition.start()
+    } catch (e) {
+        console.error(e)
+        setMode('idle')
+    }
+}
+
 export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAgentMessage }: VoiceModeOverlayProps) {
     const [mode, setMode] = useState<'idle' | 'listening' | 'processing' | 'speaking'>('idle')
     const [transcript, setTranscript] = useState('')
     const recognitionRef = useRef<any>(null)
     const synthesisRef = useRef<SpeechSynthesis | null>(null)
-    const [lastSpokenMessage, setLastSpokenMessage] = useState<string | null>(null)
+    const lastSpokenMessageRef = useRef<string | null>(null)
 
     // Initialize Speech Synthesis
     useEffect(() => {
@@ -28,120 +94,38 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
         }
     }, [])
 
-    // Handle Agent Speech
-    // Guarded on isOpen: the component stays mounted when voice mode is
-    // closed (AnimatePresence just hides the JSX), so this effect otherwise
-    // fired on every assistant message — reading chat replies aloud with the
-    // overlay closed, including the last history message on page load.
-    useEffect(() => {
-        if (!isOpen) return;
-        if (lastAgentMessage && lastAgentMessage !== lastSpokenMessage && !isProcessing) {
-            setLastSpokenMessage(lastAgentMessage)
-            speak(lastAgentMessage)
-        }
-    }, [isOpen, lastAgentMessage, isProcessing])
-
-    // Initialize Recognition on Open
-    useEffect(() => {
-        if (isOpen) {
-            startListening()
-        } else {
-            stopListening()
-            stopSpeaking()
-        }
-        return () => {
-            stopListening()
-            stopSpeaking()
-        }
-    }, [isOpen])
-
-    const startListening = () => {
-        if (!('webkitSpeechRecognition' in window)) {
-            alert("Voice not supported in this browser. Try Chrome/Edge.")
-            return
-        }
-
-        stopSpeaking() // Don't listen to self
-
-        try {
-            const SpeechRecognition = (window as any).webkitSpeechRecognition
-            const recognition = new SpeechRecognition()
-            recognition.continuous = false // Stop after one sentence for turn-taking
-            recognition.interimResults = true
-            recognition.lang = 'en-US'
-
-            recognition.onstart = () => {
-                setMode('listening')
-                setTranscript('')
-            }
-
-            recognition.onresult = (event: any) => {
-                let interimTranscript = ''
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    interimTranscript += event.results[i][0].transcript
-                }
-                setTranscript(interimTranscript)
-            }
-
-            recognition.onend = () => {
-                // If we have a transcript, send it
-                // We access the LATEST transcript from state/ref (react closure issue, be careful)
-                // Actually safer to read final result from event above, but this is simple mocked logic
-                // Wait for final event handling
-            }
-
-            // Override result slightly to detect 'isFinal'
-            recognition.onresult = (event: any) => {
-                let finalTx = ''
-                let interimTx = ''
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTx += event.results[i][0].transcript
-                    } else {
-                        interimTx += event.results[i][0].transcript
-                    }
-                }
-
-                setTranscript(finalTx || interimTx)
-
-                if (finalTx) {
-                    handleSend(finalTx)
-                    recognition.stop()
-                }
-            }
-
-            recognitionRef.current = recognition
-            recognition.start()
-        } catch (e) {
-            console.error(e)
-            setMode('idle')
-        }
-    }
-
-    const stopListening = () => {
+    const stopListening = useCallback(() => {
         if (recognitionRef.current) {
             try {
                 recognitionRef.current.stop()
             } catch (e) { }
             recognitionRef.current = null
         }
-        if (mode === 'listening') setMode('idle')
-    }
+    }, [])
 
-    const stopSpeaking = () => {
+    const handleStopListening = useCallback(() => {
+        stopListening()
+        setMode(current => current === 'listening' ? 'idle' : current)
+    }, [stopListening])
+
+    const stopSpeaking = useCallback(() => {
         if (synthesisRef.current) {
             synthesisRef.current.cancel()
         }
-    }
+    }, [])
 
-    const handleSend = async (text: string) => {
+    const handleSend = useCallback(async (text: string) => {
         setMode('processing')
         await onSend(text)
         // Set mode to speaking is handled by effect on lastAgentMessage
         // But if no response, go to idle
-    }
+    }, [onSend])
 
-    const speak = (text: string) => {
+    const startListening = useCallback(() => {
+        startRecognition(stopSpeaking, setMode, setTranscript, handleSend, recognitionRef)
+    }, [handleSend, stopSpeaking])
+
+    const speak = useCallback((text: string) => {
         if (!synthesisRef.current) return
 
         // Simple text cleanup
@@ -164,10 +148,37 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
         }
 
         synthesisRef.current.speak(utterance)
-    }
+    }, [])
+
+    // Handle Agent Speech
+    // Guarded on isOpen: the component stays mounted when voice mode is
+    // closed (AnimatePresence just hides the JSX), so this effect otherwise
+    // fired on every assistant message — reading chat replies aloud with the
+    // overlay closed, including the last history message on page load.
+    useEffect(() => {
+        if (!isOpen) return;
+        if (lastAgentMessage && lastAgentMessage !== lastSpokenMessageRef.current && !isProcessing) {
+            lastSpokenMessageRef.current = lastAgentMessage
+            speak(lastAgentMessage)
+        }
+    }, [isOpen, lastAgentMessage, isProcessing, speak])
+
+    // Initialize Recognition on Open
+    useEffect(() => {
+        if (isOpen) {
+            startListening()
+        } else {
+            stopListening()
+            stopSpeaking()
+        }
+        return () => {
+            stopListening()
+            stopSpeaking()
+        }
+    }, [isOpen, startListening, stopListening, stopSpeaking])
 
     const handleClose = () => {
-        stopListening()
+        handleStopListening()
         stopSpeaking()
         onClose()
     }
@@ -213,7 +224,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                                     ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 scale-110'
                                     : 'bg-white dark:bg-gray-900 text-black dark:text-white hover:bg-zinc-200 shadow-lg shadow-white/20'
                                     }`}
-                                onClick={mode === 'listening' ? stopListening : startListening}
+                                onClick={mode === 'listening' ? handleStopListening : startListening}
                             >
                                 {mode === 'listening' ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
                             </Button>

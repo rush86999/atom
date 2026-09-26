@@ -22,7 +22,7 @@ export default function OAuthSuccess() {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [router]);
+    }, [provider, router]);
 
     return (
         <div style={{

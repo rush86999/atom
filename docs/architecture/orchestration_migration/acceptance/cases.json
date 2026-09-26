@@ -1,0 +1,561 @@
+{
+ "schema_version": 2,
+ "frozen_at_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+ "frozen_date": "2026-09-25",
+ "fixture_integrity": "all inputs below are verbatim extracts of fixtures/ files hash-pinned in fixtures/SHA256SUMS; parquet source snapshot content_hash ff2597d26fc6d0ea216c0fd9b933090dc64e3348 (46 sheets)",
+ "corrections_recorded": [
+  "canvas-session 381 expectation corrected FOUND -> AMBIGUOUS: its manufacturer hint is inferred, and inferred hints rank but never resolve (commit 39d6532d5). Earlier successful-looking replays showing 381 FOUND predate that rule.",
+  "quote/email comparison evidence is now EXPLICITLY SUPPLIED via the frozen conversations (the user's own turns carry the Sept 18 quote figures) and conversation_quote_thread.json; no expectation references unsupplied evidence."
+ ],
+ "cases": [
+  {
+   "id": "original_incident_workbook_true_eight",
+   "class": "original_incident",
+   "priority": "primary",
+   "samples": 5,
+   "source_facts": {
+    "source_kind": "materialized_copy",
+    "ingested_at": "2026-09-07T23:06:19",
+    "content_hash": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348"
+   },
+   "input_source": "fixtures/conversation_true_eight_replay.json (session wb-original8-20260925) + workbook parquet fixtures",
+   "inputs": {
+    "file": "Consolidated Price List 2019.xlsx",
+    "ask_verbatim": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16",
+    "confirmation_verbatim": "Consolidated Price List 2019.xlsx is correct",
+    "retry_verbatim": "try excel file search again",
+    "note": "confirmation/retry phrasing taken verbatim from conversation_original_drift.json, not paraphrased"
+   },
+   "supplied_comparison_evidence": {
+    "source": "user's own turns in conversation_original_drift.json / conversation_quote_thread.json (Sept 18 quote thread, session bd04ff7f-7700-4d22-be1c-0a76ff99b324)",
+    "quote_prices": {
+     "No. 381": 2902.0,
+     "U-22": 1777.0,
+     "TK Manual Flanger": 1609.0,
+     "SLE24-16": 8880.0,
+     "TK 1624": 8040.0,
+     "TK Multi Wheel Gang Slitter": 12838.0,
+     "GSL48-16": 14166.0
+    }
+   },
+   "expected": {
+    "provenance_rule": "complete provenance frozen from the deterministic renderer at 39d6532d5; sheet/label/price-column/basis/value verified against the frozen parquets (fixtures/workbook_sheet_datasets_ff2597d26fc6)",
+    "per_target": {
+     "U-22": {
+      "coverage": "found",
+      "price": 1777.0,
+      "cell": "linmac!A26",
+      "value_col": "C",
+      "basis": "List Price"
+     },
+     "SLE24-16": {
+      "coverage": "found",
+      "price": 8880.0,
+      "cell": "tennsmith!A101",
+      "value_col": "E",
+      "basis": "PRICE"
+     },
+     "TK 1624": {
+      "coverage": "found",
+      "price": 8040.0,
+      "cell": "tinknocker!A101",
+      "value_col": "D",
+      "basis": "Price"
+     },
+     "TK Manual Flanger": {
+      "coverage": "found",
+      "price": 1609.0,
+      "cell": "tinknocker!A42",
+      "value_col": "D",
+      "basis": "Price"
+     },
+     "GSL48-16": {
+      "coverage": "found",
+      "price": 14166.0,
+      "cell": "tennsmith!A106",
+      "value_col": "E",
+      "basis": "PRICE"
+     },
+     "No. 381": {
+      "coverage": "ambiguous",
+      "label_aliases": [
+       "381",
+       "Roper Whitney No. 381"
+      ],
+      "reason": "multiple plausible designation rows; inferred manufacturer hints rank but never resolve"
+     },
+     "No. 622": {
+      "coverage": "ambiguous",
+      "label_aliases": [
+       "622"
+      ],
+      "reason": "intra-brand row multiplicity"
+     },
+     "TK Multi Wheel Gang Slitter": {
+      "coverage": "ambiguous_candidate",
+      "via_alias": "tinknocker TK Gang Slitter",
+      "price": 12838.0,
+      "cell": "tinknocker!A100",
+      "value_col": "D",
+      "basis": "Price",
+      "note": "candidate status is the honest outcome; the alias price carries full provenance"
+     }
+    },
+    "claims": [
+     "the five found prices agree exactly with the SUPPLIED quote figures above",
+     "ambiguous targets stated ambiguous WITH evidence, never guessed",
+     "no absence claim beyond indexed scope; provenance and freshness limits disclosed"
+    ],
+    "four_dimensions": {
+     "execution_status": "succeeded",
+     "evidence_sufficiency": "partial{ambiguous: [No. 381, No. 622, TK Multi Wheel Gang Slitter]}",
+     "result_verification": "verified (per-target, deterministic render)",
+     "delivery_status": "delivered"
+    }
+   },
+   "evaluator": "harness per-target comparison + workbook_read_replay.evaluate() closure semantics at pinned revision"
+  },
+  {
+   "id": "original_incident_canvas_session",
+   "class": "original_incident",
+   "priority": "secondary",
+   "samples": 5,
+   "input_source": "fixtures/conversation_original_drift.json (canvas turns) + fixtures/canvas_incident_quote.json (canvas 0e4defa5 + 12 audit rows)",
+   "inputs": {
+    "canvas_fixture": "canvas_incident_quote.json",
+    "driving_turns_verbatim": [
+     "apply that priced draft to the canvas now - replace the TBD rows with the actual prices and delivery weeks from the Sept 18 quote emails, keep the footer unchanged, no square-bracket labels",
+     "rebuild the draft with all eight machines and the actual prices from your previous replies in this conversation (Roper Whitney No. 381 $2,902.00 10-11wk; Linmac U-22 $1,777.00 3-4mo; Manual Flanger $1,609.00 3-4wk; Tenns\u2026)"
+    ]
+   },
+   "expected": {
+    "per_target_note": "per-target lookup expectations follow the PRIMARY case; the canvas-specific assertion set is:",
+    "claims": [
+     "No. 381 lookup is AMBIGUOUS (inferred manufacturer hint ranks, never resolves)",
+     "five exact price agreements against the supplied quote figures",
+     "mutation turns: applied edits verified through the canonical audit-first resolver; no-apply turns claim nothing changed",
+     "zero unsupported completion claims"
+    ],
+    "four_dimensions": {
+     "execution_status": "succeeded",
+     "evidence_sufficiency": "partial{ambiguous: [No. 381, No. 622, TK Multi Wheel Gang Slitter]}",
+     "result_verification": "verified per operation through canonical resolver",
+     "delivery_status": "delivered"
+    }
+   }
+  },
+  {
+   "id": "legacy_set_regression",
+   "class": "original_incident",
+   "priority": "regression",
+   "samples": 1,
+   "input_source": "original 4-turn drift sequence in fixtures/conversation_original_drift.json",
+   "inputs": {
+    "turns_verbatim": [
+     "find all these prices from price list 2019 and let me know what you find",
+     "Consolidated Price List 2019.xlsx is correct",
+     "try excel file search again",
+     "go ahead"
+    ],
+    "targets": [
+     "381",
+     "U-22",
+     "622",
+     "SLE24-16",
+     "GSL48-16",
+     "GSL24-16",
+     "SLE16-8",
+     "U-38"
+    ]
+   },
+   "expected": {
+    "per_target": {
+     "U-22": {
+      "coverage": "found",
+      "price": 1777.0
+     },
+     "SLE24-16": {
+      "coverage": "found",
+      "price": 8880.0
+     },
+     "GSL48-16": {
+      "coverage": "found",
+      "price": 14166.0
+     },
+     "381": {
+      "coverage": "ambiguous"
+     },
+     "622": {
+      "coverage": "ambiguous"
+     },
+     "GSL24-16": {
+      "coverage": "absent_from_indexed"
+     },
+     "SLE16-8": {
+      "coverage": "absent_from_indexed"
+     },
+     "U-38": {
+      "coverage": "absent_from_indexed"
+     }
+    },
+    "claims": [
+     "absence stated WITH scope reason, never absolute absence from the workbook"
+    ]
+   }
+  },
+  {
+   "id": "unrelated_domains",
+   "class": "unrelated_domains",
+   "priority": "primary",
+   "samples": 5,
+   "inputs": {
+    "domain_a": "verbatim mail evidence ask (fixtures derived from backend/tests/test_verbatim_evidence_generalization.py inputs at pinned revision)",
+    "domain_b": "objective-evidence flow, non-workbook source (backend/tests/test_objective_evidence_flow.py inputs)"
+   },
+   "expected": {
+    "claims": [
+     "answers grounded in verbatim rows with attribution; no workbook branching in the finalization layer (code-path neutrality assertion)",
+     "identical gate behavior: no completion claim without record support"
+    ],
+    "four_dimensions_note": "PATH NEUTRALITY is the assertion, not new domain answers"
+   }
+  },
+  {
+   "id": "overlapping_executions",
+   "class": "overlapping_executions",
+   "priority": "primary",
+   "samples": 3,
+   "inputs": {
+    "procedure": "one session, one canvas (fixture canvas_incident_quote.json); two concurrent POST /api/chat/message turns: turn A edits row X, turn B edits row Y, issued simultaneously"
+   },
+   "expected": {
+    "claims": [
+     "each reply reflects ONLY its own operation's verdict (no cross-binding)",
+     "per-operation records (no first-match whole-turn verdict)",
+     "late-landing write yields unverified/pending semantics with a bound completion message",
+     "zero unsupported claims across both replies"
+    ]
+   }
+  },
+  {
+   "id": "restart_recovery",
+   "class": "restart_recovery",
+   "priority": "primary",
+   "samples": 3,
+   "inputs": {
+    "procedure": "background an edit continuation; SIGKILL the isolated server after fork before completion; restart the isolated server against the same scratch world"
+   },
+   "expected": {
+    "claims": [
+     "startup sweep marks the continuation failed with recovery.crashed; user notified exactly once (same delivery_id, client dedup)",
+     "no duplicate application on any subsequent turn",
+     "no completion claim anywhere"
+    ],
+    "four_dimensions": {
+     "execution_status": "failed(recovery.crashed)",
+     "delivery_status": "delivered_retrievable (bounded retries exhausted or ack pending while offline is NOT execution failure)"
+    }
+   }
+  },
+  {
+   "id": "partial_failures",
+   "class": "partial_failures",
+   "priority": "primary",
+   "samples": 3,
+   "inputs": {
+    "scenarios": {
+     "write_recorded_not_verified": "inject canonical-resolver failure (readback raises) on a requested edit",
+     "evidence_partial": "ask includes genuinely absent targets (legacy absent codes)",
+     "budget_timeout": "edit turn at the interactive cap backgrounds a continuation"
+    }
+   },
+   "expected": {
+    "scenarios": {
+     "write_recorded_not_verified": {
+      "four_dimensions": {
+       "execution_status": "succeeded",
+       "result_verification": "unverified"
+      },
+      "claims": [
+       "reply says recorded-not-verified; never 'canvas unchanged'; never a completion claim"
+      ]
+     },
+     "evidence_partial": {
+      "four_dimensions": {
+       "evidence_sufficiency": "partial{missing_targets}"
+      },
+      "claims": [
+       "honest absence-with-reason; no fabricated value"
+      ]
+     },
+     "budget_timeout": {
+      "four_dimensions": {
+       "delivery_status": "pending_continuation{continuation_id}"
+      },
+      "claims": [
+       "synchronous reply claims only that work is backgrounded"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "id": "partial_failure_absent_targets",
+   "class": "partial_failures",
+   "priority": "primary",
+   "samples": 3,
+   "mode": "absent",
+   "source_facts": {
+    "source_kind": "materialized_copy",
+    "ingested_at": "2026-09-07T23:06:19",
+    "content_hash": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348"
+   },
+   "inputs": {
+    "ask_verbatim": "find the prices of GSL24-16, SLE16-8 and U-38 in Consolidated Price List 2019.xlsx"
+   },
+   "expected": {
+    "per_target": {
+     "GSL24-16": {
+      "coverage": "absent_from_indexed"
+     },
+     "SLE16-8": {
+      "coverage": "absent_from_indexed"
+     },
+     "U-38": {
+      "coverage": "absent_from_indexed"
+     }
+    },
+    "claims": [
+     "absence stated WITH indexed-scope reason; the claim evaluator rejects absolute absence phrasing",
+     "no fabricated values (no FOUND rows expected)"
+    ]
+   }
+  },
+  {
+   "id": "planner_down_no_apply",
+   "class": "partial_failures",
+   "priority": "primary",
+   "samples": 3,
+   "mode": "no_apply",
+   "inputs": {
+    "ask_verbatim": "update the canvas prices with the figures from this conversation"
+   },
+   "expected": {
+    "mutation_performed": false,
+    "claims": [
+     "the reply contains NO unsupported mutation claim (regression: the live 2026-09-25 false-edit-claim defect class)",
+     "no canvas_edit.updated true without a verified write"
+    ]
+   }
+  },
+  {
+   "id": "overlap_concurrent_reads",
+   "class": "overlapping_executions",
+   "priority": "secondary",
+   "samples": 3,
+   "mode": "overlap",
+   "limitation": "read-read overlap only under the credential-free runtime; write cross-binding requires the recorded-narration rig",
+   "inputs": {
+    "ask_a": "find the price of U-22 in Consolidated Price List 2019.xlsx",
+    "ask_b": "find the price of SLE24-16 in Consolidated Price List 2019.xlsx"
+   },
+   "expected": {
+    "expected_a": {
+     "per_target": {
+      "U-22": {
+       "coverage": "found",
+       "price": 1777.0,
+       "cell": "linmac!A26",
+       "value_col": "C",
+       "basis": "List Price"
+      }
+     }
+    },
+    "expected_b": {
+     "per_target": {
+      "SLE24-16": {
+       "coverage": "found",
+       "price": 8880.0,
+       "cell": "tennsmith!A101",
+       "value_col": "E",
+       "basis": "PRICE"
+      }
+     }
+    },
+    "claims": [
+     "distinct execution ids per concurrent turn",
+     "each reply correct for ITS ask only; zero unsupported claims in both"
+    ]
+   }
+  },
+  {
+   "id": "narration_followup_clean",
+   "class": "narration_recorded_response",
+   "priority": "primary",
+   "samples": 2,
+   "source_facts": {
+    "source_kind": "materialized_copy",
+    "ingested_at": "2026-09-07T23:06:19",
+    "content_hash": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348"
+   },
+   "provider_script": "fixtures/provider_shim/narration_clean.json",
+   "inputs": {
+    "grounding_ask": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16",
+    "followup_ask": "in one sentence, why does lead time matter when quoting machinery purchases?",
+    "injected_claim": "",
+    "consumption_marker": "candidate via alias"
+   },
+   "expected": {
+    "non_found_targets": [
+     "No. 381",
+     "No. 622"
+    ],
+    "claims": [
+     "narration is served by the provider route (model not deterministic-decline)",
+     "zero unsupported claims detected by the rule set in the delivered narration"
+    ]
+   },
+   "provider_script_marker": "summary: five of the eight"
+  },
+  {
+   "id": "narration_followup_poisoned",
+   "class": "narration_recorded_response",
+   "priority": "primary",
+   "samples": 2,
+   "source_facts": {
+    "source_kind": "materialized_copy",
+    "ingested_at": "2026-09-07T23:06:19",
+    "content_hash": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348"
+   },
+   "provider_script": "fixtures/provider_shim/narration_poisoned.json",
+   "inputs": {
+    "grounding_ask": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16",
+    "followup_ask": "in one sentence, why does lead time matter when quoting machinery purchases?",
+    "injected_claim": "I have updated the canvas with these prices",
+    "consumption_marker": "no. 381 and no. 622 remain ambiguous"
+   },
+   "expected": {
+    "non_found_targets": [
+     "No. 381",
+     "No. 622"
+    ],
+    "claims": [
+     "PRODUCTION guard chain must correct or block the injected unsupported canvas-update claim before delivery (claim absent from the final reply, or rewritten with correction wording)",
+     "if the claim SURVIVES uncorrected, that is a defect finding for slice 1 \u2014 record it, do not mask it"
+    ]
+   },
+   "provider_script_marker": "summary: five of the eight"
+  },
+  {
+   "id": "invoice_field_retrieval",
+   "class": "unrelated_domains",
+   "priority": "primary",
+   "samples": 3,
+   "mode": "invoices",
+   "source_facts": {
+    "source_kind": "materialized_copy",
+    "ingested_at": "2026-09-25T00:00:00",
+    "content_hash": "unrelated-domain-invoice-fixture-v1"
+   },
+   "input_source": "fixtures/unrelated_domain/q3_vendor_invoices__invoices.parquet (hash-pinned) \u2014 OWN entities/fields/expected results; a-priori ground truth independent of the incident",
+   "inputs": {
+    "ask_verbatim": "find the amount and status of invoices INV-1002, INV-1004 and INV-1006 in Q3 Vendor Invoices.xlsx"
+   },
+   "expected": {
+    "per_target": {
+     "INV-1002": {
+      "coverage": "found",
+      "price": 4200.5,
+      "cell": "invoices!A2",
+      "value_col": "C",
+      "basis": "amount_usd"
+     },
+     "INV-1004": {
+      "coverage": "found",
+      "price": 950.75,
+      "cell": "invoices!A4",
+      "value_col": "C",
+      "basis": "amount_usd"
+     },
+     "INV-1006": {
+      "coverage": "found",
+      "price": 6125.4,
+      "cell": "invoices!A6",
+      "value_col": "C",
+      "basis": "amount_usd"
+     }
+    },
+    "claims": [
+     "amounts bound to the declared amount_usd column within cited segments (a-priori ground truth)",
+     "zero unsupported claims by the rule set"
+    ],
+    "provenance_note": "FULL a-priori gate: sheet/row/column/basis/value all mandatory (header-only parquet: data row i -> sheet row i+1); the declared-column fallback does NOT apply to this fixture"
+   },
+   "renamed_from": "unrelated_domain_invoices (review round 16: field retrieval, not reconciliation)"
+  },
+  {
+   "id": "mutation_overlap_distinct_edits",
+   "class": "mutation_overlap",
+   "priority": "primary",
+   "samples": 2,
+   "provider_script": "fixtures/provider_shim/mutation_overlap.json",
+   "inputs": {
+    "ask_a": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit OVLAP-A [ovlapref-a]",
+    "ask_b": "in the open canvas, add the marker OVLAP-B to the row-group note about requested machines [ovlapref-b]"
+   },
+   "expected": {
+    "distinct_operation_ids": true,
+    "both_edits_in_readback": true,
+    "applied_once_each": true,
+    "no_silent_overwrite": true,
+    "conflict_policy": "frozen BEFORE running (review round 20): the two edits touch DISJOINT strings of the same canvas; distinct edits must not silently overwrite each other; each write audited under its own operation/execution id; canonical audit-first readback contains BOTH replacements exactly once; failure modes (lost edit, merged/overwritten content, shared operation id, duplicate application) are recorded as baseline evidence, not repaired"
+   },
+   "status": "EXECUTED, ACCEPTANCE OPEN \u2014 the run measured a routing/execution failure (no application observed within the 60s window); conflict handling, operation-ID uniqueness, and duplicate prevention are NOT EXERCISED, not false",
+   "measured_outcome": {
+    "what_was_established": "no application observed within the window, through the hired-agent route, for this fixture and request shape",
+    "not_exercised": [
+     "distinct_operation_ids",
+     "both_edits_in_readback",
+     "applied_once_each",
+     "no_silent_overwrite"
+    ],
+    "routing_finding_scope": "observed for canvas 0e4defa5 WITH its agent binding, fresh session, context-bound request, shimmed providers \u2014 NOT established as a universal property of bound-canvas turns"
+   }
+  },
+  {
+   "id": "continuation_restart_recovery",
+   "class": "restart_recovery",
+   "priority": "primary",
+   "samples": 2,
+   "status": "DEFINED, NOT EXECUTED \u2014 blocker recorded",
+   "inputs": {
+    "procedure": "Edit turn whose edit leg starves the interactive budget (shim STALLS the edit-planner response) \u2192 continuation forked and persisted; kill the server at the CONTROLLED BOUNDARY after application-persistence but before notification (poll the scratch DB for the continuation-bound audit row); restart; verify: recovery converts the crashed row with a recovery stamp, exactly ONE application audit row (no duplicate application), and deduplicated delivery (single notification/ChatMessage)."
+   },
+   "expected": {
+    "no_duplicate_application": true,
+    "deduplicated_delivery": true,
+    "recovery_stamp_present": true,
+    "blocker": "The bound-canvas route executes as the canvas's HIRED AGENT (routing discovery 2026-09-25) and applies nothing under the rig; the interactive edit lane that forks continuations was not reached through the tested shapes. Next session must reach the continuation fork (original-session shape or agent-lane continuation) before this case can run."
+   }
+  },
+  {
+   "id": "m1_failure_concealment",
+   "class": "m1_finalization",
+   "priority": "primary",
+   "samples": 2,
+   "status": "M1 FIRST ACCEPTANCE CASE \u2014 the frozen shape from frozen_trace: an edit ask on the fixture-seeded unbound copy whose edit leg crashes (TypeError preserved, NOT repaired in this baseline). OLD PATH EXPECTATION: FAILS (concealment \u2014 'Message processed successfully', execution_id absent). NEW PATH (flagged finalizer) MUST: preserve execution identity in the payload, deliver an accurate failed outcome naming the failure, and never claim success. M1 gets no credit for the editor exception itself.",
+   "baseline": "primary-39d6532d5",
+   "inputs": {
+    "ask_verbatim": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit OVLAP-A [ovlapref-a]",
+    "canvas": "unbound fixture copy (seeded with baseline audit revision)"
+   },
+   "expected": {
+    "execution_id_present_in_payload": true,
+    "accurate_failed_outcome": true,
+    "no_success_claim_on_failed_execution": true,
+    "failure_named_in_delivery": true
+   },
+   "prerequisite_behavioral_verification": "when the owning stream lands fetch_fresh_data_section's fix, the dependency baseline regression must show the SUPPLIED evidence contract REACHES ITS INTENDED CONSUMER (observable effect in the edit planner's prompt/plan), not merely that the signature accepts the keyword"
+  }
+ ]
+}

@@ -1,0 +1,157 @@
+{
+ "case_id": "original_incident_workbook_true_eight",
+ "sample": 12,
+ "session_id": "acc-true8-1790354584-12",
+ "captured_at": "2026-09-25T12:43:07-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "0 (HTTP-only harness)",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 38",
+   "success": true,
+   "latency_s": 2.49,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 2.49,
+ "progress_event_latency_s": null,
+ "first_validated_answer_text_s": null,
+ "deterministic_delivery": true,
+ "per_target": {
+  "U-22": {
+   "expected": "found",
+   "got": "found",
+   "label": "U-22",
+   "binding": {
+    "sheet": "LINMAC",
+    "cell": "A26",
+    "price_cell": "C26",
+    "basis": "List Price"
+   },
+   "row": {
+    "target": "U-22",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "SLE24-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "SLE24-16",
+   "binding": {
+    "sheet": "Tennsmith",
+    "cell": "A101",
+    "price_cell": "E101",
+    "basis": "PRICE"
+   },
+   "row": {
+    "target": "SLE24-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK 1624": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK 1624",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A101",
+    "price_cell": "D101",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK 1624",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK Manual Flanger": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK Manual Flanger",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A42",
+    "price_cell": "D42",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK Manual Flanger",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "GSL48-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "GSL48-16",
+   "binding": {
+    "sheet": "Tennsmith",
+    "cell": "A106",
+    "price_cell": "E106",
+    "basis": "PRICE"
+   },
+   "row": {
+    "target": "GSL48-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "No. 381": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "label": "381",
+   "binding": null,
+   "row": {
+    "target": "381",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  },
+  "No. 622": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "label": "622",
+   "binding": null,
+   "row": {
+    "target": "622",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  },
+  "TK Multi Wheel Gang Slitter": {
+   "expected": "ambiguous_candidate",
+   "got": "ambiguous",
+   "label": "TK Multi Wheel Gang Slitter",
+   "binding": {
+    "sheet": "Tinknocker",
+    "cell": "A100",
+    "price_cell": "D100",
+    "basis": "Price"
+   },
+   "row": {
+    "target": "TK Multi Wheel Gang Slitter",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  }
+ },
+ "correct_completion": true,
+ "unsupported_claims": 0,
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecifi"
+}

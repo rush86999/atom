@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { Search, ChevronRight, CheckCircle, Plus, Zap, Mail, MessageSquare, Calendar, FileText, Users, CreditCard, Database, Globe, Code, Settings, Repeat, UserCheck, Clock, Cog, Sparkles, ShoppingCart, BarChart, Shield, Cpu, Smartphone, GraduationCap, Heart, Scale, Home, Package, Loader2 } from 'lucide-react';
 import { FaGoogle, FaSlack, FaGithub, FaMicrosoft, FaSalesforce, FaHubspot, FaTrello, FaDropbox } from 'react-icons/fa';
 import { SiNotion, SiAsana, SiJira, SiZendesk, SiStripe, SiQuickbooks, SiMailchimp, SiZoom } from 'react-icons/si';
@@ -656,7 +657,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                 const externalPieces: Piece[] = externalPiecesRaw.map((p: any) => ({
                     id: p.name, // e.g., @activepieces/piece-slack
                     name: p.displayName,
-                    icon: () => p.logoUrl ? <img src={p.logoUrl} className="w-5 h-5 object-contain" alt={p.displayName} /> : <Globe className="w-5 h-5" />,
+                    icon: () => p.logoUrl ? <Image src={p.logoUrl} alt={p.displayName} width={20} height={20} className="w-5 h-5 object-contain" /> : <Globe className="w-5 h-5" />,
                     color: '#64748b', // Default color
                     category: 'other', // Default category or map from p.tags
                     actions: Object.values(p.actions).map((a: any) => ({

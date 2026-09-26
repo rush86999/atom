@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,18 +26,7 @@ export default function SessionSettings() {
     const [error, setError] = useState('');
     const [revoking, setRevoking] = useState<string | null>(null);
 
-    useEffect(() => {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-            router.push('/login');
-        } else {
-            fetchSessions();
-            // Also record current session
-            recordCurrentSession();
-        }
-    }, []);
-
-    const recordCurrentSession = async () => {
+    const recordCurrentSession = useCallback(async () => {
         try {
             // R82: send the real backend JWT — the previous placeholder
             // constant ('current-session-token') was shared by every user,
@@ -55,9 +44,9 @@ export default function SessionSettings() {
         } catch (e) {
             console.error('Failed to record session', e);
         }
-    };
+    }, []);
 
-    const fetchSessions = async () => {
+    const fetchSessions = useCallback(async () => {
         try {
             const response = await fetch('/api/auth/sessions');
             if (!response.ok) {
@@ -70,7 +59,17 @@ export default function SessionSettings() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            router.push('/login');
+        } else {
+            fetchSessions();
+            recordCurrentSession();
+        }
+    }, [fetchSessions, recordCurrentSession, router]);
 
     const handleRevokeSession = async (sessionId: string) => {
         if (!confirm('Are you sure you want to revoke this session? The device will be signed out.')) {

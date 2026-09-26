@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Clock,
@@ -104,7 +104,7 @@ const LinearIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -125,10 +125,10 @@ const LinearIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Linear data
-    const loadIssues = async () => {
+    const loadIssues = useCallback(async () => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
             const response = await authFetch("/api/integrations/linear/issues", {
@@ -155,9 +155,9 @@ const LinearIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, issues: false }));
         }
-    };
+    }, [selectedTeam, toast]);
 
-    const loadTeams = async () => {
+    const loadTeams = useCallback(async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
             const response = await authFetch("/api/integrations/linear/teams", {
@@ -178,9 +178,9 @@ const LinearIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, teams: false }));
         }
-    };
+    }, []);
 
-    const loadProjects = async () => {
+    const loadProjects = useCallback(async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
             const response = await authFetch("/api/integrations/linear/projects", {
@@ -202,9 +202,9 @@ const LinearIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, projects: false }));
         }
-    };
+    }, [selectedTeam]);
 
-    const loadCycles = async () => {
+    const loadCycles = useCallback(async () => {
         setLoading((prev) => ({ ...prev, cycles: true }));
         try {
             const response = await authFetch("/api/integrations/linear/cycles", {
@@ -226,7 +226,7 @@ const LinearIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, cycles: false }));
         }
-    };
+    }, [selectedTeam]);
 
     // Create new issue
     const createIssue = async () => {
@@ -294,7 +294,7 @@ const LinearIntegration: React.FC = () => {
         if (connected) {
             loadTeams();
         }
-    }, [connected]);
+    }, [checkConnection, connected, loadTeams]);
 
     useEffect(() => {
         if (connected && teams.length > 0) {
@@ -302,7 +302,7 @@ const LinearIntegration: React.FC = () => {
             loadProjects();
             loadCycles();
         }
-    }, [connected, teams, selectedTeam]);
+    }, [connected, teams, selectedTeam, loadIssues, loadProjects, loadCycles]);
 
     const getPriorityColor = (priority: number) => {
         switch (priority) {

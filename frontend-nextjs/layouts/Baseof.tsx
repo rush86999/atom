@@ -1,4 +1,5 @@
 import React from 'react';
+import Head from 'next/head';
 
 interface BaseProps {
   title?: string;
@@ -21,7 +22,7 @@ const Base: React.FC<BaseProps> = ({
 }) => {
   return (
     <>
-      <head>
+      <Head>
         <title>{title || 'Atom - Your Personal Assistant'}</title>
         <meta name="description" content={description || 'One assistant to manage your entire life'} />
         {meta_title && <meta property="og:title" content={meta_title} />}
@@ -30,7 +31,7 @@ const Base: React.FC<BaseProps> = ({
         {noindex && <meta name="robots" content="noindex, nofollow" />}
         {canonical && <link rel="canonical" href={canonical} />}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
+      </Head>
       <body>
         <div className="min-h-screen bg-gray-50">
           {children}

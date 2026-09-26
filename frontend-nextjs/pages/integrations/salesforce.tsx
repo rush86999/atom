@@ -491,7 +491,7 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, contacts: false }));
     }
-  }, [selectedAccount, toast]);
+  }, [selectedAccount]);
 
   const loadCases = useCallback(async () => {
     setLoading((prev) => ({ ...prev, cases: true }));

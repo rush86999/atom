@@ -100,7 +100,10 @@ export type UseUserRole = {
     loading: boolean;
 };
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+const subscribeToNothing = (): (() => void) => () => {};
+const getServerNull = (): null => null;
 
 /**
  * Role for UI gating. Paints from the localStorage cache immediately (so a
@@ -112,17 +115,17 @@ import { useEffect, useState } from "react";
  * would strand the operator.
  */
 export function useUserRole(): UseUserRole {
-    const [role, setRole] = useState<string | null>(null);
+    const [freshRole, setFreshRole] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const cached = useSyncExternalStore(subscribeToNothing, cachedRole, getServerNull);
+    const role = freshRole ?? cached;
 
     useEffect(() => {
         let cancelled = false;
-        const cached = cachedRole();
-        if (cached) setRole(cached);
         fetchCurrentUser().then((fresh) => {
             if (cancelled) return;
-            if (fresh.role) setRole(fresh.role);
+            if (fresh.role) setFreshRole(fresh.role);
             if (fresh.id) setUserId(fresh.id);
             setLoading(false);
         });

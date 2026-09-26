@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react';
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
@@ -6,18 +6,31 @@ interface VoiceInputProps {
   className?: string;
 }
 
+const subscribeToSpeechSupport = () => () => {};
+
+const getSpeechSupportSnapshot = () => {
+  if (typeof window === 'undefined') return true;
+  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+};
+
+const getServerSpeechSupportSnapshot = () => true;
+
 const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, className }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const speechRecognitionSupported = useSyncExternalStore(
+    subscribeToSpeechSupport,
+    getSpeechSupportSnapshot,
+    getServerSpeechSupportSnapshot
+  );
+  const supportError = speechRecognitionSupported
+    ? null
+    : 'Voice input is not supported in this browser';
 
   useEffect(() => {
-    // Check browser support
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      setError('Voice input is not supported in this browser');
-      return;
-    }
+    if (!speechRecognitionSupported) return;
 
     // Initialize Web Speech API
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -60,7 +73,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, classN
         recognitionRef.current.stop();
       }
     };
-  }, [onTranscript]);
+  }, [onTranscript, speechRecognitionSupported]);
 
   const toggleListening = useCallback(() => {
     if (!recognitionRef.current) return;
@@ -145,9 +158,8 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, classN
         </div>
       )}
 
-      {error && <div className="voice-error">{error}</div>}
+      {(supportError || error) && <div className="voice-error">{supportError || error}</div>}
 
-      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .voice-input {
           display: flex;

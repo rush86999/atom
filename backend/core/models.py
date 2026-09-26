@@ -12533,6 +12533,171 @@ class TrustCalibrationAssessment(Base):
     n_obs = Column(Integer, nullable=True)
 
 
+class DecisionRouterAudit(Base):
+    """One shadow intent-routing comparison: incumbent vs local decision model.
+
+    Written by ``core/decision_shadow.py`` from ``IntentClassifier``
+    (fire-and-forget, shadow-only). Each row records the incumbent's pick
+    (``llm_category`` — LLM or heuristic fallback) alongside the local
+    decision model's ``choice`` for the same request, plus the calibrated
+    confidence behind each. No raw request text is stored — ``input_hash``
+    (sha256 of normalized text) is the grouping key for per-workload
+    calibration. ``enforced`` is always False until a certification gate
+    passes; the response still comes from the incumbent.
+    See docs/architecture/OLLAYA_DECISION_PLAN.md (Phase 2).
+    """
+
+    __tablename__ = "decision_router_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    surface = Column(String(length=24), nullable=False, default="intent")
+
+    # sha256(normalized request); grouping key, no PHI.
+    input_hash = Column(String(length=64), nullable=False, index=True)
+
+    llm_category = Column(String(length=16), nullable=True)
+    llm_confidence = Column(Float, nullable=True)
+    ollaya_choice = Column(String(length=16), nullable=True)
+    ollaya_confidence = Column(Float, nullable=True)
+    agreement = Column(Boolean, nullable=True)
+    ollaya_latency_ms = Column(Float, nullable=True)
+    model = Column(String, nullable=True)
+    enforced = Column(Boolean, nullable=False, default=False)  # shadow vs live
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_decision_audit_ws_created", "workspace_id", "created_at"),
+        Index("ix_decision_audit_hash_created", "input_hash", "created_at"),
+    )
+
+
+class DecisionTurnAudit(Base):
+    """One turn-judgment snapshot from the local decision model (Phase 3).
+
+    Written by ``core/decision_shadow.py`` next to the per-turn fact
+    extraction hooks (fire-and-forget, record-only). ``judgments`` holds the
+    five ``TURN_JUDGMENTS`` noul probabilities (None when undecided/fallback);
+    later phases join outcomes (facts actually extracted, DoD reached) for
+    calibration — until then, no consumer reads these rows.
+    Digest text is never stored, only ``input_hash`` (PHI hygiene).
+    See docs/architecture/OLLAYA_DECISION_PLAN.md (Phase 3).
+    """
+
+    __tablename__ = "decision_turn_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    execution_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True)
+    surface = Column(String(length=24), nullable=False, default="turn")
+
+    # sha256(normalized digest); grouping key, no PHI.
+    input_hash = Column(String(length=64), nullable=False, index=True)
+
+    judgments = Column(JSONColumn, nullable=True)
+    ollaya_latency_ms = Column(Float, nullable=True)
+    model = Column(String, nullable=True)
+    enforced = Column(Boolean, nullable=False, default=False)  # always False in Phase 3
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_decision_turn_ws_created", "workspace_id", "created_at"),
+        Index("ix_decision_turn_exec", "execution_id", "created_at"),
+    )
+
+
+class DecisionGateAudit(Base):
+    """One pre-action gate comparison: sandbox vs local decision model (Phase 4).
+
+    Written by ``core/decision_shadow.observe_gate`` from
+    ``sandbox_gate.evaluate_tool_call`` on a deterministic sample of tool
+    calls (log-only — the sandbox decision is never altered). Records the
+    would-have verdict (allow/ask/block) and risk probability for future
+    certification. Tool arguments are never stored, only ``args_hash``.
+    See docs/architecture/OLLAYA_DECISION_PLAN.md (Phase 4).
+    """
+
+    __tablename__ = "decision_gate_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    tool_name = Column(String(length=128), nullable=True, index=True)
+    surface = Column(String(length=24), nullable=True, default="gate")
+
+    # sha256(normalized args JSON); grouping key, no arg values.
+    args_hash = Column(String(length=64), nullable=False)
+
+    sandbox_decision = Column(String(length=32), nullable=True)
+    ollaya_verdict = Column(String(length=16), nullable=True)
+    ollaya_confidence = Column(Float, nullable=True)
+    risky = Column(Float, nullable=True)
+    agreement = Column(Boolean, nullable=True)
+    ollaya_latency_ms = Column(Float, nullable=True)
+    model = Column(String, nullable=True)
+    enforced = Column(Boolean, nullable=False, default=False)  # always False in Phase 4
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_decision_gate_ws_created", "workspace_id", "created_at"),
+        Index("ix_decision_gate_tool_created", "tool_name", "created_at"),
+    )
+
+
+class DecisionAutomationAction(Base):
+    """One decision-plane certification action (approval queue + audit trail).
+
+    Mirrors ``StageRouterAutomationAction`` / trust-calibration automation:
+    the pass writes ``certify`` rows when a surface's stats clear the gate
+    (state ``approval`` waits for admin approve/reject, ``auto`` mode applies
+    immediately) and ``revoke`` rows when an enforced surface regresses —
+    revocation is always automatic, whatever the mode. ``resolve`` honors
+    the latest applied row; the env hard-switch always wins over the ledger.
+    Monotonic integer PK keeps applied/revoked order unambiguous.
+    See docs/architecture/OLLAYA_DECISION_PLAN.md (Phase 5).
+    """
+
+    __tablename__ = "decision_automation_actions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    surface = Column(String(length=24), nullable=False, index=True)
+    verdict = Column(String(length=16), nullable=False)  # certify | revoke
+    mode = Column(String(length=16), nullable=False)  # off|notify|approve|auto
+    state = Column(String(length=16), nullable=False, default="approval")
+    stats_json = Column(JSONColumn, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_decision_auto_surface_created", "surface", "created_at"),
+    )
+
+
+class DecisionIntentLabel(Base):
+    """One human ground-truth label on an intent audit row (correctness).
+
+    Agreement (ollaya vs incumbent) measures consistency; this table measures
+    CORRECTNESS. Labels are collected with ``scripts/spot_check_intent.py``
+    over a curated battery (raw text known, no PHI concern) — never by
+    storing request text in audit rows. ``llm_correct`` /
+    ``ollaya_correct`` are independent booleans (both can be wrong).
+    Enforcement requires accuracy here, not just agreement.
+    """
+
+    __tablename__ = "decision_intent_labels"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    audit_id = Column(String, nullable=False, unique=True, index=True)
+    input_hash = Column(String(length=64), nullable=False, index=True)
+    llm_correct = Column(Boolean, nullable=True)
+    ollaya_correct = Column(Boolean, nullable=True)
+    labeler = Column(String(length=64), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class AgentOrgEvent(Base):
     """One append-only org-dynamics observation (org-politics plan Phase 0).
 

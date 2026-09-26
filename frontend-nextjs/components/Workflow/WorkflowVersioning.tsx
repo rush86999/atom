@@ -10,7 +10,7 @@
  * - Visual diff viewer
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardHeader,
@@ -153,12 +153,7 @@ const WorkflowVersioning: React.FC<{ workflowId: string }> = ({ workflowId }) =>
   const [sourceBranch, setSourceBranch] = useState('');
   const [targetBranch, setTargetBranch] = useState('');
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchWorkflowData();
-  }, [workflowId]);
-
-  const fetchWorkflowData = async () => {
+  const fetchWorkflowData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -181,7 +176,11 @@ const WorkflowVersioning: React.FC<{ workflowId: string }> = ({ workflowId }) =>
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowId]);
+
+  useEffect(() => {
+    fetchWorkflowData();
+  }, [workflowId, fetchWorkflowData]);
 
   const fetchVersionDiff = async (from: string, to: string) => {
     try {

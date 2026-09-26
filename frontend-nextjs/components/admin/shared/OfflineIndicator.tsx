@@ -1,6 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Wifi, WifiOff } from "lucide-react";
+
+const subscribeToOnlineStatus = (onChange: () => void) => {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+};
+
+const getOnlineSnapshot = () => navigator.onLine;
+const getOnlineServerSnapshot = () => true;
 
 /**
  * Offline Indicator Component
@@ -8,24 +20,11 @@ import { Wifi, WifiOff } from "lucide-react";
  * Displays connection status and warns when offline.
  */
 export const OfflineIndicator: React.FC = () => {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    // Set initial state
-    setIsOnline(navigator.onLine);
-
-    // Event listeners for online/offline
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    getOnlineSnapshot,
+    getOnlineServerSnapshot
+  );
 
   if (isOnline) {
     return null; // Don't show anything when online
@@ -35,7 +34,7 @@ export const OfflineIndicator: React.FC = () => {
     <div className="fixed bottom-4 right-4 z-50">
       <Badge variant="destructive" className="px-3 py-2 flex items-center gap-2">
         <WifiOff className="h-4 w-4" />
-        <span>You're offline. Some features may not work.</span>
+        <span>You&apos;re offline. Some features may not work.</span>
       </Badge>
     </div>
   );

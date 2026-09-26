@@ -10,7 +10,7 @@
  */
 
 import React from "react";
-import { render, screen, act } from "@testing-library/react";
+import { render, renderHook, screen, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useRetry, RetryWrapper } from "@/components/admin/shared/RetryWrapper";
 
@@ -32,14 +32,8 @@ describe("useRetry", () => {
   });
 
   const makeHook = () => {
-    let retryFn: ReturnType<typeof useRetry>["retry"] | null = null;
-    const Probe: React.FC = () => {
-      const { retry } = useRetry();
-      retryFn = retry;
-      return null;
-    };
-    render(<Probe />);
-    return () => retryFn!;
+    const { result } = renderHook(() => useRetry());
+    return () => result.current.retry;
   };
 
   test("resolves immediately when the operation succeeds", async () => {

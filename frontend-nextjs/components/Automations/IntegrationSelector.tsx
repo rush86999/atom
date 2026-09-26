@@ -19,19 +19,18 @@ interface IntegrationSelectorProps {
     selectedIntegrationId?: string;
 }
 
+const supportedIntegrations: IntegrationOption[] = [
+    { id: 'gmail', name: 'Gmail', icon: FaGoogle, color: '#EA4335', connected: false, category: 'communication' },
+    { id: 'slack', name: 'Slack', icon: FaSlack, color: '#4A154B', connected: false, category: 'communication' },
+    { id: 'github', name: 'GitHub', icon: FaGithub, color: '#181717', connected: false, category: 'development' },
+    { id: 'outlook', name: 'Outlook', icon: FaMicrosoft, color: '#0078D4', connected: false, category: 'communication' },
+    { id: 'salesforce', name: 'Salesforce', icon: FaSalesforce, color: '#00A1E0', connected: false, category: 'crm' },
+    { id: 'hubspot', name: 'HubSpot', icon: FaHubspot, color: '#FF7A59', connected: false, category: 'crm' },
+];
+
 const IntegrationSelector: React.FC<IntegrationSelectorProps> = ({ onSelect, selectedIntegrationId }) => {
     const [integrations, setIntegrations] = useState<IntegrationOption[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // Initial list of supported integrations for workflows
-    const supportedIntegrations: IntegrationOption[] = [
-        { id: 'gmail', name: 'Gmail', icon: FaGoogle, color: '#EA4335', connected: false, category: 'communication' },
-        { id: 'slack', name: 'Slack', icon: FaSlack, color: '#4A154B', connected: false, category: 'communication' },
-        { id: 'github', name: 'GitHub', icon: FaGithub, color: '#181717', connected: false, category: 'development' },
-        { id: 'outlook', name: 'Outlook', icon: FaMicrosoft, color: '#0078D4', connected: false, category: 'communication' },
-        { id: 'salesforce', name: 'Salesforce', icon: FaSalesforce, color: '#00A1E0', connected: false, category: 'crm' },
-        { id: 'hubspot', name: 'HubSpot', icon: FaHubspot, color: '#FF7A59', connected: false, category: 'crm' },
-    ];
 
     useEffect(() => {
         const checkHealth = async () => {

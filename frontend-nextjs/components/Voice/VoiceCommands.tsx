@@ -81,6 +81,46 @@ interface VoiceCommandsProps {
     compactView?: boolean;
 }
 
+const DEFAULT_COMMANDS: VoiceCommand[] = [
+    {
+        id: "open_calendar",
+        phrase: "open calendar",
+        action: "navigate",
+        description: "Open the calendar view",
+        enabled: true,
+        confidenceThreshold: 0.7,
+        parameters: { route: "/calendar" },
+        usageCount: 0,
+    },
+    {
+        id: "create_task",
+        phrase: "create task",
+        action: "create_task",
+        description: "Create a new task",
+        enabled: true,
+        confidenceThreshold: 0.8,
+        usageCount: 0,
+    },
+    {
+        id: "check_weather",
+        phrase: "what's the weather",
+        action: "get_weather",
+        description: "Get current weather information",
+        enabled: true,
+        confidenceThreshold: 0.6,
+        usageCount: 0,
+    },
+    {
+        id: "send_email",
+        phrase: "send email",
+        action: "send_email",
+        description: "Compose and send an email",
+        enabled: false,
+        confidenceThreshold: 0.8,
+        usageCount: 0,
+    },
+];
+
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     onCommandRecognized,
     onCommandExecute,
@@ -96,7 +136,9 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     const [recognitionResults, setRecognitionResults] = useState<
         VoiceRecognitionResult[]
     >([]);
-    const [commands, setCommands] = useState<VoiceCommand[]>(initialCommands);
+    const [commands, setCommands] = useState<VoiceCommand[]>(() =>
+        initialCommands.length > 0 ? initialCommands : DEFAULT_COMMANDS
+    );
     const [selectedCommand, setSelectedCommand] = useState<VoiceCommand | null>(
         null,
     );
@@ -106,55 +148,11 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     const [isCommandModalOpen, setIsCommandModalOpen] = useState(false);
     const [isResultsOpen, setIsResultsOpen] = useState(false);
     const { toast } = useToast();
-
-    // Default commands
-    const defaultCommands: VoiceCommand[] = [
-        {
-            id: "open_calendar",
-            phrase: "open calendar",
-            action: "navigate",
-            description: "Open the calendar view",
-            enabled: true,
-            confidenceThreshold: 0.7,
-            parameters: { route: "/calendar" },
-            usageCount: 0,
-        },
-        {
-            id: "create_task",
-            phrase: "create task",
-            action: "create_task",
-            description: "Create a new task",
-            enabled: true,
-            confidenceThreshold: 0.8,
-            usageCount: 0,
-        },
-        {
-            id: "check_weather",
-            phrase: "what's the weather",
-            action: "get_weather",
-            description: "Get current weather information",
-            enabled: true,
-            confidenceThreshold: 0.6,
-            usageCount: 0,
-        },
-        {
-            id: "send_email",
-            phrase: "send email",
-            action: "send_email",
-            description: "Compose and send an email",
-            enabled: false,
-            confidenceThreshold: 0.8,
-            usageCount: 0,
-        },
-    ];
+    const processVoiceCommandRef = useRef<
+        ((transcript: string, confidence: number) => void) | null
+    >(null);
 
     useEffect(() => {
-        if (initialCommands.length === 0) {
-            setCommands(defaultCommands);
-        } else {
-            setCommands(initialCommands);
-        }
-
         // Initialize speech recognition
         let recognitionInstance: any = null;
         if (typeof window !== "undefined") {
@@ -197,7 +195,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                     }
 
                     if (finalTranscript) {
-                        processVoiceCommand(finalTranscript, currentConfidence);
+                        processVoiceCommandRef.current?.(finalTranscript, currentConfidence);
                     } else if (interimTranscript) {
                         setCurrentTranscript(interimTranscript);
                         setConfidence(currentConfidence);
@@ -232,7 +230,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                 recognitionInstance.stop();
             }
         };
-    }, []);
+    }, [toast]);
 
     const processVoiceCommand = (transcript: string, confidence: number) => {
         setIsProcessing(true);
@@ -293,6 +291,10 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         setIsProcessing(false);
         setCurrentTranscript("");
     };
+
+    useEffect(() => {
+        processVoiceCommandRef.current = processVoiceCommand;
+    });
 
     const startListening = () => {
         if (recognition && !isListening) {
@@ -553,7 +555,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                                         <Card key={result.id} className="p-4">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <p className="font-medium">"{result.transcript}"</p>
+                                                    <p className="font-medium">&quot;{result.transcript}&quot;</p>
                                                     <p className="text-sm text-gray-500 dark:text-gray-400">{result.timestamp.toLocaleTimeString()}</p>
                                                 </div>
                                                 <Badge variant={result.processed ? "default" : "secondary"}>
@@ -688,7 +690,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                                 <Card key={command.id} className="p-4">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-1">
-                                            <p className="font-medium">"{command.phrase}"</p>
+                                            <p className="font-medium">&quot;{command.phrase}&quot;</p>
                                             <p className="text-sm text-gray-500 dark:text-gray-400">{command.description}</p>
                                             <div className="flex items-center space-x-2">
                                                 <Badge variant={command.enabled ? "default" : "secondary"} className={command.enabled ? "bg-green-500 hover:bg-green-600" : ""}>

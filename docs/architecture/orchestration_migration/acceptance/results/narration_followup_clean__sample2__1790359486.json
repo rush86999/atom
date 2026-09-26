@@ -1,0 +1,79 @@
+{
+ "case_id": "narration_followup_clean",
+ "sample": 2,
+ "session_id": "acc-narr-1790359477-2",
+ "captured_at": "2026-09-25T14:04:46-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "provider": "local shim (recorded responses, catalog via ATOM_PROVIDER_MODEL_CATALOG_PATH)",
+  "network_boundary": "seatbelt: external blocked; loopback = server port + shim :8099"
+ },
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price Li",
+   "latency_s": 3.26,
+   "model": "deterministic"
+  },
+  {
+   "message": "in one sentence, why does lead time matter when quoting mach",
+   "latency_s": 5.19,
+   "model": "o4-mini"
+  }
+ ],
+ "total_s": 8.45,
+ "answer_availability_latency_s": 5.19,
+ "answer_availability_basis": "HTTP response receipt (narration turn)",
+ "per_target": {},
+ "claim_check": {
+  "ruleset": "v2.1",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true,
+  "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+ },
+ "claim_calibration": {
+  "action_evidence": {
+   "send": {
+    "status": "unverified",
+    "source": null
+   },
+   "mutation": {
+    "status": "unverified",
+    "source": null
+   }
+  },
+  "shim_calls_total": 14,
+  "shim_calls_bound_to_turn": 1,
+  "catalog_discovery_calls": 0
+ },
+ "claim_gate_eligible": true,
+ "shim_binding": {
+  "bound": true,
+  "consumed": true,
+  "verdict": "authored response consumed and delivered",
+  "evaluator": "narration-binding-v1"
+ },
+ "injected_claim": "",
+ "injected_claim_in_final": false,
+ "injected_claim_in_streamed": false,
+ "streamed_observed": false,
+ "streamed_note": "no chat_token events observed this turn \u2014 streamed-leg inspection inconclusive",
+ "streamed_excerpt": "",
+ "narration_model": "o4-mini",
+ "execution_id": "7ba11741-7d82-46ae-8139-1ea15f53ddf0",
+ "correct_completion": true,
+ "unsupported_claims_detected_by_ruleset": 0,
+ "unsupported_claims": 0,
+ "reply": "Summary: five of the eight machines have confirmed prices from the indexed copy of Consolidated Price List 2019.xlsx (U-22, SLE24-16, TK 1624, TK Manual Flanger, GSL48-16); No. 381 and No. 622 remain ambiguous between multiple designation rows, and the gang slitter is a candidate via alias. These figures come from the materialized copy ingested 2026-09-07 \u2014 not a fresh read of the live file.",
+ "reply_excerpt": "Summary: five of the eight machines have confirmed prices from the indexed copy of Consolidated Price List 2019.xlsx (U-22, SLE24-16, TK 1624, TK Manual Flanger, GSL48-16); No. 381 and No. 622 remain ambiguous between multiple designation rows, and the gang slitter is a candidate via alias. These figures come from the materialized copy ingested 2026-09-07 \u2014 not a fresh read of the live file."
+}

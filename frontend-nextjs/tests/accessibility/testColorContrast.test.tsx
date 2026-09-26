@@ -1,5 +1,6 @@
 import { renderWithProviders, screen } from '../test-utils';
 import React from 'react';
+import Link from 'next/link';
 import {
   axeCheckViolations,
   axeRun,
@@ -267,20 +268,20 @@ describe('Color Contrast Tests', () => {
       const { container } = renderWithProviders(
         <div style={{ backgroundColor: '#ffffff', padding: '20px' }}>
           <p>
-            <a
+<Link
               href="/dashboard"
               style={{ color: '#2563eb', textDecoration: 'underline' }}
             >
               Go to Dashboard
-            </a>
+            </Link>
           </p>
           <p>
-            <a
+<Link
               href="/agents"
               style={{ color: '#2563eb', textDecoration: 'underline' }}
             >
               View Agents
-            </a>
+            </Link>
           </p>
         </div>
       );

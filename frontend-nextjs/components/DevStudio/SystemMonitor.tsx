@@ -41,20 +41,19 @@ const SystemMonitor = () => {
     const [status, setStatus] = useState<SystemStatusData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchStatus = async () => {
-        try {
-            const response = await fetch('/api/system/status');
-            const data = await response.json();
-            setStatus(data);
-            setLoading(false);
-        } catch (error) {
-            console.error("Failed to fetch system status:", error);
-        }
-    };
-
     useEffect(() => {
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 5000); // Refresh every 5 seconds
+        const load = async () => {
+            try {
+                const response = await fetch('/api/system/status');
+                const data = await response.json();
+                setStatus(data);
+                setLoading(false);
+            } catch (error) {
+                console.error("Failed to fetch system status:", error);
+            }
+        };
+        void load();
+        const interval = setInterval(load, 5000); // Refresh every 5 seconds
         return () => clearInterval(interval);
     }, []);
 

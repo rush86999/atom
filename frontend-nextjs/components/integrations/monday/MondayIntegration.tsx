@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   PlusCircle,
   ArrowRight,
@@ -60,6 +60,17 @@ interface MondayIntegrationProps {
   onDisconnect: () => void;
 }
 
+function buildAnalytics(boards: MondayBoard[]) {
+  const totalItems = boards.reduce((sum, board) => sum + (board.items_count || 0), 0);
+  const publicBoards = boards.filter(board => board.board_kind === 'public').length;
+
+  return {
+    totalBoards: boards.length,
+    totalItems,
+    publicBoards,
+  };
+}
+
 const MondayIntegration: React.FC<MondayIntegrationProps> = ({
   accessToken,
   onConnect,
@@ -74,13 +85,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (accessToken) {
-      loadInitialData();
-    }
-  }, [accessToken]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     if (!accessToken) return;
 
     setIsLoading(true);
@@ -92,16 +97,15 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
 
       if (boardsRes.ok) {
         const boardsData = await boardsRes.json();
-        setBoards(boardsData.boards || []);
+        const loadedBoards = boardsData.boards || [];
+        setBoards(loadedBoards);
+        setAnalytics(buildAnalytics(loadedBoards));
       }
 
       if (healthRes.ok) {
         const healthData = await healthRes.json();
         setHealthStatus(healthData);
       }
-
-      calculateAnalytics();
-
     } catch (error) {
       console.error('Failed to load Monday.com data:', error);
       toast({
@@ -112,18 +116,13 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [accessToken, toast]);
 
-  const calculateAnalytics = () => {
-    const totalItems = boards.reduce((sum, board) => sum + (board.items_count || 0), 0);
-    const publicBoards = boards.filter(board => board.board_kind === 'public').length;
-
-    setAnalytics({
-      totalBoards: boards.length,
-      totalItems,
-      publicBoards,
-    });
-  };
+  useEffect(() => {
+    if (accessToken) {
+      loadInitialData();
+    }
+  }, [accessToken, loadInitialData]);
 
   const loadBoardItems = async (boardId: string) => {
     if (!accessToken) return;

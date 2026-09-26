@@ -1,5 +1,6 @@
 import { renderWithProviders, screen } from '../test-utils';
 import React from 'react';
+import Link from 'next/link';
 import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
 import Layout from '@/components/layout/Layout';
@@ -422,9 +423,9 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
         <div>
           <header>
             <nav aria-label="Main navigation">
-              <a href="/dashboard">Dashboard</a>
-              <a href="/agents">Agents</a>
-              <a href="/workflows">Workflows</a>
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/agents">Agents</Link>
+              <Link href="/workflows">Workflows</Link>
             </nav>
           </header>
 
@@ -435,8 +436,8 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
 
           <aside aria-label="Sidebar">
             <nav aria-label="Secondary navigation">
-              <a href="/settings">Settings</a>
-              <a href="/help">Help</a>
+              <Link href="/settings">Settings</Link>
+              <Link href="/help">Help</Link>
             </nav>
           </aside>
 

@@ -72,17 +72,11 @@ const THINKING_STEPS = [
   'Finalizing schema structure…',
 ];
 
-function useThinkingAnimation(active: boolean) {
+function useThinkingAnimation() {
   const [stepIndex, setStepIndex] = useState(0);
   const [dots, setDots] = useState('');
 
   useEffect(() => {
-    if (!active) {
-      setStepIndex(0);
-      setDots('');
-      return;
-    }
-
     const stepTimer = setInterval(() => {
       setStepIndex((i) => (i + 1) % THINKING_STEPS.length);
     }, 900);
@@ -95,7 +89,7 @@ function useThinkingAnimation(active: boolean) {
       clearInterval(stepTimer);
       clearInterval(dotTimer);
     };
-  }, [active]);
+  }, []);
 
   return { step: THINKING_STEPS[stepIndex], dots };
 }
@@ -244,9 +238,12 @@ function SchemaDiffPanel({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ThinkingOverlay({ active }: { active: boolean }) {
-  const { step, dots } = useThinkingAnimation(active);
-
   if (!active) return null;
+  return <ActiveThinkingOverlay />;
+}
+
+function ActiveThinkingOverlay() {
+  const { step, dots } = useThinkingAnimation();
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-black/70 backdrop-blur-md animate-in fade-in duration-200">

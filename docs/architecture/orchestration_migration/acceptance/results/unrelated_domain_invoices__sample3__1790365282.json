@@ -1,0 +1,99 @@
+{
+ "case_id": "unrelated_domain_invoices",
+ "sample": 3,
+ "session_id": "acc-absent-1790365282-3",
+ "captured_at": "2026-09-25T15:41:22-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "1",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "message": "find the amount and status of invoices INV-1002, INV-1004 and INV-1006 in Q3 Ven",
+   "success": true,
+   "latency_s": 0.08,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 0.08,
+ "answer_availability_latency_s": 0.08,
+ "answer_availability_basis": "HTTP response receipt",
+ "claim_calibration": {
+  "trace_steps": []
+ },
+ "per_target": {
+  "INV-1002": {
+   "expected": "found",
+   "got": "found",
+   "label": "INV-1002",
+   "binding": {
+    "sheet": "invoices",
+    "cell": "A2",
+    "price_cell": "C2",
+    "basis": "amount_usd"
+   },
+   "row": {
+    "target": "INV-1002",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "INV-1004": {
+   "expected": "found",
+   "got": "found",
+   "label": "INV-1004",
+   "binding": {
+    "sheet": "invoices",
+    "cell": "A4",
+    "price_cell": "C4",
+    "basis": "amount_usd"
+   },
+   "row": {
+    "target": "INV-1004",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "INV-1006": {
+   "expected": "found",
+   "got": "found",
+   "label": "INV-1006",
+   "binding": {
+    "sheet": "invoices",
+    "cell": "A6",
+    "price_cell": "C6",
+    "basis": "amount_usd"
+   },
+   "row": {
+    "target": "INV-1006",
+    "status": "FOUND"
+   },
+   "pass": true
+  }
+ },
+ "claim_check": {
+  "ruleset": "v2.1",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true,
+  "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+ },
+ "claim_gate_eligible": true,
+ "correct_completion": true,
+ "unsupported_claims_detected_by_ruleset": 0,
+ "unsupported_claims": 0,
+ "reply": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Q3 Vendor Invoices.xlsx' (NOT a fresh read of the live file): source=acceptance-rig, resource=acc-inv-fixture-1, ingested=2026-09-25T00:00:00, content_hash=unrelated-domain-inv (sha1), source_modified=unknown, 1 sheet(s) indexed.\nCoverage \u2014 indexed sheets=1; scanned entries=1; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| INV-1002 | FOUND | invoices!A2 R2 (values: C2=4200.5 [basis=amount_usd; unit=usd; currency=unspecified], D2=overdue [basis=status; currency=unspecified]) |\n| INV-1004 | FOUND | invoices!A4 R4 (values: C4=950.75 [basis=amount_usd; unit=usd; currency=unspecified], D4=paid [basis=status; currency=unspecified]) |\n| INV-1006 | FOUND | invoices!A6 R6 (values: C6=6125.4 [basis=amount_usd; unit=usd; currency=unspecified], D6=pending [basis=status; currency=unspecified]) |\n| Q3 | ABSENT | no matching cell in the indexed rows |\n| invoices INV-1002 | ABSENT | no matching cell in the indexed rows |\n\nVALUE INV-1002 | C2 | 4200.5 | field=amount_usd | basis=amount_usd | unit=usd | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE INV-1002 | D2 | overdue | field=status | basis=status | currency=n/a | formula_state=literal\nVALUE INV-1004 | C4 | 950.75 | field=amount_usd | basis=amount_usd | unit=usd | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE INV-1004 | D4 | paid | field=status | basis=status | currency=n/a | formula_state=literal\nVALUE INV-1006 | C6 | 6125.4 | field=amount_usd | basis=amount_usd | unit=usd | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE INV-1006 | D6 | pending | field=status | basis=status | currency=n/a | formula_state=literal",
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Q3 Vendor Invoices.xlsx' (NOT a fresh read of the live file): source=acceptance-rig, resource=acc-inv-fixture-1, ingested=2026-09-25T00:00:00, content_hash=unrelated-domain-inv (sha1), source_modified=unknown, 1 sheet(s) indexed.\nCoverage \u2014 indexed sheets=1; scanned entries=1; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| INV-1002 | FOUND | invoices!A2 R2 (values: C2=4200.5 [basis=amount_usd; unit=usd; currency=unspecified], D2=overdue [basis=status; currency=unspecified]) |\n| INV-1004 | FOUND | invoices!A4 R4 (values: C4=950.75 [basis=amount_usd; unit=usd; currency=unspecified], D4=paid [basis=status; currency=unspecified]) |\n| INV-1006 | FOUND | invoices!A6 R6 (values: C6=6125.4 [basis=amount_usd; unit=usd; currency=unspecified], D6=pending [basis=status; currency=unspecified]) |\n| Q3 | ABSENT | no matching cell in the indexed rows |\n| invoices INV-1002 | ABSENT | no matching cell in the indexed rows |\n\nVALUE INV-1002 | C2 | 4200.5 | field=amount_usd | basis=amount_usd | unit=usd | currenc"
+}

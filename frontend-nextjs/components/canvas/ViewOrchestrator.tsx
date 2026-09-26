@@ -56,13 +56,11 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
   const [orchestration, setOrchestration] = useState<ViewOrchestrationData | null>(null);
   const [activeTab, setActiveTab] = useState<string>('');
   const [canvasExpanded, setCanvasExpanded] = useState(true);
-  const { lastMessage, sendMessage } = useWebSocket();
+  const { onMessage, sendMessage } = useWebSocket();
 
-  useEffect(() => {
-    if (!lastMessage) return;
-
+  useEffect(() => onMessage((message) => {
     try {
-      const data = lastMessage.data;
+      const data = message.data;
 
       // Guard: a malformed message with a known type but no `data` payload
       // must be ignored gracefully. Without this, the setOrchestration updaters
@@ -72,7 +70,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
       if (!data) return;
 
       // Handle view switch
-      if (lastMessage.type === 'view:switch') {
+      if (message.type === 'view:switch') {
         setOrchestration((prev) => ({
           layout: data.layout || prev?.layout || 'split_vertical',
           active_views: data.views || prev?.active_views || [],
@@ -87,11 +85,18 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
       }
 
       // Handle view activation
-      if (lastMessage.type === 'view:activated') {
+      if (message.type === 'view:activated') {
         const view = data.view;
 
         setOrchestration((prev) => {
-          const activeViews = prev?.active_views || [];
+          if (!prev) {
+            return {
+              layout: 'split_vertical',
+              active_views: [view],
+              current_view: view.view_id
+            };
+          }
+          const activeViews = [...prev.active_views];
           const existingIndex = activeViews.findIndex(v => v.view_id === view.view_id);
 
           if (existingIndex >= 0) {
@@ -101,34 +106,33 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
           }
 
           return {
-            ...prev!,
+            ...prev,
             active_views: activeViews
           };
         });
       }
 
       // Handle view close
-      if (lastMessage.type === 'view:closed') {
+      if (message.type === 'view:closed') {
         const viewId = data.view_id;
 
-        setOrchestration((prev) => ({
-          ...prev!,
-          active_views: prev?.active_views.filter(v => v.view_id !== viewId) || []
-        }));
+        setOrchestration(prev => prev ? {
+          ...prev,
+          active_views: prev.active_views.filter(v => v.view_id !== viewId)
+        } : prev);
       }
 
       // Handle guidance update
-      if (lastMessage.type === 'view:guidance_update') {
-        setOrchestration((prev) => ({
-          ...prev!,
-          active_views: prev?.active_views || [],
+      if (message.type === 'view:guidance_update') {
+        setOrchestration(prev => prev ? {
+          ...prev,
           canvas_guidance: data.guidance
-        }));
+        } : prev);
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, sessionId]);
+  }), [onMessage, sessionId]);
 
   const handleTakeControl = (viewId: string) => {
     if (onViewTakeover) {
@@ -249,7 +253,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
-            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">What you're seeing:</p>
+            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{"What you're seeing:"}</p>
             <p className="text-sm text-gray-900 dark:text-gray-100">{orchestration.canvas_guidance.what_youre_seeing}</p>
           </div>
 
@@ -404,7 +408,7 @@ const ViewPanel: React.FC<ViewPanelProps> = ({ view, isActive, onTakeControl }) 
           )}
 
           {takingControl && (
-            <span className="text-xs text-green-600">✓ You're in control</span>
+            <span className="text-xs text-green-600">✓ You&apos;re in control</span>
           )}
         </div>
       </div>

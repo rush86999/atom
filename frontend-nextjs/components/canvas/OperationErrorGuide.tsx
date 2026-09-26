@@ -55,13 +55,13 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
   const [errorData, setErrorData] = useState<ErrorData | null>(null);
   const [selectedResolution, setSelectedResolution] = useState<number | null>(null);
   const [expandedResolutions, setExpandedResolutions] = useState<number[]>([]);
-  const { lastMessage, sendMessage } = useWebSocket();
+  const { onMessage, sendMessage } = useWebSocket();
 
-  useEffect(() => {
-    if (!lastMessage || lastMessage.type !== 'operation:error') return;
+  useEffect(() => onMessage((message) => {
+    if (message.type !== 'operation:error') return;
 
     try {
-      const data = lastMessage.data;
+      const data = message.data;
 
       // Filter by operationId if specified
       if (!operationId || data.operation_id === operationId) {
@@ -72,7 +72,7 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, operationId]);
+  }), [onMessage, operationId]);
 
   const handleResolutionClick = (index: number, resolution: Resolution) => {
     setSelectedResolution(index);

@@ -4,7 +4,7 @@
  * Manages multiple users debugging the same session together.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,13 +41,7 @@ export const CollaborativeDebugging: React.FC<CollaborativeDebuggingProps> = ({
   const [addUserId, setAddUserId] = useState('');
   const [addPermission, setAddPermission] = useState<'viewer' | 'op' | 'owner'>('viewer');
 
-  useEffect(() => {
-    if (sessionId) {
-      fetchCollaborators();
-    }
-  }, [sessionId]);
-
-  const fetchCollaborators = async () => {
+  const fetchCollaborators = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -63,7 +57,13 @@ export const CollaborativeDebugging: React.FC<CollaborativeDebuggingProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchCollaborators();
+    }
+  }, [sessionId, fetchCollaborators]);
 
   const addCollaborator = async () => {
     if (!sessionId || !addUserId) return;

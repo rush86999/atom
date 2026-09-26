@@ -1,3 +1,5 @@
+import React from 'react';
+
 // Jest setup file for testing
 import '@testing-library/jest-dom';
 
@@ -26,7 +28,7 @@ jest.mock('next/router', () => ({
 // Mock Next.js image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props) => <img {...props} />,
+  default: (props) => React.createElement('img', { ...props, alt: props.alt ?? '' }),
 }));
 
 // Mock Chakra UI

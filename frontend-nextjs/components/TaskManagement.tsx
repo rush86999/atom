@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import TaskManagement, { Task, Project } from "./shared/TaskManagement";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -8,7 +8,7 @@ const TaskManagementWrapper: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [tasksRes, projectsRes] = await Promise.all([
         fetch("/api/v1/tasks"),
@@ -45,11 +45,11 @@ const TaskManagementWrapper: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   if (loading) {
     return (

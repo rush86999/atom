@@ -3,7 +3,7 @@
  * Complete QuickBooks financial management and accounting integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -369,7 +369,7 @@ const QuickBooksIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -381,15 +381,6 @@ const QuickBooksIntegration: React.FC = () => {
                 const isConnected = providers?.quickbooks?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadCompanyInfo();
-                    loadCustomers();
-                    loadInvoices();
-                    loadBills();
-                    loadAccounts();
-                    loadEmployees();
-                    loadVendors();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -399,10 +390,10 @@ const QuickBooksIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load QuickBooks data
-    const loadCompanyInfo = async () => {
+    const loadCompanyInfo = useCallback(async () => {
         setLoading((prev) => ({ ...prev, company: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/company", {
@@ -422,9 +413,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, company: false }));
         }
-    };
+    }, []);
 
-    const loadCustomers = async () => {
+    const loadCustomers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, customers: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/customers", {
@@ -450,9 +441,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, customers: false }));
         }
-    };
+    }, [toast]);
 
-    const loadInvoices = async () => {
+    const loadInvoices = useCallback(async () => {
         setLoading((prev) => ({ ...prev, invoices: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/invoices", {
@@ -473,9 +464,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, invoices: false }));
         }
-    };
+    }, []);
 
-    const loadBills = async () => {
+    const loadBills = useCallback(async () => {
         setLoading((prev) => ({ ...prev, bills: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/bills", {
@@ -496,9 +487,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, bills: false }));
         }
-    };
+    }, []);
 
-    const loadAccounts = async () => {
+    const loadAccounts = useCallback(async () => {
         setLoading((prev) => ({ ...prev, accounts: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/accounts", {
@@ -519,9 +510,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, accounts: false }));
         }
-    };
+    }, []);
 
-    const loadEmployees = async () => {
+    const loadEmployees = useCallback(async () => {
         setLoading((prev) => ({ ...prev, employees: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/employees", {
@@ -542,9 +533,9 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, employees: false }));
         }
-    };
+    }, []);
 
-    const loadVendors = async () => {
+    const loadVendors = useCallback(async () => {
         setLoading((prev) => ({ ...prev, vendors: true }));
         try {
             const response = await authFetch("/api/integrations/quickbooks/vendors", {
@@ -565,7 +556,7 @@ const QuickBooksIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, vendors: false }));
         }
-    };
+    }, []);
 
     // Create operations
     const createCustomer = async () => {
@@ -765,7 +756,7 @@ const QuickBooksIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -777,7 +768,7 @@ const QuickBooksIntegration: React.FC = () => {
             loadEmployees();
             loadVendors();
         }
-    }, [connected]);
+    }, [connected, loadCompanyInfo, loadCustomers, loadInvoices, loadBills, loadAccounts, loadEmployees, loadVendors]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

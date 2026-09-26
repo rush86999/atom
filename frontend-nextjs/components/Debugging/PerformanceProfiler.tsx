@@ -4,7 +4,7 @@
  * Displays performance metrics and identifies bottlenecks in workflow execution.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,15 +58,7 @@ export const PerformanceProfiler: React.FC<PerformanceProfilerProps> = ({
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<PerformanceReport | null>(null);
 
-  useEffect(() => {
-    if (sessionId && profiling) {
-      // Auto-refresh report every 2 seconds when profiling
-      const interval = setInterval(fetchReport, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [sessionId, profiling]);
-
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -82,7 +74,15 @@ export const PerformanceProfiler: React.FC<PerformanceProfilerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId && profiling) {
+      // Auto-refresh report every 2 seconds when profiling
+      const interval = setInterval(fetchReport, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [sessionId, profiling, fetchReport]);
 
   const startProfiling = async () => {
     if (!sessionId) return;

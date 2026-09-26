@@ -327,7 +327,7 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                         {showComment && (
                             <div className="mt-2 bg-background border rounded-md p-2 shadow-sm space-y-2 animate-in fade-in slide-in-from-top-1">
                                 <div className="text-[10px] text-muted-foreground italic px-1 line-clamp-2 select-none">
-                                    "{message.content}"
+                                    &quot;{message.content}&quot;
                                 </div>
                                 <Textarea
                                     className="text-xs p-2 min-h-[60px]"

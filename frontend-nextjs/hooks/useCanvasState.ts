@@ -5,7 +5,7 @@
  * Includes runtime verification for canvas state registration.
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import type {
   AgentOperationState,
   AnyCanvasState,
@@ -17,6 +17,154 @@ import type {
 // Track registered canvases for verification
 const registeredCanvases = new Set<string>();
 const registrationWarnings = new Set<string>();
+const canvasApiReadyListeners = new Set<() => void>();
+
+function subscribeCanvasApiReady(onStoreChange: () => void) {
+  canvasApiReadyListeners.add(onStoreChange);
+  return () => canvasApiReadyListeners.delete(onStoreChange);
+}
+
+function getCanvasApiReady() {
+  return typeof window !== 'undefined' && Boolean((window as any).atom?.canvas);
+}
+
+function getServerCanvasApiReady() {
+  return false;
+}
+
+function ensureCanvasApi(): CanvasStateAPI | null {
+  if (typeof window === 'undefined') return null;
+
+  if (!(window as any).atom?.canvas) {
+    (window as any).atom = {
+      canvas: {
+        getState: (): AnyCanvasState | null => null,
+        getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
+        subscribe: () => () => {},
+        subscribeAll: () => () => {}
+      }
+    };
+    console.info('[useCanvasState] Initialized canvas state API stub');
+    canvasApiReadyListeners.forEach((listener) => listener());
+  }
+
+  return (window as any).atom?.canvas as CanvasStateAPI | null;
+}
+
+type CanvasApiStore = {
+  states: Map<string, AnyCanvasState | null>;
+  allStates: Array<{ canvas_id: string; state: AnyCanvasState }>;
+  initializedAllStates: boolean;
+  listeners: Set<() => void>;
+};
+
+const canvasApiStores = new WeakMap<CanvasStateAPI, CanvasApiStore>();
+const subscribeToNothing = (): (() => void) => () => {};
+const getServerNull = (): null => null;
+const EMPTY_CANVAS_STATES: Array<{ canvas_id: string; state: AnyCanvasState }> = [];
+const getServerEmptyArray = () => EMPTY_CANVAS_STATES;
+
+function getCanvasApiStore(api: CanvasStateAPI): CanvasApiStore {
+  let store = canvasApiStores.get(api);
+  if (!store) {
+    store = {
+      states: new Map(),
+      allStates: [],
+      initializedAllStates: false,
+      listeners: new Set(),
+    };
+    canvasApiStores.set(api, store);
+  }
+  return store;
+}
+
+function notifyCanvasStore(store: CanvasApiStore) {
+  store.listeners.forEach((listener) => listener());
+}
+
+function getCanvasStateSnapshot(api: CanvasStateAPI, canvasId: string) {
+  const store = getCanvasApiStore(api);
+  if (!store.states.has(canvasId)) {
+    store.states.set(canvasId, api.getState(canvasId));
+    registeredCanvases.add(canvasId);
+  }
+  return store.states.get(canvasId) ?? null;
+}
+
+function subscribeCanvasState(
+  api: CanvasStateAPI,
+  canvasId: string,
+  onStoreChange: () => void
+) {
+  const store = getCanvasApiStore(api);
+  store.listeners.add(onStoreChange);
+  try {
+    const subscribeSingle = (api.subscribe.bind(api) as unknown) as (
+      callback: (newState: AnyCanvasState | null) => void
+    ) => () => void;
+    const unsubscribe = subscribeSingle((newState) => {
+      if (newState) {
+        store.states.set(canvasId, newState);
+        registeredCanvases.add(canvasId);
+        registrationWarnings.delete(`${canvasId}:may not be properly registered`);
+        notifyCanvasStore(store);
+        return;
+      }
+      logWarningOnce(
+        canvasId,
+        `Received null state for canvas "${canvasId}". ` +
+        `Canvas may have been unmounted or failed to initialize.`
+      );
+    });
+    return () => {
+      store.listeners.delete(onStoreChange);
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  } catch {
+    store.listeners.delete(onStoreChange);
+    logWarningOnce(canvasId, `Failed to subscribe to canvas "${canvasId}".`);
+    return subscribeToNothing();
+  }
+}
+
+function getAllCanvasStateSnapshot(api: CanvasStateAPI) {
+  const store = getCanvasApiStore(api);
+  if (!store.initializedAllStates) {
+    store.allStates = api.getAllStates() || [];
+    store.initializedAllStates = true;
+    store.allStates.forEach(({ canvas_id }) => registeredCanvases.add(canvas_id));
+  }
+  return store.allStates;
+}
+
+function subscribeAllCanvasState(api: CanvasStateAPI, onStoreChange: () => void) {
+  const store = getCanvasApiStore(api);
+  store.listeners.add(onStoreChange);
+  try {
+    const unsubscribe = api.subscribeAll((event: CanvasStateChangeEvent) => {
+      const existing = store.allStates.findIndex(
+        (entry) => entry.canvas_id === event.canvas_id
+      );
+      if (existing >= 0) {
+        const updated = [...store.allStates];
+        updated[existing] = { canvas_id: event.canvas_id, state: event.state };
+        store.allStates = updated;
+      } else {
+        store.allStates = [...store.allStates, { canvas_id: event.canvas_id, state: event.state }];
+      }
+      registeredCanvases.add(event.canvas_id);
+      notifyCanvasStore(store);
+    });
+    return () => {
+      store.listeners.delete(onStoreChange);
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  } catch {
+    store.listeners.delete(onStoreChange);
+    logWarningOnce('*', 'Failed to subscribe to all canvases.');
+    return subscribeToNothing();
+  }
+}
 
 /**
  * Verify canvas state API is properly initialized
@@ -57,37 +205,51 @@ function logWarningOnce(canvasId: string, message: string) {
  * @returns Canvas state and API methods
  */
 export function useCanvasState(canvasId?: string) {
-  const [state, setState] = useState<AnyCanvasState | null>(null);
-  const [allStates, setAllStates] = useState<Array<{ canvas_id: string; state: AnyCanvasState }>>([]);
-  const [isApiReady, setIsApiReady] = useState(false);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const isApiReady = useSyncExternalStore(
+    subscribeCanvasApiReady,
+    getCanvasApiReady,
+    getServerCanvasApiReady
+  );
+  const api = typeof window !== 'undefined'
+    ? ((window as any).atom?.canvas as CanvasStateAPI | undefined)
+    : undefined;
+  const state = useSyncExternalStore(
+    useCallback(
+      (onStoreChange: () => void) => canvasId && api
+        ? subscribeCanvasState(api, canvasId, onStoreChange)
+        : subscribeToNothing(),
+      [api, canvasId]
+    ),
+    useCallback(
+      () => canvasId && api ? getCanvasStateSnapshot(api, canvasId) : null,
+      [api, canvasId]
+    ),
+    getServerNull
+  );
+  const allStates = useSyncExternalStore(
+    useCallback(
+      (onStoreChange: () => void) => !canvasId && api
+        ? subscribeAllCanvasState(api, onStoreChange)
+        : subscribeToNothing(),
+      [api, canvasId]
+    ),
+    useCallback(
+      () => !canvasId && api ? getAllCanvasStateSnapshot(api) : EMPTY_CANVAS_STATES,
+      [api, canvasId]
+    ),
+    getServerEmptyArray
+  );
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Initialize global API if not exists
-    if (typeof window !== 'undefined' && !window.atom?.canvas) {
-      (window as any).atom = {
-        canvas: {
-          getState: (): AnyCanvasState | null => null,
-          getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
-          subscribe: () => () => {},
-          subscribeAll: () => () => {}
-        }
-      };
-      console.info('[useCanvasState] Initialized canvas state API stub');
-    }
-
-    const api = (window as any).atom?.canvas as CanvasStateAPI;
+    const api = ensureCanvasApi();
     if (!api) {
       console.error('[useCanvasState] Failed to initialize canvas state API');
       return;
     }
 
-    // Verify API is ready
-    setIsApiReady(true);
-
-    // Set up verification timeout (check if canvas registered within 5 seconds)
     if (canvasId) {
+      registeredCanvases.add(canvasId);
       verificationTimeoutRef.current = setTimeout(() => {
         const currentState = api.getState(canvasId);
         if (!currentState) {
@@ -100,82 +262,9 @@ export function useCanvasState(canvasId?: string) {
       }, 5000);
     }
 
-    // Subscribe to specific canvas or all canvases
-    if (canvasId) {
-      // Track that we're trying to subscribe to this canvas
-      registeredCanvases.add(canvasId);
-
-      try {
-        // CanvasStateAPI.subscribe declares (canvasId, callback), but the global
-        // this hook talks to is invoked with a single callback; view it through
-        // the single-argument signature it is actually called with. bind(api)
-        // keeps object-literal API implementations (which read `this`) working.
-        const subscribeSingle = (api.subscribe.bind(api) as unknown) as (
-          callback: (newState: AnyCanvasState | null) => void
-        ) => () => void;
-        unsubscribeRef.current = subscribeSingle((newState) => {
-          if (newState) {
-            setState(newState);
-            // Clear any pending warnings for this canvas
-            registrationWarnings.delete(`${canvasId}:may not be properly registered`);
-          } else {
-            logWarningOnce(
-              canvasId,
-              `Received null state for canvas "${canvasId}". ` +
-              `Canvas may have been unmounted or failed to initialize.`
-            );
-          }
-        });
-      } catch (subscribeError) {
-        // Graceful degradation: a throwing subscribe() must not crash the
-        // component tree — the hook keeps working via the API accessors.
-        logWarningOnce(canvasId, `Failed to subscribe to canvas "${canvasId}".`);
-      }
-
-      // Immediate state check
-      const initialState = api.getState(canvasId);
-      if (initialState) {
-        setState(initialState);
-      }
-    } else {
-      try {
-        unsubscribeRef.current = api.subscribeAll((event: CanvasStateChangeEvent) => {
-          setAllStates(prev => {
-            const existing = prev.findIndex(s => s.canvas_id === event.canvas_id);
-            if (existing >= 0) {
-              const updated = [...prev];
-              updated[existing] = { canvas_id: event.canvas_id, state: event.state };
-              return updated;
-            }
-            return [...prev, { canvas_id: event.canvas_id, state: event.state }];
-          });
-
-          // Track canvas registration
-          registeredCanvases.add(event.canvas_id);
-        });
-      } catch (subscribeAllError) {
-        // Graceful degradation: same as the per-canvas path above.
-        logWarningOnce('*', 'Failed to subscribe to all canvases.');
-      }
-
-      // Load all initial states
-      const initialStates = api.getAllStates();
-      if (initialStates && initialStates.length > 0) {
-        setAllStates(initialStates);
-        // Track all initially registered canvases
-        initialStates.forEach(({ canvas_id }) => registeredCanvases.add(canvas_id));
-      }
-    }
-
     return () => {
-      // Clear verification timeout
       if (verificationTimeoutRef.current) {
         clearTimeout(verificationTimeoutRef.current);
-      }
-
-      // Unsubscribe
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
       }
     };
   }, [canvasId]);

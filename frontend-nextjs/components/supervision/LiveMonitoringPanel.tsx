@@ -80,77 +80,6 @@ const LiveMonitoringPanel: React.FC<Props> = ({
   const stepsRef = useRef<ExecutionStep[]>(steps);
   stepsRef.current = steps;
 
-  // Connect to SSE stream
-  useEffect(() => {
-    const eventSource = new EventSource(
-      `/api/supervision/${executionId}/stream`
-    );
-
-    eventSource.addEventListener('connected', (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
-      addLog({
-        timestamp: data.timestamp,
-        level: 'info',
-        message: `Connected to execution ${executionId}`,
-        data
-      });
-    });
-
-    eventSource.addEventListener('supervision_event', (event: MessageEvent) => {
-      const eventData = JSON.parse(event.data);
-
-      // Add log entry
-      addLog({
-        timestamp: eventData.timestamp,
-        level: 'info',
-        message: `${eventData.event_type}: ${JSON.stringify(eventData.data)}`,
-        data: eventData.data
-      });
-
-      // Update steps based on event type
-      updateStepsFromEvent(eventData);
-    });
-
-    eventSource.addEventListener('done', (event: MessageEvent) => {
-      setState(prev => ({ ...prev, isExecuting: false }));
-      eventSource.close();
-
-      if (onComplete) {
-        onComplete({ executionId, success: true });
-      }
-    });
-
-    eventSource.addEventListener('error', (event: MessageEvent) => {
-      // A connection-level 'error' event carries NO data (plain Event); only
-      // server-sent `event: error` frames carry a payload. Guard both paths so
-      // a network drop cannot crash the handler via JSON.parse(undefined).
-      let message = 'Connection error';
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          if (data && data.message) {
-            message = data.message;
-          }
-        } catch {
-          // malformed frame — fall back to the generic message
-        }
-      }
-      setError(message);
-      setState(prev => ({ ...prev, isExecuting: false }));
-      eventSource.close();
-    });
-
-    eventSource.onerror = (err) => {
-      console.error('SSE error:', err);
-      setError('Connection error');
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [executionId, onComplete]);
-
   const addLog = useCallback((log: LogEntry) => {
     setState(prev => ({
       ...prev,
@@ -220,6 +149,77 @@ const LiveMonitoringPanel: React.FC<Props> = ({
       });
     }
   }, [addLog]);
+
+  // Connect to SSE stream
+  useEffect(() => {
+    const eventSource = new EventSource(
+      `/api/supervision/${executionId}/stream`
+    );
+
+    eventSource.addEventListener('connected', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      addLog({
+        timestamp: data.timestamp,
+        level: 'info',
+        message: `Connected to execution ${executionId}`,
+        data
+      });
+    });
+
+    eventSource.addEventListener('supervision_event', (event: MessageEvent) => {
+      const eventData = JSON.parse(event.data);
+
+      // Add log entry
+      addLog({
+        timestamp: eventData.timestamp,
+        level: 'info',
+        message: `${eventData.event_type}: ${JSON.stringify(eventData.data)}`,
+        data: eventData.data
+      });
+
+      // Update steps based on event type
+      updateStepsFromEvent(eventData);
+    });
+
+    eventSource.addEventListener('done', (event: MessageEvent) => {
+      setState(prev => ({ ...prev, isExecuting: false }));
+      eventSource.close();
+
+      if (onComplete) {
+        onComplete({ executionId, success: true });
+      }
+    });
+
+    eventSource.addEventListener('error', (event: MessageEvent) => {
+      // A connection-level 'error' event carries NO data (plain Event); only
+      // server-sent `event: error` frames carry a payload. Guard both paths so
+      // a network drop cannot crash the handler via JSON.parse(undefined).
+      let message = 'Connection error';
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.message) {
+            message = data.message;
+          }
+        } catch {
+          // malformed frame — fall back to the generic message
+        }
+      }
+      setError(message);
+      setState(prev => ({ ...prev, isExecuting: false }));
+      eventSource.close();
+    });
+
+    eventSource.onerror = (err) => {
+      console.error('SSE error:', err);
+      setError('Connection error');
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [addLog, executionId, onComplete, updateStepsFromEvent]);
 
   const handleIntervene = async () => {
     if (!guidance.trim()) {

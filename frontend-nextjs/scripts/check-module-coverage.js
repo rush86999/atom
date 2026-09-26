@@ -82,17 +82,17 @@ function checkModuleCoverage(coverage) {
   }
 
   // Calculate module-level coverage and check thresholds
-  for (const module of Object.values(moduleAggregates)) {
-    module.lines.pct = module.lines.total > 0
-      ? Math.round((module.lines.covered / module.lines.total) * 100)
+  for (const moduleEntry of Object.values(moduleAggregates)) {
+    moduleEntry.lines.pct = moduleEntry.lines.total > 0
+      ? Math.round((moduleEntry.lines.covered / moduleEntry.lines.total) * 100)
       : 0;
-    module.gap = module.threshold - module.lines.pct;
-    module.passed = module.lines.pct >= module.threshold;
+    moduleEntry.gap = moduleEntry.threshold - moduleEntry.lines.pct;
+    moduleEntry.passed = moduleEntry.lines.pct >= moduleEntry.threshold;
 
-    if (module.passed) {
-      results.passed.push(module);
+    if (moduleEntry.passed) {
+      results.passed.push(moduleEntry);
     } else {
-      results.failed.push(module);
+      results.failed.push(moduleEntry);
     }
   }
 

@@ -62,7 +62,7 @@ const extractErrorMessage = (json: any, fallback: string): string => {
 const MAX_LOG_LINES = 200;
 
 const AgentsDashboard = () => {
-    const router = useRouter();
+    const routerPush = useRouter().push;
     const providerStatus = useProviderStatus();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
@@ -112,55 +112,14 @@ const AgentsDashboard = () => {
         }
     }, [isConnected, subscribe]);
 
-    useEffect(() => {
-        if (lastMessage) {
-            if (lastMessage.type === "agent_step_update") {
-                const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
-                // Fleet feed by default: with no agent focused, show EVERY
-                // agent's steps (name-prefixed) — agents broadcast real step
-                // updates from canvas chats, training and runs, and the old
-                // activeAgentId-only filter left the terminal permanently
-                // empty ("0 events") because that id is only set by the Run
-                // dialog on this page. Focused view stays for your own run.
-                const watching = activeAgentId === null || agent_id === activeAgentId;
-                if (watching) {
-                    const name = agents.find(a => a.id === agent_id)?.name || String(agent_id || "").slice(0, 8) || "agent";
-                    const stepText = step.thought || step.output || JSON.stringify(step.action);
-                    if (stepText) {
-                        let prefix = "";
-                        if (step.thought) prefix = "Thought: ";
-                        else if (step.action) prefix = "Action: ";
-                        else if (step.output) prefix = "Observation: ";
-
-                        const tag = activeAgentId === null ? `[${name}] ` : "";
-                        appendLog(`${tag}${prefix}${stepText}`);
-                        if (step.final_answer) {
-                            appendLog(`${tag}Final Answer: ${step.final_answer}`);
-                        }
-                    }
-                }
-            } else if (lastMessage.type === "agent_status_change") {
-                const { agent_id, status, error } = lastMessage.data || lastMessage as any;
-                const watching = activeAgentId === null || agent_id === activeAgentId;
-                if (watching) {
-                    const name = agents.find(a => a.id === agent_id)?.name || "agent";
-                    const tag = activeAgentId === null ? `[${name}] ` : "";
-                    appendLog(`${tag}Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`);
-                }
-                // Refresh list to update badges
-                fetchAgents();
-            }
-        }
-    }, [lastMessage, activeAgentId, appendLog, agents]);
-
     // Fetch Agents
-    const fetchAgents = async () => {
+    const fetchAgents = useCallback(async () => {
         const seq = ++agentsFetchSeq.current;
         const token = localStorage.getItem('auth_token');
         if (!token) {
             if (seq !== agentsFetchSeq.current) return;
             setError("Unauthorized: Redirecting to login...");
-            router.push('/login');
+            routerPush('/login');
             return;
         }
 
@@ -212,13 +171,47 @@ const AgentsDashboard = () => {
         } finally {
             if (seq === agentsFetchSeq.current) setIsLoading(false);
         }
-    };
+    }, [routerPush]);
+
+    useEffect(() => {
+        if (lastMessage) {
+            if (lastMessage.type === "agent_step_update") {
+                const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || String(agent_id || "").slice(0, 8) || "agent";
+                    const stepText = step.thought || step.output || JSON.stringify(step.action);
+                    if (stepText) {
+                        let prefix = "";
+                        if (step.thought) prefix = "Thought: ";
+                        else if (step.action) prefix = "Action: ";
+                        else if (step.output) prefix = "Observation: ";
+
+                        const tag = activeAgentId === null ? `[${name}] ` : "";
+                        appendLog(`${tag}${prefix}${stepText}`);
+                        if (step.final_answer) {
+                            appendLog(`${tag}Final Answer: ${step.final_answer}`);
+                        }
+                    }
+                }
+            } else if (lastMessage.type === "agent_status_change") {
+                const { agent_id, status, error } = lastMessage.data || lastMessage as any;
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || "agent";
+                    const tag = activeAgentId === null ? `[${name}] ` : "";
+                    appendLog(`${tag}Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`);
+                }
+                fetchAgents();
+            }
+        }
+    }, [lastMessage, activeAgentId, appendLog, agents, fetchAgents]);
 
     useEffect(() => {
         fetchAgents();
         const interval = setInterval(fetchAgents, 5000); // Poll every 5s
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchAgents]);
 
     // R82: fetch real graduation progress (episode counts) per agent so the
     // card renders live progress instead of the static threshold text. Best
@@ -347,7 +340,7 @@ const AgentsDashboard = () => {
     const [editAgentDescription, setEditAgentDescription] = useState("");
 
     const handleChat = (id: string) => {
-        router.push(`/chat?agent_id=${id}`);
+        routerPush(`/chat?agent_id=${id}`);
     };
 
     const handleEdit = (id: string) => {
@@ -746,7 +739,7 @@ const AgentsDashboard = () => {
                             Agent Reasoning Audit: {agents.find(a => a.id === selectedReasoningId)?.name}
                         </DialogTitle>
                         <DialogDescription>
-                            Review the agent's internal thought process and provide corrections to improve its accuracy.
+                            Review the agent&apos;s internal thought process and provide corrections to improve its accuracy.
                         </DialogDescription>
                     </DialogHeader>
                     {selectedReasoningId && (

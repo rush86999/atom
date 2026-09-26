@@ -3,7 +3,7 @@
  * Complete GitHub repository and project management integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -165,7 +165,7 @@ const GitHubIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -177,10 +177,6 @@ const GitHubIntegration: React.FC = () => {
                 const isConnected = providers?.github?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadRepositories();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -190,10 +186,10 @@ const GitHubIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load GitHub data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/github/profile", {
@@ -213,9 +209,9 @@ const GitHubIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadRepositories = async () => {
+    const loadRepositories = useCallback(async () => {
         setLoading((prev) => ({ ...prev, repositories: true }));
         try {
             const response = await authFetch("/api/integrations/github/repositories", {
@@ -242,9 +238,9 @@ const GitHubIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, repositories: false }));
         }
-    };
+    }, [toast]);
 
-    const loadIssues = async (repoName?: string) => {
+    const loadIssues = useCallback(async (repoName?: string) => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
             const response = await authFetch("/api/integrations/github/issues", {
@@ -267,7 +263,7 @@ const GitHubIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, issues: false }));
         }
-    };
+    }, [selectedRepository]);
 
     const createIssue = async () => {
         if (!newIssue.title || !newIssue.repository) return;
@@ -337,20 +333,20 @@ const GitHubIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
             loadUserProfile();
             loadRepositories();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadRepositories]);
 
     useEffect(() => {
         if (selectedRepository) {
             loadIssues(selectedRepository);
         }
-    }, [selectedRepository]);
+    }, [selectedRepository, loadIssues]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

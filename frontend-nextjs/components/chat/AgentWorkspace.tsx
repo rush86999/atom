@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -138,13 +139,30 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
 }) => {
     const [runs, setRuns] = useState<AgentRun[]>([]);
     const [agentStatus, setAgentStatus] = useState<string>("idle");
-    const [activeAgentId, setActiveAgentId] = useState<string | null>(initialAgentId || null);
+    const [activeAgentSelection, setActiveAgentSelection] = useState({
+        sourceAgentId: initialAgentId || null,
+        agentId: initialAgentId || null,
+    });
+    const setActiveAgentId = useCallback((agentId: string | null) => {
+        setActiveAgentSelection((prev) => ({ ...prev, agentId }));
+    }, []);
+    if ((initialAgentId || null) !== activeAgentSelection.sourceAgentId) {
+        setActiveAgentSelection({
+            sourceAgentId: initialAgentId || null,
+            agentId: initialAgentId || activeAgentSelection.agentId,
+        });
+    }
+    const activeAgentId = activeAgentSelection.agentId;
     // Per-agent learning state pushed by the backend (confidence drips,
     // feedback adjudication, training boosts, promotions) in real time.
     const [maturityByAgent, setMaturityByAgent] = useState<Record<string, MaturityState>>({});
     const [activeTab, setActiveTab] = useState<string>("tasks");
     const [isMaximized, setIsMaximized] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [unreadState, setUnreadState] = useState({ collapsed, count: 0 });
+    if (unreadState.collapsed !== collapsed) {
+        setUnreadState({ collapsed, count: 0 });
+    }
+    const unreadCount = unreadState.collapsed ? unreadState.count : 0;
     const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
     const [commentTarget, setCommentTarget] = useState<{ runId: string; stepNumber: number } | null>(null);
     const [commentText, setCommentText] = useState("");
@@ -156,11 +174,6 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const handleCanvasVisibility = useCallback((visible: boolean) => setCanvasOpen(visible), []);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Update active agent if initial changes (e.g. navigation)
-    useEffect(() => {
-        if (initialAgentId) setActiveAgentId(initialAgentId);
-    }, [initialAgentId]);
-
     // Subscribe to workspace events
     const { lastMessage, isConnected } = useWebSocket({
         initialChannels: ["workspace:default"]
@@ -171,28 +184,31 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     // live events merge into the same run keyed by execution id.
     useEffect(() => {
         let cancelled = false;
-        if (!sessionId || sessionId === "new" || sessionId === "unknown") {
-            setRuns([]);
-            return;
-        }
-        setTraceLoading(true);
-        fetchSessionTrace(sessionId)
-            .then((res) => {
-                if (cancelled) return;
-                const history = res.runs.map(runFromHistory);
-                setRuns((prev) => {
-                    const live = prev.filter(
-                        (r) => !history.some((h) => h.executionId === r.executionId)
-                    );
-                    return [...history, ...live];
+        const loadTrace = () => {
+            if (!sessionId || sessionId === "new" || sessionId === "unknown") {
+                setRuns([]);
+                return;
+            }
+            setTraceLoading(true);
+            fetchSessionTrace(sessionId)
+                .then((res) => {
+                    if (cancelled) return;
+                    const history = res.runs.map(runFromHistory);
+                    setRuns((prev) => {
+                        const live = prev.filter(
+                            (r) => !history.some((h) => h.executionId === r.executionId)
+                        );
+                        return [...history, ...live];
+                    });
+                })
+                .catch(() => {
+                    // history restore is best-effort; live events still work
+                })
+                .finally(() => {
+                    if (!cancelled) setTraceLoading(false);
                 });
-            })
-            .catch(() => {
-                // history restore is best-effort; live events still work
-            })
-            .finally(() => {
-                if (!cancelled) setTraceLoading(false);
-            });
+        };
+        void loadTrace();
         return () => {
             cancelled = true;
         };
@@ -201,6 +217,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     // ── Event ingestion ──────────────────────────────────────────────────
     const processedMessageRef = useRef<any>(null);
     useEffect(() => {
+        const processMessage = () => {
         if (!lastMessage) return;
         // process each message exactly once even when the effect re-runs
         // because of collapsed/callback/session identity changes
@@ -282,7 +299,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 ];
             });
             setAgentStatus("running");
-            if (collapsed) setUnreadCount((n) => n + 1);
+            if (collapsed) setUnreadState((prev) => ({ ...prev, count: prev.count + 1 }));
             if (wireAgentId) setActiveAgentId(wireAgentId);
             onAgentActivity?.(step.step === 1 ? "run_start" : "step");
         } else if (lastMessage.type === "maturity_update") {
@@ -357,12 +374,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 setActiveTab("artifacts");
             }
         }
+        };
+        void processMessage();
     }, [lastMessage, sessionId, collapsed, onAgentActivity, onRunSettled]);
-
-    // Reset unread when the panel is expanded
-    useEffect(() => {
-        if (!collapsed) setUnreadCount(0);
-    }, [collapsed]);
 
     // Auto-scroll to bottom of steps
     useEffect(() => {
@@ -790,7 +804,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                                 </div>
                             )}
                             {pendingProposalCount !== null && pendingProposalCount > 0 && (
-                                <a
+                                <Link
                                     href="/approvals"
                                     data-testid="pending-proposals-chip"
                                     title="This agent has data-trigger proposals held for your review"
@@ -798,7 +812,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                                 >
                                     <AlertTriangle className="h-3 w-3" />
                                     {pendingProposalCount} pending {pendingProposalCount === 1 ? "proposal" : "proposals"} · review
-                                </a>
+                                </Link>
                             )}
                         </CardContent>
                     </Card>
@@ -848,7 +862,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                             )}
                             <div className="space-y-3">
                                 {totalSteps === 0 && !traceLoading ? (
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">No execution steps yet. Send a message to see the agent's reasoning.</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">No execution steps yet. Send a message to see the agent&apos;s reasoning.</p>
                                 ) : (
                                     currentRun?.steps.map((step) => renderStepCard(currentRun, step))
                                 )}

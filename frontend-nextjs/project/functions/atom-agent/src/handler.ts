@@ -54,11 +54,8 @@ export async function handleMessage(
 
 // Global type declarations for PostGraphile context
 declare global {
-  // eslint-disable-next-line no-var
   var __postgraphileContext: { jwtClaims?: { sub?: string } } | undefined;
-  // eslint-disable-next-line no-var
   var __postgraphile: { userId?: string } | undefined;
-  // eslint-disable-next-line no-var
   var postgres: { authenticatedUserId?: string } | undefined;
 }
 

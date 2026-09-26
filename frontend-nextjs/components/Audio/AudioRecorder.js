@@ -23,9 +23,12 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
     // Consume Agent Audio Control Context
     const { latestCommand, clearLastCommand } = (0, AgentAudioControlContext_1.useAgentAudioControl)();
     (0, react_1.useEffect)(() => {
-        if (initialSuggestedTitle && status === 'idle') {
+        if (!initialSuggestedTitle || status !== 'idle')
+            return;
+        const timeoutId = setTimeout(() => {
             setNoteTitle(initialSuggestedTitle);
-        }
+        }, 0);
+        return () => clearTimeout(timeoutId);
     }, [initialSuggestedTitle, status]);
     const formatTime = (timeInSeconds) => {
         const minutes = Math.floor(timeInSeconds / 60).toString().padStart(2, '0');
@@ -65,6 +68,16 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
             cleanupRecordingResources();
         };
     }, [cleanupRecordingResources]);
+    // Abstracted stop recording logic
+    const stopRecordingSession = (0, react_1.useCallback)(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop(); // onstop handler will create blob and set status to 'stopped'
+        }
+        else {
+            console.warn("Stop called but not in recording state or no mediaRecorder.");
+        }
+        // Timer is cleared in onstop or cancel
+    }, []);
     // Abstracted start recording logic to be callable by user action or agent command
     const startRecordingSession = (0, react_1.useCallback)(async (titleFromCommand, eventIdFromCommand) => {
         if (status !== 'idle' && status !== 'error') {
@@ -77,8 +90,7 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
         audioChunksRef.current = [];
         if (titleFromCommand)
             setNoteTitle(titleFromCommand);
-        if (eventIdFromCommand)
-            setCurrentLinkedEventId(eventIdFromCommand);
+        setCurrentLinkedEventId(eventIdFromCommand);
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             const errorMsg = "Microphone access is not supported by your browser.";
             setErrorMessage(errorMsg);
@@ -152,18 +164,7 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
             setStatus('error');
             onRecordingError(errorMsg);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, onRecordingError]); // Removed cleanupRecordingResources from deps as it's stable
-    // Abstracted stop recording logic
-    const stopRecordingSession = (0, react_1.useCallback)(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop(); // onstop handler will create blob and set status to 'stopped'
-        }
-        else {
-            console.warn("Stop called but not in recording state or no mediaRecorder.");
-        }
-        // Timer is cleared in onstop or cancel
-    }, []);
+    }, [status, onRecordingError, cleanupRecordingResources]);
     // Abstracted cancel recording logic
     const cancelRecordingSession = (0, react_1.useCallback)(() => {
         cleanupRecordingResources();
@@ -176,7 +177,9 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
     }, [cleanupRecordingResources, initialSuggestedTitle, initialLinkedEventId]);
     // Effect to handle commands from AgentAudioControlContext
     (0, react_1.useEffect)(() => {
-        if (latestCommand) {
+        if (!latestCommand)
+            return;
+        const timeoutId = setTimeout(() => {
             console.log("AudioRecorder reacting to agent command:", latestCommand);
             const { action, payload } = latestCommand;
             switch (action) {
@@ -184,9 +187,7 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
                     // Optionally, ask user for confirmation before starting via agent.
                     // For now, directly start.
                     if (status === 'idle' || status === 'error') { // Only start if not already doing something
-                        setNoteTitle(payload?.suggestedTitle || initialSuggestedTitle || 'Agent Audio Note');
-                        setCurrentLinkedEventId(payload?.linkedEventId || initialLinkedEventId);
-                        startRecordingSession(payload?.suggestedTitle, payload?.linkedEventId);
+                        startRecordingSession(payload?.suggestedTitle || initialSuggestedTitle || 'Agent Audio Note', payload?.linkedEventId || initialLinkedEventId);
                     }
                     else {
                         console.warn(`Agent commanded START_RECORDING_SESSION but current status is ${status}. Ignoring.`);
@@ -213,8 +214,8 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
                     console.warn("Received unknown agent audio command action:", action);
             }
             clearLastCommand(); // Consume the command
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, 0);
+        return () => clearTimeout(timeoutId);
     }, [latestCommand, clearLastCommand, startRecordingSession, stopRecordingSession, cancelRecordingSession, status, initialSuggestedTitle, initialLinkedEventId]);
     const handleUploadAudio = (0, react_1.useCallback)(async () => {
         if (!audioBlob) { /* ... (rest of the upload logic remains largely the same) ... */
@@ -268,12 +269,14 @@ const AudioRecorder = ({ userId, initialLinkedEventId, initialSuggestedTitle, on
             setStatus('error');
             onRecordingError(errorMsg);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audioBlob, noteTitle, userId, currentLinkedEventId, onRecordingComplete, onRecordingError, initialSuggestedTitle, initialLinkedEventId]);
     (0, react_1.useEffect)(() => {
-        if (status === 'stopped' && audioBlob) {
-            handleUploadAudio();
-        }
+        if (status !== 'stopped' || !audioBlob)
+            return;
+        const timeoutId = setTimeout(() => {
+            void handleUploadAudio();
+        }, 0);
+        return () => clearTimeout(timeoutId);
     }, [status, audioBlob, handleUploadAudio]);
     // --- UI Event Handlers (for manual button clicks) ---
     const handleManualStart = () => {

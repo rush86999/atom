@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import WorkflowBuilder from '@/components/Automations/WorkflowBuilder';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +14,16 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { Node, Edge } from 'reactflow';
+
+const mapStepTypeToNode = (stepType: string): string => {
+    switch (stepType) {
+        case 'agent_execution': return 'agent';
+        case 'llm_process': return 'ai_node';
+        case 'condition': return 'condition';
+        case 'trigger': return 'trigger';
+        default: return 'action';
+    }
+};
 
 export default function WorkflowEditorPage() {
     const router = useRouter();
@@ -43,12 +53,7 @@ export default function WorkflowEditorPage() {
         error?: string | null;
     } | null>(null);
 
-    useEffect(() => {
-        if (!id) return;
-        fetchWorkflow(id as string);
-    }, [id]);
-
-    const fetchWorkflow = async (workflowId: string) => {
+    const fetchWorkflow = useCallback(async (workflowId: string) => {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
@@ -129,18 +134,12 @@ export default function WorkflowEditorPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
 
-    const mapStepTypeToNode = (stepType: string): string => {
-        // Map backend types to frontend node types
-        switch (stepType) {
-            case 'agent_execution': return 'agent';
-            case 'llm_process': return 'ai_node';
-            case 'condition': return 'condition';
-            case 'trigger': return 'trigger';
-            default: return 'action';
-        }
-    };
+    useEffect(() => {
+        if (!id) return;
+        fetchWorkflow(id as string);
+    }, [fetchWorkflow, id]);
 
     const handleSave = async (data: { nodes: Node[], edges: Edge[] }) => {
         try {

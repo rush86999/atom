@@ -42,7 +42,8 @@ jest.mock("@/hooks/useWebSocket", () => ({
   // lastMessage frame to them (like the real hook), and still lets tests
   // drive frames by reassigning wsState + rerendering.
   useWebSocket: () => {
-    const { useEffect, useRef } = require("react");
+    const ReactRuntime = jest.requireActual("react") as typeof import("react");
+    const { useEffect, useRef } = ReactRuntime;
     // STABLE identity (like the real hook's useCallback): a fresh fn per
     // render would re-run the page's registration effect each render, and
     // its cleanup would unsubscribe before this delivery effect ran.

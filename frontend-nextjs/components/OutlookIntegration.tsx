@@ -4,7 +4,7 @@
  * Complete email, calendar, contact, and task management interface
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Mail,
     Clock,
@@ -276,7 +276,7 @@ const OutlookIntegration: React.FC = () => {
         }
     };
 
-    const getAuthHeaders = (extraHeaders: Record<string, string> = {}) => {
+    const getAuthHeaders = useCallback((extraHeaders: Record<string, string> = {}) => {
         const token = typeof window !== "undefined"
             ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
             : null;
@@ -284,13 +284,13 @@ const OutlookIntegration: React.FC = () => {
             ...extraHeaders,
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         };
-    };
+    }, []);
 
     // Check connection status. Uses the real per-integration connection
     // state (DB connections + OAuth grants + env credentials). The legacy
     // /integrations/outlook/health route is a service-liveness probe that
     // returns 200 unconditionally — it must not decide "connected".
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             const headers = getAuthHeaders();
             const response = await fetch("/api/integrations/connection-status", { headers }).catch((): null => null);
@@ -301,9 +301,6 @@ const OutlookIntegration: React.FC = () => {
                 const isConnected = providers?.outlook?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -313,10 +310,10 @@ const OutlookIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, [getAuthHeaders]);
 
     // Load Outlook data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await fetch("/api/integrations/outlook/profile", {
@@ -348,9 +345,9 @@ const OutlookIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, [getAuthHeaders]);
 
-    const loadEmails = async () => {
+    const loadEmails = useCallback(async () => {
         setLoading((prev) => ({ ...prev, emails: true }));
         try {
             const response = await fetch("/api/integrations/outlook/emails", {
@@ -378,9 +375,9 @@ const OutlookIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, emails: false }));
         }
-    };
+    }, [getAuthHeaders, selectedFolder, toast]);
 
-    const loadEvents = async () => {
+    const loadEvents = useCallback(async () => {
         setLoading((prev) => ({ ...prev, events: true }));
         try {
             const response = await fetch("/api/integrations/outlook/events", {
@@ -406,9 +403,9 @@ const OutlookIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, events: false }));
         }
-    };
+    }, [getAuthHeaders]);
 
-    const loadContacts = async () => {
+    const loadContacts = useCallback(async () => {
         setLoading((prev) => ({ ...prev, contacts: true }));
         try {
             const response = await fetch("/api/integrations/outlook/contacts", {
@@ -430,9 +427,9 @@ const OutlookIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, contacts: false }));
         }
-    };
+    }, [getAuthHeaders]);
 
-    const loadTasks = async () => {
+    const loadTasks = useCallback(async () => {
         setLoading((prev) => ({ ...prev, tasks: true }));
         try {
             const response = await fetch("/api/integrations/outlook/tasks", {
@@ -454,7 +451,7 @@ const OutlookIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, tasks: false }));
         }
-    };
+    }, [getAuthHeaders]);
 
     // Send email
     const sendEmail = async () => {
@@ -519,16 +516,17 @@ const OutlookIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
+            loadUserProfile();
             loadEmails();
             loadEvents();
             loadContacts();
             loadTasks();
         }
-    }, [connected, selectedFolder]);
+    }, [connected, selectedFolder, loadUserProfile, loadEmails, loadEvents, loadContacts, loadTasks]);
 
     const getImportanceVariant = (importance: string): "default" | "secondary" | "destructive" | "outline" => {
         switch (importance) {

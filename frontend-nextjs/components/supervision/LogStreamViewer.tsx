@@ -7,24 +7,23 @@
 
 import React, { useEffect, useRef } from 'react';
 
+type LogEntry = {
+  timestamp: string;
+  level: 'info' | 'warning' | 'error';
+  message: string;
+  data?: any;
+};
+
+const EMPTY_LOGS: LogEntry[] = [];
+
 interface Props {
   executionId: string;
-  logs?: Array<{
-    timestamp: string;
-    level: 'info' | 'warning' | 'error';
-    message: string;
-    data?: any;
-  }>;
+  logs?: LogEntry[];
   autoScroll?: boolean;
 }
 
 const LogStreamViewer: React.FC<Props> = ({ executionId, logs: providedLogs, autoScroll = true }) => {
-  const [logs, setLogs] = React.useState<Array<{
-    timestamp: string;
-    level: 'info' | 'warning' | 'error';
-    message: string;
-    data?: any;
-  }>>(providedLogs || []);
+  const logs = providedLogs ?? EMPTY_LOGS;
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new logs arrive
@@ -34,12 +33,6 @@ const LogStreamViewer: React.FC<Props> = ({ executionId, logs: providedLogs, aut
     }
   }, [logs, autoScroll]);
 
-  // Update logs when providedLogs prop changes
-  useEffect(() => {
-    if (providedLogs) {
-      setLogs(providedLogs);
-    }
-  }, [providedLogs]);
 
   const getLevelClass = (level: string) => {
     return `log-entry log-${level}`;
@@ -114,7 +107,6 @@ const LogStreamViewer: React.FC<Props> = ({ executionId, logs: providedLogs, aut
         )}
       </div>
 
-      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .log-stream-viewer {
           background: #1e1e1e;

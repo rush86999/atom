@@ -1,0 +1,38 @@
+{
+ "case_id": "single_edit_reachability_probe",
+ "sample": 1,
+ "session_id": "acc-sedit-1790366822-1",
+ "captured_at": "2026-09-25T16:08:14-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "canvas_context": {
+  "canvas": {
+   "id": "aaaa1111-0000-4000-8000-000000000001"
+  }
+ },
+ "model": "o4-mini",
+ "canvas_edit": {
+  "updated": null,
+  "no_apply": null,
+  "reason": null,
+  "plan_unavailable": null,
+  "background_started": null
+ },
+ "audit_rows": [],
+ "edit_applied_observed": false,
+ "reply": "{\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"All quotes are valid for 15 days only, thank you for understanding.\", \"replace\": \"All quotes are valid for 30 days (OVLAP-A) only, thank you for understanding.\"}], \"reply\": \"Footer validity updated to 30 days.\"}",
+ "execution_mode": "audit-observed",
+ "output_correctness": false,
+ "correct_completion": false,
+ "unsupported_claims": 0,
+ "unsupported_claims_detected_by_ruleset": 0
+}

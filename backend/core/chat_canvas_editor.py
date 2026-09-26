@@ -262,12 +262,20 @@ the authority, NOT your memory of earlier drafts:
 - EXTERNAL FACTS are never a guessing problem either: names, figures,
   prices, dates, and specs must come from the user's message, the canvas
   content, or the FRESH DATA section (when present) — never from memory or
-  plausibility. Live 2026-09-03: with no evidence in the prompt, a price
-  "from the consolidated price list" was typed into a draft as $14,500.00
+  plausibility. Live 2026-09-03: when no evidence is in the prompt, a price
+  from the consolidated price list was typed into a draft as $14,500.00
   (the workbook said $14,145.00). If a value the request needs is in none
   of those sources, do not invent it. If the user permits an explicit
   placeholder, use one and name the missing source in `reply`; if the user
   forbids placeholders, stop and report that the edit was not applied.
+- A structured SOURCE COMPARISON separates verified values, incomparable
+  values, gaps, and proposed actions. Numeric equality alone does not make
+  currency, unit, price basis, or effective date equivalent. A historical or
+  older list is not automatically authoritative, and a newer source is not
+  automatically correct. Never use an incomparable or historical-only value
+  to replace the artifact. Apply only a READY CHANGE explicitly supported by
+  the comparison and the user's edit request; otherwise explain the gap and
+  leave the artifact unchanged.
 - When the request supplies a count or a requested/alternative split, reconcile
   the complete source-backed product set before writing. Do not fill a named
   row with a generic "alternative" label, and do not invent an unnamed row to
@@ -475,6 +483,289 @@ def _table_rows(body: str) -> List[List[str]]:
     ):
         rows = rows[1:]
     return rows
+
+
+def artifact_observations(
+    canvas: Dict[str, Any],
+    *,
+    requested_entities: List[str],
+    requested_fields: List[str],
+    source: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    from core.workbook_read_artifact import (
+        _canonical_field_name,
+        _text_organization,
+        observations_from_text,
+    )
+
+    content = (canvas or {}).get("content")
+    body = _body_from_content(content)
+    source_data = dict(source or {})
+    source_data.setdefault(
+        "source_id",
+        str((canvas or {}).get("canvas_id") or "canvas-artifact"),
+    )
+    source_data.setdefault("source_type", "artifact")
+    source_data.setdefault("version", source_data.get("source_id"))
+    rows: List[Any] = []
+    if isinstance(content, dict) and isinstance(content.get("rows"), list):
+        rows = content["rows"]
+    elif isinstance(content, list):
+        rows = content
+    if not rows:
+        matrix: List[List[str]] = []
+        if "<table" in body.lower():
+            for row_html in re.findall(
+                r"<tr\b[^>]*>(.*?)</tr>", body, re.IGNORECASE | re.DOTALL
+            ):
+                cells = [
+                    _html_text(cell)
+                    for cell in re.findall(
+                        r"<t[dh]\b[^>]*>(.*?)</t[dh]>", row_html,
+                        re.IGNORECASE | re.DOTALL,
+                    )
+                ]
+                if cells:
+                    matrix.append(cells)
+        else:
+            for line in body.splitlines():
+                if "|" not in line:
+                    continue
+                cells = [
+                    _html_text(cell)
+                    for cell in line.strip().strip("|").split("|")
+                ]
+                if cells and not all(
+                    re.fullmatch(r"\s*:?-{3,}:?\s*", cell) for cell in cells
+                ):
+                    matrix.append(cells)
+        rows = matrix
+    if not rows:
+        return observations_from_text(
+            body,
+            requested_entities=requested_entities,
+            requested_fields=requested_fields,
+            source=source_data,
+            verification="verified",
+        )
+    if isinstance(rows[0], dict):
+        field_rows = [
+            {
+                str(key): str(value if value is not None else "")
+                for key, value in row.items()
+            }
+            for row in rows
+            if isinstance(row, dict)
+        ]
+        headers = list(field_rows[0].keys()) if field_rows else []
+        first_data_row = 1
+    else:
+        normalized_rows = [
+            [
+                str(cell if cell is not None else "")
+                for cell in row
+            ]
+            if isinstance(row, (list, tuple))
+            else [str(row if row is not None else "")]
+            for row in rows
+        ]
+        if (
+            len(normalized_rows) == 1
+            and len(requested_fields or []) == 1
+            and len(normalized_rows[0]) >= 2
+        ):
+            headers = ["entity", str(requested_fields[0])]
+            field_rows = [dict(zip(headers, normalized_rows[0]))]
+            first_data_row = 1
+        else:
+            headers = normalized_rows[0] if normalized_rows else []
+            field_rows = [
+                dict(zip(headers, row + [""] * max(0, len(headers) - len(row))))
+                for row in normalized_rows[1:]
+            ]
+            first_data_row = 2
+    identity_fields = {
+        "model", "model_number", "machine", "item", "product", "part",
+        "sku", "code", "id", "name", "description",
+    }
+    value_fields = {
+        "price", "cost", "amount", "rate", "value", "currency", "basis",
+        "quantity", "weight", "lead_time", "delivery",
+    }
+    identity_headers = [
+        header for header in headers
+        if _canonical_field_name(header) in identity_fields
+    ]
+    search_headers = identity_headers or [
+        header for header in headers
+        if _canonical_field_name(header) not in value_fields
+    ]
+    observations: List[Dict[str, Any]] = []
+    for entity in requested_entities or []:
+        entity_text = str(entity or "").strip()
+        if not entity_text:
+            continue
+        matching_rows: List[Tuple[int, Dict[str, Any], str, int]] = []
+        for row_number, row in enumerate(field_rows, start=first_data_row):
+            for header in search_headers:
+                text = str(row.get(header) or "").strip()
+                match = re.search(
+                    rf"(?<![A-Za-z0-9_-]){re.escape(entity_text)}"
+                    rf"(?![A-Za-z0-9_-])",
+                    text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    matching_rows.append((row_number, row, str(header), match.start()))
+                    break
+        for row_number, row, identity_header, match_start in matching_rows:
+            entity_attributes: Dict[str, str] = {}
+            for header in headers:
+                canonical_header = _canonical_field_name(header)
+                if canonical_header not in {
+                    "organization", "manufacturer", "vendor", "supplier",
+                }:
+                    continue
+                value = str(row.get(header) or "").strip()
+                if value:
+                    entity_attributes["organization"] = value
+            if not entity_attributes:
+                organization = _text_organization(
+                    str(row.get(identity_header) or "")[:match_start]
+                )
+                if organization:
+                    entity_attributes["organization"] = organization
+            for requested_field in requested_fields or []:
+                field = _canonical_field_name(requested_field)
+                matching_headers = [
+                    header
+                    for header in headers
+                    if _canonical_field_name(header) == field
+                    or field in re.sub(
+                        r"[^a-z0-9]+", " ", str(header).casefold()
+                    )
+                ]
+                for header in matching_headers:
+                    raw_value = str(
+                        row.get(header)
+                        if row.get(header) is not None
+                        else ""
+                    ).strip()
+                    synthetic = f"{entity_text}: {raw_value}\n{body}"
+                    verification = (
+                        "ambiguous"
+                        if len(matching_headers) > 1
+                        else "field_missing"
+                        if not raw_value or raw_value.casefold() in {"tbd", "n/a"}
+                        else "verified"
+                    )
+                    extracted = observations_from_text(
+                        synthetic,
+                        requested_entities=[entity_text],
+                        requested_fields=[requested_field],
+                        source=source_data,
+                        verification=verification,
+                    )
+                    for observation in extracted[:1]:
+                        observation["field_meaning"] = str(header)
+                        observation["entity_attributes"] = dict(
+                            entity_attributes
+                        )
+                        observation["observation_id"] = (
+                            f"{source_data['source_id']}:"
+                            f"{source_data.get('version') or 'current'}:"
+                            f"{row_number}:{entity_text}:{field}:{header}"
+                        )
+                        observation["locator"] = {
+                            "row": row_number,
+                            "column": str(header),
+                            "source_id": source_data["source_id"],
+                        }
+                        observations.append(observation)
+    return observations
+
+
+def build_canvas_evidence_comparison(
+    canvas: Dict[str, Any],
+    workbook_read: Dict[str, Any],
+    *,
+    source_observations: Optional[List[Dict[str, Any]]] = None,
+    decision_source_ids: Optional[List[str]] = None,
+    authorized_actions: Optional[List[str]] = None,
+    objective_text: str = "",
+) -> Dict[str, Any]:
+    from core.workbook_read_artifact import (
+        build_source_comparison,
+        designated_source_ids,
+        workbook_artifact_observations,
+    )
+
+    coverage = (workbook_read or {}).get("coverage") or {}
+    requested_entities = [
+        str(outcome.get("target") or "")
+        for outcome in coverage.get("outcomes") or []
+        if isinstance(outcome, dict) and outcome.get("target")
+    ]
+    if not requested_entities:
+        requested_entities = list(dict.fromkeys(
+            str(observation.get("entity_id") or "")
+            for observation in source_observations or []
+            if isinstance(observation, dict)
+            and str(observation.get("entity_id") or "").strip()
+        ))
+    requested_fields: List[str] = []
+    for outcome in coverage.get("outcomes") or []:
+        if not isinstance(outcome, dict):
+            continue
+        selections = [outcome.get("field_selection")]
+        selections.extend(
+            evidence.get("field_selection")
+            for evidence in outcome.get("evidence") or []
+            if isinstance(evidence, dict)
+        )
+        for selection in selections:
+            if not isinstance(selection, dict):
+                continue
+            for field in selection.get("requested_fields") or []:
+                if field not in requested_fields:
+                    requested_fields.append(str(field))
+    for observation in source_observations or []:
+        field = str((observation or {}).get("field") or "")
+        if field and field not in requested_fields:
+            requested_fields.append(field)
+    if not requested_fields:
+        requested_fields = ["price"]
+    canvas_source_id = str((canvas or {}).get("canvas_id") or "canvas-artifact")
+    draft_observations = artifact_observations(
+        canvas,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        source={
+            "source_id": canvas_source_id,
+            "source_type": "artifact",
+            "version": canvas_source_id,
+        },
+    )
+    observations = workbook_artifact_observations(workbook_read)
+    observations.extend(draft_observations)
+    observations.extend(
+        observation
+        for observation in source_observations or []
+        if isinstance(observation, dict)
+    )
+    decision_ids = list(
+        decision_source_ids
+        if decision_source_ids is not None
+        else designated_source_ids(objective_text, source_observations or [])
+    )
+    return build_source_comparison(
+        observations,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        artifact_source_ids=[canvas_source_id],
+        decision_source_ids=decision_ids,
+        authorized_actions=authorized_actions or [],
+    )
 
 
 def _footer_start(body: str, after: int = 0) -> Optional[int]:
@@ -1188,6 +1479,7 @@ class FreshDataResult(NamedTuple):
     # must not tell the user a lookup "failed" when none executed — that
     # false report is the live incident's second defect.
     declined_irrelevant: bool = False
+    evidence_contract: Optional[Dict[str, Any]] = None
 
 
 async def fetch_fresh_data_section(
@@ -1201,6 +1493,8 @@ async def fetch_fresh_data_section(
     plan_task: Optional[Any] = None,
     existing_block: Optional[str] = None,
     allow_canvas_target: bool = True,
+    existing_evidence_contract: Optional[Dict[str, Any]] = None,
+    authorized_actions: Optional[List[str]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -1252,6 +1546,11 @@ async def fetch_fresh_data_section(
                 needed=True,
                 ok=True,
                 block=existing_block,
+                evidence_contract=(
+                    dict(existing_evidence_contract)
+                    if isinstance(existing_evidence_contract, dict)
+                    else None
+                ),
             )
 
         async def _resolve_plan() -> Any:
@@ -1452,6 +1751,31 @@ async def fetch_fresh_data_section(
                     }} if canvas else {}),
                 },
             )
+            result_meta = getattr(plan, "_result_meta", None) or {}
+            workbook_read = (
+                (result_meta.get("storage_read") or {}).get("workbook_read")
+                or {}
+            )
+            source_observations = list(
+                result_meta.get("source_observations") or []
+            )
+            if (workbook_read or source_observations) and canvas:
+                from core.workbook_read_artifact import render_source_comparison
+
+                comparison = build_canvas_evidence_comparison(
+                    canvas,
+                    workbook_read,
+                    source_observations=source_observations,
+                    authorized_actions=list(authorized_actions or []),
+                    objective_text=message,
+                )
+                result_meta["objective_evidence"] = comparison
+                comparison_text = render_source_comparison(comparison)
+                if comparison_text:
+                    block = (
+                        f"{block}\n\n{comparison_text}"
+                        if block else comparison_text
+                    )
             observation = (block or "lookup returned nothing usable")[:4000]
             if block and len(block) > 4000:
                 # Trace display only — the model-facing section below gets
@@ -1488,9 +1812,17 @@ async def fetch_fresh_data_section(
         needed, section, raw_block = await asyncio.wait_for(
             _lookup(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
         )
-        return FreshDataResult(section=section, needed=needed,
-                               ok=bool(section) or not needed,
-                               block=raw_block)
+        return FreshDataResult(
+            section=section,
+            needed=needed,
+            ok=bool(section) or not needed,
+            block=raw_block,
+            evidence_contract=(
+                (getattr(plan, "_result_meta", None) or {}).get(
+                    "objective_evidence"
+                )
+            ),
+        )
     except asyncio.TimeoutError:
         logger.info(
             "canvas edit fresh-data lookup timed out — reporting failed "
@@ -2116,6 +2448,68 @@ async def _new_dead_links(current: Any, new_content: Any) -> List[str]:
         return []
 
 
+def _evidence_action_applied(
+    content: Any,
+    action: Dict[str, Any],
+) -> bool:
+    from core.workbook_read_artifact import (
+        _comparison_number,
+        _comparison_verified,
+        _price_field_meaning,
+    )
+
+    entity = str(action.get("entity_id") or "")
+    field = str(action.get("field") or "")
+    expected_data = action.get("expected")
+    if not isinstance(expected_data, dict):
+        return False
+    expected = str(expected_data.get("raw_value") or "")
+    if not entity or not field or not expected:
+        return False
+    observations = artifact_observations(
+        {"canvas_id": "postcondition", "content": content},
+        requested_entities=[entity],
+        requested_fields=[field],
+        source={"source_id": "postcondition", "source_type": "artifact"},
+    )
+    if len(observations) != 1:
+        return False
+    matches = []
+    for observation in observations:
+        if not _comparison_verified(observation):
+            continue
+        actual = str(observation.get("raw_value") or "")
+        if not actual:
+            continue
+        if any(
+            expected_data.get(key) is not None
+            and observation.get(key) != expected_data.get(key)
+            for key in ("currency", "unit", "basis")
+        ):
+            continue
+        expected_meaning = str(
+            expected_data.get("destination_field_meaning")
+            or expected_data.get("field_meaning")
+            or "unspecified"
+        )
+        actual_meaning = _price_field_meaning(observation)
+        if actual_meaning != expected_meaning:
+            continue
+        expected_attributes = expected_data.get("entity_attributes") or {}
+        if expected_attributes and (
+            observation.get("entity_attributes") or {}
+        ) != expected_attributes:
+            continue
+        actual_number = _comparison_number(actual)
+        expected_number = _comparison_number(expected)
+        if actual_number is not None and expected_number is not None:
+            if actual_number == expected_number:
+                matches.append(observation)
+        elif actual.casefold() == expected.casefold():
+            matches.append(observation)
+    return len(matches) == 1
+
+
 async def apply_canvas_edit(
     plan: CanvasEditPlan,
     user_id: str,
@@ -2127,6 +2521,8 @@ async def apply_canvas_edit(
     history: Optional[List[Dict[str, Any]]] = None,
     preserve_footer: bool = False,
     pending_review: bool = False,
+    evidence_contract: Optional[Dict[str, Any]] = None,
+    require_evidence_postconditions: bool = False,
 ):
     """Persist the planned edit through the general canvas CRUD layer
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
@@ -2149,6 +2545,19 @@ async def apply_canvas_edit(
     if not plan or not plan.wants_edit:
         return _out(None, "not_an_edit")
 
+    ready_actions = [
+        action
+        for action in (evidence_contract or {}).get("actions") or []
+        if isinstance(action, dict)
+        and str(action.get("action_type") or "") in {
+            "edit_artifact", "update_artifact",
+        }
+        and action.get("status") == "ready"
+        and action.get("authorized") is True
+    ]
+    if (evidence_contract or require_evidence_postconditions) and not ready_actions:
+        return _out(None, "no_ready_evidence_change")
+
     current = canvas.get("content")
     canvas_id = str(canvas.get("canvas_id"))
     canvas_type = str(canvas.get("canvas_type") or "generic")
@@ -2168,6 +2577,8 @@ async def apply_canvas_edit(
         (plan.edit_mode or "").strip().lower() == "restore"
         or (plan.restore_audit_id or "").strip()
     ):
+        if evidence_contract:
+            return _out(None, "evidence_contract_forbids_restore")
         audit_id = (plan.restore_audit_id or "").strip()
         if not audit_id:
             return _out(None, "restore_missing_version")
@@ -2221,6 +2632,21 @@ async def apply_canvas_edit(
     if scope_reason:
         return _out(None, scope_reason)
 
+    missing_ready_actions = [
+        action
+        for action in ready_actions
+        if not _evidence_action_applied(new_content, action)
+    ]
+    if missing_ready_actions:
+        return _out(
+            None,
+            "postcondition_missing:"
+            + ",".join(
+                str(action.get("entity_id") or "unknown")
+                for action in missing_ready_actions[:4]
+            ),
+        )
+
     # No-op guard: a plan whose result equals the current content writes
     # nothing and reports honestly. Live incident (2026-09-02, canvas
     # da27bb76…): four identical rewrites in a row — "mark is the dealer and
@@ -2242,6 +2668,22 @@ async def apply_canvas_edit(
         )
         return _out(None, f"dead_link: {dead_links[0]}")
 
+    evidence_refs = list(dict.fromkeys(
+        evidence_id
+        for action in ready_actions
+        for evidence_id in action.get("evidence_ids") or []
+        if evidence_id
+    ))
+    postconditions = [
+        {
+            "entity_id": action.get("entity_id"),
+            "field": action.get("field"),
+            "expected_value": action.get("proposed_value"),
+            "expected": action.get("expected") or {},
+            "evidence_ids": action.get("evidence_ids") or [],
+        }
+        for action in ready_actions
+    ]
     try:
         from tools.canvas_crud_tool import update_canvas_content
 
@@ -2250,6 +2692,8 @@ async def apply_canvas_edit(
             operation_id=operation_id,
             expected_prior_audit_id=expected_prior_audit_id,
             pending_review=pending_review,
+            evidence_refs=evidence_refs,
+            postconditions=postconditions,
         )
     except Exception as e:
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
@@ -2263,6 +2707,34 @@ async def apply_canvas_edit(
             return _out(None, "conflict: canvas changed during the edit")
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
         return _out(None, f"store_rejected: {(result or {}).get('error')}")
+    if isinstance(evidence_contract, dict):
+        try:
+            from tools.canvas_crud_tool import read_canvas
+
+            readback = await read_canvas(user_id, canvas_id)
+            readback_content = (readback or {}).get("content")
+            missing_after_write = [
+                action
+                for action in ready_actions
+                if not _evidence_action_applied(readback_content, action)
+            ]
+            result["postcondition_verified"] = bool(
+                (readback or {}).get("success") and not missing_after_write
+            )
+            result["postcondition_evidence_refs"] = evidence_refs
+            if missing_after_write:
+                result["postcondition_error"] = (
+                    "written content did not satisfy every ready evidence action"
+                )
+        except Exception as verify_error:
+            result["postcondition_verified"] = False
+            result["postcondition_error"] = (
+                f"postcondition readback unavailable: {str(verify_error)[:160]}"
+            )
+        if result.get("postcondition_verified") is False:
+            result["success"] = False
+            result["write_recorded"] = True
+            return _out(result, "postcondition_readback_failed")
     return _out(result, None)
 
 

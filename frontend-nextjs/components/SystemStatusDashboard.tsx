@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ const SystemStatusDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const fetchSystemData = async () => {
+  const fetchSystemData = useCallback(async () => {
     try {
       setRefreshing(true);
 
@@ -81,7 +81,7 @@ const SystemStatusDashboard: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchSystemData();
@@ -89,7 +89,7 @@ const SystemStatusDashboard: React.FC = () => {
     // Refresh every 30 seconds
     const interval = setInterval(fetchSystemData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchSystemData]);
 
   const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {

@@ -3,7 +3,7 @@
 // Improved WebSocket client with error handling and reconnection
 //
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface WebSocketState {
@@ -24,6 +24,65 @@ interface UseWhatsAppWebSocketOptions {
   debugMode?: boolean;
 }
 
+type WebSocketSnapshot = {
+  state: WebSocketState;
+  websocket: WebSocket | null;
+};
+
+type WebSocketConnectionStore = {
+  snapshot: WebSocketSnapshot;
+  listeners: Set<() => void>;
+};
+
+const SERVER_WEBSOCKET_SNAPSHOT: WebSocketSnapshot = {
+  state: {
+    isConnected: false,
+    isConnecting: false,
+    error: null,
+    lastMessage: null,
+    connectionAttempts: 0,
+    reconnectCount: 0,
+  },
+  websocket: null,
+};
+
+function createWebSocketConnectionStore(autoConnect: boolean): WebSocketConnectionStore {
+  return {
+    snapshot: {
+      state: {
+        ...SERVER_WEBSOCKET_SNAPSHOT.state,
+        isConnecting: autoConnect,
+      },
+      websocket: null,
+    },
+    listeners: new Set(),
+  };
+}
+
+function subscribeWebSocketStore(
+  store: WebSocketConnectionStore,
+  onStoreChange: () => void
+) {
+  store.listeners.add(onStoreChange);
+  return () => store.listeners.delete(onStoreChange);
+}
+
+function getWebSocketSnapshot(store: WebSocketConnectionStore) {
+  return store.snapshot;
+}
+
+function getServerWebSocketSnapshot() {
+  return SERVER_WEBSOCKET_SNAPSHOT;
+}
+
+function updateWebSocketStore(
+  store: WebSocketConnectionStore,
+  update: (snapshot: WebSocketSnapshot) => WebSocketSnapshot
+) {
+  store.snapshot = update(store.snapshot);
+  store.listeners.forEach((listener) => listener());
+}
+
 export const useWhatsAppWebSocketEnhanced = (
   options: UseWhatsAppWebSocketOptions = {},
 ) => {
@@ -36,19 +95,25 @@ export const useWhatsAppWebSocketEnhanced = (
     debugMode = false,
   } = options;
 
-  const [state, setState] = useState<WebSocketState>({
-    isConnected: false,
-    isConnecting: false,
-    error: null,
-    lastMessage: null,
-    connectionAttempts: 0,
-    reconnectCount: 0,
-  });
+  const [connectionStore] = useState(() => createWebSocketConnectionStore(autoConnect));
+  const { state, websocket } = useSyncExternalStore(
+    useCallback(
+      (onStoreChange: () => void) => subscribeWebSocketStore(connectionStore, onStoreChange),
+      [connectionStore]
+    ),
+    useCallback(
+      () => getWebSocketSnapshot(connectionStore),
+      [connectionStore]
+    ),
+    getServerWebSocketSnapshot
+  );
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { toast } = useToast();
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectCountRef = useRef(0);
+    const connectRef = useRef<() => void>(() => {});
+    const { toast } = useToast();
 
   // Debug logging
   const debugLog = useCallback(
@@ -75,13 +140,25 @@ export const useWhatsAppWebSocketEnhanced = (
   // Set WebSocket state - accepts both partial object and function updater
   const setWebSocketState = useCallback(
     (updates: Partial<WebSocketState> | ((prev: WebSocketState) => Partial<WebSocketState>)) => {
-      setState((prev) => {
-        const newUpdates = typeof updates === 'function' ? updates(prev) : updates;
-        return { ...prev, ...newUpdates };
+      updateWebSocketStore(connectionStore, (snapshot) => {
+        const newUpdates = typeof updates === 'function'
+          ? updates(snapshot.state)
+          : updates;
+        return {
+          ...snapshot,
+          state: { ...snapshot.state, ...newUpdates },
+        };
       });
     },
-    [],
+    [connectionStore],
   );
+
+  const setWebSocket = useCallback((nextWebSocket: WebSocket | null) => {
+    updateWebSocketStore(connectionStore, (snapshot) => ({
+      ...snapshot,
+      websocket: nextWebSocket,
+    }));
+  }, [connectionStore]);
 
   // Send ping message
   const sendPing = useCallback(() => {
@@ -208,17 +285,19 @@ export const useWhatsAppWebSocketEnhanced = (
       }));
 
       // Auto-reconnect logic
-      if (event.code !== 1000 && state.reconnectCount < reconnectAttempts) {
+      const reconnectCount = reconnectCountRef.current;
+      if (event.code !== 1000 && reconnectCount < reconnectAttempts) {
         debugLog("Attempting to reconnect", {
-          attempt: state.reconnectCount + 1,
+          attempt: reconnectCount + 1,
           maxAttempts: reconnectAttempts,
         });
 
         reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectCountRef.current += 1;
           setWebSocketState((prev) => ({
             reconnectCount: prev.reconnectCount + 1,
           }));
-          connect();
+          connectRef.current();
         }, reconnectDelay);
       } else {
         toast({
@@ -234,7 +313,6 @@ export const useWhatsAppWebSocketEnhanced = (
       debugLog,
       reconnectAttempts,
       reconnectDelay,
-      state.reconnectCount,
       setWebSocketState,
       toast,
     ],
@@ -261,6 +339,7 @@ export const useWhatsAppWebSocketEnhanced = (
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
+      setWebSocket(ws);
 
       ws.onopen = handleOpen;
       ws.onmessage = handleMessage;
@@ -279,19 +358,26 @@ export const useWhatsAppWebSocketEnhanced = (
     handleMessage,
     handleError,
     handleClose,
+    setWebSocket,
     debugLog,
     setWebSocketState,
   ]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
     debugLog("Manually disconnecting");
     clearTimeouts();
+    reconnectCountRef.current = 0;
 
     if (wsRef.current) {
       wsRef.current.close(1000, "Manual disconnect");
       wsRef.current = null;
     }
+    setWebSocket(null);
 
     setWebSocketState({
       isConnected: false,
@@ -299,7 +385,7 @@ export const useWhatsAppWebSocketEnhanced = (
       error: null,
       reconnectCount: 0,
     });
-  }, [clearTimeouts, debugLog, setWebSocketState]);
+  }, [clearTimeouts, debugLog, setWebSocket, setWebSocketState]);
 
   // Send message through WebSocket
   const sendMessage = useCallback(
@@ -380,7 +466,7 @@ export const useWhatsAppWebSocketEnhanced = (
         wsRef.current = null;
       }
     };
-  }, [autoConnect]); // Only run once on mount
+  }, [autoConnect, clearTimeouts, connect, debugLog]);
 
   return {
     // Connection state
@@ -406,7 +492,7 @@ export const useWhatsAppWebSocketEnhanced = (
     subscribeToEvents,
 
     // Raw WebSocket reference
-    websocket: wsRef.current,
+    websocket,
 
     // Debug info
     debugMode,

@@ -64,7 +64,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, []);
 
-    const loadSessionHistory = async (sid: string) => {
+    const loadSessionHistory = useCallback(async (sid: string) => {
         try {
             setIsProcessing(true);
             setStatusMessage("Loading history...");
@@ -177,7 +177,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         } finally {
             setIsProcessing(false);
         }
-    };
+    }, [onSessionCreated, toast]);
 
     const handleTitleSave = async () => {
         if (!sessionId || !tempTitle.trim()) {
@@ -633,7 +633,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 return () => { cancelled = true; };
             }
         }
-    }, [sessionId, initialAgentId]);
+    }, [sessionId, initialAgentId, loadSessionHistory]);
 
     useEffect(() => {
         scrollToBottom();
@@ -755,7 +755,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         if (msg.type === "streaming:start") {
             setCurrentStreamId(msg.id);
         }
-    }, [lastMessage, currentStreamId, sessionId]);
+    }, [lastMessage, currentStreamId, sessionId, loadSessionHistory, toast]);
 
     return {
         input,

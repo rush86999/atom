@@ -1,0 +1,150 @@
+{
+ "case_id": "original_incident_workbook_true_eight",
+ "sample": 1,
+ "session_id": "acc-true8-1790353692-1",
+ "captured_at": "2026-09-25T12:28:15-0400",
+ "path": "old",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "worktree_verified": true,
+  "db_sha256": "4a048fba26fde0c027145f3adab8e47593ef0a1aad98d55935bef47b89ad2920",
+  "fixtures_verified": true
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "0 (HTTP-only harness)",
+  "server_env": "whitelist, credential-free",
+  "outbound": "sink proxy enforced",
+  "proxy_block_attempts_total": 0
+ },
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 38",
+   "success": true,
+   "latency_s": 3.63,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 3.63,
+ "progress_event_latency_s": null,
+ "first_validated_answer_text_s": null,
+ "deterministic_delivery": true,
+ "per_target": {
+  "U-22": {
+   "expected": "found",
+   "got": "found",
+   "label": "U-22",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "C26",
+    "value": 1777.0,
+    "basis": "List Price"
+   },
+   "cell_provenance_ok": true,
+   "row": {
+    "target": "U-22",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "SLE24-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "SLE24-16",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "E101",
+    "value": 8880.0,
+    "basis": "PRICE"
+   },
+   "cell_provenance_ok": true,
+   "row": {
+    "target": "SLE24-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK 1624": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK 1624",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "D101",
+    "value": 8040.0,
+    "basis": "Price"
+   },
+   "cell_provenance_ok": null,
+   "row": {
+    "target": "TK 1624",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "TK Manual Flanger": {
+   "expected": "found",
+   "got": "found",
+   "label": "TK Manual Flanger",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "D42",
+    "value": 1609.0,
+    "basis": "Price"
+   },
+   "cell_provenance_ok": null,
+   "row": {
+    "target": "TK Manual Flanger",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "GSL48-16": {
+   "expected": "found",
+   "got": "found",
+   "label": "GSL48-16",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "E106",
+    "value": 14166.0,
+    "basis": "PRICE"
+   },
+   "cell_provenance_ok": true,
+   "row": {
+    "target": "GSL48-16",
+    "status": "FOUND"
+   },
+   "pass": true
+  },
+  "No. 381": {
+   "expected": "ambiguous",
+   "got": "missing_row",
+   "pass": false,
+   "detail": "no exact normalized label match"
+  },
+  "No. 622": {
+   "expected": "ambiguous",
+   "got": "missing_row",
+   "pass": false,
+   "detail": "no exact normalized label match"
+  },
+  "TK Multi Wheel Gang Slitter": {
+   "expected": "ambiguous_candidate",
+   "got": "ambiguous",
+   "label": "TK Multi Wheel Gang Slitter",
+   "price_bound_to": {
+    "sheet": "",
+    "cell": "D100",
+    "value": 12838.0,
+    "basis": "Price"
+   },
+   "cell_provenance_ok": null,
+   "row": {
+    "target": "TK Multi Wheel Gang Slitter",
+    "status": "AMBIGUOUS"
+   },
+   "pass": true
+  }
+ },
+ "correct_completion": false,
+ "unsupported_claims": 1,
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecifi"
+}

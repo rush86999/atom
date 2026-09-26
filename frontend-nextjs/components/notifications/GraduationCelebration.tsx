@@ -26,34 +26,43 @@ interface CelebrationItem {
     metadata?: Record<string, unknown>;
 }
 
+async function fetchCelebrationItems(): Promise<CelebrationItem[] | null> {
+    try {
+        const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
+        const res = await fetch(
+            `${API_BASE}/api/notifications?unread_only=true&type=agent_graduated&limit=5`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        const data = json?.data ?? json;
+        const notifs = Array.isArray(data?.notifications) ? data.notifications : [];
+        return notifs.filter((n: any) => !n.read);
+    } catch {
+        return null;
+    }
+}
+
 export const GraduationCelebration: React.FC = () => {
     const [items, setItems] = useState<CelebrationItem[]>([]);
 
-    const poll = useCallback(async () => {
-        try {
-            const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("auth_token")) : null;
-            const res = await fetch(
-                `${API_BASE}/api/notifications?unread_only=true&type=agent_graduated&limit=5`,
-                { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-            );
-            if (!res.ok) return;
-            const json = await res.json();
-            const data = json?.data ?? json;
-            const notifs = Array.isArray(data?.notifications) ? data.notifications : [];
-            // Only surface agent_graduated that the user hasn't seen yet.
-            setItems(notifs.filter((n: any) => !n.read));
-        } catch {
-            // Silent — celebration is non-critical.
-        }
-    }, []);
-
     useEffect(() => {
-        poll();
+        let cancelled = false;
+        void fetchCelebrationItems().then(nextItems => {
+            if (!cancelled && nextItems) setItems(nextItems);
+        });
         // Re-check every 60s so a graduation triggered in another tab surfaces
         // without a manual reload. Cheap endpoint (capped at 5 rows).
-        const id = window.setInterval(poll, 60_000);
-        return () => window.clearInterval(id);
-    }, [poll]);
+        const id = window.setInterval(() => {
+            void fetchCelebrationItems().then(nextItems => {
+                if (!cancelled && nextItems) setItems(nextItems);
+            });
+        }, 60_000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(id);
+        };
+    }, []);
 
     const dismiss = useCallback(async (id: string) => {
         setItems(prev => prev.filter(n => n.id !== id));

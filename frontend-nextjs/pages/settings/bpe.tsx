@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
 
 /**
@@ -20,7 +21,7 @@ const BpeRedirectPage = () => {
   return (
     <div style={{ padding: "3rem", textAlign: "center" }}>
       <p>
-        The BPE Workspace page moved to <a href="/admin/bpe">/admin/bpe</a>…
+        The BPE Workspace page moved to <Link href="/admin/bpe">/admin/bpe</Link>…
       </p>
     </div>
   );

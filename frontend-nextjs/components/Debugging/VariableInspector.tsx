@@ -4,7 +4,7 @@
  * Inspects and displays variable values at different execution points.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,13 +47,7 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showChangedOnly, setShowChangedOnly] = useState(false);
 
-  useEffect(() => {
-    if (sessionId) {
-      fetchVariables();
-    }
-  }, [sessionId, traceId]);
-
-  const fetchVariables = async () => {
+  const fetchVariables = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -73,7 +67,13 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, traceId]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchVariables();
+    }
+  }, [sessionId, traceId, fetchVariables]);
 
   const filteredVariables = variables.filter((v) => {
     const matchesSearch =

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -94,7 +94,7 @@ const OneDriveIntegration: React.FC = () => {
 
   // Durable badge source of truth: which listed files are already in ATOM
   // memory (POST /ingested-ids probes the document store).
-  const hydrateIngestedIds = async (listed: OneDriveFile[]) => {
+  const hydrateIngestedIds = useCallback(async (listed: OneDriveFile[]) => {
     const fileIds = (listed || []).filter((f) => !f.is_folder).map((f) => f.id);
     if (fileIds.length === 0) return;
     try {
@@ -112,7 +112,7 @@ const OneDriveIntegration: React.FC = () => {
     } catch {
       // badges are best-effort
     }
-  };
+  }, []);
 
   const fetchConnectionStatus = async () => {
     try {
@@ -134,7 +134,7 @@ const OneDriveIntegration: React.FC = () => {
     }
   };
 
-  const fetchFiles = async (
+  const fetchFiles = useCallback(async (
     folderId?: string,
     pageToken?: string,
     isLoadMore = false,
@@ -182,7 +182,7 @@ const OneDriveIntegration: React.FC = () => {
     } finally {
       setIsLoadingFiles(false);
     }
-  };
+  }, [connectionStatus?.is_connected, hydrateIngestedIds]);
 
   const handleFileClick = (file: OneDriveFile) => {
     if (file.is_folder) {
@@ -397,7 +397,7 @@ const OneDriveIntegration: React.FC = () => {
     if (connectionStatus?.is_connected) {
       fetchFiles(currentFolderId);
     }
-  }, [connectionStatus?.is_connected, currentFolderId]);
+  }, [connectionStatus?.is_connected, currentFolderId, fetchFiles]);
 
   if (isLoading) {
     return (

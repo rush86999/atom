@@ -77,7 +77,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                 </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
-                Try: "Schedule standup tomorrow at 10am" or say "Atom" to activate
+                Try: &quot;Schedule standup tomorrow at 10am&quot; or say &quot;Atom&quot; to activate
             </p>
         </div>
     );
