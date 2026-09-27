@@ -200,17 +200,31 @@ def bounded_query_variants(
 
     step = max(1, max_chars - (overlap if overlap is not None
                                else max(24, max_chars // 5)))
+    # Window edges snap to a token boundary. Slicing at an arbitrary offset cut
+    # "invoice 4417" into "nvoice 4417", which is still a dropped constraint in
+    # substance — a provider asked for the fragment may not match the whole
+    # token — while `query_coverage` reported the run complete because the
+    # surviving fragment "4417" matched. The coverage check could not see it.
     windows: List[str] = []
     start = 0
     while start < len(text) and len(windows) < max_variants:
-        windows.append(text[start: start + max_chars])
-        if start + max_chars >= len(text):
+        end = min(start + max_chars, len(text))
+        if end < len(text):
+            boundary = text.find(" ", start + max_chars // 2, end)
+            if boundary != -1:
+                end = boundary
+        piece = text[start:end].strip()
+        if piece and piece not in windows:
+            windows.append(piece)
+        if end >= len(text):
             break
-        start += step
+        nxt = text.find(" ", end)
+        start = (nxt + 1) if nxt != -1 else end
+        if start >= len(text):
+            break
 
-    covered_to = start + max_chars if windows else 0
-    if covered_to < len(text) and windows:
-        windows[-1] = text[max(0, len(text) - max_chars):]
+    if windows and windows[-1] != text[-max_chars:].strip():
+        windows[-1] = text[-max_chars:].strip()
 
     seen: set = set()
     variants: List[str] = []
@@ -219,9 +233,13 @@ def bounded_query_variants(
             seen.add(candidate)
             variants.append(candidate)
 
-    head_ids = {t.lower() for t in exact_identifiers(variants[0])}
+    # Windows guarantee COVERAGE. A bare identifier variant adds PRECISION for
+    # providers that score the whole string against a document, so it is worth
+    # the remaining budget — but it is a bonus, never the mechanism that makes
+    # the search complete, and it must not push a window out.
+    covered = {t.lower() for v in variants for t in exact_identifiers(v)}
     for token in exact_identifiers(text):
-        if token in variants or token.lower() in head_ids:
+        if token.lower() in covered or token in variants:
             continue
         if len(variants) >= max_variants:
             break

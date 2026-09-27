@@ -1,0 +1,162 @@
+{
+  "world": "preview_v1",
+  "frontend": "http://localhost:3101",
+  "backend_port": 8051,
+  "steps": {
+    "M02": {
+      "expect": "eight ordered entries, honest ambiguity, readable evidence",
+      "visible_text_tail": "\n0 messages\n\ntry the search again and give me a clean response\n9/26/2026\n\n0 messages\n\nUntitled Chat\n9/26/2026\n\n0 messages\n\ntry the search again and give me a clean response\n9/26/2026\n\n0 messages\n\nfind the prices of these 8 machines in Consolidated Price Li\n9/25/2026\n\n0 messages\n\ntry search again\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790467906728_ennbf4n73\n\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: 381, U-22, 622, SLE24-16, GSL48-16, GSL24-16, SLE16-8 and U-38\n08:11 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\n381 - several rows match (RoperWhitney!R88 (PRICE blank; U.S. LIST blank; U.S. COST 0); RoperWhitney!R89 (PRICE blank; U.S. LIST blank; U.S. COST 0); RoperWhitney!R90 (PRICE blank; U.S. LIST blank; U.S. COST 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26, column C26 'List Price'; also M26 'List Price_2' 1,777)\n622 - several rows match (RoperWhitney!R265 (PRICE 670; U.S. LIST 350; U.S. COST 280); RoperWhitney!R266 (PRICE 0; U.S. LIST blank; U.S. COST 0); RoperWhitney!R268 (PRICE 2,421; U.S. LIST 1,350; U.S. COST 1,012.5)); which one is yours needs your confirmation\nSLE24-16 - 8,880 (Tennsmith!R101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nGSL48-16 - 14,166 (Tennsmith!R106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\nGSL24-16 - no matching row in the indexed content searched\nSLE16-8 - no matching row in the indexed content searched\nU-38 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n08:12 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n6db403db\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M02.png",
+      "ok": true,
+      "network": {
+        "total_requests": 69,
+        "requests_to_our_backend": 32,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/notifications?limit=10 :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/onboarding/status :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/auth/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/notifications?unread_only=true&type=agent_graduated&limit=5 :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    }
+  },
+  "login": {
+    "attempted": false,
+    "method": "seeded session token",
+    "note": "login FORM not exercised; see report"
+  },
+  "final_network": {
+    "total_requests": 69,
+    "requests_to_our_backend": 32,
+    "our_backend_origins": [
+      "localhost:8051"
+    ],
+    "websockets": [
+      {
+        "url": "ws://localhost:3101/_next/webpack-hmr",
+        "origin": "localhost:3101"
+      },
+      {
+        "url": "ws://localhost:3101/_next/webpack-hmr",
+        "origin": "localhost:3101"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTQzMDIsImp0aSI6IjUxZj",
+        "origin": "localhost:8051"
+      }
+    ],
+    "websocket_origins": [
+      "localhost:3101",
+      "localhost:8051"
+    ],
+    "foreign_origin_hits": [],
+    "isolated": true,
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "page_errors": [],
+    "failed_requests": [
+      "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/notifications?limit=10 :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/onboarding/status :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/auth/me :: net::ERR_ABORTED",
+      "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/notifications?unread_only=true&type=agent_graduated&limit=5 :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+    ]
+  }
+}

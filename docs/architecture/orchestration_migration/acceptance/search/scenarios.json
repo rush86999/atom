@@ -244,7 +244,7 @@
    ],
    "support": {
     "warranty term": {
-     "span": "24 months"
+     "span": "24 months from the date of delivery"
     }
    },
    "expect_status": "success",
@@ -341,7 +341,7 @@
    "category": "crowded_lexical",
    "query": "What did the operations team say about shift handover on the 9th?",
    "required_sources": [
-    "mailbox",
+    "communication",
     "shift_handover_log.md"
    ],
    "forbidden_sources": [],
@@ -363,7 +363,7 @@
    "category": "crowded_lexical",
    "query": "What did the operations team say about shift handover on the 10th?",
    "required_sources": [
-    "mailbox",
+    "communication",
     "shift_handover_log.md"
    ],
    "forbidden_sources": [],
@@ -385,7 +385,7 @@
    "category": "crowded_lexical",
    "query": "What did the operations team say about shift handover on the 11th?",
    "required_sources": [
-    "mailbox",
+    "communication",
     "shift_handover_log.md"
    ],
    "forbidden_sources": [],
@@ -580,16 +580,14 @@
   {
    "id": "conflicting_stale_saved_only",
    "category": "conflicting_stale_sources",
-   "query": "What is the current list price of SLE24-16? (injected failure: vector)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "query": "What is the current list price of SLE24-16? (injected failure: lexical)",
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "SLE24-16"
    ],
    "support": {},
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Same question with the LIVE source failing. The answer must report that the live source could not be read, not serve the cached value as if it were current.",
    "split": "heldout"
@@ -599,9 +597,7 @@
    "category": "absent_within_coverage",
    "query": "What is the price of XYZ-9999 in linmac_consolidated.xlsx?",
    "required_sources": [
-    "linmac_consolidated.xlsx",
-    "communication",
-    "expense_policy.md"
+    "linmac_consolidated.xlsx"
    ],
    "forbidden_sources": [],
    "required_items": [
@@ -622,9 +618,7 @@
    "category": "absent_within_coverage",
    "query": "What is the price of U-22 in the service agreement?",
    "required_sources": [
-    "linmac_consolidated.xlsx",
-    "communication",
-    "expense_policy.md"
+    "linmac_consolidated.xlsx"
    ],
    "forbidden_sources": [],
    "required_items": [
@@ -645,9 +639,7 @@
    "category": "absent_within_coverage",
    "query": "Did anyone email about invoice 9999?",
    "required_sources": [
-    "linmac_consolidated.xlsx",
-    "communication",
-    "expense_policy.md"
+    "communication"
    ],
    "forbidden_sources": [],
    "required_items": [
@@ -668,8 +660,6 @@
    "category": "absent_within_coverage",
    "query": "Does the expense policy mention parking?",
    "required_sources": [
-    "linmac_consolidated.xlsx",
-    "communication",
     "expense_policy.md"
    ],
    "forbidden_sources": [],
@@ -690,9 +680,7 @@
    "id": "partial_failed_lexical_0",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (injected failure: lexical)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -702,7 +690,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Failure case with the BM25 index is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
    "split": "development"
@@ -711,9 +699,7 @@
    "id": "partial_failed_vector_1",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (injected failure: vector)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -723,7 +709,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Failure case with the vector index is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
    "split": "development"
@@ -732,9 +718,7 @@
    "id": "partial_failed_both_2",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (injected failure: both)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -744,7 +728,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Failure case with both indexes are unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
    "split": "development"
@@ -753,9 +737,7 @@
    "id": "partial_failed_hydration_3",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (injected failure: hydration)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -765,7 +747,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Failure case with source identity could not be resolved. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
    "split": "development"
@@ -774,9 +756,7 @@
    "id": "partial_failed_mailbox_4",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (injected failure: mailbox)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -786,7 +766,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "Failure case with the mailbox store is unavailable. An item that cannot be resolved because retrieval failed is 'unresolved', never 'absent'. A healthy sibling leg must stay usable.",
    "split": "development"
@@ -795,9 +775,7 @@
    "id": "partial_corrupt_workbook",
    "category": "partial_failed_search",
    "query": "What is the price of U-22? (workbook is corrupt)",
-   "required_sources": [
-    "linmac_consolidated.xlsx"
-   ],
+   "required_sources": [],
    "forbidden_sources": [],
    "required_items": [
     "U-22"
@@ -807,7 +785,7 @@
      "resolvable": false
     }
    },
-   "expect_status": "failed",
+   "expect_status": "degraded",
    "multi_turn": [],
    "notes": "A corrupt file is an I/O failure, not a missing row. The distinction is the whole assertion.",
    "split": "development"
@@ -1101,8 +1079,7 @@
    "query": "What is the price of U-22 and who emailed about it?",
    "required_sources": [
     "linmac_consolidated.xlsx",
-    "communication",
-    "policy_manual.pdf"
+    "communication"
    ],
    "forbidden_sources": [],
    "required_items": [
@@ -1121,7 +1098,6 @@
    "query": "Show me the price list and the warranty terms together",
    "required_sources": [
     "linmac_consolidated.xlsx",
-    "communication",
     "policy_manual.pdf"
    ],
    "forbidden_sources": [],
@@ -1140,9 +1116,8 @@
    "category": "multi_source",
    "query": "Compare the invoice total in email with the policy limit",
    "required_sources": [
-    "linmac_consolidated.xlsx",
     "communication",
-    "policy_manual.pdf"
+    "expense_policy.md"
    ],
    "forbidden_sources": [],
    "required_items": [

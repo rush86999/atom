@@ -129,9 +129,12 @@ ROWS = [
     ("No. 381", "No. 381", 655.00, "legacy part, revision B"),
     ("No. 622", "No. 622", 415.00, "legacy part, revision A"),
     ("No. 622", "No. 622", 430.00, "legacy part, revision B"),
-    # A USD row exists so "how much in USD" is answerable only by a
-    # currency conversion, never by a mis-bound unit.
-    ("U-22", "U-22", 940.00, "US dealer list, USD"),
+    # A USD-priced row exists so "how much in USD" can only be answered by a
+    # deliberate unit decision, never by accidentally binding the CAD row. It
+    # carries its OWN label: giving it the same label as the CAD row made every
+    # plain "price of U-22" lookup legitimately two-valued, which turned a
+    # correctness check into a coin toss.
+    ("U-22-US", "U-22-US", 940.00, "US dealer list, USD"),
 ]
 
 DOCUMENTS = {
@@ -186,6 +189,8 @@ MAILBOX = {
         ("Shift handover notes", "The handover sheet for the night crew is "
          "attached; the press guard is still off."),
         ("Shift handover notes 2", "Second handover note: the bay was locked."),
+        ("Account 90210", "Account 90210 pricing notes for the quarter are in "
+         "the consolidated sheet; the list price stands."),
     ],
 }
 
@@ -341,6 +346,7 @@ class World:
         self._build_fts()
         self._build_vector()
         self._build_comms()
+        self._build_documents_store()
 
     @staticmethod
     def _workbook_body() -> str:
@@ -369,6 +375,37 @@ class World:
             for i, name in enumerate(
                 [WORKBOOK] + list(DOCUMENTS.keys()) + [OTHER_OWNER_DOC])
         ]
+
+    def _build_documents_store(self) -> None:
+        """The `documents` LanceDB table the excerpt leg actually reads.
+
+        The hydrated search result carries only a 200-character PREVIEW, so
+        without the full-text store a price list longer than that puts most of
+        its rows outside the evidence — and the harness would then report
+        "not retrieved" for items the system did retrieve. Writing the corpus
+        here means the excerpt leg runs against real data, through the same
+        path the planner uses.
+        """
+        import lancedb
+        import pyarrow as pa
+
+        base = SCRATCH / "atom_memory" / "default"
+        base.mkdir(parents=True, exist_ok=True)
+        rows = [
+            {"id": f"ing_{i}", "text": body}
+            for i, (_n, body) in enumerate(
+                [(WORKBOOK, self._workbook_body())] + list(DOCUMENTS.items())
+                + [(OTHER_OWNER_PRICING, OTHER_OWNER_DOC)]
+            )
+        ]
+        table = pa.table({
+            "id": pa.array([r["id"] for r in rows]),
+            "text": pa.array([r["text"] for r in rows]),
+        })
+        db = lancedb.connect(str(base))
+        if "documents" in db.table_names():
+            db.drop_table("documents")
+        db.create_table("documents", data=table)
 
     def _build_comms(self) -> None:
         rows = []
@@ -492,15 +529,35 @@ class InvocationCounter:
 
 
 async def _search(world: World, query: str, limit: int = 8) -> dict[str, Any]:
-    """The planner's real call: constraint-preserving adapter over the real
-    hybrid service."""
-    from core.chat_tool_planner import _hybrid_search_preserving_constraints
+    """The planner's real call path, whichever one the code under test has.
+
+    When `_hybrid_search_preserving_constraints` exists the decomposed call is
+    driven. When it does not — i.e. when this harness is pointed at the
+    pre-change baseline — the ORIGINAL call is driven instead
+    (``DocumentsHybridSearch().search(query[:200], ...)``), because a baseline
+    that cannot run is not a baseline, it is a harness error wearing one.
+    """
     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
     class _Service(DocumentsHybridSearch):
         def __init__(self):
             DocumentsHybridSearch.__init__(
                 self, db=world.session_for(), lancedb=world.vector_store())
+
+    try:
+        from core.chat_tool_planner import _hybrid_search_preserving_constraints
+    except ImportError:
+        result = await _Service().search(
+            query=query[:200], limit=limit, owner_user_id=OWNER)
+        # The baseline envelope has no coverage vocabulary at all. Reporting
+        # "success" for it is not a convenience: it is precisely the behaviour
+        # under test, and inventing a status for it would hide the defect the
+        # baseline exists to demonstrate.
+        result = dict(result or {})
+        result.setdefault("status", "success")
+        result.setdefault("coverage", {})
+        result.setdefault("legs", {})
+        return result
 
     return await _hybrid_search_preserving_constraints(
         _Service(), query, limit=limit, owner_user_id=OWNER,
@@ -664,9 +721,27 @@ async def run_scenario(world: World, scenario: dict, counter: InvocationCounter)
             ).lower() for w in scenario["required_sources"])
         ]
         if matched and status in ("success", "partial"):
-            items[item] = {"classification": "supported",
-                           "source": str(matched[0].get("title") or ""),
-                           "span": evidence[:400]}
+            senders = sorted({
+                str(h.get("sender") or "") for h in matched if h.get("sender")
+            })
+            record = {
+                "classification": "supported",
+                "source": str(matched[0].get("title") or ""),
+                "span": evidence,
+            }
+            if senders:
+                record["sender"] = senders[0]
+                if len(senders) > 1:
+                    # Two senders answer the same question: the honest result
+                    # is an ambiguity, and both candidates must be retained.
+                    record["classification"] = "ambiguous"
+                    record["alternatives"] = len(senders)
+            if scenario["support"].get(item, {}).get("alternatives", 1) > 1:
+                record["classification"] = "ambiguous"
+                record["alternatives"] = max(
+                    int(record.get("alternatives") or 0),
+                    int(scenario["support"][item]["alternatives"]))
+            items[item] = record
             order.append(item)
         else:
             items[item] = {

@@ -167,13 +167,25 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
             continue
         classification = str(record.get("classification") or "")
         if scenario["expect_status"] == "failed":
-            # The scenario injected a failure: the ONLY acceptable outcome is
-            # an explicit unresolved, or an ambiguity the system admits to.
+            # Every retrieval path for this item is down. The only acceptable
+            # answer is an explicit unresolved.
             ok = classification == UNRESOLVED
             result.checks.append(Check(
                 f"item:{item}", PASS if ok else FAIL,
                 f"classification={classification!r} (expected {UNRESOLVED!r})",
             ))
+            continue
+        if scenario["expect_status"] == "degraded":
+            # A sibling leg still worked, so the item MAY be resolved — and
+            # resolving it is the point: a failing leg must not empty a useful
+            # response. What is forbidden is an ABSENCE claim, which is the
+            # failure-to-absence conversion this whole category exists to catch.
+            ok = classification in (SUPPORTED, AMBIGUOUS, UNRESOLVED)
+            result.checks.append(Check(
+                f"item:{item}", PASS if ok else FAIL,
+                f"classification={classification!r} — an absence claim from a "
+                "degraded search is the false-absence gate"
+                if not ok else f"classification={classification}"))
             continue
         if classification not in (SUPPORTED, AMBIGUOUS):
             result.checks.append(Check(
@@ -205,8 +217,16 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
                 PASS if reported == expected_subset else FAIL,
                 f"requested {expected_subset}, reported {reported}"))
 
-    # -- 4. no false absence on a failed read -------------------------------
-    if status == "failed":
+    # -- 4. an injected failure must be VISIBLE ----------------------------
+    if scenario["expect_status"] in ("failed", "degraded"):
+        result.checks.append(Check(
+            "injected_failure_is_visible",
+            FAIL if status == "success" else PASS,
+            f"status={status!r} — a broken leg was reported as a clean search"
+            if status == "success" else f"status={status}"))
+
+    # -- 5. no false absence on a failed read -------------------------------
+    if status in ("failed", "partial"):
         fabricated = [
             item for item, rec in items.items()
             if not str(item).startswith("absent:")
@@ -566,7 +586,7 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--selftest", action="store_true")
     p.add_argument("--scenarios", default=str(HERE / "scenarios.json"))
-    p.add_argument("--runs", default=str(HERE / "runs.json"))
+    p.add_argument("--runs", nargs="+", default=[str(HERE / "runs.json")])
     p.add_argument("--out", default=str(HERE / "scorecard.json"))
     args = p.parse_args()
 
@@ -574,10 +594,22 @@ def main() -> int:
         return selftest()
 
     scenarios = json.loads(Path(args.scenarios).read_text())["cases"]
-    runs_raw = json.loads(Path(args.runs).read_text())
-    # Accept either a bare list or a run-record envelope.
-    run_list = runs_raw["runs"] if isinstance(runs_raw, dict) else runs_raw
-    runs = {r["case_id"]: r for r in run_list}
+    runs: dict[str, dict] = {}
+    for path in args.runs:
+        runs_raw = json.loads(Path(path).read_text())
+        if isinstance(runs_raw, dict) and "runs" not in runs_raw:
+            print(f"{path} has no 'runs' key (keys: {sorted(runs_raw)}); "
+                  "refusing to score a file that is not a run record")
+            return 2
+        run_list = runs_raw["runs"] if isinstance(runs_raw, dict) else runs_raw
+        for record in run_list:
+            cid = record["case_id"]
+            if cid in runs:
+                print(f"DUPLICATE run record for {cid} ({path}); refusing to "
+                      "pick a winner — a case covered by two layers must be "
+                      "reconciled, not overwritten")
+                return 2
+            runs[cid] = record
     results = {s["id"]: score_case(s, runs.get(s["id"])) for s in scenarios}
 
     problems = completeness(scenarios, results)

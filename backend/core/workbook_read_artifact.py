@@ -613,6 +613,50 @@ def _left_drop_aliases(targets: Sequence[str]) -> Dict[str, List[str]]:
     return out
 
 
+_MERGED_RANGE_RE = re.compile(
+    r"^([A-Z]{1,3})(\d{1,7}):([A-Z]{1,3})(\d{1,7})$")
+
+
+def _col_index(letters: str) -> int:
+    n = 0
+    for ch in letters:
+        n = n * 26 + (ord(ch) - 64)
+    return n
+
+
+def merged_anchor_for_cell(ranges: Sequence[str], cell: str) -> Optional[Dict[str, Any]]:
+    """The anchor of the merged range containing ``cell``, or None.
+
+    A merged cell's value lives in its top-left ANCHOR; every other cell in
+    the range reads as empty. So a match reported at, say, B88 when B88 is
+    inside a merged A88:D88 is really a match at the anchor A88, and
+    citing the member cell would point at a cell that holds nothing.
+
+    The anchor is read from workbook metadata — never inferred from a row
+    number or assumed to be column A. When the source carries no merge
+    metadata (a materialized dataset has none), this returns None and the
+    caller records the identity binding as unverified rather than
+    guessing an anchor.
+    """
+    m = re.match(r"^([A-Z]{1,3})(\d{1,7})$", str(cell or "").strip().upper())
+    if not m:
+        return None
+    col, row = _col_index(m.group(1)), int(m.group(2))
+    for raw in ranges or []:
+        rm = _MERGED_RANGE_RE.match(str(raw or "").strip().upper())
+        if not rm:
+            continue
+        c1, r1, c2, r2 = (_col_index(rm.group(1)), int(rm.group(2)),
+                          _col_index(rm.group(3)), int(rm.group(4)))
+        if min(c1, c2) <= col <= max(c1, c2) and \
+                min(r1, r2) <= row <= max(r1, r2):
+            # _column_letter is 1-indexed (see its definition).
+            anchor = f"{_column_letter(min(c1, c2))}{min(r1, r2)}"
+            return {"anchor": anchor, "range": f"{rm.group(0)}",
+                    "is_anchor": anchor == str(cell or "").strip().upper()}
+    return None
+
+
 def _matches_target(target: str, value: Any) -> bool:
     text = _cell_text(value)
     target_text = str(target or "").strip()

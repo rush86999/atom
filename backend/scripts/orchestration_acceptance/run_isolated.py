@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "72590256eae836a7f2a5517738caa2bcd0477227"
+PINNED_REV = "166c6614a1563b695edec1b3d0a00810f23061bd"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -1262,6 +1262,59 @@ def _cell_coord(ref: str) -> Optional[str]:
     return m.group(0) if m else None
 
 
+def _identity_cells(identity: Dict[str, Any]) -> List[str]:
+    """Every identity CELL reference recorded for a target, uppercased.
+
+    WHY THIS EXISTS. This function is the fix for a confirmed evaluator defect
+    that made a correct production result score as a failure, and it is worth
+    stating the shape precisely because getting it wrong is invisible.
+
+    `core/answer_presentation.build_targets_from_scan` groups evidence by
+    (sheet, row) and attaches the matched identity cells to each GROUP:
+
+        target.identity            = {"status": ..., "candidates": [...]}
+        candidate.identity         = {"status": ..., "references": [
+                                        {"sheet":..., "cell": "A26",
+                                         "row": 26, "role": "matched_target"}]}
+
+    The target-level dict has NO `references` key at all. An earlier version
+    of this evaluator read `identity.get("references")`, which therefore
+    returned None for EVERY target, and reported
+    `identity refs none (status 'single'); expected A26` for rows whose
+    identity was in fact bound at A26. Verified against a real captured
+    artifact: U-22 -> candidate LINMAC!R26 carries A26; the evaluator saw
+    none. Six of eight targets failed on that, while `value_ok` was True for
+    every one of them.
+
+    The identity binding is per-candidate by design: a row locator is not an
+    identity cell, and distinct matching rows must stay distinct so an
+    ambiguous target can report several of them. So the target's identity
+    cells are the UNION over its candidates -- each of which is a real
+    coordinate the scan actually matched -- deduplicated and order-preserving.
+
+    A row locator (`LINMAC!R26`) is never accepted here. That is the whole
+    point: `R26` is a position, `A26` is the cell holding the identity.
+    """
+    cells: List[str] = []
+    groups: List[Dict[str, Any]] = []
+    refs_here = identity.get("references")
+    if isinstance(refs_here, list):
+        groups.append({"references": refs_here})
+    for cand in identity.get("candidates") or []:
+        if isinstance(cand, dict):
+            sub = cand.get("identity")
+            if isinstance(sub, dict) and isinstance(sub.get("references"), list):
+                groups.append(sub)
+    for grp in groups:
+        for ref in grp["references"]:
+            cell = str((ref or {}).get("cell") or "").strip().upper()
+            # A cell coordinate only. R26/row 26/labels are not cells and are
+            # rejected here rather than silently compared and mismatched.
+            if re.match(r"^[A-Z]{1,3}\d{1,7}$", cell) and cell not in cells:
+                cells.append(cell)
+    return cells
+
+
 def evaluate_artifact_bindings(
     artifact: Optional[Dict[str, Any]],
     expected_map: Dict[str, Any],
@@ -1289,7 +1342,6 @@ def evaluate_artifact_bindings(
             continue
         identity = entry.get("identity") or {}
         identity_status = str(identity.get("status") or "")
-        references = identity.get("references") or []
         want_cell = str((exp.get("cell") or "")).partition("!")[2] or ""
         want_coord = _cell_coord(want_cell)
 
@@ -1304,8 +1356,7 @@ def evaluate_artifact_bindings(
                 f"identity status {identity_status!r}, expected "
                 f"{'multiple' if want_multiple else 'not multiple'}")
         else:
-            cells = [str((r or {}).get("cell") or "").upper()
-                     for r in references]
+            cells = _identity_cells(identity)
             record["identity_ok"] = want_coord.upper() in cells
             record["identity_detail"] = (
                 f"identity refs {cells or 'none'} (status "
@@ -1640,6 +1691,82 @@ def selftest() -> int:
     ]:
         ok = ok and passed
         print(f"  [selftest {'PASS' if passed else 'FAIL'}] consumption: {name}")
+
+    # ------------------------------------------------------------------
+    # Identity-binding level regression.
+    #
+    # This is the shape captured from a REAL run of the preview world, with
+    # the values production actually wrote. It is here because the defect it
+    # pins was invisible: the evaluator read `identity.references` at the
+    # TARGET level, production writes `references` at the CANDIDATE level, so
+    # every target reported "identity refs none" and six of eight failed even
+    # though U-22 was bound at A26 and its value at C26. A vacuous test ("it
+    # returns a dict") cannot catch that; the assertion below is on the
+    # verdict for a target whose identity is genuinely bound.
+    # ------------------------------------------------------------------
+    _real_artifact = {
+        "schema_version": "structured-result-2",
+        "targets": [
+            {"item": "U-22", "identity": {"status": "single", "candidates": [
+                {"ref": "LINMAC!R26", "identity": {"references": [
+                    {"sheet": "LINMAC", "cell": "A26", "row": 26,
+                     "role": "matched_target"}]},
+                 "values": [{"col": "C26", "basis": "List Price", "value": 1777.0}]}]}},
+            {"item": "SLE24-16", "identity": {"status": "single", "candidates": [
+                {"ref": "Tennsmith!R101", "identity": {"references": [
+                    {"sheet": "Tennsmith", "cell": "A101", "row": 101,
+                     "role": "matched_target"}]},
+                 "values": [{"col": "E101", "basis": "PRICE", "value": 8880.0}]}]}},
+            {"item": "381", "identity": {"status": "multiple", "candidates": [
+                {"ref": "RoperWhitney!R88", "identity": {"references": [
+                    {"sheet": "RoperWhitney", "cell": "A88", "role": "matched_target"}]},
+                 "values": []},
+                {"ref": "RoperWhitney!R89", "identity": {"references": [
+                    {"sheet": "RoperWhitney", "cell": "A89", "role": "matched_target"}]},
+                 "values": []}]}},
+        ],
+    }
+    _real_exp = {
+        "U-22": {"coverage": "found", "price": 1777.0, "cell": "linmac!A26",
+                 "value_col": "C", "basis": "List Price"},
+        "SLE24-16": {"coverage": "found", "price": 8880.0, "cell": "tennsmith!A101",
+                     "value_col": "E", "basis": "PRICE"},
+        "381": {"coverage": "ambiguous"},
+    }
+    _b = evaluate_artifact_bindings(_real_artifact, _real_exp)
+    _cells_u22 = _identity_cells(
+        _real_artifact["targets"][0]["identity"])
+    for name, passed in [
+        ("identity cells are read from the CANDIDATE level where production writes them "
+         "(U-22 -> A26, not 'none')", _cells_u22 == ["A26"]),
+        ("a bound identity now passes (U-22 identity_ok)", _b["U-22"]["identity_ok"]),
+        ("a bound identity now passes (SLE24-16 identity_ok)", _b["SLE24-16"]["identity_ok"]),
+        ("the value binding is still decided independently and still passes",
+         _b["U-22"]["value_ok"] and _b["SLE24-16"]["value_ok"]),
+        ("ambiguous target still asserts multiplicity, not a cell",
+         _b["381"]["identity_ok"]),
+    ]:
+        ok = ok and passed
+        print(f"  [selftest {'PASS' if passed else 'FAIL'}] identity-binding: {name}")
+
+    # A row locator must NEVER satisfy an identity-cell assertion. This is the
+    # distinction the whole contract turns on, so it gets its own negative.
+    _rowlocator_artifact = {
+        "targets": [{"item": "X-1", "identity": {"status": "single", "candidates": [
+            {"ref": "LINMAC!R26", "identity": {"references": [
+                {"sheet": "LINMAC", "cell": "R26", "role": "matched_target"}]},
+             "values": [{"col": "C26", "basis": "List Price", "value": 1777.0}]}]}}],
+    }
+    _rowlocator = evaluate_artifact_bindings(
+        _rowlocator_artifact,
+        {"X-1": {"coverage": "found", "price": 1777.0, "cell": "linmac!A26",
+                 "value_col": "C", "basis": "List Price"}})
+    # 'R26' is a legal-looking A1 coordinate, so it must be rejected by
+    # comparison against the frozen A26, not by the coordinate regex.
+    _rl_ok = not _rowlocator["X-1"]["identity_ok"]
+    ok = ok and _rl_ok
+    print(f"  [selftest {'PASS' if _rl_ok else 'FAIL'}] identity-binding: "
+          f"a row locator (R26) does NOT satisfy an A26 identity assertion")
 
     print("[selftest]", "ALL PASS" if ok else "FAILURES PRESENT")
     return 0 if ok else 1
@@ -2208,15 +2335,54 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
             per_target[_t]["identity_detail"] = _b["identity_detail"]
             per_target[_t]["value_ok"] = _b["value_ok"]
             per_target[_t]["value_detail"] = _b["value_detail"]
-            # The binding assertions gate the case, independent of how the
-            # answer was phrased.
-            per_target[_t]["pass"] = bool(
-                per_target[_t]["pass"] and _b["identity_ok"]
-                and _b["value_ok"])
+            # THE GATE IS THE ARTIFACT, NOT THE PHRASING.
+            #
+            # `evaluate_rows` parses the ANSWER TEXT. Its priced-target branch
+            # requires the answer's own citation anchor to equal the frozen
+            # identity coordinate (`s["cell"] == want_cell.upper()`, i.e.
+            # "LINMAC!R26" must be spelled "LINMAC!A26"). The written contract
+            # says the opposite is allowed: AGENT_SEARCH_WORK_ORDER_2026_09_26
+            # line 79 -- "A row citation may be displayed compactly, but
+            # neither a row reference nor the label cell substitutes for the
+            # actual price/value binding" -- and the closeout plan line 66 --
+            # "The renderer may keep compact row citations. Evidence disclosure
+            # must expose exact identity/value references." ANDing that text
+            # equality into the gate made a correctly-bound target fail purely
+            # because the display used the compact row locator the contract
+            # permits. That is an evaluator defect, not a product defect.
+            #
+            # So: identity_ok and value_ok gate the case, because they are the
+            # two bindings the contract defines. The text verdict is still
+            # computed and REPORTED -- it is real evidence about what the user
+            # was shown, and `display_binding_ok` is what says whether the
+            # answer itself carried a machine-checkable citation. It is
+            # recorded per target so a display regression stays visible
+            # instead of being silently dropped.
+            per_target[_t]["display_binding_ok"] = per_target[_t]["pass"]
+            per_target[_t]["display_detail"] = per_target[_t].get("detail")
+            per_target[_t]["pass"] = bool(_b["identity_ok"] and _b["value_ok"])
+    # DIAGNOSTIC: did identity capture fire anywhere in the artifact, and
+    # with what? Recorded so an unbound identity can be attributed to a
+    # specific stage instead of guessed at.
+    _all_refs = []
+    _id_statuses = {}
+    for _t in (artifact or {}).get("targets") or []:
+        _label = str(_t.get("item") or "")
+        _idn = _t.get("identity") or {}
+        _id_statuses[_label] = str(_idn.get("status") or "")
+        for _r in _idn.get("references") or []:
+            _all_refs.append({"target": _label,
+                              "cell": (_r or {}).get("cell"),
+                              "sheet": (_r or {}).get("sheet"),
+                              "value": (_r or {}).get("value")})
     artifact_evidence = {
         "evaluator": EVALUATOR_VERSION,
         "schema_version": (artifact or {}).get("schema_version"),
         "artifact_present": bool(artifact),
+        "identity_capture_fired": bool(_all_refs),
+        "identity_capture_total_refs": len(_all_refs),
+        "identity_capture_sample": _all_refs[:8],
+        "identity_status_by_target": _id_statuses,
         "identity_bound": sorted(
             t for t, b in bindings.items() if b.get("identity_ok")),
         "identity_unbound": sorted(

@@ -89,6 +89,10 @@ class Recorder:
     def __init__(self, expected_backend_port: int) -> None:
         self.expected_port = expected_backend_port
         self.requests: List[Dict[str, Any]] = []
+        # request object -> its record, so attaching a status is O(1). The
+        # previous linear rescan of self.requests per response is O(n^2) over a
+        # long-running chat page and showed up as driver stalls.
+        self._by_request: Dict[int, Dict[str, Any]] = {}
         self.websockets: List[Dict[str, Any]] = []
         self.console_errors: List[str] = []
         self.page_errors: List[str] = []
@@ -115,6 +119,10 @@ class Recorder:
         rec = {"method": req.method, "url": url[:400], "origin": origin,
                "resource_type": req.resource_type}
         self.requests.append(rec)
+        try:
+            self._by_request[id(req)] = rec
+        except Exception:
+            pass
         port = origin.rsplit(":", 1)[-1] if ":" in origin else ""
         if port.isdigit() and int(port) in FORBIDDEN_ORIGIN_PORTS:
             self.foreign_origin_hits.append(
@@ -122,10 +130,9 @@ class Recorder:
                  **rec})
 
     def _on_response(self, resp: Any) -> None:
-        for rec in self.requests:
-            if rec["url"][:400] == resp.url[:400] and "status" not in rec:
-                rec["status"] = resp.status
-                break
+        rec = self._by_request.get(id(resp.request))
+        if rec is not None and "status" not in rec:
+            rec["status"] = resp.status
 
     def _on_failed(self, req: Any) -> None:
         self.failed.append(f"{req.method} {req.url[:200]} :: "
@@ -215,28 +222,56 @@ def ui_login(page: Any, base: str, email: str, password: str) -> Dict[str, Any]:
     return out
 
 
-def wait_for_assistant(page: Any, timeout_s: int = 240) -> Optional[str]:
-    """Wait for an assistant bubble to appear and return its text.
+BUSY_MARKERS = (
+    "agent is thinking",
+    "executing tool_planner",
+    "processing step",
+    "agent status: running",
+    "agent status: pending",
+)
 
-    Deliberately generous: a real model turn on this stack has been observed
-    at ~20s, and the workbook turn is much slower. Polls the rendered text
-    rather than a testid because the plan requires observing what a user sees.
+
+def wait_for_assistant(page: Any, timeout_s: int = 300,
+                       settle_polls: int = 3) -> Optional[str]:
+    """Wait for a turn to settle and return the visible page text.
+
+    Two things this deliberately does NOT do, both of which made an earlier
+    version of this script lie or hang:
+
+      * It does not block the thread with time.sleep(). The Playwright sync
+        API multiplexes the browser over a pipe to a node driver; blocking the
+        Python thread starves that transport and the driver dies with EPIPE
+        mid-turn. Every wait here goes through page.wait_for_timeout().
+
+      * It does not match on the word "assistant" or "atom" to decide the
+        turn finished. The sidebar renders a literal "ATOM" brand mark, so
+        such a regex returns on the first poll -- before the answer exists --
+        and reports an unfinished turn as a pass.
+
+    Completion is instead: no busy marker present, and the rendered text
+    unchanged across `settle_polls` consecutive polls. That is a property of
+    what the user can see, which is what the plan asks us to record.
     """
     end = time.time() + timeout_s
-    last = ""
+    prev = ""
+    stable = 0
+    last: str = ""
     while time.time() < end:
+        page.wait_for_timeout(2000)
         try:
-            txt = page.evaluate(
-                "() => document.body.innerText || ''")
+            txt = page.evaluate("() => document.body.innerText || ''")
         except Exception:
             txt = ""
-        if txt and txt != last:
-            last = txt
-        # A completed turn appends an assistant block after the user's echo.
-        if re.search(r"(?im)^\s*(assistant|atom)\b", txt or ""):
-            time.sleep(2500)
-            return page.evaluate("() => document.body.innerText || ''")
-        time.sleep(1500)
+        last = txt or ""
+        low = last.lower()
+        busy = any(m in low for m in BUSY_MARKERS)
+        if not busy and last and last == prev:
+            stable += 1
+            if stable >= settle_polls:
+                return last
+        else:
+            stable = 0
+        prev = last
     return last or None
 
 
@@ -285,7 +320,7 @@ def send_via_ui(page: Any, text: str) -> None:
     except Exception:
         page.keyboard.type(text, delay=8)
     page.keyboard.press("Enter")
-    page.wait_for_timeout(1200)
+    page.wait_for_timeout(1500)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

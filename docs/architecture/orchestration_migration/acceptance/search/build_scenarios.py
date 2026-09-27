@@ -146,7 +146,7 @@ def build() -> list[dict]:
         "What does the manufacturer guarantee on the plate steel saw?",
         sources=["policy_manual.pdf"],
         required_items=["warranty term"],
-        support={"warranty term": {"span": "24 months"}},
+        support={"warranty term": {"span": "24 months from the date of delivery"}},
         notes="No exact identifier. Must retrieve on meaning, not wording.",
     ))
     cases.append(_case(
@@ -191,7 +191,7 @@ def build() -> list[dict]:
         cases.append(_case(
             f"crowded_lexical_{n}", "crowded_lexical",
             f"What did the operations team say about shift handover on the {n+9}th?",
-            sources=["mailbox", "shift_handover_log.md"],
+            sources=["communication", "shift_handover_log.md"],
             required_items=["shift handover"],
             support={"shift handover": {"span": "handover"}},
             notes="Many weak token matches ('the', 'team', 'about') crowd the "
@@ -270,29 +270,30 @@ def build() -> list[dict]:
         ))
     cases.append(_case(
         "conflicting_stale_saved_only", "conflicting_stale_sources",
-        "What is the current list price of SLE24-16? (injected failure: vector)",
-        sources=["linmac_consolidated.xlsx"],
+        "What is the current list price of SLE24-16? (injected failure: lexical)",
+        sources=[], forbidden_sources=[],
         required_items=["SLE24-16"],
-        expect_status="failed",
+        expect_status="degraded",
         notes="Same question with the LIVE source failing. The answer must "
               "report that the live source could not be read, not serve the "
               "cached value as if it were current.",
     ))
 
     # -- 10. Actual absence --------------------------------------------------
-    for n, (q, why) in enumerate((
+    for n, (q, why, srcs) in enumerate((
         ("What is the price of XYZ-9999 in linmac_consolidated.xlsx?",
-         "genuinely not in the corpus"),
+         "genuinely not in the corpus", ["linmac_consolidated.xlsx"]),
         ("What is the price of U-22 in the service agreement?",
-         "the item exists elsewhere, not in the named source"),
+         "the item exists elsewhere, not in the named source",
+         ["linmac_consolidated.xlsx"]),
         ("Did anyone email about invoice 9999?",
-         "no such message"),
+         "no such message", ["communication"]),
         ("Does the expense policy mention parking?",
-         "the policy genuinely does not cover parking"),
+         "the policy genuinely does not cover parking", ["expense_policy.md"]),
     )):
         cases.append(_case(
             f"absent_within_coverage_{n}", "absent_within_coverage",
-            q, sources=["linmac_consolidated.xlsx", "communication", "expense_policy.md"],
+            q, sources=srcs,
             required_items=["absent:" + why],
             support={"absent:" + why: {"claimable": True}},
             notes="Absence is legitimate ONLY when every named source was "
@@ -312,10 +313,10 @@ def build() -> list[dict]:
         cases.append(_case(
             f"partial_failed_{broken}_{n}", "partial_failed_search",
             f"What is the price of U-22? (injected failure: {broken})",
-            sources=["linmac_consolidated.xlsx"],
+            sources=[], forbidden_sources=[],
             required_items=["U-22"],
             support={"U-22": {"resolvable": False}},
-            expect_status="failed",
+            expect_status="degraded",
             notes=f"Failure case with {why}. An item that cannot be resolved "
                   "because retrieval failed is 'unresolved', never 'absent'. "
                   "A healthy sibling leg must stay usable.",
@@ -323,10 +324,10 @@ def build() -> list[dict]:
     cases.append(_case(
         "partial_corrupt_workbook", "partial_failed_search",
         "What is the price of U-22? (workbook is corrupt)",
-        sources=["linmac_consolidated.xlsx"],
+        sources=[], forbidden_sources=[],
         required_items=["U-22"],
         support={"U-22": {"resolvable": False}},
-        expect_status="failed",
+        expect_status="degraded",
         notes="A corrupt file is an I/O failure, not a missing row. The "
               "distinction is the whole assertion.",
     ))
@@ -427,15 +428,17 @@ def build() -> list[dict]:
     ))
 
     # -- 17. Multi-source -----------------------------------------------------
-    for n, q in enumerate((
-        "What is the price of U-22 and who emailed about it?",
-        "Show me the price list and the warranty terms together",
-        "Compare the invoice total in email with the policy limit",
+    for n, (q, srcs) in enumerate((
+        ("What is the price of U-22 and who emailed about it?",
+         ["linmac_consolidated.xlsx", "communication"]),
+        ("Show me the price list and the warranty terms together",
+         ["linmac_consolidated.xlsx", "policy_manual.pdf"]),
+        ("Compare the invoice total in email with the policy limit",
+         ["communication", "expense_policy.md"]),
     )):
         cases.append(_case(
             f"multi_source_{n}", "multi_source",
-            q,
-            sources=["linmac_consolidated.xlsx", "communication", "policy_manual.pdf"],
+            q, sources=srcs,
             required_items=["price", "email or terms"],
             notes="Both sources must be read; using one to answer for the other "
                   "is a fabricated binding.",

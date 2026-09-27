@@ -210,6 +210,45 @@ def _select_values(values: List[Dict[str, Any]],
     return [v for v in values if _value_matches(v, terms)]
 
 
+def _identity_cells(cand: Dict[str, Any]) -> List[str]:
+    """The exact identity CELL coordinates bound to one candidate.
+
+    `build_targets_from_scan` records the cells whose text actually matched
+    under `candidate.identity.references[].cell` (e.g. "A26"). The compact
+    `ref` is a row locator ("LINMAC!R26"), which is a position and NOT proof of
+    which cell held the identity. Both are carried, because the contract
+    (AGENT_SEARCH_WORK_ORDER_2026_09_26 line 79) allows a row citation to be
+    DISPLAYED compactly while requiring the exact identity and value
+    references to stay separately exposed. A row locator is never presented
+    as if it were a cell.
+    """
+    ident = cand.get("identity") or {}
+    out: List[str] = []
+    for ref in ident.get("references") or []:
+        cell = str((ref or {}).get("cell") or "").strip().upper()
+        if re.match(r"^[A-Z]{1,3}\d{1,7}$", cell) and cell not in out:
+            out.append(cell)
+    return out
+
+
+def _value_clause(v: Dict[str, Any]) -> str:
+    """One value as `<cell> '<basis>' <display>`.
+
+    Every clause names the CELL it came from and quotes the BASIS, so a reader
+    -- and an evidence parser -- can tell which cell is blank and on what
+    basis. The ambiguous branch used to render a bare `PRICE blank` with no
+    cell at all, which made "this row's price cell is blank"
+    indistinguishable from "no price column exists here", and left an
+    evaluator nothing to bind a value to.
+    """
+    cell = str(v.get("col") or "").strip()
+    basis = str(v.get("basis") or "").strip()
+    display = str(v.get("display") or "").strip()
+    if not cell:
+        return f"{basis} {display}".strip()
+    return f"{cell} '{basis}' {display}".strip()
+
+
 def _render_target(t: Dict[str, Any], item: str, *,
                    style: str = "default",
                    field: Optional[str] = None,
@@ -228,38 +267,43 @@ def _render_target(t: Dict[str, Any], item: str, *,
         parts = []
         for c in candidates[:3]:
             cvals = _select_values(c.get("values") or [], requested_fields, field)
+            # Name the identity cell alongside the row locator, so an
+            # ambiguous row is still identified down to a cell.
+            idcells = _identity_cells(c)
+            idnote = f" at {', '.join(idcells)}" if idcells else ""
             if cvals:
-                shown = "; ".join(
-                    f"{v.get('basis', '')} {v.get('display', '')}".strip()
-                    for v in cvals[:3])
-                parts.append(f"{c.get('ref', '?')} ({shown})")
+                shown = "; ".join(_value_clause(v) for v in cvals[:3])
+                parts.append(f"{c.get('ref', '?')}{idnote} ({shown})")
             else:
-                parts.append(f"{c.get('ref', '?')}")
+                parts.append(f"{c.get('ref', '?')}{idnote}")
         line = (f"- **{item}**{alias_note} - several rows match "
                 f"({'; '.join(parts)}); "
                 f"which one is yours needs your confirmation")
         return line
     cand = candidates[0] if candidates else {}
     ref = cand.get("ref", "")
+    idcells = _identity_cells(cand)
+    idnote = f" matched at {', '.join(idcells)}" if idcells else ""
     fstatus = (t.get("field") or {}).get("status")
     if fstatus == "absent" or not pooled:
-        return (f"- **{item}**{alias_note} - matched at {ref}, but no "
+        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}, but no "
                 f"price column was identified")
     if field and not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
-        return (f"- **{item}**{alias_note} - matched at {ref}; "
+        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}; "
                 f"requested '{field}' is not among the available bases "
                 f"({', '.join(bases)}). Which basis should answer?")
     if not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
-        return (f"- **{item}**{alias_note} - matched at {ref}; "
+        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}; "
                 f"none of the requested fields match the available bases "
                 f"({', '.join(bases)}). Which basis should answer?")
     primary = selected[0]
     if style == "compact":
         return (f"- **{item}**{alias_note} - {primary.get('display', '?')} "
-                f"({ref}, '{primary.get('basis', '')}')")
-    seg = f"{primary.get('display', '?')} ({ref}, column {primary.get('col', '')} '{primary.get('basis', '')}'"
+                f"({ref}{idnote}, '{primary.get('basis', '')}')")
+    seg = (f"{primary.get('display', '?')} ({ref}{idnote}, column "
+           f"{primary.get('col', '')} '{primary.get('basis', '')}'")
     # Keep distinct (col, basis) even when displays are equal: same value
     # in two bases (e.g. List Price vs List Price_2, or PRICE blank vs
     # U.S. LIST blank) is still two labeled facts, not one. Dedup only
@@ -379,11 +423,37 @@ def present_from_rendered_text(reply: str, *, ask: str, source: Dict[str, Any],
         cand_seen, cand_all, v_seen, v_all = set(), [], set(), []
         for h in hits:
             for c in (h.get("identity") or {}).get("candidates") or []:
-                if c.get("ref") not in cand_seen:
-                    cand_seen.add(c.get("ref"))
-                    cand_all.append(
-                        {"ref": c.get("ref"),
-                         "values": list(c.get("values") or [])})
+                if c.get("ref") in cand_seen:
+                    continue
+                cand_seen.add(c.get("ref"))
+                # Carry IDENTITY through the alias merge. This rebuild used
+                # to copy only ref+values, which is where the matched cell
+                # disappeared: the per-target build bound it correctly, the
+                # consolidation step then dropped it on the floor, and every
+                # target came back identity-unbound with no error anywhere.
+                _merged_identity = copy.deepcopy(
+                    c.get("identity") or _identity_block([]))
+                # Two alias spellings of one item can each contribute a
+                # reference; keep every distinct cell rather than first-wins.
+                for _other in (h.get("identity") or {}).get(
+                        "candidates") or []:
+                    if _other.get("ref") != c.get("ref"):
+                        continue
+                    for _ref in ((_other.get("identity") or {}).get(
+                            "references") or []):
+                        _cell = str((_ref or {}).get("cell") or "").upper()
+                        if not _cell:
+                            continue
+                        if _cell not in {r.get("cell") for r in
+                                         _merged_identity["references"]}:
+                            _merged_identity["references"].append(
+                                copy.deepcopy(_ref))
+                if _merged_identity["references"]:
+                    _merged_identity["status"] = IDENTITY_BOUND
+                cand_all.append(
+                    {"ref": c.get("ref"),
+                     "values": list(c.get("values") or []),
+                     "identity": _merged_identity})
             for v in (h.get("field") or {}).get("values") or []:
                 vk = (v.get("col"), v.get("basis"), v.get("display"))
                 if vk not in v_seen:
@@ -620,6 +690,22 @@ def build_targets_from_scan(
         for g in row_groups.values():
             values.extend(g["values"])
         bases = {v.get("basis") for v in values}
+        # Normalise identity references after the consolidation: several
+        # alias spellings can each contribute the same coordinate, so they
+        # are deduplicated by cell at ONE point here rather than at each
+        # append — correct regardless of how many spellings merged.
+        for _c in candidates:
+            _idn = _c.get("identity") or _identity_block([])
+            _seen_cells, _uniq = set(), []
+            for _r in _idn.get("references") or []:
+                _cell = str((_r or {}).get("cell") or "").upper()
+                if not _cell or _cell in _seen_cells:
+                    continue
+                _seen_cells.add(_cell)
+                _uniq.append(_r)
+            _idn["references"] = _uniq
+            _idn["status"] = IDENTITY_BOUND if _uniq else IDENTITY_UNVERIFIED
+            _c["identity"] = _idn
         targets.append({
             "item": item,
             "aliases": [a for a in aliases

@@ -417,6 +417,7 @@ def cmd_up(args: argparse.Namespace) -> int:
     print(f"[preview] fingerprinting loaded modules (this takes a minute)...")
     state["loaded_modules"] = loaded_module_fingerprint(world)
     save_state(world, state)
+    write_launch_descriptor(world, state)
 
     print(f"\n  backend : {base}   (pid {proc.pid})")
     print(f"  frontend: http://localhost:{frontend_port}   (pid {fe})")
@@ -607,6 +608,42 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def write_launch_descriptor(world: Path, st: Dict[str, Any]) -> Path:
+    """Emit a run_isolated-shaped launch_descriptor.json for this preview.
+
+    The two tools have to interoperate: `live_integration_acceptance.py`
+    drives an ALREADY-RUNNING server and takes `--launch-descriptor` from
+    run_isolated.launch_server. The preview launches its own server (no
+    seatbelt, real providers), but it can describe that launch in the same
+    vocabulary, so the live 12-case matrix -- the one that covers formatting
+    followups, explicit re-search, keyed retry, streaming, restart, overlap
+    and forced retrieval failure -- can run against the preview instead of
+    only against a credential-free sandbox that cannot reach a model at all.
+
+    The three fields the consumer actually reads are `export_path` (the farm
+    root, whose resolved cwd it asserts against the server's health
+    identity), `db_path` (the database the process must have open) and `pid`.
+    """
+    d = world / "launch_descriptor.json"
+    d.write_text(json.dumps({
+        "run_id": Path(st["run_dir"]).name,
+        "pid": st["backend_pid"],
+        "port": st["backend_port"],
+        "export_path": str(Path(st["world_path"]) / "backend_root"),
+        "db_path": st["db_path"],
+        "world": st["world_path"],
+        "log_path": str(world / "preview_backend.log"),
+        "expected_cwd": str(Path(st["world_path"]) / "backend_root"),
+        "health_identity": st.get("backend_health_identity", {}),
+        "source_snapshot_sha256": st.get("source_snapshot_sha256"),
+        "effective_flags": st.get("effective_flags", {}),
+        "byok": st.get("byok", {}),
+        "seatbelt": st.get("seatbelt"),
+        "emitted_by": "preview_stack.py",
+    }, indent=2, sort_keys=True))
+    return d
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """Prove the running stack is the world we claim, from the outside.
 
@@ -744,6 +781,18 @@ def cmd_down(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_descriptor(args: argparse.Namespace) -> int:
+    """(Re)write launch_descriptor.json from the saved state, without
+    restarting anything. Useful after a manual relaunch."""
+    world = world_path(args.world)
+    st = load_state(world)
+    if not st:
+        print(f"no preview stack state for world {args.world!r}", file=sys.stderr)
+        return 1
+    print(write_launch_descriptor(world, st))
+    return 0
+
+
 def cmd_creds(args: argparse.Namespace) -> int:
     _, names = model_credentials()
     print(json.dumps({"credential_names_present": names,
@@ -773,6 +822,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     p = sub.add_parser("status", help="print the launch descriptor")
     p.set_defaults(fn=cmd_status)
+
+    p = sub.add_parser("descriptor", help="(re)write launch_descriptor.json from saved state")
+    p.set_defaults(fn=cmd_descriptor)
 
     p = sub.add_parser("creds", help="report which model credentials are available (names only)")
     p.set_defaults(fn=cmd_creds)

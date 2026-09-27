@@ -263,6 +263,43 @@ def _invocation_rows(db, execution_id):
         return []
 
 
+def _read_effective_flags(port: int) -> Dict[str, str]:
+    """The ATOM_*/CHAT_*/ENABLE_* flags the LISTENING server actually has.
+
+    Read out of the live process (`ps eww`), not from the descriptor and not
+    from what this runner intended to set. That distinction is the point: a
+    flag can be requested and not take effect, and only the running process's
+    own environment settles it. Falls back to the health endpoint's reported
+    identity when `ps` is unavailable.
+    """
+    import subprocess as _sp
+    want_prefixes = ("ATOM_", "CHAT_", "ENABLE_")
+    try:
+        pids = _sp.run(["lsof", "-ti", f":{port}"], capture_output=True,
+                       text=True, timeout=10).stdout.split()
+    except Exception:
+        pids = []
+    for pid in pids:
+        pid = pid.strip()
+        if not pid.isdigit():
+            continue
+        try:
+            out = _sp.run(["ps", "eww", "-p", pid], capture_output=True,
+                          text=True, timeout=15).stdout
+        except Exception:
+            continue
+        got: Dict[str, str] = {}
+        for tok in out.split():
+            if "=" not in tok:
+                continue
+            k, _, v = tok.partition("=")
+            if k.startswith(want_prefixes) and k not in got:
+                got[k] = v
+        if got:
+            return got
+    return {}
+
+
 def _integrity(db_path: Path) -> str:
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
@@ -293,11 +330,10 @@ def main() -> int:
                     help="launch descriptor JSON from run_isolated.launch_server "
                          "(run_id, pid, port, db_path, health identity)")
     ap.add_argument("--code-dir", default="",
-                    help="the farm root for server restart (case 7)")
-    ap.add_argument("--out", default="")
-    ap.add_argument("--code-dir", default="",
                     help="exported backend_root serving --base (required for "
-                         "the restart case: the runner relaunches it)")
+                         "the restart case: the runner relaunches it). "
+                         "Derived from --launch-descriptor when omitted.")
+    ap.add_argument("--out", default="")
     ap.add_argument("--server-python", default=sys.executable,
                     help="interpreter for the relaunched server")
     args = ap.parse_args()
@@ -821,6 +857,28 @@ def main() -> int:
             "CHAT_FINALIZATION_M2": "1",
             "ATOM_TEST_FORCE_TURN_FAILURE": "1",
         })
+        # A RESTART MUST BE FAITHFUL, BY CONSTRUCTION.
+        #
+        # The env above is a hand-copied list, and it had already drifted from
+        # what the running server was actually launched with: it omitted
+        # ATOM_TASK_LIFECYCLE_ENABLED. The relaunched process therefore came
+        # up with the task lifecycle OFF, so everything case 7 observed after
+        # the restart was a different system from the one it observed before
+        # it -- and a "history survived the restart" verdict measured that
+        # difference rather than durability. That is precisely the class of
+        # false pass this plan forbids.
+        #
+        # So the flag set is taken from the launch descriptor, which records
+        # the EFFECTIVE values the original process was given, and the
+        # relaunch is asserted against them below. Adding a flag to a launch
+        # now cannot silently not apply to its own restart.
+        _desc_flags = (desc.get("effective_flags") or {}) if isinstance(desc, dict) else {}
+        for _k, _v in _desc_flags.items():
+            if isinstance(_v, (str, int, float)) and _v is not None:
+                env[_k] = str(_v)
+        # The failure-injection flag is this case's own instrument, not part
+        # of the baseline contract; keep it whatever the descriptor says.
+        env["ATOM_TEST_FORCE_TURN_FAILURE"] = "1"
         logf = open(Path(code_dir).parent / "server-restart.log", "ab")
         _sp.Popen([args.server_python, str(_app)], cwd=code_dir, env=env,
                   stdout=logf, stderr=_sp.STDOUT,
@@ -837,6 +895,18 @@ def main() -> int:
             time.sleep(2)
         if not healthy:
             raise RuntimeError("relaunched server did not become healthy")
+        # Prove the relaunch is the SAME contract, not merely a live process.
+        # Read the flags back from the running process's own environment, so
+        # this compares what the server actually has, not what we intended.
+        _post_flags = _read_effective_flags(port)
+        _flag_drift = {k: {"expected": str(v), "effective": _post_flags.get(k)}
+                       for k, v in _desc_flags.items()
+                       if isinstance(v, (str, int, float))
+                       and str(_post_flags.get(k)) != str(v)}
+        if _flag_drift:
+            raise RuntimeError(
+                "restart changed the effective contract; case 7 would compare "
+                f"two different systems: {_flag_drift}")
         pids_after = _listeners()
         # History survives the restart from the SAME database file.
         hist = client.get(f"{args.base}/api/chat/history/{sid7}",

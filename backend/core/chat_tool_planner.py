@@ -4812,14 +4812,34 @@ def _best_content_excerpt(content: str, query: str, width: int = 500) -> str:
     return "\n".join(parts)
 
 
+def _memory_store_base() -> Path:
+    """The communication/agent memory LanceDB root, resolved the same way the
+    ingestion pipeline resolves it.
+
+    These two helpers used to hardcode ``backend/data/atom_memory``. That
+    bypasses ``LANCEDB_URI_BASE`` and ``LanceDBHandler._resolve_local_db_path``,
+    so the document-excerpt leg read a store that no configuration could
+    redirect — which is the documented root-vs-backend divergence class, and
+    also means the excerpt path could not be isolated for a repeatable
+    evaluation run. The default is unchanged; the override is now honoured.
+    """
+    import os
+
+    configured = os.getenv("LANCEDB_URI_BASE")
+    if configured:
+        return Path(configured)
+    from core.lancedb_handler import _resolve_local_db_path
+
+    return Path(_resolve_local_db_path("./data/atom_memory"))
+
+
 def _load_documents_df():
     """SYNC (callers must to_thread): full documents table for excerpt
     extraction — a file-ingest table with full text can be large, so this
     load is the expensive part and must run once per search, not per hit."""
     import lancedb
 
-    base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-    table = lancedb.connect(str(base / "default")).open_table("documents")
+    table = lancedb.connect(str(_memory_store_base() / "default")).open_table("documents")
     return table.to_arrow().to_pandas()
 
 
@@ -4849,8 +4869,8 @@ def _load_documents_table():
     try:
         import lancedb
 
-        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-        tbl = lancedb.connect(str(base / "default")).open_table("documents")
+        tbl = lancedb.connect(
+            str(_memory_store_base() / "default")).open_table("documents")
         cols = [c for c in ("id", "text") if c in tbl.schema.names]
         if len(cols) >= 2:
             table = tbl.search().select(cols).limit(200000).to_arrow()
@@ -5131,11 +5151,21 @@ async def _hybrid_search_preserving_constraints(
 
     merged: List[Dict[str, Any]] = []
     seen: set = set()
+    # Reserve a share of the output budget for EACH source class before the
+    # merge. Without this, a long query's early windows (which are usually the
+    # prose preamble) fill every slot with the same few documents and the tail
+    # window's mailbox evidence is dropped by the final cut — the decomposed
+    # search then covers the query and still loses the answer. Measured on the
+    # long-mailbox case: six windows, every one searched, zero conversation hits
+    # survived, reported as `success`.
+    per_class_cap = max(1, limit // 4)
+    class_counts: Dict[str, int] = {}
     legs: Dict[str, Any] = {}
     unavailable: set = set()
     searched: set = set()
     stats: Dict[str, Any] = {}
     label = "no_results"
+    dropped_by_budget: set = set()
     for variant in variants:
         piece = await service.search(
             query=variant, limit=limit, owner_user_id=owner_user_id
@@ -5159,12 +5189,29 @@ async def _hybrid_search_preserving_constraints(
             key = (str(hit.get("source") or ""), str(hit.get("id") or ""))
             if key in seen:
                 continue
+            klass = str(hit.get("source") or "other")
+            taken = class_counts.get(klass, 0)
+            if taken >= per_class_cap:
+                dropped_by_budget.add(klass)
+                continue
             seen.add(key)
+            class_counts[klass] = taken + 1
             merged.append(hit)
+
+    if dropped_by_budget:
+        # The cut bound the answer, so coverage is bounded too. Reporting
+        # `success` here would license an absence claim about a source whose
+        # evidence was discarded rather than absent.
+        status_hint = STATUS_PARTIAL
+        searched.add("output_budget")
+    else:
+        status_hint = STATUS_SUCCESS
 
     status = STATUS_SUCCESS
     if unavailable:
         status = STATUS_PARTIAL if merged else STATUS_FAILED
+    if status == STATUS_SUCCESS and status_hint == STATUS_PARTIAL:
+        status = STATUS_PARTIAL
     coverage = query_coverage(query, variants)
     if not coverage["complete"] and status == STATUS_SUCCESS:
         status = STATUS_PARTIAL
@@ -5185,6 +5232,7 @@ async def _hybrid_search_preserving_constraints(
             ),
             "query_variants": len(variants),
             "query_coverage": coverage,
+            "classes_at_output_budget": sorted(dropped_by_budget),
         },
         "ranking": {"status": "as_fused", "reason": None},
         "absence_claimable": status == STATUS_SUCCESS,

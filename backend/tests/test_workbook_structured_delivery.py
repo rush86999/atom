@@ -1126,3 +1126,187 @@ class TestProbeMatchedCells:
         cand = rec["targets"][0]["identity"]["candidates"][0]
         assert cand["identity"]["status"] == "unverified"
         assert cand["identity"]["references"] == []
+
+
+class TestIdentitySurvivesAliasMerge:
+    """The alias merge consolidates duplicate spellings of one requested
+    item ("1624" / "TK 1624") into a single target. That rebuild used to
+    copy only ref+values, so the matched identity cell was dropped AFTER
+    the per-target build had bound it correctly — with no error anywhere.
+    These tests fail on that exact loss.
+    """
+
+    def _outcomes(self):
+        return {
+            "1624": {"target": "1624", "status": "found",
+                     "evidence": [_ev("TINKNOCKER", 101, "A101",
+                                      [_v("D101", "8040", "Price")])]},
+            "TK 1624": {"target": "TK 1624", "status": "found",
+                        "evidence": [_ev("TINKNOCKER", 101, "A101",
+                                         [_v("D101", "8040", "Price")])]},
+        }
+
+    def _record(self):
+        import core.chat_tool_planner as planner
+
+        return planner._build_workbook_structured_record(
+            item_tokens=["1624", "TK 1624"],
+            artifact_outcomes=self._outcomes(), per_item={},
+            field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-merge")
+
+    def test_identity_binding_survives_the_alias_merge(self):
+        rec = self._record()
+        entry = next(t for t in rec["targets"] if t["item"] == "TK 1624")
+        cand = entry["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "bound", (
+            "the alias merge dropped the identity binding")
+        assert cand["identity"]["references"][0]["cell"] == "A101"
+
+    def test_alias_merge_does_not_duplicate_the_same_cell(self):
+        rec = self._record()
+        entry = next(t for t in rec["targets"] if t["item"] == "TK 1624")
+        cand = entry["identity"]["candidates"][0]
+        cells = [r["cell"] for r in cand["identity"]["references"]]
+        assert cells == ["A101"], f"duplicate identity references: {cells}"
+
+    def test_value_binding_still_consolidates_across_aliases(self):
+        rec = self._record()
+        entry = next(t for t in rec["targets"] if t["item"] == "TK 1624")
+        cand = entry["identity"]["candidates"][0]
+        cols = [v["col"] for v in cand["values"]]
+        assert cols.count("D101") == 1, f"duplicate value references: {cols}"
+
+    def test_merged_candidates_keep_one_candidate_per_row(self):
+        rec = self._record()
+        entry = next(t for t in rec["targets"] if t["item"] == "TK 1624")
+        # Same row from two alias spellings is still ONE candidate.
+        assert len(entry["identity"]["candidates"]) == 1
+
+    def test_unverified_identity_is_not_upgraded_by_the_merge(self):
+        """A record with no matched cell must stay unverified; the merge
+        must not invent a binding."""
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["1624", "TK 1624"],
+            artifact_outcomes={
+                "1624": {"target": "1624", "status": "found",
+                         "evidence": [{"sheet": "S", "row": 5, "value": "x",
+                                       "values": [_v("D5", "1", "P")]}]},
+                "TK 1624": {"target": "TK 1624", "status": "found",
+                            "evidence": [{"sheet": "S", "row": 5, "value": "x",
+                                          "values": [_v("D5", "1", "P")]}]}},
+            per_item={}, field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-merge2")
+        entry = next(t for t in rec["targets"] if t["item"] == "TK 1624")
+        cand = entry["identity"]["candidates"][0]
+        assert cand["identity"]["status"] == "unverified"
+        assert cand["identity"]["references"] == []
+
+
+class TestMergedCellsAndVariants:
+    """Merged identity cells and multiple variants on one row.
+
+    A merged cell's value lives in its top-left anchor; every other member
+    reads empty, so citing a member cell points at nothing. And two
+    variants sharing a row must stay distinguishable when the source
+    supports them — the row locator alone cannot tell them apart.
+    """
+
+    def _anchor(self):
+        from core.workbook_read_artifact import merged_anchor_for_cell
+
+        return merged_anchor_for_cell
+
+    def test_member_cell_resolves_to_its_anchor(self):
+        f = self._anchor()
+        out = f(["A88:D88"], "B88")
+        assert out["anchor"] == "A88"
+        assert out["range"] == "A88:D88"
+        assert out["is_anchor"] is False
+
+    def test_anchor_cell_is_recognised_as_the_anchor(self):
+        f = self._anchor()
+        out = f(["A88:D88"], "A88")
+        assert out["anchor"] == "A88"
+        assert out["is_anchor"] is True
+
+    def test_anchor_is_not_assumed_to_be_column_a(self):
+        f = self._anchor()
+        out = f(["C5:F5"], "E5")
+        assert out["anchor"] == "C5"
+        assert out["is_anchor"] is False
+
+    def test_multi_row_merge_resolves_to_the_top_row(self):
+        f = self._anchor()
+        assert f(["B10:C12"], "C11")["anchor"] == "B10"
+
+    def test_unmerged_cell_has_no_anchor(self):
+        assert self._anchor()(["A88:D88"], "Z99") is None
+        assert self._anchor()([], "A1") is None
+
+    def test_absent_merge_metadata_yields_no_anchor(self):
+        """A materialized dataset carries no merge metadata. That must
+        produce None (and therefore an unverified binding), never a guess."""
+        assert self._anchor()(None, "B88") is None
+        assert self._anchor()(["not-a-range"], "B88") is None
+
+    def test_malformed_cell_reference_is_rejected(self):
+        assert self._anchor()(["A88:D88"], "R88") is None
+        assert self._anchor()(["A88:D88"], "") is None
+
+    def test_two_variants_on_one_row_stay_distinguishable(self):
+        """Same row, two products: the row locator is shared, so identity
+        must come from the cell to keep them apart."""
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["GSL48-16", "SLE24-16"],
+            artifact_outcomes={
+                "GSL48-16": {"target": "GSL48-16", "status": "found",
+                             "evidence": [_ev("S", 106, "A106",
+                                              [_v("E106", "14166", "PRICE")])]},
+                "SLE24-16": {"target": "SLE24-16", "status": "found",
+                             "evidence": [_ev("S", 101, "A101",
+                                              [_v("E101", "8880", "PRICE")])]}},
+            per_item={}, field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-variants")
+        by_item = {t["item"]: t for t in rec["targets"]}
+        a = by_item["GSL48-16"]["identity"]["candidates"][0]
+        b = by_item["SLE24-16"]["identity"]["candidates"][0]
+        # Distinct identity cells, so the two are separable even though a
+        # row locator alone could not tell a same-row pair apart.
+        assert a["identity"]["references"][0]["cell"] == "A106"
+        assert b["identity"]["references"][0]["cell"] == "A101"
+        assert [v["col"] for v in a["values"]] == ["E106"]
+        assert [v["col"] for v in b["values"]] == ["E101"]
+
+    def test_two_variants_sharing_one_row_keep_both_cells(self):
+        import core.chat_tool_planner as planner
+
+        rec = planner._build_workbook_structured_record(
+            item_tokens=["381"],
+            artifact_outcomes={
+                "381": {"target": "381", "status": "found",
+                        "evidence": [
+                            _ev("S", 88, "A88", [_v("C88", "670", "PRICE")]),
+                            _ev("S", 88, "B88", [_v("D88", "2421", "PRICE")]),
+                        ]}},
+            per_item={}, field_requests=["price"], file_name="w.xlsx",
+            prov={"content_hash": "abc", "ingested_at": "2026-09-07"},
+            coverage_limits={"indexed_sheets": 1},
+            evidence_action="new_read", attempt_id="attempt-samerow")
+        cand = rec["targets"][0]["identity"]["candidates"][0]
+        cells = [r["cell"] for r in cand["identity"]["references"]]
+        assert cells == ["A88", "B88"]
+        # One row, so one candidate, but both observations are retained.
+        assert len(rec["targets"][0]["identity"]["candidates"]) == 1
+        cols = sorted(v["col"] for v in cand["values"])
+        assert cols == ["C88", "D88"]
