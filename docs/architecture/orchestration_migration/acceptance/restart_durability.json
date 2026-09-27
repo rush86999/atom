@@ -1,0 +1,65 @@
+{
+  "checks": [
+    {
+      "check": "keyed request succeeds before restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "pinned response is non-empty",
+      "ok": true,
+      "detail": "125 chars"
+    },
+    {
+      "check": "stack came back up on the same run dir",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/preview_v1/runs/run-560c6ce8afe9"
+    },
+    {
+      "check": "relaunched server's cwd is this world",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/preview_v1/backend_root"
+    },
+    {
+      "check": "relaunched pid differs from the pre-restart pid (a real restart)",
+      "ok": true,
+      "detail": "pid now 2284"
+    },
+    {
+      "check": "an unrelated new request works after restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "replay after restart returns success",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "check": "replay after restart returns BYTE-IDENTICAL pinned content",
+      "ok": true,
+      "detail": "pinned=93874421cf27cbd7 replay=93874421cf27cbd7"
+    },
+    {
+      "check": "replay did not create a second execution",
+      "ok": true,
+      "detail": "3f2f2d35-3d97-4344-976d-188eb3abf4fd vs 3f2f2d35-3d97-4344-976d-188eb3abf4fd"
+    },
+    {
+      "check": "same request_id with a DIFFERENT payload is refused (409)",
+      "ok": true,
+      "detail": "status=409"
+    },
+    {
+      "check": "pre-restart history still contains the delivered answer",
+      "ok": true,
+      "detail": "2 history rows"
+    }
+  ],
+  "world": "preview_v1",
+  "pinned_message_sha256": "93874421cf27cbd7f5f11d8057586da7ccbd45a7058a498add8b6dadd7e88c1c",
+  "pinned_message_head": "A price list is used to set and communicate the standard selling prices of products or services to customers and sales teams.",
+  "passed": 11,
+  "total": 11,
+  "all_pass": true
+}
