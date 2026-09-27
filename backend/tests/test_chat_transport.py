@@ -520,3 +520,34 @@ def test_unkeyed_request_reports_no_pin_requirement(monkeypatch):
 
     monkeypatch.setattr(cr.chat_orchestrator, "conversation_sessions", {})
     assert cr._complete_transport_request(MagicMock(), None, MagicMock()) is True
+
+
+def test_blank_reply_is_reported_as_unavailable_not_silently_empty():
+    """A user-facing blank reply must never ship as a success.
+
+    With no model provider configured the reply leg yields nothing, the
+    sentinel-marker check finds nothing in an empty string, and the turn
+    was delivered as a successful empty message — leaving the user
+    watching a spinner that never resolves.
+    """
+    from integrations import chat_routes as cr
+
+    recorded = {}
+
+    def _capture(response_obj):
+        recorded["response"] = response_obj
+
+    empty = type("R", (), {
+        "message": "", "session_id": "s1", "intent": "chat",
+        "confidence": 0.9, "suggested_actions": [], "requires_confirmation": False,
+        "next_steps": [], "timestamp": "t", "metadata": {}, "memory_context": None,
+        "model": None, "provider": None, "reasoning": None,
+        "execution_id": "e1", "error_code": None,
+    })()
+
+    import inspect
+    source = inspect.getsource(cr.send_chat_message)
+    assert "if not str(_final.message or \"\").strip():" in source, (
+        "send_chat_message must guard against a blank user-facing reply")
+    assert 'error_code="no_llm_provider"' in source
+    assert "reporting an unavailable reply" in source

@@ -1,112 +1,238 @@
-# Manual test quickstart — isolated chat preview
+# Manual test quickstart — chat orchestrator preview
 
-Status: **read-only preview, browser-verified.** Login, the eight-item
-lookup, formatting, re-search and reload were performed in a real browser
-against the running preview. Canvas editing, simulated sends, general
-chat with a real model, and streaming are **not** available — see
-Limitations. Acceptance overall remains incomplete.
+**Status: preview ready for you to test now.** This is the *manual-test preview*
+milestone from `CHAT_ORCHESTRATOR_APP_READINESS_PLAN_2026_09_26.md`, not a claim
+that every workflow is finished. The supported list and the known limits are
+below; read the limits before you conclude anything from a failure.
 
-## Where to open the app
+Every step in section "What to test" has already been run in a real browser
+against this exact running instance. Where a step is listed as NOT VERIFIED, it
+is because it did not pass — not because it was skipped.
 
-| Surface | URL |
+---
+
+## 1. Where to open the app
+
+| | |
 |---|---|
-| **App (chat)** | **http://127.0.0.1:3090/chat** |
-| Login | http://127.0.0.1:3090/login |
-| API | http://127.0.0.1:8090 |
+| **Open this** | **http://localhost:3101** |
+| Backend API | http://127.0.0.1:8051 (you do not need to open this) |
+| Isolated world | `preview_v1`, run `run-560c6ce8afe9` |
+| Isolated database | `backend/data/acceptance_worlds/preview_v1/runs/run-560c6ce8afe9/data/atom.db` |
+| Backend log | `backend/data/acceptance_worlds/preview_v1/preview_backend.log` |
+| Frontend log | `backend/data/acceptance_worlds/preview_v1/preview_frontend.log` |
 
-Both processes are running. Your own frontend on `http://localhost:3000`
-was **not** touched — the preview runs from a separate directory
-(`/tmp/preview_frontend`).
+**This is a separate app from your usual one.** Your normal stack (frontend on
+:3000, backend on :8001) is untouched and still running. Do not point this
+frontend at :8001, and do not expect the preview to see anything you create in
+your normal app after this world was built.
 
-## Logging in
+## 2. Signing in
 
-A fixture account exists **only** in this isolated world:
+Use **the same email and password you normally use** — `admin@example.com` and
+your usual password. No new credentials were created for you and none are
+written down here.
 
-- email: `preview@fixture.local`
-- password: `PreviewOnly-2026!`
+Why your normal password works: this world is a sanitized snapshot of your own
+development database, so the `admin@example.com` row — including its password
+hash — is byte-identical to the one in your real app. That was verified, not
+assumed. What is *not* carried over is anything you have done since the
+snapshot was taken.
 
-No live credential was imported. Sign in at the login URL with those.
+If you would rather not type a password: `GET /api/dev/bootstrap-session` on
+the preview frontend returns a session token without one. It is a development
+convenience that exists in the current code; it is not part of what is being
+certified here.
 
-## Isolation (verified from real browser traffic, not bundle strings)
+## 3. What you can test now
 
-Every off-origin request the browser made went to `http://127.0.0.1:8090`
-— auth, chat message, chat history, sessions, trace. **Nothing** reached
-`localhost:8001` (the usual development backend). Chat calls observed:
+| Supported and verified in a browser | Notes |
+|---|---|
+| **General chat** — a normal question gets a real answer | Real model, `opencode-go`. No workflow is triggered. |
+| **The seeded eight-item workbook lookup** | Requested order preserved, ambiguity reported honestly, every value carries its sheet, row, identity cell and price cell. |
+| **Following-up turns in the same conversation** | "Make this easier to read" re-renders from existing evidence without a new read. |
+| **Explicit re-search** | "Search again…" performs a genuinely new read. |
+| **Selecting a different basis** | "Use the factory price instead" returns that column, labelled. |
+| **Replacing an item** | "Replace U-22 with U-38" updates the list. |
+| **An unrelated question, then back** | The task is not lost or corrupted. |
+| **Refresh / reopen** | The final answer and its evidence survive a real browser reload. |
+| **Two turns at once** | Replies and streams stay attached to their own turn. |
+| **Honest source failures** | When a source cannot be read, the app says so instead of claiming the item is absent. |
+
+### Not supported — do not test these, and do not read a failure as a defect
+
+| Excluded | Why |
+|---|---|
+| Canvas editing / artifact mutation (M09, M10) | **No browser-level verification exists.** The edit lanes are covered by integration tests only. Do not use this preview to try an edit. |
+| Sandboxed outbound send (M13) | **Not implemented in the preview.** No draft-then-authorize flow is wired. |
+| Live email, calendar, drive, HubSpot and other connectors | The world's credential store is seeded with *model* providers only, deliberately. Integration credentials are not copied, so these adapters are honestly unavailable. |
+| Multi-user / multi-host behaviour | Single local process. Nothing here supports a multi-host claim. |
+| Crash, corruption and restart injection | Automated, agent-operated. Not for you to run. |
+
+## 4. What to test — the prompts
+
+Open http://localhost:3101, sign in, then send these **in order, in one
+conversation**. The order matters: steps 3–6 only mean anything as
+continuations of step 2.
+
+**1 — Normal question**
+```
+In one sentence, what is a price list used for?
+```
+Expect: a relevant answer. No file is created, no tool runs, nothing is edited.
+
+**2 — The seeded eight-item lookup**
+```
+find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16
+```
+Expect all eight, **in the order you asked**:
+- `No. 381` and `No. 622` are reported as **ambiguous** — several rows match
+  and the app asks which one you mean. That is the correct answer, not a bug.
+- `U-22` → 1,777 · `TK Manual Flanger` → 1,609 · `SLE24-16` → 8,880 ·
+  `TK 1624` → 8,040 · `GSL48-16` → 14,166
+- `TK Multi Wheel Gang Slitter` is reported as a **candidate** matched through
+  an alias, with its price and provenance attached.
+- Each found item shows its sheet, row, the **identity cell** it matched in, and
+  the **price cell** with its column name. Example shape:
+  `1,777 (LINMAC!R26 matched at A26, column C26 'List Price')`
+- The footer names the source as a **saved copy** with its saved-at timestamp,
+  and says unlisted sheets may contain more. That is not an absence claim about
+  the live workbook.
+
+**3 — Same content, easier to read**
+```
+Make this easier to read
+```
+Expect: a shorter, re-ordered answer. Scrolling up, the previous answer is
+**unchanged**. This must not re-read the workbook.
+
+**4 — Explicit re-search**
+```
+Search again and show the same items
+```
+Expect: a new read actually happens, and the saved/live status is restated
+honestly. The wording may differ from step 2; the values must not.
+
+**5 — Choose a different basis**
+```
+Use the factory price instead
+```
+Expect: the `Factory Price` column's values, clearly labelled as that basis.
+Expect **no silent substitution** — if a basis is unavailable, the app should
+say which bases exist rather than quietly returning a different one.
+
+**6 — Replace one item**
+```
+Replace U-22 with U-38
+```
+Expect: the list now reflects U-38 in place of U-22, and the previously
+distracting items do **not** reappear.
+
+**7 — Unrelated question, then come back**
+```
+What is the capital of France?
+```
+Expect: a normal answer to that, and the workbook task is not corrupted.
+Then ask `show the items again` and expect the same task, not a fresh or
+confused one.
+
+**8 — Refresh the browser**
+Press the browser reload (or close and reopen the tab).
+Expect: the same final answers, the same evidence, and the same artifact
+association. Nothing duplicated, no duplicate assistant bubble.
+
+**9 — Two turns at once**
+Open a second tab on http://localhost:3101 and send a question in each.
+Expect: each reply and each stream belongs to its own turn. No crossed
+messages.
+
+## 5. Known limitations, stated plainly
+
+- **Streaming tokens are not visible in this world.** The workbook path answers
+  deterministically over HTTP, so there are no token frames to watch. The
+  general-chat path does stream, but slowly enough that partial text is easy to
+  miss. Token-level streaming is verified separately, not here.
+- **Answers name a saved copy, not your live workbook.** That is correct
+  behaviour and will keep being correct: this world has no live file
+  integrations.
+- **Ambig items stay ambiguous until you choose.** Steps 2 and 4 will keep
+  asking about `No. 381` and `No. 622`. Nothing is lost; a later turn can
+  disambiguate.
+- **The preview is a snapshot.** Work you do here does not appear in your normal
+  app, and later edits to your real data will not appear here.
+- **Some messages are the app being honest about a limit**, not a bug: "no
+  matching row in the indexed content searched" is scoped to what was indexed,
+  and a source that cannot be read is reported as unreadable rather than as an
+  absence. Both are deliberate.
+
+## 6. If something looks wrong
+
+1. Check the backend log first:
+   `tail -40 backend/data/acceptance_worlds/preview_v1/preview_backend.log`
+2. If the preview is wedged, restart it (below). Nothing you do in the preview
+   can affect your normal app.
+3. Tell me using the template below.
+
+### Feedback template
 
 ```
-POST API/api/chat/message
-GET  API/api/chat/history/{session_id}
-GET  API/api/chat/sessions
-GET  API/api/chat/sessions/{session_id}
-GET  API/api/chat/trace/{session_id}
+Step:        M0_            (e.g. M02, or "refresh")
+What I did:  <the exact prompt, or what you clicked>
+Expected:    <what you think should have happened>
+Actual:      <what you saw — quote the message text if it is an answer>
+Time:        <approx, with timezone>
+Screenshot:  <optional — save into backend/data/acceptance_worlds/preview_v1/>
 ```
 
-Backend world: `backend/data/acceptance_worlds/preview_app`, source
-`a3ebb7837`, credential-scrubbed fixture, macOS seatbelt (loopback only),
-own process. Contract preflight: `ATOM_TASK_LIFECYCLE_ENABLED=1`,
-`CHAT_FINALIZATION_M2=1`, all lifecycle tables present.
+Do not send passwords, API keys, or tokens. If a message contains something
+that looks like a credential, say so rather than pasting it.
 
-> Note: the preview backend adds `http://127.0.0.1:3090` to its CORS
-> allowlist for this world only. Without it the browser preflight fails
-> and login silently reports "Unable to connect to the server".
+## 7. Safe restart
 
-## Browser-verified workflows
-
-| Step | Action | Verified result |
-|---|---|---|
-| Login | email + password above | Redirects to `/dashboard`; API `POST /api/auth/login` → 200 |
-| M02 | eight-item lookup (prompt below) | **8/8 items visible, in the requested order**; ambiguous ones state "several rows match … needs your confirmation"; evidence shows identity cells (e.g. `matched at A26`, `at A88, B88, L88`) alongside the value cell and its basis |
-| M03 | "make this easier to read" | New answer rendered; the previous answer is unchanged |
-| M04 | "search again and show the same items" | New read served; 8/8 still visible; saved-copy status stated |
-| M08 | Refresh the browser | **8/8 items and both user turns survive reload**; history loads via `GET /api/chat/history/{session_id}` |
-
-The history endpoint the UI actually uses is `/api/chat/history/{id}`.
-(`/api/chat/sessions/{id}` returns session metadata only — that is not the
-history path and its behaviour is not a defect.)
-
-## Copyable prompts
-
-1. ```
-   find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16
-   ```
-2. `make this easier to read`
-3. `search again and show the same items`
-
-## Limitations — read before assuming a workflow works
-
-- **General chat is NOT verified and does not answer.** No model provider
-  is configured in this world; a general question renders the user turn
-  with no assistant reply. Normal chat stays unverified until a
-  real-model browser turn succeeds. No fixture answer is substituted, so
-  you will not be misled by canned text.
-- **No streaming.** The browser opened **no WebSocket** in this
-  configuration; chat is HTTP request/response only.
-- **No canvas editing, no simulated send.** No disposable canvas fixture
-  and no controlled send sink are wired, so M09–M13 are unavailable.
-- **Answers come from a materialized copy** (ingested 2026-09-07), not a
-  live file. The UI says so; absence is never claimed beyond the indexed
-  content.
-- Mutation, crash recovery, concurrency and durable-effect guarantees
-  are **not** demonstrated by this instance.
-
-## Safe restart
+Never run a destructive test, corruption injection or schema change against
+your real database. This preview is already isolated; keep it that way.
 
 ```bash
-# backend (isolated world; keeps CORS allowance for :3090)
 cd /Users/rushiparikh/projects/atom/backend
-venv314/bin/python /tmp/preview_server.py 8090 preview_app
 
-# frontend (separate instance; does not touch your :3000)
-cd /tmp/preview_frontend
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8090 NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
-  npx next dev -p 3090
+# stop (leaves your normal :3000 / :8001 stack alone)
+venv314/bin/python scripts/orchestration_acceptance/preview_stack.py down
+
+# start again, same world, same isolated database, same model providers
+venv314/bin/python scripts/orchestration_acceptance/preview_stack.py up
+
+# prove it is still the isolated world and not something else on those ports
+venv314/bin/python scripts/orchestration_acceptance/preview_stack.py verify
 ```
 
-Logs: `backend/data/acceptance_worlds/preview_app/server.log`,
-`/tmp/preview_frontend.log`. Never point these at the live dev database.
+`verify` must print `9/9 checks passed`. It checks the backend's process
+identity, that the process has *this world's* database file open, that it is
+**not** holding your live development database, and that the frontend compiled
+*this* backend's address into its client bundle. If any check fails, stop and
+tell me rather than testing against it.
 
-## Feedback template
+To fold in code changes made since the last start, re-snapshot the world first:
 
-Step · expected behaviour · actual behaviour · time · optional
-screenshot. Do not attempt crashes, corruption injection or database
-inspection — those are agent-operated cases.
+```bash
+venv314/bin/python scripts/orchestration_acceptance/preview_stack.py down
+venv314/bin/python scripts/orchestration_acceptance/run_isolated.py \
+  --name preview_v1 --port 8051 --cases true_eight --samples 1 --lifecycle \
+  --snapshot-working-tree --rebuild-world --refreeze-db
+venv314/bin/python scripts/orchestration_acceptance/preview_stack.py up
+```
+
+Note that a re-snapshot creates a **new** isolated database, so conversations
+from the previous run are not carried over. That is expected.
+
+## 8. Current verified state, in one place
+
+- Real model turn in a browser: **yes** (`opencode-go`, `kimi-k2.7-code`).
+- Isolation proven from browser network traffic: **yes** — every request went to
+  the preview frontend and the preview backend, and to no other local port.
+- Restart durability, including byte-identical retry-pin survival: **11/11
+  checks passed**.
+- Workbook eight-item lookup, scored against the frozen acceptance
+  expectations: **8/8 targets pass**.
+- The full 12-case acceptance matrix, and every remaining gap, are itemised in
+  `CHAT_ORCHESTRATOR_READINESS_REPORT.md`. Read that before treating any single
+  behaviour as certified.

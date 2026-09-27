@@ -2089,6 +2089,33 @@ async def send_chat_message(
             execution_id=response.get("execution_id"),
             error_code=response.get("error_code"),
         )
+        # A BLANK user-facing reply is never acceptable. With no model
+        # provider configured the reply leg yields nothing, the
+        # marker-based detection below finds no sentinel in an empty
+        # string, and the turn is delivered as a successful empty
+        # message — leaving the user watching a spinner that never
+        # resolves. Say so explicitly and end the turn.
+        if not str(_final.message or "").strip():
+            logger.warning(
+                "chat turn produced no reply text (session=%s exec=%s); "
+                "reporting an unavailable reply rather than an empty one",
+                _final.session_id, _final.execution_id)
+            _final = ChatMessageResponse(
+                success=False,
+                message=(
+                    "No model provider is configured, so I could not "
+                    "generate a reply. Add an API key in Settings → AI, "
+                    "then try again."),
+                session_id=_final.session_id,
+                intent=_final.intent or "unknown",
+                confidence=0.0,
+                suggested_actions=[],
+                requires_confirmation=False,
+                next_steps=[],
+                timestamp=datetime.utcnow().isoformat(),
+                error_code="no_llm_provider",
+                recovery_url="/settings/ai",
+            )
         _complete_transport_request(db, _treq, _final)
         return _final
 
