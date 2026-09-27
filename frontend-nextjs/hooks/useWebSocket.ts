@@ -18,6 +18,13 @@ interface WebSocketMessage {
 
 interface UseWebSocketOptions {
     url?: string;
+    /**
+     * Workspace whose channel to subscribe to. The API route is
+     * /ws/{workspace_id}; omitting it connected to bare /ws, which the
+     * server refuses, so every handshake failed and the client reconnected
+     * forever. Defaults to "default", matching the backend's own default.
+     */
+    workspaceId?: string;
     autoConnect?: boolean;
     initialChannels?: string[];
     /** Enable automatic reconnection with exponential backoff (default: true). */
@@ -52,6 +59,7 @@ const parseInitialChannels = (channelKey: string): string[] => {
 };
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
+    const { workspaceId } = options;
     const { data: session } = useSession();
     const {
         url = "",  // Empty default — uses resolveWsBase() derived from NEXT_PUBLIC_API_URL.
@@ -147,7 +155,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         }
 
         const wsBase = resolveWsBase();
-        let socketUrl = `${wsBase}/ws`;
+        // The API route is /ws/{workspace_id}; a handshake against bare
+        // /ws matches no websocket route, so the server refuses the
+        // upgrade (403) and the client retries forever — which surfaced
+        // as ERR_INVALID_HTTP_RESPONSE plus reconnect churn, and as chat
+        // status frames that never arrived. Default to the workspace
+        // path, and let a caller-supplied url still override it.
+        const workspacePath = encodeURIComponent(workspaceId || "default");
+        let socketUrl = `${wsBase}/ws/${workspacePath}`;
         if (url) {
             if (url.startsWith("ws://") || url.startsWith("wss://")) {
                 socketUrl = url;
