@@ -35,6 +35,17 @@ _ap.add_argument("--frontend-origin", default="http://127.0.0.1:3090",
                       "comma-separated for several")
 _a = _ap.parse_args()
 PORT, NAME = _a.port, _a.name
+# Established local real-model configuration (no live credentials).
+_MODEL_DEFAULTS = {
+    "OLLAMA_BASE_URL": "http://127.0.0.1:11434/v1",
+    "OLLAMA_MODELS": "llama3.1:8b,o4-mini",
+    "OLLAMA_LOAD_TIMEOUT": "15m",
+    "ATOM_PROVIDER": "ollama",
+    "ATOM_DEFAULT_MODEL": "llama3.1:8b",
+    "PREFERRED_PROVIDER": "ollama",
+    "OPENAI_API_KEY": "local-ollama-not-a-secret",
+    "ATOM_PROVIDER_MODEL_CATALOG_PATH": "",
+}
 FRONTEND_ORIGINS = ",".join(
     o.strip() for o in _a.frontend_origin.split(",") if o.strip())
 world = Path("/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds") / NAME
@@ -67,6 +78,31 @@ env.update({
 if "ADDITIONAL_ALLOWED_ORIGINS" not in ri.SERVER_ENV_WHITELIST:
     ri.SERVER_ENV_WHITELIST = tuple(ri.SERVER_ENV_WHITELIST) + (
         "ADDITIONAL_ALLOWED_ORIGINS",)
+
+# Real-model (local Ollama) configuration must reach the preview process the
+# same way. launch_server rebuilds the environment from SERVER_ENV_WHITELIST,
+# so exporting these in the caller's shell alone silently does nothing --
+# which is exactly how a preview ended up with no usable model while still
+# reporting itself as a real-model preview. OPENAI_API_KEY here is the local
+# Ollama placeholder, never a live credential.
+_MODEL_ENV = (
+    "OLLAMA_BASE_URL", "OLLAMA_MODELS", "OLLAMA_LOAD_TIMEOUT",
+    "ATOM_PROVIDER", "ATOM_DEFAULT_MODEL", "PREFERRED_PROVIDER",
+    "ATOM_PROVIDER_MODEL_CATALOG_PATH", "OPENAI_API_KEY",
+)
+ri.SERVER_ENV_WHITELIST = tuple(ri.SERVER_ENV_WHITELIST) + tuple(
+    k for k in _MODEL_ENV if k not in ri.SERVER_ENV_WHITELIST)
+# PIN, do not default. A developer's shell can already export these -- one
+# had OLLAMA_MODELS=/Volumes/Seagate, a volume path in a variable that
+# expects a model list. setdefault() would defer to that, the model list
+# would resolve to nothing, and the preview would silently fall back to a
+# non-local provider while still looking like a real-model preview. The
+# preview's model configuration is therefore set unconditionally.
+for _k in _MODEL_ENV:
+    if _k in _MODEL_DEFAULTS:
+        os.environ[_k] = _MODEL_DEFAULTS[_k]
+    else:
+        os.environ.pop(_k, None)
 os.environ["ADDITIONAL_ALLOWED_ORIGINS"] = FRONTEND_ORIGINS
 os.environ["ATOM_TASK_LIFECYCLE_ENABLED"] = "1"
 os.environ["CHAT_FINALIZATION_M2"] = "1"

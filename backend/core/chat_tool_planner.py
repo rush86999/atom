@@ -6333,7 +6333,30 @@ async def _datasets_named_file_block(
         logger.debug("workbook structured record skipped: %r", _sr_err)
     record_event(SCAN_END, outcome=_scan_action,
                  evidence_revision=_scan_revision,
-                 duration_ms=_scan_timer.ms(), **_scan_ctx)
+                 duration_ms=_scan_timer.ms(),
+                 # PER-ITEM TRACE (2026-09-27). A scan_end row with no detail
+                 # cannot answer "why did this item miss?", which is exactly the
+                 # question a wrong 'no matching row' raises — the trace has to
+                 # carry what was asked, what was tried, and what each item
+                 # resolved to, or the failure is only reproducible, not
+                 # diagnosable. Sizes are bounded; no row content is recorded.
+                 detail={
+                     "source": str(mentions[0]) if mentions else None,
+                     "resolved_key": [str(key[0]), str(key[1])] if file_entries else None,
+                     "dataset_entries": len(file_entries or []),
+                     "catalog_rows_seen": catalog_rows_seen,
+                     "catalog_truncated": catalog_truncated,
+                     "item_tokens": list(item_tokens or []),
+                     "aliases_tried": {k: list(v or [])[:6]
+                                       for k, v in list(aliases_tried.items())[:12]},
+                     "per_item": {
+                         item: ("matched" if rec else "miss")
+                         for item, rec in list(per_item.items())[:20]
+                     },
+                     "matched_sheets": list(sheet_names or [])[:8],
+                     "probe_failed": bool(probe_failed),
+                 },
+                 **_scan_ctx)
     coverage_note = (
         "COVERAGE LIMITS — indexed sheets="
         f"{len(sheet_names)}; scanned entries={len(file_entries)}; "

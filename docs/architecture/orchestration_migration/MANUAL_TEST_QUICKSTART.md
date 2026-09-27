@@ -22,10 +22,16 @@ Atom data, and it is safe to break.
 |---|---|
 | Browser flows verified | **11 pass, 0 fail, 1 cosmetic block** (`preview_verify.py`, real Chromium) |
 | Real model answering in the browser | **yes** — verified, transcript quoted below |
-| **Named-file lookup returns a value** | **NO — open defect `PREVIEW-01`.** It answers honestly but returns no row. Do not expect prices. Details below. |
+| **FUNCTIONAL BLOCKER — named-file lookup returns a value** | **`PREVIEW-01`. Root cause traced; NOT fixed. The advertised M02 flow does not work.** |
+| Cosmetic block (separate, minor) | the page `<title>` is empty. No effect on any answer or evidence. |
+
+**Two different things — do not conflate them.** `PREVIEW-01` is a **functional
+blocker**: the core read workflow is broken and is the current priority. The
+empty page title is cosmetic and blocks nothing.
 
 So: **normal chat, formatting, re-search and reload are working and worth
-trying. The seeded-workbook price lookup is not.** Everything else in this
+trying. The seeded-workbook price lookup is broken, and M02 stays off the
+supported list until it is fixed and re-verified here.** Everything else in this
 document is verified; that one is named as broken rather than quietly included.
 
 ---
@@ -54,13 +60,28 @@ claim about the live workbook.
 
 **Why that is a defect and not correct behaviour:** the row exists. The
 world's `..._linmac.parquet` contains `Part Number = U-22`, `List Price = 1777.0`,
-`__sheet_row = 26` (i.e. `linmac!A26`). The framing around the miss is exactly
-what the search work order asked for; the retrieval is what fails.
+`__sheet_row = 26` (i.e. `linmac!A26`).
 
-**Not caused by the recent search work.** That work changed the hybrid coverage
-envelope, query decomposition and the reranker loader. The dataset probe path
-(`_resolve_active_items` → `_probe_cached` → `search_all_datasets_sync`) was not
-touched.
+**Root cause (traced, not fixed).** Asked **first** in a fresh session, the same
+request works and returns the exact binding: *"U-22 - 1,777 (LINMAC!R26 matched
+at A26, column C26 'List Price')"*. Asked **after any general-chat turn**, it
+misses. So a preceding turn is the trigger — not the short form, not the amount
+of data.
+
+The scan for the failing turn recorded, in the durable trace:
+`per_item: {"U-22": "matched", "SLE24-16": "matched"}`, 46 entries, no
+truncation, no probe failure — and the reply said "no matching row" anyway.
+**The retrieval is correct and the delivery throws the result away.** Two readers
+of the same dataset disagree inside one turn: the planner's named-file scan
+matched, the pending-file direct reader missed, and the *pending* result is the
+one rendered and pinned. The pending file objective is reconstructed from chat
+history, and that history-tainted context is what the direct read runs with.
+
+A second, genuine defect was found and fixed along the way
+(`PROBE-CACHE-01`): the dataset probe cached a **miss** for 300s, so one
+transient read failure could publish "no matching row" for five minutes. It is
+fixed and pinned by tests — but it is **not** the cause of `PREVIEW-01`, which
+still reproduces with the fix in place.
 
 ### M03 — formatting follow-up *(verified)*
 
@@ -104,11 +125,25 @@ identifiers still present after reload.
 | Normal chat with a real model | working (slow first turn — see below) |
 | Conversation continuation: formatting, re-search | working |
 | History and reload | working |
-| WebSocket live updates | working (11 app sockets observed on the isolated backend) |
+| WebSocket status updates | working, but see the correction below — this is **not** streaming |
 | Cross-source retrieval, ambiguity, absence bounding | partially — the *framing* is correct, the value resolution is `PREVIEW-01` |
 | Canvas editing, authorized mutations | **not verified — do not test** |
 | Sandboxed outbound send | **not verified — do not test** |
 | Live connectors (mail, WorkDrive) | **excluded.** The world is network-isolated by design |
+
+## Correction: WebSockets are not streaming
+
+An earlier version of this document said "11 WebSockets — working". That was a
+**connection count** and it was not evidence of anything. Measured properly:
+
+- 6 app sockets opened (2 at t=5.5s, 4 at t=8.5s); **two of the first batch were
+  closed by t=7.2s**. That is churn, not one healthy link.
+- 6 messages arrived, all `agent_status_change` (running → success).
+- **0 token events.**
+
+So the socket carries status transitions only; **the answer arrives whole in the
+HTTP response.** Token streaming is *unexercised*, not proven. Matches the prior
+lifecycle session's finding on the same rig.
 
 ## Limitations you should know before you start
 

@@ -31,6 +31,7 @@ import argparse
 import importlib.util
 import json
 import os
+import json
 import secrets
 import subprocess
 import sys
@@ -39,6 +40,7 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 REPO = HERE.parents[4]
 BACKEND = REPO / "backend"
 FRONTEND = REPO / "frontend-nextjs"
@@ -48,6 +50,9 @@ STATE_PATH = HERE / "preview_state.json"
 HARNESS = BACKEND / "scripts" / "orchestration_acceptance" / "run_isolated.py"
 OLLAMA_PORT = int(os.getenv("PREVIEW_OLLAMA_PORT", "11434"))
 OLLAMA_MODEL = os.getenv("PREVIEW_OLLAMA_MODEL", "llama3.1:8b")
+# The name the router selects for a simple turn. Aliased to OLLAMA_MODEL in the
+# local Ollama runtime, so this is a name lookup and not a different model.
+OLLAMA_ROUTE_ALIAS = os.getenv("PREVIEW_OLLAMA_ROUTE_ALIAS", "o4-mini")
 FRONTEND_DIST = ".next-preview"
 # Filled at launch; the farm env file is written before the frontend starts.
 PREVIEW_BACKEND_PORT = 8091
@@ -64,6 +69,8 @@ def _load_isolation() -> Any:
 
 
 ISO = _load_isolation()
+
+from credential_isolation import prove_isolated, sanitize  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -95,11 +102,18 @@ def probe_ollama(timeout: float = 180.0) -> dict[str, Any]:
         out["reason"] = f"ollama unreachable: {type(exc).__name__}"
         return out
 
-    for label in ("cold", "warm"):
+    # BOTH names are warmed. The route uses the alias and the direct probe uses
+    # the real name; Ollama keeps them as separate loaded models, so warming one
+    # leaves the first user turn paying a cold load and blowing the app's turn
+    # budget. The first turn of a preview should not be the one that times out.
+    for label, model_name in (("cold", OLLAMA_MODEL),
+                              ("alias", OLLAMA_ROUTE_ALIAS),
+                              ("warm", OLLAMA_MODEL),
+                              ("alias_warm", OLLAMA_ROUTE_ALIAS)):
         t0 = time.monotonic()
         try:
             r = httpx.post(url, timeout=timeout, json={
-                "model": OLLAMA_MODEL,
+                "model": model_name,
                 "messages": [{"role": "user", "content": "Reply with exactly: MODEL_OK"}],
                 "max_tokens": 24, "temperature": 0,
             })
@@ -118,6 +132,7 @@ def probe_ollama(timeout: float = 180.0) -> dict[str, Any]:
             out[f"{label}_error"] = f"{type(exc).__name__}: {exc}"[:200]
     out["generated"] = "MODEL_OK" in str(out.get("warm_content", "")) or \
                        "MODEL_OK" in str(out.get("cold_content", ""))
+    out["route_alias_warm"] = bool(out.get("alias_warm_content"))
     return out
 
 
@@ -179,6 +194,23 @@ def launch_backend(port: int, world: Path) -> subprocess.Popen:
     run_dir.mkdir(parents=True, exist_ok=True)
     ISO._seed_run_data(world, run_dir)
 
+    # CREDENTIAL ISOLATION. The harness scrubs 15 credential TABLES; the
+    # credential-bearing FILES a world inherits from the developer's data
+    # directory are a separate surface, and one of them is the Fernet key that
+    # decrypts tokens at rest. An empty byok_keys.json in one run is not a
+    # guarantee for the next, so the world is sanitized and then PROVEN
+    # isolated, and the launch refuses if it is not.
+    live_data = BACKEND / "data"
+    scrub = sanitize(run_dir / "data", live_data)
+    proof = prove_isolated(run_dir / "data", live_data)
+    if not proof["isolated"]:
+        for pid in ():
+            pass
+        raise SystemExit(
+            "CREDENTIAL ISOLATION FAILED — refusing to launch a world that "
+            "carries usable credentials:\n  " + "\n  ".join(proof["problems"]))
+    launch_backend.credential_report = {"sanitize": scrub, "proof": proof}
+
     farm = world / "backend_root"
     data_link = farm / "data"
     if data_link.is_symlink() or data_link.exists():
@@ -203,7 +235,7 @@ def launch_backend(port: int, world: Path) -> subprocess.Popen:
         # REAL MODEL, loopback only. No API key: Ollama ignores one and the
         # provider is registered from its own runtime discovery.
         "OLLAMA_BASE_URL": f"http://127.0.0.1:{OLLAMA_PORT}/v1",
-        "OLLAMA_MODELS": OLLAMA_MODEL,
+        "OLLAMA_MODELS": f"{OLLAMA_MODEL},{OLLAMA_ROUTE_ALIAS}",
         "OLLAMA_LOAD_TIMEOUT": "15m",
         # The browser calls the backend cross-origin (the preview frontend is
         # on its own port), and the backend's CORS allow-list is origin-based,
@@ -218,9 +250,40 @@ def launch_backend(port: int, world: Path) -> subprocess.Popen:
         "PREFERRED_PROVIDER": "ollama",
         "SECRET_KEY": secret,
         "ENVIRONMENT": "development",
+        # The real model, reached through the app's OWN documented provider
+        # configuration. Ollama speaks the OpenAI protocol, so the openai
+        # provider is pointed at it and the catalog advertises the pulled model.
+        # This is configuration only — no production code changes, and no cloud
+        # provider is reachable: the seatbelt denies everything but loopback.
+        #
+        # It is also the only reliable way to get HERE. The router's learned
+        # preference table is inherited from the developer's database
+        # (254k llm_routing_feedback rows) and steers chat at a cloud provider
+        # that the sandbox correctly refuses, so every turn answered
+        # "every configured provider failed" while a real local model sat
+        # unused. The placeholder key is not a credential; Ollama ignores it.
+        "OPENAI_API_KEY": "local-ollama-not-a-secret",
+        "OPENAI_BASE_URL": f"http://127.0.0.1:{OLLAMA_PORT}/v1",
+        "ATOM_PROVIDER_MODEL_CATALOG_PATH": str(world / "preview_model_catalog.json"),
     })
-    env.pop("OPENAI_API_KEY", None)
-    env.pop("OPENAI_BASE_URL", None)
+    (world / "preview_model_catalog.json").write_text(json.dumps({
+        "comment": (
+            "Preview-only catalog. Declares the locally pulled model as served "
+            "so the router does not fall through to a cloud provider the "
+            "seatbelt denies. No real provider is reachable from this world."
+        ),
+        "providers": {"openai": {
+            # The router's own complexity map selects `o4-mini` for a simple
+            # turn, and a route absent from the catalog is EXCLUDED before
+            # dispatch. So the catalog has to advertise the name the router
+            # picks. `o4-mini` is an Ollama ALIAS of the real local model
+            # (created once via /api/copy), so the weights answering the turn
+            # are llama3.1:8b — the alias only satisfies the name lookup.
+            "served": [OLLAMA_ROUTE_ALIAS, OLLAMA_MODEL],
+            "verified_at": time.time(), "last_attempt_at": time.time(),
+            "consecutive_failures": 0,
+        }},
+    }, indent=1))
 
     ISO.launch_server.last_run_dir = run_dir
     log = open(world / "preview_backend.log", "ab")
@@ -360,6 +423,22 @@ def launch_frontend(port: int, api_url: str, world: Path) -> subprocess.Popen:
 
 # --------------------------------------------------------------------------- #
 
+def _credential_summary(port: int, world: Path) -> dict[str, Any]:
+    """Re-prove isolation against the RUNNING server's own database.
+
+    The sanitizer ran against the run directory before launch; this re-reads
+    the file the launched process actually opened, so the claim covers the live
+    world and not just the one we intended to create.
+    """
+    desc = getattr(ISO.launch_server, "descriptor", None) or {}
+    db_path = desc.get("db_path")
+    if not db_path:
+        return {"proved": False, "reason": "no descriptor for the launched server"}
+    proof = prove_isolated(Path(db_path).parent, BACKEND / "data")
+    return {"proved": proof["isolated"], "db_path": db_path,
+            "problems": proof["problems"], "evidence": proof["evidence"]}
+
+
 def _verify_isolation(port: int, world: Path) -> dict[str, Any]:
     """Prove the preview is talking to the isolated world, not the user's env.
 
@@ -386,6 +465,11 @@ def _verify_isolation(port: int, world: Path) -> dict[str, Any]:
         ident.get("cwd") and str(world.resolve()) in str(ident["cwd"]))
 
     out["backend_pid_matches_launch"] = True
+    out["credential_isolation"] = _credential_summary(port, world)
+    if not out["credential_isolation"].get("proved"):
+        raise SystemExit(
+            "CREDENTIAL ISOLATION FAILED against the RUNNING server: "
+            + json.dumps(out["credential_isolation"].get("problems")))
     out["user_env_untouched"] = {}
     for name, p in (("live_backend_8001", 8001), ("user_frontend_3000", 3000)):
         try:
@@ -480,6 +564,7 @@ def main() -> int:
         "frontend_url": f"http://localhost:{args.frontend_port}",
         "model": model,
         "preview_secret_key": getattr(ISO.launch_server, "preview_secret", ""),
+        "credential_isolation": getattr(launch_backend, "credential_report", {}),
         "isolation": checks,
         "descriptor": getattr(ISO.launch_server, "descriptor", {}),
         "backend_log": str(world / "preview_backend.log"),

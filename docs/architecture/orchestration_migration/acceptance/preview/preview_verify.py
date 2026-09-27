@@ -120,7 +120,15 @@ async def run(frontend: str, api: str) -> dict[str, Any]:
             await page.fill("input[type=password]", PREVIEW_PASSWORD)
             await page.screenshot(path=str(SHOTS / "00_login_filled.png"))
             await page.click("button[type=submit]")
-            await page.wait_for_timeout(12_000)
+            # Wait for the ACTUAL redirect. A fixed sleep is wrong here: the
+            # first navigation after a fresh `next dev` compile is slow enough
+            # to still be on /login, which reads as a failed login when the
+            # credentials were fine.
+            try:
+                await page.wait_for_url(lambda u: "/login" not in u, timeout=120_000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(3000)
             logged_in = "/login" not in page.url
             S(log("F00_login_through_real_form", PASS if logged_in else FAIL,
                  f"landed on {page.url.replace(frontend, '') or '/'}"))
@@ -156,13 +164,14 @@ async def run(frontend: str, api: str) -> dict[str, Any]:
         chat_url = f"{frontend}/chat"
         try:
             await page.goto(chat_url, wait_until="domcontentloaded", timeout=90_000)
-            box = await wait_composer(page, timeout=120)
+            box = await wait_composer(page, timeout=180)
             S(log("F03_chat_surface_present", PASS if box else BLOCKED,
                  "composer found and enabled" if box else "no enabled composer"))
             if box:
                 baseline = len(await page.inner_text("body"))
                 await box.click()
-                await box.fill("In one sentence: what is a bandsaw used for?")
+                question_text = "In one sentence: what is a bandsaw used for?"
+                await box.fill(question_text)
                 t0 = time.monotonic()
                 await box.press("Enter")
                 # The turn is done when the composer comes back. Asserting on a
@@ -173,11 +182,22 @@ async def run(frontend: str, api: str) -> dict[str, Any]:
                 await page.screenshot(path=str(SHOTS / "02_general_chat.png"))
                 body = await page.inner_text("body")
                 grew = len(body) > baseline
-                mentions = "bandsaw" in body.lower() or "saw" in body.lower()
-                answered = done and grew and mentions
+                # A "mentions the subject" check is satisfied by the user's own
+                # question echoed in the transcript, which is how an earlier run
+                # reported a 0.0s "model answer" for a turn that had actually
+                # failed with "every configured provider failed". Require a real
+                # assistant reply: not the provider-failure text, and more text
+                # than the question that produced it.
+                failed = "every configured provider failed" in body.lower()
+                reply = _assistant_text(body)
+                substantive = len(reply) > len(question_text) + 40
+                mentions = "bandsaw" in reply.lower()
+                answered = done and grew and not failed and substantive and mentions
                 S(log("F03b_real_model_answer_visible", PASS if answered else FAIL,
-                     f"{elapsed:.1f}s, turn_completed={done}, "
-                     f"body {baseline}->{len(body)} chars, mentions subject={mentions}"))
+                     f"{elapsed:.1f}s, completed={done}, provider_failed={failed}, "
+                     f"reply={len(reply)} chars, substantive={substantive}, "
+                     f"answers subject={mentions}"))
+                record["general_chat_reply"] = reply
                 record["general_chat"] = {
                     "latency_s": round(elapsed, 2), "turn_completed": done,
                     "baseline_chars": baseline, "final_chars": len(body),
@@ -360,6 +380,26 @@ async def wait_turn_complete(page, timeout: float = 420.0) -> bool:
                 pass
         await page.wait_for_timeout(1500)
     return False
+
+
+def _assistant_text(body: str) -> str:
+    """The assistant's own words, excluding the user's echoed question.
+
+    The transcript renders the question immediately above the answer, so a
+    naive whole-body check counts the question as part of the reply. The answer
+    is taken as the text AFTER the question's last occurrence.
+    """
+    tail = body
+    for probe in ("what is a bandsaw used for?",):
+        idx = tail.lower().rfind(probe)
+        if idx != -1:
+            tail = tail[idx + len(probe):]
+    # Cut at the chrome that follows the bubble.
+    for stop in ("AI can make mistakes", "Context used", "Auto (recommended)"):
+        idx = tail.find(stop)
+        if idx != -1:
+            tail = tail[:idx]
+    return " ".join(tail.split())
 
 
 def _has_table(con, name: str) -> bool:

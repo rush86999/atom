@@ -6,105 +6,106 @@
    "step": "F00_login_through_real_form",
    "verdict": "pass",
    "detail": "landed on /dashboard",
-   "at": "21:35:37"
+   "at": "22:36:44"
   },
   {
    "step": "F01_app_loads",
    "verdict": "pass",
    "detail": "HTTP 200",
-   "at": "21:35:37"
+   "at": "22:36:44"
   },
   {
    "step": "F01b_page_title",
    "verdict": "blocked",
    "detail": "title=''",
-   "at": "21:35:43"
+   "at": "22:36:50"
   },
   {
    "step": "F02_targets_isolated_backend",
    "verdict": "pass",
    "detail": "api hosts observed=['http', 'http://127.0.0.1:8091', 'http://localhost:3091']",
-   "at": "21:35:43"
+   "at": "22:36:50"
   },
   {
    "step": "F02b_user_backend_not_used",
    "verdict": "pass",
    "detail": "no request to 8001 from the preview origin",
-   "at": "21:35:43"
+   "at": "22:36:50"
   },
   {
    "step": "F03_chat_surface_present",
    "verdict": "pass",
    "detail": "composer found and enabled",
-   "at": "21:35:45"
+   "at": "22:37:02"
   },
   {
    "step": "F03b_real_model_answer_visible",
    "verdict": "pass",
-   "detail": "9.1s, turn_completed=True, body 2442->2571 chars, mentions subject=True",
-   "at": "21:35:55"
+   "detail": "49.8s, completed=True, provider_failed=False, reply=244 chars, substantive=True, answers subject=True",
+   "at": "22:37:51"
   },
   {
    "step": "F05_file_lookup_evidence",
    "verdict": "pass",
-   "detail": "6.6s, completed=True, both identifiers present=True, body 2571->3189",
-   "at": "21:36:01"
+   "detail": "8.1s, completed=True, both identifiers present=True, body 2576->3194",
+   "at": "22:38:00"
   },
   {
    "step": "F06_formatting_followup",
    "verdict": "pass",
-   "detail": "7.7s, completed=True, body 3189->3452",
-   "at": "21:36:09"
+   "detail": "19.7s, completed=True, body 3194->3527",
+   "at": "22:38:19"
   },
   {
    "step": "F07_explicit_research",
    "verdict": "pass",
-   "detail": "4.6s, completed=True, body 3452->3988",
-   "at": "21:36:14"
+   "detail": "6.2s, completed=True, body 3527->4063",
+   "at": "22:38:26"
   },
   {
    "step": "F04_websocket_connected",
    "verdict": "pass",
-   "detail": "app ws=11 (hmr excluded), total=14",
-   "at": "21:36:17"
+   "detail": "app ws=9 (hmr excluded), total=12",
+   "at": "22:38:29"
   },
   {
    "step": "F08_reload_preserves_history",
    "verdict": "pass",
-   "detail": "before=3988 after=4082 chars, identifiers retained=True",
-   "at": "21:36:29"
+   "detail": "before=4063 after=4151 chars, identifiers retained=True",
+   "at": "22:38:42"
   }
  ],
  "auth": {
   "method": "real login form, isolated backend",
   "landed": "http://localhost:3091/dashboard"
  },
+ "general_chat_reply": "10:37 PM A bandsaw is typically used for curved or irregular cuts in wood and metal, as well as resawing and ripping operations due to its unique ability to cut in both directions while maintaining a consistent blade tension. 10:37 PM o4-mini \ud83e\udde0",
  "general_chat": {
-  "latency_s": 9.05,
+  "latency_s": 49.77,
   "turn_completed": true,
-  "baseline_chars": 2442,
-  "final_chars": 2571,
-  "excerpt": "d the prices of these 8 machines in Consolidated Price Li\n9/25/2026\n\n0 messages\n\ntry search again\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790472925944_ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n876b6659\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning."
+  "baseline_chars": 2389,
+  "final_chars": 2576,
+  "excerpt": " messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/24/2026\n\n0 messages\n\ngo\n9/24/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790476601512_9wztylgis\n\nIn one sentence: what is a bandsaw used for?\n10:37 PM\n\nA bandsaw is typically used for curved or irregular cuts in wood and metal, as well as resawing and ripping operations due to its unique ability to cut in both directions while maintaining a consistent blade tension.\n\n10:37 PM\no4-mini\n\ud83e\udde0 Context used (2,216 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\nc9b23478\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning."
  },
  "file_lookup": {
-  "latency_s": 6.65,
+  "latency_s": 8.11,
   "turn_completed": true,
   "identifiers_present": true,
-  "excerpt": "s\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790472925944_ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n09:35 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n163693f5\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (1)\n\n876b6659\nchat\n0 steps"
+  "excerpt": "n of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/24/2026\n\n0 messages\n\ngo\n9/24/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790476601512_9wztylgis\n\nIn one sentence: what is a bandsaw used for?\n10:37 PM\n\nA bandsaw is typically used for curved or irregular cuts in wood and metal, as well as resawing and ripping operations due to its unique ability to cut in both directions while maintaining a consistent blade tension.\n\n10:37 PM\no4-mini\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n10:37 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n10:37 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\nc9f6b3cc\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (1)\n\nc9b23478\nchat\n0 steps"
  },
  "formatting": {
-  "latency_s": 7.67,
+  "latency_s": 19.69,
   "turn_completed": true,
-  "excerpt": "ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n09:35 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\nMake that a table please\n09:36 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:36 PM\nauto\n\ud83e\udde0 Context used (2,407 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n9a8a39b8\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (2)\n\n163693f5\nchat\n0 steps\n876b6659\nchat\n0 steps"
+  "excerpt": "od and metal, as well as resawing and ripping operations due to its unique ability to cut in both directions while maintaining a consistent blade tension.\n\n10:37 PM\no4-mini\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n10:37 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n10:37 PM\ndeterministic\nMake that a table please\n10:38 PM\n\nPrice List Search Results\n\nPart Number\tList Price\nU-22\tNot Found (Index Coverage: sheets=46)\nSLE24-16\tNot Found (Index Coverage: sheets=46)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19.\n\n10:38 PM\no4-mini\n\ud83e\udde0 Context used (2,407 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n9a1dd7da\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (2)\n\nc9f6b3cc\nchat\n0 steps\nc9b23478\nchat\n0 steps"
  },
  "research": {
-  "latency_s": 4.64,
+  "latency_s": 6.15,
   "turn_completed": true,
-  "excerpt": "atching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\nMake that a table please\n09:36 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:36 PM\nauto\n\ud83e\udde0 Context used (2,407 chars)\nsearch again for U-22\n09:36 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:36 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n1814718e\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\n9a8a39b8\nchat\n0 steps\n163693f5\nchat\n0 steps\n876b6659\nchat\n0 steps"
+  "excerpt": "e List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n10:37 PM\ndeterministic\nMake that a table please\n10:38 PM\n\nPrice List Search Results\n\nPart Number\tList Price\nU-22\tNot Found (Index Coverage: sheets=46)\nSLE24-16\tNot Found (Index Coverage: sheets=46)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19.\n\n10:38 PM\no4-mini\n\ud83e\udde0 Context used (2,407 chars)\nsearch again for U-22\n10:38 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n10:38 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n9aa6709d\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\n9a1dd7da\nchat\n0 steps\nc9f6b3cc\nchat\n0 steps\nc9b23478\nchat\n0 steps"
  },
  "websockets": {
-  "app": 11,
-  "total": 14,
+  "app": 9,
+  "total": 12,
   "urls": [
    "ws://localhost:3091/_next/webpack-hmr",
    "ws://127.0.0.1:8091/ws",
@@ -113,10 +114,10 @@
   ]
  },
  "reload": {
-  "before_chars": 3988,
-  "after_chars": 4082,
+  "before_chars": 4063,
+  "after_chars": 4151,
   "identifiers_retained": true,
-  "excerpt": "07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:35 AM\nMake that a table please\n01:36 AM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n01:36 AM\nsearch again for U-22\n01:36 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:36 AM\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: idle\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\n6 pending proposals \u00b7 review\nExecution Steps (0)\n876b6659\nIn one sentence: what is a bandsaw used for?\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\n163693f5\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n0 steps\n9a8a39b8\nMake that a table please\n0 steps\n1814718e\nsearch again for U-22\n0 steps"
+  "excerpt": "ted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n02:37 AM\nMake that a table please\n02:38 AM\n\nPrice List Search Results\n\nPart Number\tList Price\nU-22\tNot Found (Index Coverage: sheets=46)\nSLE24-16\tNot Found (Index Coverage: sheets=46)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19.\n\n02:38 AM\nsearch again for U-22\n02:38 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n02:38 AM\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: idle\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\n6 pending proposals \u00b7 review\nExecution Steps (0)\nc9b23478\nIn one sentence: what is a bandsaw used for?\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\nc9f6b3cc\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n0 steps\n9a1dd7da\nMake that a table please\n0 steps\n9aa6709d\nsearch again for U-22\n0 steps"
  },
  "network": {
   "api_hosts": [
@@ -126,10 +127,10 @@
   ],
   "websockets": [
    "ws://localhost:3091/_next/webpack-hmr",
-   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI",
-   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI",
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NjI5OTcsImp0aSI6IjFlNjU5MDAyLTNiZjktNDI1ZS1iNzZjLTA0ZmZhYjU2NDY3OSJ9.dZ1I7wnaL88--d2Djl0ZgTGw1oWsGZP0ogaE1v8A4xc",
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NjI5OTcsImp0aSI6IjFlNjU5MDAyLTNiZjktNDI1ZS1iNzZjLTA0ZmZhYjU2NDY3OSJ9.dZ1I7wnaL88--d2Djl0ZgTGw1oWsGZP0ogaE1v8A4xc",
    "ws://localhost:3091/_next/webpack-hmr",
-   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI"
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NjI5OTcsImp0aSI6IjFlNjU5MDAyLTNiZjktNDI1ZS1iNzZjLTA0ZmZhYjU2NDY3OSJ9.dZ1I7wnaL88--d2Djl0ZgTGw1oWsGZP0ogaE1v8A4xc"
   ]
  },
  "console_errors": [
@@ -138,15 +139,15 @@
   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
   "Failed to load resource: the server responded with a status of 404 (Not Found)",
   "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
-  "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
   "Failed to load resource: the server responded with a status of 404 (Not Found)",
   "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}"
  ],
  "durable": {
-  "chat_sessions": 502,
-  "chat_messages": 2761,
+  "chat_sessions": 500,
+  "chat_messages": 2759,
   "invocation_events": 6,
   "goal_runs": 1
  },
@@ -154,5 +155,92 @@
   "pass": 11,
   "fail": 0,
   "blocked": 1
+ },
+ "reporting_corrections": {
+  "functional_blocker": {
+   "id": "PREVIEW-01",
+   "what": "Named-file lookup returns no value. This is a FUNCTIONAL BLOCKER, not a cosmetic issue, and it is counted separately from the cosmetic block below.",
+   "status": "ROOT CAUSE TRACED, NOT FIXED"
+  },
+  "cosmetic_block": {
+   "what": "F01b_page_title \u2014 the document title is empty.",
+   "impact": "none; does not obscure any answer or evidence"
+  },
+  "websocket_count_correction": {
+   "claim_withdrawn": "'11 WebSockets connected' was a CONNECTION COUNT, not evidence of healthy streaming.",
+   "measured": {
+    "app_sockets_opened": 6,
+    "opened_at": {
+     "t=5.5s": 2,
+     "t=8.5s": 4
+    },
+    "closed_during_observation": [
+     5.5,
+     7.2,
+     7.2,
+     8.5
+    ],
+    "churn": "YES \u2014 two sockets opened at 5.5s and were closed by 7.2s, and four more opened at 8.5s. The count reflects reconnections/multiple subscribers, not one healthy link.",
+    "frames_received": 6,
+    "frame_kinds": [
+     "agent_status_change x3 (running)",
+     "agent_status_change x3 (success)"
+    ],
+    "token_events": 0
+   },
+   "conclusion": "Execution-bound TOKEN delivery is NOT demonstrated. The answer arrives whole in the HTTP response; the socket carries status transitions only. Consistent with the prior lifecycle session's finding (2 status events, zero chat_token). Streaming remains UNEXERCISED, not proven."
+  }
+ },
+ "preview_01_trace": {
+  "reproduced_in_browser": true,
+  "isolation_of_the_trigger": {
+   "lookup_first_in_fresh_session": "FOUND \u2014 'U-22 - 1,777 (LINMAC!R26 matched at A26, column C26 List Price; also M26 List Price_2 1,777)'",
+   "same_request_after_one_general_chat_turn": "MISS \u2014 'no matching row in the indexed content searched'",
+   "conclusion": "A preceding general-chat turn is the trigger. Not scale, not the short form, not the data."
+  },
+  "both_forms_compared_on_the_same_snapshot": {
+   "short_form": "resolves both identifiers with exact cell bindings when asked first",
+   "eight_item_form": "resolves all eight, reporting '381 - several rows match' (correct ambiguity) with per-sheet row citations"
+  },
+  "first_divergence": {
+   "where": "AFTER the scan, in delivery/presentation \u2014 not in retrieval",
+   "evidence": {
+    "scan_end_instrumentation": {
+     "source": "consolidated price list 2019.xlsx",
+     "dataset_entries": 46,
+     "catalog_rows_seen": 47,
+     "catalog_truncated": false,
+     "item_tokens": [
+      "U-22",
+      "SLE24-16"
+     ],
+     "per_item": {
+      "U-22": "matched",
+      "SLE24-16": "matched"
+     },
+     "probe_failed": false
+    },
+    "rendered_reply": "no matching row (contradicts the scan)",
+    "assistant_message_metadata": {
+     "structured_result": null,
+     "has_pending_file_result": true,
+     "has_pending_file_task": true,
+     "model": "deterministic"
+    }
+   },
+   "mechanism": "Two readers of the same dataset disagree inside ONE turn. The planner's named-file scan matched both items; the pending-file direct reader produced a miss, and the PENDING result is the one rendered and pinned. The stored pending file objective is reconstructed from history ('[pending-file-task] legacy recovery'), and that history-tainted context is what the direct read runs with.",
+   "components": [
+    "core/pending_file_task.py (history reconstruction)",
+    "integrations/chat_orchestrator.py::_direct_confirmed_file_read (passes history[-6:] and the reconstructed objective)",
+    "integrations/chat_orchestrator.py (pending_file_result takes rendering precedence over the turn's own scan)"
+   ]
+  },
+  "second_defect_found_and_fixed": {
+   "id": "PROBE-CACHE-01",
+   "what": "_probe_cached cached a MISS for the full positive TTL (300s).",
+   "impact": "One transient read failure published 'no matching row' for up to five minutes across turns \u2014 a false absence claim built by a cache, for rows that were present.",
+   "fix": "Negative results are no longer cached (ATOM_SHEET_PROBE_NEGATIVE_TTL_SECONDS, default 0). Hits keep the full TTL. The cost is a re-read per miss, bounded by the turn budget, and it is paid deliberately.",
+   "IMPORTANT": "This is a real defect and it is fixed, but it is NOT the cause of PREVIEW-01 \u2014 the browser repro above still misses with the fix in place and a fresh world export."
+  }
  }
 }
