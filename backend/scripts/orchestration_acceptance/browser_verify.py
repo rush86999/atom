@@ -230,10 +230,22 @@ BUSY_MARKERS = (
     "agent status: pending",
 )
 
+# The transcript, not the whole page. An earlier version compared
+# document.body.innerText, which never stabilises: the notification badge, the
+# Agent Workspace panel and the artifact sidebar all poll on timers, so the
+# "unchanged across N polls" test could never be satisfied and every step ran
+# to its full timeout even though the answer had arrived in seconds. The app
+# marks the transcript with data-testid="message-list"; only that subtree
+# changes when a turn completes.
+TRANSCRIPT_JS = """() => {
+  const el = document.querySelector('[data-testid="message-list"]');
+  return el ? el.innerText : (document.body.innerText || '');
+}"""
+
 
 def wait_for_assistant(page: Any, timeout_s: int = 300,
                        settle_polls: int = 3) -> Optional[str]:
-    """Wait for a turn to settle and return the visible page text.
+    """Wait for a turn to settle and return the visible transcript text.
 
     Two things this deliberately does NOT do, both of which made an earlier
     version of this script lie or hang:
@@ -241,31 +253,30 @@ def wait_for_assistant(page: Any, timeout_s: int = 300,
       * It does not block the thread with time.sleep(). The Playwright sync
         API multiplexes the browser over a pipe to a node driver; blocking the
         Python thread starves that transport and the driver dies with EPIPE
-        mid-turn. Every wait here goes through page.wait_for_timeout().
+        mid-turn. Every wait goes through page.wait_for_timeout().
 
-      * It does not match on the word "assistant" or "atom" to decide the
-        turn finished. The sidebar renders a literal "ATOM" brand mark, so
-        such a regex returns on the first poll -- before the answer exists --
-        and reports an unfinished turn as a pass.
+      * It does not match on the word "assistant" or "atom" to decide the turn
+        finished. The sidebar renders a literal "ATOM" brand mark, so such a
+        regex returns on the first poll -- before the answer exists -- and
+        reports an unfinished turn as a pass.
 
-    Completion is instead: no busy marker present, and the rendered text
+    Completion is: no busy marker inside the transcript, and the transcript
     unchanged across `settle_polls` consecutive polls. That is a property of
     what the user can see, which is what the plan asks us to record.
     """
     end = time.time() + timeout_s
     prev = ""
     stable = 0
-    last: str = ""
+    last = ""
     while time.time() < end:
         page.wait_for_timeout(2000)
         try:
-            txt = page.evaluate("() => document.body.innerText || ''")
+            txt = page.evaluate(TRANSCRIPT_JS)
         except Exception:
             txt = ""
         last = txt or ""
-        low = last.lower()
-        busy = any(m in low for m in BUSY_MARKERS)
-        if not busy and last and last == prev:
+        busy = any(m in last.lower() for m in BUSY_MARKERS)
+        if last and last == prev and not busy:
             stable += 1
             if stable >= settle_polls:
                 return last
@@ -282,29 +293,49 @@ def shoot(page: Any, name: str) -> str:
     return str(p.relative_to(REPO))
 
 
-STEPS: Dict[str, Dict[str, Any]] = {
-    "M01": {"prompt": "In one sentence, what is a price list used for?",
-            "expect": "relevant answer, no unintended task or action"},
-    "M02": {"prompt": ("find the prices of these 8 machines in Consolidated "
-                        "Price List 2019.xlsx: 381, U-22, 622, SLE24-16, "
-                        "GSL48-16, GSL24-16, SLE16-8 and U-38"),
-            "expect": "eight ordered entries, honest ambiguity, readable evidence"},
-    "M03": {"prompt": "Make this easier to read",
-            "expect": "new concise answer; prior answer unchanged"},
-    "M04": {"prompt": "Search again and show the same items",
-            "expect": "new read; saved/live status truthful"},
-    "M07": {"prompt": "What is the capital of France?",
-            "expect": "unrelated question answered without losing the task"},
-    "M08": {"prompt": None, "expect": "reload: same final answers and evidence"},
-}
+# The manual test script from the readiness plan, section 11. These run as ONE
+# CONVERSATION, in this order, in a single session -- M03/M04/M07 are
+# continuation semantics, and a continuation asserted across separate sessions
+# is not a continuation at all.
+#
+# M02's ask is the frozen acceptance ask VERBATIM (acceptance/cases.json
+# inputs.ask_verbatim), not a paraphrase and not the older TARGETS list from
+# scripts/workbook_read_replay.py. The eight identities it names are the ones
+# the frozen per_target expectations are written against.
+SEQUENCE: List[Dict[str, Any]] = [
+    {"id": "M01", "prompt": "In one sentence, what is a price list used for?",
+     "expect": "relevant answer, no unintended task or action"},
+    {"id": "M02",
+     "prompt": ("find the prices of these 8 machines in Consolidated Price "
+                "List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, "
+                "SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16"),
+     "expect": "eight ordered entries, honest ambiguity, readable evidence"},
+    {"id": "M03", "prompt": "Make this easier to read",
+     "expect": "new concise answer; prior answer unchanged"},
+    {"id": "M04", "prompt": "Search again and show the same items",
+     "expect": "new read; saved/live status truthful"},
+    {"id": "M05", "prompt": "Use the factory price instead",
+     "expect": "correct labeled values; no silent substitution"},
+    {"id": "M06", "prompt": "Replace U-22 with U-38",
+     "expect": "updated list without resurrecting old distractors"},
+    {"id": "M07", "prompt": "What is the capital of France?",
+     "expect": "unrelated question answered without losing the task"},
+    {"id": "M08", "prompt": None,
+     "expect": "reload: same final answers, artifact and evidence association"},
+]
+
+# Kept for --step <ID> single-step runs.
+STEPS: Dict[str, Dict[str, Any]] = {s_["id"]: s_ for s_ in SEQUENCE}
 
 
 def send_via_ui(page: Any, text: str) -> None:
     """Type into the chat composer and submit, the way a user does."""
     box = None
-    for sel in ('textarea', '[contenteditable="true"]',
-                'input[placeholder*="message" i]',
-                '[data-testid*="chat-input" i]'):
+    # The app's own testids first, then generic fallbacks: driving the element
+    # the app marks as its composer is more stable than guessing a selector.
+    for sel in ('[data-testid="agent-chat-input"]', 'textarea',
+                '[contenteditable="true"]',
+                'input[placeholder*="message" i]'):
         try:
             loc = page.locator(sel).first
             if loc.count() and loc.is_visible():
@@ -367,29 +398,39 @@ def main(argv: Optional[List[str]] = None) -> int:
                                 "note": "login FORM not exercised; see report"}
             seed_session(page, fe, token)
 
-        for name in wanted:
-            spec = STEPS[name]
+        # One conversation, in order. The session id is created by the page
+        # itself on first send and reused by the app (atom_chat_session_id),
+        # so M03..M07 genuinely continue the same task.
+        page.goto(f"{fe}/chat", wait_until="domcontentloaded")
+        page.wait_for_timeout(6000)
+        for spec in SEQUENCE:
+            name = spec["id"]
+            if args.step != "all" and name != args.step:
+                continue
             step_rec: Dict[str, Any] = {"expect": spec["expect"]}
             print(f"\n=== {name}: {spec['prompt'] or '(reload)'} ===")
+            t0 = time.time()
             try:
-                if name == "M08":
-                    page.goto(f"{fe}/chat", wait_until="domcontentloaded")
-                    page.wait_for_timeout(6000)
+                if spec["prompt"] is None:
+                    # A REAL browser reload, which is what the plan asks M08 to
+                    # exercise: not a re-render and not an API refetch.
+                    page.reload(wait_until="domcontentloaded")
+                    page.wait_for_timeout(8000)
                 else:
-                    if not page.url.startswith(f"{fe}/chat"):
-                        page.goto(f"{fe}/chat", wait_until="domcontentloaded")
-                        page.wait_for_timeout(5000)
                     send_via_ui(page, spec["prompt"])
-                text = wait_for_assistant(page, timeout_s=300)
-                step_rec["visible_text_tail"] = (text or "")[-2500:]
+                text = wait_for_assistant(page, timeout_s=360)
+                step_rec["visible_text"] = text or ""
                 step_rec["screenshot"] = shoot(page, f"{args.world}_{name}")
                 step_rec["ok"] = bool(text)
             except Exception as exc:
                 step_rec["ok"] = False
                 step_rec["error"] = f"{type(exc).__name__}: {exc}"[:400]
+            step_rec["elapsed_s"] = round(time.time() - t0, 1)
+            # A per-step network summary lets a later step be compared with an
+            # earlier one (e.g. M03 must issue no new read where M04 must).
             step_rec["network"] = rec.summary()
             results["steps"][name] = step_rec
-            print(f"  ok={step_rec.get('ok')} "
+            print(f"  ok={step_rec.get('ok')} elapsed={step_rec['elapsed_s']}s "
                   f"foreign_origins={len(rec.foreign_origin_hits)} "
                   f"shot={step_rec.get('screenshot')}")
 

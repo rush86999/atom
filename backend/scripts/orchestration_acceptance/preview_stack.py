@@ -234,22 +234,36 @@ def loaded_module_fingerprint(world: Path) -> Dict[str, Any]:
         f"sys.path.insert(0, {str(code_root)!r})\n"
         f"os.chdir({str(farm)!r})\n"
         f"names = {list(FINGERPRINT_MODULES)!r}\n"
+        f"root = {str(code_root)!r}\n"
         "out = {}\n"
         "for n in names:\n"
+        "    rel = n.replace('.', '/') + '.py'\n"
+        "    path = os.path.join(root, rel)\n"
+        "    rec = {'path': os.path.realpath(path) if os.path.exists(path) else None}\n"
+        "    if os.path.exists(path):\n"
+        "        rec['sha256'] = hashlib.sha256(open(path, 'rb').read()).hexdigest()\n"
+        "    # Import is reported separately and is allowed to fail: importing the\n"
+        "    # app entrypoints touches <backend>/data, which inside a world export is\n"
+        "    # read-only, so an import-time PermissionError says nothing about the\n"
+        "    # file's identity. Hashing the file is the fingerprint; the import is\n"
+        "    # only a bonus.\n"
         "    try:\n"
         "        m = importlib.import_module(n)\n"
-        "        f = getattr(m, '__file__', None)\n"
-        "        h = hashlib.sha256(open(f, 'rb').read()).hexdigest() if f else None\n"
-        "        out[n] = {'path': os.path.realpath(f) if f else None, 'sha256': h}\n"
+        "        rec['import_ok'] = True\n"
+        "        rec['imported_from'] = os.path.realpath(getattr(m, '__file__', '') or '')\n"
         "    except Exception as e:\n"
-        "        out[n] = {'error': type(e).__name__ + ': ' + str(e)[:160]}\n"
+        "        rec['import_ok'] = False\n"
+        "        rec['import_error'] = type(e).__name__ + ': ' + str(e)[:120]\n"
+        "    out[n] = rec\n"
         "print('@@@' + json.dumps(out))\n"
     )
     script = world / "_fingerprint_probe.py"
     script.write_text(probe)
     env = dict(os.environ)
-    env.update({"DATABASE_URL": "sqlite:////nonexistent-probe.db",
-                "ATOM_DATA_DIR": str(world / "data"),
+    import tempfile
+    _scratch = tempfile.mkdtemp(prefix="atom_fingerprint_")
+    env.update({"DATABASE_URL": f"sqlite:///{_scratch}/probe.db",
+                "ATOM_DATA_DIR": _scratch,
                 "PYTHONDONTWRITEBYTECODE": "1"})
     try:
         res = subprocess.run([str(VENV_PY), str(script)], capture_output=True,
@@ -262,6 +276,8 @@ def loaded_module_fingerprint(world: Path) -> Dict[str, Any]:
         return {"error": "fingerprint probe timed out"}
     finally:
         script.unlink(missing_ok=True)
+        import shutil as _sh
+        _sh.rmtree(_scratch, ignore_errors=True)
 
 
 # --------------------------------------------------------------------------

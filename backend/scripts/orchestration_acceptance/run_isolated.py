@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "9e46185df37a0e487606f134dce1b20e89445276"
+PINNED_REV = "d5d670596078c7fe5086f00bf9b476b8967adc23"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -80,7 +80,50 @@ CREDENTIAL_TABLES = [
     "notion_tokens", "password_reset_tokens", "desktop_api_keys",
     "public_api_keys", "gateway_api_keys", "oauth_clients",
     "llm_oauth_credentials", "active_tokens",
+    # oauth_tokens (2026-09-27). MISSED until an audit of the preview world
+    # asked exactly this question -- "was any unrelated credential inherited
+    # with the dev snapshot?" -- and found two ACTIVE rows carrying
+    # ZohoCRM/ZohoBooks and Microsoft Graph Calendars.ReadWrite grants for
+    # the snapshot user, inherited untouched. The values are hashes rather
+    # than bearer tokens, and `oauth_clients` is scrubbed so an exchange
+    # cannot complete, so the practical exposure was low. That is exactly why
+    # it survived: it looked harmless. An ACTIVE third-party grant is not
+    # harmless on principle, and the scrub list is the only thing standing
+    # between a dev snapshot and a preview world, so it has to be complete
+    # rather than adequate.
+    "oauth_tokens",
 ]
+
+# Reviewed and deliberately NOT scrubbed. Recorded so the next reader does not
+# read their absence as an oversight, and does not "fix" it in the other
+# direction either. Each was checked against a real preview world on
+# 2026-09-27:
+#
+#   users.hashed_password   bcrypt ($2b$12$). One-way, and it is the reason the
+#                           quickstart can say "use your usual password": the
+#                           preview is a snapshot of your own dev database, so
+#                           the admin row's hash is byte-identical to your real
+#                           one. Scrubbing it would break the documented login
+#                           path for no security gain on an isolated local copy
+#                           of a database the operator already owns.
+#   mini_apps.credential_metadata
+#                           Every row is the literal string "None". A name
+#                           collision with the secret regex, not a secret.
+#   rate_usage_records.input_tokens / .output_tokens
+#                           LLM usage COUNTS for billing telemetry. Match the
+#                           regex because of the word "tokens"; they are
+#                           integers, not credentials.
+DELIBERATELY_PRESERVED = {
+    "users.hashed_password":
+        "bcrypt one-way hash; required for the documented snapshot login",
+    "mini_apps.credential_metadata":
+        "every row is the literal 'None'; regex name collision",
+    "rate_usage_records.input_tokens":
+        "LLM usage count, integer telemetry",
+    "rate_usage_records.output_tokens":
+        "LLM usage count, integer telemetry",
+}
+
 _SECRET_COL_RE = re.compile(
     r"(token|secret|password|credential|private|api_key|access_key|refresh|client_id)", re.I)
 SERVER_ENV_WHITELIST = {
