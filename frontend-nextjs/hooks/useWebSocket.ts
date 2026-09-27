@@ -69,6 +69,16 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const wsRef = useRef<WebSocket | null>(null);
 
+    // SOCKET GENERATION. A socket that is CLOSING does not block a new
+    // connect() (only OPEN/CONNECTING do), so a reconnect could install
+    // socket N+1 and then the OLD socket's onclose would run and null
+    // wsRef.current — orphaning a live connection. isConnected would flap
+    // and subscribe() would silently no-op on a socket that is actually
+    // open. Every socket carries the generation it was created in, and a
+    // close/cleanup only mutates shared state if it is still the current
+    // generation.
+    const generationRef = useRef(0);
+
     // Per-message listener registry. `lastMessage` is a SINGLE state slot:
     // under a fast frame burst (chat_token streams deliver hundreds of
     // frames in seconds) React coalesces the setLastMessage calls and the
@@ -160,6 +170,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         socketUrl = `${socketUrl}${hasParams ? "&" : "?"}token=${token}`;
 
         const ws = new WebSocket(socketUrl);
+        const generation = ++generationRef.current;
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -218,6 +229,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         };
 
         ws.onclose = (event: CloseEvent) => {
+            // Only the CURRENT generation may clear shared state. A stale
+            // socket closing must not disconnect or untrack its successor.
+            if (generation !== generationRef.current) {
+                console.debug(
+                    `[useWebSocket] stale socket closed (gen ${generation}, ` +
+                    `current ${generationRef.current}) — ignoring`);
+                return;
+            }
             setIsConnected(false);
             wsRef.current = null;
 
@@ -271,9 +290,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             reconnectTimeoutRef.current = null;
         }
         if (wsRef.current) {
+            // Retire the generation BEFORE closing: the close is
+            // asynchronous, and its onclose would otherwise run against a
+            // generation that is still current. Because that close is now
+            // correctly ignored, the connected state is cleared HERE
+            // rather than left to the ignored handler — otherwise an
+            // intentional teardown leaves isConnected stuck true.
+            generationRef.current += 1;
             wsRef.current.close();
             wsRef.current = null;
         }
+        setIsConnected(false);
     }, []);
 
     const subscribe = useCallback((channel: string) => {
