@@ -6260,6 +6260,19 @@ async def _datasets_named_file_block(
         "probe_failed": probe_failed,
         "unmaterialized_sheets": unmaterialized_sheets,
     }
+    # READ VERDICT, not evidence count (2026-09-26). The scan reports which
+    # sources it could open; without this the record's coverage block could not
+    # name WHY a result is missing, and the renderer could not tell a failed
+    # read from an absence.
+    _read_coverage = (workbook_read or {}).get("coverage") or {}
+    if isinstance(_read_coverage, dict):
+        coverage_limits["read_status"] = _read_coverage.get("read_status")
+        coverage_limits["absence_claimable"] = _read_coverage.get(
+            "absence_claimable")
+        coverage_limits["unreadable_sheet_count"] = _read_coverage.get(
+            "unreadable_sheet_count")
+        coverage_limits["error_category"] = _read_coverage.get(
+            "error_category")
     prov["sheets_searched"] = len(file_entries)
     prov["aliases_tried"] = aliases_tried
     _stamp_named_file_meta(
@@ -6275,11 +6288,21 @@ async def _datasets_named_file_block(
     _sheets = (workbook_read or {}).get("sheets") or []
     _scanned_ok = any(
         isinstance(s, dict) and s.get("searched") for s in _sheets)
+    _read_status = coverage_limits.get("read_status")
     # Observation tristate (boundary evidence, not object existence): a
-    # completed zero-match read is new_read; entries existed but nothing
-    # was observable (total I/O failure) is read_failed; nothing to scan
-    # at all is unverified (missing observation, never proof of failure).
-    if bool(recs) or _scanned_ok:
+    # completed zero-match read is new_read; a source that was searched and
+    # could not be read is read_failed; nothing to scan at all is unverified
+    # (missing observation, never proof of failure).
+    #
+    # A FAILED READ OUTRANKS A PROBE HIT. The content probe answers "no hit"
+    # for a damaged parquet exactly as it does for an absent token (its DuckDB
+    # and pandas legs both swallow the read error), so `bool(recs)` was True on
+    # a record with zero rows and the attempt was stamped `new_read` — which
+    # rendered as a confident absence for a source nobody had read. The scan's
+    # per-source verdict is the observation that can actually tell them apart.
+    if _read_status == "failed":
+        _scan_action = "read_failed"
+    elif bool(recs) or _scanned_ok:
         _scan_action = "new_read"
     elif not file_entries:
         _scan_action = "unverified"
@@ -6320,6 +6343,18 @@ async def _datasets_named_file_block(
         "NOT prove absence from the live workbook; unindexed sheets, later "
         "versions, or formatting variants may still contain the item."
     )
+    if _read_status in ("failed", "partial"):
+        # The model reads this block. Without the failure stated here, a
+        # damaged source reaches it as a clean empty result and the reply
+        # model has no way to tell that apart from a real negative.
+        coverage_note += (
+            f" READ STATUS: {_read_status.upper()} — "
+            f"{coverage_limits.get('unreadable_sheet_count') or 0} indexed "
+            "sheet(s) could not be read (error category: "
+            f"{coverage_limits.get('error_category') or 'unknown'}). For "
+            "those items report a RETRIEVAL FAILURE, never 'not found' and "
+            "never an absence claim."
+        )
     if not recs and not workbook_read:
         miss_lines = [
             "LIVE TOOL RESULTS (datasets.named-file) — '"
@@ -6371,6 +6406,13 @@ async def _datasets_named_file_block(
     def _artifact_summary(outcome: Dict[str, Any]) -> str:
         evidence = outcome.get("evidence") or []
         if not evidence:
+            if str(outcome.get("status") or "") == "unavailable":
+                # NOT "no matching cell": the source would not open, so no
+                # cell was ever compared. Saying otherwise in the model's own
+                # evidence block is the same absence laundering one layer up.
+                return (f"the source could not be read "
+                        f"(error category: {outcome.get('error_category') or 'unknown'})"
+                        " — no result, and NOT an absence claim")
             return "no matching cell in the indexed rows"
         # Alias provenance rides the evidence cell so the user sees WHY a
         # differently-spelled row answered their item (2026-09-25: 'TK
@@ -6424,6 +6466,9 @@ async def _datasets_named_file_block(
                 status += " (entity type matched)"
             if status == "ABSENT" and not coverage_complete:
                 status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+            if status == "UNAVAILABLE":
+                status = ("UNAVAILABLE — THE SOURCE COULD NOT BE READ; this "
+                          "is NOT an absence claim")
             evidence = _artifact_summary(outcome)
         else:
             record = per_item.get(token)

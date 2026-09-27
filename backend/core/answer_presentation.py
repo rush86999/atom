@@ -24,6 +24,14 @@ clarification; zero stays zero; blank is stated plainly; non-finite is
 unavailable, never nan; uncertainty is stated once; missing items never
 imply absence from the live workbook.
 
+RETRIEVAL FAILURE IS NOT ABSENCE (2026-09-26). "No candidate row" and "the
+source would not open" are both an empty evidence list, so the target
+carries the scan's read verdict (``retrieval``) alongside its identity
+verdict. When retrieval failed, the item is reported as a READ FAILURE with
+the scan's error CATEGORY and the honest-absence sentence is withheld: a
+negative nobody could verify is not a negative. A target that was searched
+successfully and genuinely is not there keeps the absence wording.
+
 COMPAT PATH. present_from_rendered_text rebuilds the contract from a
 legacy rendered answer (text parsing). It is explicitly COMPATIBILITY
 COVERAGE for records that stored only text - it cannot validate the
@@ -37,6 +45,29 @@ import re
 from typing import Any, Dict, List, Optional
 
 PRESENTATION_VERSION = "pres-v2"
+
+# Retrieval verdict carried per target (mirrors the scan's read-leg
+# vocabulary). ``searched`` means the source opened and was searched, so an
+# empty result is a real negative; ``failed`` means it did not open.
+RETRIEVAL_SEARCHED = "searched"
+RETRIEVAL_FAILED = "failed"
+
+# Error categories in user-legible words. The category itself (never
+# ``str(exception)``) is what reaches the user, and it is rendered here
+# rather than in the scan so the wording lives with the presentation.
+_READ_FAILURE_REASONS = {
+    "source_corrupt": "the stored copy is damaged or not a readable workbook",
+    "source_missing": "the stored copy is no longer available",
+    "source_unavailable": "the stored copy could not be opened",
+    "access_denied": "access to the stored copy was refused",
+    "timeout": "reading the stored copy timed out",
+    "configuration": "the reader for this copy is not available",
+    "unknown": "the reason is unknown",
+}
+# The scan layer's per-target status for "the source would not open"
+# (workbook_read_artifact.TARGET_UNAVAILABLE). Spelled here because the scan
+# module is imported lazily by this renderer.
+_SCAN_UNAVAILABLE = "unavailable"
 
 _CITE_RE = re.compile(r"([A-Za-z][A-Za-z0-9 .&'-]*?)\s*!\s*([A-Z]{1,3}\d{1,7})")
 _PAIR_RE = re.compile(
@@ -64,9 +95,26 @@ def typed_value(raw: Any) -> Dict[str, Any]:
     return {"kind": "number", "value": num, "display": display}
 
 
+def _read_failure_clause(t: Dict[str, Any]) -> Optional[str]:
+    """The user-legible reason a target has no result because the SOURCE could
+    not be read, or None when the source was searched successfully.
+
+    The category is the scan's, not an exception message: it is safe to show a
+    user, and it is the same vocabulary every retrieval failure reports.
+    """
+    retrieval = t.get("retrieval") or {}
+    if str(retrieval.get("status") or "") != RETRIEVAL_FAILED:
+        return None
+    category = str(retrieval.get("error_category") or "unknown")
+    return _READ_FAILURE_REASONS.get(category, _READ_FAILURE_REASONS["unknown"])
+
+
 def _concise_result(t: Dict[str, Any]) -> str:
     """One short result clause for table cells: primary display plus its
     basis and row reference, never silent about what was chosen."""
+    failure = _read_failure_clause(t)
+    if failure:
+        return f"source could not be read ({failure})"
     ident = t.get("identity") or {}
     candidates = ident.get("candidates") or []
     pooled = (t.get("field") or {}).get("values") or []
@@ -85,6 +133,37 @@ def _concise_result(t: Dict[str, Any]) -> str:
             f"({primary.get('basis', '')})".strip())
 
 
+def _source_read_failure(source: Dict[str, Any]) -> Optional[str]:
+    """The source-level read failure clause, or None when the source was read.
+
+    The coverage block carries the scan's ``read_status`` /
+    ``absence_claimable`` verdict. ``failed`` (nothing could be read) and
+    ``partial`` (some of it could not be) both withhold the absence claim;
+    only a completed read supports it.
+    """
+    coverage = source.get("coverage")
+    if not isinstance(coverage, dict):
+        return None
+    status = str(coverage.get("read_status") or "")
+    if status not in ("failed", "partial"):
+        return None
+    if coverage.get("absence_claimable") is True and status != "failed":
+        return None
+    unreadable = coverage.get("unreadable_sheet_count")
+    if not isinstance(unreadable, int):
+        unreadable = 0
+    sheets = "sheet" if unreadable == 1 else "sheets"
+    scope = (f"all {unreadable} {sheets}" if unreadable and status == "failed"
+             else f"{unreadable} of the indexed {sheets}")
+    return (f"{scope} could not be read "
+            f"({_read_failure_reason(coverage.get('error_category'))})")
+
+
+def _read_failure_reason(category: Any) -> str:
+    key = str(category or "unknown")
+    return _READ_FAILURE_REASONS.get(key, _READ_FAILURE_REASONS["unknown"])
+
+
 def present(*, requested_items: List[str], requested_fields: List[str],
             source: Dict[str, Any], targets: List[Dict[str, Any]],
             evidence_revision: str = "", style: str = "default",
@@ -97,6 +176,7 @@ def present(*, requested_items: List[str], requested_fields: List[str],
     name = source.get("file_name") or "the workbook"
     saved = source.get("saved_copy_date")
     live_vs_saved = source.get("live_vs_saved") or "saved copy"
+    source_failure = _source_read_failure(source)
     opening = f"Results from the {live_vs_saved} of {name}"
     if saved:
         opening += f" (copy saved {saved})"
@@ -109,14 +189,15 @@ def present(*, requested_items: List[str], requested_fields: List[str],
             t = _find_target(targets, item)
             if t is None:
                 lines.append(
-                    f"| {item} | no result in the indexed copy searched |")
+                    f"| {item} | {_unresolved_clause(source_failure)} |")
                 continue
             lines.append(f"| {item} | {_concise_result(t)} |")
     else:
         for item in requested_items:
             t = _find_target(targets, item)
             if t is None:
-                lines.append(f"- **{item}** - no result in the indexed copy searched")
+                lines.append(
+                    f"- **{item}** - {_unresolved_clause(source_failure)}")
                 continue
             lines.append(_render_target(
                 t, item, style=style, field=field,
@@ -136,17 +217,35 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         coverage = "; ".join(parts) if parts else "partial"
     else:
         coverage = str(coverage_raw)
+    lines.append("")
+    if source_failure:
+        # The retrieval failed. Say so once, in its own line, and retract the
+        # absence reading of everything above it.
+        lines.append(
+            f"RETRIEVAL FAILED: {source_failure}. Nothing above is a "
+            f"statement that the items are absent from {name} — the search "
+            f"could not read the source, so no result is reported for it.")
     note = (f"Source: {name} - {live_vs_saved}"
             + (f", copy saved {saved}" if saved else "")
             + f". Coverage: {coverage}. Unlisted sheets or newer versions may "
               f"contain more; this is not an absence claim about the live workbook.")
-    lines.append("")
     lines.append(note)
     return {"answer": "\n".join(lines),
             "presentation_version": PRESENTATION_VERSION,
             "evidence_revision": evidence_revision,
             "requested_fields": list(requested_fields),
             "style": style}
+
+
+def _unresolved_clause(source_failure: Optional[str]) -> str:
+    """Clause for an item with no target at all.
+
+    With a failed read there is nothing to have searched, so the clause reports
+    the failure; otherwise it keeps the long-standing honest wording.
+    """
+    if source_failure:
+        return f"source could not be read ({source_failure})"
+    return "no result in the indexed copy searched"
 
 
 def _norm(s: str) -> str:
@@ -258,6 +357,16 @@ def _render_target(t: Dict[str, Any], item: str, *,
     alias = t.get("aliases") or []
     alias_note = f" (matched via '{alias[0]}')" if alias else ""
     requested_fields = list(requested_fields or [])
+    failure = _read_failure_clause(t)
+    if failure:
+        # BEFORE the absence branch, deliberately: `identity.status == "none"`
+        # is reached both by "searched, not there" and by "the source would not
+        # open", and only the retrieval verdict separates them. The absence
+        # sentence is a factual claim about the source's contents; it may not be
+        # printed for a source that was never successfully read.
+        return (f"- **{item}**{alias_note} - the source could not be read "
+                f"({failure}); no result is reported for this item, which is "
+                f"NOT a statement that it is absent from the workbook")
     if status == "none":
         return f"- **{item}**{alias_note} - no matching row in the indexed content searched"
     candidates = ident.get("candidates") or []
@@ -588,6 +697,12 @@ def build_targets_from_scan(
     distinct candidates and are never merged. That assumption is valid
     for price-list sheets where each row is one model; it is stated here
     (and in the compat adapter) rather than hidden in grouping code.
+
+    ``identity.status == "none"`` alone cannot separate "searched, not there"
+    from "the source would not open" — both yield zero candidates — so the
+    scan's per-target status is carried through as ``retrieval``. Downstream
+    that is the difference between the honest absence sentence and a reported
+    read failure.
     """
     per_item = per_item or {}
     raw_tokens = list((artifact_outcomes or {}).keys()) + [
@@ -597,9 +712,17 @@ def build_targets_from_scan(
         owned = [t for t in raw_tokens if _subsumes(item, str(t))]
         row_groups: Dict[str, Dict[str, Any]] = {}
         aliases: List[str] = []
+        retrieval: Dict[str, Any] = {
+            "status": RETRIEVAL_SEARCHED, "error_category": None}
         for raw in owned:
             outcome = (artifact_outcomes or {}).get(raw)
             if isinstance(outcome, dict):
+                if str(outcome.get("status") or "") == _SCAN_UNAVAILABLE:
+                    retrieval = {
+                        "status": RETRIEVAL_FAILED,
+                        "error_category": str(
+                            outcome.get("error_category") or "unknown"),
+                    }
                 for ev in outcome.get("evidence") or []:
                     if not isinstance(ev, dict):
                         continue
@@ -717,6 +840,7 @@ def build_targets_from_scan(
             "field": {"status": ("competing" if len(bases) > 1
                                  else "single" if values else "absent"),
                       "values": values},
+            "retrieval": retrieval,
         })
     return targets
 
@@ -885,11 +1009,31 @@ def present_from_record(record: Dict[str, Any],
     action's intent, then the bare intent): preferences visibly change the
     rendering — an action record alone never counts as honoring them. A
     read_failed record is delivered as an honest failed-retrieval outcome —
-    never rendered as if it were evidence."""
+    never rendered as if it were evidence, and never as an absence: the reason
+    the read failed is named, in the shared error-category wording."""
     if record.get("evidence_action") == "read_failed":
-        return {"answer": ("The search attempt did not complete, so no fresh "
-                           "evidence is available from it. The earlier saved "
-                           "results remain unchanged."),
+        src_id = record.get("source_identity") or {}
+        name = src_id.get("file_name") or "the workbook"
+        coverage = record.get("coverage")
+        reason = ""
+        if isinstance(coverage, dict) and str(
+                coverage.get("read_status") or "") in ("failed", "partial"):
+            unreadable = coverage.get("unreadable_sheet_count")
+            if not isinstance(unreadable, int):
+                unreadable = 0
+            reason = (
+                f" {unreadable} of its indexed sheets could not be read"
+                if unreadable else " it could not be read")
+            reason += (f" ({_read_failure_reason(coverage.get('error_category'))})"
+                       )
+        if not reason:
+            reason = " the source could not be read"
+        return {"answer": ("The search attempt did not complete:"
+                           + reason
+                           + ", so no fresh evidence is available from it and "
+                             "no absence is claimed for the items you asked "
+                             "about. The earlier saved results remain "
+                             "unchanged."),
                 "presentation_version": PRESENTATION_VERSION,
                 "evidence_revision": record.get("evidence_revision"),
                 "attempt_id": record.get("attempt_id"),

@@ -1765,6 +1765,17 @@ def inspect_workbook_bytes(
     }
 
 
+def _dominant_read_category(counts: Dict[str, int]) -> str:
+    """The category that best explains a failed read, for user-visible text.
+
+    A single damaged category outranks a tail of assorted ones; ties fall back
+    to sorted order so the reported reason is stable across runs.
+    """
+    if not counts:
+        return "unknown"
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
 def _column_letter(index: int) -> str:
     result = ""
     value = int(index)
@@ -2342,6 +2353,10 @@ def inspect_dataset_entries(
             "unreadable_sheet_count": len(unreadable_sheets),
             "read_status": read_status,
             "absence_claimable": absence_claimable,
+            "error_category": (
+                _dominant_read_category(unreadable_categories)
+                if read_failed_legs else None
+            ),
             "coverage_unknown_sheets": coverage_unknown_sheets,
             "truncated_sheets": truncated_sheets,
             "target_evidence_cap": _TARGET_EVIDENCE_CAP,
@@ -3413,6 +3428,16 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
             f"TARGET {target}: {status.upper()}"
             + (f" | {'; '.join(refs[:8])}" if refs else "")
         )
+        if str(status or "") == TARGET_UNAVAILABLE:
+            # Spelled out for the reply model: a bare "UNAVAILABLE" next to an
+            # empty evidence list reads like an absence, and the model has no
+            # other way to learn that the source would not open.
+            lines.append(
+                f"  RETRIEVAL FAILURE: the source could not be read (error "
+                f"category: {outcome.get('error_category') or 'unknown'}). "
+                f"Report a failed read for {target} — do NOT report it as "
+                f"'not found' and do NOT claim it is absent."
+            )
         for item in (outcome.get("evidence") or [])[:2]:
             selection = item.get("field_selection") or {}
             values = item.get("values") or item.get("prices") or []
