@@ -378,3 +378,65 @@ def test_frozen_expectations_are_not_rewritten_by_the_evaluator():
     _ri.evaluate_artifact_bindings(
         _artifact([_cand("LINMAC!R26", "single", [], [])]), exp)
     assert repr(exp) == before
+
+
+# ── Absence decided from structured coverage, never from wording ──────────
+
+def _abs_artifact(targets, complete):
+    return {"schema_version": "structured-result-2",
+            "coverage": {"complete": complete},
+            "coverage_limits": {"indexed_sheets": 46},
+            "targets": targets}
+
+
+def _abs_expect():
+    return {"coverage": "absent_from_indexed"}
+
+
+def _none_target(item):
+    return {"item": item, "identity": {"status": "none", "candidates": []},
+            "field": {"status": "absent", "values": []}}
+
+
+def test_complete_search_zero_matches_supports_absent():
+    art = _abs_artifact([_none_target("U-38")], True)
+    r = _ri.evaluate_absence_from_artifact(art, {"U-38": _abs_expect()})["U-38"]
+    assert r["verdict"] == "absent_from_indexed"
+
+
+def test_incomplete_coverage_cannot_claim_absence():
+    art = _abs_artifact([_none_target("U-38")], False)
+    r = _ri.evaluate_absence_from_artifact(art, {"U-38": _abs_expect()})["U-38"]
+    assert r["verdict"] == "unknown"
+    assert "coverage incomplete" in r["reason"]
+
+
+def test_missing_artifact_is_unknown_not_absent():
+    r = _ri.evaluate_absence_from_artifact(None, {"U-38": _abs_expect()})["U-38"]
+    assert r["verdict"] == "unknown"
+
+
+def test_absent_target_missing_from_artifact_is_unknown():
+    art = _abs_artifact([], True)
+    r = _ri.evaluate_absence_from_artifact(art, {"U-38": _abs_expect()})["U-38"]
+    assert r["verdict"] == "unknown"
+    assert "cannot distinguish" in r["reason"]
+
+
+def test_artifact_with_value_evidence_is_not_absent():
+    entry = {"item": "U-38",
+             "identity": {"status": "single",
+                          "candidates": [{"ref": "S!R1",
+                                          "values": [{"col": "C1",
+                                                      "basis": "P",
+                                                      "value": 1.0}]}]},
+             "field": {"status": "single", "values": []}}
+    art = _abs_artifact([entry], True)
+    r = _ri.evaluate_absence_from_artifact(art, {"U-38": _abs_expect()})["U-38"]
+    assert r["verdict"] == "not_absent"
+
+
+def test_non_absent_expectations_are_not_evaluated_as_absence():
+    art = _abs_artifact([_none_target("U-22")], True)
+    assert _ri.evaluate_absence_from_artifact(
+        art, {"U-22": {"coverage": "found"}}) == {}

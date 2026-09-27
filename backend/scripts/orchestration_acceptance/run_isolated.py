@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "166c6614a1563b695edec1b3d0a00810f23061bd"
+PINNED_REV = "77f2c96c2058534ff8548ee48d78ef4b58a224d8"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -1315,6 +1315,74 @@ def _identity_cells(identity: Dict[str, Any]) -> List[str]:
     return cells
 
 
+def evaluate_absence_from_artifact(
+    artifact: Optional[Dict[str, Any]],
+    expected_map: Dict[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    """Decide absence from the artifact's structured outcome.
+
+    A target is `absent_from_indexed` ONLY when the search demonstrably
+    completed and matched nothing. Incomplete coverage, a failed read, or
+    a truncated catalog are all `unknown` — the honest answer, and never
+    `absent`. Reply wording is not evidence: "I found 0 results" is a
+    phrasing, not a coverage statement.
+    """
+    out: Dict[str, Dict[str, Any]] = {}
+    targets = {}
+    for entry in (artifact or {}).get("targets") or []:
+        label = str(entry.get("item") or "")
+        if label:
+            targets[_norm_label(label)] = entry
+    coverage = (artifact or {}).get("coverage") or {}
+    complete = coverage.get("complete")
+    limits = (artifact or {}).get("coverage_limits") or {}
+    for target, exp in expected_map.items():
+        if exp.get("coverage") not in ("absent_from_indexed",):
+            continue
+        keys = {_norm_label(target)} | {
+            _norm_label(a) for a in exp.get("label_aliases", [])}
+        entry = next((targets[k] for k in keys if k in targets), None)
+        if entry is None:
+            out[target] = {
+                "verdict": "unknown",
+                "reason": "requested item absent from the artifact; cannot "
+                          "distinguish zero matches from an incomplete read",
+                "coverage_complete": complete,
+            }
+            continue
+        identity_status = str((entry.get("identity") or {}).get("status")
+                              or "")
+        has_evidence = any(
+            ((c or {}).get("values") for c in
+             (entry.get("identity") or {}).get("candidates") or []))
+        if has_evidence:
+            out[target] = {"verdict": "not_absent",
+                           "reason": "artifact carries value evidence",
+                           "coverage_complete": complete}
+        elif complete is False:
+            out[target] = {
+                "verdict": "unknown",
+                "reason": "coverage incomplete; absence cannot be claimed",
+                "coverage_complete": False,
+                "coverage_limits": limits,
+            }
+        elif identity_status == "none":
+            out[target] = {
+                "verdict": "absent_from_indexed",
+                "reason": "coverage complete and the artifact reports no "
+                          "identity candidate for this item",
+                "coverage_complete": True,
+            }
+        else:
+            out[target] = {
+                "verdict": "unknown",
+                "reason": f"identity status {identity_status!r} with no value "
+                          f"evidence; not a demonstrated zero-match search",
+                "coverage_complete": complete,
+            }
+    return out
+
+
 def evaluate_artifact_bindings(
     artifact: Optional[Dict[str, Any]],
     expected_map: Dict[str, Any],
@@ -2370,11 +2438,18 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
         _label = str(_t.get("item") or "")
         _idn = _t.get("identity") or {}
         _id_statuses[_label] = str(_idn.get("status") or "")
-        for _r in _idn.get("references") or []:
-            _all_refs.append({"target": _label,
-                              "cell": (_r or {}).get("cell"),
-                              "sheet": (_r or {}).get("sheet"),
-                              "value": (_r or {}).get("value")})
+        # Identity references hang off each CANDIDATE. Reading them off
+        # the target-level block reported zero references while every
+        # target was in fact bound — a diagnostic that contradicted the
+        # verdict it was meant to support.
+        for _c in _idn.get("candidates") or []:
+            for _r in ((_c or {}).get("identity") or {}).get(
+                    "references") or []:
+                _all_refs.append({"target": _label,
+                                  "candidate": (_c or {}).get("ref"),
+                                  "cell": (_r or {}).get("cell"),
+                                  "sheet": (_r or {}).get("sheet"),
+                                  "value": (_r or {}).get("value")})
     artifact_evidence = {
         "evaluator": EVALUATOR_VERSION,
         "schema_version": (artifact or {}).get("schema_version"),
@@ -2471,6 +2546,22 @@ async def run_generic(base: str, token: str, user_id: str, case: Dict[str, Any],
         await client.aclose()
         reply = str(r1.get("message") or "")
         per_target = evaluate_rows(parse_reply_table(reply), case["expected"]["per_target"])
+        # Absence is decided from the artifact's structured coverage, never
+        # from the reply's wording: only a demonstrably complete search with
+        # zero matches supports `absent_from_indexed`. Incomplete coverage or
+        # a missing artifact stays `unknown`, which is the honest verdict.
+        _absence_artifact = load_structured_result(world, session)
+        _absence = evaluate_absence_from_artifact(
+            _absence_artifact, case["expected"]["per_target"])
+        for _t, _a in _absence.items():
+            if _t not in per_target:
+                continue
+            per_target[_t]["absence_verdict"] = _a["verdict"]
+            per_target[_t]["absence_reason"] = _a["reason"]
+            per_target[_t]["coverage_complete"] = _a.get("coverage_complete")
+            per_target[_t]["pass"] = bool(
+                per_target[_t]["pass"]
+                or _a["verdict"] == per_target[_t]["expected"])
         trace_steps = await fetch_trace(base, token, session, replay_mod)
         claim = check_claims(reply, **_claim_context(case, r1, per_target, trace_steps))
         return common | {

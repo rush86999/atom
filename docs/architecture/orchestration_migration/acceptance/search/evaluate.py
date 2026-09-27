@@ -137,26 +137,46 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
         return result
     result.checks.append(Check("exercised", PASS))
 
+    # A layer states which assertions it actually attempted. A check outside
+    # that set is UNEXERCISED, never failed: the public-boundary layer measures
+    # the retrieval lifecycle (zero invocations, a new attempt, pinned bytes,
+    # constraint survival) and deliberately does not re-parse evidence
+    # bindings, which Layer 1 does. Scoring the unparsed binding as a failure
+    # would report a defect that was never looked for.
+    attempted = run.get("asserts")
+    asserting = (lambda name: True) if attempted is None else (
+        lambda name: any(name == a or name.startswith(a + ":")
+                         for a in attempted))
+
     sources = [str(s) for s in (run.get("sources") or [])]
     items = run.get("items") or {}
     status = str(run.get("search_status") or "")
 
     # -- 1. source selection ------------------------------------------------
     for required in scenario["required_sources"]:
+        name = f"source:{required}"
+        if not asserting(name):
+            result.checks.append(Check(name, BLOCKED, "not asserted by this layer"))
+            continue
         found = any(_mentions(s, required) for s in sources)
-        result.checks.append(Check(
-            f"source:{required}", PASS if found else FAIL,
-            f"read={sources}",
-        ))
+        result.checks.append(Check(name, PASS if found else FAIL, f"read={sources}"))
     for forbidden in scenario.get("forbidden_sources") or []:
+        name = f"no_source:{forbidden}"
+        if not asserting(name):
+            result.checks.append(Check(name, BLOCKED, "not asserted by this layer"))
+            continue
         used = any(_mentions(s, forbidden) for s in sources)
         result.checks.append(Check(
-            f"no_source:{forbidden}", FAIL if used else PASS,
+            name, FAIL if used else PASS,
             "out-of-scope source was read" if used else "",
         ))
 
     # -- 2. per-item classification and evidence binding ---------------------
     for item in scenario["required_items"]:
+        if not asserting(f"item:{item}"):
+            result.checks.append(Check(
+                f"item:{item}", BLOCKED, "not asserted by this layer"))
+            continue
         if item.startswith("absent:"):
             _score_absence(result, scenario, run, item, status)
             continue
@@ -204,7 +224,7 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
     wanted_order = [i for i in scenario["required_items"]
                     if not i.startswith("absent:")]
     reported_order = run.get("resolution_order")
-    if wanted_order:
+    if wanted_order and asserting("requested_order"):
         if reported_order is None:
             result.checks.append(Check(
                 "requested_order", BLOCKED,
@@ -218,7 +238,7 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
                 f"requested {expected_subset}, reported {reported}"))
 
     # -- 4. an injected failure must be VISIBLE ----------------------------
-    if scenario["expect_status"] in ("failed", "degraded"):
+    if scenario["expect_status"] in ("failed", "degraded") and asserting("injected_failure_is_visible"):
         result.checks.append(Check(
             "injected_failure_is_visible",
             FAIL if status == "success" else PASS,
@@ -226,7 +246,7 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
             if status == "success" else f"status={status}"))
 
     # -- 5. no false absence on a failed read -------------------------------
-    if status in ("failed", "partial"):
+    if status in ("failed", "partial") and asserting("no_false_absence_on_failure"):
         fabricated = [
             item for item, rec in items.items()
             if not str(item).startswith("absent:")
@@ -245,9 +265,9 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
         if "expect_retrieval" not in turn:
             continue
         key = f"turn-{turn['turn']}"
-        if key not in invocations:
+        if key not in invocations or not asserting(f"invocations:{key}"):
             result.checks.append(Check(
-                f"invocations:{key}", BLOCKED, "turn was not exercised"))
+                f"invocations:{key}", BLOCKED, "turn was not exercised by this layer"))
             continue
         got = int(invocations[key] or 0)
         want = int(turn["expect_retrieval"])
@@ -256,7 +276,7 @@ def score_case(scenario: dict, run: dict | None) -> CaseResult:
             f"expected {want} retrieval invocation(s), observed {got}"))
 
     # -- 6. ranking degradation must not masquerade as coverage -------------
-    if scenario["category"] == "reranker_degraded":
+    if scenario["category"] == "reranker_degraded" and asserting("ranking_degradation_observable"):
         ranking = (run.get("ranking") or {}).get("status")
         claims_full = bool((run.get("claims") or {}).get("fully_searched"))
         result.checks.append(Check(
@@ -595,6 +615,7 @@ def main() -> int:
 
     scenarios = json.loads(Path(args.scenarios).read_text())["cases"]
     runs: dict[str, dict] = {}
+    superseded: list[dict] = []
     for path in args.runs:
         runs_raw = json.loads(Path(path).read_text())
         if isinstance(runs_raw, dict) and "runs" not in runs_raw:
@@ -604,12 +625,26 @@ def main() -> int:
         run_list = runs_raw["runs"] if isinstance(runs_raw, dict) else runs_raw
         for record in run_list:
             cid = record["case_id"]
-            if cid in runs:
+            prior = runs.get(cid)
+            if prior is not None:
+                prior_blocked = bool(prior.get("blocked"))
+                if prior_blocked and not record.get("blocked"):
+                    # Legitimate supersession: one layer could not exercise the
+                    # case and a later layer did. Recorded, not silent.
+                    superseded.append({"case_id": cid,
+                                       "superseded_layer": prior.get("layer"),
+                                       "reason": prior.get("blocked"),
+                                       "by_layer": record.get("layer")})
+                    runs[cid] = record
+                    continue
                 print(f"DUPLICATE run record for {cid} ({path}); refusing to "
                       "pick a winner — a case covered by two layers must be "
                       "reconciled, not overwritten")
                 return 2
             runs[cid] = record
+    if superseded:
+        print(f"[merge] {len(superseded)} blocked case(s) superseded by a "
+              f"later layer: {[s['case_id'] for s in superseded]}")
     results = {s["id"]: score_case(s, runs.get(s["id"])) for s in scenarios}
 
     problems = completeness(scenarios, results)
@@ -621,6 +656,7 @@ def main() -> int:
 
     totals = report(scenarios, results)
     Path(args.out).write_text(json.dumps({
+        "superseded": superseded,
         "totals": totals["totals"],
         "by_category": totals["by_category"],
         "by_split": totals["by_split"],

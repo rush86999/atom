@@ -360,6 +360,10 @@ async def amain(args: argparse.Namespace) -> int:
             merged_runs.append({
                 "case_id": sid,
                 "layer": "layer2-public-boundary",
+                # What this layer actually asserts. Everything else in the
+                # scenario is scored as unexercised here and asserted by the
+                # layer that does assert it — never silently counted either way.
+                "asserts": ["invocations", "injected_failure_is_visible"],
                 "sources": record.get("sources", []),
                 "items": record.get("items", {}),
                 "search_status": record.get("search_status", "success"),

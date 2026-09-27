@@ -1,8 +1,46 @@
 {
+ "superseded": [
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  }
+ ],
  "totals": {
-  "pass": 45,
+  "pass": 51,
   "fail": 0,
-  "blocked": 6
+  "blocked": 0
  },
  "by_category": {
   "absent_within_coverage": {
@@ -42,16 +80,16 @@
    "denominator": 3
   },
   "explicit_research": {
-   "pass": 0,
+   "pass": 1,
    "fail": 0,
-   "blocked": 1,
-   "denominator": 0
+   "blocked": 0,
+   "denominator": 1
   },
   "formatting_followup": {
-   "pass": 0,
+   "pass": 3,
    "fail": 0,
-   "blocked": 3,
-   "denominator": 0
+   "blocked": 0,
+   "denominator": 3
   },
   "long_request": {
    "pass": 2,
@@ -90,10 +128,10 @@
    "denominator": 4
   },
   "restart_retry": {
-   "pass": 0,
+   "pass": 2,
    "fail": 0,
-   "blocked": 2,
-   "denominator": 0
+   "blocked": 0,
+   "denominator": 2
   },
   "similar_identifiers": {
    "pass": 3,
@@ -110,10 +148,10 @@
  },
  "by_split": {
   "development": {
-   "pass": 29,
+   "pass": 35,
    "fail": 0,
-   "blocked": 6,
-   "denominator": 29
+   "blocked": 0,
+   "denominator": 35
   },
   "heldout": {
    "pass": 16,
@@ -1501,12 +1539,27 @@
    "case_id": "formatting_zero_retrieval_0",
    "category": "formatting_followup",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
     }
    ]
   },
@@ -1514,12 +1567,27 @@
    "case_id": "formatting_zero_retrieval_1",
    "category": "formatting_followup",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
     }
    ]
   },
@@ -1527,12 +1595,27 @@
    "case_id": "formatting_zero_retrieval_2",
    "category": "formatting_followup",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
     }
    ]
   },
@@ -1580,7 +1663,7 @@
     {
      "name": "invocations:turn-2",
      "verdict": "blocked",
-     "detail": "turn was not exercised"
+     "detail": "turn was not exercised by this layer"
     }
    ]
   },
@@ -1623,7 +1706,7 @@
     {
      "name": "invocations:turn-2",
      "verdict": "blocked",
-     "detail": "turn was not exercised"
+     "detail": "turn was not exercised by this layer"
     }
    ]
   },
@@ -1631,12 +1714,27 @@
    "case_id": "explicit_research_new_attempt",
    "category": "explicit_research",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 1 retrieval invocation(s), observed 1"
     }
    ]
   },
@@ -1836,12 +1934,27 @@
    "case_id": "restart_retry_keyed",
    "category": "restart_retry",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
     }
    ]
   },
@@ -1849,12 +1962,22 @@
    "case_id": "restart_retry_survives_restart",
    "category": "restart_retry",
    "split": "development",
-   "passed": false,
+   "passed": true,
    "checks": [
     {
      "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
      "verdict": "blocked",
-     "detail": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)"
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
     }
    ]
   },

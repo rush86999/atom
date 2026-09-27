@@ -336,6 +336,12 @@ def main() -> int:
     ap.add_argument("--out", default="")
     ap.add_argument("--server-python", default=sys.executable,
                     help="interpreter for the relaunched server")
+    ap.add_argument("--externally-managed-server", action="store_true",
+                    help="the server under test is owned by another launcher "
+                         "(e.g. preview_stack.py). Case 7, the only step that "
+                         "kills and relaunches the process, records itself as "
+                         "NOT EXERCISED instead of taking ownership. The gate "
+                         "then stays incomplete, which is the honest outcome.")
     args = ap.parse_args()
     desc = json.loads(Path(args.launch_descriptor).read_text())
 
@@ -784,158 +790,187 @@ def main() -> int:
 
     # ---- 7: restart against the same database, then history + keyed replay ----
     st = _step("7_restart_history")
-    try:
-        import shutil
-        import signal
-        import subprocess as _sp
-        import uuid as _uuid
-
-        if not args.code_dir:
-            raise RuntimeError("no --code-dir: runner cannot relaunch the server")
-        code_dir = str(Path(args.code_dir).resolve())
-        _app = Path(code_dir) / "scripts" / "orchestration_acceptance" / "_app.py"
-        if not _app.exists():
-            raise RuntimeError(f"server entrypoint missing: {_app}")
-        port = int(args.base.rsplit(":", 1)[-1])
-        data_dir = str(Path(args.db).resolve().parent)
-
-        def _listeners():
-            try:
-                out = _sp.run(["lsof", "-ti", f":{port}"],
-                              capture_output=True, text=True, timeout=10)
-            except Exception:
-                return []
-            return [p.strip() for p in out.stdout.split()
-                    if p.strip().isdigit()]
-
-        def _wait_closed(deadline_s=30.0):
-            end = time.time() + deadline_s
-            while time.time() < end:
-                if not _listeners():
-                    return True
-                time.sleep(1.0)
-            return not _listeners()
-
-        # Seed: a keyed turn completed BEFORE the restart (request_id is
-        # top-level on the chat contract, not context).
-        sid7 = f"{session}-rst"
-        rid = f"req-{_uuid.uuid4().hex[:12]}"
-        seeded = client.post(
-            f"{args.base}/api/chat/message", headers=headers,
-            json={"message": ASK, "session_id": sid7, "user_id": user_id,
-                  "request_id": rid}).json()
-        pre_delivery = str(seeded.get("message") or "")
-        pre_exec = seeded.get("execution_id")
-        if not pre_delivery or not pre_exec:
-            raise RuntimeError("seeded keyed turn did not complete")
-        pids_before = _listeners()
-        for pid in pids_before:
-            try:
-                os.kill(int(pid), signal.SIGTERM)
-            except Exception:
-                pass
-        if not _wait_closed():
-            for pid in _listeners():
-                try:
-                    os.kill(int(pid), signal.SIGKILL)
-                except Exception:
-                    pass
-            if not _wait_closed():
-                raise RuntimeError("server port did not close for restart")
-        env = dict(os.environ)
-        env.update({
-            "DATABASE_URL": f"sqlite:///{Path(args.db).resolve()}",
-            "ATOM_DATA_DIR": data_dir,
-            "LANCEDB_URI": str(Path(data_dir) / "atom_memory"),
-            "ATOM_SHEET_DATASETS": "1",
-            "ATOM_CHAT_STREAMING": "1",
-            "ENABLE_SCHEDULER": "false",
-            "ENABLE_INGESTION_SYNC": "false",
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "ACC_PORT": str(port),
-            "CHAT_FINALIZATION_M1": "1",
-            "CHAT_FINALIZATION_M2": "1",
-            "ATOM_TEST_FORCE_TURN_FAILURE": "1",
-        })
-        # A RESTART MUST BE FAITHFUL, BY CONSTRUCTION.
+    if args.externally_managed_server:
+        # This step is the only one that takes ownership of the SERVER
+        # PROCESS: it kills the listener and relaunches it from its own env
+        # assembly. When the server belongs to another launcher that already
+        # owns the launch contract (preview_stack.py: credential-complete
+        # environment, per-run data dir, effective-flag record), two owners
+        # of one process is a correctness problem -- and it is not
+        # hypothetical: this step previously killed the preview server,
+        # relaunched it with a hand-copied env that had already drifted
+        # (ATOM_TASK_LIFECYCLE_ENABLED missing), and the next run's identity
+        # guard then correctly refused to attribute anything to a server it
+        # had not started.
         #
-        # The env above is a hand-copied list, and it had already drifted from
-        # what the running server was actually launched with: it omitted
-        # ATOM_TASK_LIFECYCLE_ENABLED. The relaunched process therefore came
-        # up with the task lifecycle OFF, so everything case 7 observed after
-        # the restart was a different system from the one it observed before
-        # it -- and a "history survived the restart" verdict measured that
-        # difference rather than durability. That is precisely the class of
-        # false pass this plan forbids.
-        #
-        # So the flag set is taken from the launch descriptor, which records
-        # the EFFECTIVE values the original process was given, and the
-        # relaunch is asserted against them below. Adding a flag to a launch
-        # now cannot silently not apply to its own restart.
-        _desc_flags = (desc.get("effective_flags") or {}) if isinstance(desc, dict) else {}
-        for _k, _v in _desc_flags.items():
-            if isinstance(_v, (str, int, float)) and _v is not None:
-                env[_k] = str(_v)
-        # The failure-injection flag is this case's own instrument, not part
-        # of the baseline contract; keep it whatever the descriptor says.
-        env["ATOM_TEST_FORCE_TURN_FAILURE"] = "1"
-        logf = open(Path(code_dir).parent / "server-restart.log", "ab")
-        _sp.Popen([args.server_python, str(_app)], cwd=code_dir, env=env,
-                  stdout=logf, stderr=_sp.STDOUT,
-                  start_new_session=True)
-        healthy, end = False, time.time() + 240
-        while time.time() < end:
-            try:
-                if client.get(f"{args.base}/api/health",
-                              timeout=3).status_code == 200:
-                    healthy = True
-                    break
-            except Exception:
-                pass
-            time.sleep(2)
-        if not healthy:
-            raise RuntimeError("relaunched server did not become healthy")
-        # Prove the relaunch is the SAME contract, not merely a live process.
-        # Read the flags back from the running process's own environment, so
-        # this compares what the server actually has, not what we intended.
-        _post_flags = _read_effective_flags(port)
-        _flag_drift = {k: {"expected": str(v), "effective": _post_flags.get(k)}
-                       for k, v in _desc_flags.items()
-                       if isinstance(v, (str, int, float))
-                       and str(_post_flags.get(k)) != str(v)}
-        if _flag_drift:
-            raise RuntimeError(
-                "restart changed the effective contract; case 7 would compare "
-                f"two different systems: {_flag_drift}")
-        pids_after = _listeners()
-        # History survives the restart from the SAME database file.
-        hist = client.get(f"{args.base}/api/chat/history/{sid7}",
-                          headers=headers).json()
-        api_rows = [((m.get("id"), ((m.get("response") or {}).get("message")
-                                    or ""), {"execution_id": m.get("execution_id")}))
-                    for m in (hist.get("messages", [])
-                              if isinstance(hist, dict) else [])
-                    if m.get("role") == "assistant"]
-        hist_text = api_rows[-1][1] if api_rows else ""
-        # Keyed replay after restart: same ID + same payload replays the
-        # stored finalized response with zero new execution.
-        rep = client.post(
-            f"{args.base}/api/chat/message", headers=headers,
-            json={"message": ASK, "session_id": sid7, "user_id": user_id,
-                  "request_id": rid}).json()
-        finish_step(st, {
-            "server_pid_changed": bool(pids_before and pids_after and
-                                       set(pids_before) != set(pids_after)),
-            "history_survives_restart": bool(
-                hist_text and hist_text == pre_delivery),
-            "keyed_replay_matches": bool(
-                str(rep.get("message") or "") == pre_delivery),
-            "replay_keeps_execution": bool(
-                rep.get("execution_id") == pre_exec),
-        }, details={"pids_before": pids_before, "pids_after": pids_after,
-                    "execution_id": pre_exec})
-    except Exception as exc:
-        st["error"] = f"{type(exc).__name__}: {exc}"[:300]
+        # So the step declines to run and records itself as NOT EXERCISED.
+        # It is deliberately NOT counted as a pass: evaluate_all_pass still
+        # requires "7_restart_history", so the gate stays incomplete and the
+        # omission is visible in the report rather than hidden. Restart
+        # durability is exercised separately, through the launcher's own
+        # down/up cycle, which is the more faithful test anyway.
+        st["exercised"] = False
+        st["blocked_on"] = ("--externally-managed-server: this step owns the "
+                            "server process, which the external launcher owns")
+        st["notes"].append(
+            "NOT EXERCISED in this run. Restart durability is covered by the "
+            "launcher's own down/up cycle against the same run database, "
+            "which restarts through the real launch path rather than a "
+            "duplicated env assembly.")
+        steps.append(st)
+    else:
+      try:
+          import shutil
+          import signal
+          import subprocess as _sp
+          import uuid as _uuid
+
+          if not args.code_dir:
+              raise RuntimeError("no --code-dir: runner cannot relaunch the server")
+          code_dir = str(Path(args.code_dir).resolve())
+          _app = Path(code_dir) / "scripts" / "orchestration_acceptance" / "_app.py"
+          if not _app.exists():
+              raise RuntimeError(f"server entrypoint missing: {_app}")
+          port = int(args.base.rsplit(":", 1)[-1])
+          data_dir = str(Path(args.db).resolve().parent)
+
+          def _listeners():
+              try:
+                  out = _sp.run(["lsof", "-ti", f":{port}"],
+                                capture_output=True, text=True, timeout=10)
+              except Exception:
+                  return []
+              return [p.strip() for p in out.stdout.split()
+                      if p.strip().isdigit()]
+
+          def _wait_closed(deadline_s=30.0):
+              end = time.time() + deadline_s
+              while time.time() < end:
+                  if not _listeners():
+                      return True
+                  time.sleep(1.0)
+              return not _listeners()
+
+          # Seed: a keyed turn completed BEFORE the restart (request_id is
+          # top-level on the chat contract, not context).
+          sid7 = f"{session}-rst"
+          rid = f"req-{_uuid.uuid4().hex[:12]}"
+          seeded = client.post(
+              f"{args.base}/api/chat/message", headers=headers,
+              json={"message": ASK, "session_id": sid7, "user_id": user_id,
+                    "request_id": rid}).json()
+          pre_delivery = str(seeded.get("message") or "")
+          pre_exec = seeded.get("execution_id")
+          if not pre_delivery or not pre_exec:
+              raise RuntimeError("seeded keyed turn did not complete")
+          pids_before = _listeners()
+          for pid in pids_before:
+              try:
+                  os.kill(int(pid), signal.SIGTERM)
+              except Exception:
+                  pass
+          if not _wait_closed():
+              for pid in _listeners():
+                  try:
+                      os.kill(int(pid), signal.SIGKILL)
+                  except Exception:
+                      pass
+              if not _wait_closed():
+                  raise RuntimeError("server port did not close for restart")
+          env = dict(os.environ)
+          env.update({
+              "DATABASE_URL": f"sqlite:///{Path(args.db).resolve()}",
+              "ATOM_DATA_DIR": data_dir,
+              "LANCEDB_URI": str(Path(data_dir) / "atom_memory"),
+              "ATOM_SHEET_DATASETS": "1",
+              "ATOM_CHAT_STREAMING": "1",
+              "ENABLE_SCHEDULER": "false",
+              "ENABLE_INGESTION_SYNC": "false",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "ACC_PORT": str(port),
+              "CHAT_FINALIZATION_M1": "1",
+              "CHAT_FINALIZATION_M2": "1",
+              "ATOM_TEST_FORCE_TURN_FAILURE": "1",
+          })
+          # A RESTART MUST BE FAITHFUL, BY CONSTRUCTION.
+          #
+          # The env above is a hand-copied list, and it had already drifted from
+          # what the running server was actually launched with: it omitted
+          # ATOM_TASK_LIFECYCLE_ENABLED. The relaunched process therefore came
+          # up with the task lifecycle OFF, so everything case 7 observed after
+          # the restart was a different system from the one it observed before
+          # it -- and a "history survived the restart" verdict measured that
+          # difference rather than durability. That is precisely the class of
+          # false pass this plan forbids.
+          #
+          # So the flag set is taken from the launch descriptor, which records
+          # the EFFECTIVE values the original process was given, and the
+          # relaunch is asserted against them below. Adding a flag to a launch
+          # now cannot silently not apply to its own restart.
+          _desc_flags = (desc.get("effective_flags") or {}) if isinstance(desc, dict) else {}
+          for _k, _v in _desc_flags.items():
+              if isinstance(_v, (str, int, float)) and _v is not None:
+                  env[_k] = str(_v)
+          # The failure-injection flag is this case's own instrument, not part
+          # of the baseline contract; keep it whatever the descriptor says.
+          env["ATOM_TEST_FORCE_TURN_FAILURE"] = "1"
+          logf = open(Path(code_dir).parent / "server-restart.log", "ab")
+          _sp.Popen([args.server_python, str(_app)], cwd=code_dir, env=env,
+                    stdout=logf, stderr=_sp.STDOUT,
+                    start_new_session=True)
+          healthy, end = False, time.time() + 240
+          while time.time() < end:
+              try:
+                  if client.get(f"{args.base}/api/health",
+                                timeout=3).status_code == 200:
+                      healthy = True
+                      break
+              except Exception:
+                  pass
+              time.sleep(2)
+          if not healthy:
+              raise RuntimeError("relaunched server did not become healthy")
+          # Prove the relaunch is the SAME contract, not merely a live process.
+          # Read the flags back from the running process's own environment, so
+          # this compares what the server actually has, not what we intended.
+          _post_flags = _read_effective_flags(port)
+          _flag_drift = {k: {"expected": str(v), "effective": _post_flags.get(k)}
+                         for k, v in _desc_flags.items()
+                         if isinstance(v, (str, int, float))
+                         and str(_post_flags.get(k)) != str(v)}
+          if _flag_drift:
+              raise RuntimeError(
+                  "restart changed the effective contract; case 7 would compare "
+                  f"two different systems: {_flag_drift}")
+          pids_after = _listeners()
+          # History survives the restart from the SAME database file.
+          hist = client.get(f"{args.base}/api/chat/history/{sid7}",
+                            headers=headers).json()
+          api_rows = [((m.get("id"), ((m.get("response") or {}).get("message")
+                                      or ""), {"execution_id": m.get("execution_id")}))
+                      for m in (hist.get("messages", [])
+                                if isinstance(hist, dict) else [])
+                      if m.get("role") == "assistant"]
+          hist_text = api_rows[-1][1] if api_rows else ""
+          # Keyed replay after restart: same ID + same payload replays the
+          # stored finalized response with zero new execution.
+          rep = client.post(
+              f"{args.base}/api/chat/message", headers=headers,
+              json={"message": ASK, "session_id": sid7, "user_id": user_id,
+                    "request_id": rid}).json()
+          finish_step(st, {
+              "server_pid_changed": bool(pids_before and pids_after and
+                                         set(pids_before) != set(pids_after)),
+              "history_survives_restart": bool(
+                  hist_text and hist_text == pre_delivery),
+              "keyed_replay_matches": bool(
+                  str(rep.get("message") or "") == pre_delivery),
+              "replay_keeps_execution": bool(
+                  rep.get("execution_id") == pre_exec),
+          }, details={"pids_before": pids_before, "pids_after": pids_after,
+                      "execution_id": pre_exec})
+      except Exception as exc:
+          st["error"] = f"{type(exc).__name__}: {exc}"[:300]
     steps.append(st)
 
     # ---- 8: overlapping turns (REQUIRED) ----
