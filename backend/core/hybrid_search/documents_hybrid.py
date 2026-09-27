@@ -36,6 +36,11 @@ Ranking degradation (a reranker fallback) is reported under ``ranking`` and
 is deliberately NOT coverage.
 
 Never raises.
+
+``error_category`` below is the shared, non-leaking failure vocabulary: the
+workbook artifact scan classifies its own unreadable sources through it, so a
+damaged parquet is reported with the same words as a broken search leg instead
+of a raw ``str(e)``.
 """
 from __future__ import annotations
 
@@ -93,13 +98,35 @@ def _skipped_leg(reason: str) -> Dict[str, Any]:
     }
 
 
-def _error_category(exc: BaseException) -> str:
-    """Stable, non-leaking category for a leg failure.
+# Signatures of a source file that is present but not readable AS ITS OWN
+# FORMAT. Shared with the workbook artifact scan, which hits the same wall on
+# a damaged parquet ("Parquet magic bytes not found in footer") — that text
+# matched no branch below and fell through to ``unknown``, which reads as "we
+# do not know why" instead of "the bytes are damaged".
+_CORRUPTION_MARKERS = (
+    "corrupt",
+    "magic bytes",
+    "not a parquet file",
+    "invalid footer",
+    "malformed",
+    "not a database",
+    "disk image",
+    "checksum",
+    "unexpected end of",
+)
+
+
+def error_category(exc: BaseException) -> str:
+    """Stable, non-leaking category for a retrieval failure.
 
     The raw message can carry connection strings, file paths, row contents or
     provider payloads, and it is rendered into model-visible and user-visible
     text. Only the class is classified here; the message stays in the log at
     debug level for the operator.
+
+    Public because the vocabulary is the contract, not an implementation
+    detail of this leg: any producer that must report "the source could not be
+    read" without leaking ``str(exc)`` classifies through here.
     """
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
         return ERROR_TIMEOUT
@@ -109,13 +136,20 @@ def _error_category(exc: BaseException) -> str:
         return ERROR_PERMISSION
     if isinstance(exc, (FileNotFoundError,)) or "no such table" in text or "does not exist" in text:
         return ERROR_MISSING
-    if "sqlite3" in name and any(k in text for k in ("malformed", "corrupt", "not a database", "disk image")):
+    if "sqlite3" in name and any(k in text for k in _CORRUPTION_MARKERS):
         return ERROR_CORRUPT
     if isinstance(exc, (ConnectionError, OSError)) or "connection" in text or "unreachable" in text:
         return ERROR_UNAVAILABLE
     if isinstance(exc, (ImportError, ModuleNotFoundError, AttributeError, TypeError)):
         return ERROR_CONFIGURATION
+    if any(marker in text for marker in _CORRUPTION_MARKERS):
+        return ERROR_CORRUPT
     return ERROR_UNKNOWN
+
+
+# Private alias kept so the in-module call sites (and any importer written
+# against the previous name) keep working.
+_error_category = error_category
 
 
 def _coerce_metadata(raw: Any) -> Dict[str, Any]:

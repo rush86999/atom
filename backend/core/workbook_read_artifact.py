@@ -1,12 +1,40 @@
-"""Structured workbook read artifacts and target coverage."""
+"""Structured workbook read artifacts and target coverage.
+
+COVERAGE VOCABULARY (shared with ``core.hybrid_search.documents_hybrid``)
+--------------------------------------------------------------------------
+A source that could not be READ and a source that was read and did not contain
+the item produce the same empty evidence list. Downstream that collapsed into
+one answer — "no matching row in the indexed content searched" — which is an
+absence claim about bytes nobody managed to read. Every scan therefore reports
+its per-source read legs under ``coverage.read_legs`` with a status and a
+non-leaking error CATEGORY, a source-level ``read_status``
+(success | partial | failed), and ``absence_claimable``. Absence may only be
+claimed when ``absence_claimable`` is true; a target with no evidence from a
+source that failed to read is reported ``unavailable``, never ``absent``.
+"""
 from __future__ import annotations
 
 import hashlib
 import io
 import json
+import logging
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
+
+from core.hybrid_search.documents_hybrid import error_category
+
+logger = logging.getLogger(__name__)
+
+# Per-source read-leg status (mirrors documents_hybrid LEG_*).
+READ_LEG_OK = "ok"
+READ_LEG_FAILED = "failed"
+# Source-level read status (mirrors documents_hybrid STATUS_*).
+READ_STATUS_SUCCESS = "success"
+READ_STATUS_PARTIAL = "partial"
+READ_STATUS_FAILED = "failed"
+# Per-target status for "we looked and the source would not open".
+TARGET_UNAVAILABLE = "unavailable"
 
 _TARGET_RE = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Za-z]{1,10}-[0-9](?![A-Za-z0-9])|"
@@ -1785,9 +1813,32 @@ def inspect_dataset_entries(
     formula_states: List[str] = []
     sheets_scanned = 0
     unreadable_sheets: List[str] = []
+    unreadable_categories: Dict[str, int] = {}
+    read_legs: Dict[str, Dict[str, Any]] = {}
     truncated_sheets: List[str] = []
     coverage_unknown_sheets: List[str] = []
     target_evidence_capped = False
+
+    def _read_leg_failed(name: str, exc: Optional[BaseException]) -> None:
+        """One source we could not read, recorded with a CATEGORY.
+
+        The category is what reaches the model and the user; the raw exception
+        (which carries the file path, the reader library's internals and row
+        bytes) stays in the log. Silently dropping the exception here is what
+        let a total I/O failure render as a legitimate absence.
+        """
+        category = error_category(exc) if exc is not None else "source_missing"
+        unreadable_categories[category] = unreadable_categories.get(category, 0) + 1
+        logger.warning(
+            "workbook scan could not read %s (%s)", name, category
+        )
+        read_legs[str(name)] = {
+            "status": READ_LEG_FAILED,
+            "required": True,
+            "error_category": category,
+            "rows_read": 0,
+        }
+
     try:
         import pandas as pd
     except Exception as exc:
@@ -1804,15 +1855,23 @@ def inspect_dataset_entries(
         sheet_name = str(entry.get("entity_name") or entry.get("sheet_name") or "")
         if not path or not sheet_name:
             complete = False
+            _read_leg_failed(sheet_name or path or "<unnamed sheet>", None)
             unreadable_sheets.append(sheet_name or path or "<unnamed sheet>")
             continue
         try:
             frame = pd.read_parquet(path)
-        except Exception:
+        except Exception as exc:
             complete = False
+            _read_leg_failed(sheet_name, exc)
             unreadable_sheets.append(sheet_name)
             continue
         sheets_scanned += 1
+        read_legs[sheet_name] = {
+            "status": READ_LEG_OK,
+            "required": True,
+            "error_category": None,
+            "rows_read": int(len(frame.index)),
+        }
         expected_rows = entry.get("row_count")
         if expected_rows is not None:
             try:
@@ -1963,6 +2022,20 @@ def inspect_dataset_entries(
             "merged_ranges": [],
             "searched": True,
         })
+
+    # SOURCE-LEVEL READ VERDICT (2026-09-26). Derived from the per-source legs,
+    # never from the evidence count: "no evidence" and "no readable source"
+    # both produce an empty list, and only the legs tell them apart.
+    read_failed_legs = [
+        name for name, leg in read_legs.items()
+        if leg.get("status") == READ_LEG_FAILED
+    ]
+    read_status = (
+        READ_STATUS_SUCCESS if not read_failed_legs
+        else READ_STATUS_FAILED if not sheets_scanned
+        else READ_STATUS_PARTIAL
+    )
+    absence_claimable = not read_failed_legs
 
     outcomes = []
     for target in requested:
@@ -2144,7 +2217,15 @@ def inspect_dataset_entries(
             ]
             if len(exact) == 1:
                 designations = exact
-        if not complete:
+        if not designations and read_failed_legs:
+            # READ FAILURE, NOT ABSENCE (2026-09-26). No candidate row was
+            # found AND part of the source could not be opened, so "the item
+            # is not in this workbook" is not a statement anybody can make.
+            # ``incomplete`` used to cover this and rendered as the honest
+            # absence sentence, which is how a corrupt parquet became a
+            # confident negative.
+            status = TARGET_UNAVAILABLE
+        elif not complete:
             status = "incomplete"
         elif not designations:
             status = "absent"
@@ -2172,6 +2253,14 @@ def inspect_dataset_entries(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
         }
+        if status == TARGET_UNAVAILABLE:
+            outcome["error_category"] = _dominant_read_category(unreadable_categories)
+            outcome["absence_claimable"] = False
+            outcome["note"] = (
+                "the source could not be read, so no result is reported for "
+                "this item — this is NOT a statement that the item is absent "
+                "from the workbook"
+            )
         if status == "ambiguous" and len(designations) >= _TARGET_EVIDENCE_CAP:
             outcome["note"] = (
                 "multiple plausible product rows remain; candidate evidence "
@@ -2229,6 +2318,14 @@ def inspect_dataset_entries(
         "coverage": {
             "requested": requested,
             "outcomes": outcomes,
+            "read_status": read_status,
+            "absence_claimable": absence_claimable,
+            "read_legs": read_legs,
+            "unreadable_sheet_count": len(unreadable_sheets),
+            "error_category": (
+                _dominant_read_category(unreadable_categories)
+                if read_failed_legs else None
+            ),
             "complete": (
                 complete
                 and all(
@@ -2242,6 +2339,9 @@ def inspect_dataset_entries(
             "sheets_expected": len(entries),
             "sheets_scanned": sheets_scanned,
             "unreadable_sheets": unreadable_sheets,
+            "unreadable_sheet_count": len(unreadable_sheets),
+            "read_status": read_status,
+            "absence_claimable": absence_claimable,
             "coverage_unknown_sheets": coverage_unknown_sheets,
             "truncated_sheets": truncated_sheets,
             "target_evidence_cap": _TARGET_EVIDENCE_CAP,

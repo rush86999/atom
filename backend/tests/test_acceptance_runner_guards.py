@@ -440,3 +440,92 @@ def test_non_absent_expectations_are_not_evaluated_as_absence():
     art = _abs_artifact([_none_target("U-22")], True)
     assert _ri.evaluate_absence_from_artifact(
         art, {"U-22": {"coverage": "found"}}) == {}
+
+
+# ── C13: per-subturn artifact binding, and no recency substitution ───────
+
+def test_load_artifact_selects_by_exact_execution_not_recency(tmp_path):
+    """Selecting the LATEST row in a session substitutes one turn's
+    identity for another's — the exact sin an overlapping-reads case
+    exists to detect. Two turns, two artifacts, selected by execution id.
+    """
+    import sqlite3 as _sq
+
+    world = tmp_path / "world"
+    (world / "runs" / "run-1" / "data").mkdir(parents=True)
+    db = world / "runs" / "run-1" / "data" / "atom.db"
+    con = _sq.connect(str(db))
+    con.execute(
+        "CREATE TABLE chat_messages (conversation_id TEXT, role TEXT, "
+        "created_at TEXT, metadata_json TEXT)")
+    con.execute(
+        "INSERT INTO chat_messages VALUES (?,?,?,?)",
+        ("s1", "assistant", "2026-01-01T00:00:00",
+         '{"execution_id": "ex-A", "structured_result": '
+         '{"schema_version": "structured-result-2", "targets": ['
+         '{"item": "U-22", "identity": {"status": "single", "candidates": ['
+         '{"ref": "S!R1", "values": [{"col": "C1", "basis": "P", '
+         '"value": 1.0}], "identity": {"status": "bound", "references": '
+         '[{"sheet": "S", "cell": "A1", "row": 1}]}}]}}]}}'))
+    con.execute(
+        "INSERT INTO chat_messages VALUES (?,?,?,?)",
+        ("s1", "assistant", "2026-01-01T00:00:01",
+         '{"execution_id": "ex-B", "structured_result": '
+         '{"schema_version": "structured-result-2", "targets": ['
+         '{"item": "SLE24-16", "identity": {"status": "single", '
+         '"candidates": [{"ref": "S!R2", "values": [{"col": "C2", '
+         '"basis": "P", "value": 2.0}], "identity": {"status": "bound", '
+         '"references": [{"sheet": "S", "cell": "A2", "row": 2}]}}]}}]}}'))
+    con.commit()
+    con.close()
+
+    a = _ri.load_structured_result(world, "s1", execution_id="ex-A")
+    b = _ri.load_structured_result(world, "s1", execution_id="ex-B")
+    assert [t["item"] for t in a["targets"]] == ["U-22"]
+    assert [t["item"] for t in b["targets"]] == ["SLE24-16"]
+    # Recency is NOT the selector when an execution is named.
+    assert a is not b
+
+
+def test_load_artifact_falls_back_to_latest_when_no_execution_given(tmp_path):
+    import sqlite3 as _sq
+
+    world = tmp_path / "world2"
+    (world / "runs" / "run-1" / "data").mkdir(parents=True)
+    db = world / "runs" / "run-1" / "data" / "atom.db"
+    con = _sq.connect(str(db))
+    con.execute(
+        "CREATE TABLE chat_messages (conversation_id TEXT, role TEXT, "
+        "created_at TEXT, metadata_json TEXT)")
+    con.execute(
+        "INSERT INTO chat_messages VALUES (?,?,?,?)",
+        ("s2", "assistant", "2026-01-01T00:00:00",
+         '{"execution_id": "ex-1", "structured_result": '
+         '{"schema_version": "structured-result-2", "targets": []}}'))
+    con.commit()
+    con.close()
+    got = _ri.load_structured_result(world, "s2")
+    assert got["schema_version"] == "structured-result-2"
+
+
+def test_one_subturn_with_incorrect_evidence_fails_that_subturn():
+    """Distinct execution ids are not overlap correctness. If ONE subturn's
+    artifact carries the wrong identity cell, that subturn must fail even
+    though the other is perfect and the ids differ."""
+    good = _artifact([_cand(
+        "S!R1", "single",
+        [{"sheet": "S", "cell": "A1", "row": 1, "role": "matched_target"}],
+        [{"col": "C1", "basis": "P", "value": 1.0}])])
+    bad = _artifact([_cand(
+        "S!R1", "single",
+        [{"sheet": "S", "cell": "Z9", "row": 9, "role": "matched_target"}],
+        [{"col": "C1", "basis": "P", "value": 1.0}])])
+    exp = {"U-22": {"coverage": "found", "price": 1.0, "cell": "s!A1",
+                    "value_col": "C", "basis": "P"}}
+    good_r = _ri.evaluate_artifact_bindings(good, exp)["U-22"]
+    bad_r = _ri.evaluate_artifact_bindings(bad, exp)["U-22"]
+    assert good_r["identity_ok"] is True and good_r["value_ok"] is True
+    assert bad_r["identity_ok"] is False, (
+        "a subturn with the wrong identity cell must fail even when the "
+        "sibling subturn is correct and the execution ids differ")
+    assert bad_r["value_ok"] is True

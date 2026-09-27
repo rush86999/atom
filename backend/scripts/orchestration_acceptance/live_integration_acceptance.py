@@ -817,7 +817,10 @@ def main() -> int:
             "launcher's own down/up cycle against the same run database, "
             "which restarts through the real launch path rather than a "
             "duplicated env assembly.")
-        steps.append(st)
+        # NB: no steps.append here. The append that follows the else-branch is
+        # at the outer level and therefore already runs for BOTH paths; adding
+        # one here registered 7_restart_history twice and evaluate_all_pass
+        # rejected the run as "duplicate case (2)".
     else:
       try:
           import shutil

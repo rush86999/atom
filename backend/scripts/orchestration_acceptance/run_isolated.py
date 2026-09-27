@@ -53,7 +53,7 @@ HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "77f2c96c2058534ff8548ee48d78ef4b58a224d8"
+PINNED_REV = "813b24c3b51871af597b8896ceeb3a0213f4c6c9"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
@@ -1224,8 +1224,19 @@ def check_claims(reply: str, *, verified_action_kinds: set,
 EVALUATOR_VERSION = "artifact-bindings-v3"
 
 
-def load_structured_result(world: Path, session_id: str) -> Optional[Dict[str, Any]]:
-    """The durable structured artifact for a session's final turn."""
+def load_structured_result(world: Path, session_id: str,
+                           execution_id: Optional[str] = None
+                           ) -> Optional[Dict[str, Any]]:
+    """The durable structured artifact for ONE turn of a session.
+
+    When ``execution_id`` is given the row is selected by that EXACT
+    execution, never by recency. Selecting the latest row in a session
+    substitutes one turn's identity for another's — which is precisely
+    what an overlapping-reads case exists to detect, so the evaluator
+    must not commit the same sin while checking it. With concurrent
+    subturns it silently handed subturn A subturn B's evidence and
+    failed A for a reason that had nothing to do with A.
+    """
     import sqlite3 as _sq
 
     runs = sorted((world / "runs").glob("*"), key=lambda p: p.stat().st_mtime)
@@ -1236,10 +1247,27 @@ def load_structured_result(world: Path, session_id: str) -> Optional[Dict[str, A
         return None
     try:
         con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
-        row = con.execute(
-            "SELECT metadata_json FROM chat_messages "
-            "WHERE conversation_id=? AND role='assistant' "
-            "ORDER BY created_at DESC LIMIT 1", (session_id,)).fetchone()
+        if execution_id:
+            rows = con.execute(
+                "SELECT metadata_json FROM chat_messages "
+                "WHERE conversation_id=? AND role='assistant' "
+                "ORDER BY created_at DESC", (session_id,)).fetchall()
+            row = None
+            for candidate in rows:
+                try:
+                    meta = json.loads(candidate[0] or "{}")
+                except Exception:
+                    continue
+                if str((meta or {}).get("execution_id") or "") == str(
+                        execution_id):
+                    row = candidate
+                    break
+        else:
+            row = con.execute(
+                "SELECT metadata_json FROM chat_messages "
+                "WHERE conversation_id=? AND role='assistant' "
+                "ORDER BY created_at DESC LIMIT 1",
+                (session_id,)).fetchone()
         con.close()
     except Exception:
         return None
@@ -2394,7 +2422,8 @@ async def run_true_eight(base: str, token: str, user_id: str, case: Dict[str, An
     # was actually proven, and only the artifact carries an exact identity
     # cell. Neither substitutes for the other, and a failure is never
     # collapsed into a single cause.
-    artifact = load_structured_result(world, session)
+    artifact = load_structured_result(
+        world, session, execution_id=final.get("execution_id"))
     bindings = evaluate_artifact_bindings(artifact,
                                           case["expected"]["per_target"])
     for _t, _b in bindings.items():
@@ -2562,6 +2591,28 @@ async def run_generic(base: str, token: str, user_id: str, case: Dict[str, Any],
             per_target[_t]["pass"] = bool(
                 per_target[_t]["pass"]
                 or _a["verdict"] == per_target[_t]["expected"])
+        # Identity and value bindings, decided from the artifact. Text
+        # parsing is not stronger evidence than what was proven, and a
+        # binding the artifact carries must gate the verdict here too —
+        # otherwise an overlapping read is failed for the same
+        # reason the original ask used to be.
+        _bind_artifact = load_structured_result(
+            world, session, execution_id=r1.get("execution_id"))
+        for _t, _b in evaluate_artifact_bindings(
+                _bind_artifact, case["expected"]["per_target"]).items():
+            if _t not in per_target:
+                continue
+            per_target[_t]["identity_ok"] = _b["identity_ok"]
+            per_target[_t]["identity_detail"] = _b["identity_detail"]
+            per_target[_t]["value_ok"] = _b["value_ok"]
+            per_target[_t]["value_detail"] = _b["value_detail"]
+            # The ARTIFACT is the stronger evidence for a binding, so when
+            # it has a verdict it decides. The reply-text binding check is
+            # a weaker proxy for the same fact and must not veto it —
+            # otherwise a correct answer fails on phrasing while the
+            # structured record proves it. Text parsing still governs
+            # coverage and unsupported claims, which only the answer shows.
+            per_target[_t]["pass"] = bool(_b["identity_ok"] and _b["value_ok"])
         trace_steps = await fetch_trace(base, token, session, replay_mod)
         claim = check_claims(reply, **_claim_context(case, r1, per_target, trace_steps))
         return common | {
@@ -2615,9 +2666,33 @@ async def run_generic(base: str, token: str, user_id: str, case: Dict[str, Any],
     for resp, key in ((ra, "expected_a"), (rb, "expected_b")):
         reply = str(resp.get("message") or "")
         per_target = evaluate_rows(parse_reply_table(reply), case["expected"][key]["per_target"])
+        # Each concurrent subturn is judged with the SAME artifact-native
+        # evaluator as a single-turn case. Distinct execution ids prove the
+        # turns did not collide on identity; they do NOT prove either turn's
+        # evidence is correct, so the identity/value bindings are evaluated
+        # per subturn against that subturn's own artifact.
+        sub_artifact = load_structured_result(
+            world, resp.get("session_id") or session,
+            execution_id=resp.get("execution_id"))
+        for _t, _b in evaluate_artifact_bindings(
+                sub_artifact, case["expected"][key]["per_target"]).items():
+            if _t not in per_target:
+                continue
+            per_target[_t]["identity_ok"] = _b["identity_ok"]
+            per_target[_t]["identity_detail"] = _b["identity_detail"]
+            per_target[_t]["value_ok"] = _b["value_ok"]
+            per_target[_t]["value_detail"] = _b["value_detail"]
+            # The ARTIFACT is the stronger evidence for a binding, so when
+            # it has a verdict it decides. The reply-text binding check is
+            # a weaker proxy for the same fact and must not veto it —
+            # otherwise a correct answer fails on phrasing while the
+            # structured record proves it. Text parsing still governs
+            # coverage and unsupported claims, which only the answer shows.
+            per_target[_t]["pass"] = bool(_b["identity_ok"] and _b["value_ok"])
         claim = check_claims(reply, **_claim_context(case, resp, per_target, trace_steps))
         sub.append({"reply": reply[:20000], "per_target": per_target, "claim_check": claim,
                     "latency_s": resp["_latency_s"], "execution_id": resp.get("execution_id"),
+                    "artifact_schema": (sub_artifact or {}).get("schema_version"),
                     "targets_ok": all(v["pass"] for v in per_target.values())})
     exec_ids = [s["execution_id"] for s in sub]
     return common | {
