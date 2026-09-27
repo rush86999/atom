@@ -58,6 +58,7 @@ import hashlib
 import json
 import os
 import shutil
+import re
 import socket
 import subprocess
 import sys
@@ -698,9 +699,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
                   f"/api/health -> {r.status_code}")
         except Exception as exc:
             check("frontend answers", False, f"{type(exc).__name__}: {exc}")
-        origin = _frontend_api_origin(fe)
-        check("frontend compiled API origin is THIS backend",
-              bool(origin) and f":{port}" in origin, origin or "not found in bundle")
+        found, origin = _frontend_api_origin(fe, port)
+        check("frontend compiled API origin is THIS backend", found, origin)
 
     check("effective lifecycle flag is on",
           st.get("effective_flags", {}).get("ATOM_TASK_LIFECYCLE_ENABLED") == "1",
@@ -731,24 +731,44 @@ def _opened_sqlite(pid: int) -> List[str]:
     return sorted(set(out))
 
 
-def _frontend_api_origin(fe_port: int) -> Optional[str]:
-    """Read the backend origin the frontend actually compiled in.
+def _frontend_api_origin(fe_port: int, backend_port: int) -> Tuple[bool, Optional[str]]:
+    """Prove the frontend compiled THIS backend origin into its client bundle.
 
-    The client bundle inlines NEXT_PUBLIC_API_URL at compile time, so the
-    rendered HTML/JS is the only trustworthy statement of where the browser
-    will send requests. Grep the served page + its chunks for the origin.
+    `NEXT_PUBLIC_API_URL` is inlined into the client bundle at COMPILE time,
+    so neither `.env.local` nor the process environment is evidence -- only
+    the emitted chunk is. The server-rendered HTML does not contain it (the
+    variable is used by client code), so the check reads the built static
+    chunks of this instance's own distDir, which is `distDir: '.next-preview'`
+    (see .preview-instance/next.config.js).
+
+    Returns (found, origin). A bare "not found in bundle" is NOT treated as a
+    pass: an unproven origin is exactly the failure this whole check exists to
+    catch, so it stays a FAIL.
     """
-    import re
-    import httpx
-    try:
-        r = httpx.get(f"http://127.0.0.1:{fe_port}/login", timeout=20, trust_env=False)
-        html = r.text
-    except Exception:
-        return None
-    found = re.findall(r"https?://(?:localhost|127\.0\.0\.1):(\d{4,5})", html)
-    if found:
-        return f"http://localhost:{found[0]}"
-    return None
+    dist = PREVIEW_FE / ".next-preview"
+    if not dist.exists():
+        return False, f"no distDir at {dist}"
+    found: Optional[str] = None
+    scanned = 0
+    for sub in ("static/chunks", "static/chunks/app", "."):
+        d = dist / sub
+        if not d.is_dir():
+            continue
+        for f in d.rglob("*.js"):
+            try:
+                if f.stat().st_size > 12_000_000:
+                    continue
+                txt = f.read_text(errors="replace")
+            except OSError:
+                continue
+            scanned += 1
+            for m in re.finditer(r"https?://(?:localhost|127\.0\.0\.1):(\d{4,5})", txt):
+                if int(m.group(1)) == backend_port:
+                    return True, m.group(0)
+                if found is None:
+                    found = m.group(0)
+    return False, (f"no chunk referenced :{backend_port} (scanned {scanned} "
+                   f"chunks; other loopback origin seen: {found})")
 
 
 def cmd_down(args: argparse.Namespace) -> int:

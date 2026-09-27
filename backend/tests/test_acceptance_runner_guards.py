@@ -487,7 +487,11 @@ def test_load_artifact_selects_by_exact_execution_not_recency(tmp_path):
     assert a is not b
 
 
-def test_load_artifact_falls_back_to_latest_when_no_execution_given(tmp_path):
+def test_load_artifact_no_longer_falls_back_to_latest(tmp_path):
+    """Recency fallback was REMOVED from the identity-bound accessor: a
+    missing execution id must fail the binding check, not inherit the
+    newest row. See test_missing_execution_identity_yields_no_artifact."""
+    import json as _json
     import sqlite3 as _sq
 
     world = tmp_path / "world2"
@@ -500,12 +504,13 @@ def test_load_artifact_falls_back_to_latest_when_no_execution_given(tmp_path):
     con.execute(
         "INSERT INTO chat_messages VALUES (?,?,?,?)",
         ("s2", "assistant", "2026-01-01T00:00:00",
-         '{"execution_id": "ex-1", "structured_result": '
-         '{"schema_version": "structured-result-2", "targets": []}}'))
+         _json.dumps({"execution_id": "ex-1",
+                      "structured_result": {"schema_version":
+                                            "structured-result-2",
+                                            "targets": []}})))
     con.commit()
     con.close()
-    got = _ri.load_structured_result(world, "s2")
-    assert got["schema_version"] == "structured-result-2"
+    assert _ri.load_structured_result(world, "s2") is None
 
 
 def test_one_subturn_with_incorrect_evidence_fails_that_subturn():
@@ -529,3 +534,104 @@ def test_one_subturn_with_incorrect_evidence_fails_that_subturn():
         "a subturn with the wrong identity cell must fail even when the "
         "sibling subturn is correct and the execution ids differ")
     assert bad_r["value_ok"] is True
+
+
+# ── No recency fallback in identity binding (reviewer directive 3) ───────
+
+def _mk_world(tmp_path, name, rows):
+    import sqlite3 as _sq
+
+    world = tmp_path / name
+    (world / "runs" / "r1" / "data").mkdir(parents=True)
+    con = _sq.connect(str(world / "runs" / "r1" / "data" / "atom.db"))
+    con.execute("CREATE TABLE chat_messages (conversation_id TEXT, role TEXT, "
+                "created_at TEXT, metadata_json TEXT)")
+    for sid, created, meta in rows:
+        con.execute("INSERT INTO chat_messages VALUES (?,?,?,?)",
+                    (sid, "assistant", created, meta))
+    con.commit(); con.close()
+    return world
+
+
+def _meta(exec_id, item, cell):
+    import json as _json
+
+    return _json.dumps({
+        "execution_id": exec_id,
+        "structured_result": {
+            "schema_version": "structured-result-2",
+            "targets": [{
+                "item": item,
+                "identity": {
+                    "status": "single",
+                    "candidates": [{
+                        "ref": "S!R1",
+                        "values": [{"col": "C1", "basis": "P", "value": 1.0}],
+                        "identity": {"status": "bound",
+                                     "references": [{"sheet": "S",
+                                                     "cell": cell, "row": 1}]},
+                    }],
+                },
+            }],
+        },
+    })
+
+
+def test_missing_execution_identity_yields_no_artifact(tmp_path):
+    """No execution id means no artifact. A binding check must FAIL, not
+    inherit whatever happened to be newest."""
+    world = _mk_world(tmp_path, "w_norec", [
+        ("s1", "2026-01-01T00:00:00", _meta("ex-A", "U-22", "A1")),
+    ])
+    assert _ri.load_structured_result(world, "s1") is None
+    # The refusal is recorded, not silent.
+    assert "s1" in _ri._RECENCY_FALLBACK_REFUSALS
+
+
+def test_ambiguous_execution_identity_yields_no_artifact(tmp_path):
+    """Two rows claiming the SAME execution is ambiguous; refuse rather
+    than pick one."""
+    world = _mk_world(tmp_path, "w_ambig", [
+        ("s1", "2026-01-01T00:00:00", _meta("ex-A", "U-22", "A1")),
+        ("s1", "2026-01-01T00:00:01", _meta("ex-A", "U-22", "A2")),
+    ])
+    assert _ri.load_structured_result(world, "s1", execution_id="ex-A") is None
+    assert any(t[0] == "s1" for t in _ri._AMBIGUOUS_EXECUTION)
+
+
+def test_unknown_execution_identity_yields_no_artifact(tmp_path):
+    world = _mk_world(tmp_path, "w_unknown", [
+        ("s1", "2026-01-01T00:00:00", _meta("ex-A", "U-22", "A1")),
+    ])
+    assert _ri.load_structured_result(world, "s1", execution_id="ex-Z") is None
+
+
+def test_exact_execution_still_resolves(tmp_path):
+    world = _mk_world(tmp_path, "w_exact", [
+        ("s1", "2026-01-01T00:00:00", _meta("ex-A", "U-22", "A1")),
+        ("s1", "2026-01-01T00:00:01", _meta("ex-B", "SLE24-16", "A2")),
+    ])
+    got = _ri.load_structured_result(world, "s1", execution_id="ex-B")
+    assert [t["item"] for t in got["targets"]] == ["SLE24-16"]
+
+
+def test_legacy_recency_accessor_is_separate_and_opt_in(tmp_path):
+    """Recency still exists for callers that want it, under a different
+    name, so no identity check can reach it by accident."""
+    world = _mk_world(tmp_path, "w_legacy", [
+        ("s1", "2026-01-01T00:00:00", _meta("ex-A", "U-22", "A1")),
+        ("s1", "2026-01-01T00:00:01", _meta("ex-B", "SLE24-16", "A2")),
+    ])
+    assert _ri.load_structured_result(world, "s1") is None
+    latest = _ri.load_latest_session_artifact(world, "s1")
+    assert [t["item"] for t in latest["targets"]] == ["SLE24-16"]
+
+
+def test_binding_fails_closed_without_an_artifact():
+    """The consequence that matters: no artifact -> no binding credit."""
+    art = _ri.load_structured_result  # identity-bound accessor
+    assert art is not None
+    r = _ri.evaluate_artifact_bindings(
+        None, {"U-22": {"coverage": "found", "price": 1.0, "cell": "s!A1",
+                        "value_col": "C", "basis": "P"}})["U-22"]
+    assert r["identity_ok"] is False and r["value_ok"] is False

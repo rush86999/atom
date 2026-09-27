@@ -133,6 +133,35 @@ def _concise_result(t: Dict[str, Any]) -> str:
             f"({primary.get('basis', '')})".strip())
 
 
+def _read_failure_reason(category: Any) -> str:
+    key = str(category or "unknown")
+    return _READ_FAILURE_REASONS.get(key, _READ_FAILURE_REASONS["unknown"])
+
+
+def _read_failure_phrase(coverage: Dict[str, Any]) -> str:
+    """One clause naming HOW MUCH of the source could not be read, and why.
+
+    Shared by the per-source line and the failed-attempt line so the two never
+    describe the same failure differently.
+    """
+    status = str(coverage.get("read_status") or "")
+    unreadable = coverage.get("unreadable_sheet_count")
+    if not isinstance(unreadable, int):
+        unreadable = 0
+    if unreadable <= 0:
+        # No per-sheet detail (an unobserved scan). Naming "0 sheets" would be
+        # a number nobody can act on; the source is what could not be read.
+        return ("the source could not be read "
+                f"({_read_failure_reason(coverage.get('error_category'))})")
+    if status == "failed":
+        scope = (f"all {unreadable} indexed sheet" if unreadable == 1
+                 else f"all {unreadable} indexed sheets")
+    else:
+        scope = f"{unreadable} of the indexed sheets"
+    return (f"{scope} could not be read "
+            f"({_read_failure_reason(coverage.get('error_category'))})")
+
+
 def _source_read_failure(source: Dict[str, Any]) -> Optional[str]:
     """The source-level read failure clause, or None when the source was read.
 
@@ -144,24 +173,11 @@ def _source_read_failure(source: Dict[str, Any]) -> Optional[str]:
     coverage = source.get("coverage")
     if not isinstance(coverage, dict):
         return None
-    status = str(coverage.get("read_status") or "")
-    if status not in ("failed", "partial"):
+    if str(coverage.get("read_status") or "") not in ("failed", "partial"):
         return None
-    if coverage.get("absence_claimable") is True and status != "failed":
+    if coverage.get("absence_claimable") is True:
         return None
-    unreadable = coverage.get("unreadable_sheet_count")
-    if not isinstance(unreadable, int):
-        unreadable = 0
-    sheets = "sheet" if unreadable == 1 else "sheets"
-    scope = (f"all {unreadable} {sheets}" if unreadable and status == "failed"
-             else f"{unreadable} of the indexed {sheets}")
-    return (f"{scope} could not be read "
-            f"({_read_failure_reason(coverage.get('error_category'))})")
-
-
-def _read_failure_reason(category: Any) -> str:
-    key = str(category or "unknown")
-    return _READ_FAILURE_REASONS.get(key, _READ_FAILURE_REASONS["unknown"])
+    return _read_failure_phrase(coverage)
 
 
 def present(*, requested_items: List[str], requested_fields: List[str],
@@ -1012,22 +1028,10 @@ def present_from_record(record: Dict[str, Any],
     never rendered as if it were evidence, and never as an absence: the reason
     the read failed is named, in the shared error-category wording."""
     if record.get("evidence_action") == "read_failed":
-        src_id = record.get("source_identity") or {}
-        name = src_id.get("file_name") or "the workbook"
         coverage = record.get("coverage")
-        reason = ""
-        if isinstance(coverage, dict) and str(
-                coverage.get("read_status") or "") in ("failed", "partial"):
-            unreadable = coverage.get("unreadable_sheet_count")
-            if not isinstance(unreadable, int):
-                unreadable = 0
-            reason = (
-                f" {unreadable} of its indexed sheets could not be read"
-                if unreadable else " it could not be read")
-            reason += (f" ({_read_failure_reason(coverage.get('error_category'))})"
-                       )
-        if not reason:
-            reason = " the source could not be read"
+        reason = (" the source could not be read"
+                  if not isinstance(coverage, dict)
+                  else f" {_read_failure_phrase(coverage)}")
         return {"answer": ("The search attempt did not complete:"
                            + reason
                            + ", so no fresh evidence is available from it and "

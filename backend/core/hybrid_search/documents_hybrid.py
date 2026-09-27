@@ -113,7 +113,15 @@ _CORRUPTION_MARKERS = (
     "disk image",
     "checksum",
     "unexpected end of",
+    "parquet file size",
 )
+
+# Exception CLASSES raised by the columnar-format readers a materialized sheet
+# is read through. They raise only for data their own format cannot accept, so
+# a failure from one is a damaged source by definition — and the wording varies
+# too much to match on text alone ("Parquet file size is 3 bytes, smaller than
+# the minimum file footer" carries none of the usual corruption words).
+_FORMAT_READER_NAMES = ("arrow", "parquet", "fastparquet", "orc")
 
 
 def error_category(exc: BaseException) -> str:
@@ -143,6 +151,8 @@ def error_category(exc: BaseException) -> str:
     if isinstance(exc, (ImportError, ModuleNotFoundError, AttributeError, TypeError)):
         return ERROR_CONFIGURATION
     if any(marker in text for marker in _CORRUPTION_MARKERS):
+        return ERROR_CORRUPT
+    if any(marker in name for marker in _FORMAT_READER_NAMES):
         return ERROR_CORRUPT
     return ERROR_UNKNOWN
 

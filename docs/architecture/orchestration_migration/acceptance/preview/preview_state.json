@@ -1,0 +1,85 @@
+{
+ "launched_at": "2026-09-26T21:27:34-0400",
+ "backend_port": 8091,
+ "frontend_port": 3091,
+ "backend_pid": 99097,
+ "frontend_pid": 99405,
+ "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview",
+ "api_url": "http://127.0.0.1:8091",
+ "frontend_url": "http://localhost:3091",
+ "model": {
+  "base_url": "http://127.0.0.1:11434/v1",
+  "model": "llama3.1:8b",
+  "real_model": true,
+  "available_models": [
+   "llama3.1:8b",
+   "llama3:8b",
+   "qwen2.5vl:3b"
+  ],
+  "cold_latency_s": 0.53,
+  "cold_content": "MODEL_OK",
+  "cold_tokens": 19,
+  "warm_latency_s": 0.18,
+  "warm_content": "MODEL_OK",
+  "warm_tokens": 19,
+  "generated": true
+ },
+ "preview_secret_key": "vw4YgjTnJwsTx1lXHzI4y-bwJLX2ZnM567A31JU8YUZVccE9bERkxHoLDIwfgxQK",
+ "isolation": {
+  "backend_identity": {
+   "pid": 99097,
+   "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/backend_root",
+   "source_id": "00084a57579b-dirty.cd0a85b9f6d0",
+   "revision": "00084a57579b9f8cc563973367fcf44c74fe6d07"
+  },
+  "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/runs/run-7a2e11e2aea2/data/atom.db",
+  "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/backend_root",
+  "db_is_insolated": true,
+  "cwd_is_world": true,
+  "backend_pid_matches_launch": true,
+  "user_env_untouched": {
+   "live_backend_8001": "reachable (not modified by this launcher)",
+   "user_frontend_3000": "reachable (not modified by this launcher)"
+  }
+ },
+ "descriptor": {
+  "run_id": "run-7a2e11e2aea2",
+  "pid": 99097,
+  "port": 8091,
+  "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/runs/run-7a2e11e2aea2/data/atom.db",
+  "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/backend_root",
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview",
+  "log_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/preview_backend.log",
+  "health_identity": {
+   "pid": 99097,
+   "started_at": "2026-09-27T01:27:04.239720+00:00",
+   "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/backend_root",
+   "git_commit": "00084a57579b",
+   "source_id": "00084a57579b-dirty.cd0a85b9f6d0",
+   "instance_id": "00084a57579b-dirty.cd0a85b9f6d0.99097.1790472429",
+   "revision": "00084a57579b9f8cc563973367fcf44c74fe6d07",
+   "dirty": true,
+   "dirty_digest": "cd0a85b9f6d0",
+   "dirty_paths": [
+    "backend/core/answer_presentation.py",
+    "backend/core/hybrid_search/documents_hybrid.py",
+    "backend/tests/frozen_eval_manifest.json",
+    "frontend-nextjs/next-env.d.ts"
+   ],
+   "untracked_paths": [
+    "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+    "docs/architecture/orchestration_migration/acceptance/preview/preview_verification.json",
+    "docs/architecture/orchestration_migration/acceptance/preview/preview_verify.py",
+    "docs/architecture/orchestration_migration/acceptance/preview/screenshots/01_app_load.png",
+    "docs/architecture/orchestration_migration/acceptance/preview/screenshots/06_after_reload.png"
+   ],
+   "captured_at": "2026-09-27T01:27:08.828678+00:00",
+   "port": null,
+   "error": null,
+   "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/runs/run-7a2e11e2aea2/data/atom.db",
+   "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/backend_root/data/byok_keys.json"
+  }
+ },
+ "backend_log": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/preview_backend.log",
+ "frontend_log": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/search_preview/preview_frontend.log"
+}

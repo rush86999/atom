@@ -1247,27 +1247,39 @@ def load_structured_result(world: Path, session_id: str,
         return None
     try:
         con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
-        if execution_id:
-            rows = con.execute(
-                "SELECT metadata_json FROM chat_messages "
-                "WHERE conversation_id=? AND role='assistant' "
-                "ORDER BY created_at DESC", (session_id,)).fetchall()
+        if not execution_id:
+            # NO RECENCY FALLBACK. Selecting the newest row in a session is
+            # identity substitution: with concurrent or interleaved turns it
+            # attributes one turn's evidence to another, which is the exact
+            # failure an overlapping-reads case exists to catch. A missing
+            # execution identity therefore yields no artifact, and the
+            # binding check FAILS rather than quietly passing on whatever
+            # happened to be last. Legacy single-turn callers that genuinely
+            # want recency must ask for it explicitly.
+            con.close()
+            _RECENCY_FALLBACK_REFUSALS.append(session_id)
+            return None
+        rows = con.execute(
+            "SELECT metadata_json FROM chat_messages "
+            "WHERE conversation_id=? AND role='assistant' "
+            "ORDER BY created_at DESC", (session_id,)).fetchall()
+        row = None
+        _matched = []
+        for candidate in rows:
+            try:
+                meta = json.loads(candidate[0] or "{}")
+            except Exception:
+                continue
+            if str((meta or {}).get("execution_id") or "") == str(execution_id):
+                _matched.append(candidate)
+        if len(_matched) == 1:
+            row = _matched[0]
+        elif len(_matched) > 1:
+            # Ambiguous identity: several rows claim the same execution.
+            # Refuse rather than pick one.
+            _AMBIGUOUS_EXECUTION.append((session_id, execution_id,
+                                          len(_matched)))
             row = None
-            for candidate in rows:
-                try:
-                    meta = json.loads(candidate[0] or "{}")
-                except Exception:
-                    continue
-                if str((meta or {}).get("execution_id") or "") == str(
-                        execution_id):
-                    row = candidate
-                    break
-        else:
-            row = con.execute(
-                "SELECT metadata_json FROM chat_messages "
-                "WHERE conversation_id=? AND role='assistant' "
-                "ORDER BY created_at DESC LIMIT 1",
-                (session_id,)).fetchone()
         con.close()
     except Exception:
         return None
@@ -1283,6 +1295,50 @@ def load_structured_result(world: Path, session_id: str,
     if meta.get("structured_result"):
         return meta["structured_result"]
     return None
+
+
+# Refusals recorded rather than swallowed, so a run that leaned on recency
+# is visible in the record instead of silently passing.
+_RECENCY_FALLBACK_REFUSALS: List[str] = []
+_AMBIGUOUS_EXECUTION: List[Tuple[str, str, int]] = []
+
+
+def load_latest_session_artifact(world: Path, session_id: str
+                                 ) -> Optional[Dict[str, Any]]:
+    """LEGACY convenience: the newest assistant turn's artifact.
+
+    Deliberately a DIFFERENT function from
+    ``load_structured_result(world, session, execution_id=...)``. Recency
+    is a real hazard under concurrency, so it is opt-in and cannot be
+    reached by an identity-binding check by accident.
+    """
+    import sqlite3 as _sq
+
+    runs = sorted((world / "runs").glob("*"), key=lambda p: p.stat().st_mtime)
+    if not runs:
+        return None
+    db_path = runs[-1] / "data" / "atom.db"
+    if not db_path.exists():
+        return None
+    try:
+        con = _sq.connect(f"file:{db_path}?mode=ro", uri=True)
+        row = con.execute(
+            "SELECT metadata_json FROM chat_messages "
+            "WHERE conversation_id=? AND role='assistant' "
+            "ORDER BY created_at DESC LIMIT 1", (session_id,)).fetchone()
+        con.close()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        meta = json.loads(row[0] or "{}")
+    except Exception:
+        return None
+    pfr = meta.get("pending_file_result") or {}
+    if isinstance(pfr, dict) and pfr.get("structured_result"):
+        return pfr["structured_result"]
+    return meta.get("structured_result")
 
 
 def _cell_coord(ref: str) -> Optional[str]:

@@ -1978,7 +1978,14 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
     # discarded in favour of a bare row locator.
     _letters = _column_letters([str(c) for c in head.columns])
     _rows_all = head.to_dict("records")
-    _row_numbers = list(head[_SHEET_ROW_COL]) if _SHEET_ROW_COL in head.columns \
+    # `_SHEET_ROW_COL` was never defined in this module; the constant is
+    # `SHEET_ROW_COL` (line 54). As written this raised NameError on the first
+    # probe that matched a token, and the caller swallowed it into an empty
+    # result -- so the identity coordinates this block exists to capture were
+    # silently never captured, which is the same laundering this module's
+    # neighbours were fixed for: a probe that fails looks exactly like a probe
+    # that found nothing.
+    _row_numbers = list(head[SHEET_ROW_COL]) if SHEET_ROW_COL in head.columns \
         else list(range(1, len(_rows_all) + 1))
     _matched_cells = []
     for _rn, _row in zip(_row_numbers, _rows_all):
