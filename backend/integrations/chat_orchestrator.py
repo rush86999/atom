@@ -4441,6 +4441,14 @@ class ChatOrchestrator:
                     _pfr = self._load_pending_file_result(session_id)
                 except Exception:  # noqa: BLE001 — best-effort
                     _pfr = None
+            # The structured record for THIS turn, hoisted to a name the
+            # narration guard can read. Bound AFTER the reload above (an early
+            # binding would predate it and could judge a stale record) and read
+            # once, because `_pfr` is reassigned repeatedly below as lanes mark
+            # delivery -- the guard must judge the record this turn produced.
+            _pfr_structured_for_turn = (
+                (_pfr or {}).get("structured_result")
+                if isinstance(_pfr, dict) else None)
             if (
                 isinstance(_pfr, dict)
                 and _pfr.get("status") in ("retrieved", "delivered")
@@ -4471,7 +4479,7 @@ class ChatOrchestrator:
                     # branch (no plan exists yet here; confident plan
                     # fields win downstream). No speculative retrieval
                     # starts while deciding — this verdict is pure text.
-                    _continuation = self._continuation_decision(message)
+                    _continuation = self._continuation_decision(message, session)
                     _format_request = (
                         _continuation is not None
                         and _continuation.get("retrieval") == "none"
@@ -5147,7 +5155,7 @@ class ChatOrchestrator:
                             _direct_presentation = None
                             try:
                                 _direct_decision = (
-                                    self._continuation_decision(message))
+                                    self._continuation_decision(message, session))
                                 if (_direct_decision is not None
                                         and _direct_decision.get("retrieval")
                                         in ("rerun", "refresh")):
@@ -5159,7 +5167,35 @@ class ChatOrchestrator:
                                         or {})
                             except Exception:
                                 _direct_presentation = None
-                            if _direct_active and isinstance(_direct_task, dict):
+                            # ENTITY-SET EDIT: apply the requested change to
+                            # the DURABLE TASK FIRST, then read the new set.
+                            #
+                            # Order matters and is the point of this branch.
+                            # The user's instruction is a revision of the
+                            # objective, so `revise_objective` is applied
+                            # BEFORE the attempt is begun: it replaces
+                            # `entities` with the edited set, records the
+                            # removed ids, and invalidates exactly the evidence
+                            # bound to removed items while keeping the rest.
+                            # Because U-22's evidence is invalidated there, the
+                            # read that follows cannot reuse it, and
+                            # `new_attempt_required` is set. Doing this after
+                            # the read (or not at all) is what let the previous
+                            # list be served as the answer to a new question.
+                            _objective_edit = None
+                            if isinstance(_direct_decision, dict):
+                                _objective_edit = _direct_decision.get(
+                                    "objective_edit")
+                            if isinstance(_objective_edit, dict) and isinstance(
+                                    _direct_task, dict):
+                                _direct_active = [
+                                    str(v) for v in (_objective_edit.get("items") or [])]
+                                _direct_task = dict(
+                                    _direct_task,
+                                    requested_targets=_direct_active,
+                                    objective_edit=dict(_objective_edit),
+                                )
+                            elif _direct_active and isinstance(_direct_task, dict):
                                 # The stored objective's ordered items ride the
                                 # read; the producer inherits them for vague
                                 # follow-ups and never unions history.
@@ -5179,6 +5215,68 @@ class ChatOrchestrator:
                                     # pending operation on pre-execution
                                     # failure, zero tool effects).
                                     from core import task_lifecycle as _tlm
+                                    # REVISE THE OBJECTIVE BEFORE THE ATTEMPT.
+                                    # `revise_objective` is the only transition
+                                    # that mutates the entity set, and it also
+                                    # invalidates the evidence bound to removed
+                                    # items and raises `new_attempt_required`.
+                                    # Applying it here -- ahead of
+                                    # begin_retrieval_turn -- is what makes the
+                                    # durable task the authority for what is
+                                    # being asked, instead of the read's
+                                    # observation reconciling the task after
+                                    # the fact (which is the only place this
+                                    # transition was previously called from).
+                                    # Fail-closed on error: if the revision
+                                    # cannot be persisted, the read below is
+                                    # blocked rather than run against an
+                                    # objective we failed to correct.
+                                    if isinstance(_objective_edit, dict):
+                                        _tl_run_id = session.get("_task_run_id")
+                                        try:
+                                            _existing = _tl_lifecycle.get_task(
+                                                _tl_run_id) or {}
+                                            _prev_entities = list(
+                                                (_existing.get("task_revision")
+                                                 or {}).get("entities") or [])
+                                            _prev_ids = [
+                                                str(e.get("id"))
+                                                for e in _prev_entities]
+                                            _new_ids = [
+                                                str(v) for v in (
+                                                    _objective_edit.get("items")
+                                                    or [])]
+                                            _removed_ids = [
+                                                i for i in _prev_ids
+                                                if i not in set(_new_ids)]
+                                            _tl_lifecycle.apply_transition(
+                                                _tl_run_id, {
+                                                    "kind": "revise_objective",
+                                                    "requested_change": (
+                                                        "user edited the "
+                                                        "requested items: "
+                                                        f"{_objective_edit.get('operation')}"
+                                                        f" -{_objective_edit.get('removed')}"
+                                                        f" +{_objective_edit.get('added')}"),
+                                                    "entities": [
+                                                        {"id": i, "label": i,
+                                                         "aliases": [],
+                                                         "provenance_turn": None,
+                                                         "inferred": False}
+                                                        for i in _new_ids],
+                                                    "removed_entity_ids": _removed_ids,
+                                                })
+                                            logger.info(
+                                                "[objective-edit] revise_objective "
+                                                "applied before read: -%s +%s",
+                                                _removed_ids,
+                                                [i for i in _new_ids
+                                                 if i not in set(_prev_ids)])
+                                        except Exception as _tl_edit_err:  # noqa: BLE001
+                                            logger.warning(
+                                                "objective revision failed — "
+                                                "read blocked: %r", _tl_edit_err)
+                                            _objective_edit = None
                                     _tl_begin = _tlm.begin_retrieval_turn(
                                         _tl_lifecycle, session, session_id,
                                         message, _execution_id,
@@ -11905,6 +12003,80 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[deterministic-render] workbook answer rendered from "
                         "structured catalog evidence"
                     )
+                elif _pfr_structured_for_turn:
+                    # EVIDENCE-BOUND NARRATION (2026-09-27).
+                    #
+                    # This turn HAS a structured record, so the model is
+                    # narrating facts the record already states. Observed live:
+                    # on "Replace U-22 with U-38" the narration returned the
+                    # PREVIOUS list and reworded a sheet name the record had
+                    # exactly right (`Tinknock!R100` for `Tinknocker!R100`).
+                    # A user cannot distinguish a mangled coordinate from a real
+                    # one, so narrated text is no longer trusted for a turn
+                    # whose facts are already bound to evidence.
+                    #
+                    # Three outcomes, in order:
+                    #   1. narration validates -> deliver it;
+                    #   2. it does not, but a deterministic render of THIS
+                    #      record validates -> deliver that instead, so the
+                    #      user still gets a correct evidence-backed answer;
+                    #   3. neither validates -> an explicit incomplete outcome.
+                    #      Never the stale list, never a generic success.
+                    from core.answer_presentation import (
+                        present_from_record,
+                        validate_rendered_against_record,
+                    )
+                    _narration_check = validate_rendered_against_record(
+                        _content, _pfr_structured_for_turn)
+                    if not _narration_check.get("ok"):
+                        _repaired = None
+                        _repair_check = None
+                        try:
+                            _repaired = present_from_record(
+                                _pfr_structured_for_turn)["answer"]
+                            _repair_check = validate_rendered_against_record(
+                                _repaired, _pfr_structured_for_turn)
+                        except Exception:  # noqa: BLE001
+                            _repaired, _repair_check = None, None
+                        if _repaired and (_repair_check or {}).get("ok"):
+                            logger.warning(
+                                "[evidence-binding] narration rejected "
+                                "(%s); delivered the deterministic "
+                                "evidence-backed rendering instead",
+                                _narration_check.get("violations"),
+                            )
+                            _content = _repaired
+                            response_data["evidence_binding"] = {
+                                "narration_rejected": True,
+                                "violations": _narration_check.get(
+                                    "violations"),
+                                "delivered": "deterministic_render",
+                            }
+                        else:
+                            logger.error(
+                                "[evidence-binding] narration rejected AND no "
+                                "valid deterministic rendering available; "
+                                "delivering an explicit incomplete outcome")
+                            _content = (
+                                "I could not produce an answer I can stand "
+                                "behind for this request, so I am not going "
+                                "to show you a list. The evidence for it was "
+                                "retrieved, but it did not reconcile with the "
+                                "result I would have displayed. Nothing has "
+                                "been changed. You can ask me to search again, "
+                                "or rephrase which items you want.")
+                            response_data["evidence_binding"] = {
+                                "narration_rejected": True,
+                                "violations": _narration_check.get(
+                                    "violations"),
+                                "delivered": "incomplete",
+                            }
+                        response_data["content"] = _content
+                    else:
+                        response_data["evidence_binding"] = {
+                            "narration_rejected": False,
+                            "delivered": "narration",
+                        }
                 else:
                     _final_validation = _validate_response_payload(
                         _content,
@@ -13530,7 +13702,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "command_type": "search"
         }
 
-    def _continuation_decision(self, message: str) -> Optional[Dict[str, Any]]:
+    def _continuation_decision(
+        self, message: str, session: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
         """Explicit continuation decision for turns on a delivered file
         result (work order Step 2): two independent fields — retrieval
         operation (none/read/rerun/refresh) and presentation preference
@@ -13572,6 +13746,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             return None
         if "?" in t:
             return None
+
+        # ENTITY-SET EDIT -> the "read" operation this method's own docstring
+        # advertised but never returned (2026-09-27).
+        #
+        # "Replace U-22 with U-38" changes WHAT is being asked for, so it needs
+        # a fresh read of the new set -- not a re-render of the old evidence
+        # and not narration. Before this, the turn died on the two guards
+        # immediately below: `_CONFIRMATION_ACTION_RE` contains "replace" (it
+        # exists so "replace the logo in the draft" cannot execute a
+        # mutation), and `extract_targets` sees ['U-22','U-38'] and reads the
+        # turn as a fresh ask. Either way `_format_request` was False, the
+        # cached-result lane was skipped, no structured read ran, and the turn
+        # reached `_get_qwen_response` -- which answered with the PREVIOUS list
+        # and, in doing so, reworded a citation the evidence had exactly right.
+        #
+        # The active item set is required to compute the RESULT of the edit
+        # (in-place substitution, so the requested ORDER survives), so this is
+        # only a continuation when there IS an active set to edit. With no
+        # active objective there is nothing to revise and the turn stays a
+        # normal ask -- which is why `session` is consulted here and why the
+        # canvas/outbound shapes are excluded first: an edit aimed at a canvas
+        # artifact is not an edit of a retrieval target list.
+        if not (_canvas_edit_shaped(t, None)
+                or _CANVAS_ACTION_SHAPE_RE.search(t or "")):
+            try:
+                from core.pending_file_task import entity_set_edit
+                _edit = entity_set_edit(t, _stored_requested_items(session))
+            except Exception:  # noqa: BLE001 — fail closed to "not a continuation"
+                _edit = None
+            if _edit is not None:
+                return {"retrieval": "read",
+                        "objective_edit": _edit,
+                        "presentation": {"style": style, "field": field}}
+
         if _CONFIRMATION_ACTION_RE.search(t) or _OUTBOUND_ACTION_RE.search(t):
             return None
         try:

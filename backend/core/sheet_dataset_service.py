@@ -1778,12 +1778,28 @@ def _pandas_probe_entry(entry: Dict[str, Any], token: str):
 # max_rows) so a re-materialized file (new hash) invalidates naturally;
 # TTL bounds staleness for same-hash updates. Env kill switch + TTL:
 # ATOM_SHEET_PROBE_CACHE_TTL_SECONDS (default 300, 0 = off).
+#
+# The tuple is (timestamp, result, is_negative). A NEGATIVE result — the probe
+# found nothing — is NOT cached by default
+# (ATOM_SHEET_PROBE_NEGATIVE_TTL_SECONDS, default 0). A miss can be the
+# consequence of a transient read failure, and freezing one publishes a
+# confident "no matching row in the indexed content searched" for rows that are
+# present. This function cannot see turn boundaries, so any non-zero negative
+# window can straddle one; 0 is the only value that cannot.
+#
+# The cost is a re-read of the parquet on each miss. That is bounded and
+# deliberate: probes run per requested item per turn under the existing turn
+# budget, and the alternative being bought here is a cache that invents
+# evidence of absence. Raising this value trades that back.
 _PROBE_CACHE: Dict[tuple, tuple] = {}
 # Guards the cache dict only — never held across a probe (probing can take
 # seconds and must not serialize the evidence legs).
 _PROBE_CACHE_LOCK = threading.Lock()
 _PROBE_CACHE_TTL_S = float(
     os.getenv("ATOM_SHEET_PROBE_CACHE_TTL_SECONDS", "300") or 300
+)
+_PROBE_NEGATIVE_CACHE_TTL_S = float(
+    os.getenv("ATOM_SHEET_PROBE_NEGATIVE_TTL_SECONDS", "0") or 0
 )
 
 
@@ -1818,22 +1834,39 @@ def _probe_cached(entries: List[Dict[str, Any]], token: str, max_rows: int):
     if not any(identity):
         return _probe_sheet_hits(entries, token, max_rows)
     key = (identity, token, max_rows)
+    is_negative = False
     with _PROBE_CACHE_LOCK:
         hit = _PROBE_CACHE.get(key)
-        if hit and now - hit[0] < _PROBE_CACHE_TTL_S:
+        if hit and now - hit[0] < (
+                _PROBE_NEGATIVE_CACHE_TTL_S if hit[2] else _PROBE_CACHE_TTL_S):
             return copy.deepcopy(hit[1])
     result = _probe_sheet_hits(entries, token, max_rows)
+    is_negative = not result
     with _PROBE_CACHE_LOCK:
         # bound the cache: drop expired entries first (the common case), and
         # only clear wholesale when everything in it is still live.
         if len(_PROBE_CACHE) > 512:
-            expired = [k for k, (ts, _v) in _PROBE_CACHE.items()
-                       if now - ts >= _PROBE_CACHE_TTL_S]
+            expired = [k for k, (ts, _v, _neg) in _PROBE_CACHE.items()
+                       if now - ts >= (
+                           _PROBE_NEGATIVE_CACHE_TTL_S if _neg
+                           else _PROBE_CACHE_TTL_S)]
             for k in expired:
                 _PROBE_CACHE.pop(k, None)
             if len(_PROBE_CACHE) > 512:
                 _PROBE_CACHE.clear()
-        _PROBE_CACHE[key] = (now, copy.deepcopy(result))
+        # A MISS is not cached (see _PROBE_NEGATIVE_CACHE_TTL_S). Caching it
+        # for the positive TTL turned one transient read failure into FIVE
+        # MINUTES of confident "no matching row in the indexed content
+        # searched" — a false absence claim for a row that was present, and
+        # that the very next probe resolves. Observed live 2026-09-27: a probe
+        # failed while the data directory was being rebuilt, the None was
+        # cached, and every turn in the window reported the row absent while a
+        # fresh session answered it correctly with the exact cell binding
+        # (LINMAC!R26, column C26 'List Price', 1,777). When negative caching is
+        # explicitly re-enabled the entry is stored, and the read above honours
+        # the shorter TTL on the way back in.
+        if result or _PROBE_NEGATIVE_CACHE_TTL_S > 0:
+            _PROBE_CACHE[key] = (now, copy.deepcopy(result), is_negative)
     return result
 
 

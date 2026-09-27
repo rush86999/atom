@@ -395,7 +395,7 @@ def _render_target(t: Dict[str, Any], item: str, *,
             # Name the identity cell alongside the row locator, so an
             # ambiguous row is still identified down to a cell.
             idcells = _identity_cells(c)
-            idnote = f" at {', '.join(idcells)}" if idcells else ""
+            idnote = f", identity {', '.join(idcells)}" if idcells else ""
             if cvals:
                 shown = "; ".join(_value_clause(v) for v in cvals[:3])
                 parts.append(f"{c.get('ref', '?')}{idnote} ({shown})")
@@ -408,7 +408,12 @@ def _render_target(t: Dict[str, Any], item: str, *,
     cand = candidates[0] if candidates else {}
     ref = cand.get("ref", "")
     idcells = _identity_cells(cand)
-    idnote = f" matched at {', '.join(idcells)}" if idcells else ""
+    # A labelled pair, so the row locator and the identity cell read as two
+    # distinct facts. An earlier phrasing appended " matched at A26" after a
+    # "matched at <ref>" prefix and produced "matched at LINMAC!R26 matched at
+    # A26"; the plan requires identity and row to stay separate, and repeating
+    # the label made them look like one mangled locator instead.
+    idnote = f", identity {', '.join(idcells)}" if idcells else ""
     fstatus = (t.get("field") or {}).get("status")
     if fstatus == "absent" or not pooled:
         return (f"- **{item}**{alias_note} - matched at {ref}{idnote}, but no "
@@ -1009,6 +1014,306 @@ def serve_on_transport_retry(record: Dict[str, Any]) -> Optional[str]:
     when nothing was delivered (the caller then follows its normal path)."""
     pin = (record or {}).get("delivery_pin")
     return pin.get("delivered_text") if pin else None
+
+
+def validate_rendered_against_record(
+    answer: str,
+    record: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Does this answer's factual content match the evidence it claims?
+
+    WHY THIS EXISTS. Answer text used to be trusted because a deterministic
+    renderer produced it -- true for the lookup turn, false for a turn where
+    no structured read ran and the model narrated instead. On "Replace U-22
+    with U-38" the model returned the previous list AND reworded a citation
+    the artifact had exactly right (``Tinknock!R100`` for
+    ``Tinknocker!R100``). A user cannot tell a mangled sheet name from a real
+    one, and the structured record -- the thing that actually knows the truth
+    -- disagreed with the text in front of them.
+
+    This is a SEMANTIC check, not a prose-equality check. It never compares
+    wording to an expected string, because the same facts legitimately render
+    many ways (compact vs table, one basis vs several). It compares only the
+    things that must be true of any correct rendering of this record:
+
+      citations_grounded   every Sheet!Cell / Sheet!R<n> the answer shows
+                           exists in this record, spelled exactly. A row
+                           locator is accepted as a locator; a cell is accepted
+                           only as a cell.
+      items_not_stale      the answer does not present an item the record does
+                           not have, and does not omit one it does. This is
+                           what catches a previous list served as the answer to
+                           a changed request.
+      values_grounded      every number the answer attaches to an item appears
+                           in that item's evidence, so a price cannot be
+                           invented or carried over from a different row.
+      no_failed_read_as_data
+                           a record whose read failed must not be rendered as
+                           a list of results.
+
+    Returns {"ok", "checks", "violations"}. A caller that finds ok=False must
+    NOT deliver `answer` as a success: re-render from the record, and if that
+    also fails, return an explicit incomplete outcome.
+    """
+    checks = {"citations_grounded": True, "items_not_stale": True,
+              "values_grounded": True, "no_failed_read_as_data": True}
+    violations: List[Dict[str, Any]] = []
+    text = answer or ""
+    rec = record if isinstance(record, dict) else {}
+    targets = [t for t in (rec.get("targets") or []) if isinstance(t, dict)]
+
+    # -- a failed read must never be presented as results -------------------
+    if rec.get("evidence_action") == "read_failed":
+        looks_like_results = any(
+            re.search(r"^\s*[-*]\s*\S", line, re.MULTILINE) and " - " in line
+            for line in text.splitlines())
+        if looks_like_results and "did not complete" not in text.lower():
+            checks["no_failed_read_as_data"] = False
+            violations.append({"check": "no_failed_read_as_data",
+                               "detail": "record says the read failed but the "
+                                         "answer presents a result list"})
+
+    # -- build the exact set of coordinates this record supports -------------
+    supported_sheet_cell: set = set()
+    supported_row_locs: set = set()
+    for t in targets:
+        ident = t.get("identity") or {}
+        groups = []
+        refs = ident.get("references")
+        if isinstance(refs, list):
+            groups.append({"references": refs})
+        for cand in ident.get("candidates") or []:
+            if not isinstance(cand, dict):
+                continue
+            ref = str(cand.get("ref") or "")
+            if "!" in ref:
+                sheet, _, loc = ref.partition("!")
+                loc = loc.strip()
+                m = re.match(r"^R(\d+)$", loc, re.IGNORECASE)
+                if m:
+                    supported_row_locs.add((sheet.strip().upper(),
+                                            f"R{m.group(1)}"))
+                elif re.match(r"^[A-Z]{1,3}\d{1,7}$", loc, re.IGNORECASE):
+                    supported_sheet_cell.add((sheet.strip().upper(),
+                                              loc.upper()))
+            sub = cand.get("identity")
+            if isinstance(sub, dict) and isinstance(sub.get("references"), list):
+                groups.append(sub)
+            for v in cand.get("values") or []:
+                if not isinstance(v, dict):
+                    continue
+                cell = str(v.get("col") or "").strip().upper()
+                if not re.match(r"^[A-Z]{1,3}\d{1,7}$", cell):
+                    continue
+                sheet = ref.partition("!")[0].strip().upper() if "!" in ref else ""
+                if sheet:
+                    supported_sheet_cell.add((sheet, cell))
+        for grp in groups:
+            for r in grp["references"]:
+                cell = str((r or {}).get("cell") or "").strip().upper()
+                sheet = str((r or {}).get("sheet") or "").strip().upper()
+                if sheet and re.match(r"^[A-Z]{1,3}\d{1,7}$", cell):
+                    supported_sheet_cell.add((sheet, cell))
+
+    # -- 1. every citation in the text must be supported --------------------
+    # `_CITE_RE`'s sheet group admits spaces, so on a line like
+    # "matched at LINMAC!R26" it captures the sheet as "matched at LINMAC".
+    # Real sheet names contain spaces too ("US$ SCOTCH PARTS"), so the group
+    # cannot simply be narrowed to a single word. Instead each match retries
+    # after dropping leading words, longest-suffix first: the true sheet name
+    # is found whether or not prose precedes it, and an unsupported citation
+    # still fails after every suffix has been tried.
+    for sheet, loc in _CITE_RE.findall(text):
+        l_key = loc.strip().upper()
+        words = [w for w in re.split(r"\s+", sheet.strip()) if w]
+        matched = False
+        for start in range(len(words)):
+            cand_sheet = " ".join(words[start:]).upper()
+            if (cand_sheet, l_key) in supported_sheet_cell:
+                matched = True
+                break
+            m = re.match(r"^R(\d+)$", l_key)
+            if m and (cand_sheet, f"R{m.group(1)}") in supported_row_locs:
+                matched = True
+                break
+        if matched:
+            continue
+        checks["citations_grounded"] = False
+        violations.append({"check": "citations_grounded",
+                           "detail": f"{sheet.strip()}!{loc.strip()}",
+                           "supported_sheets": sorted(
+                               {s for s, _ in supported_sheet_cell}
+                               | {s for s, _ in supported_row_locs})[:8]})
+
+    # -- 2. item coverage: no stale item, no missing item -------------------
+    # Only meaningful once the answer's list structure has been parsed. A
+    # render style this parser does not understand must not be reported as
+    # "stale" -- that would fail a correct table for the crime of being a table.
+    parsed_items = _visible_items(text)
+    answered = {_norm(str(t.get("item") or "")) for t in targets}
+    answered.discard("")
+    for t in ([] if not parsed_items else targets):
+        item = str(t.get("item") or "").strip()
+        if not item:
+            continue
+        ident = t.get("identity") or {}
+        if str(ident.get("status") or "") == "none":
+            continue  # an absent item is legitimately named as absent
+        # an item the record HAS must be visible in the answer
+        if _norm(item) not in {_norm(w) for w in _visible_items(text)}:
+            checks["items_not_stale"] = False
+            violations.append({"check": "items_not_stale",
+                               "detail": f"record has {item!r} but the answer "
+                                         f"does not present it"})
+    # an item the answer LEADS with must exist in the record
+    for item in parsed_items:
+        if _norm(item) in answered:
+            continue
+        if _norm(item) in {_norm(i) for i in
+                                 (rec.get("requested_items") or [])}:
+            # requested but not in targets: only legitimate if the record
+            # reports it absent, which `_visible_items` cannot distinguish.
+            # Treat presence in requested_items as acceptable (the renderer
+            # states absence explicitly for these).
+            continue
+        checks["items_not_stale"] = False
+        violations.append({"check": "items_not_stale",
+                           "detail": f"answer presents {item!r}, which is not "
+                                     f"in this record's targets"})
+
+    # -- 3. every number beside an item must be in that item's evidence -----
+    for t in targets:
+        item = str(t.get("item") or "").strip()
+        if not item or not _norm(item) in {
+                _norm(w) for w in _visible_items(text)}:
+            continue
+        allowed: set = set()
+        for cand in ((t.get("identity") or {}).get("candidates") or []):
+            for v in (cand.get("values") or []):
+                if not isinstance(v, dict):
+                    continue
+                val = v.get("value")
+                if isinstance(val, (int, float)):
+                    allowed.add(round(float(val), 2))
+                dv = _display_number(v.get("display"))
+                if dv is not None:
+                    allowed.add(dv)
+        if not allowed:
+            continue
+        line = _item_line(text, item)
+        if not line:
+            continue
+        # Numbers that are part of the ITEM NAME are not values. "U-22" and
+        # "No. 381" contain digits; scanning the raw line flagged every item
+        # label as an unbound value, which would fail every correct rendering
+        # and make the check worthless. Strip the label, then strip citation
+        # coordinates (R<row> and Sheet!Cell), which citations_grounded owns.
+        scan = line
+        for label in _visible_items(line) or [item]:
+            scan = re.sub(re.escape(label), " ", scan, flags=re.IGNORECASE)
+        scan = _CITE_RE.sub(" ", scan)
+        scan = re.sub(r"\bR\d{1,7}\b", " ", scan)
+        # Bare A1-style coordinates (A26, C26, E88) are CELL REFERENCES, not
+        # values, and citations_grounded already owns them. Left in place they
+        # made every ambiguous line look like it contained an unbound value
+        # (the row number of the cell it cites), which would fail every
+        # correct rendering.
+        scan = re.sub(r"\b[A-Z]{1,3}\d{1,7}\b", " ", scan)
+        for raw in re.findall(r"\d[\d,]*(?:\.\d+)?", scan):
+            try:
+                got = round(float(raw.replace(",", "")), 2)
+            except ValueError:
+                continue
+            if got in allowed:
+                continue
+            # Tolerate a number that is part of a citation (row/cell) rather
+            # than a value: those are checked by citations_grounded.
+            if any(abs(got - a) < 0.005 for a in allowed):
+                continue
+            checks["values_grounded"] = False
+            violations.append({"check": "values_grounded",
+                               "detail": f"{item!r} shows {raw} which is not in "
+                                         f"its evidence {sorted(allowed)[:6]}"})
+            break
+    # GATING vs ADVISORY. A validator that rejects a CORRECT rendering is
+    # worse than none: it turns a right answer into "incomplete". The two
+    # roles are therefore separated deliberately.
+    #
+    #   citations_grounded     GATING. Set containment against exact
+    #                          coordinates the record carries. No false
+    #                          positive is possible unless the record itself
+    #                          lacks the coordinate, and it is the check that
+    #                          catches the real observed defect (a model
+    #                          rewording a sheet name).
+    #   no_failed_read_as_data GATING. Structural: a failed read is not a list.
+    #   items_not_stale        GATING only when the answer's list structure was
+    #                          actually PARSED. An unparsed style (a markdown
+    #                          table) yields no items, and "no items parsed" is
+    #                          not evidence of staleness.
+    #   values_grounded        ADVISORY. Deciding which numbers in a sentence
+    #                          are values rather than coordinates, part numbers
+    #                          or basis names depends on the render style, and
+    #                          every strict version tried produced false
+    #                          positives on correct output. Reported for
+    #                          diagnostics; never blocks delivery.
+    gating = {
+        "citations_grounded": checks["citations_grounded"],
+        "no_failed_read_as_data": checks["no_failed_read_as_data"],
+    }
+    if _visible_items(text):
+        gating["items_not_stale"] = checks["items_not_stale"]
+    return {"ok": all(gating.values()), "gating": gating,
+            "checks": checks, "advisory": ["values_grounded"],
+            "violations": violations,
+            "validator": "evidence-bindings-v1"}
+
+
+def _display_number(display: Any) -> Optional[float]:
+    if display is None:
+        return None
+    m = re.match(r"^\s*-?[\d,]+(?:\.\d+)?\s*$", str(display))
+    if not m:
+        return None
+    try:
+        return round(float(str(display).replace(",", "").strip()), 2)
+    except ValueError:
+        return None
+
+
+_ITEM_LINE_RE = re.compile(
+    r"^\s*[-*]?\s*\**(?P<item>[^*:\n]{1,80}?)\**\s*(?:\([^)]*\))?\s*-\s",
+    re.MULTILINE)
+
+
+def _visible_items(text: str) -> List[str]:
+    """Item labels the answer actually presents, from its list lines."""
+    out: List[str] = []
+    for line in (text or "").splitlines():
+        if " - " not in line and " — " not in line:
+            continue
+        m = _ITEM_LINE_RE.match(line.strip())
+        if not m:
+            continue
+        label = m.group("item").strip().strip("*_ ").strip()
+        label = re.sub(r"\s*\((?:matched via|matched|via)\b.*$", "", label,
+                       flags=re.IGNORECASE).strip()
+        if label and label.lower() not in _ITEM_JUNK_PRESENTATION:
+            out.append(label)
+    return out
+
+
+_ITEM_JUNK_PRESENTATION = {
+    "source", "coverage", "note", "result", "results", "summary",
+}
+
+
+def _item_line(text: str, item: str) -> str:
+    """The answer's line for one item, or '' when absent."""
+    for line in (text or "").splitlines():
+        if item and _norm(item) in _norm(line) and (
+                " - " in line or " — " in line):
+            return line
+    return ""
 
 
 def present_from_record(record: Dict[str, Any],

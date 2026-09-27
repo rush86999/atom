@@ -424,6 +424,23 @@ def supersedes_pending_task(pending: Optional[Any], message: str) -> bool:
     text = (message or "").strip()
     if "?" in text:
         return False
+    # AN ENTITY-SET EDIT IS LINEAGE, NOT SUPERSESSION (2026-09-27).
+    # "Replace U-22 with U-38" edits the objective this task carries; it does
+    # not abandon it. Popping the stored task here (chat_orchestrator.py:4230)
+    # discarded the objective before anything downstream could revise it, which
+    # is precisely why the turn came back with the previous list: the task that
+    # held the item set had already been thrown away. The same object the user
+    # is editing must survive so it can be revised in place, which is what
+    # preserves item ORDER across a replacement.
+    #
+    # Checked before the verb scan because that scan treats "replace" as a
+    # mutation verb and would otherwise discard the task for the right verb
+    # applied to the wrong object.
+    try:
+        if entity_set_edit(message) is not None:
+            return False
+    except Exception:  # noqa: BLE001 — never let the guard break supersession
+        pass
     try:
         from core.plan_relevance import _is_substantive_request
 
@@ -555,8 +572,23 @@ def matching_pending_task(
     if not mention or not original:
         return None
     refresh = is_retrieval_refresh_request(message)
+    # AN ENTITY-SET EDIT NEEDS A FRESH ATTEMPT, exactly like a refresh.
+    # "Replace U-22 with U-38" asks for different items, so the delivered
+    # evidence cannot answer it -- and reusing that evidence is precisely the
+    # defect: the previous list is what the user was shown instead. So a
+    # set-edit turn is eligible to resume a terminal task for a RE-READ, the
+    # same way an explicit "search again" is. It is still not a bare approval:
+    # the delivery path (which re-renders the persisted result without reading)
+    # is not what serves this turn, so eligibility here routes to a new attempt
+    # with the edited item set, not to a re-render.
+    set_edit = None
+    if not refresh:
+        try:
+            set_edit = entity_set_edit(message)
+        except Exception:  # noqa: BLE001
+            set_edit = None
     if pending.get("status") in ("served", "retrieved", "delivered"):
-        if not refresh:
+        if not refresh and set_edit is None:
             # served/delivered: answered — a later bare "yes" must not
             # resurrect it (the DELIVERY path re-renders the persisted
             # result). retrieved: same — the delivery path owns it.
@@ -570,7 +602,8 @@ def matching_pending_task(
             return None
         if not refresh and time.time() - created > _PENDING_FILE_TASK_TTL_SECONDS:
             return None
-    if not (is_filename_confirmation(message) or refresh):
+    if not (is_filename_confirmation(message) or refresh
+            or set_edit is not None):
         return None
     try:
         from core.agent_file_context import detect_file_task_mentions
@@ -584,10 +617,11 @@ def matching_pending_task(
             pm in _canon(m) or _canon(m) in pm for m in msg_mentions
         ):
             return None
-    if refresh:
-        # An explicit re-retrieval continues THIS task (the mention
-        # agreement above is the identity check) — no lineage scan: the
-        # message names the operation, not a new objective.
+    if refresh or set_edit is not None:
+        # An explicit re-retrieval, or an entity-set edit, continues THIS task
+        # (the mention agreement above is the identity check) — no lineage
+        # scan: the message names the operation or edits the item list, not a
+        # new objective.
         return pending
     if history:
         try:
@@ -706,6 +740,214 @@ _ITEM_JUNK = {
 }
 _ADDITION_RE = re.compile(
     r"^\s*(?:also|and|add|plus|include|including)\b", re.IGNORECASE)
+
+
+# ---------------------------------------------------------------------------
+# ENTITY-SET EDITS ("replace U-22 with U-38", "drop No. 622", "add U-38")
+#
+# WHY THIS EXISTS. The active objective's item set had exactly two operators:
+# "the turn's own explicit list replaces everything" and "inherit verbatim"
+# (chat_tool_planner._resolve_active_items). There was no add / remove /
+# replace-one operator, so a user asking to swap one item got neither: the
+# turn matched the outbound-verb guard (`replace` is in
+# _CONFIRMATION_ACTION_RE), was classified as NOT a continuation, fell through
+# to model narration with no structured read, and was answered with the
+# PREVIOUS list. The durable task was never revised, and nothing detected
+# that the displayed list no longer matched the request.
+#
+# The hard part is that "replace" means two different things in this product:
+#   * "replace U-22 with U-38"          -> an edit to the TARGET LIST
+#   * "replace the logo in the draft"   -> an outbound/mutation action
+# Both contain the same verb. `_CONFIRMATION_ACTION_RE` treats the verb as the
+# second, which is the safe default (never execute a mutation because a word
+# appeared) but it also silently swallows the first. So the list-edit sense is
+# recognised ONLY when the text around the verb actually names entity-shaped
+# tokens, judged on the text with file mentions BLANKED OUT -- the same
+# `_strip_mentions` idiom `_seek_shaped` already uses, for the same reason:
+# vocabulary inside a filename must not classify the turn.
+#
+# Fail-closed by construction: a verb match alone is never enough. No
+# entity-shaped token on the relevant side of the verb => no edit => the turn
+# keeps whatever classification it had.
+# ---------------------------------------------------------------------------
+_ENTITY_SET_VERBS = r"(?:replace|swap|substitute|switch|exchange|change)"
+_ENTITY_DROP_VERBS = r"(?:drop|remove|delete|exclude|omit|leave out|take out)"
+_ENTITY_ADD_VERBS = r"(?:add|include|also include|append)"
+# A connector that introduces the INCOMING item of a swap.
+_ENTITY_SWAP_WITH = re.compile(
+    r"\b(?:with|for|by|instead of)\b", re.IGNORECASE)
+
+
+def _entity_shaped(token: str) -> bool:
+    """Whether a token looks like a requested item rather than prose.
+
+    Reuses the same identity test as `_clean_enumeration_item`: a model code
+    carries a digit, a product name carries a capitalised word. Lowercase
+    connective words ("with", "instead", "the") fail both, which is what keeps
+    "replace the price with the cost" from reading as an entity swap."""
+    t = (token or "").strip(" .,:;\"'")
+    if not t or len(t) > 60 or len(t.split()) > 6:
+        return False
+    if _ITEM_NEGATION_RE.match(t) or t.lower() in _ITEM_JUNK:
+        return False
+    if re.match(r"^(?:the|a|an|and|or|with|for|instead|that|this|it)$",
+                t, re.IGNORECASE):
+        return False
+    return bool(any(ch.isdigit() for ch in t)
+                or any(w[:1].isupper() for w in t.split()))
+
+
+def _entity_tokens(text: str) -> List[str]:
+    """Entity-shaped tokens in a fragment, in order, deduplicated.
+
+    Trims the grammar that surrounds an item inside an instruction before
+    testing it, because an item name is only a NAME: "use U-38 instead of
+    U-22" must yield ``U-38``, and "remove TK 1624 from the list" must yield
+    ``TK 1624``. Without this, the leading verb and the trailing prepositional
+    phrase both get glued onto the name, the token stops matching the active
+    set, and the fail-closed membership guard silently rejects the whole
+    instruction -- a correct request that then does nothing, which is the same
+    class of failure this change exists to remove.
+    """
+    out: List[str] = []
+    for raw in re.split(r"[,;]|\band\b", text or ""):
+        frag = (raw or "").strip()
+        # A user quoting an identifier ("Replace 'U-22' with \"U-38\"") means
+        # exactly the same item as the bare form. Strip the quoting before any
+        # shape test, or the quotes become part of the name and the token stops
+        # matching the active set.
+        frag = frag.strip("\"'“”‘’`").strip()
+        # leading instruction verbs / fillers
+        frag = re.sub(
+            r"^(?:please\s+|can\s+you\s+|could\s+you\s+|i\s+want\s+to\s+|"
+            r"i(?:'d)?\s+like\s+to\s+|let'?s\s+|now\s+|then\s+|also\s+|"
+            r"use|using|show|give|tell|list|include|add|replace|swap|"
+            r"substitute|switch|drop|remove|delete|with)\b\s*",
+            "", frag, flags=re.IGNORECASE).strip()
+        # trailing prepositional phrases
+        frag = re.sub(
+            r"\s+(?:from|in|off|out\s+of|to|for)\s+.*$", "", frag,
+            flags=re.IGNORECASE).strip()
+        frag = re.sub(r"\s+(?:as\s+well|instead|too|please)\b.*$", "", frag,
+                      flags=re.IGNORECASE).strip()
+        tok = _clean_enumeration_item(frag)
+        if tok and _entity_shaped(tok) and tok not in out:
+            out.append(tok)
+    return out
+
+
+def entity_set_edit(
+    message: str,
+    active_items: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """A user instruction that EDITS the active objective's item set.
+
+    Returns ``None`` when the turn is not a set edit. Otherwise a dict:
+
+        {"operation": "replace" | "drop" | "add",
+         "removed": [...],   # items leaving the set
+         "added":   [...],   # items entering the set
+         "items":   [...]}   # the resulting ordered set
+
+    ``items`` is the RESULT, computed against ``active_items`` so callers do not
+    re-derive the set arithmetic (and cannot get it subtly different). Order is
+    preserved: a replaced item takes the removed item's position, an appended
+    item goes last, a dropped item leaves no hole. With no ``active_items`` the
+    caller gets ``items`` = ``added`` only, which is the correct seed for a
+    task that has no item set yet.
+    """
+    raw = (message or "").strip()
+    if not raw:
+        return None
+    mentions: List[str] = []
+    try:
+        from core.agent_file_context import detect_file_mentions
+        mentions = list(detect_file_mentions(raw) or [])
+    except Exception:  # noqa: BLE001 — a pure helper must not gate the rest
+        mentions = []
+    # Judge on the text with filenames blanked out, so "replace" inside a
+    # filename cannot read as a set edit (mirrors _seek_shaped).
+    text = _strip_mentions(raw, mentions)
+    active = [str(v).strip() for v in (active_items or []) if str(v).strip()]
+
+    # --- replace / swap: "<verb> A with B"  (also "B instead of A") --------
+    m = re.search(rf"\b{_ENTITY_SET_VERBS}\b\s+(.+?)"
+                  rf"(?=\b{_ENTITY_SWAP_WITH.pattern}\b|$)", text,
+                  re.IGNORECASE | re.DOTALL)
+    if m:
+        left = _entity_tokens(m.group(1))
+        tail = text[m.end(1):]
+        tm = _ENTITY_SWAP_WITH.search(tail)
+        right = _entity_tokens(tail[tm.end():]) if tm else []
+        if left and right:
+            # Only a set edit if at least one side names something already in
+            # the active set, or the active set is unknown. Without that, a
+            # phrase like "replace the price with the cost" (no entity tokens)
+            # never reaches here, and "replace the logo in the draft" has no
+            # entity tokens either.
+            if not active or any(t in active for t in left + right):
+                return _apply_set_edit(active, "replace", left, right)
+
+    # --- "<verb> A with B" reversed: "U-38 instead of U-22" ----------------
+    m = re.search(rf"(.+?)\s+instead\s+of\s+(.+)$", text,
+                  re.IGNORECASE | re.DOTALL)
+    if m:
+        incoming = _entity_tokens(m.group(1))
+        outgoing = _entity_tokens(m.group(2))
+        if incoming and outgoing and (
+                not active or any(t in active for t in incoming + outgoing)):
+            return _apply_set_edit(active, "replace", outgoing, incoming)
+
+    # --- drop / remove ------------------------------------------------------
+    m = re.search(rf"\b{_ENTITY_DROP_VERBS}\b\s+(.+)$", text,
+                  re.IGNORECASE | re.DOTALL)
+    if m:
+        dropped = _entity_tokens(m.group(1))
+        if dropped and (not active or any(t in active for t in dropped)):
+            return _apply_set_edit(active, "drop", dropped, [])
+
+    # --- add / also include ------------------------------------------------
+    m = re.search(rf"\b{_ENTITY_ADD_VERBS}\b\s+(.+)$", text,
+                  re.IGNORECASE | re.DOTALL)
+    if m:
+        added = _entity_tokens(m.group(1))
+        if added and (not active or any(t not in active for t in added)):
+            return _apply_set_edit(active, "add", [], added)
+    return None
+
+
+def _apply_set_edit(
+    active: List[str],
+    operation: str,
+    removed: List[str],
+    added: List[str],
+) -> Dict[str, Any]:
+    """Apply one set operation to ``active``, preserving order.
+
+    A replaced item is substituted IN PLACE, so the user's requested ordering
+    survives: swapping U-22 for U-38 in an 8-item list yields the same 8
+    positions, not a 7-item list with U-38 appended. That is the whole point of
+    applying the change to the task rather than re-deriving a list."""
+    items = list(active)
+    for item in removed:
+        # A dropped item that is not in the set is not an error, but it must
+        # not silently add a phantom: only items actually present are removed.
+        while item in items:
+            items.remove(item)
+    for item in added:
+        if item in items:
+            continue
+        if operation == "replace" and removed:
+            # Substitute at the earliest removed item's original position.
+            anchor = next((i for i, v in enumerate(active) if v in removed),
+                          None)
+            if anchor is not None and anchor <= len(items):
+                items.insert(anchor, item)
+                continue
+        items.append(item)
+    return {"operation": operation, "removed": list(removed),
+            "added": list(added), "items": items}
+
 
 
 def _clean_enumeration_item(raw: str) -> Optional[str]:

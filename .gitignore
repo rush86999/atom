@@ -825,3 +825,12 @@ workflow_states/
 # deliverable, not the raw per-case dumps).
 backend/scripts/orchestration_acceptance/live_integration_results/
 docs/architecture/orchestration_migration/acceptance/results/
+
+# Preview-instance build output (added 2026-07-27).
+# frontend-nextjs/.preview-instance is a symlink farm used to run a SECOND
+# frontend dev server on its own port; its distDir is `.next-preview`. Those
+# packs are generated webpack caches, not source: ~198MB that changes on every
+# recompile. They were tracked by accident and made every build show up as a
+# diff. Source in that directory (the farm symlinks and its next.config.js
+# wrapper) stays tracked; only the build output is ignored.
+frontend-nextjs/.preview-instance/.next-preview/
