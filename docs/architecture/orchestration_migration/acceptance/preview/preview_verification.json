@@ -3,52 +3,120 @@
  "api": "http://127.0.0.1:8091",
  "steps": [
   {
+   "step": "F00_login_through_real_form",
+   "verdict": "pass",
+   "detail": "landed on /dashboard",
+   "at": "21:35:37"
+  },
+  {
    "step": "F01_app_loads",
    "verdict": "pass",
    "detail": "HTTP 200",
-   "at": "21:32:36"
+   "at": "21:35:37"
   },
   {
    "step": "F01b_page_title",
    "verdict": "blocked",
    "detail": "title=''",
-   "at": "21:32:42"
+   "at": "21:35:43"
   },
   {
    "step": "F02_targets_isolated_backend",
    "verdict": "pass",
    "detail": "api hosts observed=['http', 'http://127.0.0.1:8091', 'http://localhost:3091']",
-   "at": "21:32:42"
+   "at": "21:35:43"
   },
   {
    "step": "F02b_user_backend_not_used",
    "verdict": "pass",
    "detail": "no request to 8001 from the preview origin",
-   "at": "21:32:42"
+   "at": "21:35:43"
   },
   {
    "step": "F03_chat_surface_present",
-   "verdict": "blocked",
-   "detail": "no composer selector matched",
-   "at": "21:32:46"
+   "verdict": "pass",
+   "detail": "composer found and enabled",
+   "at": "21:35:45"
+  },
+  {
+   "step": "F03b_real_model_answer_visible",
+   "verdict": "pass",
+   "detail": "9.1s, turn_completed=True, body 2442->2571 chars, mentions subject=True",
+   "at": "21:35:55"
+  },
+  {
+   "step": "F05_file_lookup_evidence",
+   "verdict": "pass",
+   "detail": "6.6s, completed=True, both identifiers present=True, body 2571->3189",
+   "at": "21:36:01"
+  },
+  {
+   "step": "F06_formatting_followup",
+   "verdict": "pass",
+   "detail": "7.7s, completed=True, body 3189->3452",
+   "at": "21:36:09"
+  },
+  {
+   "step": "F07_explicit_research",
+   "verdict": "pass",
+   "detail": "4.6s, completed=True, body 3452->3988",
+   "at": "21:36:14"
   },
   {
    "step": "F04_websocket_connected",
    "verdict": "pass",
-   "detail": "ws urls=['ws://localhost:3091/_next/webpack-hmr', 'ws://localhost:3091/_next/webpack-hmr']",
-   "at": "21:32:50"
+   "detail": "app ws=11 (hmr excluded), total=14",
+   "at": "21:36:17"
   },
   {
    "step": "F08_reload_preserves_history",
-   "verdict": "fail",
-   "detail": "before=110 after=110 chars, identifiers retained=False",
-   "at": "21:33:02"
+   "verdict": "pass",
+   "detail": "before=3988 after=4082 chars, identifiers retained=True",
+   "at": "21:36:29"
   }
  ],
+ "auth": {
+  "method": "real login form, isolated backend",
+  "landed": "http://localhost:3091/dashboard"
+ },
+ "general_chat": {
+  "latency_s": 9.05,
+  "turn_completed": true,
+  "baseline_chars": 2442,
+  "final_chars": 2571,
+  "excerpt": "d the prices of these 8 machines in Consolidated Price Li\n9/25/2026\n\n0 messages\n\ntry search again\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790472925944_ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n876b6659\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning."
+ },
+ "file_lookup": {
+  "latency_s": 6.65,
+  "turn_completed": true,
+  "identifiers_present": true,
+  "excerpt": "s\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ngo\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\ncheck the latest version of Consolidated Price List 2019.xls\n9/25/2026\n\n0 messages\n\nNew Chat\n\nID: session_1790472925944_ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n09:35 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n163693f5\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (1)\n\n876b6659\nchat\n0 steps"
+ },
+ "formatting": {
+  "latency_s": 7.67,
+  "turn_completed": true,
+  "excerpt": "ipxkso4jo\n\nIn one sentence: what is a bandsaw used for?\n09:35 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:35 PM\nauto\n\ud83e\udde0 Context used (2,216 chars)\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n09:35 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\nMake that a table please\n09:36 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:36 PM\nauto\n\ud83e\udde0 Context used (2,407 chars)\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n9a8a39b8\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (2)\n\n163693f5\nchat\n0 steps\n876b6659\nchat\n0 steps"
+ },
+ "research": {
+  "latency_s": 4.64,
+  "turn_completed": true,
+  "excerpt": "atching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:35 PM\ndeterministic\nMake that a table please\n09:36 PM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n09:36 PM\nauto\n\ud83e\udde0 Context used (2,407 chars)\nsearch again for U-22\n09:36 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:36 PM\ndeterministic\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: success\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\nExecution Steps (0)\n1814718e\nchat\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\n9a8a39b8\nchat\n0 steps\n163693f5\nchat\n0 steps\n876b6659\nchat\n0 steps"
+ },
+ "websockets": {
+  "app": 11,
+  "total": 14,
+  "urls": [
+   "ws://localhost:3091/_next/webpack-hmr",
+   "ws://127.0.0.1:8091/ws",
+   "ws://127.0.0.1:8091/ws",
+   "ws://localhost:3091/_next/webpack-hmr"
+  ]
+ },
  "reload": {
-  "before_chars": 110,
-  "after_chars": 110,
-  "identifiers_retained": false
+  "before_chars": 3988,
+  "after_chars": 4082,
+  "identifiers_retained": true,
+  "excerpt": "07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:35 AM\nMake that a table please\n01:36 AM\n\nI couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.\n\n01:36 AM\nsearch again for U-22\n01:36 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nU-22 - no matching row in the indexed content searched\nSLE24-16 - no matching row in the indexed content searched\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:36 AM\n\nAI can make mistakes. Please review generated code and plans.\n\nAuto (recommended)\nOpen latest draft in canvas\nAgent Workspace\nLive\nTASKS\nARTIFACTS\nBROWSER VIEW\nAgent Status: idle\n\n\"I am standing by. Start a chat to see my execution plan.\"\n\n6 pending proposals \u00b7 review\nExecution Steps (0)\n876b6659\nIn one sentence: what is a bandsaw used for?\n\nNo execution steps yet. Send a message to see the agent's reasoning.\n\nPREVIOUS RUNS (3)\n\n163693f5\nIn Consolidated Price List 2019.xlsx, what is the list price for U-22 and SLE24-16?\n0 steps\n9a8a39b8\nMake that a table please\n0 steps\n1814718e\nsearch again for U-22\n0 steps"
  },
  "network": {
   "api_hosts": [
@@ -58,9 +126,10 @@
   ],
   "websockets": [
    "ws://localhost:3091/_next/webpack-hmr",
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI",
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI",
    "ws://localhost:3091/_next/webpack-hmr",
-   "ws://localhost:3091/_next/webpack-hmr",
-   "ws://localhost:3091/_next/webpack-hmr"
+   "ws://127.0.0.1:8091/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA1NTkzMjUsImp0aSI6ImVjMjU1MDc1LTQzNzUtNDZmNS1hZDQ2LTEzNzc3MDY1YzQ1OCJ9.-8NKUOZzg8z9jb-HuKjvvsp9xsAf6SNR87Xc5jsSkFI"
   ]
  },
  "console_errors": [
@@ -76,14 +145,14 @@
   "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}"
  ],
  "durable": {
-  "chat_sessions": 500,
-  "chat_messages": 2751,
-  "invocation_events": 0,
-  "goal_runs": 0
+  "chat_sessions": 502,
+  "chat_messages": 2761,
+  "invocation_events": 6,
+  "goal_runs": 1
  },
  "totals": {
-  "pass": 4,
-  "fail": 1,
-  "blocked": 2
+  "pass": 11,
+  "fail": 0,
+  "blocked": 1
  }
 }

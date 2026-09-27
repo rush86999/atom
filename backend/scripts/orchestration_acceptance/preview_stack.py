@@ -343,12 +343,28 @@ def cmd_up(args: argparse.Namespace) -> int:
     if backend_port == frontend_port:
         frontend_port = pick_free_port(frontend_port + 1)
 
-    # Fresh per-run data dir, seeded from the sanitized fixture via the SQLite
+    # Per-run data dir, seeded from the sanitized fixture via the SQLite
     # backup API, exactly as the acceptance harness does.
-    run_dir = world / "runs" / f"run-{uuid.uuid4().hex[:12]}"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    print(f"[preview] seeding run data -> {run_dir}")
-    R._seed_run_data(world, run_dir)
+    #
+    # --reuse-run restarts against the EXISTING run directory instead of
+    # making a new one. That is what an actual restart is: same database, same
+    # data dir, same credential store, new process. Seeding a fresh run dir
+    # would answer "does a new empty world start cleanly", which is a
+    # different question from "does durable state survive a restart" -- and
+    # answering the easier one under the harder one's name is how a restart
+    # test comes to prove nothing.
+    prior = load_state(world)
+    if args.reuse_run:
+        run_dir = Path(args.reuse_run)
+        if not (run_dir / "data" / "atom.db").exists():
+            print(f"--reuse-run: {run_dir} has no data/atom.db", file=sys.stderr)
+            return 2
+        print(f"[preview] RESTART: reusing run dir {run_dir} (durable state kept)")
+    else:
+        run_dir = world / "runs" / f"run-{uuid.uuid4().hex[:12]}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[preview] seeding run data -> {run_dir}")
+        R._seed_run_data(world, run_dir)
 
     byok = {"skipped": True}
     if not args.no_user_byok:
@@ -829,6 +845,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = sub.add_parser("up", help="build nothing; seed a run dir and launch backend+frontend")
     p.add_argument("--backend-port", type=int, default=DEFAULT_BACKEND_PORT)
     p.add_argument("--frontend-port", type=int, default=DEFAULT_FRONTEND_PORT)
+    p.add_argument("--reuse-run", default="",
+                   help="restart against this existing run dir instead of "
+                        "seeding a new one (a faithful restart: same database)")
     p.add_argument("--no-user-byok", action="store_true",
                    help="do NOT seed the run dir with the repo's encrypted BYOK "
                         "store; the preview then has no real provider access")

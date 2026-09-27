@@ -156,129 +156,134 @@ async def run(frontend: str, api: str) -> dict[str, Any]:
         chat_url = f"{frontend}/chat"
         try:
             await page.goto(chat_url, wait_until="domcontentloaded", timeout=90_000)
-            await page.wait_for_timeout(4000)
-            box = (await page.query_selector("textarea, [contenteditable='true'], "
-                                             "input[placeholder*='essage' i]"))
+            box = await wait_composer(page, timeout=120)
             S(log("F03_chat_surface_present", PASS if box else BLOCKED,
-                 "composer found" if box else "no composer selector matched"))
+                 "composer found and enabled" if box else "no enabled composer"))
             if box:
+                baseline = len(await page.inner_text("body"))
                 await box.click()
                 await box.fill("In one sentence: what is a bandsaw used for?")
                 t0 = time.monotonic()
                 await box.press("Enter")
-                # A local 8B model plus retrieval: generous, and measured.
-                try:
-                    await page.wait_for_function(
-                        "() => document.body.innerText.length > 400",
-                        timeout=240_000)
-                except Exception:
-                    pass
+                # The turn is done when the composer comes back. Asserting on a
+                # fixed sleep instead measured the PREVIOUS turn's text and
+                # reported a 0.0s "model answer" that never happened.
+                done = await wait_turn_complete(page)
                 elapsed = time.monotonic() - t0
-                await page.wait_for_timeout(3000)
-                await page.screenshot(path=str(SHOTS / "02_general_chat.png"),
-                                      full_page=False)
+                await page.screenshot(path=str(SHOTS / "02_general_chat.png"))
                 body = await page.inner_text("body")
-                answered = len(body) > 400 and "bandsaw" in body.lower()
-                S(log("F03b_real_model_answer_visible",
-                     PASS if answered else FAIL,
-                     f"{elapsed:.1f}s, body={len(body)} chars, "
-                     f"mentions subject={'bandsaw' in body.lower()}"))
+                grew = len(body) > baseline
+                mentions = "bandsaw" in body.lower() or "saw" in body.lower()
+                answered = done and grew and mentions
+                S(log("F03b_real_model_answer_visible", PASS if answered else FAIL,
+                     f"{elapsed:.1f}s, turn_completed={done}, "
+                     f"body {baseline}->{len(body)} chars, mentions subject={mentions}"))
                 record["general_chat"] = {
-                    "latency_s": round(elapsed, 2),
-                    "excerpt": body[-1200:],
+                    "latency_s": round(elapsed, 2), "turn_completed": done,
+                    "baseline_chars": baseline, "final_chars": len(body),
+                    "excerpt": body[-1500:],
                 }
+
+                # -- F05 named-file lookup (the seeded workbook) -------------
+                box = await wait_composer(page)
+                if not box:
+                    S(log("F05_file_lookup_evidence", BLOCKED,
+                         "composer never re-enabled after the first turn"))
+                else:
+                    await box.click()
+                    await box.fill(
+                        "In Consolidated Price List 2019.xlsx, what is the "
+                        "list price for U-22 and SLE24-16?")
+                    base5 = len(await page.inner_text("body"))
+                    t0 = time.monotonic()
+                    await box.press("Enter")
+                    done5 = await wait_turn_complete(page)
+                    await page.wait_for_timeout(2000)
+                    await page.screenshot(path=str(SHOTS / "03_file_lookup.png"))
+                    body = await page.inner_text("body")
+                    found = "U-22" in body and "SLE24-16" in body
+                    S(log("F05_file_lookup_evidence",
+                         PASS if (done5 and found and len(body) > base5) else FAIL,
+                         f"{time.monotonic()-t0:.1f}s, completed={done5}, "
+                         f"both identifiers present={found}, "
+                         f"body {base5}->{len(body)}"))
+                    record["file_lookup"] = {
+                        "latency_s": round(time.monotonic() - t0, 2),
+                        "turn_completed": done5,
+                        "identifiers_present": found,
+                        "excerpt": body[-2000:],
+                    }
+
+                    # -- F06 formatting follow-up performs no retrieval -------
+                    box = await wait_composer(page)
+                    if not box:
+                        S(log("F06_formatting_followup", BLOCKED,
+                              "composer never re-enabled"))
+                    else:
+                        before6 = len(await page.inner_text("body"))
+                        await box.click()
+                        await box.fill("Make that a table please")
+                        t1 = time.monotonic()
+                        await box.press("Enter")
+                        done6 = await wait_turn_complete(page)
+                        await page.screenshot(path=str(SHOTS / "04_formatting.png"))
+                        body6 = await page.inner_text("body")
+                        S(log("F06_formatting_followup",
+                             PASS if done6 and len(body6) > before6 else FAIL,
+                             f"{time.monotonic()-t1:.1f}s, completed={done6}, "
+                             f"body {before6}->{len(body6)}"))
+                        record["formatting"] = {
+                            "latency_s": round(time.monotonic() - t1, 2),
+                            "turn_completed": done6, "excerpt": body6[-1500:],
+                        }
+
+                        # -- F07 explicit re-search -------------------------
+                        box = await wait_composer(page)
+                        if not box:
+                            S(log("F07_explicit_research", BLOCKED,
+                                  "composer never re-enabled"))
+                        else:
+                            before7 = len(await page.inner_text("body"))
+                            await box.click()
+                            await box.fill("search again for U-22")
+                            t2 = time.monotonic()
+                            await box.press("Enter")
+                            done7 = await wait_turn_complete(page)
+                            await page.screenshot(path=str(SHOTS / "05_research.png"))
+                            body7 = await page.inner_text("body")
+                            S(log("F07_explicit_research",
+                                 PASS if done7 and len(body7) > before7 else FAIL,
+                                 f"{time.monotonic()-t2:.1f}s, completed={done7}, "
+                                 f"body {before7}->{len(body7)}"))
+                            record["research"] = {
+                                "latency_s": round(time.monotonic() - t2, 2),
+                                "turn_completed": done7, "excerpt": body7[-1500:],
+                            }
         except Exception as exc:  # noqa: BLE001
             S(log("F03_chat_surface_present", FAIL, f"{type(exc).__name__}: {exc}"[:200]))
 
         # -- F04 WebSocket connectivity -------------------------------------
-        await page.wait_for_timeout(4000)
-        S(log("F04_websocket_connected", PASS if ws_urls else BLOCKED,
-             f"ws urls={ws_urls[:3]}"))
-
-        # -- F05 named-file lookup (the seeded workbook) ---------------------
-        try:
-            await page.goto(f"{frontend}/chat", wait_until="domcontentloaded",
-                            timeout=60_000)
-            await page.wait_for_timeout(3000)
-            box = (await page.query_selector("textarea, [contenteditable='true'], "
-                                             "input[placeholder*='essage' i]"))
-            if box:
-                await box.click()
-                await box.fill(
-                    "In Consolidated Price List 2019.xlsx, what is the list "
-                    "price for U-22 and SLE24-16?")
-                t0 = time.monotonic()
-                await box.press("Enter")
-                try:
-                    await page.wait_for_function(
-                        "() => /U-22|SLE24-16/.test(document.body.innerText)",
-                        timeout=300_000)
-                except Exception:
-                    pass
-                await page.wait_for_timeout(4000)
-                await page.screenshot(path=str(SHOTS / "03_file_lookup.png"),
-                                      full_page=False)
-                body = await page.inner_text("body")
-                found = "U-22" in body and "SLE24-16" in body
-                S(log("F05_file_lookup_evidence", PASS if found else FAIL,
-                     f"{time.monotonic()-t0:.1f}s, both identifiers present={found}"))
-                record["file_lookup"] = {
-                    "latency_s": round(time.monotonic() - t0, 2),
-                    "excerpt": body[-1500:],
-                }
-
-                # -- F06 formatting follow-up performs no retrieval ---------
-                await box.click()
-                await box.fill("Make that a table please")
-                t1 = time.monotonic()
-                await box.press("Enter")
-                try:
-                    await page.wait_for_timeout(45_000)
-                except Exception:
-                    pass
-                await page.screenshot(path=str(SHOTS / "04_formatting.png"),
-                                      full_page=False)
-                S(log("F06_formatting_followup", PASS,
-                     f"{time.monotonic()-t1:.1f}s, screenshot captured"))
-                record["formatting"] = {
-                    "latency_s": round(time.monotonic() - t1, 2),
-                    "excerpt": (await page.inner_text("body"))[-1200:],
-                }
-
-                # -- F07 explicit re-search ---------------------------------
-                await box.click()
-                await box.fill("search again for U-22")
-                t2 = time.monotonic()
-                await box.press("Enter")
-                try:
-                    await page.wait_for_timeout(60_000)
-                except Exception:
-                    pass
-                await page.screenshot(path=str(SHOTS / "05_research.png"),
-                                      full_page=False)
-                S(log("F07_explicit_research", PASS,
-                     f"{time.monotonic()-t2:.1f}s, screenshot captured"))
-                record["research"] = {
-                    "latency_s": round(time.monotonic() - t2, 2),
-                    "excerpt": (await page.inner_text("body"))[-1200:],
-                }
-        except Exception as exc:  # noqa: BLE001
-            S(log("F05_file_lookup_evidence", FAIL, f"{type(exc).__name__}: {exc}"[:200]))
+        await page.wait_for_timeout(3000)
+        app_ws = [u for u in ws_urls if "/ws" in u and "webpack" not in u]
+        S(log("F04_websocket_connected", PASS if app_ws else BLOCKED,
+             f"app ws={len(app_ws)} (hmr excluded), total={len(ws_urls)}"))
+        record["websockets"] = {"app": len(app_ws), "total": len(ws_urls),
+                               "urls": [u.split("?")[0] for u in ws_urls[:4]]}
 
         # -- F08 reload preserves the conversation ---------------------------
         try:
             before = await page.inner_text("body")
             await page.reload(wait_until="domcontentloaded", timeout=90_000)
-            await page.wait_for_timeout(8000)
+            await page.wait_for_timeout(12_000)
             after = await page.inner_text("body")
-            await page.screenshot(path=str(SHOTS / "06_after_reload.png"),
-                                  full_page=False)
+            await page.screenshot(path=str(SHOTS / "06_after_reload.png"))
             kept = "U-22" in after or "SLE24-16" in after
             S(log("F08_reload_preserves_history", PASS if kept else FAIL,
                  f"before={len(before)} after={len(after)} chars, "
                  f"identifiers retained={kept}"))
             record["reload"] = {"before_chars": len(before), "after_chars": len(after),
-                                "identifiers_retained": kept}
+                                "identifiers_retained": kept,
+                                "excerpt": after[-1500:]}
         except Exception as exc:  # noqa: BLE001
             S(log("F08_reload_preserves_history", FAIL, f"{type(exc).__name__}: {exc}"[:200]))
 
@@ -314,6 +319,47 @@ async def run(frontend: str, api: str) -> dict[str, Any]:
         totals[step["verdict"]] = totals.get(step["verdict"], 0) + 1
     record["totals"] = totals
     return record
+
+
+COMPOSER = ("textarea:not([disabled]), "
+            "[contenteditable='true'], "
+            "input[placeholder*='essage' i]:not([disabled])")
+
+
+async def wait_composer(page, timeout: float = 240.0):
+    """Wait until the composer is present AND enabled.
+
+    A disabled composer means a turn is still in flight. Typing into it anyway
+    either throws (a harness failure reported as a product failure) or, worse,
+    the assertion runs against the PREVIOUS turn's answer and reports a pass
+    for a turn that never happened.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        el = await page.query_selector(COMPOSER)
+        if el:
+            try:
+                if await el.is_enabled() and await el.is_visible():
+                    return el
+            except Exception:
+                pass
+        await page.wait_for_timeout(1000)
+    return None
+
+
+async def wait_turn_complete(page, timeout: float = 420.0) -> bool:
+    """Wait for the composer to come back (turn finished)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        el = await page.query_selector("textarea:not([disabled])")
+        if el:
+            try:
+                if await el.is_enabled():
+                    return True
+            except Exception:
+                pass
+        await page.wait_for_timeout(1500)
+    return False
 
 
 def _has_table(con, name: str) -> bool:
