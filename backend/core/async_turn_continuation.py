@@ -464,7 +464,13 @@ def _finish_durable_record(
                 return
             row.status = status
             row.completed_at = datetime.now(timezone.utc)
-            row.result_summary = f"[{outcome}] {summary[:400]}"
+            # READABLE TERMINAL OUTCOME (D5, 2026-09-28). This column is what a
+            # reload renders, so it carries a sentence, not the internal
+            # ``[outcome] <raw summary>`` diagnostic. The machine-readable
+            # binding is already in the row's metadata (continuation.outcome,
+            # .summary, .failure_stage, .audit_id, .review_status), so the
+            # prefix duplicated metadata while reading as a debug line.
+            row.result_summary = _readable_outcome_text(outcome, summary)[:400]
             meta = dict(row.metadata_json or {})
             cont_meta = meta.get("continuation") or {}
             cont_meta["outcome"] = outcome
@@ -1129,10 +1135,14 @@ async def run_canvas_edit_continuation(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             cont.failure_stage = "budget"
+            # Plain sentence for the user; the stage and budget stay on the
+            # continuation and in the row metadata (D5).
+            cont.error = (
+                f"budget exhausted at stage {cont.failure_stage} after "
+                f"{attempt - 1} attempts")[:500]
             return OUTCOME_FAILED, (
-                f"The background edit exhausted its "
-                f"{_ASYNC_CONTINUATION_BUDGET_SECONDS:.0f}s budget at stage "
-                f"{cont.failure_stage} after {attempt - 1} attempts."
+                "The background edit ran out of time before it could finish. "
+                "Nothing was changed on the canvas."
             )
 
         cont.failure_stage = f"attempt-{attempt}-preapply"
@@ -1319,10 +1329,17 @@ async def run_canvas_edit_continuation(
                 await asyncio.sleep(delay)
 
     cont.failure_stage = cont.failure_stage or "attempts"
+    # USER-FACING SENTENCE + MACHINE DETAIL (D5, 2026-09-28). The retry loop's
+    # internal note and stage used to be interpolated straight into the text a
+    # reload renders ("... (the edit planner could not complete; stage=...)"),
+    # which is a debug line wearing a sentence. The detail is still recorded --
+    # on the continuation and in the row's metadata -- it is just no longer part
+    # of the prose.
+    cont.error = (f"{last_note}; stage={cont.failure_stage}")[:500]
     return OUTCOME_FAILED, (
-        f"The background edit attempt did not apply after "
-        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts "
-        f"({last_note}; stage={cont.failure_stage}).")
+        f"The background edit did not apply after "
+        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts. "
+        f"Nothing was changed on the canvas.")
 
 
 def supersede_pending_continuation(

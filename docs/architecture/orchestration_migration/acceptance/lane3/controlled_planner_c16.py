@@ -1164,9 +1164,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             # The needle must be the CONTINUATION's own record, not text the
             # user typed -- "30 days" is in the request itself, so matching it
             # proved nothing about recovery.
+            # The needle is the READABLE outcome text. It used to be the literal
+            # marker "background continuation", which was welded into the old
+            # bracketed rendering; the D5 change moved the binding into the
+            # message's metadata and left a sentence in `content`, so a needle
+            # on the old marker now reports a MISSING record for a record that
+            # is present. Asserting the rendered sentence is also what proves
+            # the user-facing form is the readable one.
             hist = history_has_continuation(
-                base, headers, f"c16-bg-{marker}",
-                "background continuation" if expect_success else "background")
+                base, headers, f"c16-bg-{marker}", "Background update")
 
             # Reconnect/reload must not repeat the mutation.
             audits_before = after_bg["audit_count"]
@@ -1259,6 +1265,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "live_notification_received": bool(cont_events),
                     "history_shows_the_completed_edit":
                         hist.get("has_continuation") is True,
+                    # D5: a reload must render a sentence, not the old
+                    # "[background continuation - ...]" diagnostic line.
+                    "history_has_no_raw_bracket_diagnostic": (
+                        not hist.get("has_raw_bracket_diagnostic")),
                     "no_false_failure": term.get("status") in
                     ("success", "completed"),
                 })
