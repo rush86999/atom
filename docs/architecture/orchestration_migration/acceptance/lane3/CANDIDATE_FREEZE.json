@@ -34,5 +34,37 @@
     "be": 8051,
     "fe_candidate": 3102,
     "be_candidate": 8071
+  },
+  "verified_export": {
+    "world": "c16_fin",
+    "backend_port": 8078,
+    "code_snapshot_sha256_32": "c0b02bcd7966ac76f4d733184d0c48a7",
+    "canvas_seeded_via": "api (POST /api/canvas/email/create + PUT /api/canvas/{id})",
+    "cases": {
+      "case_1_synchronous": "15/15 PASS",
+      "case_2_background_success": "28/28 PASS",
+      "case_3_background_failure": "26/26 PASS (empty notification channel, zero mutations)"
+    },
+    "cases_carried_over": "none - all three re-run on this export",
+    "zero_additional_writes_regression": {
+      "assertion": "reconciliation_wrote_nothing_additional",
+      "rows_attributed_to_this_request": 1,
+      "meaning": "exactly one audit row carries an operation id attributed to this request, so the landed-operation reconciliation applied no second write"
+    },
+    "stale_needle": "the earlier history-recovery failure was the harness needle still matching the old bracket syntax; case 2 now passes history_shows_the_completed_edit on this export, so the explanation is verified rather than assumed"
+  },
+  "provider_availability": {
+    "checked_at": "2026-09-28T07:04:53",
+    "openrouter": {
+      "status": "AVAILABLE",
+      "http": 200,
+      "model": "openai/gpt-4o-mini",
+      "note": "already authorized via backend/.env"
+    },
+    "openai_anthropic_deepseek_moonshot": {
+      "status": "no usable credential resolved in this process"
+    },
+    "earlier_402": "OpenRouter 402 'requires more credits' affected EXPENSIVE models (e.g. glm-5.3-flash at 6000 max_tokens). It is a per-model credit ceiling, not a total provider outage: a cheap model on the same provider answers 200.",
+    "consequence": "real-planner verification is NOT externally blocked; a cheap authorized model is reachable"
   }
 }
