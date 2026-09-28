@@ -1,0 +1,38 @@
+{
+  "schema": "lane3-candidate-freeze-v1",
+  "frozen_at": "2026-09-28T06:51:37",
+  "base_HEAD_at_session_start": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+  "candidate_HEAD": "dba5aef89ffca40b6c0fad3c03231acd166af644",
+  "commits_in_candidate": [
+    "dba5aef89 feat(d5): render a readable terminal outcome, and bind recovery to the message",
+    "5a7fe6bdf fix(continuation): keep _operation_landed as the predicate, not an inlined probe",
+    "3b3c0e36c docs(lane3): finalize the C16 controlled-acceptance checkpoint",
+    "f14cb301a test(lane3): seed probe canvases through the supported APIs, not direct INSERT",
+    "94c087f18 fix(canvas+continuation): bind mutations to their operation, and make email-canvas creation real"
+  ],
+  "working_tree_state": {
+    "note": "The candidate is the COMMITTED tree. Uncommitted paths below are deliberately NOT in it.",
+    "uncommitted_path_count": 173,
+    "uncommitted_excluded_reason": "other streams' in-flight work; committing it was not authorized"
+  },
+  "included_product_files_sha256_16": {
+    "backend/core/async_turn_continuation.py": "db57053e2b0ac4cd",
+    "backend/core/canvas_email_service.py": "52434d1264292520",
+    "backend/integrations/chat_orchestrator.py": "fced25c3824a59a2",
+    "backend/scripts/orchestration_acceptance/provider_shim.py": "a7542d6c19527587",
+    "backend/scripts/orchestration_acceptance/preview_stack.py": "4166ecaec938c493",
+    "docs/architecture/orchestration_migration/acceptance/lane3/controlled_planner_c16.py": "bf673912b0d9928e"
+  },
+  "included_committed_files_count": 45,
+  "verification_before_freeze": {
+    "tests/test_async_turn_continuation.py": "49 passed",
+    "test_reply_leg_name_safety + test_workbook_structured_delivery + test_chat_canvas_editor": "190 passed",
+    "note": "tests/unit/test_canvas_tool.py is environment-sensitive: intermittent provider 402 (OpenRouter credits) pollutes shared state; TestPresentForm passes in isolation."
+  },
+  "read_only_preview_untouched": {
+    "fe": 3101,
+    "be": 8051,
+    "fe_candidate": 3102,
+    "be_candidate": 8071
+  }
+}

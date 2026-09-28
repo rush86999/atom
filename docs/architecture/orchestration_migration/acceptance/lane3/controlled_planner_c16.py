@@ -519,7 +519,8 @@ def durable_lookup_controls() -> List[Dict[str, Any]]:
 
 
 def identity_chain(db: str, canvas_id: str, session_id: str,
-                   continuation_id: str = "") -> Dict[str, Any]:
+                   continuation_id: str = "",
+                   origin_operation_id: str = "") -> Dict[str, Any]:
     """The four identities a canvas edit carries, and how they relate.
 
     A landed mutation can be attributed to the INTERACTIVE turn (whose
@@ -564,6 +565,14 @@ def identity_chain(db: str, canvas_id: str, session_id: str,
     out["read_ok"] = True
     updates = [a for a in out["audit_rows"] if a["action_type"] == "update"]
     out["update_count"] = len(updates)
+    # ZERO-ADDITIONAL-WRITES REGRESSION. Reconciliation must never write. The
+    # proof is that exactly ONE audit row on this canvas carries an operation id
+    # attributed to this request -- the continuation's own or the origin turn's.
+    # Two such rows would mean the reconciliation path applied a second write.
+    ids = [i for i in (continuation_id, origin_operation_id) if i]
+    out["identity_operation_ids"] = ids or None
+    out["rows_attributed_to_this_request"] = sum(
+        1 for a in out["audit_rows"] if a.get("operation_id") in ids) if ids else 0
     if updates:
         last = updates[-1]
         out["landed_operation_id"] = last.get("operation_id")
@@ -1193,8 +1202,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             # AgentExecution(triggered_by='continuation') row for this session
             # exists at all only when the product really forked.
             forked = bool(conts) and bool(dur.get("lookup_ok"))
+            _cont_id_early = (term or {}).get("continuation_id") or ""
+            _origin_early = (term or {}).get("origin_operation_id") or ""
             chain = identity_chain(db, bseed["canvas_id"], f"c16-bg-{marker}",
-                                   (term or {}).get("continuation_id") or "")
+                                   _cont_id_early, _origin_early)
             # ATTRIBUTION (2026-09-27). The landed mutation must be attributable
             # to THIS request by EXACT id -- either the continuation's own
             # operation, or the interactive turn's lifecycle operation carried
@@ -1340,6 +1351,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             # mutation at all), so scoring attribution there would demand a
             # landed edit precisely when the product is right to have none.
             if expect_success:
+                # Reconciliation must add no write of its own: exactly one audit
+                # row on the canvas may carry an operation id attributed to this
+                # request.
+                checks["reconciliation_wrote_nothing_additional"] = (
+                    chain.get("rows_attributed_to_this_request") == 1)
                 checks["landed_mutation_attributable_to_this_request"] = (
                     attribution in ("continuation", "origin"))
                 checks["landed_mutation_is_the_current_revision"] = bool(
