@@ -1271,6 +1271,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "exactly_one_update_audit":
                         after_bg["audit_actions"].count("update")
                         - bseed_before["audit_actions"].count("update") == 1,
+                    "total_mutation_delta_is_exactly_one":
+                        after_bg["audit_count"]
+                        - bseed_before["audit_count"] == 1,
                     "intended_mutation_persisted": after_bg["has_new_text"],
                     "old_text_gone": not after_bg["has_old_text"],
                     "live_notification_received": bool(cont_events),
@@ -1356,6 +1359,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                 # request.
                 checks["reconciliation_wrote_nothing_additional"] = (
                     chain.get("rows_attributed_to_this_request") == 1)
+                # ACCEPTANCE CORRECTION (2026-09-28): a single row with a
+                # RECOGNISED operation id does not rule out an extra write under
+                # a DIFFERENT id. Count EVERY audit row this request added to
+                # this exact canvas, whatever id it carries, with the
+                # API-seeding writes already in the baseline excluded.
+                checks["total_mutation_delta_is_exactly_one"] = (
+                    after_bg["audit_count"] - bseed_before["audit_count"] == 1)
                 checks["landed_mutation_attributable_to_this_request"] = (
                     attribution in ("continuation", "origin"))
                 checks["landed_mutation_is_the_current_revision"] = bool(

@@ -106,9 +106,75 @@ class CanvasEditPlan(BaseModel):
     reply: str = ""
 
 
+def _plan_shape(plan: "CanvasEditPlan") -> str:
+    """One-line description of a plan, for the repair-exchange log."""
+    if plan is None:
+        return "None"
+    ops = list(plan.ops or [])
+    return (
+        f"wants_edit={bool(plan.wants_edit)} edit_mode={plan.edit_mode!r} "
+        f"ops={len(ops)}[{_ops_preview(ops)}] "
+        f"replacement={'set' if (plan.updated_content_json or '').strip() else 'empty'} "
+        f"restore={'set' if (plan.restore_audit_id or '').strip() else 'empty'} "
+        f"violation={plan_contract_violation(plan)}")
+
+
+def plan_contract_violation(plan: "CanvasEditPlan") -> Optional[str]:
+    """The SCHEMA-BOUNDARY contract check (2026-09-28).
+
+    A plan must be exactly one of three forms:
+
+      (1) DECLINE          wants_edit=false AND no ops AND no replacement
+                           content AND no restore id
+      (2) OPERATION EDIT   wants_edit=true  AND ops present
+      (3) FULL REPLACEMENT wants_edit=true  AND updated_content_json present
+
+    Returns None when the plan is one of those, else a description naming the
+    CONCRETE conflicting fields, which is what the bounded repair is told.
+
+    This runs where the plan is parsed, so a contradictory answer is caught
+    before it can be mistaken for an accepted plan downstream. It deliberately
+    does NOT normalise the plan: silently flipping wants_edit to True would
+    manufacture an edit the planner did not authorise, and the lifecycle gate
+    upstream must keep being the thing that decides whether a canvas may change.
+    """
+    if plan is None:
+        return "no plan"
+    ops = list(plan.ops or [])
+    replacement = (plan.updated_content_json or "").strip()
+    restore = (plan.restore_audit_id or "").strip()
+    wants = bool(plan.wants_edit)
+    if not wants:
+        conflicting = []
+        if ops:
+            conflicting.append(f"ops[{len(ops)}]={_ops_preview(ops)}")
+        if replacement:
+            conflicting.append("updated_content_json=<set>")
+        if restore:
+            conflicting.append("restore_audit_id=<set>")
+        if conflicting:
+            return ("wants_edit=false but " + " AND ".join(conflicting)
+                    + " (legal forms: decline with all three empty, or "
+                      "wants_edit=true with the work)")
+        return None
+    # wants_edit=true must actually carry the work it claims.
+    if not (ops or replacement or restore):
+        return ("wants_edit=true but ops=[] AND updated_content_json=<empty> "
+                "AND restore_audit_id=<empty> (an edit claim with no work)")
+    return None
+
+
+def _ops_preview(ops: List[Any], limit: int = 2) -> str:
+    out = []
+    for op in list(ops)[:limit]:
+        field = getattr(op, "field", None) or "?"
+        find = str(getattr(op, "find", "") or "")[:24]
+        out.append(f"{{field={field},find={find!r}}}")
+    return "; ".join(out)
+
+
 class CanvasPlanUnavailable(Exception):
     """The planning LLM call failed (provider down / timeout / no JSON).
-
     Distinct from ``None`` (a legitimate "this turn is not an edit"): callers
     must NOT fall through to generic intent routing on this — an edit-shaped
     request misfiled into TASK_MANAGEMENT produces a chat reply claiming the
@@ -294,6 +360,34 @@ the authority, NOT your memory of earlier drafts:
 # Field-scoped: the model returns ONLY the keys it is changing (merged on
 # apply) — echoing untouched fields verbatim was the burden that made small
 # models emit oversized, invalid JSON (observed live 2026-08-31).
+#: Appended when a plan contradicts itself. Names the CONCRETE conflicting
+#: fields, restates the three legal forms, and requires exactly one of them. It
+#: does not instruct the model to produce an edit -- the repair resolves an
+#: inconsistency, it does not authorise anything, and the flag is never flipped
+#: on the model's behalf.
+_INCONSISTENT_PLAN_SUFFIX = """
+
+IMPORTANT -- your previous answer was self-contradictory. It declared
+wants_edit=false while also carrying the edit work below. Both cannot be true,
+and a plan must be exactly one of these three forms:
+
+  (1) DECLINE           wants_edit=false, ops=[], updated_content_json=null,
+                        restore_audit_id=null. Use this when the user did not
+                        ask you to change THIS canvas.
+  (2) OPERATION EDIT    wants_edit=true, with ops=[] carrying find/replace
+                        pairs against the CURRENT canvas content you were
+                        shown, edit_mode="patch".
+  (3) FULL REPLACEMENT  wants_edit=true, edit_mode="replace", with
+                        updated_content_json holding the complete new content
+                        and ops=[].
+
+Re-answer as ONE of those three forms, choosing from the user's request and the
+canvas content above. Keep the user's request and the canvas content in view.
+Do not declare wants_edit=false and then carry operations. Do not invent an
+edit the user did not ask for in order to fill a field.
+"""
+
+
 _REPLACE_FALLBACK_SUFFIX = (
     "Your ops did not match the current content exactly, so they were "
     "discarded. Try again with edit_mode=\"replace\": return the new content "
@@ -2120,7 +2214,69 @@ async def plan_canvas_edit(
             "canvas edit planning LLM returned no plan (provider failure)"
         )
     if not plan.wants_edit:
-        return plan
+        # D4: a plan that says "not an edit" while carrying operations is
+        # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
+        # Measured on candidate_fix1 (2026-09-27): the unpinned route resolves to
+        # opencode-go/gemini-3-flash, and on a valid canvas it returned
+        # wants_edit=False WITH ops=1 -- the correct edit operation, discarded
+        # because of one flag. The code's own comment blamed "flash-tier models"
+        # generally, which is contradicted by deepseek-flash handling the same
+        # prompt correctly.
+        #
+        # So it gets ONE bounded repair through the SAME structured-planning
+        # mechanism, mirroring the existing patch-failure re-ask. Two things this
+        # deliberately does NOT do:
+        #   * it does NOT execute the operations because they exist. Operations
+        #     present in a plan that disclaims the edit is a contradiction to be
+        #     resolved, not an authorization to proceed.
+        #   * it does NOT treat which model answered as meaningful. Model
+        #     selection is a routing decision and carries no authority over
+        #     whether this canvas may be changed; authorization is the
+        #     lifecycle gate's job, upstream, and is unaffected either way.
+        #
+        # If the repair also disagrees, the turn is a decline -- unchanged
+        # behaviour, and honest.
+        violation = plan_contract_violation(plan)
+        if violation is None:
+            return plan
+        logger.info(
+            "canvas edit: SCHEMA-BOUNDARY contract violation: %s", violation)
+        replan = await _plan_structured(
+            llm_service,
+            prompt=f"{prompt}\n\n{_INCONSISTENT_PLAN_SUFFIX}",
+            response_model=CanvasEditPlan,
+            system_instruction="You return only the requested JSON object.",
+        )
+        # CAPTURE (2026-09-28): both answers, so a failure is attributable
+        # without re-running. A model answering correctly is a routing fact and
+        # carries no authority over whether the canvas may change.
+        logger.info(
+            "canvas edit: repair exchange | original=%s | repair=%s",
+            _plan_shape(plan), _plan_shape(replan))
+        if replan is None:
+            # The repair is infrastructure, not a decision. Fall back to the
+            # original decline rather than guessing an edit.
+            logger.info(
+                "canvas edit: consistency repair returned no plan -- keeping "
+                "the decline")
+            return plan
+        if plan_contract_violation(replan) is not None:
+            logger.info(
+                "canvas edit: consistency repair ALSO violated the contract "
+                "(%s) -- treating the turn as not-an-edit",
+                plan_contract_violation(replan))
+            return replan
+        if not replan.wants_edit:
+            logger.info(
+                "canvas edit: consistency repair returned a consistent "
+                "decline -- treating the turn as not-an-edit")
+            return replan
+        if not (replan.ops or (replan.updated_content_json or "").strip()):
+            logger.info(
+                "canvas edit: consistency repair claimed an edit but produced "
+                "nothing to apply -- treating the turn as not-an-edit")
+            return replan
+        return replan
 
     # Patch validation: ops must match the current content EXACTLY. A
     # failed match discards the ops (never a partial write) and re-asks once
@@ -2510,6 +2666,96 @@ def _evidence_action_applied(
     return len(matches) == 1
 
 
+def _op_text(op: Any, attr: str) -> str:
+    """The find/replace text of a patch op, whatever shape the model returned."""
+    if isinstance(op, dict):
+        return str(op.get(attr) or "")
+    return str(getattr(op, attr, "") or "")
+
+
+def _intended_change_marks(plan: Any, new_content: Any) -> List[Dict[str, Any]]:
+    """What the plan INTENDED to change, derived from its own ops.
+
+    Recorded so the verification can be audited against the request rather than
+    against itself. Each mark is the text that must now be present, and the text
+    that must now be gone.
+    """
+    marks: List[Dict[str, Any]] = []
+    for op in (getattr(plan, "ops", None) or []):
+        find = _op_text(op, "find")
+        replace = _op_text(op, "replace")
+        field = (op.get("field") if isinstance(op, dict)
+                 else getattr(op, "field", None))
+        if not find and not replace:
+            continue
+        marks.append({"field": field, "find": find, "replace": replace})
+    return marks
+
+
+def _verify_intended_change(plan: Any, readback_content: Any,
+                            content_persisted: bool = False) -> Dict[str, Any]:
+    """Did the durable canvas contain the INTENDED change?
+
+    Content equality proves the right bytes are stored. It does not prove they
+    are the change that was asked for: a plan that changed nothing would also
+    satisfy equality, and a canvas that already mentioned the target text
+    elsewhere would satisfy it while the intended field never moved.
+
+    So each op is checked as a pair -- the replacement must be present AND the
+    text it replaced must be gone -- scoped to the field the op named when the
+    content is an object. Scoping matters: for an email canvas, "30 days" must
+    appear in `body`, not merely somewhere in the document.
+
+    REPLACE-MODE plans carry no ops: they declare the entire new content, so the
+    intended change IS that content and content equality is the complete proof.
+    Failing them for having no ops would reject the one mode where the request is
+    fully specified -- so they are verified by equality, and reported as such
+    rather than being passed silently.
+    """
+    marks = _intended_change_marks(plan, readback_content)
+    if not marks:
+        replace_mode = bool(getattr(plan, "updated_content_json", None))
+        if replace_mode:
+            return {"all_intended_applied": bool(content_persisted),
+                    "unapplied_ops": ([] if content_persisted else
+                                      ["replace-mode plan: the durable content "
+                                       "is not the content the plan declared"]),
+                    "checked": 1,
+                    "scope": "declared full content (replace-mode plan)"}
+        # A plan with neither ops nor declared content asked for nothing. There
+        # is no intended change, so a success claim would be unfounded.
+        return {"all_intended_applied": False,
+                "unapplied_ops": ["the plan carried no operations and no "
+                                  "declared content, so there is no intended "
+                                  "change to verify"],
+                "checked": 0, "scope": "none"}
+
+    def _field_text(mark: Dict[str, Any]) -> str:
+        field = mark.get("field")
+        if field and isinstance(readback_content, dict):
+            return str(readback_content.get(field) or "")
+        return str(readback_content or "")
+
+    unapplied: List[str] = []
+    for mark in marks:
+        hay = _field_text(mark)
+        replace, find = mark["replace"], mark["find"]
+        if replace and replace not in hay:
+            unapplied.append(
+                f"field {mark.get('field')!r}: the replacement text is absent")
+            continue
+        # A non-empty `find` that survives means the edit did not replace what
+        # it claimed to. Ignored when find == replace, where nothing could change.
+        if find and find != replace and find in hay:
+            unapplied.append(
+                f"field {mark.get('field')!r}: the text it should have replaced "
+                f"is still present")
+    return {"all_intended_applied": not unapplied,
+            "unapplied_ops": unapplied[:6],
+            "checked": len(marks),
+            "scope": "field" if isinstance(readback_content, dict) else "document"}
+
+
 async def apply_canvas_edit(
     plan: CanvasEditPlan,
     user_id: str,
@@ -2707,34 +2953,104 @@ async def apply_canvas_edit(
             return _out(None, "conflict: canvas changed during the edit")
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
         return _out(None, f"store_rejected: {(result or {}).get('error')}")
-    if isinstance(evidence_contract, dict):
-        try:
-            from tools.canvas_crud_tool import read_canvas
+    # INDEPENDENT READ-BACK, ALWAYS. Not only for evidence-contract canvases.
+    #
+    # The store reporting success is the tool's own claim about its own write.
+    # Until now the read-back ran only `if isinstance(evidence_contract, dict)`,
+    # so an ordinary canvas got NO verification at all -- and the orchestrator
+    # then set `updated: True` and rendered the planner's own success text over
+    # it. Measured consequence (2026-09-27, candidate_fix1): the reply rendered
+    # "**Canvas Updated:** ... Quote validity: **30 days**" while
+    # `canvas_audit` held no row for any canvas in 30 minutes and no canvas in
+    # the world contained the new text. A success claim with no verified write.
+    #
+    # So verification is now unconditional, and it is deliberately NOT the
+    # evidence-action check alone: a canvas with no contract has no actions, and
+    # "every action applied" would then be vacuously true -- a check that always
+    # passes is exactly the defect being fixed. The load-bearing assertion is
+    # CONTENT: the durable canvas must actually contain what we wrote.
+    #
+    # Exact equality is the conservative direction. If the store normalises
+    # content, this reports UNVERIFIED rather than falsely reporting success,
+    # and an unverified-but-applied edit is a much smaller problem than an
+    # unverified edit reported as done.
+    intended = _intended_change_marks(plan, new_content)
+    try:
+        from tools.canvas_crud_tool import read_canvas
 
-            readback = await read_canvas(user_id, canvas_id)
-            readback_content = (readback or {}).get("content")
-            missing_after_write = [
-                action
-                for action in ready_actions
-                if not _evidence_action_applied(readback_content, action)
-            ]
-            result["postcondition_verified"] = bool(
-                (readback or {}).get("success") and not missing_after_write
-            )
+        readback = await read_canvas(user_id, canvas_id)
+        readback_content = (readback or {}).get("content")
+        readback_ok = bool((readback or {}).get("success"))
+        readback_id = (readback or {}).get("canvas_id")
+
+        right_canvas = readback_id in (None, canvas_id)
+        content_persisted = readback_ok and readback_content == new_content
+        field_result = _verify_intended_change(plan, readback_content, content_persisted)
+        operation_bound = bool(result.get("audit_id"))
+        revision_ok = not (result or {}).get("conflict")
+
+        missing_after_write = [
+            action
+            for action in ready_actions
+            if not _evidence_action_applied(readback_content, action)
+        ] if not content_persisted else []
+
+        result["postcondition_verified"] = bool(
+            readback_ok and right_canvas and content_persisted
+            and field_result["all_intended_applied"] and operation_bound
+            and revision_ok and not missing_after_write)
+        if isinstance(evidence_contract, dict):
             result["postcondition_evidence_refs"] = evidence_refs
+        result["postcondition_binding"] = {
+            "canvas_id_expected": canvas_id,
+            "canvas_id_read_back": readback_id,
+            "right_canvas": right_canvas,
+            "operation_audit_id": result.get("audit_id"),
+            "operation_bound": operation_bound,
+            "expected_prior_audit_id": expected_prior_audit_id,
+            "revision_unchanged": revision_ok,
+            "content_matches_write": content_persisted,
+            "intended_marks": intended,
+            "fields": field_result,
+        }
+        if not result["postcondition_verified"]:
+            failed = []
+            if not right_canvas:
+                failed.append(f"read-back was canvas {readback_id!r}, not {canvas_id!r}")
+            if not content_persisted:
+                failed.append("read-back did not return the content that was written")
+            if not field_result["all_intended_applied"]:
+                failed.append(
+                    "the intended change is not present: "
+                    f"{field_result['unapplied_ops']}")
+            if not operation_bound:
+                failed.append("the store recorded no audit id for this operation")
+            if not revision_ok:
+                failed.append("the canvas changed concurrently during the edit")
             if missing_after_write:
-                result["postcondition_error"] = (
-                    "written content did not satisfy every ready evidence action"
-                )
-        except Exception as verify_error:
-            result["postcondition_verified"] = False
-            result["postcondition_error"] = (
-                f"postcondition readback unavailable: {str(verify_error)[:160]}"
-            )
-        if result.get("postcondition_verified") is False:
-            result["success"] = False
-            result["write_recorded"] = True
-            return _out(result, "postcondition_readback_failed")
+                failed.append("written content did not satisfy every ready evidence action")
+            result["postcondition_error"] = "; ".join(failed)[:400]
+            result["postcondition_readback"] = {
+                "readback_ok": readback_ok,
+                "written_chars": len(new_content or ""),
+                "readback_chars": len(readback_content or ""),
+            }
+            logger.warning(
+                "canvas edit read-back did NOT verify for %s: %s",
+                canvas_id, result["postcondition_error"])
+    except Exception as verify_error:
+        result["postcondition_verified"] = False
+        result["postcondition_error"] = (
+            f"postcondition readback unavailable: {str(verify_error)[:160]}"
+        )
+    if result.get("postcondition_verified") is False:
+        # The write may or may not have landed. Either way the turn must not
+        # report it as done: `updated` is the orchestrator's success signal, and
+        # success is now defined as verified persistence, not as a tool saying
+        # OK. `write_recorded` preserves the distinction for reconciliation.
+        result["success"] = False
+        result["write_recorded"] = True
+        return _out(result, "postcondition_readback_failed")
     return _out(result, None)
 
 
