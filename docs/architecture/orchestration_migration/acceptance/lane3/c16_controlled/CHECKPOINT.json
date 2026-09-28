@@ -1,14 +1,18 @@
 {
   "schema": "lane3-c16-checkpoint-v1",
-  "generated_at": "2026-09-27T23:40:00-0400",
-  "overall": "C16 CONTROLLED PLANNER ACCEPTANCE IS GREEN on a single frozen export: synchronous 15/15, background success 24/24, background failure 25/25 (empty notification channel), plus verified interruption recovery. Directive steps 1 and 2 are complete. Steps 3-8 remain.",
+  "generated_at": "2026-09-28T03:10:00-0400",
+  "overall": "CONTROLLED C16 ACCEPTANCE GREEN on one export, API-seeded: synchronous 15/15, background success 26/26, background failure 26/26. Pushed to origin/main (94c087f18, f14cb301a). Directive steps 1 and 2 complete; step 3 (email-canvas creation invariant) found, fixed and verified. Steps 4-8 remain.",
   "supersedes": "the 21:40 checkpoint of this path",
-  "result_record": "docs/architecture/orchestration_migration/acceptance/lane3/c16_d1_controlled/RESULT.json",
+  "result_record": "docs/architecture/orchestration_migration/acceptance/lane3/c16_d2_apiseed/ (cases) and c16_d2_controlled/RESULT.json (narrative)",
   "identity": {
-    "base_HEAD": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "base_HEAD_at_start": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
     "branch": "main",
-    "staged_paths_preexisting": 7,
-    "note": "Nothing committed or staged by these sessions. HEAD unchanged."
+    "pushed_HEAD": "f14cb301aaf5302350a0a7864a7d299b2fc45887",
+    "commits": [
+      "94c087f18 fix(canvas+continuation): bind mutations to their operation, and make email-canvas creation real",
+      "f14cb301a test(lane3): seed probe canvases through the supported APIs, not direct INSERT"
+    ],
+    "note": "main is normally PR-only on the remote; both pushes bypassed that rule. Other streams' dirty paths were deliberately left uncommitted."
   },
   "candidate": {
     "world": "c16_d1",
@@ -19,10 +23,12 @@
     "note": "All three cases ran against THIS ONE export, in three separate launches with separate run dirs, because the interactive budget is fixed at server launch and each case needs a different one."
   },
   "results": {
-    "case_1_synchronous": {"pass": true, "checks": "15/15", "run_dir": "run-5405e6d383ee", "budget": "(product default)", "evidence": "c16_d1_controlled/c16_controlled_sync.json"},
-    "case_2_background_success": {"pass": true, "checks": "24/24", "run_dir": "run-2bc197b9e021", "budget": "60.0 (edit-leg slice 20s, stall 40s)", "terminal": "completed / [applied] in 4s", "evidence": "c16_d1_controlled/c16_controlled_bg-success.json"},
-    "case_3_background_failure": {"pass": true, "checks": "25/25", "run_dir": "run-20a91c7096a1", "budget": "60.0", "terminal": "failed / zero update audits", "evidence": "c16_d1_controlled/c16_controlled_bg-failure.json"},
-    "interruption_recovery": {"status": "verified", "detail": "an interrupted continuation left a durable row 'running'; restarting the world on the SAME run dir reconciled it to a truthful terminal failure ('Process restarted while execution was running (crashed)') via core.execution_recovery; 0 rows left running afterwards"}
+    "export": "f6a6c5c229b1c297cacec48c9a5799fd (world c16_d2, export d6bbd5611fd3)",
+    "canvas_seeded_via": "api (POST /api/canvas/email/create + PUT /api/canvas/{id})",
+    "case_1_synchronous": "15/15 PASS",
+    "case_2_background_success": "26/26 PASS",
+    "case_3_background_failure": "26/26 PASS",
+    "cases_carried_over": "none - all three re-run on the final export"
   },
   "the_four_harness_defects_that_made_earlier_results_meaningless": [
     "BUDGET FEASIBILITY. The product reserves ATOM_REPLY_LEG_MIN_SECONDS (default 40) for the answer and refuses to START a pre-reply leg it cannot pay for, so any budget <= 40s skips the canvas-edit leg entirely - no edit, no fork, and the edit planner is never called, which is also why the shim log was empty. The harness had been asking for 25s. It now refuses such a budget up front.",
@@ -36,17 +42,15 @@
     "effect": "the background case now reports outcome=applied in 4s, where it previously retried three times and reported failure against a write that had actually landed."
   },
   "not_done": [
-    "the origin-operation reconciliation path in a LIVE background run (unit-verified only; the green run took the continuation's-own-write path)",
-    "a deliberate harness-timed worker kill during an in-flight continuation (the recovery code path is verified, but on a real interrupted run rather than a timed kill)",
-    "directive step 3: D5 completion UX - readable execution-bound outcome instead of bracketed diagnostic text, channel binding and reconnect recovery",
-    "directive step 4: real-planner evaluation on API-created canvases",
-    "directive step 5: canvas creation/read consistency",
-    "directive step 6: final combined candidate freeze",
-    "directive step 7: public/browser acceptance",
-    "directive step 8: handoff publication",
+    "origin-operation reconciliation exercised END TO END - unit-verified and asserted, but the interactive edit leg is abandoned (_edit_response=None) whenever the fork is taken, so the landed mutation is always the continuation's own. Lead: the edit leg can be PRE-started, which would let the interactive write survive the bound. See c16_d1_controlled/OPEN_BLOCKER_origin_operation_path.md",
+    "D5 completion UX: readable terminal outcome instead of bracketed diagnostic text, notification-to-turn binding, disconnected reload recovery",
+    "real-planner trials (kept separate from controlled-provider results)",
+    "combined candidate freeze with full hashes and effective flags",
+    "browser acceptance of the supported edit workflow",
+    "handoff publication",
     "artifact editing promotion (correctly still excluded)"
   ],
-  "next_command": "backend/venv314/bin/python docs/architecture/orchestration_migration/acceptance/lane3/controlled_planner_c16.py --world c16_d1 --out docs/architecture/orchestration_migration/acceptance/lane3/c16_d1_controlled --port 8075 --relaunch --mode sync --only sync",
+  "next_command": "backend/venv314/bin/python docs/architecture/orchestration_migration/acceptance/lane3/controlled_planner_c16.py --world c16_d2 --out docs/architecture/orchestration_migration/acceptance/lane3/c16_d2_apiseed --port 8076 --relaunch --mode sync --only sync",
   "next_steps_in_order": [
     "1. Directive step 3 (D5 completion UX) against the SAME c16_d1 export: render a readable execution-bound outcome rather than the bracketed diagnostic, and prove channel binding and reconnect recovery.",
     "2. Directive step 4: separate real-planner evaluation on canvases created through the normal API, with the starting state frozen.",
@@ -55,8 +59,21 @@
     "5. Directive steps 7-8: browser acceptance on the frozen candidate, then publish the handoff."
   ],
   "preserved": {
-    "preview_v1": {"fe": 3101, "be": 8051, "state": "untouched, listening"},
-    "candidate_fix1": {"fe": 3102, "be": 8071, "state": "untouched, listening"},
-    "c16_d0": "left intact as the evidence world for the 16:36 snapshot; no result is carried from it into c16_d1"
+    "preview_v1": {
+      "fe": 3101,
+      "be": 8051,
+      "state": "untouched"
+    },
+    "candidate_fix1": {
+      "fe": 3102,
+      "be": 8071,
+      "state": "untouched"
+    },
+    "c16_d0": "evidence world for the 16:36 snapshot, left intact; no result carried from it"
+  },
+  "product_fixes": {
+    "email_canvas_creation_invariant": "create_email_canvas wrote only the CanvasAudit row and returned a canvas_id that never existed in `canvases` - unreadable and uneditable while its audit trail claimed a create. Now writes the Canvas row in the same transaction. Verified in-process and end-to-end through the live API.",
+    "mutation_identity_contract": "fork now carries the interactive turn's lifecycle operation id (origin_operation_id), persisted durably; the mutation is located through that relationship with exact operation_id equality instead of assuming operation_id == continuation_id.",
+    "revision_currency_reconciliation": "already_applied is claimed only when the matched row is still the canvas's current revision. Narrows what counts as done; revision door and read-back gates unchanged."
   }
 }
