@@ -748,28 +748,26 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
         return None
     # DEFENSIVE RECONCILIATION (2026-09-27). Locating the mutation is not
     # enough to call the request satisfied: the row found must still BE the
-    # canvas's current revision, and it must be this canvas. If something wrote
-    # after it, the user's request is not what the canvas now says, and
-    # reporting "already applied" would be a false completion -- so fall
-    # through to the revision/currency rules below instead. This NARROWS what
-    # counts as done; it never widens it.
-    row = _matched_operation_row(cont)
-    if row and str(row.get("review_status") or "") == "accepted":
-        latest = _latest_audit(canvas_id)
-        if latest and str(latest.get("id") or "") == str(row.get("audit_id")):
+    # canvas's current revision. If something wrote after it, the canvas no
+    # longer says what this request applied, so reporting "already applied"
+    # would be a false completion -- fall through to the revision/currency
+    # rules below instead. This NARROWS what counts as done.
+    #
+    # `_operation_landed` stays the PREDICATE (it is the module's documented
+    # seam and what the cancellation path consults); the currency check is an
+    # ADDITIONAL condition on top of it, never a replacement -- replacing it
+    # silently detached every existing stub of that seam from this gate.
+    if _operation_landed(cont):
+        row = _matched_operation_row(cont)
+        latest = _latest_audit(canvas_id) if row else None
+        if row is None or latest is None or str(
+                latest.get("id") or "") == str(row.get("audit_id") or ""):
             return OUTCOME_ALREADY_APPLIED
-        if latest is None:
-            # No revision at all to reconcile against: do not claim success.
-            logger.info(
-                "[async-continuation] %s matched operation %s has no current "
-                "revision for canvas %s; not claiming already-applied",
-                cont.continuation_id, row.get("audit_id"), canvas_id)
-        else:
-            logger.info(
-                "[async-continuation] %s matched operation %s is superseded by "
-                "%s on canvas %s; not claiming already-applied",
-                cont.continuation_id, row.get("audit_id"),
-                latest.get("id"), canvas_id)
+        logger.info(
+            "[async-continuation] %s matched operation %s is superseded by %s "
+            "on canvas %s; not claiming already-applied",
+            cont.continuation_id, (row or {}).get("audit_id"),
+            latest.get("id"), canvas_id)
     operation_status = _operation_status(cont)
     if operation_status == "pending_review":
         return OUTCOME_AWAITING_APPROVAL
@@ -787,6 +785,33 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Runner + effects
 # ---------------------------------------------------------------------------
+
+def _readable_outcome_text(outcome: str, summary: str) -> str:
+    """What the user is shown for a background continuation's terminal outcome.
+
+    It used to be ``[background continuation — failed of: "<the user's own
+    request, truncated>"]\n<summary>``: internal bracket syntax, a raw echo of
+    the request, and two different renderings between the live bubble and the
+    reloaded history. A user should read a sentence, and the machine-readable
+    binding belongs in the row's metadata -- where it already is
+    (``continuation.id``, ``outcome``, ``originating_execution_id``,
+    ``canvas_id``, ``audit_id``, ``postcondition_verified``, ``review_status``) --
+    not welded into the prose.
+
+    The first line is the outcome in plain words; the rest is whatever the turn
+    actually reported, unchanged, so nothing is summarised away.
+    """
+    lead = {
+        OUTCOME_APPLIED: "Background update applied.",
+        OUTCOME_ALREADY_APPLIED: "Background update was already applied.",
+        OUTCOME_AWAITING_APPROVAL: "Background update needs your approval.",
+        OUTCOME_CONFLICT: "Background update was not applied: it conflicted.",
+        OUTCOME_FAILED: "Background update failed.",
+        OUTCOME_CANCELLED: "Background update was cancelled.",
+    }.get(outcome, "Background update finished.")
+    text = (summary or "").strip()
+    return f"{lead} {text}".strip() if text else lead
+
 
 def start_continuation(
     cont: AsyncTurnContinuation,
@@ -969,13 +994,16 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             session["history"].append({
                 "message": cont.message[:500],
                 "response": {
-                    "message": (
-                        f"[background continuation — {outcome}] "
-                        f"{summary}")[:2000]},
+                    # The SAME readable text the durable row carries. They used to
+                    # differ -- the live bubble got one bracketed string and the
+                    # reloaded history another -- so a user watching live and a
+                    # user reloading were told two different-looking things about
+                    # the same outcome.
+                    "message": _readable_outcome_text(outcome, summary)},
                 "intent": {"primary_intent": "canvas_edit",
                            "background_continuation": True},
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "error": False,
+                "error": outcome in (OUTCOME_FAILED, OUTCOME_CONFLICT),
             })
             # Same recency bound the interactive path keeps.
             if len(session["history"]) > 24:
@@ -994,9 +1022,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                 conversation_id=cont.session_id,
                 tenant_id="default",
                 role="assistant",
-                content=(
-                    f"[background continuation — {outcome} of: "
-                    f"\"{cont.message[:120]}\"]\n{summary}"),
+                content=_readable_outcome_text(outcome, summary),
                 metadata_json=json.dumps({"continuation": {
                     "id": cont.continuation_id,
                     "outcome": outcome,
@@ -1220,11 +1246,14 @@ async def run_canvas_edit_continuation(
                     _gate = "postcondition-unverified"
                     last_note = "source-backed read-back was not verified"
                 if cont.readback_required and readback_ok:
-                    # Probed ONCE: _operation_landed() is exactly this
-                    # comparison and the probe is a DB read.
-                    _op_status_dbg = _operation_status(cont)
-                    readback_ok = _op_status_dbg == "accepted"
+                    # `_operation_landed` is the predicate here too, not
+                    # `_operation_status(...) == "accepted"` inlined: it is the
+                    # module's documented seam. The raw status is read only when
+                    # the decision is negative, to name the reason, so the
+                    # success path still costs a single probe.
+                    readback_ok = _operation_landed(cont)
                     if not readback_ok:
+                        _op_status_dbg = _operation_status(cont)
                         _gate = "operation-not-landed"
                     if readback_ok:
                         _gate = "read-canvas"
