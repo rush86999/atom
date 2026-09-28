@@ -165,6 +165,36 @@ class EmailCanvasService:
                 }
             )
 
+            # CREATION INVARIANT (2026-09-27, directive step 5). This path wrote
+            # ONLY the audit row and returned a canvas_id, so the canvas it
+            # handed back never existed in `canvases` -- unreadable and
+            # uneditable, while its audit trail claimed a 'create'. The blank
+            # canvas path in api/canvas_routes.py already requires content in
+            # BOTH the Canvas row and the audit trail ("readers treat the audit
+            # trail as the source of truth"); this path has to match it. The
+            # draft body is mirrored into Canvas.content so the same content is
+            # readable from either side.
+            canvas_content = {
+                "to": ", ".join(recipients or []),
+                "cc": "",
+                "subject": subject,
+                "body": draft.body or "",
+            }
+            canvas_row = Canvas(
+                id=canvas_id,
+                tenant_id="default",
+                workspace_id="default",
+                created_by=str(user_id),
+                name=subject or "Untitled email",
+                description=f"Email canvas: {subject}" if subject else None,
+                canvas_type="email",
+                content=canvas_content,
+                status="active",
+                last_edited_by=str(user_id),
+                last_edited_at=datetime.now(timezone.utc),
+            )
+
+            self.db.add(canvas_row)
             self.db.add(audit)
             self.db.commit()
             self.db.refresh(audit)

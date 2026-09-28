@@ -31,8 +31,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -54,6 +56,10 @@ BASE_ORDER = ["No. 381", "U-22", "No. 622", "TK Manual Flanger", "SLE24-16",
 REPLACED_ORDER = ["No. 381", "U-38", "No. 622", "TK Manual Flanger", "SLE24-16",
                   "TK 1624", "TK Multi Wheel Gang Slitter", "GSL48-16"]
 REPLACE_TURN = "Replace U-22 with U-38"
+#: The workbook every case in this file reads. Absence expectations are
+#: established against THIS file only -- an item that exists in some other
+#: workbook in the same world is not evidence about this one.
+SOURCE_FILE = "Consolidated Price List 2019.xlsx"
 
 
 def mint(db_path: str) -> Optional[str]:
@@ -114,6 +120,28 @@ def ask(base: str, token: str, session: str, message: str,
 
 def structured_for(db: str, session: str,
                    execution_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """The structured record belonging to EXACTLY this execution.
+
+    Identity, never recency. Two ways this used to lie, both of which turn a
+    real defect into a green check:
+
+    * with no ``execution_id`` the filter was skipped and the most recent
+      record was returned, so a turn that produced no record at all would be
+      handed the PREVIOUS turn's -- which is precisely the stale-list defect
+      this runner exists to catch. A missing identity is not a wildcard.
+    * with two rows carrying the same execution id (the provisional and
+      uncertain-turn paths can both persist one) it took the first. Picking
+      one of two candidates is a coin toss wearing a assertion's clothes.
+
+    So: no identity -> None. More than one match -> raise, because an
+    ambiguous read must fail loudly rather than resolve to a guess.
+    """
+    if not execution_id:
+        raise ValueError(
+            "structured_for requires an explicit execution_id; returning the "
+            "most recent record instead would let a turn that produced no "
+            "record inherit the previous turn's, which is the stale-list "
+            "defect under test")
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         rows = con.execute(
@@ -122,7 +150,7 @@ def structured_for(db: str, session: str,
             (session,)).fetchall()
     finally:
         con.close()
-    best = None
+    matches: List[Dict[str, Any]] = []
     for (meta,) in rows:
         try:
             doc = json.loads(meta or "{}")
@@ -131,11 +159,18 @@ def structured_for(db: str, session: str,
         rec = ((doc.get("pending_file_result") or {}).get("structured_result"))
         if not isinstance(rec, dict):
             continue
-        if execution_id and str(doc.get("execution_id") or "") != str(execution_id):
+        if str(doc.get("execution_id") or "") != str(execution_id):
             continue
-        best = rec
-        break
-    return best
+        matches.append(rec)
+    if not matches:
+        return None
+    if len(matches) > 1:
+        attempts = sorted({str(m.get("attempt_id") or "?") for m in matches})
+        raise AssertionError(
+            f"execution {execution_id} has {len(matches)} structured records "
+            f"(attempts={attempts}); the record for this execution is "
+            f"ambiguous, so no value may be asserted from it")
+    return matches[0]
 
 
 def task_entities(db: str, conversation_id: str) -> Optional[List[str]]:
@@ -181,10 +216,351 @@ def binding_report(rec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                     values.append((v.get("col"), v.get("basis"), v.get("value")))
         out[str(t.get("item"))] = {
             "status": ident.get("status"),
+            # The RETRIEVAL verdict, not `status` alone: `identity.status ==
+            # "none"` is reached both by "searched, it is not there" and by
+            # "the source would not open", and only this separates an honest
+            # absence from a read failure. Without it a broken read and an
+            # absent item are indistinguishable at the public boundary.
+            "retrieval": (t.get("retrieval") or {}).get("status"),
+            "retrieval_error": (t.get("retrieval") or {}).get(
+                "error_category"),
             "identity_cells": sorted(set(cells)),
             "values": values[:4],
         }
     return out
+
+
+def headline_values(text: str) -> Dict[str, str]:
+    """{item: the first value the answer states for it}.
+
+    The FIRST figure after the item label is the one the renderer presents as
+    the answer for that item; the parenthetical that follows carries the
+    identity cell and the alternative bases. Read off the rendered list line
+    rather than the record, because the record is the thing under test.
+
+    The item is taken from inside the bold markers the renderer emits, NOT by
+    guessing at the ``- `` separator: several items legitimately contain a
+    hyphen ("U-22", "SLE24-16", "GSL48-16"), and a separator-shaped regex
+    splits "U-22" into item "U" and value "22" -- which then reads as a
+    fabricated price on a perfectly good answer.
+    """
+    out: Dict[str, str] = {}
+    for line in (text or "").splitlines():
+        match = re.match(
+            r"^\s*[-*]\s*\*\*(?P<item>[^*]+)\*\*(?P<rest>.*)$", line)
+        if not match:
+            continue
+        item = match.group("item").strip()
+        if not item or item in out:
+            continue
+        rest = match.group("rest").strip()
+        # An alias note ("(matched via 'Gang Slitter')") precedes the value.
+        rest = re.sub(r"^\([^)]*\)\s*", "", rest).strip()
+        if not rest.startswith("-"):
+            continue
+        rest = rest.lstrip("-").strip()
+        # Skip phrasings that state no single value; inventing one would be
+        # the very error this check exists to catch.
+        if rest.startswith("several rows match") or "no matching row" in rest:
+            continue
+        number = re.match(r"^\**(-?[\d,]+(?:\.\d+)?)\**", rest)
+        if number:
+            out[item] = number.group(1)
+    return out
+
+
+def message_digests(db: str, conversation_id: str) -> List[Tuple[str, str, str]]:
+    """[(message id, role, sha256(content))] for a conversation, in order.
+
+    Identity AND content, so "the earlier message is still there" can be
+    asserted exactly rather than by counting rows. Used to prove a formatting
+    or re-render turn APPENDS instead of rewriting what the user already saw.
+    """
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        rows = con.execute(
+            "SELECT id, role, content FROM chat_messages "
+            "WHERE conversation_id=? ORDER BY created_at, role",
+            (conversation_id,)).fetchall()
+    finally:
+        con.close()
+    return [
+        (str(r[0]), str(r[1]),
+         hashlib.sha256((r[2] or "").encode("utf-8")).hexdigest())
+        for r in rows
+    ]
+
+
+def _iso_seconds_ago(seconds: int) -> str:
+    """An ISO timestamp ``seconds`` in the past, for the mutation window.
+
+    Wide on purpose: the window opens before the run's first request, so a
+    row written by ANY turn here is inside it. A window that started at the
+    replacement turn would miss a row the base ask created.
+    """
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc)
+            - timedelta(seconds=seconds)).isoformat()
+
+
+def unrelated_task_rows(db: str, user_id: str,
+                        since_iso: str) -> List[Dict[str, Any]]:
+    """Tasks created during a window -- i.e. mutations the chat path made.
+
+    A correction is a revision of a lookup, not an instruction to create an
+    obligation. The defect this catches is concrete: the turn was claimed by
+    the task lane and answered "I've added 'Replace U-22 with U-38' to your
+    Tasks", which writes a real row the user never asked for and then leaves
+    it behind forever.
+    """
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        try:
+            rows = con.execute(
+                "SELECT id, title, created_at FROM tasks "
+                "WHERE user_id=? AND created_at >= ? ORDER BY created_at",
+                (user_id, since_iso)).fetchall()
+        except sqlite3.Error as exc:
+            return [{"error": f"tasks table unreadable: {exc}"}]
+    finally:
+        con.close()
+    return [{"id": str(r[0]), "title": r[1], "created_at": r[2]} for r in rows]
+
+
+def _source_parquets(db_path: str,
+                     file_name: str = SOURCE_FILE) -> Optional[List[Path]]:
+    """Readable parquet shards for ONE workbook, or None if not resolvable.
+
+    Scoped to a single file on purpose: a presence or value expectation
+    established against every dataset in the world is an expectation about the
+    wrong document. Returns None -- never an empty list -- when the file's
+    datasets cannot be resolved, so "could not inspect" stays distinct from
+    "inspected and found nothing".
+    """
+    db = Path(db_path).resolve()
+    world = db.parent.parent.parent.parent
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            paths = [
+                r[0] for r in con.execute(
+                    "SELECT parquet_path FROM dataset_entries "
+                    "WHERE file_name = ?", (file_name,))
+            ]
+        finally:
+            con.close()
+    except Exception:
+        return None
+    if not paths:
+        return None
+    resolved: List[Path] = []
+    for raw in paths:
+        path = Path(raw)
+        if not path.is_file():
+            # A world copied from another build carries absolute paths from
+            # where it was made; re-root onto this world rather than silently
+            # inspecting nothing.
+            candidate = (world / "data" / "sheet_datasets"
+                         / path.parent.name / path.name)
+            path = candidate if candidate.is_file() else path
+        if path.is_file():
+            resolved.append(path)
+    return resolved or None
+
+
+def _as_number(value: Any) -> Optional[float]:
+    """Coerce a cell to a number, or None.
+
+    Numeric STRINGS matter here and are not a detail: after extraction a
+    price column frequently lands as text ('8880'), because that is how the
+    cell was typed. A verifier that only accepts ``int``/``float`` therefore
+    reports a correct answer as a fabricated one -- which is the worst
+    possible direction for a check meant to catch fabrication, because it
+    trains people to ignore it.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return round(float(value), 2)
+    text = str(value).strip().replace(",", "")
+    if not re.fullmatch(r"[-+]?\d*\.?\d+", text):
+        return None
+    try:
+        return round(float(text), 2)
+    except ValueError:
+        return None
+
+
+def source_cells_for_item(db_path: str, item: str,
+                          file_name: str = SOURCE_FILE
+                          ) -> Optional[Dict[str, List[float]]]:
+    """{column label: [numeric values]} for the row(s) naming ``item``.
+
+    Read straight from the parquet cells, with no code from the chat path and
+    no parsing of rendered prose involved. That independence is the point:
+    ``validate_rendered_against_record`` reports ``values_grounded`` as
+    ADVISORY and never blocks, so ``ok`` from that validator does not
+    establish that a number is right. Comparing the displayed number against
+    the actual cell contents does.
+
+    Returns None when the item cannot be located in this file at all (an
+    absent item is a legitimate outcome, graded on its own labelled absence),
+    and None when the file could not be read.
+    """
+    paths = _source_parquets(db_path, file_name)
+    if not paths:
+        return None
+    try:
+        import pyarrow.parquet as pq
+    except Exception:
+        return None
+    needle = str(item or "").strip().lower()
+    if not needle:
+        return None
+
+    def _norm(value: Any) -> str:
+        return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+    def _names_item(column: str, value: Any) -> bool:
+        """Does this cell name ``item``?
+
+        Exact match is too strict and prefix match is too loose, and both
+        failure modes are bad in opposite directions:
+
+        * exact only -> a source that writes the part number with its
+          description attached ('TK 1624 Slitter') is reported UNKNOWN, so a
+          correct answer is never actually checked;
+        * bare prefix -> 'TK 1624' matches 'TK 16245', and a fabricated value
+          for the wrong machine passes.
+
+        So: the cell must equal the item, or begin with it followed by a
+        NON-ALPHANUMERIC boundary. That admits the description suffix and
+        refuses a longer part number.
+        """
+        if _as_number(value) is not None:
+            # An identifier column holds identifiers, not measurements, so a
+            # purely numeric cell can never name the item.
+            return False
+        text = str(value or "").strip()
+        if _norm(text) == _norm(needle):
+            return True
+        prefix = str(item or "").strip()
+        if not text[:len(prefix)].lower() == prefix.lower():
+            return False
+        rest = text[len(prefix):]
+        return not rest or not rest[0].isalnum()
+
+    out: Dict[str, List[float]] = {}
+    try:
+        for path in paths:
+            for row in pq.read_table(path).to_pylist():
+                matched = False
+                for column, value in row.items():
+                    if column == "__sheet_row" or value is None:
+                        continue
+                    if _names_item(column, value):
+                        matched = True
+                        break
+                if not matched:
+                    continue
+                for column, value in row.items():
+                    if column == "__sheet_row":
+                        continue
+                    number = _as_number(value)
+                    if number is not None:
+                        out.setdefault(str(column), []).append(number)
+    except Exception:
+        return None
+    return out or None
+
+
+def value_is_in_source(db_path: str, item: str, shown_value: Any,
+                       file_name: str = SOURCE_FILE
+                       ) -> Optional[Dict[str, Any]]:
+    """Where ``shown_value`` sits on ``item``'s source row, if anywhere.
+
+    Returns ``{"column": <label>, "value": <float>}`` when the number is one
+    of the item's own cells, ``{"column": None}`` when the item was located
+    but the number is NOT among its cells, and None when the file or the row
+    could not be inspected (UNKNOWN -- never silently a pass or a fail).
+
+    The column label comes back so a right-number-wrong-basis answer is
+    visible rather than waved through: the value being present on the row is
+    necessary, and the label is what says whether it is the cell the answer
+    claimed.
+    """
+    cells = source_cells_for_item(db_path, item, file_name)
+    if cells is None:
+        return None
+    target = _as_number(shown_value)
+    if target is None:
+        return {"column": None, "reason": "shown value is not a number",
+                "shown": shown_value}
+    for column, values in cells.items():
+        if any(abs(v - target) < 0.005 for v in values):
+            return {"column": column, "value": target}
+    return {"column": None, "reason": "not among the item's source cells",
+            "shown": shown_value, "item_cells": sorted(cells)[:8]}
+
+
+def item_exists_in_source(db_path: str, item: str,
+                          file_name: str = SOURCE_FILE) -> Optional[bool]:
+    """Does ``item`` occur in the SPECIFIC workbook the case reads?
+
+    Three ways a naive probe lies, each of which would decide a replacement
+    case on a fiction:
+
+    * **Unscoped.** Searching every dataset in the world finds the item in
+      some OTHER workbook and reports it present, so an absent incoming item
+      is graded as though it should have produced a value.
+    * **Silent skips.** A parquet that fails to read is skipped, so a partial
+      inspection reports a confident "absent".
+    * **False by default.** If nothing was readable at all, "not found" is
+      indistinguishable from "not there" -- the answer that matters most is
+      the one produced by the least evidence.
+
+    So: scope to one file, count what could not be read, and return None
+    (UNKNOWN) whenever the inspection was not complete. None never downgrades
+    a requirement; it keeps the strict check and says the fixture could not
+    establish the expectation.
+    """
+    paths = _source_parquets(db_path, file_name)
+    if not paths:
+        return None
+    try:
+        import pyarrow.parquet as pq
+    except Exception:
+        return None
+    needle = str(item or "").strip()
+    if not needle:
+        return None
+
+    token = re.compile(rf"(?<![0-9A-Za-z]){re.escape(needle)}(?![0-9A-Za-z])")
+    readable = 0
+    unreadable = 0
+    for path in paths:
+        try:
+            table = pq.read_table(path)
+        except Exception:
+            unreadable += 1
+            continue
+        readable += 1
+        for column in table.column_names:
+            try:
+                values = table.column(column).to_pylist()
+            except Exception:
+                unreadable += 1
+                continue
+            for value in values:
+                if value is not None and token.search(str(value)):
+                    return True
+    if readable == 0:
+        # Nothing could be read: the expectation is UNKNOWN, not "absent".
+        return None
+    if unreadable:
+        # Partial inspection cannot support a confident absence.
+        return None
+    return False
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -200,6 +576,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("could not mint a token against the candidate world", file=sys.stderr)
         return 2
     stamp = int(time.time())
+    # Mutations are asserted against a window that starts BEFORE the first
+    # request, so a row written by any turn in this run is caught.
+    window_start = _iso_seconds_ago(3600)
     results: List[Dict[str, Any]] = []
     print(f"task-correction acceptance against {args.base}\n")
 
@@ -225,6 +604,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     r2 = ask(args.base, token, sess, REPLACE_TURN)
     c.check("replacement_turn_succeeded", r2.get("success") is True,
             f"status={r2.get('status')} err={r2.get('error_code')}")
+    # THE REPLY MUST NOT BE THE TASK LANE'S. Asserted on the words, because
+    # the failure answered in the user's own language -- "I've added
+    # 'Replace U-22 with U-38' to your Tasks" reads like a confirmation, and a
+    # check that only looked at status codes called it a success.
+    reply2 = r2.get("message") or ""
+    c.check("reply_is_not_a_task_creation_confirmation",
+            "to your Tasks" not in reply2
+            and "added" not in reply2.lower()[:80],
+            reply2[:160])
+    # And no row was actually written. The turn used to create one, so this
+    # is checked against the database rather than inferred from the reply.
+    created = unrelated_task_rows(args.db, USER_ID, window_start)
+    c.check("no_unrelated_task_row_was_created", created == [], created)
     rep_exec = r2.get("execution_id")
     rec2 = structured_for(args.db, sess, rep_exec)
     c.check("replacement_produced_structured_evidence", bool(rec2))
@@ -249,11 +641,40 @@ def main(argv: Optional[List[str]] = None) -> int:
     c.check("replacement_record_carries_the_new_item",
             "U-38" in rec2_items and "U-22" not in rec2_items, rec2_items)
     b2 = binding_report(rec2 or {})
-    c.check("incoming_item_has_its_own_identity_cell",
-            bool(b2.get("U-38", {}).get("identity_cells")),
-            b2.get("U-38"))
-    c.check("incoming_item_has_a_value_binding",
-            bool(b2.get("U-38", {}).get("values")), b2.get("U-38"))
+    u38 = b2.get("U-38") or {}
+    # A REPLACEMENT DOES NOT GUARANTEE THE INCOMING ITEM EXISTS. Whether a
+    # price and an identity cell are REQUIRED is a property of the fixture,
+    # not of the code, so the fixture decides (probed independently of the
+    # chat path). Requiring a value for an item the workbook does not list is
+    # a false requirement -- and grading it as a failure would push the fix
+    # toward inventing one.
+    #
+    # Two honest outcomes are acceptable, and only these two:
+    #   EXISTS     -> the item's own identity cell AND its own value binding.
+    #   ABSENT     -> an independently labelled absence: searched, not there
+    #                 (`retrieval == "searched"`), NOT a read failure, and no
+    #                 value invented for it. A read failure must never earn
+    #                 the credit, because that is the defect this whole file
+    #   UNPROBED     exists for.
+    u38_in_source = item_exists_in_source(args.db, "U-38")
+    if u38_in_source is False:
+        c.check("incoming_item_absence_is_labelled_and_invents_nothing",
+                (u38.get("retrieval") == "searched"
+                 and not u38.get("identity_cells")
+                 and not u38.get("values")),
+                {"probe": "U-38 absent from the indexed source", **u38})
+        c.notes.append(
+            "U-38 is NOT in this fixture's workbook, so no price or identity "
+            "cell can be required; the correct outcome is a labelled absence")
+    else:
+        c.check("incoming_item_has_its_own_identity_cell",
+                bool(u38.get("identity_cells")),
+                {"probe": "U-38 present" if u38_in_source else
+                          "probe unavailable; strict check kept", **u38})
+        c.check("incoming_item_has_a_value_binding",
+                bool(u38.get("values")),
+                {"probe": "U-38 present" if u38_in_source else
+                          "probe unavailable; strict check kept", **u38})
     u22 = b2.get("U-22")
     c.check("outgoing_items_evidence_is_not_reused",
             u22 is None, "U-22 absent from the revised record entirely")
@@ -261,8 +682,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     shown2 = visible_items(r2.get("message") or "")
     c.check("displayed_list_matches_the_revised_set", shown2 == REPLACED_ORDER,
             shown2)
+    # PAIRED with the exact-set check on purpose: "U-22 not shown" is also
+    # true of an empty or error reply, which is how a failure once passed
+    # this. The displayed set must be the whole revised set, in order.
     c.check("displayed_list_does_not_show_the_outgoing_item",
-            "U-22" not in shown2, shown2)
+            bool(shown2) and shown2 == REPLACED_ORDER
+            and "U-22" not in shown2, shown2)
     msg2 = r2.get("message") or ""
     c.check("displayed_list_does_not_silently_report_the_change_as_applied_"
             "when_nothing_changed",
@@ -272,6 +697,36 @@ def main(argv: Optional[List[str]] = None) -> int:
     v2 = validate_rendered_against_record(msg2, rec2)
     c.check("displayed_citations_are_grounded_in_the_record", v2["ok"],
             {"gating": v2["gating"], "violations": v2["violations"][:3]})
+    # `ok` does NOT establish that the numbers are right.
+    # `validate_rendered_against_record` reports `values_grounded` as ADVISORY
+    # and never lets it block, because deciding which numerals in a sentence
+    # are values depends on the render style. That is a defensible reason to
+    # keep it advisory -- and a reason the acceptance test must verify values
+    # some other way, or a fabricated price rides through on a green check.
+    #
+    # So the headline value of every item the source DOES contain is checked
+    # against the actual parquet cell, with no chat-path code involved.
+    shown_values = headline_values(msg2)
+    wrong: Dict[str, Any] = {}
+    unknown: Dict[str, Any] = {}
+    located: Dict[str, Any] = {}
+    for item in REPLACED_ORDER:
+        if item not in shown_values:
+            continue
+        verdict = value_is_in_source(args.db, item, shown_values[item])
+        if verdict is None:
+            unknown[item] = {"shown": shown_values[item]}
+        elif verdict.get("column") is None:
+            wrong[item] = verdict
+        else:
+            located[item] = verdict
+    c.check("displayed_values_are_in_the_source_cells", not wrong,
+            {"not_on_the_items_row": wrong,
+             "unverifiable": unknown,
+             "verified": located})
+    c.notes.append(
+        f"advisory values_grounded violations: "
+        f"{[x for x in v2['violations'] if x.get('check') == 'values_grounded'][:2]}")
     c.notes.append(f"binding={r2.get('evidence_binding')}")
     results.append(c.as_dict())
     print(f"[{c.as_dict()['status']}] {c.cid}")
@@ -286,9 +741,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     a = ask(args.base, token, s2, BASE_ASK)
     b = ask(args.base, token, s2, REPLACE_TURN)
     c2.check("setup_base_then_replacement", a.get("success") and b.get("success"))
+    # ...and the messages already delivered must survive the formatting turn,
+    # byte for byte. A re-render that REWRITES history is not a formatting
+    # operation, and a row-count check would not see it.
+    before_rows = message_digests(args.db, s2)
     d = ask(args.base, token, s2, "Make this easier to read")
+    after_rows = message_digests(args.db, s2)
+    c2.check("earlier_messages_survive_the_formatting_turn",
+             after_rows[:len(before_rows)] == before_rows,
+             {"before": len(before_rows), "after": len(after_rows),
+              "changed": [i for i, (x, y) in
+                          enumerate(zip(before_rows, after_rows)) if x != y][:3]})
     c2.check("formatting_turn_succeeded", d.get("success") is True,
              f"status={d.get('status')} err={d.get('error_code')}")
+    # A FORMATTING TURN MUST NOT RETRIEVE. It re-renders evidence the
+    # correction already produced; if it fetched again it would be claiming a
+    # read it did not need, and the attempt id would change. Measured on this
+    # turn's own record, not the previous one.
+    fmt_attempt = ((structured_for(args.db, s2, d.get("execution_id")) or {})
+                   .get("attempt_id"))
+    prev_attempt = ((structured_for(args.db, s2, b.get("execution_id")) or {})
+                    .get("attempt_id"))
+    c2.check("formatting_invoked_no_retrieval",
+             fmt_attempt is not None and fmt_attempt == prev_attempt,
+             {"formatting_attempt": fmt_attempt,
+              "replacement_attempt": prev_attempt})
     fmt_items = visible_items(d.get("message") or "")
     c2.check("formatted_list_is_the_revised_set", fmt_items == REPLACED_ORDER,
              fmt_items)
@@ -298,11 +775,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     c2.check("durable_task_still_the_revised_set",
              task_fmt == REPLACED_ORDER, task_fmt)
     from core.answer_presentation import validate_rendered_against_record
-    recd = structured_for(args.db, s2, d.get("execution_id")) or \
-        structured_for(args.db, s2)
-    vd = validate_rendered_against_record(d.get("message") or "", recd)
-    c2.check("formatted_citations_grounded", vd["ok"],
-             {"gating": vd["gating"], "violations": vd["violations"][:3]})
+    # A formatting turn legitimately REUSES the earlier evidence, and it says
+    # so: its record references the original attempt and evidence revision
+    # rather than minting a read. So the record to judge is the one bound to
+    # THIS turn's execution, which carries those references.
+    #
+    # There is deliberately no "or fall back to the most recent record" here.
+    # That fallback is what let a turn with no record of its own be graded
+    # against a neighbour's, which is a sibling-execution evidence mix-up
+    # wearing a green check. If the formatting turn persisted nothing, the
+    # check fails and says so.
+    fmt_exec = d.get("execution_id")
+    recd = structured_for(args.db, s2, fmt_exec)
+    if recd is None:
+        c2.notes.append(
+            f"formatting turn {fmt_exec!r} persisted no structured record; "
+            f"its citations cannot be judged against evidence of its own")
+    vd = validate_rendered_against_record(d.get("message") or "", recd or {})
+    c2.check("formatted_citations_grounded",
+             recd is not None and vd["ok"],
+             {"execution_id": fmt_exec,
+              "record_found": recd is not None,
+              "referenced_attempt": (recd or {}).get("attempt_id"),
+              "referenced_revision": (recd or {}).get("evidence_revision"),
+              "gating": vd["gating"], "violations": vd["violations"][:3]})
     results.append(c2.as_dict())
     print(f"\n[{c2.as_dict()['status']}] {c2.cid}")
     for k, v in c2.checks.items():
@@ -355,7 +851,35 @@ def main(argv: Optional[List[str]] = None) -> int:
     replies = [((m.get("response") or {}).get("message") or "") for m in rows]
     c4.check("history_returns_after_reload", h.status_code == 200,
              f"status={h.status_code}")
-    c4.check("history_has_no_duplicate_turns", len(rows) == 2, len(rows))
+    # "No duplicate turns" is a claim about IDENTITY, not about a row count.
+    # This case issues exactly TWO requests, and the endpoint returns one user
+    # row and one assistant row per request, so four rows is the CORRECT
+    # answer; `len(rows) == 2` failed a healthy reload for reporting a
+    # legitimate pair as duplication. What duplication actually looks like is
+    # the same request text stored twice, a repeated row id, or a turn count
+    # that disagrees with the requests issued -- so assert those.
+    issued = [BASE_ASK, REPLACE_TURN]
+    row_ids = [str(m.get("id") or m.get("message_id") or "") for m in rows]
+    user_texts = [str(m.get("message") or "").strip() for m in rows
+                  if str(m.get("role") or "user") == "user"]
+    duplicate_detail = {
+        "rows": len(rows),
+        "requests_issued": len(issued),
+        "user_rows": len(user_texts),
+        "unique_ids": len(set(row_ids)),
+        "ids": [i[:8] for i in row_ids],
+        "user_texts": [t[:60] for t in user_texts],
+    }
+    c4.check("history_has_no_duplicate_turns",
+             bool(rows)
+             and len(set(row_ids)) == len(row_ids)
+             and len(user_texts) == len(issued)
+             and len(set(user_texts)) == len(user_texts)
+             and [t[:60] for t in user_texts] == [t[:60] for t in issued],
+             duplicate_detail)
+    c4.notes.append(
+        f"two requests issued -> {len(rows)} rows is two user/assistant "
+        f"pairs, not duplication")
     final = replies[-1] if replies else ""
     reload_items = visible_items(final)
     c4.check("reloaded_final_answer_is_the_revised_set",

@@ -1799,6 +1799,46 @@ def _canvas_edit_shaped(
     )
 
 
+def _is_file_objective_turn(
+    message: str, session: Optional[Dict[str, Any]]
+) -> bool:
+    """This turn EDITS the item set of a file objective the conversation
+    already holds.
+
+    Two conditions, both required:
+
+    1. the turn is an entity-set edit (``replace U-22 with U-38``, ``drop
+       U-22``, ``also add U-38``) — ``entity_set_edit`` is fail-closed, so
+       ordinary sentences that merely contain a verb return ``None``;
+    2. the session carries a file objective — a stored pending-file task, a
+       resolved file identity, or a persisted file result. Without one there
+       is no item set to edit, and the turn really is whatever the NLU said
+       it was.
+
+    Used to keep an objective's own correction out of the task-creation lane:
+    see the call in ``_route_to_features``.
+    """
+    try:
+        from core.pending_file_task import (
+            FILE_TASK_SESSION_KEY,
+            entity_set_edit,
+        )
+    except Exception:  # noqa: BLE001 — pure gate, never blocks a turn
+        return False
+    try:
+        if entity_set_edit(message or "") is None:
+            return False
+    except Exception:  # noqa: BLE001 — the detector is pure, belt-only
+        return False
+    if not isinstance(session, dict):
+        return False
+    for key in (FILE_TASK_SESSION_KEY, "_resolved_file_identity",
+                "_pending_file_result"):
+        if isinstance(session.get(key), dict):
+            return True
+    return False
+
+
 def _canvas_non_edit_intent(intent: Any) -> bool:
     value = getattr(intent, "value", intent)
     return value in {
@@ -2949,11 +2989,33 @@ def _canvas_id_from_context(context: Any) -> Optional[str]:
 
 
 def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
-    """The active objective's ordered items from the latest structured
-    file result carried on the session (memory only; DB reload path
-    stays untouched). Follow-up reads inherit these instead of
-    re-mining history; the producer still prefers the current turn's
-    own explicit items when it names any."""
+    """The active objective's ordered items, from the durable carriers on
+    the session, in precedence order.
+
+    1. the stored pending-file task's ``requested_targets``;
+    2. the latest structured file result's ``requested_items``.
+
+    THE TASK FIRST, and that order is the point. The two carriers are not
+    written at the same moment: ``requested_targets`` is stamped on the task
+    only when a revision actually LANDS, while the result row is rewritten on
+    every turn and therefore still holds the PRE-correction set after a
+    re-read that did not complete. Preferring the result row therefore
+    resurrects the outgoing item on the very next turn -- a failed re-read
+    silently undoing a correction the user was told had been applied.
+
+    The result row remains the fallback for sessions whose task predates
+    ``requested_targets``, and the task is also the carrier that survives a
+    restart (hydration restores ``_pending_file_task`` and not
+    ``_pending_file_result``).
+    """
+    try:
+        task = (session or {}).get("_pending_file_task") or {}
+        targets = task.get("requested_targets") or []
+        resolved = [str(v).strip() for v in targets if str(v).strip()]
+        if resolved:
+            return resolved
+    except Exception:
+        pass
     try:
         stored = ((session or {}).get("_pending_file_result") or {})
         items = ((stored.get("structured_result") or {})
@@ -3091,9 +3153,54 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                 "reason": str(denial)}
     except Exception as exc:  # noqa: BLE001 — denial on any failure
         logger.warning(
-            "task edit reservation failed — edit blocked: %r", exc)
+            f"task edit reservation failed — edit blocked: {exc!r}")
         return {"status": "unavailable", "run_id": None,
                 "operation_id": None, "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _release_unapplied_edit(tenant_id, workspace_id, reservation,
+                            execution_id) -> bool:
+    """Release a reserved edit claim when no VERIFIED effect happened.
+
+    D1. The reservation is taken before the mutation so an intention that
+    cannot be persisted never reaches the canvas — but that means a turn which
+    reserves and then does not apply leaves a claim held forever. Measured on
+    candidate_fix1 (2026-09-27): `edit` operations sitting at `status=pending`
+    with `updated_at == created_at`, untouched, one per declined turn.
+
+    The release mechanism already exists and is tested
+    (`task_lifecycle.finish_edit_turn` → `cancel_operation`, and
+    `test_declined_edit_releases_the_claim` passes). What was missing was the
+    CALL, which is why the stranded claim was observable at all: the mechanism's
+    own docstring says the claim "must not be left held (which would block every
+    later attempt at the same key)".
+
+    Best-effort by design. A failure to release must not turn a truthful answer
+    into an exception, and the claim is still visible in the operation record for
+    reconciliation, so a leak here is recoverable rather than silent.
+    """
+    run_id = (reservation or {}).get("run_id")
+    operation_id = (reservation or {}).get("operation_id")
+    if not run_id or not operation_id:
+        return False
+    try:
+        from core import task_lifecycle as _tlm
+
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return False
+        _tlm.finish_edit_turn(
+            lifecycle, run_id, operation_id, execution_id,
+            updated=False, needs_review=False, success=False)
+        logger.info(
+            "released an unapplied edit claim: run=%s operation=%s execution=%s",
+            run_id, operation_id, execution_id)
+        return True
+    except Exception as exc:  # noqa: BLE001 — never fail a truthful answer
+        logger.warning(
+            "could not release the unapplied edit claim (run=%s operation=%s): %r",
+            run_id, operation_id, exc)
+        return False
 
 
 def _finish_task_edit(tenant_id: Any, workspace_id: Any,
@@ -3409,11 +3516,21 @@ class ChatOrchestrator:
         *,
         user_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> Optional[str]:
         """Create an AgentExecution row for a chat turn so the workspace
         panel has a run to group steps under — and so the trace survives
         reloads (the trace route joins executions via
-        metadata_json.session_id). Never raises; None means no trace."""
+        metadata_json.session_id). Never raises; None means no trace.
+
+        `request_id` is the client's keyed-transport id, recorded so a turn that
+        dies mid-flight can be ATTRIBUTED. Without it the durable
+        `ChatRequestRecord` has no link to the execution it was reserving --
+        `execution_id` is only written at finalization, so a crashed turn's key
+        is NULL and nothing can tell which key belongs to which crash. That
+        turned "resolve the crashed key" into a guess; with the id recorded it is
+        an exact join.
+        """
         try:
             import uuid as _uuid
             from core.database import get_db_session
@@ -3426,6 +3543,8 @@ class ChatOrchestrator:
                 "user_id": user_id,
                 "workspace_id": workspace_id,
             }
+            if request_id:
+                _start_meta["request_id"] = str(request_id)
             if os.getenv("CHAT_FINALIZATION_M1") == "1":
                 try:
                     from core import execution_outcome as _outcome
@@ -4301,6 +4420,7 @@ class ChatOrchestrator:
                 message,
                 user_id=user_id,
                 workspace_id=(context or {}).get("workspace_id"),
+                request_id=(context or {}).get("request_id"),
             )
             session["_current_execution_id"] = _execution_id
             await self._emit_agent_status(
@@ -4441,14 +4561,12 @@ class ChatOrchestrator:
                     _pfr = self._load_pending_file_result(session_id)
                 except Exception:  # noqa: BLE001 — best-effort
                     _pfr = None
-            # The structured record for THIS turn, hoisted to a name the
-            # narration guard can read. Bound AFTER the reload above (an early
-            # binding would predate it and could judge a stale record) and read
-            # once, because `_pfr` is reassigned repeatedly below as lanes mark
-            # delivery -- the guard must judge the record this turn produced.
-            _pfr_structured_for_turn = (
-                (_pfr or {}).get("structured_result")
-                if isinstance(_pfr, dict) else None)
+            # NOTE: the reply leg's evidence-bound narration guard reads the
+            # record THIS turn produced, not this persisted copy — see
+            # `_turn_structured_record` in `_get_qwen_response`, which is bound
+            # beside the read that produced it. Reading the value here instead
+            # would judge the model against the PREVIOUS turn's answer, which is
+            # precisely the stale list the guard exists to reject.
             if (
                 isinstance(_pfr, dict)
                 and _pfr.get("status") in ("retrieved", "delivered")
@@ -5069,18 +5187,44 @@ class ChatOrchestrator:
                         else:
                             logger.debug(
                                 "task lifecycle record skipped: %r", _tl_err)
-                    if not _ask_complete:
-                        from core.pending_file_task import (
-                            FILE_TASK_SESSION_KEY,
-                            merge_pending_task,
-                        )
+                    # STORE THE OBJECTIVE ON EVERY COMPLETED ASK, not only
+                    # on the incomplete ones.
+                    #
+                    # The incomplete case stored a task so the user could be
+                    # asked for the rest; the COMPLETE case stored nothing,
+                    # which left a delivered read with no durable record of
+                    # what it was a read OF. Everything that continues such a
+                    # turn — an entity-set edit ("replace U-22 with U-38"), a
+                    # re-search, a reload — resolves through
+                    # `matching_pending_task`, so with no stored task the
+                    # resume lane was never entered and the turn fell through
+                    # to legacy feature routing, where the TASKS handler
+                    # answered "I've added 'Replace U-22 with U-38' to your
+                    # Tasks". `matching_pending_task` already treats a
+                    # delivered task as eligible for exactly these turns
+                    # (and NOT for a bare "yes", which the delivery path owns),
+                    # so marking it delivered here is the whole change.
+                    from core.pending_file_task import (
+                        FILE_TASK_SESSION_KEY,
+                        mark_task_delivered,
+                        mark_task_retrieved,
+                        merge_pending_task,
+                    )
 
-                        session[FILE_TASK_SESSION_KEY] = merge_pending_task(
-                            session.get(FILE_TASK_SESSION_KEY),
-                            message,
-                            _ask_mention,
-                            (context or {}).get("disambiguation"),
-                        )
+                    _ask_stored = merge_pending_task(
+                        session.get(FILE_TASK_SESSION_KEY),
+                        message,
+                        _ask_mention,
+                        (context or {}).get("disambiguation"),
+                    )
+                    if _ask_complete:
+                        # Mirrors the resume lane: the read finished, then the
+                        # answer reached the user. The resolved resource is
+                        # retained so a later re-read executes against the
+                        # same file, not a fresh resolution.
+                        _ask_stored = mark_task_delivered(
+                            mark_task_retrieved(_ask_stored, _ask_identity))
+                    session[FILE_TASK_SESSION_KEY] = _ask_stored
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -5195,6 +5339,15 @@ class ChatOrchestrator:
                                     requested_targets=_direct_active,
                                     objective_edit=dict(_objective_edit),
                                 )
+                                # NOTE: the durable carrier is stamped with the
+                                # revised set only AFTER `revise_objective`
+                                # succeeds, further down. Stamping it here
+                                # would leave the session claiming a
+                                # correction that the durable task never
+                                # accepted, so a blocked turn would still
+                                # hand the corrected set to the next turn --
+                                # a half-applied correction, reported as "not
+                                # applied".
                             elif _direct_active and isinstance(_direct_task, dict):
                                 # The stored objective's ordered items ride the
                                 # read; the producer inherits them for vague
@@ -5272,11 +5425,118 @@ class ChatOrchestrator:
                                                 _removed_ids,
                                                 [i for i in _new_ids
                                                  if i not in set(_prev_ids)])
+                                            # The revision is now DURABLE, so
+                                            # the corrected set may be stamped
+                                            # on the carrier every later
+                                            # continuation resolves through.
+                                            #
+                                            # `_direct_task` above is this
+                                            # turn's working copy and dies with
+                                            # the request. The stored task is
+                                            # what survives a restart, and
+                                            # without this the corrected set
+                                            # existed only in
+                                            # `_pending_file_result` -- which
+                                            # session hydration does NOT
+                                            # restore -- so the next turn
+                                            # ("search again", "make this easier
+                                            # to read") inherited nothing,
+                                            # re-derived the item set from the
+                                            # stored ask, and resurrected the
+                                            # outgoing item.
+                                            _stored_row = session.get(
+                                                FILE_TASK_SESSION_KEY)
+                                            if isinstance(_stored_row, dict):
+                                                session[FILE_TASK_SESSION_KEY] = (
+                                                    dict(
+                                                        _stored_row,
+                                                        requested_targets=list(
+                                                            _new_ids),
+                                                        objective_edit=dict(
+                                                            _objective_edit),
+                                                    )
+                                                )
                                         except Exception as _tl_edit_err:  # noqa: BLE001
+                                            # FAIL-CLOSED, AND IT ACTUALLY
+                                            # BLOCKS. This handler used to log
+                                            # "read blocked", clear
+                                            # `_objective_edit` and fall
+                                            # through: `_direct_task` still
+                                            # carried the REVISED targets, so
+                                            # the read executed against an
+                                            # objective that was never
+                                            # persisted. The answer would then
+                                            # be computed from the new set
+                                            # while the durable task still held
+                                            # the old one -- the exact
+                                            # durable/output disagreement this
+                                            # path exists to prevent, reached
+                                            # by a different route. Clearing
+                                            # the local variable changed
+                                            # nothing that the read reads.
+                                            #
+                                            # A correction whose revision
+                                            # cannot be recorded is not
+                                            # applied at all. Say so.
                                             logger.warning(
                                                 "objective revision failed — "
-                                                "read blocked: %r", _tl_edit_err)
+                                                "read blocked: %r",
+                                                _tl_edit_err)
                                             _objective_edit = None
+                                            _revision_blocked = {
+                                                "success": False,
+                                                "message": (
+                                                    "I couldn't record the "
+                                                    "change to your list, so "
+                                                    "the lookup did not run. "
+                                                    "Nothing was retrieved "
+                                                    "and your original list "
+                                                    "is unchanged. You can "
+                                                    "retry the change."),
+                                                "session_id": session_id,
+                                                "execution_id": _execution_id,
+                                                "intent": "search",
+                                                "confidence": 0.9,
+                                                "data": {
+                                                    "deterministic_delivery":
+                                                        False,
+                                                    "blocked_reason":
+                                                        "objective_revision_"
+                                                        "not_recorded",
+                                                    "task_run_id": session.get(
+                                                        "_task_run_id"),
+                                                    "task_operation": None,
+                                                    "reconciliation_required":
+                                                        False,
+                                                },
+                                                "model": "deterministic",
+                                                "provider": "structured",
+                                                "requires_confirmation": False,
+                                                "next_steps": [],
+                                                "suggested_actions": [],
+                                            }
+                                            self._update_session(
+                                                session, message,
+                                                _revision_blocked,
+                                                {"primary_intent": "search",
+                                                 "confidence": 0.9})
+                                            await self._emit_agent_status(
+                                                session_id, _trace_agent_id,
+                                                _execution_id, "failed")
+                                            self._finish_chat_execution(
+                                                _execution_id,
+                                                "failed",
+                                                "objective revision could not "
+                                                "be recorded; read blocked",
+                                                session=session,
+                                                message=message,
+                                                response=_revision_blocked,
+                                                deadline=_deadline,
+                                                pending_task=session.get(
+                                                    "_pending_file_task"),
+                                                authorized_actions=[],
+                                            )
+                                            return _revision_blocked
                                     _tl_begin = _tlm.begin_retrieval_turn(
                                         _tl_lifecycle, session, session_id,
                                         message, _execution_id,
@@ -6048,6 +6308,26 @@ class ChatOrchestrator:
                         operation_id=_execution_id) \
                         if _edit_task_reserved["status"] in (
                             "reserved", "legacy") else None
+                    # D1: a reservation is a CLAIM, and a claim with no verified
+                    # effect must be released. This covers every reason the leg
+                    # did not apply — the planner declined, the store rejected,
+                    # the read-back did not verify (D0), or the leg returned
+                    # nothing at all — because "no verified update" is the single
+                    # condition that matters and `updated` is the only field
+                    # that asserts one. Before this, every declined turn leaked a
+                    # `pending` operation that nothing ever settled.
+                    _edit_claimed_effect = bool(
+                        isinstance(_edit_leg, dict)
+                        and ((_edit_leg.get("data") or {}).get("canvas_edit") or {})
+                        .get("updated") is True
+                        and ((_edit_leg.get("data") or {}).get("canvas_edit") or {})
+                        .get("postcondition_verified") is True)
+                    if (_edit_task_reserved.get("status") == "reserved"
+                            and not _edit_claimed_effect):
+                        _release_unapplied_edit(
+                            getattr(self, "tenant_id", None),
+                            (context or {}).get("workspace_id"),
+                            _edit_task_reserved, _execution_id)
                     if _edit_leg is None:
                         # Refused before execution: nothing ran, so there
                         # is no edit leg to await and no outcome to settle
@@ -6152,6 +6432,19 @@ class ChatOrchestrator:
                                                 user_id=user_id,
                                                 session_id=session_id,
                                                 execution_id=_execution_id,
+                                                # IDENTITY CONTRACT: the
+                                                # interactive turn's lifecycle
+                                                # operation id. The write path
+                                                # stamps THIS onto the audit
+                                                # row, so without it the
+                                                # continuation cannot locate a
+                                                # write the interactive leg
+                                                # already landed.
+                                                origin_operation_id=(
+                                                    _edit_task_reserved.get(
+                                                        "operation_id")
+                                                    if _edit_task_reserved
+                                                    else None),
                                                 agent_id=(context or {}).get(
                                                     "agent_id"),
                                                 provenance=(context or {}).get(
@@ -6161,9 +6454,8 @@ class ChatOrchestrator:
                                                     or ""),
                                                 evidence_contract=(
                                                     _shared_tool.get(
-                                                        "objective_evidence"
-                                                    )
-                                                ),
+                                                        "objective_evidence")
+                                                    ),
                                             )
                                         )
                                         self._record_canvas_background_fork(
@@ -6264,6 +6556,9 @@ class ChatOrchestrator:
                                     user_id=user_id,
                                     session_id=session_id,
                                     execution_id=_execution_id,
+                                    origin_operation_id=(
+                                        _edit_task_reserved.get("operation_id")
+                                        if _edit_task_reserved else None),
                                     agent_id=(context or {}).get("agent_id"),
                                     provenance=(context or {}).get(
                                         "canvas_provenance"),
@@ -6393,10 +6688,21 @@ class ChatOrchestrator:
                             "but nothing is confirmed changed yet."
                         )
                     elif _no_apply_reason == "planner_declined":
+                        # Do NOT tell the user to clarify. The planner read the
+                        # request and chose not to act; the request was not
+                        # ambiguous, and sending someone to rewrite a clear
+                        # instruction hides the real cause. The plan requires
+                        # denial, unavailable source, unavailable model and
+                        # uncertain effect to be distinguishable -- and this
+                        # branch is none of those, it is "the editor declined".
                         _no_apply_message = (
-                            "I couldn't safely make that canvas change, so "
-                            "nothing was changed. Please clarify the change and "
-                            "try again."
+                            "I didn't apply that canvas change, so nothing was "
+                            "changed. The change was clear; the canvas editor "
+                            "declined it, which usually means it could not "
+                            "match your wording to a specific part of this "
+                            "canvas. Naming the exact text to change (for "
+                            "example 'change \"Quote validity: 15 days\" to "
+                            "\"30 days\"') usually gets it applied."
                         )
                     elif _no_apply_reason in (
                         "evidence_declined", "evidence_unavailable"
@@ -6417,6 +6723,17 @@ class ChatOrchestrator:
                         "no_apply": True,
                         "reason": _no_apply_reason,
                         "background_started": _background_started,
+                        # D3: a refusal that mutates lifecycle state must still
+                        # be attributable. This turn reserved an operation and
+                        # released it, and the only way to bind that to a turn is
+                        # to carry the identity on the outcome. Without it the
+                        # reserved state is orphaned: `execution_id` was None
+                        # here, so nothing could connect the release to the
+                        # request that caused it.
+                        "execution_id": _execution_id,
+                        "operation_id": _edit_task_reserved.get("operation_id"),
+                        "task_run_id": _edit_task_reserved.get("run_id"),
+                        "outcome": "refused",
                     }
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _canvas_edit_data["plan_unavailable"] = True
@@ -6431,6 +6748,8 @@ class ChatOrchestrator:
                         "success": True,
                         "message": _no_apply_message,
                         "session_id": session_id,
+                        # D3: every outcome carries the execution it belongs to.
+                        "execution_id": _execution_id,
                         "intent": "canvas_edit",
                         "confidence": 0.9,
                         "data": {"canvas_edit": _canvas_edit_data},
@@ -7300,6 +7619,19 @@ class ChatOrchestrator:
                         "disambiguation": pending_task.get("disambiguation"),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # A REVISED OBJECTIVE IS AUTHORITATIVE, and it has to
+                        # be declared as such: the query handed to the reader
+                        # is the STORED ASK, which still names the outgoing
+                        # item ("...: No. 381, U-22, ..."). Re-deriving the
+                        # item set from that text outranks plain inheritance
+                        # and silently returns the pre-edit list, so the turn
+                        # answers the question it was correcting (measured:
+                        # the revised set arrived and was discarded, U-22
+                        # included). Only a turn that actually revised the
+                        # objective sets this.
+                        "revised_targets": (
+                            (pending_task.get("objective_edit") or {}).get(
+                                "items") or []),
                         "execution_id": execution_id,
                         "session_id": session_id,
                         "request_id": request_id,
@@ -8517,6 +8849,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _off_request = False
             _deterministic_answer: Optional[str] = None
             _objective_comparison: Optional[Dict[str, Any]] = None
+            # THIS TURN'S structured workbook record, for the evidence-bound
+            # narration guard below. It must be bound HERE, beside the read
+            # that produced it, for two reasons.
+            #
+            # SCOPE: the guard lives in this method, so the record has to be
+            # a local of this method. It was previously hoisted in
+            # `process_message` as `_pfr_structured_for_turn`, which is not
+            # in scope here — every turn that produced a structured record
+            # raised `NameError` at the guard, the whole reply was discarded
+            # by the enclosing `except`, and the turn silently fell through
+            # to legacy feature routing (live: "Replace U-22 with U-38"
+            # answered "I've added ... to your Tasks", because the TASKS
+            # handler was the next thing to claim the turn).
+            #
+            # FRESHNESS: the record must be the one THIS turn read, never the
+            # session's persisted copy. The persisted copy is the PREVIOUS
+            # turn's answer, so validating narration against it would bless
+            # exactly the stale list this guard exists to reject.
+            _turn_structured_record: Optional[Dict[str, Any]] = None
             # PENDING FILE TASK support (2026-09-23): on a resume turn the
             # plan is built from the CONFIRMED ORIGINAL ask, so the
             # relevance gate and the executor's context (identifier net,
@@ -8892,6 +9243,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _prefetch_meta:
                             _deterministic_answer = _prefetch_meta.get(
                                 "rendered_answer"
+                            ) or None
+                            _turn_structured_record = _prefetch_meta.get(
+                                "workbook_read"
                             ) or None
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -9409,6 +9763,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _deterministic_answer = _storage_read_meta.get(
                                 "rendered_answer"
                             ) or None
+                            _turn_structured_record = _storage_read_meta.get(
+                                "workbook_read"
+                            ) or None
                         if not _off_request and _storage_read_meta:
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -9717,6 +10074,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _live_file_lookup_ran = True
                                 _deterministic_answer = (
                                     _sr_direct.get("rendered_answer")
+                                    or None)
+                                _turn_structured_record = (
+                                    _sr_direct.get("workbook_read")
                                     or None)
                             logger.info(
                                 "[pending-file-task] planner unavailable — "
@@ -12003,7 +12363,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[deterministic-render] workbook answer rendered from "
                         "structured catalog evidence"
                     )
-                elif _pfr_structured_for_turn:
+                elif _turn_structured_record:
                     # EVIDENCE-BOUND NARRATION (2026-09-27).
                     #
                     # This turn HAS a structured record, so the model is
@@ -12027,15 +12387,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         validate_rendered_against_record,
                     )
                     _narration_check = validate_rendered_against_record(
-                        _content, _pfr_structured_for_turn)
+                        _content, _turn_structured_record)
                     if not _narration_check.get("ok"):
                         _repaired = None
                         _repair_check = None
                         try:
                             _repaired = present_from_record(
-                                _pfr_structured_for_turn)["answer"]
+                                _turn_structured_record)["answer"]
                             _repair_check = validate_rendered_against_record(
-                                _repaired, _pfr_structured_for_turn)
+                                _repaired, _turn_structured_record)
                         except Exception:  # noqa: BLE001
                             _repaired, _repair_check = None, None
                         if _repaired and (_repair_check or {}).get("ok"):
@@ -13157,15 +13517,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "Updated the canvas — it should refresh beside this panel (and "
             "the new version is saved to its history)."
         )
-        if (
-            fresh.evidence_contract
-            and result.get("postcondition_verified") is False
-        ):
+        # D0: success is VERIFIED PERSISTENCE, not a tool saying OK.
+        #
+        # `plan.reply` is written by the planner and describes the edit it
+        # intended. Rendering it as this turn's answer is only honest once the
+        # durable canvas has been read back and found to contain the write.
+        # `apply_canvas_edit` now always reads back, so this is a real gate for
+        # every canvas, not only evidence-contract ones.
+        #
+        # Previously the guard was `fresh.evidence_contract and ... is False`,
+        # so an ordinary canvas skipped verification entirely and this path
+        # asserted `updated: True` over an unverified write. Measured 2026-09-27:
+        # the reply showed "**Canvas Updated:** ... Quote validity: **30
+        # days**" with no `canvas_audit` row anywhere and no canvas containing
+        # the new text.
+        _verified = result.get("postcondition_verified")
+        if _verified is not True:
+            logger.warning(
+                "canvas edit NOT verified for %s (postcondition_verified=%r); "
+                "answering with an unverified result rather than a success "
+                "claim", canvas.get("canvas_id"), _verified)
             reply = (
-                "The canvas write was recorded, but independent read-back "
-                "could not verify every source-backed change. Review the "
-                "artifact before relying on it."
+                "I did not complete that canvas change, so I am not going to "
+                "claim it is done. The edit could not be confirmed in the "
+                "saved canvas, so nothing here should be relied on — the "
+                "canvas still shows its previous content."
             )
+            return {
+                "success": False,
+                "message": reply,
+                "session_id": session_id,
+                "execution_id": execution_id,
+                "intent": "canvas_edit",
+                "confidence": 0.0,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                        "unverified": True,
+                        # D3: the outcome carries its identity and says which
+                        # way it went, so a pending record is never confused
+                        # with a completion and neither is orphaned.
+                        "execution_id": execution_id,
+                        "operation_id": operation_id,
+                        "outcome": "unverified",
+                        "postcondition_verified": _verified,
+                        "postcondition_error": result.get(
+                            "postcondition_error"),
+                        "postcondition_binding": result.get(
+                            "postcondition_binding"),
+                        "write_recorded": bool(result.get("write_recorded")),
+                        "audit_id": result.get("audit_id"),
+                    },
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+            }
         if learning_mode:
             if hitl_policy:
                 # Mature hire, but the owner demanded a human for canvas
@@ -13198,6 +13605,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "canvas_edit": {
                     "canvas_id": canvas.get("canvas_id"),
                     "updated": True,
+                    # D3: completion carries its identity and names its outcome,
+                    # so all three outcomes (refused / unverified / completed)
+                    # are distinguishable from the response alone.
+                    "execution_id": execution_id,
+                    "operation_id": operation_id,
+                    "outcome": "completed",
+                    "postcondition_verified": True,
                     **({"audit_id": result.get("audit_id")}
                        if result.get("audit_id") else {}),
                     "review_status": (
@@ -13831,6 +14245,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         }
 
         target_features = intent_to_features.get(primary_intent, [FeatureType.SEARCH])
+
+        # AN ENTITY-SET EDIT IS NOT A REQUEST TO CREATE A TASK (2026-09-27).
+        #
+        # "Replace U-22 with U-38" arrives here as TASK_MANAGEMENT — the NLU
+        # reads the verb `replace` as an action on a task — and the TASKS
+        # handler then creates a real task row and answers "I've added
+        # 'Replace U-22 with U-38' to your Tasks", inventing an obligation the
+        # user never asked for and losing the edit. Measured live: this was
+        # the turn's final answer on all four task-correction sequences.
+        #
+        # When the conversation holds a file objective, the turn is a
+        # CONTINUATION of that objective and belongs to the resume lane, which
+        # applies the edit to the objective and re-reads the edited set. So
+        # TASKS is dropped from the target set and the turn falls through to
+        # the general agent rather than manufacturing a task.
+        #
+        # Both conditions are required, and `entity_set_edit` is fail-closed by
+        # construction (entity-shaped tokens on the relevant side, judged with
+        # file mentions blanked out), so an ordinary "replace the logo in the
+        # draft" or a genuine "replace my Q3 task with Q4" is unaffected: the
+        # first is not a set edit, the second has no file objective.
+        if FeatureType.TASKS in target_features and _is_file_objective_turn(
+                message, session):
+            target_features = [
+                f for f in target_features if f is not FeatureType.TASKS
+            ]
+            logger.info(
+                "[feature-routing] entity-set edit on an active file "
+                "objective — TASKS not offered (%d target(s) remain)",
+                len(target_features))
 
         # Execute feature handlers
         feature_responses = {}

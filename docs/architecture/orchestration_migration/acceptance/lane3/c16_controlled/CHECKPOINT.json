@@ -1,0 +1,62 @@
+{
+  "schema": "lane3-c16-checkpoint-v1",
+  "generated_at": "2026-09-27T23:40:00-0400",
+  "overall": "C16 CONTROLLED PLANNER ACCEPTANCE IS GREEN on a single frozen export: synchronous 15/15, background success 24/24, background failure 25/25 (empty notification channel), plus verified interruption recovery. Directive steps 1 and 2 are complete. Steps 3-8 remain.",
+  "supersedes": "the 21:40 checkpoint of this path",
+  "result_record": "docs/architecture/orchestration_migration/acceptance/lane3/c16_d1_controlled/RESULT.json",
+  "identity": {
+    "base_HEAD": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "branch": "main",
+    "staged_paths_preexisting": 7,
+    "note": "Nothing committed or staged by these sessions. HEAD unchanged."
+  },
+  "candidate": {
+    "world": "c16_d1",
+    "backend_port": 8075,
+    "code_snapshot_sha256_32": "9cdf562d10aa5989c6f4fe663fd52709",
+    "fixture_sha256_32": "6d28d0e9ddc9dbe2ef849b088cd10060",
+    "identity": "a8bc48dc13e5-dirty.32f44",
+    "note": "All three cases ran against THIS ONE export, in three separate launches with separate run dirs, because the interactive budget is fixed at server launch and each case needs a different one."
+  },
+  "results": {
+    "case_1_synchronous": {"pass": true, "checks": "15/15", "run_dir": "run-5405e6d383ee", "budget": "(product default)", "evidence": "c16_d1_controlled/c16_controlled_sync.json"},
+    "case_2_background_success": {"pass": true, "checks": "24/24", "run_dir": "run-2bc197b9e021", "budget": "60.0 (edit-leg slice 20s, stall 40s)", "terminal": "completed / [applied] in 4s", "evidence": "c16_d1_controlled/c16_controlled_bg-success.json"},
+    "case_3_background_failure": {"pass": true, "checks": "25/25", "run_dir": "run-20a91c7096a1", "budget": "60.0", "terminal": "failed / zero update audits", "evidence": "c16_d1_controlled/c16_controlled_bg-failure.json"},
+    "interruption_recovery": {"status": "verified", "detail": "an interrupted continuation left a durable row 'running'; restarting the world on the SAME run dir reconciled it to a truthful terminal failure ('Process restarted while execution was running (crashed)') via core.execution_recovery; 0 rows left running afterwards"}
+  },
+  "the_four_harness_defects_that_made_earlier_results_meaningless": [
+    "BUDGET FEASIBILITY. The product reserves ATOM_REPLY_LEG_MIN_SECONDS (default 40) for the answer and refuses to START a pre-reply leg it cannot pay for, so any budget <= 40s skips the canvas-edit leg entirely - no edit, no fork, and the edit planner is never called, which is also why the shim log was empty. The harness had been asking for 25s. It now refuses such a budget up front.",
+    "STALL GATED ON PROMPT TEXT. The shim matched on the substring 'canvaseditplan' across the whole message blob, and the REPLY leg's prompt contains it too, so the reply leg drew the 40s stall and starved the edit leg. Now armed for one exact tool advertised in tools[], one gated match consumes it, non-matching requests recorded separately.",
+    "SUBSCRIPTION OPENED AFTER EXECUTION. The websocket subscription was opened after the interactive reply returned, but the continuation completes seconds after the fork - before that reply - so the broadcast could never be seen. Now subscribed first, with the request issued on its own thread.",
+    "INJECTION NEVER PROVEN. 'Provider loaded' and 'no fallback marker' do not prove a request occurred. The harness now traces provider selection -> attempted request -> shim receipt -> served response -> parser acceptance, and an unproven injection yields INCONCLUSIVE."
+  ],
+  "product_changes_now_exercised": {
+    "identity_contract": "fork_canvas_edit_continuation carries the interactive turn's task-lifecycle operation id (origin_operation_id); both fork sites pass it; persisted durably in the AgentExecution metadata; _operation_identity/_matched_operation_row locate the mutation through that relationship with exact operation_id equality. Unit-verified against the real c16_d0 evidence: without it landed=False, with it the landed audit row is found.",
+    "reconciliation": "_classify_preapply claims already_applied only when the matched row is still the canvas's current revision - narrows what counts as done, revision door and read-back gates unchanged.",
+    "effect": "the background case now reports outcome=applied in 4s, where it previously retried three times and reported failure against a write that had actually landed."
+  },
+  "not_done": [
+    "the origin-operation reconciliation path in a LIVE background run (unit-verified only; the green run took the continuation's-own-write path)",
+    "a deliberate harness-timed worker kill during an in-flight continuation (the recovery code path is verified, but on a real interrupted run rather than a timed kill)",
+    "directive step 3: D5 completion UX - readable execution-bound outcome instead of bracketed diagnostic text, channel binding and reconnect recovery",
+    "directive step 4: real-planner evaluation on API-created canvases",
+    "directive step 5: canvas creation/read consistency",
+    "directive step 6: final combined candidate freeze",
+    "directive step 7: public/browser acceptance",
+    "directive step 8: handoff publication",
+    "artifact editing promotion (correctly still excluded)"
+  ],
+  "next_command": "backend/venv314/bin/python docs/architecture/orchestration_migration/acceptance/lane3/controlled_planner_c16.py --world c16_d1 --out docs/architecture/orchestration_migration/acceptance/lane3/c16_d1_controlled --port 8075 --relaunch --mode sync --only sync",
+  "next_steps_in_order": [
+    "1. Directive step 3 (D5 completion UX) against the SAME c16_d1 export: render a readable execution-bound outcome rather than the bracketed diagnostic, and prove channel binding and reconnect recovery.",
+    "2. Directive step 4: separate real-planner evaluation on canvases created through the normal API, with the starting state frozen.",
+    "3. Directive step 5: trace the CanvasAudit-row requirement for canvas creation/read and fix the product invariant if an API-created canvas is unreadable.",
+    "4. Directive step 6: final combined candidate freeze (full source + base HEAD + fixture/schema/config hashes + effective flags).",
+    "5. Directive steps 7-8: browser acceptance on the frozen candidate, then publish the handoff."
+  ],
+  "preserved": {
+    "preview_v1": {"fe": 3101, "be": 8051, "state": "untouched, listening"},
+    "candidate_fix1": {"fe": 3102, "be": 8071, "state": "untouched, listening"},
+    "c16_d0": "left intact as the evidence world for the 16:36 snapshot; no result is carried from it into c16_d1"
+  }
+}

@@ -202,6 +202,46 @@ class TestResolveRequestedItems:
         assert _resolve_active_items(
             "try the search again", ctx, None) == active
 
+    def test_a_revised_objective_outranks_the_ask_text_it_supersedes(self):
+        # Live 2026-09-27, the first divergent boundary of the replacement
+        # gate. "Replace U-22 with U-38" does not restate the ask — the ask
+        # still says "...: No. 381, U-22, ..." — so re-deriving the item set
+        # from that text returned the OUTGOING item and the turn answered the
+        # question it was correcting. The revision was passed in as
+        # `requested_targets` and silently discarded. A revised objective is
+        # declared separately and wins outright.
+        from core.chat_tool_planner import _resolve_active_items
+
+        ask = ("find the prices of these 8 machines in w.xlsx: No. 381, "
+               "U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, "
+               "TK Multi Wheel Gang Slitter and GSL48-16")
+        edited = ["No. 381", "U-38", "No. 622", "TK Manual Flanger",
+                  "SLE24-16", "TK 1624", "TK Multi Wheel Gang Slitter",
+                  "GSL48-16"]
+        ctx = {"requested_targets": edited, "revised_targets": edited,
+               "history": []}
+        assert _resolve_active_items(ask, ctx, None) == edited
+
+    def test_the_revision_key_does_not_leak_into_own_text_derivation(self):
+        # The revision must be consumed as the authority, not also offered to
+        # the turn's-own-text path, where it would be mined a second time and
+        # could re-tokenise the labels.
+        from core.chat_tool_planner import _resolve_active_items
+
+        edited = ["No. 381", "U-38"]
+        ctx = {"revised_targets": edited, "requested_targets": edited,
+               "history": [{"message": "and also check Z-99"}]}
+        assert _resolve_active_items("and also check Z-99", ctx, None) == edited
+
+    def test_an_unrevised_objective_keeps_the_old_precedence(self):
+        # Negative control: the ordinary precedence (turn's own text beats
+        # inheritance) is untouched for every turn that did not revise.
+        from core.chat_tool_planner import _resolve_active_items
+
+        active = ["No. 381", "U-22"]
+        ctx = {"requested_targets": active, "history": []}
+        assert _resolve_active_items("now check Z-99 too", ctx, None) == ["Z-99"]
+
     def test_latest_explicit_list_replaces(self):
         from core.chat_tool_planner import _resolve_active_items
 

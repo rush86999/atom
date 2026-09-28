@@ -1,0 +1,31 @@
+{
+  "responses": [
+    {
+      "match": "CanvasEditPlan",
+      "response": {
+        "response": {
+          "tool_call": {
+            "name": "CanvasEditPlan",
+            "arguments": {
+              "wants_edit": true,
+              "edit_mode": "patch",
+              "ops": [
+                {
+                  "field": "body",
+                  "find": "Quote validity: 15 days.",
+                  "replace": "Quote validity: 30 days."
+                }
+              ],
+              "restore_audit_id": null,
+              "updated_content_json": null,
+              "title": null,
+              "reply": "Updated the quote validity to 30 days."
+            }
+          }
+        },
+        "stall_seconds": 40.0,
+        "stall_first_n": 1
+      }
+    }
+  ]
+}

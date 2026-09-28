@@ -155,6 +155,22 @@ class AsyncTurnContinuation:
     # Idempotency snapshot, taken at fork time.
     snapshot_content_hash: str = ""
     snapshot_audit_ts: str = ""
+    # IDENTITY CONTRACT (2026-09-27, acceptance c16 case 2). A canvas edit
+    # carries FOUR distinct ids and they are equal by nothing:
+    #   execution_id        the interactive turn that was answered
+    #   origin_operation_id that turn's task-lifecycle reservation -- THIS is
+    #                       the id the write path stamps into
+    #                       CanvasAudit.details_json.operation_id
+    #   continuation_id     this background continuation
+    #   audit row id        the mutation itself
+    # The interactive attempt that timed out structurally cannot know the
+    # continuation_id, so a probe that assumed operation_id ==
+    # continuation_id could never see the write that actually landed, and a
+    # durably-applied edit was reported unconfirmed on every attempt (live:
+    # audit b3cb9277 carried operation_id 1e57dfae while the continuation was
+    # 3fe40fae). Carrying the origin operation id makes the relationship
+    # explicit, so the mutation is located THROUGH it rather than guessed at.
+    origin_operation_id: str = ""
     # EVIDENCE HANDOFF (review item 2): the turn's already-retrieved
     # evidence block — the reply path's search found data the edit's own
     # fresh-data search missed (live 2026-09-23: reply had 4/4 slitter
@@ -379,6 +395,14 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                     # continuations it forked (which stamp their own
                     # continuation_id as operation_id).
                     "originating_execution_id": cont.execution_id,
+                    # The identity contract, made DURABLE: the interactive
+                    # turn's lifecycle operation id, which is the id the write
+                    # path stamps on the audit row. Without it in the record
+                    # the relationship between this continuation and the
+                    # mutation it is responsible for is not reconstructable
+                    # after a restart, and the mutation cannot be located.
+                    "origin_operation_id": (
+                        getattr(cont, "origin_operation_id", "") or None),
                     "continuation": {
                         "session_id": cont.session_id,
                         "canvas_id": (cont.canvas or {}).get("canvas_id"),
@@ -386,6 +410,8 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                         "message": cont.message[:500],
                         "snapshot_content_hash": cont.snapshot_content_hash,
                         "snapshot_audit_ts": cont.snapshot_audit_ts,
+                        "origin_operation_id": (
+                            getattr(cont, "origin_operation_id", "") or None),
                         "failure_stage": cont.failure_stage,
                         "evidence_contract": _bounded_evidence_contract(
                             cont.evidence_contract
@@ -602,7 +628,43 @@ def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
+def _operation_identity(cont: AsyncTurnContinuation) -> List[str]:
+    """Every operation id that can legitimately carry THIS request's mutation.
+
+    The write path stamps ``CanvasAudit.details_json.operation_id`` with the
+    task-lifecycle operation id of whichever turn performed the write. When the
+    interactive turn's edit was already in flight when the interactive bound
+    expired, that write is the one that lands -- and it is stamped with the
+    ORIGIN operation, never with the continuation id, which the interactive
+    attempt could not know. Probing for ``operation_id == continuation_id``
+    alone therefore could not see a landed write, and reported a
+    durably-applied edit as unconfirmed on every attempt (live 2026-09-27:
+    audit b3cb9277 carried operation_id 1e57dfae while the continuation was
+    3fe40fae, so the write was invisible to its own continuation).
+
+    Locating the mutation through this relationship is not a relaxation of
+    verification: an id must match EXACTLY one of these attributed ids, the
+    canvas must match, and the caller still has to pass the revision door and
+    the read-back gate. It is the difference between "whose operation is this"
+    and "does this id happen to equal my own".
+    """
+    ids = [str(cont.continuation_id or "")]
+    origin = str(getattr(cont, "origin_operation_id", "") or "")
+    if origin and origin not in ids:
+        ids.append(origin)
+    return [i for i in ids if i]
+
+
+def _matched_operation_row(
+    cont: AsyncTurnContinuation,
+) -> Optional[Dict[str, Any]]:
+    """The audit row carrying THIS request's mutation, located through the
+    identity relationship, or None.
+
+    Returns the ROW rather than just its review_status, so a caller can check
+    revision currency before trusting that the mutation it found is still the
+    canvas's current state.
+    """
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
         return None
@@ -612,25 +674,48 @@ def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
         from core.sql_json import json_field_equals
 
         with get_db_session() as db:
-            q = json_field_equals(
-                db, CanvasAudit.details_json, "$.operation_id",
-                cont.continuation_id)
-            rows = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id, *([q] if q is not None else [])
-            ).all()
-            for row in rows or []:
-                details = row.details_json or {}
-                if isinstance(details, str):
-                    try:
-                        details = json.loads(details)
-                    except Exception:
-                        details = {}
-                if isinstance(details, dict):
-                    return str(details.get("review_status") or "unknown")
-            return None
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"operation-status probe skipped: {e}")
+            for op_id in _operation_identity(cont):
+                q = json_field_equals(
+                    db, CanvasAudit.details_json, "$.operation_id", op_id)
+                for row in db.query(CanvasAudit).filter(
+                    CanvasAudit.canvas_id == canvas_id,
+                    *([q] if q is not None else [])).all() or []:
+                    details = row.details_json or {}
+                    if isinstance(details, str):
+                        try:
+                            details = json.loads(details)
+                        except Exception:  # noqa: BLE001
+                            details = {}
+                    if not isinstance(details, dict):
+                        continue
+                    # EXACT attribution. The JSON predicate is an optimisation;
+                    # this comparison is the decision, so a row that merely
+                    # mentions the id cannot be mistaken for this operation's
+                    # mutation.
+                    if str(details.get("operation_id") or "") != op_id:
+                        continue
+                    return {
+                        "audit_id": str(row.id),
+                        "created_at": (row.created_at.isoformat()
+                                       if row.created_at else ""),
+                        "action_type": str(row.action_type or ""),
+                        "session_id": str(row.session_id or ""),
+                        "review_status": str(
+                            details.get("review_status") or "unknown"),
+                        "operation_id": op_id,
+                    }
         return None
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"operation-row probe skipped: {e}")
+        return None
+
+
+def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
+    canvas_id = (cont.canvas or {}).get("canvas_id")
+    if not canvas_id:
+        return None
+    row = _matched_operation_row(cont)
+    return str(row["review_status"]) if row else None
 
 
 def _operation_landed(cont: AsyncTurnContinuation) -> bool:
@@ -661,8 +746,30 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
         return None
-    if _operation_landed(cont):
-        return OUTCOME_ALREADY_APPLIED
+    # DEFENSIVE RECONCILIATION (2026-09-27). Locating the mutation is not
+    # enough to call the request satisfied: the row found must still BE the
+    # canvas's current revision, and it must be this canvas. If something wrote
+    # after it, the user's request is not what the canvas now says, and
+    # reporting "already applied" would be a false completion -- so fall
+    # through to the revision/currency rules below instead. This NARROWS what
+    # counts as done; it never widens it.
+    row = _matched_operation_row(cont)
+    if row and str(row.get("review_status") or "") == "accepted":
+        latest = _latest_audit(canvas_id)
+        if latest and str(latest.get("id") or "") == str(row.get("audit_id")):
+            return OUTCOME_ALREADY_APPLIED
+        if latest is None:
+            # No revision at all to reconcile against: do not claim success.
+            logger.info(
+                "[async-continuation] %s matched operation %s has no current "
+                "revision for canvas %s; not claiming already-applied",
+                cont.continuation_id, row.get("audit_id"), canvas_id)
+        else:
+            logger.info(
+                "[async-continuation] %s matched operation %s is superseded by "
+                "%s on canvas %s; not claiming already-applied",
+                cont.continuation_id, row.get("audit_id"),
+                latest.get("id"), canvas_id)
     operation_status = _operation_status(cont)
     if operation_status == "pending_review":
         return OUTCOME_AWAITING_APPROVAL
@@ -834,6 +941,22 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
     outcome = cont.outcome or OUTCOME_FAILED
     summary = cont.summary or ""
 
+    # DIAGNOSIS (2026-09-27, c16 case 2): _finish_durable_record() -- the ONLY
+    # thing that moves the AgentExecution row off 'running' -- runs in the
+    # `finally` of `await _apply_effects()`. So a stall inside any stage here
+    # leaves the durable row 'running' forever AND the WS event and history
+    # record unmade, while the write itself stays applied. Log entry and every
+    # stage boundary so a stall is attributable to a stage, not just visible.
+    _fx = time.monotonic()
+    logger.info(
+        "[async-continuation] %s effects start outcome=%s",
+        cont.continuation_id, outcome)
+
+    def _stage(n: int, name: str) -> None:
+        logger.info(
+            "[async-continuation] %s effect %d/4 %s done (+%.1fs)",
+            cont.continuation_id, n, name, time.monotonic() - _fx)
+
     # (1) In-memory session context (backend continuity — NOT only the
     # frontend refresh).
     try:
@@ -859,6 +982,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                 session["history"] = session["history"][-24:]
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation session append skipped: {e}")
+    _stage(1, "in-memory-session")
 
     # (2) Durable row.
     try:
@@ -888,6 +1012,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             ))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"continuation persistence skipped: {e}")
+    _stage(2, "durable-chatmessage")
 
     # (3) WS event (frontend refresh + toast).
     try:
@@ -907,6 +1032,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
         )
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation WS broadcast skipped: {e}")
+    _stage(3, "ws-broadcast")
 
     # (4) Notification with OUTCOME-honest wording — "ready for review" is
     # never worded as "completed".
@@ -944,6 +1070,10 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             _mark_continuation_notified(cont.continuation_id)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation notification skipped: {e}")
+    _stage(4, "notification")
+    logger.info(
+        "[async-continuation] %s effects complete (+%.1fs)",
+        cont.continuation_id, time.monotonic() - _fx)
 
 
 async def run_canvas_edit_continuation(
@@ -1060,6 +1190,13 @@ async def run_canvas_edit_continuation(
             "stage=%s", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS,
             time.monotonic() - attempt_started, cont.failure_stage)
+        # DIAGNOSIS (2026-09-27, acceptance c16 case 2): the write lands but the
+        # attempt is reported unconfirmed, and FOUR separate gates can each say
+        # so. Name the one that actually decided it and log every input, so one
+        # run discriminates instead of four competing hypotheses. Purely
+        # additive -- no gate's condition is altered here.
+        _gate = "no-response"
+        _op_status_dbg: Any = "not-probed"
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
@@ -1068,7 +1205,9 @@ async def run_canvas_edit_continuation(
                 "postcondition_verified"
             )
             cont.review_status = str(edit_meta.get("review_status") or "")
+            readback_ok = False
             if edit_meta.get("updated") is not True:
+                _gate = "updated-not-true"
                 last_note = str(
                     (edit_meta.get("reason") or "edit response did not confirm a write")
                 )[:240]
@@ -1078,10 +1217,17 @@ async def run_canvas_edit_continuation(
                 if cont.evidence_contract and edit_meta.get(
                         "postcondition_verified") is not True:
                     readback_ok = False
+                    _gate = "postcondition-unverified"
                     last_note = "source-backed read-back was not verified"
                 if cont.readback_required and readback_ok:
-                    readback_ok = _operation_landed(cont)
+                    # Probed ONCE: _operation_landed() is exactly this
+                    # comparison and the probe is a DB read.
+                    _op_status_dbg = _operation_status(cont)
+                    readback_ok = _op_status_dbg == "accepted"
+                    if not readback_ok:
+                        _gate = "operation-not-landed"
                     if readback_ok:
+                        _gate = "read-canvas"
                         try:
                             from tools.canvas_crud_tool import read_canvas
 
@@ -1093,13 +1239,19 @@ async def run_canvas_edit_continuation(
                                 readback.get("success")
                                 and readback.get("audit_id")
                             )
+                            if not readback_ok:
+                                _gate = "read-canvas-no-audit-id"
                         except Exception as read_err:
                             readback_ok = False
+                            _gate = "read-canvas-error"
                             last_note = (
                                 "readback failed: "
                                 f"{type(read_err).__name__}: {str(read_err).strip()}"
                             )
+                elif readback_ok:
+                    _op_status_dbg = "skipped(readback_required=False)"
                 if readback_ok:
+                    _gate = "CONFIRMED"
                     summary = str(response.get("message") or "").strip() or (
                         "Canvas edit applied to "
                         f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
@@ -1110,6 +1262,19 @@ async def run_canvas_edit_continuation(
                     return OUTCOME_APPLIED, summary
                 if not last_note or last_note == "the edit planner could not complete":
                     last_note = "the write could not be confirmed by audit readback"
+
+        # The one line that settles WHICH gate refused a landed write.
+        logger.info(
+            "[async-continuation] %s attempt %d/%d READBACK-DECISION "
+            "gate=%s response=%s updated=%r postcondition_verified=%r "
+            "evidence_contract=%s readback_required=%s audit_id=%r "
+            "op_status=%r review_status=%r note=%s",
+            cont.continuation_id, attempt, _ASYNC_CONTINUATION_ATTEMPTS,
+            _gate, bool(response), edit_meta.get("updated") if response else None,
+            edit_meta.get("postcondition_verified") if response else None,
+            bool(cont.evidence_contract), bool(cont.readback_required),
+            cont.audit_id or None, _op_status_dbg, cont.review_status or None,
+            str(last_note)[:160])
 
         if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
             delay = min(
@@ -1216,6 +1381,7 @@ def fork_canvas_edit_continuation(
     provenance: Optional[Dict[str, Any]] = None,
     evidence_block: str = "",
     evidence_contract: Optional[Dict[str, Any]] = None,
+    origin_operation_id: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
     branch. Snapshots the idempotency state at fork time. Returns the
@@ -1234,6 +1400,7 @@ def fork_canvas_edit_continuation(
         provenance=provenance,
         snapshot_content_hash=_content_hash(canvas or {}),
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
+        origin_operation_id=str(origin_operation_id or ""),
         evidence_block=evidence_block or "",
         evidence_contract=(
             dict(evidence_contract)

@@ -5618,7 +5618,8 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
                           candidate_probe_tokens: Any) -> List[str]:
     """Follow-ups inherit the active objective; they never union history.
 
-    - The current turn alone yields items -> the latest explicit
+    - An EXPLICITLY REVISED objective (``revised_targets``) wins outright.
+    - Otherwise the current turn alone yields items -> the latest explicit
       (replacement) list wins; older mentions stay out.
     - Otherwise the active list carried on the context
       (``requested_targets``: the stored objective's ordered items) is
@@ -5626,7 +5627,29 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     - Otherwise (fresh asks) the full history mining runs as before.
     Probe tokens and historical aliases remain search aids downstream;
     this list is the presentation authority.
+
+    WHY A REVISION OUTRANKS THE TURN'S OWN TEXT (2026-09-27, live). The
+    ordering above is right for a follow-up that RESTATES the list: the
+    newest statement of the objective should beat the stored one. A set edit
+    inverts it. "Replace U-22 with U-38" does not restate the ask — the ask
+    is unchanged and still says "...: No. 381, U-22, No. 622, ..." — so
+    re-deriving from it returns the OUTGOING item and silently undoes the
+    user's correction. Measured: the revised set was passed in as
+    ``requested_targets`` and came back as the original eight, U-22
+    included, so the turn answered the question it was correcting.
+
+    So the revision is not a hint about the objective, it IS the objective:
+    the user has already said what it should be, and the stored ask text is
+    the superseded statement of it. Callers that revise an objective must
+    pass ``revised_targets``; the ordinary ``requested_targets`` precedence
+    is untouched for every turn that does not.
     """
+    revised = (context or {}).get("revised_targets")
+    if isinstance(revised, str):
+        revised = [revised]
+    revised = [str(v).strip() for v in (revised or []) if str(v).strip()]
+    if revised:
+        return list(revised)
     active = (context or {}).get("requested_targets")
     if isinstance(active, str):
         active = [active]
@@ -5634,6 +5657,7 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     own_ctx = dict(context or {})
     own_ctx["history"] = []
     own_ctx.pop("requested_targets", None)
+    own_ctx.pop("revised_targets", None)
     try:
         own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
     except Exception:
@@ -6080,6 +6104,13 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # Did this turn REVISE the objective? When it did, `item_tokens` is the
+    # revised set and therefore the requested ORDER, and the asking turn's
+    # text must not re-sort it (see the `order_hint` argument below).
+    revised_targets = [
+        str(v).strip() for v in ((context or {}).get("revised_targets") or [])
+        if str(v).strip()
+    ]
     # Attempt identity is allocated BEFORE retrieval: every invocation
     # outcome below binds to this id, including failures. Scan entry/exit
     # rows make retrieval invocations countable per execution/attempt.
@@ -6325,7 +6356,19 @@ async def _datasets_named_file_block(
                 coverage_limits=coverage_limits,
                 evidence_action=_scan_action,
                 attempt_id=_scan_attempt_id,
-                order_hint=" ".join(
+                # A REVISED OBJECTIVE IS ITS OWN ORDERING AUTHORITY
+                # (2026-09-27). `order_hint` re-sorts the resolved items by
+                # where they first appear in the asking turn's text, and
+                # anything the text cannot see sorts LAST. For a set edit
+                # that is exactly wrong twice over: the text is the
+                # SUPERSEDED ask (it still names the outgoing item), and the
+                # incoming item is by definition absent from it. Measured:
+                # "Replace U-22 with U-38" rendered U-38 dead last instead of
+                # in U-22's slot, so the answer read as an append rather than
+                # the swap that was asked for. When the turn revised the
+                # objective, `item_tokens` already IS the requested order, so
+                # the hint is dropped rather than allowed to override it.
+                order_hint=None if revised_targets else " ".join(
                     value for value in (query, msg_text) if value),
             ),
         )
