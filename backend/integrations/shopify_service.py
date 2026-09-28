@@ -25,11 +25,16 @@ class ShopifyService(IntegrationService):
         self.client = httpx.AsyncClient(timeout=30.0)
         self.http = IntegrationHTTP(client=self.client)
 
+    # Pinned Admin REST API version. Retired versions fall forward to the
+    # oldest supported one, so keep this a deliberately-bumped, currently
+    # supported release (2023-10 sat retired for ~2 years falling forward).
+    API_VERSION = "2026-07"
+
     def _get_base_url(self, shop: str) -> str:
         # Shop should be "my-shop.myshopify.com"
         if not shop.endswith(".myshopify.com"):
             shop = f"{shop}.myshopify.com"
-        return f"https://{shop}/admin/api/2023-10"
+        return f"https://{shop}/admin/api/{self.API_VERSION}"
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         return {
@@ -99,22 +104,6 @@ class ShopifyService(IntegrationService):
         except httpx.HTTPError as e:
             logger.error(f"Shopify token exchange failed: {e}")
             raise HTTPException(status_code=400, detail="Internal error")
-
-    async def get_products(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get list of products"""
-        try:
-            url = f"{self._get_base_url(shop)}/products.json"
-            headers = self._get_headers(access_token)
-            params = {"limit": limit}
-            
-            response = await self.http.get("shopify", url, headers=headers, params=params)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data.get("products", [])
-        except Exception as e:
-            logger.error(f"Failed to get products: {e}")
-            raise HTTPException(status_code=500, detail="Internal error")
 
     async def create_product(self, access_token: str, shop: str, product: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new product listing (title/body/variants/images/tags)."""
@@ -368,44 +357,105 @@ class ShopifyService(IntegrationService):
             raise HTTPException(status_code=500, detail="Internal error")
 
     # --- FULFILLMENTS ---
+    # FulfillmentOrder statuses a merchant fulfillment can act on; closed/
+    # cancelled/incomplete orders are rejected by POST /fulfillments.json.
+    _FULFILLABLE_FO_STATUSES = ("open", "in_progress")
+
     async def get_fulfillments(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
         """Get fulfillments for an order"""
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
-            
+
             response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
-            
+
             return response.json().get("fulfillments", [])
         except Exception as e:
             logger.error(f"Failed to get fulfillments: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
-    async def create_fulfillment(self, access_token: str, shop: str, order_id: str, 
-                                  location_id: str, tracking_number: Optional[str] = None,
-                                  tracking_company: Optional[str] = None) -> Dict[str, Any]:
-        """Create a fulfillment for an order"""
+    async def get_fulfillment_orders(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
+        """Get the fulfillment orders (per-location units of work) for an order."""
         try:
-            url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
+            url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillment_orders.json"
             headers = self._get_headers(access_token)
-            
-            fulfillment_data = {
-                "fulfillment": {
-                    "location_id": location_id,
-                    "notify_customer": True
-                }
-            }
-            
-            if tracking_number:
-                fulfillment_data["fulfillment"]["tracking_number"] = tracking_number
-            if tracking_company:
-                fulfillment_data["fulfillment"]["tracking_company"] = tracking_company
-            
-            response = await self.http.post("shopify", url, headers=headers, json=fulfillment_data)
+
+            response = await self.http.get("shopify", url, headers=headers)
             response.raise_for_status()
-            
+
+            return response.json().get("fulfillment_orders", [])
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Shopify get fulfillment orders failed: {e.response.status_code}: {e.response.text[:500]}"
+            )
+            raise HTTPException(status_code=502, detail="Shopify get fulfillment orders failed")
+        except Exception as e:
+            logger.error(f"Failed to get fulfillment orders for order {order_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def create_fulfillment(self, access_token: str, shop: str, order_id: str,
+                                  location_id: Optional[str] = None,
+                                  tracking_number: Optional[str] = None,
+                                  tracking_company: Optional[str] = None) -> Dict[str, Any]:
+        """Create a fulfillment for an order.
+
+        Shopify removed the order-scoped fulfillment writes in version 2022-07;
+        creation now goes through POST /fulfillments.json and must reference
+        fulfillment orders, so this resolves them from ``order_id`` and fulfills
+        every remaining line item. ``location_id`` is an optional filter — the
+        API derives the fulfillment location from the fulfillment order itself.
+        """
+        try:
+            fulfillment_orders = await self.get_fulfillment_orders(access_token, shop, order_id)
+            actionable = [fo for fo in fulfillment_orders
+                          if fo.get("status") in self._FULFILLABLE_FO_STATUSES]
+            if location_id and actionable:
+                at_location = [fo for fo in actionable
+                               if str(fo.get("assigned_location_id")) == str(location_id)]
+                if not at_location:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(f"No fulfillable fulfillment order for order {order_id} "
+                                f"is assigned to location {location_id}"),
+                    )
+                actionable = at_location
+            if not actionable:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Order {order_id} has no fulfillable fulfillment orders (nothing left to fulfill)",
+                )
+
+            fulfillment: Dict[str, Any] = {
+                # Omitting fulfillment_order_line_items fulfills every
+                # remaining line item of each fulfillment order.
+                "line_items_by_fulfillment_order": [
+                    {"fulfillment_order_id": fo["id"]} for fo in actionable
+                ],
+                "notify_customer": True,
+            }
+            tracking_info: Dict[str, Any] = {}
+            if tracking_number:
+                tracking_info["number"] = tracking_number
+            if tracking_company:
+                tracking_info["company"] = tracking_company
+            if tracking_info:
+                fulfillment["tracking_info"] = tracking_info
+
+            url = f"{self._get_base_url(shop)}/fulfillments.json"
+            headers = self._get_headers(access_token)
+            response = await self.http.post("shopify", url, headers=headers,
+                                            json={"fulfillment": fulfillment})
+            response.raise_for_status()
+
             return response.json().get("fulfillment", {})
+        except HTTPException:
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Shopify create fulfillment failed: {e.response.status_code}: {e.response.text[:500]}"
+            )
+            raise HTTPException(status_code=502, detail="Shopify create fulfillment failed")
         except Exception as e:
             logger.error(f"Failed to create fulfillment: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
@@ -664,9 +714,9 @@ class ShopifyService(IntegrationService):
                 return {"success": True, "result": result}
             elif operation == "create_fulfillment":
                 result = await self.create_fulfillment(
-                    token, shop, 
+                    token, shop,
                     order_id=parameters["order_id"],
-                    location_id=parameters["location_id"],
+                    location_id=parameters.get("location_id"),
                     tracking_number=parameters.get("tracking_number"),
                     tracking_company=parameters.get("tracking_company")
                 )

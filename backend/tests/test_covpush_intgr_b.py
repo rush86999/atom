@@ -977,8 +977,8 @@ class TestShopifyService:
 
     async def test_base_helpers(self):
         svc = self._svc()
-        assert svc._get_base_url("myshop.myshopify.com") == "https://myshop.myshopify.com/admin/api/2023-10"
-        assert svc._get_base_url("other") == "https://other.myshopify.com/admin/api/2023-10"
+        assert svc._get_base_url("myshop.myshopify.com") == "https://myshop.myshopify.com/admin/api/2026-07"
+        assert svc._get_base_url("other") == "https://other.myshopify.com/admin/api/2026-07"
         h = svc._get_headers("tok")
         assert h["X-Shopify-Access-Token"] == "tok"
 
@@ -1058,6 +1058,9 @@ class TestShopifyService:
 
     async def test_write_operations(self):
         svc = self._svc()
+        svc.http.get = AsyncMock(return_value=self._resp(
+            {"fulfillment_orders": [{"id": 5, "status": "open",
+                                     "assigned_location_id": "loc1"}]}))
         svc.http.post = AsyncMock(return_value=self._resp({"fulfillment": {"id": 1}}))
         result = await svc.create_fulfillment("tok", "myshop", "o1", "loc1", "tn1", "ups")
         assert result["id"] == 1

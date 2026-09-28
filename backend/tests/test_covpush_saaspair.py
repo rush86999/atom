@@ -872,8 +872,8 @@ def test_trello_full_sync(patch_session_local):
 
 async def test_shopify_base_url_and_headers():
     svc = make_shopify()
-    assert svc._get_base_url("acme") == "https://acme.myshopify.com/admin/api/2023-10"
-    assert svc._get_base_url("acme.myshopify.com") == "https://acme.myshopify.com/admin/api/2023-10"
+    assert svc._get_base_url("acme") == "https://acme.myshopify.com/admin/api/2026-07"
+    assert svc._get_base_url("acme.myshopify.com") == "https://acme.myshopify.com/admin/api/2026-07"
     headers = svc._get_headers("tok")
     assert headers["X-Shopify-Access-Token"] == "tok"
     assert headers["Content-Type"] == "application/json"
@@ -953,25 +953,34 @@ async def test_shopify_get_customer_and_search():
     svc = make_shopify(script={"GET": [FakeResponse(json_data={"customer": {"id": 1}}), FakeResponse(json_data={"customers": [{"id": 2}]})]})
     assert await svc.get_customer("t", "acme", "1") == {"id": 1}
     assert await svc.search_customers("t", "acme", "bob@example.com") == [{"id": 2}]
-    assert svc.http.calls[1][2]["params"] == {"query": "bob@example.com"}
+    assert svc.http.calls[1][2]["params"] == {"query": "bob@example.com", "limit": 20}
 
 
 async def test_shopify_fulfillments():
-    svc = make_shopify(script={"GET": [FakeResponse(json_data={"fulfillments": [{"id": 1}]})], "POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
+    svc = make_shopify(script={
+        "GET": [FakeResponse(json_data={"fulfillments": [{"id": 1}]}),
+                FakeResponse(json_data={"fulfillment_orders": [{"id": 11, "status": "open", "assigned_location_id": 3}]})],
+        "POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
     assert await svc.get_fulfillments("t", "acme", "o1") == [{"id": 1}]
-    result = await svc.create_fulfillment("t", "acme", "o1", "loc1", tracking_number="TN1", tracking_company="FedEx")
+    assert svc.http.calls[0][1].endswith("/orders/o1/fulfillments.json")
+    result = await svc.create_fulfillment("t", "acme", "o1", "3", tracking_number="TN1", tracking_company="FedEx")
     assert result == {"id": 2}
-    body = svc.http.calls[1][2]["json"]
-    assert body["fulfillment"]["tracking_number"] == "TN1"
-    assert body["fulfillment"]["tracking_company"] == "FedEx"
+    assert svc.http.calls[1][1].endswith("/orders/o1/fulfillment_orders.json")
+    assert svc.http.calls[2][1].endswith("/fulfillments.json")
+    body = svc.http.calls[2][2]["json"]
+    assert body["fulfillment"]["line_items_by_fulfillment_order"] == [{"fulfillment_order_id": 11}]
+    assert body["fulfillment"]["tracking_info"] == {"number": "TN1", "company": "FedEx"}
     assert body["fulfillment"]["notify_customer"] is True
+    assert "location_id" not in body["fulfillment"]
 
 
 async def test_shopify_create_fulfillment_minimal():
-    svc = make_shopify(script={"POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
-    await svc.create_fulfillment("t", "acme", "o1", "loc1")
-    body = svc.http.calls[0][2]["json"]
-    assert "tracking_number" not in body["fulfillment"]
+    svc = make_shopify(script={
+        "GET": [FakeResponse(json_data={"fulfillment_orders": [{"id": 11, "status": "open"}]})],
+        "POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
+    await svc.create_fulfillment("t", "acme", "o1")
+    body = svc.http.calls[1][2]["json"]
+    assert "tracking_info" not in body["fulfillment"]
 
 
 async def test_shopify_refunds():
@@ -1035,7 +1044,7 @@ async def test_shopify_analytics_error():
 async def test_shopify_capabilities_and_health():
     svc = make_shopify()
     caps = svc.get_capabilities()
-    assert len(caps["operations"]) == 4
+    assert len(caps["operations"]) == 9
     assert caps["supports_webhooks"] is True
     result = await svc.health_check()
     assert result["healthy"] is True

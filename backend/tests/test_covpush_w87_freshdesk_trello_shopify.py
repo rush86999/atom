@@ -478,7 +478,7 @@ def _sh_get(svc, payload=None, status=200):
 
 def test_sh_helpers(sh):
     assert sh._get_base_url('my-shop') == \
-        'https://my-shop.myshopify.com/admin/api/2023-10'
+        'https://my-shop.myshopify.com/admin/api/2026-07'
     assert sh._get_base_url('x.myshopify.com').startswith('https://x.myshopify')
     assert sh._get_headers('tok')['X-Shopify-Access-Token'] == 'tok'
     caps = sh.get_capabilities()
@@ -526,9 +526,19 @@ async def test_sh_read_endpoints(sh):
 async def test_sh_write_endpoints(sh):
     _sh_get(sh, {'fulfillment': {'id': 'f'}, 'draft_order': {'id': 'd'},
                  'refund': {'id': 'r'}})
+    sh.http.get = AsyncMock(return_value=_resp(
+        {'fulfillment_orders': [{'id': 12, 'status': 'open',
+                                 'assigned_location_id': 'loc'}]}))
     assert await sh.create_fulfillment(
         't', 'my-shop', 'o1', 'loc', tracking_number='TN',
         tracking_company='UPS') == {'id': 'f'}
+    sh.http.post.assert_any_await(
+        'shopify', 'https://my-shop.myshopify.com/admin/api/2026-07/fulfillments.json',
+        headers={'X-Shopify-Access-Token': 't', 'Content-Type': 'application/json'},
+        json={'fulfillment': {
+            'line_items_by_fulfillment_order': [{'fulfillment_order_id': 12}],
+            'notify_customer': True,
+            'tracking_info': {'number': 'TN', 'company': 'UPS'}}})
     assert await sh.create_draft_order(
         't', 'my-shop', [{'x': 1}], customer_id='c') == {'id': 'd'}
     assert await sh.complete_draft_order('t', 'my-shop', 'd1') == {'id': 'd'}

@@ -532,7 +532,7 @@ async def create_fulfillment(
     current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
-    location_id: str = Query(..., description="Location ID"),
+    location_id: str = Query(None, description="Optional location filter; Shopify derives the fulfillment location from the order's fulfillment orders"),
     tracking_number: str = Query(None, description="Tracking Number"),
     tracking_company: str = Query(None, description="Tracking Company")
 ):

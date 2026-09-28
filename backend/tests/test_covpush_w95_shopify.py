@@ -83,12 +83,12 @@ class TestInit:
 class TestHelpers:
     def test_base_url_appends_domain(self):
         svc = _svc()
-        assert svc._get_base_url("my-shop") == "https://my-shop.myshopify.com/admin/api/2023-10"
+        assert svc._get_base_url("my-shop") == "https://my-shop.myshopify.com/admin/api/2026-07"
 
     def test_base_url_keeps_domain(self):
         svc = _svc()
         assert svc._get_base_url("other.myshopify.com") == \
-            "https://other.myshopify.com/admin/api/2023-10"
+            "https://other.myshopify.com/admin/api/2026-07"
 
     def test_get_headers(self):
         svc = _svc()
@@ -288,7 +288,7 @@ class TestCustomers:
         svc = _svc()
         svc.http.get = AsyncMock(return_value=_resp(200, {"customers": [{"id": 1}]}))
         assert await svc.search_customers("tok", "shop", "ada@x.com") == [{"id": 1}]
-        assert svc.http.get.call_args.kwargs["params"] == {"query": "ada@x.com"}
+        assert svc.http.get.call_args.kwargs["params"] == {"query": "ada@x.com", "limit": 20}
 
     async def test_search_customers_error(self):
         svc = _svc()
@@ -310,27 +310,63 @@ class TestFulfillments:
             await svc.get_fulfillments("tok", "shop", "o1")
         assert ei.value.status_code == 500
 
+    async def test_get_fulfillment_orders(self):
+        svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "open"}]}))
+        out = await svc.get_fulfillment_orders("tok", "shop", "o1")
+        assert out == [{"id": 7, "status": "open"}]
+        assert svc.http.get.call_args.args[1].endswith("/orders/o1/fulfillment_orders.json")
+
     async def test_create_fulfillment_full(self):
         svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "open", "assigned_location_id": 2},
+            {"id": 8, "status": "in_progress", "assigned_location_id": 2},
+            {"id": 9, "status": "closed", "assigned_location_id": 2},
+        ]}))
         svc.http.post = AsyncMock(return_value=_resp(201, {"fulfillment": {"id": 1}}))
-        out = await svc.create_fulfillment("tok", "shop", "o1", "loc1",
+        out = await svc.create_fulfillment("tok", "shop", "o1", "2",
                                            tracking_number="TN1", tracking_company="UPS")
         assert out == {"id": 1}
+        assert svc.http.post.call_args.args[1].endswith("/fulfillments.json")
         body = svc.http.post.call_args.kwargs["json"]["fulfillment"]
-        assert body == {"location_id": "loc1", "notify_customer": True,
-                        "tracking_number": "TN1", "tracking_company": "UPS"}
+        assert body["line_items_by_fulfillment_order"] == [
+            {"fulfillment_order_id": 7}, {"fulfillment_order_id": 8}]
+        assert body["notify_customer"] is True
+        assert body["tracking_info"] == {"number": "TN1", "company": "UPS"}
+        assert "location_id" not in body
 
     async def test_create_fulfillment_minimal(self):
         svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "open"}]}))
         svc.http.post = AsyncMock(return_value=_resp(201, {}))
-        await svc.create_fulfillment("tok", "shop", "o1", "loc1")
+        await svc.create_fulfillment("tok", "shop", "o1")
         body = svc.http.post.call_args.kwargs["json"]["fulfillment"]
-        assert "tracking_number" not in body
-        assert "tracking_company" not in body
+        assert body["line_items_by_fulfillment_order"] == [{"fulfillment_order_id": 7}]
+        assert "tracking_info" not in body
+
+    async def test_create_fulfillment_location_mismatch_422(self):
+        svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "open", "assigned_location_id": 2}]}))
+        with pytest.raises(HTTPException) as ei:
+            await svc.create_fulfillment("tok", "shop", "o1", "999")
+        assert ei.value.status_code == 422
+        svc.http.post.assert_not_called()
+
+    async def test_create_fulfillment_nothing_fulfillable_422(self):
+        svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "closed"}]}))
+        with pytest.raises(HTTPException) as ei:
+            await svc.create_fulfillment("tok", "shop", "o1")
+        assert ei.value.status_code == 422
 
     async def test_create_fulfillment_error(self):
         svc = _svc()
-        svc.http.post = AsyncMock(side_effect=httpx.ConnectError("net"))
+        svc.http.get = AsyncMock(side_effect=httpx.ConnectError("net"))
         with pytest.raises(HTTPException) as ei:
             await svc.create_fulfillment("tok", "shop", "o1", "loc1")
         assert ei.value.status_code == 500
@@ -500,8 +536,10 @@ class TestCapabilities:
     def test_operations(self):
         caps = _svc().get_capabilities()
         ops = {o["id"] for o in caps["operations"]}
-        assert ops == {"get_products", "get_orders", "create_fulfillment",
-                       "get_shop_analytics"}
+        assert ops == {"get_products", "create_product", "get_orders",
+                       "create_fulfillment", "get_shop_analytics",
+                       "list_blogs", "create_blog", "list_articles",
+                       "create_article"}
         assert caps["supports_webhooks"] is True
 
 
