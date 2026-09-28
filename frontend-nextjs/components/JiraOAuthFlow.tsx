@@ -13,6 +13,16 @@ interface JiraOAuthFlowProps {
   className?: string;
 }
 
+const apiConfig = {
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || '',
+  endpoints: {
+    startOAuth: '/api/auth/jira/start',
+    getResources: '/api/auth/jira/resources',
+    getProjects: '/api/auth/jira/{cloud_id}/projects',
+    revoke: '/api/auth/jira/{cloud_id}'
+  }
+};
+
 export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
   onIntegrationComplete,
   onError,
@@ -36,19 +46,8 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
     refreshToken: ''
   });
 
-  // Base API configuration
-  const apiConfig = {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
-    endpoints: {
-      startOAuth: '/api/auth/jira/start',
-      getResources: '/api/auth/jira/resources',
-      getProjects: '/api/auth/jira/{cloud_id}/projects',
-      revoke: '/api/auth/jira/{cloud_id}'
-    }
-  };
-
   // Build API URL
-  const buildApiUrl = (endpoint: string, params: Record<string, string> = {}): string => {
+  const buildApiUrl = useCallback((endpoint: string, params: Record<string, string> = {}): string => {
     let url = `${apiConfig.baseUrl}${endpoint}`;
     
     // Replace path parameters
@@ -69,7 +68,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
     }
     
     return url;
-  };
+  }, []);
 
   // Start OAuth flow
   const startOAuthFlow = useCallback(async () => {
@@ -121,7 +120,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
         onError(errorMessage);
       }
     }
-  }, [userData.userId, onError]);
+  }, [userData.userId, onError, buildApiUrl]);
 
   // Handle OAuth callback
   const handleOAuthCallback = useCallback(async (code: string, state: string) => {
@@ -161,63 +160,6 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
       }
     }
   }, [onError]);
-
-  // Load discovered resources
-  const loadResources = useCallback(async () => {
-    try {
-      setOAuthState(prev => ({
-        ...prev,
-        status: 'loading',
-        step: 'Loading accessible Jira resources...'
-      }));
-
-      console.log('🌐 Loading Jira resources...');
-      
-      const resourcesUrl = buildApiUrl(apiConfig.endpoints.getResources);
-      const response = await fetch(`${resourcesUrl}?user_id=${userData.userId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load resources: ${response.status} - ${response.statusText}`);
-      }
-
-      const resourcesData = await response.json();
-      console.log('✅ Resources loaded:', resourcesData);
-
-      setOAuthState(prev => ({
-        ...prev,
-        step: 'Resources loaded successfully',
-        resources: resourcesData.resources
-      }));
-
-      if (onResourcesDiscovered) {
-        onResourcesDiscovered(resourcesData.resources);
-      }
-
-      // Auto-select first resource if available
-      if (resourcesData.resources.length > 0) {
-        handleResourceSelect(resourcesData.resources[0]);
-      }
-
-    } catch (error) {
-      console.error('❌ Resource loading error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Resource loading failed';
-      
-      setOAuthState(prev => ({
-        ...prev,
-        status: 'error',
-        step: errorMessage
-      }));
-
-      if (onError) {
-        onError(errorMessage);
-      }
-    }
-  }, [userData.userId, onResourcesDiscovered, onError]);
 
   // Handle resource selection
   const handleResourceSelect = useCallback(async (resource: JiraResources) => {
@@ -299,7 +241,64 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
         onError(errorMessage);
       }
     }
-  }, [userData.userId, onIntegrationComplete, onError]);
+  }, [userData.userId, onIntegrationComplete, onError, buildApiUrl]);
+
+  // Load discovered resources
+  const loadResources = useCallback(async () => {
+    try {
+      setOAuthState(prev => ({
+        ...prev,
+        status: 'loading',
+        step: 'Loading accessible Jira resources...'
+      }));
+
+      console.log('🌐 Loading Jira resources...');
+
+      const resourcesUrl = buildApiUrl(apiConfig.endpoints.getResources);
+      const response = await fetch(`${resourcesUrl}?user_id=${userData.userId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load resources: ${response.status} - ${response.statusText}`);
+      }
+
+      const resourcesData = await response.json();
+      console.log('✅ Resources loaded:', resourcesData);
+
+      setOAuthState(prev => ({
+        ...prev,
+        step: 'Resources loaded successfully',
+        resources: resourcesData.resources
+      }));
+
+      if (onResourcesDiscovered) {
+        onResourcesDiscovered(resourcesData.resources);
+      }
+
+      // Auto-select first resource if available
+      if (resourcesData.resources.length > 0) {
+        handleResourceSelect(resourcesData.resources[0]);
+      }
+
+    } catch (error) {
+      console.error('❌ Resource loading error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Resource loading failed';
+
+      setOAuthState(prev => ({
+        ...prev,
+        status: 'error',
+        step: errorMessage
+      }));
+
+      if (onError) {
+        onError(errorMessage);
+      }
+    }
+  }, [userData.userId, onResourcesDiscovered, onError, buildApiUrl, handleResourceSelect]);
 
   // Check URL parameters for OAuth callback
   useEffect(() => {

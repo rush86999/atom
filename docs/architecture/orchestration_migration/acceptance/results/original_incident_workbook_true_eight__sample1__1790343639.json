@@ -1,0 +1,116 @@
+{
+ "sample": 1,
+ "session_id": "acc-true8-1790343633-1",
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 38",
+   "success": true,
+   "latency_s": 5.91,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 5.91,
+ "progress_event_latency_s": null,
+ "first_validated_answer_text_s": null,
+ "deterministic_delivery": true,
+ "per_target": {
+  "U-22": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "U-22",
+    "status": "FOUND",
+    "evidence": "LINMAC!A26 R26 (values: C26=1777.0 [basis=List Price; currency=unspecified], M26=1777.0 [basis=List Price_2; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "SLE24-16": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "SLE24-16",
+    "status": "FOUND",
+    "evidence": "Tennsmith !A101 R101 (values: E101=8880 [basis=PRICE; currency=unspecified], M101=4500.0 [basis=U.S. LIST; currency=unspecified], O101=3600.0 [basis=U.S. COST; currency=unspecified], W101=6250.96 [basis=FULL COST CDN; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "TK 1624": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "1624",
+    "status": "FOUND",
+    "evidence": "Tinknocker!A101 R101 (values: D101=8040.0 [basis=Price; currency=unspecified], H101=3950.0 [basis=Factory Price; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "TK Manual Flanger": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "Manual Flanger",
+    "status": "FOUND",
+    "evidence": "Tinknocker!A42 R42 (values: D42=1609.0 [basis=Price; currency=unspecified], H42=950.0 [basis=Factory Price; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "GSL48-16": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "GSL48-16",
+    "status": "FOUND",
+    "evidence": "Tennsmith !A106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "No. 381": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "row": {
+    "target": "381",
+    "status": "AMBIGUOUS",
+    "evidence": "RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified])"
+   },
+   "price_ok": null,
+   "pass": true
+  },
+  "No. 622": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "row": {
+    "target": "622",
+    "status": "AMBIGUOUS",
+    "evidence": "RoperWhitney !B265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !D265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified])"
+   },
+   "price_ok": null,
+   "pass": true
+  },
+  "TK Multi Wheel Gang Slitter": {
+   "expected": "ambiguous_candidate",
+   "got": "ambiguous",
+   "row": {
+    "target": "Multi Wheel Gang Slitter",
+    "status": "AMBIGUOUS",
+    "evidence": "[matched via alias 'Gang Slitter'] Tennsmith !A105 R105 (values: E105= [basis=PRICE; currency=unspecified], M105=nan [basis=U.S. LIST; currency=unspecified], O105=nan [basis=U.S. COST; currency=unspecified], W105=nan [basis=FULL COST CDN; currency=unspecified]) ; Tennsmith !D106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified]) ; Tinknocker!A100 R100 (values: D100=12838.0 [basis=Price; currency=unspecified], H100=5450.0 [basis=Factory Price; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  }
+ },
+ "correct_completion": true,
+ "missing_target_rows": [],
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecifi",
+ "case_id": "original_incident_workbook_true_eight",
+ "captured_at": "2026-09-25T09:40:39-0400",
+ "path": "old",
+ "config": {
+  "ATOM_CHAT_STREAMING": "0 (HTTP-only harness)",
+  "note": "progress-event and first-validated-answer-text latencies not instrumented in HTTP-only runs"
+ }
+}

@@ -1,0 +1,222 @@
+{
+  "schema": "lane3-c16-controlled-planner-v1",
+  "generated_at": "2026-09-27T19:27:52-0400",
+  "world": "c16_d0",
+  "scope": "ONLY the planner's model response is injected. Auth, authorization<REDACTED>, reservation, execution claim, mutation, audit, read-back, verification and finalization all run for real. This is EFFECT-LAYER coverage and is NOT evidence that the production planner accepts canvas edits.",
+  "shim": {
+    "port": 49251,
+    "script": "docs/architecture/orchestration_migration/acceptance/lane3/c16_controlled/planner_script.json",
+    "provider_key": "local_82ee68cb",
+    "pin": "local_82ee68cb/shim-1",
+    "model": "shim-1",
+    "base_url": "http://127.0.0.1:49251/v1",
+    "scripted_plan": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+        {
+          "field": "body",
+          "find": "Quote validity: 15 days.",
+          "replace": "Quote validity: 30 days."
+        }
+      ],
+      "restore_audit_id": null,
+      "updated_content_json": null,
+      "title": null,
+      "reply": "Updated the quote validity to 30 days."
+    }
+  },
+  "authenticated_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+  "response_keys": [
+    "confidence",
+    "error_code",
+    "execution_id",
+    "intent",
+    "memory_context",
+    "message",
+    "metadata",
+    "model",
+    "next_steps",
+    "provider",
+    "reasoning",
+    "recovery_url",
+    "requires_confirmation",
+    "session_id",
+    "success",
+    "suggested_actions",
+    "timestamp"
+  ],
+  "response_preview": {
+    "success": true,
+    "session_id": "c16-sync-C16SYNC-1790551673",
+    "intent": "canvas_edit",
+    "confidence": 0.9,
+    "suggested_actions": [],
+    "requires_confirmation": false,
+    "next_steps": [],
+    "timestamp": "2026-09-27T19:27:54.164262",
+    "metadata": {
+      "canvas_edit": {
+        "canvas_id": "7d7018d4-fdf6-4269-a56a-21cdf47bbcd6",
+        "updated": false,
+        "no_apply": true,
+        "reason": "edit_not_applied",
+        "background_started": false,
+        "execution_id": "c61a6ea7-f302-4777-bee0-ef40a19ff1aa",
+        "operation_id": "d184d684-ced5-46e1-ac2f-1e572eb0961c",
+        "task_run_id": "9ebb7b0f-aecd-4f6c-a6a1-a2c15f3e301b",
+        "outcome": "refused"
+      },
+      "persistence": {
+        "status": "persisted"
+      }
+    },
+    "memory_context": null,
+    "model": null,
+    "provider": null,
+    "reasoning": null,
+    "execution_id": "c61a6ea7-f302-4777-bee0-ef40a19ff1aa",
+    "error_code": null,
+    "recovery_url": null
+  },
+  "case_bg-success": {
+    "name": "background bg-success",
+    "mode": "bg-success",
+    "status_code": 200,
+    "fork_observed": false,
+    "durable_continuation_rows": 0,
+    "interactive_budget_requested": 25.0,
+    "stall_seconds": 40.0,
+    "interactive_budget_seen_by_server": "25.0",
+    "pending_signal": false,
+    "pending_signal_source": {
+      "shared_forked": false,
+      "metadata_forked": false,
+      "initial_outcome": "refused"
+    },
+    "initial_reply": "I couldn't complete the canvas edit, so nothing was changed. Please try again in a moment.",
+    "terminal": {},
+    "after": {
+      "audit_count": 1,
+      "audit_actions": [
+        "create"
+      ],
+      "audit_details": [
+        "{\"content\": \"{\\\"to\\\": \\\"steve@example.com\\\", \\\"cc\\\": \\\"\\\", \\\"subject\\\": \\\"Quote for Steve\\\", \\\"body\\\": \\\"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested "
+      ],
+      "content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- C16BG-BG-SUCCESS-1790551794 --></div>\"}",
+      "has_new_text": false,
+      "has_old_text": true,
+      "operations": [
+        {
+          "status": "cancelled",
+          "operation_id": "dbfce706-77e7-4815-83da-8e1828d30c6d",
+          "run_id": "8ac6224b-9811-42be-ad0d-7963482275bc"
+        },
+        {
+          "status": "cancelled",
+          "operation_id": "d184d684-ced5-46e1-ac2f-1e572eb0961c",
+          "run_id": "9ebb7b0f-aecd-4f6c-a6a1-a2c15f3e301b"
+        }
+      ]
+    },
+    "ws_events_seen": 0,
+    "continuation_events": [],
+    "history": {
+      "reachable": true,
+      "status_code": 200,
+      "has_continuation": false,
+      "has_raw_bracket_diagnostic": false,
+      "bytes": 642
+    },
+    "audit_count_before_reconnect": 1,
+    "audit_count_after_reconnect": 1,
+    "fallback_evidence": [],
+    "checks": {
+      "injection_was_consumed": false,
+      "interactive_budget_knob_reached_the_server": true,
+      "stall_exceeds_interactive_budget": true,
+      "background_path_was_actually_exercised": false,
+      "initial_response_was_pending_not_complete": false,
+      "terminal_state_observed": false,
+      "terminal_state_matches_expectation": false,
+      "durable_completion_recorded": false,
+      "no_duplicate_effect_after_reconnect": true,
+      "history_recovery_reachable": true,
+      "no_stranded_operation": true,
+      "exactly_one_update_audit": false,
+      "intended_mutation_persisted": false,
+      "old_text_gone": false,
+      "live_notification_received": false,
+      "history_shows_the_completed_edit": false,
+      "no_false_failure": false,
+      "no_fallback_provider_supplied_the_plan": true
+    },
+    "pass": false,
+    "inconclusive": true
+  },
+  "case_1_synchronous": {
+    "name": "synchronous edit",
+    "status_code": 200,
+    "execution_id": "c61a6ea7-f302-4777-bee0-ef40a19ff1aa",
+    "canvas_edit": {
+      "canvas_id": "7d7018d4-fdf6-4269-a56a-21cdf47bbcd6",
+      "updated": false,
+      "no_apply": true,
+      "reason": "edit_not_applied",
+      "background_started": false,
+      "execution_id": "c61a6ea7-f302-4777-bee0-ef40a19ff1aa",
+      "operation_id": "d184d684-ced5-46e1-ac2f-1e572eb0961c",
+      "task_run_id": "9ebb7b0f-aecd-4f6c-a6a1-a2c15f3e301b",
+      "outcome": "refused"
+    },
+    "reply": "I couldn't complete the canvas edit, so nothing was changed. Please try again in a moment.",
+    "before": {
+      "audit_count": 1,
+      "has_new_text": false
+    },
+    "after": {
+      "audit_count": 1,
+      "audit_actions": [
+        "create"
+      ],
+      "has_new_text": false,
+      "has_old_text": true,
+      "operations": [
+        {
+          "status": "cancelled",
+          "operation_id": "d184d684-ced5-46e1-ac2f-1e572eb0961c",
+          "run_id": "9ebb7b0f-aecd-4f6c-a6a1-a2c15f3e301b"
+        }
+      ]
+    },
+    "checks": {
+      "injection_was_consumed": false,
+      "injection_hits": 0,
+      "exactly_one_audit_row": false,
+      "durable_content_has_the_intended_change": false,
+      "the_old_text_is_gone": false,
+      "reported_updated_true": false,
+      "reported_verified": false,
+      "postcondition_verified": false,
+      "reported_audit_id_present": false,
+      "reported_canvas_is_the_edited_one": true,
+      "execution_identity_present": true,
+      "operation_identity_present": true,
+      "no_stranded_operation": true,
+      "accepted_plan_is_the_injected_plan": false,
+      "no_fallback_provider_supplied_the_plan": true
+    },
+    "fallback_evidence": [],
+    "boundaries": {
+      "b1_served": false,
+      "b2_parser_accepted": false,
+      "b3_no_fallback": true,
+      "b4_mutation_audited": false,
+      "b5_readback_verified": false
+    },
+    "pass": false
+  },
+  "shim_log": [],
+  "shim_log_tail": []
+}

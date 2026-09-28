@@ -832,11 +832,17 @@ export default function CanvasDetailPage() {
             // the identity in (audit-row provenance).
             const fromChat = router.query.from === "chat";
             const agentId = (router.query.agent_id as string) || trainingCtx?.agent?.id || undefined;
+            // Transport idempotency key for this submitted turn (reused
+            // only for network retries of the same turn).
+            const requestId = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `req_${Date.now()}_${Math.random().toString(36).slice(2)}`);
             const resp = await apiClient.post("/api/chat/message", {
                 message: chatInput,
                 user_id: userId,
                 session_id: chatSessionId || (fromChat ? (router.query.session as string) : undefined) || "new",
                 agent_id: agentId,
+                request_id: requestId,
                 context: {
                     current_page: `/canvas/${canvasId}`,
                     canvas_id: canvasId,
@@ -1067,10 +1073,34 @@ export default function CanvasDetailPage() {
                 });
                 setChatSessionId(prev => prev || sid!);
             } else {
+                // Stage the failure honestly (2026-09-25 review item 4): a
+                // timeout with a pollable session means the poll ran and
+                // found no late reply; a timeout with no session never
+                // polled; a real HTTP error is a failed turn — none of them
+                // may wear the others' message. Request-security rejections
+                // carry their category in the 400 body ("Invalid request
+                // content", rejected_rule) — surface it instead of implying
+                // the agent was unreachable.
+                const errData: any = e?.response?.data;
+                const rejection =
+                    typeof errData?.error === "string" && errData.error !== "Proxy error"
+                        ? errData.error
+                        : typeof errData?.detail === "string"
+                            ? errData.detail
+                            : undefined;
+                const rejectionRule =
+                    typeof errData?.rejected_rule === "string"
+                        ? ` (rule: ${errData.rejected_rule})`
+                        : "";
+                const failureDetail = !timedOut
+                    ? `request failed with agent error ${e?.response?.status ?? "unknown"}${rejection ? `: ${rejection}${rejectionRule}` : ""}`
+                    : sid
+                        ? `no completed reply recovered within the poll window${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)})` : ""}`
+                        : "request timed out before a session was established; no poll ran";
                 setMessages(prev => [...prev, {
                     id: "err",
                     type: "system",
-                    content: `⚠️ Could not reach the agent${turnExecIdRef.current ? ` (turn ${turnExecIdRef.current.slice(0, 8)}: no completed reply recovered within the poll window)` : ""}. Please try again.`, 
+                    content: `⚠️ Could not reach the agent: ${failureDetail}. Please try again.`,
                     timestamp: new Date(),
                 }]);
             }

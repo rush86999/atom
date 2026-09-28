@@ -3,39 +3,39 @@
  * Handle OAuth flow completion
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
+
+const EMPTY_CALLBACK_DATA = {
+  code: '',
+  state: '',
+  error: '',
+  errorDescription: ''
+};
 
 export default function JiraOAuthPage() {
   const router = useRouter();
-  const [callbackData, setCallbackData] = useState({
-    code: '',
-    state: '',
-    error: '',
-    errorDescription: ''
-  });
+  const callbackData = useMemo(() => {
+    if (!router.isReady || typeof window === 'undefined') return EMPTY_CALLBACK_DATA;
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      code: urlParams.get('code') || '',
+      state: urlParams.get('state') || '',
+      error: urlParams.get('error') || '',
+      errorDescription: urlParams.get('description') || ''
+    };
+  }, [router.isReady]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && router.isReady) {
-      const urlParams = new URLSearchParams(window.location.search);
-
-      const data = {
-        code: urlParams.get('code') || '',
-        state: urlParams.get('state') || '',
-        error: urlParams.get('error') || '',
-        errorDescription: urlParams.get('description') || ''
-      };
-
-      setCallbackData(data);
-
       // Handle the callback
-      if (data.code) {
+      if (callbackData.code) {
         // Success - notify parent window
         if (window.opener) {
           window.opener.postMessage({
             type: 'JIRA_OAUTH_SUCCESS',
-            code: data.code,
-            state: data.state
+            code: callbackData.code,
+            state: callbackData.state
           }, window.location.origin);
         }
 
@@ -43,13 +43,13 @@ export default function JiraOAuthPage() {
         setTimeout(() => {
           window.close();
         }, 2000);
-      } else if (data.error) {
+      } else if (callbackData.error) {
         // Error - notify parent window
         if (window.opener) {
           window.opener.postMessage({
             type: 'JIRA_OAUTH_ERROR',
-            error: data.error,
-            errorDescription: data.errorDescription
+            error: callbackData.error,
+            errorDescription: callbackData.errorDescription
           }, window.location.origin);
         }
 
@@ -59,7 +59,7 @@ export default function JiraOAuthPage() {
         }, 2000);
       }
     }
-  }, [router.isReady]);
+  }, [callbackData, router.isReady]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center p-4">

@@ -29,7 +29,6 @@ jest.mock('../../lib/api-client', () => ({
 }));
 
 import StripeIntegration from '../StripeIntegration';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { apiClient } = require('../../lib/api-client') as {
   apiClient: {
     get: jest.Mock;

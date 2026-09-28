@@ -14,7 +14,7 @@ row, so the full lifecycle is auditable and episodes can capture it.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.chat_session_context import audit_agent_id, audit_session_id
 
@@ -314,6 +314,8 @@ async def update_canvas_content(
     operation_id: Optional[str] = None,
     expected_prior_audit_id: Optional[str] = None,
     pending_review: bool = False,
+    evidence_refs: Optional[List[str]] = None,
+    postconditions: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Update the content of an existing canvas.
 
@@ -416,10 +418,17 @@ async def update_canvas_content(
 
             # Merge new content into the existing details.
             details = dict(latest.details_json or {})
+            details.pop("operation_id", None)
+            details.pop("evidence_refs", None)
+            details.pop("postconditions", None)
             details["content"] = content
             details["review_status"] = review_status
             if operation_id:
                 details["operation_id"] = operation_id
+            if evidence_refs:
+                details["evidence_refs"] = list(dict.fromkeys(evidence_refs))[:50]
+            if postconditions:
+                details["postconditions"] = list(postconditions)[:50]
             if title:
                 details["title"] = title
 
@@ -726,7 +735,10 @@ async def restore_canvas_version(
             # Base the new row on the LATEST details (preserves send metadata,
             # pins, learning-loop state), then override content/title and mark
             # the provenance.
-            new_details = latest_details
+            new_details = dict(latest_details)
+            new_details.pop("operation_id", None)
+            new_details.pop("evidence_refs", None)
+            new_details.pop("postconditions", None)
             new_details["content"] = content
             new_details["review_status"] = "accepted"
             if target_details.get("title"):
@@ -1036,6 +1048,9 @@ async def restore_deleted_canvas(
                 return {"success": False, "error": "No content to restore"}
 
             details = dict(content_row.details_json or {})
+            details.pop("operation_id", None)
+            details.pop("evidence_refs", None)
+            details.pop("postconditions", None)
             details["restored_from_delete"] = True
 
             from datetime import datetime as _dt, timezone as _tz, timedelta as _td

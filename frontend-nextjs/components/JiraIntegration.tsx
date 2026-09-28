@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Eye,
@@ -209,7 +209,7 @@ const JiraIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -221,11 +221,6 @@ const JiraIntegration: React.FC = () => {
                 const isConnected = providers?.jira?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadProjects();
-                    loadUsers();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -235,10 +230,10 @@ const JiraIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Jira data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/jira/profile", {
@@ -258,9 +253,9 @@ const JiraIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadProjects = async () => {
+    const loadProjects = useCallback(async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
             const response = await authFetch("/api/integrations/jira/projects", {
@@ -286,9 +281,9 @@ const JiraIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, projects: false }));
         }
-    };
+    }, [toast]);
 
-    const loadIssues = async () => {
+    const loadIssues = useCallback(async () => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
             const response = await authFetch("/api/integrations/jira/issues", {
@@ -312,9 +307,9 @@ const JiraIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, issues: false }));
         }
-    };
+    }, [selectedProject, selectedStatus, selectedAssignee]);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/jira/users", {
@@ -335,9 +330,9 @@ const JiraIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
-    const loadSprints = async (projectId: string) => {
+    const loadSprints = useCallback(async (projectId: string) => {
         if (!projectId) return;
 
         setLoading((prev) => ({ ...prev, sprints: true }));
@@ -361,7 +356,7 @@ const JiraIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, sprints: false }));
         }
-    };
+    }, []);
 
     const createIssue = async () => {
         if (!newIssue.project || !newIssue.summary) return;
@@ -440,7 +435,7 @@ const JiraIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -448,14 +443,14 @@ const JiraIntegration: React.FC = () => {
             loadProjects();
             loadUsers();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadProjects, loadUsers]);
 
     useEffect(() => {
         if (selectedProject) {
             loadIssues();
             loadSprints(selectedProject);
         }
-    }, [selectedProject, selectedStatus, selectedAssignee]);
+    }, [selectedProject, selectedStatus, selectedAssignee, loadIssues, loadSprints]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

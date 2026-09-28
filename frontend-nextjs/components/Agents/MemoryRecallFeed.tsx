@@ -105,7 +105,7 @@ export function MemoryRecallFeed({ workspaceId, agentId, className }: MemoryReca
                     <div className="py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                         <Activity className="h-12 w-12 text-slate-300 mx-auto mb-4" />
                         <h4 className="text-slate-900 font-medium">No neural events found</h4>
-                        <p className="text-slate-500 text-sm">Agents haven't generated any episodic traces yet.</p>
+                        <p className="text-slate-500 text-sm">Agents haven&apos;t generated any episodic traces yet.</p>
                     </div>
                 ) : (
                     <AnimatePresence mode="popLayout">
@@ -177,7 +177,7 @@ export function MemoryRecallFeed({ workspaceId, agentId, className }: MemoryReca
                                                     <div>
                                                         <span className="text-[10px] uppercase font-bold text-slate-400 block">System Learning</span>
                                                         <p className="text-xs text-slate-600 italic">
-                                                            "{learnings}"
+                                                            &quot;{learnings}&quot;
                                                         </p>
                                                     </div>
                                                 </div>

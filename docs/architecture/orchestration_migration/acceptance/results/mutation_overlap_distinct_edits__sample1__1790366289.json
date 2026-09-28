@@ -1,0 +1,76 @@
+{
+ "case_id": "mutation_overlap_distinct_edits",
+ "sample": 1,
+ "session_id": "acc-ovlap-1790366216-1",
+ "captured_at": "2026-09-25T15:58:09-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "provider": "local shim (CanvasEditPlan patches keyed by turn token)",
+  "canvas_context": {
+   "canvas": {
+    "id": "0e4defa5-a0f3-4e56-b8a7-976c0a93d4fb"
+   }
+  },
+  "observable": "scratch-DB canvas_audit + audit-first readback"
+ },
+ "turns": [
+  {
+   "latency_s": null,
+   "execution_id": null
+  },
+  {
+   "latency_s": null,
+   "execution_id": null
+  }
+ ],
+ "audits_during_window": [],
+ "distinct_operation_ids_seen": [],
+ "readback_excerpt": "{\"to\": \"\", \"cc\": \"\", \"subject\": \"\", \"body\": \"Hi Steve,<br><br>Thank you for your inquiry. Please find our quote below. Rows 1\\u20135 are the requested machines; rows 6\\u20138 are alternative slitters.<br><br><table style=\\\"border-collapse: collapse; width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 14px; margin: 8px 0;\\\"><thead><tr><th style=\\\"border: 1px solid #b0b0b0; padding: 8",
+ "expected_conflict_behavior": {
+  "distinct_operation_ids": true,
+  "both_edits_in_readback": true,
+  "applied_once_each": true,
+  "no_silent_overwrite": true,
+  "conflict_policy": "frozen BEFORE running (review round 20): the two edits touch DISJOINT strings of the same canvas; distinct edits must not silently overwrite each other; each write audited under its own operation/execution id; canonical audit-first readback contains BOTH replacements exactly once; failure modes (lost edit, merged/overwritten content, shared operation id, duplicate application) are recorded as baseline evidence, not repaired"
+ },
+ "results": {
+  "distinct_operation_ids": {
+   "expected": true,
+   "got": false
+  },
+  "both_edits_in_canonical_readback": {
+   "expected": true,
+   "got": false
+  },
+  "applied_exactly_once_each": {
+   "expected": true,
+   "got": false
+  },
+  "no_silent_overwrite": {
+   "expected": true,
+   "got": false
+  }
+ },
+ "claim_checks": [
+  0,
+  0
+ ],
+ "execution_mode": "audit-observed (canvas_audit rows bound to the window)",
+ "output_correctness": false,
+ "correct_completion": false,
+ "unsupported_claims": 0,
+ "replies": [
+  "Message processed successfully",
+  "Message processed successfully"
+ ]
+}

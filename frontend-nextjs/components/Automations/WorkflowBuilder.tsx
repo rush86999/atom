@@ -202,7 +202,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                 })
             );
         }
-    }, [workflowId, nodes.length]); // Re-run when ID changes or new nodes added
+    }, [workflowId, nodes.length, setNodes]); // Re-run when ID changes or new nodes added
 
     // Keyboard Shortcuts
     React.useEffect(() => {
@@ -362,7 +362,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             title: `Added ${piece.name}`,
             description: `${type === 'trigger' ? 'Trigger' : 'Action'}: ${item.name}`,
         });
-    }, [nodes, edges, pendingEdgeInsertion, setNodes, setEdges, toast]);
+    }, [nodes, edges, pendingEdgeInsertion, setNodes, setEdges, takeSnapshot, toast]);
 
     // Handle node selection for configuration
     const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
@@ -380,26 +380,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         );
     }, [setNodes]);
 
-    // Handler for smart suggestions
-    const handleSuggestionClick = useCallback((suggestion: StepSuggestion) => {
-        // Convert suggestion to a node
-        const typeMap: Record<string, string> = {
-            'action': 'action',
-            'trigger': 'trigger',
-            'condition': 'condition',
-            'ai_node': 'ai_node',
-            'loop': 'loop',
-        };
-        const nodeType = typeMap[suggestion.type] || 'action';
-        addNode(nodeType);
-
-        toast({
-            title: `Added ${suggestion.title}`,
-            description: suggestion.reason,
-        });
-    }, [toast]);
-
-    const addNode = (type: string) => {
+    const addNode = useCallback((type: string) => {
         const id = nextNodeId(nodes);
         let data: any = { label: `${type} node` };
 
@@ -447,7 +428,26 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             takeSnapshot({ nodes: newNodes, edges });
             return newNodes;
         });
-    };
+    }, [edges, nodes, setNodes, takeSnapshot]);
+
+    // Handler for smart suggestions
+    const handleSuggestionClick = useCallback((suggestion: StepSuggestion) => {
+        // Convert suggestion to a node
+        const typeMap: Record<string, string> = {
+            'action': 'action',
+            'trigger': 'trigger',
+            'condition': 'condition',
+            'ai_node': 'ai_node',
+            'loop': 'loop',
+        };
+        const nodeType = typeMap[suggestion.type] || 'action';
+        addNode(nodeType);
+
+        toast({
+            title: `Added ${suggestion.title}`,
+            description: suggestion.reason,
+        });
+    }, [addNode, toast]);
 
     const addServiceNode = (service: string) => {
         const id = nextNodeId(nodes);

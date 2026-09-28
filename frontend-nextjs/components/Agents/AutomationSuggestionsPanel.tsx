@@ -28,7 +28,12 @@ export function AutomationSuggestionsPanel({ onCreateAgent }: { onCreateAgent?: 
       .finally(() => setIsLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    getAutomationSuggestions(5)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const dismiss = (title: string) =>
     setDismissed((prev) => new Set(prev).add(title));

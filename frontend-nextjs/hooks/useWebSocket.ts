@@ -42,6 +42,14 @@ export type WebSocketMessageHandler = (message: WebSocketMessage) => void;
 // effect (NextAuth refreshes the token → connect() re-runs).
 const TERMINAL_CLOSE_CODES = new Set([4001, 1008]);
 const RECONNECT_MAX_DELAY_MS = 10000;
+const parseInitialChannels = (channelKey: string): string[] => {
+    try {
+        const channels = JSON.parse(channelKey);
+        return Array.isArray(channels) ? channels : [];
+    } catch {
+        return [];
+    }
+};
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const { data: session } = useSession();
@@ -58,7 +66,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
     const [streamingContent, setStreamingContent] = useState<Map<string, string>>(new Map());
+    const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const wsRef = useRef<WebSocket | null>(null);
+
+    // SOCKET GENERATION. A socket that is CLOSING does not block a new
+    // connect() (only OPEN/CONNECTING do), so a reconnect could install
+    // socket N+1 and then the OLD socket's onclose would run and null
+    // wsRef.current — orphaning a live connection. isConnected would flap
+    // and subscribe() would silently no-op on a socket that is actually
+    // open. Every socket carries the generation it was created in, and a
+    // close/cleanup only mutates shared state if it is still the current
+    // generation.
+    const generationRef = useRef(0);
 
     // Per-message listener registry. `lastMessage` is a SINGLE state slot:
     // under a fast frame burst (chat_token streams deliver hundreds of
@@ -85,6 +104,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // Tracks whether the close was intentional (disconnect() / unmount) so the
     // onclose handler doesn't kick off a reconnect loop for a deliberate teardown.
     const manualCloseRef = useRef<boolean>(false);
+    const connectRef = useRef<() => void>(() => {});
 
     // Use deep comparison key for channels array to avoid ref instability
     const channelKey = JSON.stringify(options.initialChannels || []);
@@ -150,6 +170,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         socketUrl = `${socketUrl}${hasParams ? "&" : "?"}token=${token}`;
 
         const ws = new WebSocket(socketUrl);
+        const generation = ++generationRef.current;
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -157,17 +178,16 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             // A successful connection resets the backoff window and cancels
             // any pending retry from a prior transient failure.
             reconnectAttemptsRef.current = 0;
+            setReconnectAttempts(0);
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
                 reconnectTimeoutRef.current = null;
             }
 
             // Re-subscribe to channels if any
-            if (options.initialChannels) {
-                options.initialChannels.forEach(channel => {
-                    ws.send(JSON.stringify({ type: "subscribe", channel }));
-                });
-            }
+            parseInitialChannels(channelKey).forEach(channel => {
+                ws.send(JSON.stringify({ type: "subscribe", channel }));
+            });
         };
 
         ws.onmessage = (event) => {
@@ -209,6 +229,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         };
 
         ws.onclose = (event: CloseEvent) => {
+            // Only the CURRENT generation may clear shared state. A stale
+            // socket closing must not disconnect or untrack its successor.
+            if (generation !== generationRef.current) {
+                console.debug(
+                    `[useWebSocket] stale socket closed (gen ${generation}, ` +
+                    `current ${generationRef.current}) — ignoring`);
+                return;
+            }
             setIsConnected(false);
             wsRef.current = null;
 
@@ -230,6 +258,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             if (reconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
                 const attempt = reconnectAttemptsRef.current; // 0-indexed
                 reconnectAttemptsRef.current += 1;
+                setReconnectAttempts(reconnectAttemptsRef.current);
                 // delay * 2^attempt + jitter, capped. Jitter prevents retry
                 // storms when many clients drop simultaneously.
                 const jitter = Math.random() * 250;
@@ -239,7 +268,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
                 );
                 reconnectTimeoutRef.current = setTimeout(() => {
                     reconnectTimeoutRef.current = null;
-                    connect();
+                    connectRef.current();
                 }, delay);
             }
         };
@@ -247,7 +276,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         ws.onerror = (error) => {
             // Silent error or toast? For now silent.
         };
-    }, [url, session, channelKey]); // Use channelKey instead of array ref
+    }, [url, session, channelKey, reconnect, maxReconnectAttempts, reconnectDelay]);
+
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
 
     const disconnect = useCallback(() => {
         // Mark the close as intentional so onclose doesn't schedule a reconnect.
@@ -257,9 +290,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             reconnectTimeoutRef.current = null;
         }
         if (wsRef.current) {
+            // Retire the generation BEFORE closing: the close is
+            // asynchronous, and its onclose would otherwise run against a
+            // generation that is still current. Because that close is now
+            // correctly ignored, the connected state is cleared HERE
+            // rather than left to the ignored handler — otherwise an
+            // intentional teardown leaves isConnected stuck true.
+            generationRef.current += 1;
             wsRef.current.close();
             wsRef.current = null;
         }
+        setIsConnected(false);
     }, []);
 
     const subscribe = useCallback((channel: string) => {
@@ -319,7 +360,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         onMessage,
         // Exposed so consumers can drive a "reconnecting…" indicator. No
         // existing consumer reads it; it's additive.
-        reconnectAttempts: reconnectAttemptsRef.current,
+        reconnectAttempts,
         // Exposed so consumers can intentionally tear down without triggering
         // the auto-reconnect loop.
         disconnect,

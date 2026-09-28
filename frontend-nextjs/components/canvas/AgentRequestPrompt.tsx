@@ -58,13 +58,13 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [responding, setResponding] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const { lastMessage, sendMessage } = useWebSocket();
+  const { onMessage, sendMessage } = useWebSocket();
 
-  useEffect(() => {
-    if (!lastMessage || lastMessage.type !== 'agent:request') return;
+  useEffect(() => onMessage((message) => {
+    if (message.type !== 'agent:request') return;
 
     try {
-      const data = lastMessage.data;
+      const data = message.data;
 
       // Filter by requestId if specified
       if (!requestId || data.request_id === requestId) {
@@ -83,7 +83,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, requestId]);
+  }), [onMessage, requestId]);
 
   // Countdown timer
   useEffect(() => {

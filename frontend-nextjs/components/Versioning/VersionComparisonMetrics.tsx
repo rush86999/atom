@@ -5,7 +5,7 @@
  * Shows execution count, success rate, execution time, and performance score.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -109,13 +109,7 @@ export const VersionComparisonMetrics: React.FC<VersionComparisonMetricsProps> =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (selectedVersions.length > 0) {
-      fetchMetrics();
-    }
-  }, [selectedVersions]);
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -172,7 +166,13 @@ export const VersionComparisonMetrics: React.FC<VersionComparisonMetricsProps> =
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedVersions, workflowId, toast]);
+
+  useEffect(() => {
+    if (selectedVersions.length > 0) {
+      fetchMetrics();
+    }
+  }, [selectedVersions, fetchMetrics]);
 
   const handleVersionToggle = (version: string) => {
     if (selectedVersions.includes(version)) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -169,7 +169,7 @@ const NotionIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -181,10 +181,6 @@ const NotionIntegration: React.FC = () => {
                 const isConnected = providers?.notion?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadDatabases();
-                    loadUsers();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -194,10 +190,10 @@ const NotionIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Notion data
-    const loadPages = async (databaseId?: string) => {
+    const loadPages = useCallback(async (databaseId?: string) => {
         setLoading((prev) => ({ ...prev, pages: true }));
         try {
             const response = await authFetch("/api/integrations/notion/pages", {
@@ -231,9 +227,9 @@ const NotionIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, pages: false }));
         }
-    };
+    }, [selectedFilter, toast]);
 
-    const loadDatabases = async () => {
+    const loadDatabases = useCallback(async () => {
         setLoading((prev) => ({ ...prev, databases: true }));
         try {
             const response = await authFetch("/api/integrations/notion/databases", {
@@ -257,9 +253,9 @@ const NotionIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, databases: false }));
         }
-    };
+    }, []);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/notion/users", {
@@ -280,9 +276,9 @@ const NotionIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
-    const searchNotion = async () => {
+    const searchNotion = useCallback(async () => {
         if (!searchQuery) return;
 
         setLoading((prev) => ({ ...prev, search: true }));
@@ -310,7 +306,7 @@ const NotionIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, search: false }));
         }
-    };
+    }, [searchQuery, selectedFilter]);
 
     const createPage = async () => {
         try {
@@ -438,20 +434,20 @@ const NotionIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
             loadDatabases();
             loadUsers();
         }
-    }, [connected]);
+    }, [connected, loadDatabases, loadUsers]);
 
     useEffect(() => {
         if (selectedDatabase) {
             loadPages(selectedDatabase);
         }
-    }, [selectedDatabase, selectedFilter]);
+    }, [selectedDatabase, selectedFilter, loadPages]);
 
     useEffect(() => {
         if (searchQuery) {
@@ -459,7 +455,7 @@ const NotionIntegration: React.FC = () => {
         } else {
             setSearchResults([]);
         }
-    }, [searchQuery, selectedFilter]);
+    }, [searchQuery, selectedFilter, searchNotion]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

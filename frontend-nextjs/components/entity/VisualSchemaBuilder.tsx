@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -213,33 +213,52 @@ const FieldEditor: React.FC<{
   );
 };
 
+function extractSchemaFields(schema: any): FieldConfig[] {
+  try {
+    if (
+      schema &&
+      typeof schema === 'object' &&
+      schema.properties &&
+      typeof schema.properties === 'object'
+    ) {
+      return schemaToFields(schema);
+    }
+  } catch (e) {
+    console.error('Failed to parse schema for visual builder:', e);
+  }
+  return [];
+}
+
 const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
   schema,
   onChange
 }) => {
-  const [fields, setFields] = useState<FieldConfig[]>([]);
+  const incomingFingerprint = JSON.stringify(schema);
+  const [fieldState, setFieldState] = useState<{
+    fields: FieldConfig[];
+    sourceFingerprint: string;
+    emittedFingerprint: string | null;
+  }>(() => ({
+    fields: extractSchemaFields(schema),
+    sourceFingerprint: incomingFingerprint,
+    emittedFingerprint: null
+  }));
   const [editingFieldIdx, setEditingFieldIdx] = useState<number | null>(null);
-
-  useEffect(() => {
-    try {
-      // Guard: a truthy-but-non-object `properties` (e.g. a string from a bad
-      // API payload) would make schemaToFields iterate string chars and
-      // fabricate junk fields (field "0", "1", ...). Only parse real objects.
-      if (
-        schema &&
-        typeof schema === 'object' &&
-        schema.properties &&
-        typeof schema.properties === 'object'
-      ) {
-        const extractedFields = schemaToFields(schema);
-        setFields(extractedFields);
-      }
-    } catch (e) {
-      console.error('Failed to parse schema for visual builder:', e);
-    }
-  }, [schema]);
-
+  const matchesLocalState = incomingFingerprint === fieldState.sourceFingerprint
+    || incomingFingerprint === fieldState.emittedFingerprint;
+  const fields = matchesLocalState ? fieldState.fields : extractSchemaFields(schema);
+  const sourceFingerprint = matchesLocalState ? fieldState.sourceFingerprint : incomingFingerprint;
   const currentSchema = useMemo(() => fieldsToSchema(fields), [fields]);
+
+  const commitFields = (newFields: FieldConfig[]) => {
+    const newSchema = fieldsToSchema(newFields);
+    setFieldState({
+      fields: newFields,
+      sourceFingerprint,
+      emittedFingerprint: JSON.stringify(newSchema)
+    });
+    onChange(newSchema);
+  };
 
   const handleAddField = (type: string) => {
     const newField: FieldConfig = {
@@ -252,9 +271,7 @@ const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
     if (type === 'array') newField.items = { type: 'string' };
     if (type === 'object') newField.properties = [];
 
-    const newFields = [...fields, newField];
-    setFields(newFields);
-    onChange(fieldsToSchema(newFields));
+    commitFields([...fields, newField]);
   };
 
   return (
@@ -284,10 +301,7 @@ const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
             <p className="text-[10px]">Add field to start building</p>
           </div>
         ) : (
-          <Reorder.Group axis="y" values={fields} onReorder={(newFields) => {
-            setFields(newFields);
-            onChange(fieldsToSchema(newFields));
-          }} className="space-y-2">
+          <Reorder.Group axis="y" values={fields} onReorder={commitFields} className="space-y-2">
             {fields.map((field, idx) => (
               <Reorder.Item key={field.name + idx} value={field}>
                 <FieldEditor 
@@ -295,16 +309,13 @@ const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
                   isEditing={editingFieldIdx === idx}
                   onToggleEdit={() => setEditingFieldIdx(editingFieldIdx === idx ? null : idx)}
                   onRemove={() => {
-                    const newFields = fields.filter((_, i) => i !== idx);
-                    setFields(newFields);
-                    onChange(fieldsToSchema(newFields));
+                    commitFields(fields.filter((_, i) => i !== idx));
                     if (editingFieldIdx === idx) setEditingFieldIdx(null);
                   }}
                   onUpdate={(updates) => {
                     const newFields = [...fields];
                     newFields[idx] = { ...newFields[idx], ...updates };
-                    setFields(newFields);
-                    onChange(fieldsToSchema(newFields));
+                    commitFields(newFields);
                   }}
                 />
               </Reorder.Item>
@@ -323,7 +334,6 @@ const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
           <Form
             schema={currentSchema as any}
             validator={validator}
-            children={true}
             uiSchema={{
               "ui:submitButtonOptions": { "norender": true },
               "ui:rootFieldId": "preview",

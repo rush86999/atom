@@ -111,6 +111,34 @@ _OUTCOME_NOTIFICATION_TYPE = {
 }
 
 
+def _m3_enabled() -> bool:
+    return os.getenv("CHAT_FINALIZATION_M3") == "1"
+
+
+def _mark_continuation_notified(continuation_id: str) -> bool:
+    try:
+        from core.database import get_db_session
+        from core.models import AgentExecution
+
+        with get_db_session() as db:
+            row = db.query(AgentExecution).filter(
+                AgentExecution.id == continuation_id).first()
+            if row is None:
+                return False
+            meta = dict(row.metadata_json or {})
+            cont_meta = dict(meta.get("continuation") or {})
+            cont_meta["notified"] = True
+            meta["continuation"] = cont_meta
+            row.metadata_json = meta
+            from sqlalchemy.orm.attributes import flag_modified
+
+            flag_modified(row, "metadata_json")
+        return True
+    except Exception as e:  # noqa: BLE001 — marking is best-effort
+        logger.debug(f"continuation notified-mark skipped: {e}")
+        return False
+
+
 @dataclass
 class AsyncTurnContinuation:
     continuation_id: str
@@ -127,18 +155,38 @@ class AsyncTurnContinuation:
     # Idempotency snapshot, taken at fork time.
     snapshot_content_hash: str = ""
     snapshot_audit_ts: str = ""
+    # IDENTITY CONTRACT (2026-09-27, acceptance c16 case 2). A canvas edit
+    # carries FOUR distinct ids and they are equal by nothing:
+    #   execution_id        the interactive turn that was answered
+    #   origin_operation_id that turn's task-lifecycle reservation -- THIS is
+    #                       the id the write path stamps into
+    #                       CanvasAudit.details_json.operation_id
+    #   continuation_id     this background continuation
+    #   audit row id        the mutation itself
+    # The interactive attempt that timed out structurally cannot know the
+    # continuation_id, so a probe that assumed operation_id ==
+    # continuation_id could never see the write that actually landed, and a
+    # durably-applied edit was reported unconfirmed on every attempt (live:
+    # audit b3cb9277 carried operation_id 1e57dfae while the continuation was
+    # 3fe40fae). Carrying the origin operation id makes the relationship
+    # explicit, so the mutation is located THROUGH it rather than guessed at.
+    origin_operation_id: str = ""
     # EVIDENCE HANDOFF (review item 2): the turn's already-retrieved
     # evidence block — the reply path's search found data the edit's own
     # fresh-data search missed (live 2026-09-23: reply had 4/4 slitter
     # prices; edit applied placeholders). The continuation injects this
     # as existing_block so the retry REUSES it instead of re-searching.
     evidence_block: str = ""
+    evidence_contract: Optional[Dict[str, Any]] = None
     # Terminal state.
     outcome: str = ""
     summary: str = ""
     error: str = ""
     failure_stage: str = ""
     readback_required: bool = False
+    audit_id: str = ""
+    postcondition_verified: Optional[bool] = None
+    review_status: str = ""
 
 
 #: In-process handles (fast path). The DURABLE record is the AgentExecution
@@ -213,13 +261,35 @@ def get_continuation(continuation_id: str) -> Optional[AsyncTurnContinuation]:
     return _continuations.get(continuation_id)
 
 
-def cancel_continuation(session_id: str) -> bool:
+def cancel_continuation(
+    session_id: str, canvas_id: Optional[str] = None
+) -> bool:
     """Cancel the in-flight continuation for a session — used when a NEW
     user turn supersedes it, or on explicit stop. Returns True when one was
     cancelled."""
     cid = _SESSION_IN_FLIGHT.get(session_id)
     if not cid:
         return False
+    if canvas_id is not None:
+        active = _continuations.get(cid)
+        active_canvas = str((active.canvas or {}).get("canvas_id") or "") \
+            if active is not None else ""
+        if not active_canvas:
+            try:
+                from core.database import get_db_session
+                from core.models import AsyncContinuationClaim
+
+                with get_db_session() as db:
+                    row = db.query(AsyncContinuationClaim).filter(
+                        AsyncContinuationClaim.session_id == session_id
+                    ).first()
+                    active_canvas = str(
+                        (row.canvas_id if row is not None else "") or ""
+                    )
+            except Exception:  # noqa: BLE001
+                active_canvas = ""
+        if active_canvas != str(canvas_id):
+            return False
     task = _tasks.get(cid)
     if task and not task.done():
         task.cancel()
@@ -231,6 +301,68 @@ def _reap(continuation_id: str, session_id: str) -> None:
     if _SESSION_IN_FLIGHT.get(session_id) == continuation_id:
         _SESSION_IN_FLIGHT.pop(session_id, None)
     _release_claim(session_id)
+
+
+def _bounded_evidence_contract(
+    contract: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(contract, dict):
+        return None
+    coverage = contract.get("coverage") or {}
+    def _action(item: Any) -> Dict[str, Any]:
+        if not isinstance(item, dict):
+            return {}
+        expected = item.get("expected")
+        return {
+            "action_type": item.get("action_type"),
+            "entity_id": item.get("entity_id"),
+            "field": item.get("field"),
+            "current_value": item.get("current_value"),
+            "proposed_value": item.get("proposed_value"),
+            "status": item.get("status"),
+            "authorized": item.get("authorized") is True,
+            "applied": item.get("applied") is True,
+            "evidence_ids": [
+                str(value) for value in (item.get("evidence_ids") or [])[:16]
+                if value
+            ],
+            "expected": {
+                str(key): expected.get(key)
+                for key in (
+                    "raw_value", "currency", "unit", "basis",
+                    "field_meaning", "destination_field_meaning",
+                )
+                if isinstance(expected, dict) and expected.get(key) is not None
+            },
+        }
+    evidence_ids = [
+        str(item.get("observation_id"))
+        for item in contract.get("evidence") or []
+        if isinstance(item, dict) and item.get("observation_id")
+    ]
+    return {
+        "contract_version": contract.get("contract_version"),
+        "coverage": {
+            "requested_entities": [
+                str(item) for item in (coverage.get("requested_entities") or [])[:64]
+            ],
+            "requested_fields": [
+                str(item) for item in (coverage.get("requested_fields") or [])[:32]
+            ],
+            "outcome_count": coverage.get("outcome_count"),
+            "complete": coverage.get("complete") is True,
+        },
+        "actions": [_action(item) for item in (contract.get("actions") or [])[:50]],
+        "blocked_actions": [
+            _action(item) for item in (contract.get("blocked_actions") or [])[:50]
+        ],
+        "evidence_ids": list(dict.fromkeys(evidence_ids))[:100],
+        "implications": [
+            str(item.get("statement"))[:500]
+            for item in (contract.get("implications") or [])
+            if isinstance(item, dict) and item.get("statement")
+        ][:20],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +389,20 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                 metadata_json={
                     "session_id": cont.session_id,
                     "surface": "async_turn_continuation",
+                    # EXACT ORIGIN BINDING (2026-09-25 review round 5): the
+                    # canvas-claim guard verifies a write only against the
+                    # operation set of THIS execution — itself plus the
+                    # continuations it forked (which stamp their own
+                    # continuation_id as operation_id).
+                    "originating_execution_id": cont.execution_id,
+                    # The identity contract, made DURABLE: the interactive
+                    # turn's lifecycle operation id, which is the id the write
+                    # path stamps on the audit row. Without it in the record
+                    # the relationship between this continuation and the
+                    # mutation it is responsible for is not reconstructable
+                    # after a restart, and the mutation cannot be located.
+                    "origin_operation_id": (
+                        getattr(cont, "origin_operation_id", "") or None),
                     "continuation": {
                         "session_id": cont.session_id,
                         "canvas_id": (cont.canvas or {}).get("canvas_id"),
@@ -264,7 +410,12 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                         "message": cont.message[:500],
                         "snapshot_content_hash": cont.snapshot_content_hash,
                         "snapshot_audit_ts": cont.snapshot_audit_ts,
+                        "origin_operation_id": (
+                            getattr(cont, "origin_operation_id", "") or None),
                         "failure_stage": cont.failure_stage,
+                        "evidence_contract": _bounded_evidence_contract(
+                            cont.evidence_contract
+                        ),
                     },
                 },
             ))
@@ -313,13 +464,26 @@ def _finish_durable_record(
                 return
             row.status = status
             row.completed_at = datetime.now(timezone.utc)
-            row.result_summary = f"[{outcome}] {summary[:400]}"
+            # READABLE TERMINAL OUTCOME (D5, 2026-09-28). This column is what a
+            # reload renders, so it carries a sentence, not the internal
+            # ``[outcome] <raw summary>`` diagnostic. The machine-readable
+            # binding is already in the row's metadata (continuation.outcome,
+            # .summary, .failure_stage, .audit_id, .review_status), so the
+            # prefix duplicated metadata while reading as a debug line.
+            row.result_summary = _readable_outcome_text(outcome, summary)[:400]
             meta = dict(row.metadata_json or {})
             cont_meta = meta.get("continuation") or {}
             cont_meta["outcome"] = outcome
             cont_meta["summary"] = summary[:500]
-            cont_meta["notified"] = True
+            if not _m3_enabled():
+                cont_meta["notified"] = True
             cont_meta["failure_stage"] = cont.failure_stage
+            cont_meta["evidence_contract"] = _bounded_evidence_contract(
+                cont.evidence_contract
+            )
+            cont_meta["audit_id"] = cont.audit_id or None
+            cont_meta["postcondition_verified"] = cont.postcondition_verified
+            cont_meta["review_status"] = cont.review_status or None
             meta["continuation"] = cont_meta
             row.metadata_json = meta
             # JSON columns need an explicit dirty flag when the value is
@@ -470,30 +634,98 @@ def _latest_audit(canvas_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _operation_landed(cont: AsyncTurnContinuation) -> bool:
-    """DEFINITIVE idempotency probe: does any CanvasAudit row for the canvas
-    carry THIS continuation's operation_id? The retry stamps every write it
-    makes with ``details_json.operation_id = continuation_id``, so a landed
-    write is a query, not a timestamp inference (review 2026-09-22)."""
+def _operation_identity(cont: AsyncTurnContinuation) -> List[str]:
+    """Every operation id that can legitimately carry THIS request's mutation.
+
+    The write path stamps ``CanvasAudit.details_json.operation_id`` with the
+    task-lifecycle operation id of whichever turn performed the write. When the
+    interactive turn's edit was already in flight when the interactive bound
+    expired, that write is the one that lands -- and it is stamped with the
+    ORIGIN operation, never with the continuation id, which the interactive
+    attempt could not know. Probing for ``operation_id == continuation_id``
+    alone therefore could not see a landed write, and reported a
+    durably-applied edit as unconfirmed on every attempt (live 2026-09-27:
+    audit b3cb9277 carried operation_id 1e57dfae while the continuation was
+    3fe40fae, so the write was invisible to its own continuation).
+
+    Locating the mutation through this relationship is not a relaxation of
+    verification: an id must match EXACTLY one of these attributed ids, the
+    canvas must match, and the caller still has to pass the revision door and
+    the read-back gate. It is the difference between "whose operation is this"
+    and "does this id happen to equal my own".
+    """
+    ids = [str(cont.continuation_id or "")]
+    origin = str(getattr(cont, "origin_operation_id", "") or "")
+    if origin and origin not in ids:
+        ids.append(origin)
+    return [i for i in ids if i]
+
+
+def _matched_operation_row(
+    cont: AsyncTurnContinuation,
+) -> Optional[Dict[str, Any]]:
+    """The audit row carrying THIS request's mutation, located through the
+    identity relationship, or None.
+
+    Returns the ROW rather than just its review_status, so a caller can check
+    revision currency before trusting that the mutation it found is still the
+    canvas's current state.
+    """
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
-        return False
+        return None
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
         from core.sql_json import json_field_equals
 
         with get_db_session() as db:
-            q = json_field_equals(
-                db, CanvasAudit.details_json, "$.operation_id",
-                cont.continuation_id)
-            rows = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id, *([q] if q is not None else [])
-            ).all()
-            return bool(rows)
+            for op_id in _operation_identity(cont):
+                q = json_field_equals(
+                    db, CanvasAudit.details_json, "$.operation_id", op_id)
+                for row in db.query(CanvasAudit).filter(
+                    CanvasAudit.canvas_id == canvas_id,
+                    *([q] if q is not None else [])).all() or []:
+                    details = row.details_json or {}
+                    if isinstance(details, str):
+                        try:
+                            details = json.loads(details)
+                        except Exception:  # noqa: BLE001
+                            details = {}
+                    if not isinstance(details, dict):
+                        continue
+                    # EXACT attribution. The JSON predicate is an optimisation;
+                    # this comparison is the decision, so a row that merely
+                    # mentions the id cannot be mistaken for this operation's
+                    # mutation.
+                    if str(details.get("operation_id") or "") != op_id:
+                        continue
+                    return {
+                        "audit_id": str(row.id),
+                        "created_at": (row.created_at.isoformat()
+                                       if row.created_at else ""),
+                        "action_type": str(row.action_type or ""),
+                        "session_id": str(row.session_id or ""),
+                        "review_status": str(
+                            details.get("review_status") or "unknown"),
+                        "operation_id": op_id,
+                    }
+        return None
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"operation-landed probe skipped: {e}")
-        return False
+        logger.debug(f"operation-row probe skipped: {e}")
+        return None
+
+
+def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
+    canvas_id = (cont.canvas or {}).get("canvas_id")
+    if not canvas_id:
+        return None
+    row = _matched_operation_row(cont)
+    return str(row["review_status"]) if row else None
+
+
+def _operation_landed(cont: AsyncTurnContinuation) -> bool:
+    return _operation_status(cont) == "accepted"
 
 
 def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
@@ -520,8 +752,33 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
     canvas_id = (cont.canvas or {}).get("canvas_id")
     if not canvas_id:
         return None
+    # DEFENSIVE RECONCILIATION (2026-09-27). Locating the mutation is not
+    # enough to call the request satisfied: the row found must still BE the
+    # canvas's current revision. If something wrote after it, the canvas no
+    # longer says what this request applied, so reporting "already applied"
+    # would be a false completion -- fall through to the revision/currency
+    # rules below instead. This NARROWS what counts as done.
+    #
+    # `_operation_landed` stays the PREDICATE (it is the module's documented
+    # seam and what the cancellation path consults); the currency check is an
+    # ADDITIONAL condition on top of it, never a replacement -- replacing it
+    # silently detached every existing stub of that seam from this gate.
     if _operation_landed(cont):
-        return OUTCOME_ALREADY_APPLIED
+        row = _matched_operation_row(cont)
+        latest = _latest_audit(canvas_id) if row else None
+        if row is None or latest is None or str(
+                latest.get("id") or "") == str(row.get("audit_id") or ""):
+            return OUTCOME_ALREADY_APPLIED
+        logger.info(
+            "[async-continuation] %s matched operation %s is superseded by %s "
+            "on canvas %s; not claiming already-applied",
+            cont.continuation_id, (row or {}).get("audit_id"),
+            latest.get("id"), canvas_id)
+    operation_status = _operation_status(cont)
+    if operation_status == "pending_review":
+        return OUTCOME_AWAITING_APPROVAL
+    if operation_status not in {None, "unknown"}:
+        return OUTCOME_CONFLICT
     latest = _latest_audit(canvas_id)
     if latest and cont.snapshot_audit_ts and (
             latest["created_at"] > cont.snapshot_audit_ts):
@@ -534,6 +791,33 @@ def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Runner + effects
 # ---------------------------------------------------------------------------
+
+def _readable_outcome_text(outcome: str, summary: str) -> str:
+    """What the user is shown for a background continuation's terminal outcome.
+
+    It used to be ``[background continuation — failed of: "<the user's own
+    request, truncated>"]\n<summary>``: internal bracket syntax, a raw echo of
+    the request, and two different renderings between the live bubble and the
+    reloaded history. A user should read a sentence, and the machine-readable
+    binding belongs in the row's metadata -- where it already is
+    (``continuation.id``, ``outcome``, ``originating_execution_id``,
+    ``canvas_id``, ``audit_id``, ``postcondition_verified``, ``review_status``) --
+    not welded into the prose.
+
+    The first line is the outcome in plain words; the rest is whatever the turn
+    actually reported, unchanged, so nothing is summarised away.
+    """
+    lead = {
+        OUTCOME_APPLIED: "Background update applied.",
+        OUTCOME_ALREADY_APPLIED: "Background update was already applied.",
+        OUTCOME_AWAITING_APPROVAL: "Background update needs your approval.",
+        OUTCOME_CONFLICT: "Background update was not applied: it conflicted.",
+        OUTCOME_FAILED: "Background update failed.",
+        OUTCOME_CANCELLED: "Background update was cancelled.",
+    }.get(outcome, "Background update finished.")
+    text = (summary or "").strip()
+    return f"{lead} {text}".strip() if text else lead
+
 
 def start_continuation(
     cont: AsyncTurnContinuation,
@@ -596,11 +880,28 @@ def start_continuation(
             # 2026-09-22): if this operation's write already landed, the
             # honest outcome is applied/already_applied with its effects —
             # only an un-landed operation reports cancelled.
+            operation_status: Optional[str]
             if _operation_landed(cont):
+                operation_status = "accepted"
+            else:
+                operation_status = _operation_status(cont)
+            if operation_status == "accepted":
                 cont.outcome = OUTCOME_ALREADY_APPLIED
                 cont.summary = (
                     "The write had already landed when the cancellation "
                     "arrived — nothing was undone.")
+                _finish_durable_record(
+                    cont, cont.outcome, cont.summary)
+                try:
+                    await _apply_effects(cont)
+                finally:
+                    _reap(cid, cont.session_id)
+                raise
+            if operation_status == "pending_review":
+                cont.outcome = OUTCOME_AWAITING_APPROVAL
+                cont.summary = (
+                    "The proposal was already awaiting review when the "
+                    "cancellation arrived; it was not cancelled or reapplied.")
                 _finish_durable_record(
                     cont, cont.outcome, cont.summary)
                 try:
@@ -671,6 +972,22 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
     outcome = cont.outcome or OUTCOME_FAILED
     summary = cont.summary or ""
 
+    # DIAGNOSIS (2026-09-27, c16 case 2): _finish_durable_record() -- the ONLY
+    # thing that moves the AgentExecution row off 'running' -- runs in the
+    # `finally` of `await _apply_effects()`. So a stall inside any stage here
+    # leaves the durable row 'running' forever AND the WS event and history
+    # record unmade, while the write itself stays applied. Log entry and every
+    # stage boundary so a stall is attributable to a stage, not just visible.
+    _fx = time.monotonic()
+    logger.info(
+        "[async-continuation] %s effects start outcome=%s",
+        cont.continuation_id, outcome)
+
+    def _stage(n: int, name: str) -> None:
+        logger.info(
+            "[async-continuation] %s effect %d/4 %s done (+%.1fs)",
+            cont.continuation_id, n, name, time.monotonic() - _fx)
+
     # (1) In-memory session context (backend continuity — NOT only the
     # frontend refresh).
     try:
@@ -683,19 +1000,23 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             session["history"].append({
                 "message": cont.message[:500],
                 "response": {
-                    "message": (
-                        f"[background continuation — {outcome}] "
-                        f"{summary}")[:2000]},
+                    # The SAME readable text the durable row carries. They used to
+                    # differ -- the live bubble got one bracketed string and the
+                    # reloaded history another -- so a user watching live and a
+                    # user reloading were told two different-looking things about
+                    # the same outcome.
+                    "message": _readable_outcome_text(outcome, summary)},
                 "intent": {"primary_intent": "canvas_edit",
                            "background_continuation": True},
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "error": False,
+                "error": outcome in (OUTCOME_FAILED, OUTCOME_CONFLICT),
             })
             # Same recency bound the interactive path keeps.
             if len(session["history"]) > 24:
                 session["history"] = session["history"][-24:]
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation session append skipped: {e}")
+    _stage(1, "in-memory-session")
 
     # (2) Durable row.
     try:
@@ -707,17 +1028,23 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                 conversation_id=cont.session_id,
                 tenant_id="default",
                 role="assistant",
-                content=(
-                    f"[background continuation — {outcome} of: "
-                    f"\"{cont.message[:120]}\"]\n{summary}"),
+                content=_readable_outcome_text(outcome, summary),
                 metadata_json=json.dumps({"continuation": {
                     "id": cont.continuation_id,
                     "outcome": outcome,
+                    "originating_execution_id": cont.execution_id,
                     "canvas_id": (cont.canvas or {}).get("canvas_id"),
+                    "evidence_contract": _bounded_evidence_contract(
+                        cont.evidence_contract
+                    ),
+                    "audit_id": cont.audit_id or None,
+                    "postcondition_verified": cont.postcondition_verified,
+                    "review_status": cont.review_status or None,
                 }}),
             ))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"continuation persistence skipped: {e}")
+    _stage(2, "durable-chatmessage")
 
     # (3) WS event (frontend refresh + toast).
     try:
@@ -728,6 +1055,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             "chat_continuation",
             {
                 "continuation_id": cont.continuation_id,
+                "originating_execution_id": cont.execution_id,
                 "session_id": cont.session_id,
                 "canvas_id": (cont.canvas or {}).get("canvas_id"),
                 "status": outcome,
@@ -736,6 +1064,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
         )
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation WS broadcast skipped: {e}")
+    _stage(3, "ws-broadcast")
 
     # (4) Notification with OUTCOME-honest wording — "ready for review" is
     # never worded as "completed".
@@ -750,7 +1079,7 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
             OUTCOME_FAILED: "Background update could not finish",
             OUTCOME_CANCELLED: "Background update cancelled",
         }
-        await NotificationService().send_notification(
+        _notify_result = await NotificationService().send_notification(
             cont.user_id,
             _OUTCOME_NOTIFICATION_TYPE.get(outcome, "async_turn_failed"),
             {
@@ -760,14 +1089,23 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                     outcome, "Background update could not finish"),
                 "session_id": cont.session_id,
                 "canvas_id": (cont.canvas or {}).get("canvas_id"),
+                "continuation_id": cont.continuation_id,
+                "originating_execution_id": cont.execution_id,
                 "action_url": (
                     f"/canvas/{(cont.canvas or {}).get('canvas_id')}"
                     if (cont.canvas or {}).get("canvas_id") else "/chat"
                 ),
             },
         )
+        if _m3_enabled() and isinstance(
+                _notify_result, dict) and _notify_result.get("success"):
+            _mark_continuation_notified(cont.continuation_id)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"continuation notification skipped: {e}")
+    _stage(4, "notification")
+    logger.info(
+        "[async-continuation] %s effects complete (+%.1fs)",
+        cont.continuation_id, time.monotonic() - _fx)
 
 
 async def run_canvas_edit_continuation(
@@ -783,6 +1121,9 @@ async def run_canvas_edit_continuation(
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
         if attempt > 1:
             latest = _latest_turn_evidence(orchestrator, cont)
+            latest_contract = _latest_turn_contract(orchestrator, cont)
+            if isinstance(latest_contract, dict):
+                cont.evidence_contract = latest_contract
             if latest and latest != cont.evidence_block:
                 logger.info(
                     "[async-continuation] %s retry %d: refreshed evidence "
@@ -794,10 +1135,14 @@ async def run_canvas_edit_continuation(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             cont.failure_stage = "budget"
+            # Plain sentence for the user; the stage and budget stay on the
+            # continuation and in the row metadata (D5).
+            cont.error = (
+                f"budget exhausted at stage {cont.failure_stage} after "
+                f"{attempt - 1} attempts")[:500]
             return OUTCOME_FAILED, (
-                f"The background edit exhausted its "
-                f"{_ASYNC_CONTINUATION_BUDGET_SECONDS:.0f}s budget at stage "
-                f"{cont.failure_stage} after {attempt - 1} attempts."
+                "The background edit ran out of time before it could finish. "
+                "Nothing was changed on the canvas."
             )
 
         cont.failure_stage = f"attempt-{attempt}-preapply"
@@ -807,6 +1152,10 @@ async def run_canvas_edit_continuation(
                 "The canvas edit from your earlier request had already "
                 "landed before the background attempt ran — nothing was "
                 "applied twice.")
+        if pre == OUTCOME_AWAITING_APPROVAL:
+            return pre, (
+                "The canvas edit is already saved as a proposal awaiting "
+                "review; it was not applied again.")
         if pre == OUTCOME_CONFLICT:
             return pre, (
                 "The canvas changed while the background update was "
@@ -817,6 +1166,7 @@ async def run_canvas_edit_continuation(
         blackboard: Dict[str, Any] = {
             "plan_task": None,
             "block": (cont.evidence_block or "") or None,
+            "objective_evidence": cont.evidence_contract,
         }
         prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
         expected_prior = (prior or {}).get("id")
@@ -876,19 +1226,47 @@ async def run_canvas_edit_continuation(
             "stage=%s", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS,
             time.monotonic() - attempt_started, cont.failure_stage)
+        # DIAGNOSIS (2026-09-27, acceptance c16 case 2): the write lands but the
+        # attempt is reported unconfirmed, and FOUR separate gates can each say
+        # so. Name the one that actually decided it and log every input, so one
+        # run discriminates instead of four competing hypotheses. Purely
+        # additive -- no gate's condition is altered here.
+        _gate = "no-response"
+        _op_status_dbg: Any = "not-probed"
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
+            cont.audit_id = str(edit_meta.get("audit_id") or "")
+            cont.postcondition_verified = edit_meta.get(
+                "postcondition_verified"
+            )
+            cont.review_status = str(edit_meta.get("review_status") or "")
+            readback_ok = False
             if edit_meta.get("updated") is not True:
+                _gate = "updated-not-true"
                 last_note = str(
                     (edit_meta.get("reason") or "edit response did not confirm a write")
                 )[:240]
             else:
                 cont.failure_stage = f"attempt-{attempt}-readback"
                 readback_ok = True
-                if cont.readback_required:
+                if cont.evidence_contract and edit_meta.get(
+                        "postcondition_verified") is not True:
+                    readback_ok = False
+                    _gate = "postcondition-unverified"
+                    last_note = "source-backed read-back was not verified"
+                if cont.readback_required and readback_ok:
+                    # `_operation_landed` is the predicate here too, not
+                    # `_operation_status(...) == "accepted"` inlined: it is the
+                    # module's documented seam. The raw status is read only when
+                    # the decision is negative, to name the reason, so the
+                    # success path still costs a single probe.
                     readback_ok = _operation_landed(cont)
+                    if not readback_ok:
+                        _op_status_dbg = _operation_status(cont)
+                        _gate = "operation-not-landed"
                     if readback_ok:
+                        _gate = "read-canvas"
                         try:
                             from tools.canvas_crud_tool import read_canvas
 
@@ -900,13 +1278,19 @@ async def run_canvas_edit_continuation(
                                 readback.get("success")
                                 and readback.get("audit_id")
                             )
+                            if not readback_ok:
+                                _gate = "read-canvas-no-audit-id"
                         except Exception as read_err:
                             readback_ok = False
+                            _gate = "read-canvas-error"
                             last_note = (
                                 "readback failed: "
                                 f"{type(read_err).__name__}: {str(read_err).strip()}"
                             )
+                elif readback_ok:
+                    _op_status_dbg = "skipped(readback_required=False)"
                 if readback_ok:
+                    _gate = "CONFIRMED"
                     summary = str(response.get("message") or "").strip() or (
                         "Canvas edit applied to "
                         f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
@@ -917,6 +1301,19 @@ async def run_canvas_edit_continuation(
                     return OUTCOME_APPLIED, summary
                 if not last_note or last_note == "the edit planner could not complete":
                     last_note = "the write could not be confirmed by audit readback"
+
+        # The one line that settles WHICH gate refused a landed write.
+        logger.info(
+            "[async-continuation] %s attempt %d/%d READBACK-DECISION "
+            "gate=%s response=%s updated=%r postcondition_verified=%r "
+            "evidence_contract=%s readback_required=%s audit_id=%r "
+            "op_status=%r review_status=%r note=%s",
+            cont.continuation_id, attempt, _ASYNC_CONTINUATION_ATTEMPTS,
+            _gate, bool(response), edit_meta.get("updated") if response else None,
+            edit_meta.get("postcondition_verified") if response else None,
+            bool(cont.evidence_contract), bool(cont.readback_required),
+            cont.audit_id or None, _op_status_dbg, cont.review_status or None,
+            str(last_note)[:160])
 
         if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
             delay = min(
@@ -932,10 +1329,17 @@ async def run_canvas_edit_continuation(
                 await asyncio.sleep(delay)
 
     cont.failure_stage = cont.failure_stage or "attempts"
+    # USER-FACING SENTENCE + MACHINE DETAIL (D5, 2026-09-28). The retry loop's
+    # internal note and stage used to be interpolated straight into the text a
+    # reload renders ("... (the edit planner could not complete; stage=...)"),
+    # which is a debug line wearing a sentence. The detail is still recorded --
+    # on the continuation and in the row's metadata -- it is just no longer part
+    # of the prose.
+    cont.error = (f"{last_note}; stage={cont.failure_stage}")[:500]
     return OUTCOME_FAILED, (
-        f"The background edit attempt did not apply after "
-        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts "
-        f"({last_note}; stage={cont.failure_stage}).")
+        f"The background edit did not apply after "
+        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts. "
+        f"Nothing was changed on the canvas.")
 
 
 def supersede_pending_continuation(
@@ -957,7 +1361,14 @@ def supersede_pending_continuation(
             return False
     except Exception:  # noqa: BLE001 — classification is best-effort
         return False
-    return cancel_continuation(session_id)
+    current_canvas_id = str(
+        (context or {}).get("canvas_id")
+        or ((context or {}).get("canvas") or {}).get("canvas_id")
+        or ""
+    )
+    if not current_canvas_id:
+        return False
+    return cancel_continuation(session_id, canvas_id=current_canvas_id)
 
 
 def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str:
@@ -985,6 +1396,24 @@ def _latest_turn_evidence(orchestrator: Any, cont: AsyncTurnContinuation) -> str
         return ""
 
 
+def _latest_turn_contract(
+    orchestrator: Any, cont: AsyncTurnContinuation
+) -> Optional[Dict[str, Any]]:
+    try:
+        orch = getattr(cont, "_orchestrator", None)
+        if orch is None or not cont.execution_id:
+            return None
+        session = orch.conversation_sessions.get(cont.session_id)
+        if not session:
+            return None
+        contract = session.get(
+            f"_objective_evidence_{cont.execution_id}"
+        )
+        return dict(contract) if isinstance(contract, dict) else None
+    except Exception:
+        return None
+
+
 def fork_canvas_edit_continuation(
     orchestrator: Any,
     *,
@@ -997,6 +1426,8 @@ def fork_canvas_edit_continuation(
     agent_id: Optional[str],
     provenance: Optional[Dict[str, Any]] = None,
     evidence_block: str = "",
+    evidence_contract: Optional[Dict[str, Any]] = None,
+    origin_operation_id: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
     branch. Snapshots the idempotency state at fork time. Returns the
@@ -1015,7 +1446,13 @@ def fork_canvas_edit_continuation(
         provenance=provenance,
         snapshot_content_hash=_content_hash(canvas or {}),
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
+        origin_operation_id=str(origin_operation_id or ""),
         evidence_block=evidence_block or "",
+        evidence_contract=(
+            dict(evidence_contract)
+            if isinstance(evidence_contract, dict)
+            else None
+        ),
         readback_required=True,
     )
     # Dataclass: stash the orchestrator for the in-memory session append

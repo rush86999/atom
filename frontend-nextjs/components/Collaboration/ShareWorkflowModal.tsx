@@ -186,7 +186,7 @@ export const ShareWorkflowModal: React.FC<ShareWorkflowModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            Share "{workflowName}"
+            Share &quot;{workflowName}&quot;
           </DialogTitle>
           <DialogDescription>
             Share this workflow with your team members

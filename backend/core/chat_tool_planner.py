@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import datetime as _dt_module
 import asyncio
+import json
 import logging
 import re
 import time
@@ -522,6 +523,14 @@ Rules:
   when the goal is to SEND/forward/reply/draft to a recipient. Give honest
   routing_confidence 0.0–1.0 (a bare number, e.g. 0.9); below 0.6 the
   consumer falls back to a deeper classifier, so don't pad it.
+- CONTINUATION on a delivered file result: when this turn continues (not
+  replaces) earlier file work, set retrieval_operation (none = show saved
+  evidence again; rerun = search the saved copy again; refresh = check the
+  live source; read = initial lookup) and presentation_preference (default
+  | compact | table) plus field_preference (a column word like
+  "factory price" when the turn selects one). A turn asking to search
+  again AND present cleanly carries rerun + compact together. New,
+  unrelated, halted, or questioned work leaves all three null.
 - VALUE LOOKUPS WITHOUT A NAMED SOURCE ("what's the price of WG-350DSAV?",
   "find invoice 123", "look up policy 7.2"): plan service "datasets",
   intent "search", query = the exact code/value ALONE. The dataset catalog
@@ -731,6 +740,16 @@ class ToolPlan(BaseModel):
     # consumers then fall back to the raw verdict.
     relevance_verdict: Optional[str] = None
     relevance_basis: Optional[str] = None
+    # CONTINUATION DECISION (work order Step 2): when this turn continues a
+    # delivered file result, resolve retrieval operation (none/read/rerun/
+    # refresh) and presentation preference (default/compact/table plus an
+    # optional field word) here so consumers share one routing verdict
+    # instead of re-inferring per site. Optional by contract: absent or
+    # low-confidence -> the NLU continuation decision, exactly like
+    # suggested_intent/routing_confidence above.
+    retrieval_operation: Optional[str] = None
+    presentation_preference: Optional[str] = None
+    field_preference: Optional[str] = None
     # STRUCTURED RESULT METADATA (2026-09-22): unread-mail handles and
     # per-ID read outcomes the executor reports back. A PrivateAttr, NOT a
     # field — the planning LLM can never set it (it is not in the structured
@@ -3877,9 +3896,23 @@ async def _ingested_mailbox_lines(
                 DocumentsHybridSearch,
             )
 
-            store_result = await DocumentsHybridSearch().search(
-                query=query[:200], limit=6, owner_user_id=user_id
+            store_result = await _hybrid_search_preserving_constraints(
+                DocumentsHybridSearch(), query, limit=6, owner_user_id=user_id
             )
+            if store_result.get("status") == "failed" and not store_lines:
+                # No sibling leg answered and the semantic leg could not run:
+                # say so. Returning an empty list here is indistinguishable
+                # from "the mailbox has nothing", and the turn then answers
+                # with a bounded-sounding absence built on a source that was
+                # never read.
+                store_lines.append(
+                    "- [ingested mailbox] SEARCH UNAVAILABLE — the ingested "
+                    "mailbox could not be searched ("
+                    + (", ".join((store_result.get("coverage") or {}).get("unavailable") or [])
+                       or "required source unreachable")
+                    + "); no claim about these messages is supported."
+                )
+                return store_lines
             for hit in (store_result or {}).get("results") or []:
                 if str(hit.get("source") or "") != "communication":
                     continue
@@ -4779,14 +4812,34 @@ def _best_content_excerpt(content: str, query: str, width: int = 500) -> str:
     return "\n".join(parts)
 
 
+def _memory_store_base() -> Path:
+    """The communication/agent memory LanceDB root, resolved the same way the
+    ingestion pipeline resolves it.
+
+    These two helpers used to hardcode ``backend/data/atom_memory``. That
+    bypasses ``LANCEDB_URI_BASE`` and ``LanceDBHandler._resolve_local_db_path``,
+    so the document-excerpt leg read a store that no configuration could
+    redirect — which is the documented root-vs-backend divergence class, and
+    also means the excerpt path could not be isolated for a repeatable
+    evaluation run. The default is unchanged; the override is now honoured.
+    """
+    import os
+
+    configured = os.getenv("LANCEDB_URI_BASE")
+    if configured:
+        return Path(configured)
+    from core.lancedb_handler import _resolve_local_db_path
+
+    return Path(_resolve_local_db_path("./data/atom_memory"))
+
+
 def _load_documents_df():
     """SYNC (callers must to_thread): full documents table for excerpt
     extraction — a file-ingest table with full text can be large, so this
     load is the expensive part and must run once per search, not per hit."""
     import lancedb
 
-    base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-    table = lancedb.connect(str(base / "default")).open_table("documents")
+    table = lancedb.connect(str(_memory_store_base() / "default")).open_table("documents")
     return table.to_arrow().to_pandas()
 
 
@@ -4816,8 +4869,8 @@ def _load_documents_table():
     try:
         import lancedb
 
-        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
-        tbl = lancedb.connect(str(base / "default")).open_table("documents")
+        tbl = lancedb.connect(
+            str(_memory_store_base() / "default")).open_table("documents")
         cols = [c for c in ("id", "text") if c in tbl.schema.names]
         if len(cols) >= 2:
             table = tbl.search().select(cols).limit(200000).to_arrow()
@@ -5053,6 +5106,139 @@ async def _datasets_evidence(
     return "\n".join(lines)
 
 
+async def _hybrid_search_preserving_constraints(
+    service: Any,
+    query: str,
+    *,
+    limit: int,
+    owner_user_id: Optional[str] = None,
+    max_chars: int = 200,
+    max_variants: int = 6,
+) -> Dict[str, Any]:
+    """Run a hybrid search without letting a character cap drop constraints.
+
+    The two call sites this replaces both read ``query[:200]``. A turn that
+    named twenty machines with the last ten past the cut searched the first
+    ten, and because a truncated query is a perfectly valid query, the search
+    reported a clean zero-match answer for the half it never sent — an absence
+    claim about items the system had no way to see. A different number would
+    not have fixed it, so this decomposes instead: overlapping windows of the
+    original text, merged, with every leg outcome preserved.
+
+    The merged envelope reports the WORST status across the pieces — one
+    failing window makes the whole search partial/failed, because coverage of
+    the union is only as good as its weakest part.
+    """
+    from core.hybrid_search.documents_hybrid import (
+        STATUS_FAILED,
+        STATUS_PARTIAL,
+        STATUS_SUCCESS,
+    )
+    from core.identifier_search import bounded_query_variants, query_coverage
+
+    variants = bounded_query_variants(
+        query, max_chars=max_chars, max_variants=max_variants
+    )
+    if not variants:
+        return {
+            "success": False, "status": STATUS_FAILED, "query": query,
+            "results": [], "hybrid": "no_results", "stats": {},
+            "legs": {}, "coverage": {"searched": [], "unavailable": [], "skipped": []},
+            "ranking": {"status": "as_fused", "reason": None},
+            "absence_claimable": False,
+            "error": {"reason": "empty_query", "legs": []},
+        }
+
+    merged: List[Dict[str, Any]] = []
+    seen: set = set()
+    # Reserve a share of the output budget for EACH source class before the
+    # merge. Without this, a long query's early windows (which are usually the
+    # prose preamble) fill every slot with the same few documents and the tail
+    # window's mailbox evidence is dropped by the final cut — the decomposed
+    # search then covers the query and still loses the answer. Measured on the
+    # long-mailbox case: six windows, every one searched, zero conversation hits
+    # survived, reported as `success`.
+    per_class_cap = max(1, limit // 4)
+    class_counts: Dict[str, int] = {}
+    legs: Dict[str, Any] = {}
+    unavailable: set = set()
+    searched: set = set()
+    stats: Dict[str, Any] = {}
+    label = "no_results"
+    dropped_by_budget: set = set()
+    for variant in variants:
+        piece = await service.search(
+            query=variant, limit=limit, owner_user_id=owner_user_id
+        )
+        piece = piece or {}
+        for name, leg in (piece.get("legs") or {}).items():
+            prior = legs.get(name)
+            if leg.get("status") == "failed":
+                unavailable.add(name)
+            elif leg.get("status") == "ok":
+                searched.add(name)
+            if prior is None or leg.get("status") == "failed":
+                legs[name] = leg
+        piece_label = str(piece.get("hybrid") or "")
+        if piece_label and piece_label != "no_results":
+            label = piece_label if label == "no_results" else label
+        for key, value in (piece.get("stats") or {}).items():
+            if isinstance(value, (int, float)):
+                stats[key] = stats.get(key, 0) + value
+        for hit in piece.get("results") or []:
+            key = (str(hit.get("source") or ""), str(hit.get("id") or ""))
+            if key in seen:
+                continue
+            klass = str(hit.get("source") or "other")
+            taken = class_counts.get(klass, 0)
+            if taken >= per_class_cap:
+                dropped_by_budget.add(klass)
+                continue
+            seen.add(key)
+            class_counts[klass] = taken + 1
+            merged.append(hit)
+
+    if dropped_by_budget:
+        # The cut bound the answer, so coverage is bounded too. Reporting
+        # `success` here would license an absence claim about a source whose
+        # evidence was discarded rather than absent.
+        status_hint = STATUS_PARTIAL
+        searched.add("output_budget")
+    else:
+        status_hint = STATUS_SUCCESS
+
+    status = STATUS_SUCCESS
+    if unavailable:
+        status = STATUS_PARTIAL if merged else STATUS_FAILED
+    if status == STATUS_SUCCESS and status_hint == STATUS_PARTIAL:
+        status = STATUS_PARTIAL
+    coverage = query_coverage(query, variants)
+    if not coverage["complete"] and status == STATUS_SUCCESS:
+        status = STATUS_PARTIAL
+
+    return {
+        "success": status != STATUS_FAILED,
+        "status": status,
+        "query": query,
+        "results": merged[:limit],
+        "hybrid": label,
+        "stats": stats,
+        "legs": legs,
+        "coverage": {
+            "searched": sorted(searched),
+            "unavailable": sorted(unavailable),
+            "skipped": sorted(
+                n for n, leg in legs.items() if leg.get("status") == "skipped"
+            ),
+            "query_variants": len(variants),
+            "query_coverage": coverage,
+            "classes_at_output_budget": sorted(dropped_by_budget),
+        },
+        "ranking": {"status": "as_fused", "reason": None},
+        "absence_claimable": status == STATUS_SUCCESS,
+    }
+
+
 async def _memory_hybrid_block(
     user_id: Optional[str],
     query: str,
@@ -5067,13 +5253,25 @@ async def _memory_hybrid_block(
     ``figure_lines`` (see _mailbox_figure_lines) are PREPENDED ahead of the
     8-line cap: hybrid hits are relevance-ranked and routinely filled every
     slot with unrelated documents while the amount the query named sat in an
-    ingested email (live 2026-09-13)."""
+    ingested email (live 2026-09-13).
+
+    A retrieval FAILURE is announced, never dropped: returning None here for
+    both "nothing matched" and "the store could not be read" is what let a
+    broken source become a confident absence claim."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
-        result = await DocumentsHybridSearch().search(
-            query[:200], limit=8, owner_user_id=user_id
+        result = await _hybrid_search_preserving_constraints(
+            DocumentsHybridSearch(), query, limit=8, owner_user_id=user_id
         )
+        if not (result or {}).get("results") and result.get("status") == "failed":
+            legs = ", ".join(sorted((result.get("coverage") or {}).get("unavailable") or []))
+            return (
+                "INGESTED WORKSPACE SEARCH UNAVAILABLE — the memory store could "
+                f"not be searched ({legs or 'required source unreachable'}). "
+                "Nothing below is evidence about this workspace; do not report "
+                "these items as absent."
+            )
         # Excerpt corpus: the tool query names the SUBJECT; the user's own
         # words name what they want to KNOW about it. Both locate the region.
         excerpt_corpus = query + " " + " ".join(
@@ -5081,6 +5279,15 @@ async def _memory_hybrid_block(
         )
         lines: List[str] = []
         seen_ids = set()
+        if result.get("status") == "partial":
+            unavailable = ", ".join(
+                sorted((result.get("coverage") or {}).get("unavailable") or [])
+            )
+            lines.append(
+                f"- [search coverage] PARTIAL — {unavailable or 'a source'} "
+                "was unavailable; these are the sources that answered, and an "
+                "item not among them is unresolved, not absent."
+            )
         # SYNC-OFF-LOOP: excerpt extraction needs the FULL documents table —
         # load it once, off-loop (it was previously a full table load PER
         # HIT, up to 8 loads per search, all on the event loop).
@@ -5288,16 +5495,22 @@ def _named_file_targets(
             return all(w[:1].isupper() or "-" in w or w.isdigit()
                        for w in words) and any(w[:1].isupper() for w in words)
 
-        lookup_text = " ".join(texts)
-        quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", lookup_text)
-        values.extend(q for q in quoted if _identity_shaped(q))
-        list_match = re.search(
-            r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
-            r"(?:for|of|:)\s+(.+)",
-            lookup_text,
-            re.IGNORECASE,
-        )
-        if list_match:
+        # TURN-BOUNDARY HYGIENE (live 2026-09-26: a re-search turn mined
+        # "U-38 give me a cleaner response" — the list phrase of the
+        # ORIGINAL ask glued to the follow-up's prose across the joined
+        # texts). Quoted and list phrases never span turns: match per
+        # text, never on the joined span.
+        for _text in texts:
+            quoted = re.findall(r"[\"']([^\"']{2,80})[\"']", _text)
+            values.extend(q for q in quoted if _identity_shaped(q))
+            list_match = re.search(
+                r"\b(?:prices?|models?|items?|machines?|parts?)\s+"
+                r"(?:for|of|:)\s+(.+)",
+                _text,
+                re.IGNORECASE,
+            )
+            if not list_match:
+                continue
             ignored = {
                 "prices", "price", "models", "model", "items", "item",
                 "machines", "machine", "parts", "part", "these", "this",
@@ -5305,11 +5518,28 @@ def _named_file_targets(
                 "no", "number", "model", "part", "item", "machine", "type",
             }
             for part in re.split(r",|\band\b", list_match.group(1), flags=re.IGNORECASE):
+                # A leading "File.xlsx: first item" glue: the filename and
+                # the first list entry arrive in one chunk — keep the text
+                # after the filename boundary as the candidate item.
+                glued = re.search(
+                    r"\.(?:xlsx|xlsm|xls|csv|tsv|pdf|docx?)\s*:\s*(.+)$",
+                    part, re.IGNORECASE)
+                if glued:
+                    part = glued.group(1)
                 cleaned = part.strip(" .:;?!()[]'\"")
+                # Number-abbreviation honorific ("No. 381"): "no" is
+                # otherwise an ignored word, but a leading "No. "+digits
+                # unambiguously denotes a numbered item — keep the user's
+                # literal text. Matching stays honorific-insensitive
+                # (see _matches_target), so recall is unchanged.
+                honorific = bool(re.match(r"(?i)^no\.\s*\d", cleaned))
+                # No length cap: turn boundaries (per-text matching above)
+                # confine phrases; explicit filters below drop file names
+                # and implausible fragments. Long product names survive.
                 if (
                     cleaned
                     and len(cleaned) <= 80
-                    and not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower()))
+                    and (honorific or not any(token in ignored for token in re.findall(r"[a-z]+", cleaned.lower())))
                     and not re.search(r"\.(?:xlsx|xls|csv|tsv|pdf|docx?)$", cleaned, re.IGNORECASE)
                 ):
                     values.append(cleaned)
@@ -5384,6 +5614,61 @@ def _named_file_targets(
     return out[:64]
 
 
+def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
+                          candidate_probe_tokens: Any) -> List[str]:
+    """Follow-ups inherit the active objective; they never union history.
+
+    - An EXPLICITLY REVISED objective (``revised_targets``) wins outright.
+    - Otherwise the current turn alone yields items -> the latest explicit
+      (replacement) list wins; older mentions stay out.
+    - Otherwise the active list carried on the context
+      (``requested_targets``: the stored objective's ordered items) is
+      inherited without re-mining history.
+    - Otherwise (fresh asks) the full history mining runs as before.
+    Probe tokens and historical aliases remain search aids downstream;
+    this list is the presentation authority.
+
+    WHY A REVISION OUTRANKS THE TURN'S OWN TEXT (2026-09-27, live). The
+    ordering above is right for a follow-up that RESTATES the list: the
+    newest statement of the objective should beat the stored one. A set edit
+    inverts it. "Replace U-22 with U-38" does not restate the ask — the ask
+    is unchanged and still says "...: No. 381, U-22, No. 622, ..." — so
+    re-deriving from it returns the OUTGOING item and silently undoes the
+    user's correction. Measured: the revised set was passed in as
+    ``requested_targets`` and came back as the original eight, U-22
+    included, so the turn answered the question it was correcting.
+
+    So the revision is not a hint about the objective, it IS the objective:
+    the user has already said what it should be, and the stored ask text is
+    the superseded statement of it. Callers that revise an objective must
+    pass ``revised_targets``; the ordinary ``requested_targets`` precedence
+    is untouched for every turn that does not.
+    """
+    revised = (context or {}).get("revised_targets")
+    if isinstance(revised, str):
+        revised = [revised]
+    revised = [str(v).strip() for v in (revised or []) if str(v).strip()]
+    if revised:
+        return list(revised)
+    active = (context or {}).get("requested_targets")
+    if isinstance(active, str):
+        active = [active]
+    active = [str(v).strip() for v in (active or []) if str(v).strip()]
+    own_ctx = dict(context or {})
+    own_ctx["history"] = []
+    own_ctx.pop("requested_targets", None)
+    own_ctx.pop("revised_targets", None)
+    try:
+        own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
+    except Exception:
+        own = []
+    if own:
+        return own
+    if active:
+        return list(active)
+    return _named_file_targets(query, context, candidate_probe_tokens)
+
+
 def _named_file_aliases(value: str) -> List[str]:
     text = str(value or "").strip()
     variants: List[str] = []
@@ -5407,6 +5692,77 @@ def _named_file_aliases(value: str) -> List[str]:
             if len(part) >= 2:
                 add(part.lower())
     return variants[:8]
+
+
+def _set_structured_result(plan: Any, record: Dict[str, Any]) -> None:
+    """Persist the versioned structured workbook artifact beside the
+    rendered text. The plan meta is transient — durability comes from the
+    orchestrator copying this record into the session result row and the
+    ChatMessage metadata carrier (same path as ``rendered_answer``)."""
+    if plan is None or not isinstance(record, dict):
+        return
+    meta = getattr(plan, "_result_meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        plan._result_meta = meta
+    storage = meta.get("storage_read")
+    if not isinstance(storage, dict):
+        storage = {}
+        meta["storage_read"] = storage
+    storage["structured_result"] = record
+
+
+def _build_workbook_structured_record(
+    *, item_tokens: List[str],
+    artifact_outcomes: Dict[str, Any],
+    per_item: Dict[str, Any],
+    field_requests: List[str],
+    file_name: Optional[str],
+    prov: Dict[str, Any],
+    coverage_limits: Dict[str, Any],
+    evidence_action: str,
+    attempt_id: str,
+    order_hint: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Artifact-native record for one scan attempt (one attempt id even
+    when the evidence revision is unchanged). Pure build — no retrieval,
+    no writes; the caller stamps it via ``_set_structured_result``.
+    ``evidence_action``/``attempt_id`` are caller-observed: the attempt is
+    allocated before retrieval and the action reflects the executed scan —
+    building the record never establishes either."""
+    from core.answer_presentation import (
+        build_structured_record,
+        build_targets_from_scan,
+        resolve_requested_items,
+    )
+
+    resolved = resolve_requested_items(item_tokens, order_hint=order_hint)
+    revision = (
+        f"{prov.get('content_hash') or '?'}:"
+        f"{prov.get('ingested_at') or '?'}"
+    )
+    targets = build_targets_from_scan(
+        resolved, artifact_outcomes or {}, per_item or {})
+    return build_structured_record(
+        source_identity={
+            "file_name": file_name,
+            "service": "datasets",
+            "source": (prov or {}).get("source"),
+            "resource_id": (prov or {}).get("resource_id"),
+            "content_hash": (prov or {}).get("content_hash"),
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "live_vs_saved": "saved copy",
+            "evidence_kind": "materialized_copy",
+        },
+        evidence_revision=revision,
+        attempt_id=attempt_id,
+        evidence_action=evidence_action,
+        requested_items=resolved,
+        requested_fields=list(field_requests or ["price"]),
+        targets=targets,
+        coverage=dict(coverage_limits or {}),
+    )
 
 
 def _set_rendered_answer(plan: Any, text: str) -> None:
@@ -5747,7 +6103,35 @@ async def _datasets_named_file_block(
         f"{prov['sheets_indexed']} sheet(s) indexed."
     )
 
-    item_tokens = _named_file_targets(query, context, candidate_probe_tokens)
+    item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # Did this turn REVISE the objective? When it did, `item_tokens` is the
+    # revised set and therefore the requested ORDER, and the asking turn's
+    # text must not re-sort it (see the `order_hint` argument below).
+    revised_targets = [
+        str(v).strip() for v in ((context or {}).get("revised_targets") or [])
+        if str(v).strip()
+    ]
+    # Attempt identity is allocated BEFORE retrieval: every invocation
+    # outcome below binds to this id, including failures. Scan entry/exit
+    # rows make retrieval invocations countable per execution/attempt.
+    from core.answer_presentation import new_attempt_id
+    from core.invocation_events import (
+        SCAN_END,
+        SCAN_START,
+        Timer,
+        record as record_event,
+    )
+
+    _scan_attempt_id = new_attempt_id()
+    _scan_timer = Timer()
+    _scan_ctx = {
+        "execution_id": (context or {}).get("execution_id"),
+        "session_id": (context or {}).get("session_id")
+        or (context or {}).get("conversation_id"),
+        "request_id": (context or {}).get("request_id"),
+        "attempt_id": _scan_attempt_id,
+    }
+    record_event(SCAN_START, **_scan_ctx)
     aliases_tried: Dict[str, List[str]] = {}
     per_item: Dict[str, Optional[Dict[str, Any]]] = {}
     probe_failed = False
@@ -5794,6 +6178,43 @@ async def _datasets_named_file_block(
             for entry in (context or {}).get("history") or []:
                 if isinstance(entry, dict) and entry.get("message"):
                     context_texts.append(str(entry["message"]))
+            # BRAND-CONTEXT CHANNEL (2025-09-25 review round 5): identity
+            # hints may come from any text, tagged with PROVENANCE — the
+            # user's ask (supplied), assistant answers and the canvas body
+            # (inferred assertions requiring row-identity schema
+            # confirmation). Entity extraction still sees user-only
+            # context_texts; the contamination rule holds.
+            def _brand_entry_parts(entry: Any) -> tuple:
+                if not isinstance(entry, dict):
+                    return [(str(entry or ""), "user")]
+                parts = []
+                if str(entry.get("message") or "").strip():
+                    parts.append((str(entry["message"]), "user"))
+                response = entry.get("response")
+                response_text = ""
+                if isinstance(response, dict):
+                    response_text = str(
+                        response.get("message") or "")
+                elif isinstance(response, str):
+                    response_text = response
+                content = entry.get("content")
+                if isinstance(content, str) and content.strip():
+                    response_text = content  # panel {role, content} shape
+                if response_text.strip():
+                    parts.append((response_text, "inferred"))
+                return parts or [(" ".join(
+                    str(v) for v in entry.values()
+                    if isinstance(v, (str, int, float))), "inferred")]
+
+            _brand_texts: List[Any] = [(query, "user")]
+            if msg_text:
+                _brand_texts.append((msg_text, "user"))
+            for entry in (context or {}).get("history") or []:
+                _brand_texts.extend(_brand_entry_parts(entry))
+            _canvas_ctx = (context or {}).get("canvas")
+            if isinstance(_canvas_ctx, dict):
+                _canvas_json = json.dumps(_canvas_ctx, default=str)
+                _brand_texts.append((_canvas_json, "inferred"))
             _field_requests = []
             try:
                 from core.workbook_read_artifact import (
@@ -5827,6 +6248,7 @@ async def _datasets_named_file_block(
                 content_hash_algorithm="sha1",
                 ingested_at=prov["ingested_at"],
                 disambiguation=(context or {}).get("disambiguation"),
+                attribute_texts=_brand_texts,
             )
             render_artifact = render_workbook_artifact(workbook_read)
         except Exception as artifact_error:
@@ -5869,6 +6291,19 @@ async def _datasets_named_file_block(
         "probe_failed": probe_failed,
         "unmaterialized_sheets": unmaterialized_sheets,
     }
+    # READ VERDICT, not evidence count (2026-09-26). The scan reports which
+    # sources it could open; without this the record's coverage block could not
+    # name WHY a result is missing, and the renderer could not tell a failed
+    # read from an absence.
+    _read_coverage = (workbook_read or {}).get("coverage") or {}
+    if isinstance(_read_coverage, dict):
+        coverage_limits["read_status"] = _read_coverage.get("read_status")
+        coverage_limits["absence_claimable"] = _read_coverage.get(
+            "absence_claimable")
+        coverage_limits["unreadable_sheet_count"] = _read_coverage.get(
+            "unreadable_sheet_count")
+        coverage_limits["error_category"] = _read_coverage.get(
+            "error_category")
     prov["sheets_searched"] = len(file_entries)
     prov["aliases_tried"] = aliases_tried
     _stamp_named_file_meta(
@@ -5881,6 +6316,90 @@ async def _datasets_named_file_block(
         coverage_limits=coverage_limits,
         workbook_read=workbook_read,
     )
+    _sheets = (workbook_read or {}).get("sheets") or []
+    _scanned_ok = any(
+        isinstance(s, dict) and s.get("searched") for s in _sheets)
+    _read_status = coverage_limits.get("read_status")
+    # Observation tristate (boundary evidence, not object existence): a
+    # completed zero-match read is new_read; a source that was searched and
+    # could not be read is read_failed; nothing to scan at all is unverified
+    # (missing observation, never proof of failure).
+    #
+    # A FAILED READ OUTRANKS A PROBE HIT. The content probe answers "no hit"
+    # for a damaged parquet exactly as it does for an absent token (its DuckDB
+    # and pandas legs both swallow the read error), so `bool(recs)` was True on
+    # a record with zero rows and the attempt was stamped `new_read` — which
+    # rendered as a confident absence for a source nobody had read. The scan's
+    # per-source verdict is the observation that can actually tell them apart.
+    if _read_status == "failed":
+        _scan_action = "read_failed"
+    elif bool(recs) or _scanned_ok:
+        _scan_action = "new_read"
+    elif not file_entries:
+        _scan_action = "unverified"
+    else:
+        _scan_action = "read_failed"
+    _scan_revision = (
+        f"{prov.get('content_hash') or '?'}:"
+        f"{prov.get('ingested_at') or '?'}"
+    )
+    try:
+        _set_structured_result(
+            plan,
+            _build_workbook_structured_record(
+                item_tokens=item_tokens,
+                artifact_outcomes=artifact_outcomes,
+                per_item=per_item,
+                field_requests=_field_requests,
+                file_name=names.get(key),
+                prov=prov,
+                coverage_limits=coverage_limits,
+                evidence_action=_scan_action,
+                attempt_id=_scan_attempt_id,
+                # A REVISED OBJECTIVE IS ITS OWN ORDERING AUTHORITY
+                # (2026-09-27). `order_hint` re-sorts the resolved items by
+                # where they first appear in the asking turn's text, and
+                # anything the text cannot see sorts LAST. For a set edit
+                # that is exactly wrong twice over: the text is the
+                # SUPERSEDED ask (it still names the outgoing item), and the
+                # incoming item is by definition absent from it. Measured:
+                # "Replace U-22 with U-38" rendered U-38 dead last instead of
+                # in U-22's slot, so the answer read as an append rather than
+                # the swap that was asked for. When the turn revised the
+                # objective, `item_tokens` already IS the requested order, so
+                # the hint is dropped rather than allowed to override it.
+                order_hint=None if revised_targets else " ".join(
+                    value for value in (query, msg_text) if value),
+            ),
+        )
+    except Exception as _sr_err:  # noqa: BLE001 — structured record optional
+        logger.debug("workbook structured record skipped: %r", _sr_err)
+    record_event(SCAN_END, outcome=_scan_action,
+                 evidence_revision=_scan_revision,
+                 duration_ms=_scan_timer.ms(),
+                 # PER-ITEM TRACE (2026-09-27). A scan_end row with no detail
+                 # cannot answer "why did this item miss?", which is exactly the
+                 # question a wrong 'no matching row' raises — the trace has to
+                 # carry what was asked, what was tried, and what each item
+                 # resolved to, or the failure is only reproducible, not
+                 # diagnosable. Sizes are bounded; no row content is recorded.
+                 detail={
+                     "source": str(mentions[0]) if mentions else None,
+                     "resolved_key": [str(key[0]), str(key[1])] if file_entries else None,
+                     "dataset_entries": len(file_entries or []),
+                     "catalog_rows_seen": catalog_rows_seen,
+                     "catalog_truncated": catalog_truncated,
+                     "item_tokens": list(item_tokens or []),
+                     "aliases_tried": {k: list(v or [])[:6]
+                                       for k, v in list(aliases_tried.items())[:12]},
+                     "per_item": {
+                         item: ("matched" if rec else "miss")
+                         for item, rec in list(per_item.items())[:20]
+                     },
+                     "matched_sheets": list(sheet_names or [])[:8],
+                     "probe_failed": bool(probe_failed),
+                 },
+                 **_scan_ctx)
     coverage_note = (
         "COVERAGE LIMITS — indexed sheets="
         f"{len(sheet_names)}; scanned entries={len(file_entries)}; "
@@ -5890,6 +6409,18 @@ async def _datasets_named_file_block(
         "NOT prove absence from the live workbook; unindexed sheets, later "
         "versions, or formatting variants may still contain the item."
     )
+    if _read_status in ("failed", "partial"):
+        # The model reads this block. Without the failure stated here, a
+        # damaged source reaches it as a clean empty result and the reply
+        # model has no way to tell that apart from a real negative.
+        coverage_note += (
+            f" READ STATUS: {_read_status.upper()} — "
+            f"{coverage_limits.get('unreadable_sheet_count') or 0} indexed "
+            "sheet(s) could not be read (error category: "
+            f"{coverage_limits.get('error_category') or 'unknown'}). For "
+            "those items report a RETRIEVAL FAILURE, never 'not found' and "
+            "never an absence claim."
+        )
     if not recs and not workbook_read:
         miss_lines = [
             "LIVE TOOL RESULTS (datasets.named-file) — '"
@@ -5941,7 +6472,21 @@ async def _datasets_named_file_block(
     def _artifact_summary(outcome: Dict[str, Any]) -> str:
         evidence = outcome.get("evidence") or []
         if not evidence:
+            if str(outcome.get("status") or "") == "unavailable":
+                # NOT "no matching cell": the source would not open, so no
+                # cell was ever compared. Saying otherwise in the model's own
+                # evidence block is the same absence laundering one layer up.
+                return (f"the source could not be read "
+                        f"(error category: {outcome.get('error_category') or 'unknown'})"
+                        " — no result, and NOT an absence claim")
             return "no matching cell in the indexed rows"
+        # Alias provenance rides the evidence cell so the user sees WHY a
+        # differently-spelled row answered their item (2026-09-25: 'TK
+        # Multi Wheel Gang Slitter' matched 'TK Gang Slitter').
+        alias_prefix = ""
+        if outcome.get("matched_alias"):
+            alias_prefix = (
+                f"[matched via alias '{outcome['matched_alias']}'] ")
         pieces: List[str] = []
         for item in evidence[:3]:
             sheet = item.get("sheet") or "?"
@@ -5968,7 +6513,7 @@ async def _datasets_named_file_block(
             suffix = f" (values: {', '.join(price_refs)})" if price_refs else ""
             row_suffix = f" R{row_number}" if row_number is not None else ""
             pieces.append(f"{sheet}!{cell}{row_suffix}{suffix}")
-        return " ; ".join(pieces)
+        return alias_prefix + " ; ".join(pieces)
 
     table = [
         "PER-ITEM OUTCOMES (deterministic, rendered from the scan — "
@@ -5981,8 +6526,15 @@ async def _datasets_named_file_block(
         outcome = artifact_outcomes.get(token)
         if outcome is not None:
             status = str(outcome.get("status") or "incomplete").upper()
+            if "identity constrained" in str(outcome.get("note") or ""):
+                status += " (identity constrained from the request)"
+            if "entity type matched" in str(outcome.get("note") or ""):
+                status += " (entity type matched)"
             if status == "ABSENT" and not coverage_complete:
                 status = "INCOMPLETE — NOT FOUND IN INDEXED CONTENT"
+            if status == "UNAVAILABLE":
+                status = ("UNAVAILABLE — THE SOURCE COULD NOT BE READ; this "
+                          "is NOT an absence claim")
             evidence = _artifact_summary(outcome)
         else:
             record = per_item.get(token)

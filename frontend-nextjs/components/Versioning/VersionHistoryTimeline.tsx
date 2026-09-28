@@ -5,7 +5,7 @@
  * commit messages, and author attribution.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,12 +105,7 @@ export const VersionHistoryTimeline: React.FC<VersionHistoryTimelineProps> = ({
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
   const [branches, setBranches] = useState<string[]>(['main']);
 
-  // Fetch version history
-  useEffect(() => {
-    fetchVersionHistory();
-  }, [workflowId, branchFilter]);
-
-  const fetchVersionHistory = async () => {
+  const fetchVersionHistory = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -144,7 +139,11 @@ export const VersionHistoryTimeline: React.FC<VersionHistoryTimelineProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowId, branchFilter, toast]);
+
+  useEffect(() => {
+    fetchVersionHistory();
+  }, [workflowId, branchFilter, fetchVersionHistory]);
 
   const toggleExpand = (version: string) => {
     const newExpanded = new Set(expandedVersions);

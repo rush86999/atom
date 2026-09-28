@@ -166,7 +166,7 @@ export function TeachingNotice({ notice, onTaught, className }: TeachingNoticePr
         role="status"
         data-testid="teaching-undone"
       >
-        Lesson removed — {current.agent?.name || 'the agent'} won't use it from now on.
+        Lesson removed — {current.agent?.name || 'the agent'} won&apos;t use it from now on.
       </div>
     );
   }
@@ -290,7 +290,7 @@ export function TeachingNotice({ notice, onTaught, className }: TeachingNoticePr
       >
         <div className="whitespace-pre-wrap break-words">{current.message}</div>
         {current.lesson ? (
-          <div className="mt-0.5 whitespace-pre-wrap break-words italic">"{current.lesson}"</div>
+          <div className="mt-0.5 whitespace-pre-wrap break-words italic">&quot;{current.lesson}&quot;</div>
         ) : null}
         {(current.agents || []).length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5" data-testid="teaching-agent-options">

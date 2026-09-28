@@ -319,7 +319,7 @@ export function CanvasDataSection({
                             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Listing folders…
                         </p>
                     ) : folders.length === 0 ? (
-                        <p className="text-muted-foreground py-2">No subfolders here — select this level's folders from a parent.</p>
+                        <p className="text-muted-foreground py-2">No subfolders here — select this level&apos;s folders from a parent.</p>
                     ) : (
                         <ul className="grid grid-cols-2 gap-1">
                             {folders.map(f => {

@@ -3,7 +3,7 @@
  * Complete Zendesk customer support and help desk integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -396,7 +396,7 @@ const ZendeskIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -408,14 +408,6 @@ const ZendeskIntegration: React.FC = () => {
                 const isConnected = providers?.zendesk?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadTickets();
-                    loadUsers();
-                    loadGroups();
-                    loadViews();
-                    loadOrganizations();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -425,10 +417,10 @@ const ZendeskIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Zendesk data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/profile", {
@@ -448,9 +440,9 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadTickets = async () => {
+    const loadTickets = useCallback(async () => {
         setLoading((prev) => ({ ...prev, tickets: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/tickets", {
@@ -478,9 +470,9 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, tickets: false }));
         }
-    };
+    }, [selectedStatus, selectedPriority, toast]);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/users", {
@@ -501,9 +493,9 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
-    const loadGroups = async () => {
+    const loadGroups = useCallback(async () => {
         setLoading((prev) => ({ ...prev, groups: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/groups", {
@@ -524,9 +516,9 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, groups: false }));
         }
-    };
+    }, []);
 
-    const loadViews = async () => {
+    const loadViews = useCallback(async () => {
         setLoading((prev) => ({ ...prev, views: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/views", {
@@ -547,9 +539,9 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, views: false }));
         }
-    };
+    }, []);
 
-    const loadOrganizations = async () => {
+    const loadOrganizations = useCallback(async () => {
         setLoading((prev) => ({ ...prev, organizations: true }));
         try {
             const response = await authFetch("/api/integrations/zendesk/organizations", {
@@ -570,7 +562,7 @@ const ZendeskIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, organizations: false }));
         }
-    };
+    }, []);
 
     // Create operations
     const createTicket = async () => {
@@ -754,24 +746,23 @@ const ZendeskIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
             loadUserProfile();
-            loadTickets();
             loadUsers();
             loadGroups();
             loadViews();
             loadOrganizations();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadUsers, loadGroups, loadViews, loadOrganizations]);
 
     useEffect(() => {
         if (connected) {
             loadTickets();
         }
-    }, [selectedStatus, selectedPriority]);
+    }, [connected, selectedStatus, selectedPriority, loadTickets]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

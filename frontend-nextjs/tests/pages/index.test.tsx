@@ -17,9 +17,12 @@ jest.mock("@/components/Onboarding/OnboardingWizard", () => ({
     ) : null,
 }));
 
-jest.mock("next/link", () => ({ children, href }: any) => (
-  <a href={href}>{children}</a>
-));
+jest.mock("next/link", () => {
+  function MockLink({ children, href }: any) {
+    return <a href={href}>{children}</a>;
+  }
+  return MockLink;
+});
 
 const okJson = (body: any) => ({ ok: true, json: async () => body });
 const errJson = { ok: false, status: 404, json: async () => ({}) };

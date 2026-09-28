@@ -1,0 +1,53 @@
+{
+ "case_id": "single_edit_reachability_probe",
+ "sample": 1,
+ "session_id": "acc-sedit-1790367747-1",
+ "captured_at": "2026-09-25T16:23:35-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "canvas_context": {
+  "canvas": {
+   "id": "aaaa1111-0000-4000-8000-000000000001"
+  },
+  "canvas_content": "{\"to\": \"\", \"cc\": \"\", \"subject\": \"\", \"body\": \"Hi Steve,<br><br>Thank you for your inquiry. Please find our quote below. Rows 1\\u20135 are the requested machines; rows 6\\u20138 are alternative slitters.<br><br><table style=\\\"border-collapse: collapse; width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 14px; margin: 8px 0;\\\"><thead><tr><th style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\">#</th><th style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\">Description</th><th style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\">Unit Price</th><th style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\">Delivery</th></tr></thead><tbody><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">1</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Roper Whitney 36&quot; Gauge Manual Roll Bender, No. 381</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$2,902.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">10\\u201311 weeks</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">2</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Linmac Bead Roller 22 Gauge, 7&quot; Throat, U-22</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$1,777.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">3\\u20134 months</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">3</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Manual Flanger</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$1,609.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">3\\u20134 weeks</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">4</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Roper Whitney No. 622 Rotary Machine</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$2,421.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">In Stock</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">5</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Tennsmith Single Wheel Slitter SLE24-16</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$8,880.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">11\\u201312 weeks</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">6</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">TK 1624 Slitter</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$8,040.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">4\\u20136 weeks</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">7</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Tin Knocker TK Multi Wheel Gang Slitter</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$12,838.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">In Stock</td></tr><tr><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">8</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">Tennsmith Multi Wheel Gang Slitter GSL48-16</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">$14,166.00</td><td style=\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\">6\\u20138 weeks</td></tr></tbody></table><br><strong>Requested equipment:</strong> rows 1\\u20135. <strong>Alternative slitters:</strong> rows 6\\u20138.<br><br>Unit Price: CAD  <br>FOB: Woodstock  <br>Payment Terms: TBD<br><br><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\">Regards,</div><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\"><br></div><div style=\\\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\\\"><b><i>Rish M.</i></b></div><div style=\\\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\\\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\\\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\\\"><span style=\\\"color:black\\\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\\\"color:blue\\\"><a href=\\\"http://www.brennan.ca/\\\" target=\\\"_blank\\\" rel=\\\"noopener noreferrer\\\" style=\\\"color:blue; margin:0px\\\"><u>www.brennan.ca</u></a></span></div><div style=\\\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\\\"><span style=\\\"color:red; background-color:rgb(255,255,255)\\\"><b><i>How am I doing?</i></b></span><span style=\\\"color:rgb(68,84,106); background-color:rgb(255,255,255)\\\"><b><i>&nbsp;</i></b><a href=\\\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\\\" title=\\\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\\\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\\\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\\\"><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style=\\\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\\\"><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\"><span style=\\\"background-color:rgb(255,255,255)\\\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\\\"><span style=\\\"background-color:rgb(255,255,255)\\\"><br></span></div><div></div>\"}",
+  "canvas_type": "email",
+  "canvas_title": "Quote copy (acceptance rig)"
+ },
+ "model": null,
+ "canvas_edit": {
+  "updated": null,
+  "no_apply": null,
+  "reason": null,
+  "plan_unavailable": null,
+  "background_started": null
+ },
+ "audit_rows": [],
+ "edit_applied_observed": false,
+ "operation_id_of_edit": null,
+ "canonical_readback_contains_edit": false,
+ "readback_excerpt": "",
+ "reply": "Message processed successfully",
+ "claim_check": {
+  "ruleset": "v2.1",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true,
+  "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+ },
+ "symptom_note": "claim findings below are OBSERVED SYMPTOMS of the old path under the rig, kept SEPARATE from graded defect totals per review round 22",
+ "observed_symptom_claims": [],
+ "execution_mode": "audit-observed",
+ "output_correctness": false,
+ "correct_completion": false,
+ "unsupported_claims": 0,
+ "unsupported_claims_detected_by_ruleset": 0
+}

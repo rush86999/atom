@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCcw, CheckCircle2, XCircle, Clock } from "lucide-react";
@@ -25,7 +25,7 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
     const [loading, setLoading] = useState(false);
     const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
-    const fetchLogs = async () => {
+    const fetchLogs = useCallback(async () => {
         if (!workflowId) return;
         setLoading(true);
         try {
@@ -40,14 +40,14 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [workflowId]);
 
     useEffect(() => {
-        fetchLogs();
+        void fetchLogs();
         // Poll every 5 seconds for live updates
         const interval = setInterval(fetchLogs, 5000);
         return () => clearInterval(interval);
-    }, [workflowId]);
+    }, [fetchLogs]);
 
     return (
         <div className="w-96 border-l bg-white dark:bg-gray-900 flex flex-col h-full shadow-xl z-20 absolute right-0 top-0 bottom-0">

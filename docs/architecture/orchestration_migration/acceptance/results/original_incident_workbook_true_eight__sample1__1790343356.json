@@ -1,0 +1,104 @@
+{
+ "sample": 1,
+ "session_id": "acc-true8-1790343351-1",
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 38",
+   "success": true,
+   "latency_s": 4.6,
+   "model": "deterministic"
+  }
+ ],
+ "total_s": 4.6,
+ "progress_event_latency_s": null,
+ "first_validated_answer_text_s": null,
+ "deterministic_delivery": true,
+ "per_target": {
+  "U-22": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "U-22",
+    "status": "FOUND",
+    "evidence": "LINMAC!A26 R26 (values: C26=1777.0 [basis=List Price; currency=unspecified], M26=1777.0 [basis=List Price2; currency=unspecified])"
+   },
+   "price_ok": true,
+   "pass": true
+  },
+  "SLE24-16": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "SLE24-16",
+    "status": "FOUND",
+    "evidence": "Tennsmith !A101 R101 (values: E101=8880 [basis=PRICE; currency=unspecified], M101=4500.0 [basis=U.S. LIST; currency=unspecified], O101=3600.0 [basis=U.S. COST; currency=unspecified], W101=6250.96 [basis=FULL COST CDN; currency=unspecified])"
+   },
+   "price_ok": false,
+   "pass": false
+  },
+  "TK 1624": {
+   "expected": "found",
+   "got": "missing_row",
+   "row": null,
+   "price_ok": null,
+   "pass": false
+  },
+  "TK Manual Flanger": {
+   "expected": "found",
+   "got": "missing_row",
+   "row": null,
+   "price_ok": null,
+   "pass": false
+  },
+  "GSL48-16": {
+   "expected": "found",
+   "got": "found",
+   "row": {
+    "target": "GSL48-16",
+    "status": "FOUND",
+    "evidence": "Tennsmith !A106 R106 (values: E106=14166 [basis=PRICE; currency=unspecified], M106=6575.0 [basis=U.S. LIST; currency=unspecified], O106=5260.0 [basis=U.S. COST; currency=unspecified], W106=9972.236 [basis=FULL COST CDN; currency=unspecified])"
+   },
+   "price_ok": false,
+   "pass": false
+  },
+  "No. 381": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "row": {
+    "target": "381",
+    "status": "AMBIGUOUS",
+    "evidence": "RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified])"
+   },
+   "price_ok": null,
+   "pass": true
+  },
+  "No. 622": {
+   "expected": "ambiguous",
+   "got": "ambiguous",
+   "row": {
+    "target": "622",
+    "status": "AMBIGUOUS",
+    "evidence": "RoperWhitney !B265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !D265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L265 R265 (values: E265=670 [basis=PRICE; currency=unspecified], M265=350 [basis=U.S. LIST; currency=unspecified], P265=280.0 [basis=U.S. COST; currency=unspecified], R265=400.4 [basis=CANADIAN COST INCL. MISC; currency=unspecified])"
+   },
+   "price_ok": null,
+   "pass": true
+  },
+  "TK Multi Wheel Gang Slitter": {
+   "expected": "ambiguous_candidate",
+   "got": "missing_row",
+   "row": null,
+   "price_ok": null,
+   "pass": false
+  }
+ },
+ "correct_completion": false,
+ "missing_target_rows": [
+  "TK 1624",
+  "TK Manual Flanger",
+  "TK Multi Wheel Gang Slitter"
+ ],
+ "reply_excerpt": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| 381 | AMBIGUOUS | RoperWhitney !A88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !B88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecified], R88=0.0 [basis=CANADIAN COST INCL. MISC; currency=unspecified]) ; RoperWhitney !L88 R88 (values: E88= [basis=PRICE; currency=unspecified], M88= [basis=U.S. LIST; currency=unspecified], P88=0.0 [basis=U.S. COST; currency=unspecifi",
+ "case_id": "original_incident_workbook_true_eight",
+ "captured_at": "2026-09-25T09:35:56-0400",
+ "path": "old"
+}

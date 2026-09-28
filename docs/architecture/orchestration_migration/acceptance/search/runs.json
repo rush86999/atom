@@ -1,0 +1,2759 @@
+{
+ "layer": "layer1-production-search-stack",
+ "generated_at": "2026-09-26T20:22:18-0400",
+ "isolation": "TESTING=1 scratch SQLite, no shared store, no live DB",
+ "runs": [
+  {
+   "case_id": "exact_named_file_basic",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "exact_named_file_two_items",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16",
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "exact_named_file_version_bound",
+   "sources": [
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_U-22_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "U-22X"
+     ],
+     "transmitted_identifiers": [
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_SLE24-16_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16",
+      "SLE24-160"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16",
+      "sle24-160"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "similar_identifiers_GSL48-16_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "GSL48-16": {
+     "classification": "supported",
+     "value": "875.25",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!GSL48-16",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "GSL48-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "GSL48-16",
+      "GSL48-1"
+     ],
+     "transmitted_identifiers": [
+      "gsl48-1",
+      "gsl48-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "long_request_tail_identifiers",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "TK 1624": {
+     "classification": "supported",
+     "value": "875.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!TK 1624",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "GSL48-16": {
+     "classification": "supported",
+     "value": "875.25",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!GSL48-16",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "U-22X": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1399.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-160": {
+     "classification": "supported",
+     "value": "2610.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!SLE24-160",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "GSL48-1": {
+     "classification": "supported",
+     "value": "799.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!GSL48-1",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16",
+    "TK 1624",
+    "GSL48-16",
+    "U-22X",
+    "SLE24-160",
+    "GSL48-1"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 4,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16",
+      "GSL48-16",
+      "SLE24-160",
+      "GSL48-1",
+      "U-22X",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "gsl48-1",
+      "gsl48-16",
+      "sle24-16",
+      "sle24-160",
+      "tk 1624",
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "communication",
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 4
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "long_request_unit_constraint",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    },
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22",
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 5,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22",
+      "SLE24-16",
+      "GSL48-16",
+      "SLE24-160",
+      "GSL48-1",
+      "U-22X",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "gsl48-1",
+      "gsl48-16",
+      "sle24-16",
+      "sle24-160",
+      "tk 1624",
+      "u-22",
+      "u-22x"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "communication",
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 5
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "paraphrase_warranty_terms",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "warranty term": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10"
+    }
+   },
+   "resolution_order": [
+    "warranty term"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "paraphrase_expense_policy",
+   "sources": [
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "receipt requirement": {
+     "classification": "supported",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought directly.\nexpense_policy.md\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md"
+    }
+   },
+   "resolution_order": [
+    "receipt requirement"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_exact_address",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "invoice 4417": {
+     "classification": "supported",
+     "source": "email \u2014 2024-03-10",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nRe: stand-down. We will stand down on the Thursday cut-off.\nemail \u2014 2024-03-11",
+     "sender": "dana.whitfield@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "invoice 4417"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 4417",
+      "4417"
+     ],
+     "transmitted_identifiers": [
+      "4417",
+      "nvoice 4417"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_similar_sender",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "stand-down": {
+     "classification": "supported",
+     "source": "email \u2014 2024-03-10",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\nStand-down confirmation. Confirming the stand-down for the Thursday cut-off; no further shipments from this line.\nemail \u2014 2024-03-10\nCustoms hold on 4417. The customs hold on invoice 4417 is still open as of this morning.\nemail \u2014 2024-03-11",
+     "sender": "d.whitfield@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "stand-down"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "mailbox_long_address_tail",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "invoice 4417": {
+     "classification": "ambiguous",
+     "source": "email \u2014 2024-03-10",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nCustoms hold on 4417. The customs hold on invoice 4417 is still open as of this morning.\nemail \u2014 2024-03-11",
+     "sender": "d.whitfield@linmac.example",
+     "alternatives": 2
+    }
+   },
+   "resolution_order": [
+    "invoice 4417"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 5,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 4417",
+      "4417"
+     ],
+     "transmitted_identifiers": [
+      "4417",
+      "nvoice 4417"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 5
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nShift handover notes. The handover sheet for the night crew is attached; the press guard is still off.\nemail \u2014 2024-03-10\nShift handover notes 2. Second handover note: the bay was locked.\nemail \u2014 2024-03-11",
+     "sender": "ops@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 9th",
+      "9th"
+     ],
+     "transmitted_identifiers": [
+      "9th",
+      "the 9th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nShift handover notes. The handover sheet for the night crew is attached; the press guard is still off.\nemail \u2014 2024-03-10\nShift handover notes 2. Second handover note: the bay was locked.\nemail \u2014 2024-03-11",
+     "sender": "ops@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 10th",
+      "10th"
+     ],
+     "transmitted_identifiers": [
+      "10th",
+      "the 10th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "crowded_lexical_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "shift handover": {
+     "classification": "supported",
+     "source": "shift_handover_log.md",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nShift handover notes. The handover sheet for the night crew is attached; the press guard is still off.\nemail \u2014 2024-03-10\nShift handover notes 2. Second handover note: the bay was locked.\nemail \u2014 2024-03-11",
+     "sender": "ops@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "shift handover"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "the 11th",
+      "11th"
+     ],
+     "transmitted_identifiers": [
+      "11th",
+      "the 11th"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "owner_scope_other_user_excluded",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "other_tenant_pricing.xlsx",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "account 90210": {
+     "classification": "supported",
+     "source": "email \u2014 2024-03-12",
+     "span": "Competitor confidential pricing\n\nAccount 90210 internal cost basis: 61.00 per unit. Never share externally.\nother_tenant_pricing.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12",
+     "sender": "ops@linmac.example"
+    }
+   },
+   "resolution_order": [
+    "account 90210"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "ccount 90210",
+      "90210"
+     ],
+     "transmitted_identifiers": [
+      "90210",
+      "ccount 90210"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "date_restriction_pre_cutoff",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "agreed price": {
+     "classification": "supported",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12"
+    }
+   },
+   "resolution_order": [
+    "agreed price"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "06",
+      "30"
+     ],
+     "transmitted_identifiers": [
+      "06",
+      "30"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "source_restriction_explicit",
+   "sources": [
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "receipt requirement": {
+     "classification": "supported",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought directly.\nexpense_policy.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf"
+    }
+   },
+   "resolution_order": [
+    "receipt requirement"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_two_lookalikes",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "No. 381": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "640.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "No. 381"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "No. 381",
+      "381"
+     ],
+     "transmitted_identifiers": [
+      "381",
+      "no. 381"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_sender_name",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf",
+    "shift_handover_log.md"
+   ],
+   "items": {
+    "the hold": {
+     "classification": "ambiguous",
+     "source": "email \u2014 2024-03-10",
+     "span": "Shift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran.\n\n2024-03-12 night to day: handover ran late because the forklift battery was flat; the shipping bay was left locked.\nshift_handover_log.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nShift handover log\n\n2024-03-11 night to day: the handover was completed at 06:10; the hydraulic press guard was left off pending inspection and the day crew was told to wear gloves while the press ran\nshift_handover_log.md\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nRe: stand-down. We will stand down on the Thursday cut-off.\nemail \u2014 2024-03-11",
+     "sender": "dana.whitfield@linmac.example",
+     "alternatives": 2
+    }
+   },
+   "resolution_order": [
+    "the hold"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "ambiguous_unit_variant",
+   "sources": [
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "GSL48-16": {
+     "classification": "supported",
+     "value": "875.25",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!GSL48-16",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "GSL48-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "GSL48-16"
+     ],
+     "transmitted_identifiers": [
+      "gsl48-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "conflicting_stale_saved_only",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "vector"
+   ],
+   "items": {
+    "SLE24-16": {
+     "classification": "supported",
+     "value": "2499.50",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!SLE24-16",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "SLE24-16"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration",
+     "lexical"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16"
+     ],
+     "transmitted_identifiers": [
+      "sle24-16"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "vector"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "absent:genuinely not in the corpus": {
+     "classification": "unresolved_due_to_retrieval_failure",
+     "claimable": false
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "XYZ-9999"
+     ],
+     "transmitted_identifiers": [
+      "xyz-9999"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "absent:the item exists elsewhere, not in the named source": {
+     "classification": "unresolved_due_to_retrieval_failure",
+     "claimable": false
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "ingested",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "absent:no such message": {
+     "classification": "unresolved_due_to_retrieval_failure",
+     "claimable": false
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "nvoice 9999",
+      "9999"
+     ],
+     "transmitted_identifiers": [
+      "9999",
+      "nvoice 9999"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "absent_within_coverage_3",
+   "sources": [
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "absent:the policy genuinely does not cover parking": {
+     "classification": "unresolved_due_to_retrieval_failure",
+     "claimable": false
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_lexical_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "vector"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "supported",
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!U-22",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration",
+     "lexical"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "vector"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_vector_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget"
+    ],
+    "unavailable": [
+     "vector"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_both_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "unresolved_due_to_retrieval_failure"
+    }
+   },
+   "resolution_order": [],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration"
+    ],
+    "unavailable": [
+     "lexical",
+     "vector"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": []
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_hydration_3",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "vector"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "vector"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_failed_mailbox_4",
+   "sources": [
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [
+     "conversations"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested",
+     "knowledge"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "partial_corrupt_workbook",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf",
+    "vector"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "supported",
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!U-22",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [
+     "hydration",
+     "lexical"
+    ],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "vector"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "distractor_replacement",
+   "sources": [
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "TK 1624": {
+     "classification": "supported",
+     "value": "875.00",
+     "unit": "CAD",
+     "basis": "list",
+     "row": "linmac_consolidated.xlsx!TK 1624",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "TK 1624"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "SLE24-16",
+      "TK 1624",
+      "1624"
+     ],
+     "transmitted_identifiers": [
+      "1624",
+      "sle24-16",
+      "tk 1624"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "distractor_restart_continuation",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "reranker_degraded_unavailable_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "checkpoint_not_local"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_slow_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "rerank_timeout"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_saturated_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "rerank_timeout"
+   }
+  },
+  {
+   "case_id": "reranker_degraded_bad_scores_3",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {
+    "U-22": {
+     "classification": "ambiguous",
+     "alternatives": 2,
+     "value": "1284.00",
+     "unit": "CAD",
+     "basis": "list",
+     "source": "linmac_consolidated.xlsx"
+    }
+   },
+   "resolution_order": [
+    "U-22"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "degraded",
+    "reason": "score_cardinality_mismatch"
+   }
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "blocked": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_0",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "price": {
+     "classification": "ambiguous",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12",
+     "sender": "dana.whitfield@linmac.example",
+     "alternatives": 2
+    },
+    "email or terms": {
+     "classification": "ambiguous",
+     "source": "linmac_consolidated.xlsx",
+     "span": "Consolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12",
+     "sender": "dana.whitfield@linmac.example",
+     "alternatives": 2
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [
+      "U-22"
+     ],
+     "transmitted_identifiers": [
+      "u-22"
+     ],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_1",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-12",
+    "ingested",
+    "knowledge",
+    "linmac_consolidated.xlsx",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "price": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12"
+    },
+    "email or terms": {
+     "classification": "supported",
+     "source": "policy_manual.pdf",
+     "span": "Equipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\t2610.00 CAD\tcold saw, 24 inch 160 gauge\nGSL48-16\t875.25 CAD\tgreen saw left, 48 inch\nGSL48-1\t799.00 CAD\tgreen saw left, 1 gauge\nTK 1624\t875.00 CAD\ttransfer kit 1624\nNo. 381\t640.00 CAD\tlegacy part, revision A\nNo. 381\t655.00 CAD\tlegacy part, revision B\nNo. 622\t415.00 CAD\tlegacy part, revision A\nNo. 622\t430.00 CAD\tlegacy part, revision B\nU-22-US\t940.00 CAD\tUS dealer list, USD\nlinmac_consolidated.xlsx\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separatel\npolicy_manual.pdf\nConsolidated price list linmac_consolidated.xlsx\nU-22\t1284.00 CAD\tplate steel saw, 22 inch\nU-22X\t1399.00 CAD\tplate steel saw, 22 inch, carbide\nSLE24-16\t2499.50 CAD\tcold saw, 24 inch 16 gauge\nSLE24-160\nlinmac_consolidated.xlsx\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nAccount 90210. Account 90210 pricing notes for the quarter are in the consolidated sheet; the list price stands.\nemail \u2014 2024-03-12"
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  },
+  {
+   "case_id": "multi_source_2",
+   "sources": [
+    "communication",
+    "email \u2014 2024-03-10",
+    "email \u2014 2024-03-11",
+    "expense_policy.md",
+    "ingested",
+    "knowledge",
+    "policy_manual.pdf"
+   ],
+   "items": {
+    "price": {
+     "classification": "ambiguous",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought directly.\nexpense_policy.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nCustoms hold on 4417. The customs hold on invoice 4417 is still open as of this morning.\nemail \u2014 2024-03-11",
+     "sender": "d.whitfield@linmac.example",
+     "alternatives": 2
+    },
+    "email or terms": {
+     "classification": "ambiguous",
+     "source": "expense_policy.md",
+     "span": "# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought directly.\nexpense_policy.md\nEquipment warranty terms\n\nLinmac warrants the plate steel saw against defects in materials and workmanship for 24 months from the date of delivery, whichever is earlier. Blades are warranted separately for 12 months. Consumables and cutting fluid are not covered.\npolicy_manual.pdf\n# Expense policy\n\nA receipt is required for any expense of $75 or more. Meals with a client require the attendee names. Parking is never reimbursable. Travel is booked through the agency, not bought d\nexpense_policy.md\nInvoice 4417 released. Invoice 4417 for the plate steel saw has cleared the customs hold. The revised list price is on the consolidated sheet.\nemail \u2014 2024-03-10\nCustoms hold on 4417. The customs hold on invoice 4417 is still open as of this morning.\nemail \u2014 2024-03-11",
+     "sender": "d.whitfield@linmac.example",
+     "alternatives": 2
+    }
+   },
+   "resolution_order": [
+    "price",
+    "email or terms"
+   ],
+   "search_status": "partial",
+   "coverage": {
+    "searched": [
+     "conversations",
+     "hydration",
+     "lexical",
+     "output_budget",
+     "vector"
+    ],
+    "unavailable": [],
+    "skipped": [],
+    "query_variants": 1,
+    "query_coverage": {
+     "requested_identifiers": [],
+     "transmitted_identifiers": [],
+     "dropped_identifiers": [],
+     "complete": true
+    },
+    "classes_at_output_budget": [
+     "ingested"
+    ]
+   },
+   "invocations": {
+    "turn-1": 1
+   },
+   "duration_ms": null,
+   "ranking": {
+    "status": "as_fused",
+    "reason": null
+   }
+  }
+ ]
+}

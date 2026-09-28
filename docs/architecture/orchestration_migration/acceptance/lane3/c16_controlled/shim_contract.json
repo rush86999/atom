@@ -1,0 +1,130 @@
+{
+  "schema": "lane3-c16-shim-contract-v1",
+  "generated_at": "2026-09-27T17:31:17-0400",
+  "world": "c16_d0",
+  "provider_key": "local_5bdc702e",
+  "model": "shim-1",
+  "scripted_arguments": {
+    "wants_edit": true,
+    "edit_mode": "patch",
+    "ops": [
+      {
+        "field": "body",
+        "find": "Quote validity: 15 days.",
+        "replace": "Quote validity: 30 days."
+      }
+    ],
+    "restore_audit_id": null,
+    "updated_content_json": null,
+    "title": null,
+    "reply": "Updated the quote validity to 30 days."
+  },
+  "provider_client_registered": true,
+  "parse_error": null,
+  "direct_instructor": {
+    "ok": true,
+    "type": "CanvasEditPlan",
+    "parsed": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+        {
+          "field": "body",
+          "cell": null,
+          "find": "Quote validity: 15 days.",
+          "replace": "Quote validity: 30 days."
+        }
+      ],
+      "restore_audit_id": null,
+      "updated_content_json": null,
+      "title": null,
+      "reply": "Updated the quote validity to 30 days."
+    }
+  },
+  "parsed_type": "CanvasEditPlan",
+  "parsed": {
+    "wants_edit": true,
+    "edit_mode": "patch",
+    "ops": [
+      {
+        "field": "body",
+        "cell": null,
+        "find": "Quote validity: 15 days.",
+        "replace": "Quote validity: 30 days."
+      }
+    ],
+    "restore_audit_id": null,
+    "updated_content_json": null,
+    "title": null,
+    "reply": "Updated the quote validity to 30 days."
+  },
+  "accepted_wants_edit": true,
+  "ops_preserved": 1,
+  "captured_requests": [
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], "
+    },
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], "
+    },
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], "
+    },
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], "
+    },
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"response\": {\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: "
+    },
+    {
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "tool_mode": true,
+      "model": "shim-1",
+      "stream": false,
+      "matched": true,
+      "served_head": "{\"response\": {\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: "
+    }
+  ],
+  "verdict": {
+    "shim_served": true,
+    "parser_accepted": true,
+    "both_green": true
+  }
+}

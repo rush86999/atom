@@ -44,7 +44,6 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const AUDIO_PROCESSOR_URL =
@@ -79,6 +78,42 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
       audioContextRef.current.close();
       audioContextRef.current = null;
+    }
+  }, []);
+
+  const startAudioProcessing = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      audioContextRef.current = audioContext;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      // ScriptProcessor is deprecated but easiest for simple inline PCM processing without separate worklet file
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorNodeRef.current = processor;
+
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+
+      processor.onaudioprocess = (e: any) => {
+        if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
+
+        const inputData = e.inputBuffer.getChannelData(0);
+        // Downsample/Convert Float32 to Int16
+        // We forced ctx to 16000, so just convert format
+        const buffer = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          let s = Math.max(-1, Math.min(1, inputData[i]));
+          buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        webSocketRef.current.send(buffer.buffer);
+      };
+    } catch (err) {
+      console.error("Error accessing microphone", err);
+      setWakeWordError("Microphone access denied");
+      setIsListening(false);
     }
   }, []);
 
@@ -137,7 +172,7 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
         if (isWakeWordEnabled) startAudioProcessing();
       }, 3000);
     },
-    [router, stopListening, isWakeWordEnabled], // Removed startAudioProcessing from dependency for now to avoid circular dependency before def
+    [router, stopListening, isWakeWordEnabled, startAudioProcessing],
   );
 
   const initializeWebSocket = useCallback(() => {
@@ -172,42 +207,6 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
 
     webSocketRef.current = ws;
   }, [AUDIO_PROCESSOR_URL, handleWakeWordDetected]);
-
-  const startAudioProcessing = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextRef.current = audioContext;
-
-      const source = audioContext.createMediaStreamSource(stream);
-      // ScriptProcessor is deprecated but easiest for simple inline PCM processing without separate worklet file
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      processorNodeRef.current = processor;
-
-      source.connect(processor);
-      processor.connect(audioContext.destination);
-
-      processor.onaudioprocess = (e: any) => {
-        if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
-
-        const inputData = e.inputBuffer.getChannelData(0);
-        // Downsample/Convert Float32 to Int16
-        // We forced ctx to 16000, so just convert format
-        const buffer = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          let s = Math.max(-1, Math.min(1, inputData[i]));
-          buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-        webSocketRef.current.send(buffer.buffer);
-      };
-    } catch (err) {
-      console.error("Error accessing microphone", err);
-      setWakeWordError("Microphone access denied");
-      setIsListening(false);
-    }
-  }, []);
 
   // connectWebSocket removed in favor of initializeWebSocket
 
@@ -286,9 +285,6 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     return () => {
       stopListening();
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
     };
   }, [stopListening]);
 

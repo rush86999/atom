@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import axios from 'axios';
 import { 
@@ -49,7 +49,7 @@ export const EntityTypeGraphView: React.FC<{ workspaceId: string }> = ({ workspa
   const width = 800;
   const height = 600;
 
-  const fetchEntityTypes = async () => {
+  const fetchEntityTypes = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get('/api/entity-types', {
@@ -62,11 +62,11 @@ export const EntityTypeGraphView: React.FC<{ workspaceId: string }> = ({ workspa
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
 
   useEffect(() => {
     fetchEntityTypes();
-  }, [workspaceId]);
+  }, [fetchEntityTypes]);
 
   // Process data for D3
   const graphData = useMemo(() => {
@@ -252,7 +252,7 @@ export const EntityTypeGraphView: React.FC<{ workspaceId: string }> = ({ workspa
 
             {selectedType.description && (
               <p className="text-[11px] text-white/60 leading-relaxed italic border-l-2 border-white/10 pl-3">
-                "{selectedType.description}"
+                &quot;{selectedType.description}&quot;
               </p>
             )}
 

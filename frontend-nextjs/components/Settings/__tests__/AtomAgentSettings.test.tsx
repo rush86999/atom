@@ -22,10 +22,30 @@ jest.mock('@/contexts/WakeWordContext', () => ({
 
 // Child components bring broken src/skills imports (gdrive/dropbox) and their
 // own fetch cycles; stub them so this suite tests AtomAgentSettings itself.
-jest.mock('../VoiceSettings', () => () => <div data-testid="voice-settings">Voice Settings</div>);
-jest.mock('../GDriveManager', () => () => <div data-testid="gdrive-manager">GDrive</div>);
-jest.mock('../DropboxManager', () => () => <div data-testid="dropbox-manager">Dropbox</div>);
-jest.mock('../LiveMeetingAttendanceSettings', () => () => <div data-testid="meeting-attendance">Meeting</div>);
+jest.mock('../VoiceSettings', () => {
+  function MockVoiceSettings() {
+    return <div data-testid="voice-settings">Voice Settings</div>;
+  }
+  return MockVoiceSettings;
+});
+jest.mock('../GDriveManager', () => {
+  function MockGDriveManager() {
+    return <div data-testid="gdrive-manager">GDrive</div>;
+  }
+  return MockGDriveManager;
+});
+jest.mock('../DropboxManager', () => {
+  function MockDropboxManager() {
+    return <div data-testid="dropbox-manager">Dropbox</div>;
+  }
+  return MockDropboxManager;
+});
+jest.mock('../LiveMeetingAttendanceSettings', () => {
+  function MockLiveMeetingAttendanceSettings() {
+    return <div data-testid="meeting-attendance">Meeting</div>;
+  }
+  return MockLiveMeetingAttendanceSettings;
+});
 
 const mockToast = { toast: jest.fn(), dismiss: jest.fn(), toasts: [] };
 jest.mock('@/components/ui/use-toast', () => ({

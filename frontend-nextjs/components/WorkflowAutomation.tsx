@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   Card,
@@ -176,56 +176,6 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
   const [forkVariablesJson, setForkVariablesJson] = useState<string>("{}");
   const { toast } = useToast();
 
-  // Fetch initial data
-  useEffect(() => {
-    fetchWorkflowData();
-  }, []);
-
-  // Open visual builder when parent's "New Automation" button is clicked
-  useEffect(() => {
-    if (triggerNew && triggerNew > 0) {
-      setBuilderInitialData(null);
-      setSelectedWorkflow(null);
-      setViewMode('builder');
-    }
-  }, [triggerNew]);
-
-  // Check for draft in URL
-  const router = useRouter();
-  useEffect(() => {
-    if (router.query.draft) {
-      try {
-        const draftData = JSON.parse(router.query.draft as string);
-        setBuilderInitialData(draftData);
-        setViewMode("builder");
-        toast({ title: "Draft Loaded", description: "Loaded workflow from chat." });
-        // Clean URL
-        router.replace('/automation', undefined, { shallow: true });
-      } catch (e) {
-        console.error("Failed to parse draft", e);
-      }
-    }
-  }, [router.query.draft]);
-
-  // Poll for execution updates when modal is open or executions are running
-  useEffect(() => {
-    const hasRunning = executions.some(e => e.status === 'running');
-    if (isExecutionModalOpen || hasRunning) {
-      const interval = setInterval(fetchExecutions, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [isExecutionModalOpen, executions]);
-
-  // Sync activeExecution with updated list
-  useEffect(() => {
-    if (activeExecution) {
-      const updated = executions.find(e => e.execution_id === activeExecution.execution_id);
-      if (updated && JSON.stringify(updated) !== JSON.stringify(activeExecution)) {
-        setActiveExecution(updated);
-      }
-    }
-  }, [executions]);
-
   const handleGenerativeCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!genPrompt.trim()) return;
@@ -252,28 +202,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     }, 1000);
   };
 
-  const fetchWorkflowData = async () => {
-    try {
-      setLoading(true);
-      await Promise.all([
-        fetchTemplates(),
-        fetchWorkflows(),
-        fetchExecutions(),
-        fetchServices(),
-      ]);
-    } catch (error) {
-      console.error("Error fetching workflow data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load workflow data",
-        variant: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch("/api/workflow-templates/", {
@@ -294,9 +223,9 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     } catch (e) {
       console.error("Failed to fetch templates", e);
     }
-  };
+  }, []);
 
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = useCallback(async () => {
     try {
       const response = await fetch("/api/v1/workflows/workflows");
       const data = await response.json();
@@ -305,9 +234,9 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     } catch (e) {
       console.error("Failed to fetch workflows", e);
     }
-  };
+  }, []);
 
-  const fetchExecutions = async () => {
+  const fetchExecutions = useCallback(async () => {
     try {
       const response = await fetch("/api/v1/workflow-ui/executions");
       const data = await response.json();
@@ -317,9 +246,9 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     } catch (e) {
       console.error("Failed to fetch executions", e);
     }
-  };
+  }, []);
 
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     try {
       const response = await fetch("/api/v1/workflow-ui/services");
       const data = await response.json();
@@ -330,7 +259,77 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       console.error("Failed to fetch services", e);
     }
 
-  };
+  }, []);
+
+  const fetchWorkflowData = useCallback(async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchTemplates(),
+        fetchWorkflows(),
+        fetchExecutions(),
+        fetchServices(),
+      ]);
+    } catch (error) {
+      console.error("Error fetching workflow data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load workflow data",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchTemplates, fetchWorkflows, fetchExecutions, fetchServices, toast]);
+
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const draft = router.query.draft;
+
+  useEffect(() => {
+    fetchWorkflowData();
+  }, [fetchWorkflowData]);
+
+  useEffect(() => {
+    if (triggerNew && triggerNew > 0) {
+      setBuilderInitialData(null);
+      setSelectedWorkflow(null);
+      setViewMode('builder');
+    }
+  }, [triggerNew]);
+
+  useEffect(() => {
+    if (draft) {
+      try {
+        const draftData = JSON.parse(draft as string);
+        setBuilderInitialData(draftData);
+        setViewMode("builder");
+        toast({ title: "Draft Loaded", description: "Loaded workflow from chat." });
+        // Clean URL
+        routerRef.current.replace('/automation', undefined, { shallow: true });
+      } catch (e) {
+        console.error("Failed to parse draft", e);
+      }
+    }
+  }, [draft, toast]);
+
+  useEffect(() => {
+    const hasRunning = executions.some(e => e.status === 'running');
+    if (isExecutionModalOpen || hasRunning) {
+      const interval = setInterval(fetchExecutions, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isExecutionModalOpen, executions, fetchExecutions]);
+
+  useEffect(() => {
+    if (activeExecution) {
+      const updated = executions.find(e => e.execution_id === activeExecution.execution_id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(activeExecution)) {
+        setActiveExecution(updated);
+      }
+    }
+  }, [activeExecution, executions]);
 
   const handleBuilderSave = async (builderData: { nodes: any[]; edges: any[] }) => {
     try {

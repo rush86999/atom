@@ -790,6 +790,20 @@ async def _rerank_lines(query: str, lines: List[str]) -> List[str]:
             scores = await asyncio.to_thread(
                 model.predict, [(query, ln) for ln in lines]
             )
+            # A score vector that is not one finite score per line must not be
+            # allowed to reorder anything: `sorted(key=scores[i])` would either
+            # raise mid-order (leaving the caller with a partial list) or, with
+            # a short vector, silently pair the wrong line with the wrong
+            # score. Refuse and fall through to a tier that can be checked.
+            scores = [float(s) for s in list(scores)]
+            if len(scores) != len(lines):
+                raise ValueError(
+                    f"rerank score count {len(scores)} != {len(lines)} lines"
+                )
+            if not all(
+                s == s and s not in (float("inf"), float("-inf")) for s in scores
+            ):
+                raise ValueError("rerank produced non-finite scores")
             order = sorted(
                 range(len(lines)),
                 key=lambda i: scores[i],
@@ -808,8 +822,12 @@ async def _rerank_lines(query: str, lines: List[str]) -> List[str]:
             _RERANK_EMBEDDER = EmbeddingService(provider="fastembed")
         import numpy as np
 
+        # The query is embedded whole, not head-cut. Embedding a truncated
+        # query re-ranked by a vector that no longer represents what was asked:
+        # a turn naming many identifiers ranked its lines against the first
+        # 500 characters of itself.
         vectors = await _RERANK_EMBEDDER.generate_embeddings_batch(
-            [query[:500]] + lines
+            [query] + lines
         )
         q = np.asarray(vectors[0], dtype=float)
         docs = np.asarray(vectors[1:], dtype=float)

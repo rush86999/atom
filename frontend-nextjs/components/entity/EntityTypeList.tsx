@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -55,7 +55,7 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
 
   const workspaceId = (session as any)?.user?.workspace_id || 'default';
 
-  const fetchEntityTypes = async () => {
+  const fetchEntityTypes = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -76,11 +76,11 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterSystem, workspaceId]);
 
   useEffect(() => {
     fetchEntityTypes();
-  }, [refreshTrigger, filterSystem, workspaceId]);
+  }, [fetchEntityTypes, refreshTrigger]);
 
   const filteredEntityTypes = React.useMemo(() => {
     if (!search) return entityTypes;

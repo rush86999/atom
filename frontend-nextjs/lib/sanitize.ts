@@ -57,7 +57,6 @@ export function sanitizeHtml(dirty: string | undefined | null): string {
 export function renderMarkdownSafe(markdown: string | undefined | null): string {
   if (!markdown) return "";
   // marked is imported lazily so this module stays DOMPurify-only in tests.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { marked } = require("marked");
   const rawHtml = marked.parse(markdown) as string;
   return sanitizeHtml(rawHtml);

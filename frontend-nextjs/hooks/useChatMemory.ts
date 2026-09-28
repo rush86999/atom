@@ -81,12 +81,35 @@ export function useChatMemory(config: UseChatMemoryConfig): UseChatMemoryReturn 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshMemoryStats = useCallback(async (): Promise<void> => {
+    if (!enableMemory) return;
+
+    try {
+      const response = await fetch(`/api/chat/memory/stats?user_id=${userId}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to get memory stats: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        setMemoryStats(result);
+      } else {
+        throw new Error(result.message || 'Failed to get memory stats');
+      }
+    } catch (err) {
+      console.error('Error refreshing memory stats:', err);
+      // Don't set error state for stats refresh to avoid disrupting UX
+    }
+  }, [enableMemory, userId]);
+
   // Load initial memory stats
   useEffect(() => {
     if (enableMemory) {
       refreshMemoryStats();
     }
-  }, [enableMemory, userId]);
+  }, [enableMemory, userId, refreshMemoryStats]);
 
   /**
    * Store a conversation memory
@@ -140,7 +163,7 @@ export function useChatMemory(config: UseChatMemoryConfig): UseChatMemoryReturn 
     } finally {
       setIsLoading(false);
     }
-  }, [enableMemory, userId, sessionId, contextWindow]);
+  }, [enableMemory, userId, sessionId, contextWindow, refreshMemoryStats]);
 
   /**
    * Get memory context for current conversation
@@ -243,33 +266,7 @@ export function useChatMemory(config: UseChatMemoryConfig): UseChatMemoryReturn 
     } finally {
       setIsLoading(false);
     }
-  }, [enableMemory, sessionId]);
-
-  /**
-   * Refresh memory statistics
-   */
-  const refreshMemoryStats = useCallback(async (): Promise<void> => {
-    if (!enableMemory) return;
-
-    try {
-      const response = await fetch(`/api/chat/memory/stats?user_id=${userId}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to get memory stats: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        setMemoryStats(result);
-      } else {
-        throw new Error(result.message || 'Failed to get memory stats');
-      }
-    } catch (err) {
-      console.error('Error refreshing memory stats:', err);
-      // Don't set error state for stats refresh to avoid disrupting UX
-    }
-  }, [enableMemory, userId]);
+  }, [enableMemory, sessionId, refreshMemoryStats]);
 
   /**
    * Auto-store messages when autoStoreMessages is enabled

@@ -45,9 +45,11 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const { latestCommand, clearLastCommand } = useAgentAudioControl();
 
   useEffect(() => {
-    if (initialSuggestedTitle && status === 'idle') {
+    if (!initialSuggestedTitle || status !== 'idle') return;
+    const timeoutId = setTimeout(() => {
       setNoteTitle(initialSuggestedTitle);
-    }
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [initialSuggestedTitle, status]);
 
   const formatTime = (timeInSeconds: number): string => {
@@ -98,7 +100,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     setAudioBlob(undefined);
     audioChunksRef.current = [];
     if (titleFromCommand) setNoteTitle(titleFromCommand);
-    if (eventIdFromCommand) setCurrentLinkedEventId(eventIdFromCommand);
+    setCurrentLinkedEventId(eventIdFromCommand);
 
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -175,8 +177,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setStatus('error');
       onRecordingError(errorMsg);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, onRecordingError]); // Removed cleanupRecordingResources from deps as it's stable
+  }, [status, onRecordingError, cleanupRecordingResources]);
 
   // Abstracted stop recording logic
   const stopRecordingSession = useCallback(() => {
@@ -202,7 +203,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   // Effect to handle commands from AgentAudioControlContext
   useEffect(() => {
-    if (latestCommand) {
+    if (!latestCommand) return;
+
+    const timeoutId = setTimeout(() => {
       console.log("AudioRecorder reacting to agent command:", latestCommand);
       const { action, payload } = latestCommand;
       switch (action) {
@@ -210,9 +213,10 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
           // Optionally, ask user for confirmation before starting via agent.
           // For now, directly start.
           if (status === 'idle' || status === 'error') { // Only start if not already doing something
-            setNoteTitle(payload?.suggestedTitle || initialSuggestedTitle || 'Agent Audio Note');
-            setCurrentLinkedEventId(payload?.linkedEventId || initialLinkedEventId);
-            startRecordingSession(payload?.suggestedTitle, payload?.linkedEventId);
+            startRecordingSession(
+              payload?.suggestedTitle || initialSuggestedTitle || 'Agent Audio Note',
+              payload?.linkedEventId || initialLinkedEventId
+            );
           } else {
             console.warn(`Agent commanded START_RECORDING_SESSION but current status is ${status}. Ignoring.`);
             // TODO: Optionally send a NACK or BUSY status back to agent
@@ -236,8 +240,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
           console.warn("Received unknown agent audio command action:", action);
       }
       clearLastCommand(); // Consume the command
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [latestCommand, clearLastCommand, startRecordingSession, stopRecordingSession, cancelRecordingSession, status, initialSuggestedTitle, initialLinkedEventId]);
 
 
@@ -295,13 +300,14 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setStatus('error');
       onRecordingError(errorMsg);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, noteTitle, userId, currentLinkedEventId, onRecordingComplete, onRecordingError, initialSuggestedTitle, initialLinkedEventId]);
 
   useEffect(() => {
-    if (status === 'stopped' && audioBlob) {
-      handleUploadAudio();
-    }
+    if (status !== 'stopped' || !audioBlob) return;
+    const timeoutId = setTimeout(() => {
+      void handleUploadAudio();
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [status, audioBlob, handleUploadAudio]);
 
   // --- UI Event Handlers (for manual button clicks) ---

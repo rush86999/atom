@@ -49,6 +49,14 @@ export interface IntegrationConnectionGuideProps {
   className?: string;
 }
 
+const steps = [
+  { key: 'initiating', label: 'Initiating', icon: '🚀' },
+  { key: 'authorizing', label: 'Authorizing', icon: '🔐' },
+  { key: 'callback', label: 'Callback', icon: '📞' },
+  { key: 'verifying', label: 'Verifying', icon: '✅' },
+  { key: 'complete', label: 'Complete', icon: '🎉' }
+];
+
 /**
  * IntegrationConnectionGuide - Guides users through OAuth/integration setup
  */
@@ -62,21 +70,13 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
   const [guideData, setGuideData] = useState<IntegrationGuideData | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [expandedPermissions, setExpandedPermissions] = useState<Record<number, boolean>>({});
-  const { lastMessage, sendMessage } = useWebSocket();
+  const { onMessage, sendMessage } = useWebSocket();
 
-  const steps = [
-    { key: 'initiating', label: 'Initiating', icon: '🚀' },
-    { key: 'authorizing', label: 'Authorizing', icon: '🔐' },
-    { key: 'callback', label: 'Callback', icon: '📞' },
-    { key: 'verifying', label: 'Verifying', icon: '✅' },
-    { key: 'complete', label: 'Complete', icon: '🎉' }
-  ];
-
-  useEffect(() => {
-    if (!lastMessage || lastMessage.type !== 'canvas:update') return;
+  useEffect(() => onMessage((message) => {
+    if (message.type !== 'canvas:update') return;
 
     try {
-      const data = lastMessage.data;
+      const data = message.data;
 
       if (data?.component === 'integration_connection_guide') {
         const payload = data.data;
@@ -95,22 +95,19 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
 
       // Handle updates
       if (data?.action === 'update') {
-        setGuideData((prev) => {
-          if (!prev) return null;
-
-          const updatedData = { ...prev, ...data.updates };
-          const stepIndex = steps.findIndex(s => s.key === updatedData.stage);
+        const updatedStage = data.updates?.stage;
+        if (updatedStage) {
+          const stepIndex = steps.findIndex(s => s.key === updatedStage);
           if (stepIndex >= 0) {
             setCurrentStepIndex(stepIndex);
           }
-
-          return updatedData;
-        });
+        }
+        setGuideData(prev => prev ? { ...prev, ...data.updates } : null);
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, integrationId]);
+  }), [onMessage, integrationId]);
 
   // Handle completion
   useEffect(() => {
@@ -157,8 +154,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           <div className="h-4 bg-gray-300 rounded w-48"></div>
         </div>
         {/* Accessibility Tree - Loading state */}
-        <script
-          type="application/json"
+        <div
           role="log"
           aria-live="polite"
           aria-label="Integration connection guide"
@@ -166,8 +162,10 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           data-canvas-state="integration_connection_guide"
           data-status="loading"
         >
-          {JSON.stringify({ status: 'loading', message: 'Waiting for integration data...' })}
-        </script>
+          <script type="application/json">
+            {JSON.stringify({ status: 'loading', message: 'Waiting for integration data...' })}
+          </script>
+        </div>
       </div>
     );
   }
@@ -175,8 +173,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
   return (
     <>
       {/* Accessibility Tree - Hidden integration state for AI agents */}
-      <script
-        type="application/json"
+      <div
         role="log"
         aria-live="polite"
         aria-label="Integration connection guide"
@@ -189,19 +186,21 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
         data-permissions-count={guideData?.permissions?.length}
         data-current-step-index={currentStepIndex}
       >
-        {JSON.stringify({
-          integration_id: guideData.integration_id,
-          integration_name: guideData.integration_name,
-          stage: guideData.stage,
-          agent_guidance: guideData.agent_guidance,
-          permissions: guideData.permissions,
-          connection_status: guideData.connection_status,
-          browser_session: guideData.browser_session,
-          current_step_index: currentStepIndex,
-          total_steps: steps.length,
-          progress_percentage: Math.round((currentStepIndex / (steps.length - 1)) * 100)
-        })}
-      </script>
+        <script type="application/json">
+          {JSON.stringify({
+            integration_id: guideData.integration_id,
+            integration_name: guideData.integration_name,
+            stage: guideData.stage,
+            agent_guidance: guideData.agent_guidance,
+            permissions: guideData.permissions,
+            connection_status: guideData.connection_status,
+            browser_session: guideData.browser_session,
+            current_step_index: currentStepIndex,
+            total_steps: steps.length,
+            progress_percentage: Math.round((currentStepIndex / (steps.length - 1)) * 100)
+          })}
+        </script>
+      </div>
 
       <div className={`integration-connection-guide bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden ${className}`}>
       {/* Header */}
@@ -269,7 +268,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
                 <p className="text-sm text-blue-800">{guideData.agent_guidance.why_needed}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-blue-900">What's next:</p>
+                <p className="text-xs font-medium text-blue-900">What&apos;s next:</p>
                 <p className="text-sm text-blue-800">{guideData.agent_guidance.whats_next}</p>
               </div>
             </div>
@@ -323,7 +322,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
             </div>
             <div className="p-4">
               <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                I've opened {guideData.integration_name}'s authorization page.
+                I&apos;ve opened {guideData.integration_name}&apos;s authorization page.
               </p>
               <a
                 href={guideData.browser_session.url}

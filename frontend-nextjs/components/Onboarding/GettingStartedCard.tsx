@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/router';
 import { CheckCircle, Circle, Key, Bot, Play, X, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,38 @@ interface Progress {
     first_job_done: boolean;
 }
 
+const subscribeToDismissal = (callback: () => void) => {
+    window.addEventListener('storage', callback);
+    return () => window.removeEventListener('storage', callback);
+};
+
+const getDismissedSnapshot = () => {
+    try {
+        return window.localStorage.getItem(DISMISS_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
+const getServerDismissedSnapshot = () => true;
+
+const fetchProgress = async (): Promise<Progress | null | undefined> => {
+    const token = typeof window !== 'undefined'
+        ? (localStorage.getItem('token') || localStorage.getItem('auth_token'))
+        : null;
+    if (!token) return undefined;
+    try {
+        const res = await fetch(`${API_BASE}/api/onboarding/progress`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return undefined;
+        const data = await res.json();
+        return data?.data ?? data ?? null;
+    } catch {
+        return undefined;
+    }
+};
+
 /**
  * "Getting started" checklist for the dashboard — the persistent, visible
  * guide from first login to the user's first AI agent job:
@@ -24,41 +56,27 @@ interface Progress {
 export function GettingStartedCard() {
     const router = useRouter();
     const [progress, setProgress] = useState<Progress | null>(null);
-    const [dismissed, setDismissed] = useState(true); // hidden until mounted (SSR-safe)
+    const storedDismissed = useSyncExternalStore(
+        subscribeToDismissal,
+        getDismissedSnapshot,
+        getServerDismissedSnapshot
+    );
+    const [dismissedOverride, setDismissedOverride] = useState<boolean | null>(null);
+    const dismissed = dismissedOverride ?? storedDismissed;
 
     useEffect(() => {
-        try {
-            setDismissed(localStorage.getItem(DISMISS_KEY) === '1');
-        } catch {
-            setDismissed(false);
-        }
-    }, []);
-
-    const refresh = async () => {
-        const token = typeof window !== 'undefined'
-            ? (localStorage.getItem('token') || localStorage.getItem('auth_token'))
-            : null;
-        if (!token) return;
-        try {
-            const res = await fetch(`${API_BASE}/api/onboarding/progress`, {
-                headers: { Authorization: `Bearer ${token}` },
+        let cancelled = false;
+        const onFocus = () => {
+            void fetchProgress().then((nextProgress) => {
+                if (!cancelled && nextProgress !== undefined) setProgress(nextProgress);
             });
-            if (!res.ok) return;
-            const data = await res.json();
-            setProgress(data?.data ?? data ?? null);
-        } catch {
-            // keep null — renders the checklist without check marks rather
-            // than blocking the dashboard
-        }
-    };
-
-    useEffect(() => {
-        refresh();
-        // Re-check when returning from settings/agents/chat so completed
-        // steps light up without a manual reload.
-        const onFocus = () => refresh();
+        };
+        onFocus();
         window.addEventListener('focus', onFocus);
-        return () => window.removeEventListener('focus', onFocus);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('focus', onFocus);
+        };
     }, []);
 
     const allDone = !!progress
@@ -71,7 +89,7 @@ export function GettingStartedCard() {
         return (
             <button
                 onClick={() => {
-                    setDismissed(false);
+                    setDismissedOverride(false);
                     try { localStorage.removeItem(DISMISS_KEY); } catch { /* ignore */ }
                 }}
                 data-testid="getting-started-restore"
@@ -128,7 +146,7 @@ export function GettingStartedCard() {
                 </div>
                 <button
                     onClick={() => {
-                        setDismissed(true);
+                        setDismissedOverride(true);
                         try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
                     }}
                     aria-label="Dismiss getting started guide"

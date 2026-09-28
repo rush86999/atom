@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -56,7 +56,7 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
     const [isUpdating, setIsUpdating] = useState(false);
     const { toast } = useToast();
 
-    const fetchConnections = async () => {
+    const fetchConnections = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(`/api/v1/connections?integration_id=${encodeURIComponent(integrationId)}`);
@@ -69,13 +69,13 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [integrationId]);
 
     useEffect(() => {
         if (isOpen && integrationId) {
-            fetchConnections();
+            void fetchConnections();
         }
-    }, [isOpen, integrationId]);
+    }, [isOpen, integrationId, fetchConnections]);
 
     const handleRename = async (connectionId: string) => {
         if (!editName.trim()) return;

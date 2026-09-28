@@ -5,7 +5,7 @@
  * Shows preview of target version and creates rollback version.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -89,13 +89,7 @@ export const RollbackWorkflowModal: React.FC<RollbackWorkflowModalProps> = ({
   const [versionError, setVersionError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  useEffect(() => {
-    if (open && targetVersion) {
-      fetchTargetVersion();
-    }
-  }, [open, targetVersion]);
-
-  const fetchTargetVersion = async () => {
+  const fetchTargetVersion = useCallback(async () => {
     try {
       setFetchingVersion(true);
       setVersionError(null);
@@ -120,7 +114,13 @@ export const RollbackWorkflowModal: React.FC<RollbackWorkflowModalProps> = ({
     } finally {
       setFetchingVersion(false);
     }
-  };
+  }, [workflowId, targetVersion, toast]);
+
+  useEffect(() => {
+    if (open && targetVersion) {
+      fetchTargetVersion();
+    }
+  }, [open, targetVersion, fetchTargetVersion]);
 
   const handleRollback = async () => {
     if (!rollbackReason.trim()) {

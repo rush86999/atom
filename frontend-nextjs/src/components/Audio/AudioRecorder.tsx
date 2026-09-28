@@ -36,6 +36,18 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     };
   }, [stream]);
 
+  const stopRecording = useCallback(() => {
+    if (mediaRecorder && state.isRecording) {
+      mediaRecorder.stop();
+      dispatch({ type: "STOP_RECORDING" });
+
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    }
+  }, [mediaRecorder, state.isRecording, dispatch]);
+
   const startRecording = useCallback(async () => {
     try {
       setPermissionDenied(false);
@@ -97,19 +109,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
         onError("Microphone permission denied or audio device unavailable");
       }
     }
-  }, [dispatch, mimeType, maxRecordingTime, onRecordingComplete, onError]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorder && state.isRecording) {
-      mediaRecorder.stop();
-      dispatch({ type: "STOP_RECORDING" });
-
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-    }
-  }, [mediaRecorder, state.isRecording, dispatch]);
+  }, [dispatch, mimeType, maxRecordingTime, onRecordingComplete, onError, stopRecording]);
 
   const resetRecording = useCallback(() => {
     stopRecording();

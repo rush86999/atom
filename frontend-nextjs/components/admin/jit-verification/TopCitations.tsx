@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -21,11 +21,7 @@ export const TopCitations: React.FC = () => {
   const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTopCitations();
-  }, []);
-
-  const fetchTopCitations = async () => {
+  const fetchTopCitations = useCallback(async () => {
     try {
       const response = await jitVerificationAPI.getTopCitations(20);
       setTopCitations(response.data.top_citations);
@@ -39,7 +35,11 @@ export const TopCitations: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTopCitations();
+  }, [fetchTopCitations]);
 
   // Get max access count for progress bar calculation
   const maxAccessCount = React.useMemo(() => {

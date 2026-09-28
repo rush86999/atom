@@ -1351,7 +1351,7 @@ const Microsoft365Integration: React.FC = () => {
                                             Advanced Automation Control
                                         </CardTitle>
                                         <p className="text-sm text-muted-foreground">
-                                            Execute "Zero Human Interaction" workflows directly from this panel.
+                                            Execute &quot;Zero Human Interaction&quot; workflows directly from this panel.
                                         </p>
                                     </CardHeader>
                                 </Card>
@@ -1385,7 +1385,7 @@ const Microsoft365Integration: React.FC = () => {
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium">Granular Row Update</label>
-                                                <div className="text-xs text-muted-foreground mb-1">Simulates mapping dict &#123;"Region": "North", "Sales": "5000"&#125;</div>
+                                                <div className="text-xs text-muted-foreground mb-1">Simulates mapping dict &#123;&quot;Region&quot;: &quot;North&quot;, &quot;Sales&quot;: &quot;5000&quot;&#125;</div>
                                                 <Button className="w-full" variant="secondary" onClick={() => {
                                                     authFetch("/api/integrations/microsoft365/excel/execute?access_token=mock", {
                                                         method: "POST",
@@ -1502,7 +1502,7 @@ const Microsoft365Integration: React.FC = () => {
                                                         body: JSON.stringify({ action: "create_folder", params: { name: "Project_Z_Assets" } })
                                                     }).then(() => toast({ title: "Success", description: "Folder structure created" }));
                                                 }}>
-                                                    Run "New Project" Workflow
+                                                    Run &quot;New Project&quot; Workflow
                                                 </Button>
                                             </div>
                                         </CardContent>

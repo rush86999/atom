@@ -153,7 +153,7 @@ const LocalModelsPage: React.FC = () => {
                         <div className="h-20 w-full rounded-lg border bg-muted/30 animate-pulse" />
                     </div>
                 ) : providers.length === 0 ? (
-                    <Card><CardContent className="py-12 text-center"><p className="text-muted-foreground">No local providers registered yet. Click "Add Provider" to get started.</p></CardContent></Card>
+                    <Card><CardContent className="py-12 text-center"><p className="text-muted-foreground">No local providers registered yet. Click &quot;Add Provider&quot; to get started.</p></CardContent></Card>
                 ) : (
                     <div className="space-y-4">
                         {providers.map((p) => (

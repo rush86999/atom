@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { authHeaders } from "@/lib/auth-headers";
 
@@ -90,12 +90,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     }
   };
 
-  useEffect(() => {
-    loadUserAPIKeyStatus();
-    loadSatelliteKey();
-  }, [userId, baseApiUrl]);
-
-  const loadSatelliteKey = async () => {
+  const loadSatelliteKey = useCallback(async () => {
     try {
       const response = await fetch(`${baseApiUrl}/satellite/key`);
       if (response.ok) {
@@ -105,7 +100,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     } catch (err) {
       console.error("Failed to load satellite key:", err);
     }
-  };
+  }, [baseApiUrl]);
 
   const rotateSatelliteKey = async () => {
     if (!window.confirm("Are you sure you want to rotate your Satellite Key? Existing local connections will be disconnected.")) {
@@ -128,7 +123,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     }
   };
 
-  const loadUserAPIKeyStatus = async () => {
+  const loadUserAPIKeyStatus = useCallback(async () => {
     try {
       setLoading(true);
       // Use the correct BYOK endpoint. GET /api/ai/providers is auth-gated
@@ -191,7 +186,12 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [baseApiUrl, userId]);
+
+  useEffect(() => {
+    loadUserAPIKeyStatus();
+    loadSatelliteKey();
+  }, [userId, baseApiUrl, loadSatelliteKey, loadUserAPIKeyStatus]);
 
   const saveAPIKey = async (provider: string, apiKey: string) => {
     try {

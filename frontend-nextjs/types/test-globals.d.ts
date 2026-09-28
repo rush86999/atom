@@ -7,8 +7,7 @@
  * implicit-any errors).
  */
 declare global {
-  // eslint-disable-next-line no-var
-  var mockFetch: any;
+  var mockFetch: typeof fetch;
 }
 
 export {};

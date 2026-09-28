@@ -1,0 +1,8 @@
+{
+ "comment": "Authored provider completion for the search Layer-2 public-boundary cases. The production pipeline still assembles context, routes, retrieves, validates and delivers; only the model completion is scripted, because the seatbelt profile blocks external egress and a world with no reachable provider answers every turn with 'every configured provider failed' - a property of the sandbox, not of the system under test. The catch-all match ('' is a substring of every request) is deliberate: the restart follow-up has to be answerable or the constraint-survival assertion is unfalsifiable. The reply REPEATS the requested identifiers for the same reason. {NONCE} is substituted by the shim and bound by the harness for consumption evidence.",
+ "default": "Continuing with the price list you asked for: U-22, SLE24-16 and TK 1624, all quoted in CAD from the indexed copy of Consolidated Price List 2019.xlsx. Reference: {NONCE}.",
+ "responses": [
+  {"match": "", "response": "U-22, SLE24-16 and TK 1624 from Consolidated Price List 2019.xlsx, all in CAD. Reference: {NONCE}."}
+ ],
+ "fail_unmatched": true
+}

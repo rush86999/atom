@@ -13,8 +13,34 @@ unresolvable (vector-only: connector file ingests, manual uploads) hits are
 STILL RETURNED flagged ``bridged:false`` (title from LanceDB metadata) so
 ingested-but-PG-less data stays searchable.
 
-Degradation ladder: ``bm25_vector_rrf`` | ``lexical_only`` | ``semantic_only`` |
-``no_results``. Never raises.
+Degradation ladder (the ``hybrid`` label): ``bm25_vector_rrf`` |
+``lexical_only`` | ``semantic_only`` | ``no_results``. That label answers
+"which legs contributed ranked hits" and is NOT a statement about coverage —
+a healthy corpus with no lexical matches and a corpus whose lexical leg threw
+both read ``lexical_only``.
+
+Coverage is the ``status`` field, and it is what callers must branch on:
+
+    success  the intended search ran to completion inside its declared
+             coverage; zero matches is a legitimate answer
+    partial  usable evidence was returned, but at least one ENABLED leg (or
+             the hydration/identity resolution) was unavailable or truncated
+    failed   required retrieval produced no usable evidence
+
+Every leg that ran, was skipped, or failed is reported individually under
+``legs`` with its own status, error CATEGORY (never a raw ``str(e)`` — it
+reaches the model and the user), hit count and duration, so a failed leg can
+never again be indistinguishable from a successful zero-match one. Optional
+legs disabled by configuration report ``skipped``, never ``failed``.
+Ranking degradation (a reranker fallback) is reported under ``ranking`` and
+is deliberately NOT coverage.
+
+Never raises.
+
+``error_category`` below is the shared, non-leaking failure vocabulary: the
+workbook artifact scan classifies its own unreadable sources through it, so a
+damaged parquet is reported with the same words as a broken search leg instead
+of a raw ``str(e)``.
 """
 from __future__ import annotations
 
@@ -22,6 +48,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -29,6 +56,110 @@ logger = logging.getLogger(__name__)
 
 RRF_K = 60
 _VECTOR_LIMIT_MULTIPLIER = 3
+
+STATUS_SUCCESS = "success"
+STATUS_PARTIAL = "partial"
+STATUS_FAILED = "failed"
+
+LEG_OK = "ok"
+LEG_FAILED = "failed"
+LEG_SKIPPED = "skipped"
+
+ERROR_TIMEOUT = "timeout"
+ERROR_UNAVAILABLE = "source_unavailable"
+ERROR_PERMISSION = "access_denied"
+ERROR_MISSING = "source_missing"
+ERROR_CONFIGURATION = "configuration"
+ERROR_CORRUPT = "source_corrupt"
+ERROR_UNKNOWN = "unknown"
+
+
+class _LegSkipped(Exception):
+    """A leg that configuration deliberately did not run.
+
+    Distinct from a failure on purpose: an optional leg switched off is
+    ``skipped``, so a caller reading coverage can tell "we chose not to look
+    here" from "we looked here and could not".
+    """
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _skipped_leg(reason: str) -> Dict[str, Any]:
+    return {
+        "status": LEG_SKIPPED,
+        "required": False,
+        "error_category": None,
+        "skip_reason": reason,
+        "hit_count": 0,
+        "duration_ms": 0.0,
+    }
+
+
+# Signatures of a source file that is present but not readable AS ITS OWN
+# FORMAT. Shared with the workbook artifact scan, which hits the same wall on
+# a damaged parquet ("Parquet magic bytes not found in footer") — that text
+# matched no branch below and fell through to ``unknown``, which reads as "we
+# do not know why" instead of "the bytes are damaged".
+_CORRUPTION_MARKERS = (
+    "corrupt",
+    "magic bytes",
+    "not a parquet file",
+    "invalid footer",
+    "malformed",
+    "not a database",
+    "disk image",
+    "checksum",
+    "unexpected end of",
+    "parquet file size",
+)
+
+# Exception CLASSES raised by the columnar-format readers a materialized sheet
+# is read through. They raise only for data their own format cannot accept, so
+# a failure from one is a damaged source by definition — and the wording varies
+# too much to match on text alone ("Parquet file size is 3 bytes, smaller than
+# the minimum file footer" carries none of the usual corruption words).
+_FORMAT_READER_NAMES = ("arrow", "parquet", "fastparquet", "orc")
+
+
+def error_category(exc: BaseException) -> str:
+    """Stable, non-leaking category for a retrieval failure.
+
+    The raw message can carry connection strings, file paths, row contents or
+    provider payloads, and it is rendered into model-visible and user-visible
+    text. Only the class is classified here; the message stays in the log at
+    debug level for the operator.
+
+    Public because the vocabulary is the contract, not an implementation
+    detail of this leg: any producer that must report "the source could not be
+    read" without leaking ``str(exc)`` classifies through here.
+    """
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return ERROR_TIMEOUT
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    if isinstance(exc, (PermissionError,)) or "access denied" in text or "not authorized" in text:
+        return ERROR_PERMISSION
+    if isinstance(exc, (FileNotFoundError,)) or "no such table" in text or "does not exist" in text:
+        return ERROR_MISSING
+    if "sqlite3" in name and any(k in text for k in _CORRUPTION_MARKERS):
+        return ERROR_CORRUPT
+    if isinstance(exc, (ConnectionError, OSError)) or "connection" in text or "unreachable" in text:
+        return ERROR_UNAVAILABLE
+    if isinstance(exc, (ImportError, ModuleNotFoundError, AttributeError, TypeError)):
+        return ERROR_CONFIGURATION
+    if any(marker in text for marker in _CORRUPTION_MARKERS):
+        return ERROR_CORRUPT
+    if any(marker in name for marker in _FORMAT_READER_NAMES):
+        return ERROR_CORRUPT
+    return ERROR_UNKNOWN
+
+
+# Private alias kept so the in-module call sites (and any importer written
+# against the previous name) keep working.
+_error_category = error_category
 
 
 def _coerce_metadata(raw: Any) -> Dict[str, Any]:
@@ -75,24 +206,37 @@ class DocumentsHybridSearch:
     ) -> Dict[str, Any]:
         query = (query or "").strip()
         if len(query) < 3:
-            return self._response(query, [], "no_results", stats={})
-
-        stats: Dict[str, Any] = {}
-        try:
-            lexical, vector = await asyncio.gather(
-                asyncio.to_thread(
-                    self._lexical_leg, query, limit, since, source, author
-                ),
-                self._vector_leg(query, limit, source),
+            return self._response(
+                query, [], "no_results", stats={},
+                legs={name: _skipped_leg(reason="query_too_short")
+                      for name in ("lexical", "vector", "conversations")},
             )
-        except Exception as e:
-            logger.error("DocumentsHybridSearch.search failed: %s", e)
-            return self._response(query, [], "no_results", stats={})
 
-        stats["lexical_hits"] = len(lexical)
-        stats["vector_hits"] = len(vector)
+        legs: Dict[str, Dict[str, Any]] = {}
 
-        fused, unbridged = self._fuse_rrf(lexical, vector)
+        lexical, _ = await self._run_leg(
+            "lexical",
+            lambda: asyncio.to_thread(
+                self._lexical_leg, query, limit, since, source, author
+            ),
+            legs,
+            required=True,
+        )
+        vector, _ = await self._run_leg(
+            "vector",
+            lambda: self._vector_leg(query, limit, source),
+            legs,
+            required=False,
+        )
+        if legs["vector"]["status"] != LEG_SKIPPED:
+            legs["vector"]["required"] = _vector_leg_enabled()
+
+        stats: Dict[str, Any] = {
+            "lexical_hits": len(lexical),
+            "vector_hits": len(vector),
+        }
+
+        fused, unbridged = self._fuse_rrf(lexical, vector, legs=legs)
         stats["unbridged_hits"] = unbridged
 
         has_lexical = any("lexical" in e["legs"] for e in fused)
@@ -108,27 +252,112 @@ class DocumentsHybridSearch:
 
         results = self._hydrate(fused)
 
-        # Conversations leg (P1.3 first slice — bridge, don't copy): search the
-        # communication memory store (emails/Slack/WhatsApp/Teams/Telegram,
-        # vector+FTS) and append its top hits as first-class results. The comms
-        # record IS the source of truth — nothing is duplicated into documents.
-        # Skipped when the caller filtered to a specific document source.
         conv_results: List[Dict[str, Any]] = []
         from core.experiments import is_enabled as _exp_enabled
-        if not source and _exp_enabled("memory_conversations_leg"):
-            conv_results = await self._conversations_leg(
-                query, max(2, limit // 3), owner_user_id=owner_user_id
+        conv_on = bool(not source and _exp_enabled("memory_conversations_leg"))
+        if conv_on:
+            conv_results, _ = await self._run_leg(
+                "conversations",
+                lambda: self._conversations_leg(
+                    query, max(2, limit // 3), owner_user_id=owner_user_id
+                ),
+                legs,
+                required=False,
             )
             stats["conversation_hits"] = len(conv_results)
-            label = f"{label}+conversations" if (results or conv_results) and label != "no_results" else (label if label != "no_results" else "conversations_only")
+            label = (
+                f"{label}+conversations"
+                if (results or conv_results) and label != "no_results"
+                else (label if label != "no_results" else "conversations_only")
+            )
             if conv_results:
-                # First-class, not leftovers: reserve slots for the conversation
-                # hits so the limit-cut below can't drop them all when doc legs
-                # return plenty (that hid ingested email from chat entirely).
                 doc_budget = max(limit - len(conv_results), 0)
                 results = results[:doc_budget] + conv_results
+        else:
+            legs["conversations"] = _skipped_leg(
+                reason="source_filtered" if source else "experiment_disabled"
+            )
 
-        return self._response(query, results[:limit], label, stats)
+        status = self._coverage_status(legs, results or conv_results)
+        return self._response(
+            query, results[:limit], label, stats, legs=legs, status=status
+        )
+
+    @staticmethod
+    def _coverage_status(
+        legs: Dict[str, Dict[str, Any]], evidence: List[Dict[str, Any]]
+    ) -> str:
+        """success / partial / failed from per-leg outcomes, never from counts.
+
+        The trap this replaces: a corpus that legitimately matches nothing and
+        a corpus whose required leg threw both produced ``results == []`` and a
+        ``lexical_only``-style label, so every consumer read a failed search as
+        a successful one that found nothing — and an absence claim built on it
+        was a fabricated claim.
+        """
+        failed_required = [
+            name for name, leg in legs.items()
+            if leg["status"] == LEG_FAILED and leg.get("required")
+        ]
+        failed_optional = [
+            name for name, leg in legs.items()
+            if leg["status"] == LEG_FAILED and not leg.get("required")
+        ]
+        if not failed_required and not failed_optional:
+            return STATUS_SUCCESS
+        if evidence:
+            return STATUS_PARTIAL
+        return STATUS_FAILED if failed_required else STATUS_PARTIAL
+
+    async def _run_leg(
+        self,
+        name: str,
+        call: Any,
+        legs: Dict[str, Dict[str, Any]],
+        *,
+        required: bool,
+    ) -> tuple[List[Dict[str, Any]], Optional[BaseException]]:
+        """Run one retrieval leg, recording its own outcome.
+
+        A failing leg never discards a healthy sibling: the exception is
+        captured as a leg outcome and the empty result is returned to the
+        fusion layer, which still sees the legs that worked.
+        """
+        started = time.monotonic()
+        try:
+            rows = await call()
+        except _LegSkipped as skip:
+            legs[name] = {
+                "status": LEG_SKIPPED,
+                "required": False,
+                "error_category": None,
+                "skip_reason": skip.reason,
+                "hit_count": 0,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+            }
+            return [], None
+        except Exception as exc:  # noqa: BLE001 — recorded, never propagated
+            category = _error_category(exc)
+            logger.warning(
+                "DocumentsHybridSearch %s leg failed (%s): %r", name, category, exc
+            )
+            legs[name] = {
+                "status": LEG_FAILED,
+                "required": required,
+                "error_category": category,
+                "hit_count": 0,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+            }
+            return [], exc
+        rows = list(rows or [])
+        legs[name] = {
+            "status": LEG_OK,
+            "required": required,
+            "error_category": None,
+            "hit_count": len(rows),
+            "duration_ms": round((time.monotonic() - started) * 1000, 2),
+        }
+        return rows, None
 
     async def _conversations_leg(
         self, query: str, limit: int, owner_user_id: Optional[str] = None
@@ -138,27 +367,39 @@ class DocumentsHybridSearch:
         owner_user_id enforces the mailbox-ownership boundary on the shared
         comms corpus (see search_communications); None means unfiltered.
         """
-        try:
-            from integrations.atom_communication_ingestion_pipeline import (
-                get_ingestion_pipeline,
-            )
+        from integrations.atom_communication_ingestion_pipeline import (
+            get_ingestion_pipeline,
+        )
 
-            def _search():
-                pipeline = get_ingestion_pipeline("default")
-                manager = getattr(pipeline, "memory_manager", pipeline)
-                # Lazy init: a fresh singleton hasn't opened its LanceDB table yet.
-                if getattr(manager, "connections_table", None) is None and hasattr(manager, "initialize"):
-                    manager.initialize()
-                if getattr(manager, "connections_table", None) is None:
-                    return []
-                return manager.search_communications(
-                    query[:500], limit, owner_user_id=owner_user_id
-                )
+        def _search() -> List[Dict[str, Any]]:
+            pipeline = get_ingestion_pipeline("default")
+            manager = getattr(pipeline, "memory_manager", pipeline)
+            # Lazy init: a fresh singleton hasn't opened its LanceDB table yet.
+            if getattr(manager, "connections_table", None) is None and hasattr(manager, "initialize"):
+                manager.initialize()
+            if getattr(manager, "connections_table", None) is None:
+                raise RuntimeError("communication store table is not open")
+            # Bounded decomposition, not a head cut: a long constraint-bearing
+            # turn used to lose every identifier past character 500 here, and
+            # the store reported zero matches for the part it never saw.
+            from core.identifier_search import bounded_query_variants
 
-            records = await asyncio.to_thread(_search)
-        except Exception as e:
-            logger.debug("conversations leg unavailable: %s", e)
-            return []
+            records: List[Dict[str, Any]] = []
+            seen_ids: set = set()
+            for variant in bounded_query_variants(query, max_chars=500):
+                for rec in manager.search_communications(
+                    variant, limit, owner_user_id=owner_user_id
+                ) or []:
+                    rid = str(rec.get("id") or "")
+                    if not rid or rid in seen_ids:
+                        continue
+                    seen_ids.add(rid)
+                    records.append(rec)
+                    if len(records) >= limit:
+                        return records
+            return records
+
+        records = await asyncio.to_thread(_search)
         out: List[Dict[str, Any]] = []
         for rec in records or []:
             content = str(rec.get("content") or rec.get("text") or "").strip()
@@ -203,45 +444,40 @@ class DocumentsHybridSearch:
 
         with self._get_db() as db:
             return search_documents_lexical(
-                db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER, since=since, source=source, author=author
+                db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER,
+                since=since, source=source, author=author, raise_on_error=True,
             )
 
     async def _vector_leg(self, query: str, limit: int, source: Optional[str] = None) -> List[Dict[str, Any]]:
-        # Kill-switch: hermetic tests + embedding-cost control. Flag off → the
-        # service degrades to the lexical leg (label "lexical_only").
+        """LanceDB nearest neighbours. Raises on real failures so the leg
+        outcome is recorded; raises ``_LegSkipped`` for the two conditions
+        that are configuration, not breakage."""
         if not _vector_leg_enabled():
-            return []
-        # The vector store (LanceDB `documents` table) only holds ingested-doc
-        # rows — hydration bridges exclusively to IngestedDocument. Surfacing
-        # those hits in a source="knowledge" search violates the filter (an
-        # ingested doc returned for a knowledge-only query); skip the leg.
+            raise _LegSkipped("vector_leg_disabled")
         if source and str(source).strip().lower() == "knowledge":
-            return []
-        try:
-            lancedb = self._lancedb
-            if lancedb is None:
-                from core.lancedb_handler import get_lancedb_handler
+            raise _LegSkipped("source_filtered")
 
-                lancedb = get_lancedb_handler("default")
-            if lancedb is None:
-                return []
-            # to_thread: LanceDBHandler.search embeds via sync embed_text, which
-            # no-ops in the event-loop thread (async-context guard).
-            rows = await asyncio.to_thread(
-                lancedb.search, "documents", query, limit=limit * _VECTOR_LIMIT_MULTIPLIER
-            )
-            return [
-                {
-                    "id": str(r.get("id") or ""),
-                    "score": float(r.get("_distance", 1.0)),
-                    "metadata": r.get("metadata") or {},
-                }
-                for r in rows
-                if r.get("id")
-            ]
-        except Exception as e:
-            logger.warning("DocumentsHybridSearch vector leg failed: %s", e)
-            return []
+        lancedb = self._lancedb
+        if lancedb is None:
+            from core.lancedb_handler import get_lancedb_handler
+
+            lancedb = get_lancedb_handler("default")
+        if lancedb is None:
+            raise RuntimeError("LanceDB handler unavailable for the vector leg")
+        # to_thread: LanceDBHandler.search embeds via sync embed_text, which
+        # no-ops in the event-loop thread (async-context guard).
+        rows = await asyncio.to_thread(
+            lancedb.search, "documents", query, limit=limit * _VECTOR_LIMIT_MULTIPLIER
+        )
+        return [
+            {
+                "id": str(r.get("id") or ""),
+                "score": float(r.get("_distance", 1.0)),
+                "metadata": r.get("metadata") or {},
+            }
+            for r in rows
+            if r.get("id")
+        ]
 
     # -- fusion + hydration ---------------------------------------------------
 
@@ -249,6 +485,7 @@ class DocumentsHybridSearch:
         self,
         lexical: List[Dict[str, Any]],
         vector: List[Dict[str, Any]],
+        legs: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> tuple[List[Dict[str, Any]], int]:
         """RRF over both legs, keyed by (source, id).
 
@@ -268,9 +505,17 @@ class DocumentsHybridSearch:
         never reinforced each other — the one thing hybrid fusion exists to do.
         We therefore resolve through ``metadata.pg_document_id`` (and the chunk
         suffix) and key the fused entry by the resolved parent id.
+
+        The identity lookup is a leg of its own for coverage purposes: when it
+        throws, every vector hit used to be silently re-labelled
+        ``source:"vector", bridged:false`` and the envelope still claimed
+        semantic coverage, so a broken PG read was indistinguishable from a
+        corpus of genuinely unbridged vector rows. Hits are still returned
+        (they are real candidates) but the loss of source identity is recorded.
         """
         scores: Dict[tuple, Dict[str, Any]] = {}
         unbridged = 0
+        hydration_error: Optional[BaseException] = None
 
         for rank, hit in enumerate(lexical, start=1):
             key = (hit["source"], hit["id"])
@@ -322,9 +567,28 @@ class DocumentsHybridSearch:
                     )
                     pg_rows = {d.id: d for d in rows}
         except Exception as e:
-            logger.warning("DocumentsHybridSearch hydration lookup failed: %s", e)
+            logger.warning("DocumentsHybridSearch hydration lookup failed: %r", e)
+            hydration_error = e
             pg_rows = {}
             metas = [_coerce_metadata(v.get("metadata")) for v in vector]
+
+        if legs is not None:
+            if hydration_error is not None:
+                legs["hydration"] = {
+                    "status": LEG_FAILED,
+                    "required": True,
+                    "error_category": _error_category(hydration_error),
+                    "hit_count": len(vector),
+                    "duration_ms": 0.0,
+                }
+            else:
+                legs["hydration"] = {
+                    "status": LEG_OK,
+                    "required": True,
+                    "error_category": None,
+                    "hit_count": len(pg_rows),
+                    "duration_ms": 0.0,
+                }
 
         def _resolve(vid: str, meta: Dict[str, Any]) -> Optional[str]:
             """Best PG id for a LanceDB hit: exact id, then the ingest stamp,
@@ -442,11 +706,50 @@ class DocumentsHybridSearch:
         results: List[Dict[str, Any]],
         label: str,
         stats: Dict[str, Any],
+        legs: Optional[Dict[str, Dict[str, Any]]] = None,
+        status: str = STATUS_SUCCESS,
     ) -> Dict[str, Any]:
-        return {
-            "success": True,
+        """The shared search envelope.
+
+        ``success`` stays backward-compatible for the four in-repo consumers
+        (``action_registry.documents.search`` passes it straight through,
+        ``chat_tool_planner`` / ``drive_tool`` / the memory assembler read
+        ``results``): it is True whenever the search produced usable evidence,
+        which now excludes the case that used to matter most — a required leg
+        that threw. ``status`` is the field callers must branch on.
+
+        Absent evidence is qualified by coverage: ``absent_within_coverage``
+        is only true for ``success``, and a ``failed`` search exposes
+        ``absence_claimable: False`` so a planner can never launder a broken
+        source into "it isn't there".
+        """
+        legs = legs or {}
+        failed = [n for n, leg in legs.items() if leg.get("status") == LEG_FAILED]
+        searched = sorted(
+            n for n, leg in legs.items()
+            if leg.get("status") in (LEG_OK, LEG_FAILED)
+        )
+        envelope: Dict[str, Any] = {
+            "success": status != STATUS_FAILED,
+            "status": status,
             "query": query,
             "results": results,
             "hybrid": label,
             "stats": stats,
+            "legs": legs,
+            "coverage": {
+                "searched": searched,
+                "unavailable": sorted(failed),
+                "skipped": sorted(
+                    n for n, leg in legs.items() if leg.get("status") == LEG_SKIPPED
+                ),
+            },
+            "ranking": {"status": "as_fused", "reason": None},
+            "absence_claimable": status == STATUS_SUCCESS,
         }
+        if status == STATUS_FAILED:
+            envelope["error"] = {
+                "reason": "required_retrieval_unavailable",
+                "legs": sorted(failed),
+            }
+        return envelope

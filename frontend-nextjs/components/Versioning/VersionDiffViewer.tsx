@@ -5,7 +5,7 @@
  * Shows added, removed, and modified steps with detailed changes.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -91,11 +91,7 @@ export const VersionDiffViewer: React.FC<VersionDiffViewerProps> = ({
   const [filter, setFilter] = useState<string>('all');
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetchDiff();
-  }, [workflowId, fromVersion, toVersion]);
-
-  const fetchDiff = async () => {
+  const fetchDiff = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -120,7 +116,11 @@ export const VersionDiffViewer: React.FC<VersionDiffViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowId, fromVersion, toVersion, toast]);
+
+  useEffect(() => {
+    fetchDiff();
+  }, [workflowId, fromVersion, toVersion, fetchDiff]);
 
   const toggleExpand = (stepId: string) => {
     const newExpanded = new Set(expandedSteps);

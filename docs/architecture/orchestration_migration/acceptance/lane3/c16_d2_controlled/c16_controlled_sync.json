@@ -1,0 +1,228 @@
+{
+  "schema": "lane3-c16-controlled-planner-v1",
+  "generated_at": "2026-09-27T21:47:26-0400",
+  "world": "c16_d2",
+  "launch": {
+    "only": "sync",
+    "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/c16_d2/runs/run-16417b359a31",
+    "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/c16_d2/runs/run-16417b359a31/data/atom.db",
+    "port": 8076,
+    "effective_interactive_budget": "(product default)",
+    "interactive_budget_requested": null,
+    "reply_leg_reserve_seconds": 40.0,
+    "fixture_sha256": "60f6a62f909ec531447fa5b46dc950e8",
+    "code_snapshot_sha256": "f6a6c5c229b1c297cacec48c9a5799fd"
+  },
+  "scope": "ONLY the planner's model response is injected. Auth, authorization<REDACTED>, reservation, execution claim, mutation, audit, read-back, verification and finalization all run for real. This is EFFECT-LAYER coverage and is NOT evidence that the production planner accepts canvas edits.",
+  "shim": {
+    "port": 59755,
+    "script": "docs/architecture/orchestration_migration/acceptance/lane3/c16_d2_controlled/planner_script.json",
+    "provider_key": "local_eb07eef2",
+    "pin": "local_eb07eef2/shim-1",
+    "model": "shim-1",
+    "base_url": "http://127.0.0.1:59755/v1",
+    "scripted_plan": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+        {
+          "field": "body",
+          "find": "Quote validity: 15 days.",
+          "replace": "Quote validity: 30 days."
+        }
+      ],
+      "restore_audit_id": null,
+      "updated_content_json": null,
+      "title": null,
+      "reply": "Updated the quote validity to 30 days."
+    }
+  },
+  "authenticated_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+  "response_keys": [
+    "confidence",
+    "error_code",
+    "execution_id",
+    "intent",
+    "memory_context",
+    "message",
+    "metadata",
+    "model",
+    "next_steps",
+    "provider",
+    "reasoning",
+    "recovery_url",
+    "requires_confirmation",
+    "session_id",
+    "success",
+    "suggested_actions",
+    "timestamp"
+  ],
+  "response_preview": {
+    "success": true,
+    "session_id": "c16-sync-C16SYNC-1790560047",
+    "intent": "canvas_edit",
+    "confidence": 0.9,
+    "suggested_actions": [],
+    "requires_confirmation": false,
+    "next_steps": [],
+    "timestamp": "2026-09-27T21:47:48.470468",
+    "metadata": {
+      "canvas_edit": {
+        "canvas_id": "3fdd7494-fba7-4920-8289-c3548f0037aa",
+        "updated": true,
+        "execution_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+        "operation_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+        "outcome": "completed",
+        "postcondition_verified": true,
+        "audit_id": "f9f2c8b1-5de3-4512-af27-81988806b6a2",
+        "review_status": "accepted",
+        "matched_playbooks": [
+          {
+            "id": "0fa14b32-af62-4002-92a2-42629b545092",
+            "name": "[other] or"
+          },
+          {
+            "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+            "name": "[tone] 10.5\""
+          }
+        ]
+      },
+      "persistence": {
+        "status": "persisted"
+      }
+    },
+    "memory_context": null,
+    "model": null,
+    "provider": null,
+    "reasoning": null,
+    "execution_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+    "error_code": null,
+    "recovery_url": null
+  },
+  "case_1_synchronous": {
+    "name": "synchronous edit",
+    "status_code": 200,
+    "execution_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+    "canvas_edit": {
+      "canvas_id": "3fdd7494-fba7-4920-8289-c3548f0037aa",
+      "updated": true,
+      "execution_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+      "operation_id": "b9197a9a-823c-494c-a3ef-83d605be2e75",
+      "outcome": "completed",
+      "postcondition_verified": true,
+      "audit_id": "f9f2c8b1-5de3-4512-af27-81988806b6a2",
+      "review_status": "accepted",
+      "matched_playbooks": [
+        {
+          "id": "0fa14b32-af62-4002-92a2-42629b545092",
+          "name": "[other] or"
+        },
+        {
+          "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+          "name": "[tone] 10.5\""
+        }
+      ]
+    },
+    "reply": "Updated the quote validity to 30 days.",
+    "before": {
+      "audit_count": 1,
+      "has_new_text": false
+    },
+    "after": {
+      "audit_count": 2,
+      "audit_actions": [
+        "create",
+        "update"
+      ],
+      "has_new_text": true,
+      "has_old_text": false,
+      "operations": [
+        {
+          "status": "cancelled",
+          "operation_id": "3c3e76de-ad00-45eb-9c8b-b6f4fc99d535",
+          "run_id": "04526697-e621-4a2a-ab75-c4f982bc599a"
+        }
+      ]
+    },
+    "checks": {
+      "injection_was_consumed": true,
+      "injection_hits": 1,
+      "exactly_one_audit_row": true,
+      "durable_content_has_the_intended_change": true,
+      "the_old_text_is_gone": true,
+      "reported_updated_true": true,
+      "reported_verified": true,
+      "postcondition_verified": true,
+      "reported_audit_id_present": true,
+      "reported_canvas_is_the_edited_one": true,
+      "execution_identity_present": true,
+      "operation_identity_present": true,
+      "no_stranded_operation": true,
+      "accepted_plan_is_the_injected_plan": true,
+      "no_fallback_provider_supplied_the_plan": true
+    },
+    "fallback_evidence": [],
+    "boundaries": {
+      "b1_served": true,
+      "b2_parser_accepted": true,
+      "b3_no_fallback": true,
+      "b4_mutation_audited": true,
+      "b5_readback_verified": true
+    },
+    "pass": true,
+    "injection_proof": {
+      "proven": true,
+      "problem": null,
+      "shim_log_entries": 1,
+      "completion_requests": 1,
+      "requests_served": 1,
+      "tool_mode_requests": 1,
+      "gate_missed": [],
+      "stall_hits": [],
+      "armed": {}
+    }
+  },
+  "case_1_injection_proof": {
+    "proven": true,
+    "problem": null,
+    "shim_log_entries": 1,
+    "completion_requests": 1,
+    "requests_served": 1,
+    "tool_mode_requests": 1,
+    "gate_missed": [],
+    "stall_hits": [],
+    "armed": {}
+  },
+  "shim_log": [
+    {
+      "epoch": 1790560067.197867,
+      "t": "2026-09-27T21:47:47",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560067197-0",
+      "last_user_tail": "m 15 days to 30 days and mark the edit C16SYNC-1790560047\n\nReturn the edit plan."
+    }
+  ],
+  "shim_log_tail": [
+    {
+      "epoch": 1790560067.197867,
+      "t": "2026-09-27T21:47:47",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560067197-0",
+      "last_user_tail": "m 15 days to 30 days and mark the edit C16SYNC-1790560047\n\nReturn the edit plan."
+    }
+  ]
+}

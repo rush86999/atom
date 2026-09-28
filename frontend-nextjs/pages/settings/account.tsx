@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function AccountSettings() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [authToken, setAuthToken] = useState<string | null>(null);
+    const authTokenRef = useRef<string | null>(null);
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -109,18 +111,8 @@ export default function AccountSettings() {
         }
     };
 
-    useEffect(() => {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-            router.push('/login');
-        } else {
-            setAuthToken(token);
-            fetchAccounts(token);
-        }
-    }, []);
-
-    const fetchAccounts = async (token?: string) => {
-        const effectiveToken = token || authToken;
+    const fetchAccounts = useCallback(async (token?: string) => {
+        const effectiveToken = token || authTokenRef.current;
         try {
             const response = await fetch('/api/auth/accounts', {
                 headers: {
@@ -154,7 +146,18 @@ export default function AccountSettings() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            router.push('/login');
+        } else {
+            authTokenRef.current = token;
+            setAuthToken(token);
+            fetchAccounts(token);
+        }
+    }, [fetchAccounts, router]);
 
     const handleRemoveAccount = async (accountId: string, provider: string) => {
         if (!confirm(`Are you sure you want to unlink your ${provider} account? You will no longer be able to sign in with ${provider}.`)) {
@@ -264,9 +267,11 @@ export default function AccountSettings() {
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-4">
                             {accountData.user.image && (
-                                <img
+                                <Image
                                     src={accountData.user.image}
                                     alt={accountData.user.name || 'Avatar'}
+                                    width={64}
+                                    height={64}
                                     className="h-16 w-16 rounded-full"
                                 />
                             )}

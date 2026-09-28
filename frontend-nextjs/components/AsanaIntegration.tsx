@@ -3,7 +3,7 @@
  * Complete project management and task tracking interface
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Layout,
@@ -175,7 +175,7 @@ const AsanaIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -187,9 +187,6 @@ const AsanaIntegration: React.FC = () => {
                 const isConnected = providers?.asana?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadWorkspaces();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -199,10 +196,10 @@ const AsanaIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Asana data
-    const loadWorkspaces = async () => {
+    const loadWorkspaces = useCallback(async () => {
         setLoading((prev) => ({ ...prev, workspaces: true }));
         try {
             const response = await authFetch("/api/integrations/asana/workspaces", {
@@ -219,9 +216,9 @@ const AsanaIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, workspaces: false }));
         }
-    };
+    }, []);
 
-    const loadProjects = async () => {
+    const loadProjects = useCallback(async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
             const response = await authFetch("/api/integrations/asana/projects", {
@@ -238,9 +235,9 @@ const AsanaIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, projects: false }));
         }
-    };
+    }, []);
 
-    const loadTasks = async () => {
+    const loadTasks = useCallback(async () => {
         setLoading((prev) => ({ ...prev, tasks: true }));
         try {
             const response = await authFetch("/api/integrations/asana/tasks", {
@@ -262,9 +259,9 @@ const AsanaIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, tasks: false }));
         }
-    };
+    }, [toast]);
 
-    const loadTeams = async () => {
+    const loadTeams = useCallback(async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
             const response = await authFetch("/api/integrations/asana/teams", {
@@ -281,9 +278,9 @@ const AsanaIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, teams: false }));
         }
-    };
+    }, []);
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/asana/users", {
@@ -300,7 +297,7 @@ const AsanaIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
     // Create new task
     const createTask = async () => {
@@ -372,16 +369,17 @@ const AsanaIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
+            loadWorkspaces();
             loadProjects();
             loadTasks();
             loadTeams();
             loadUsers();
         }
-    }, [connected]);
+    }, [connected, loadWorkspaces, loadProjects, loadTasks, loadTeams, loadUsers]);
 
     const getStatusVariant = (completed: boolean): "default" | "secondary" | "destructive" | "outline" => {
         return completed ? "default" : "secondary";

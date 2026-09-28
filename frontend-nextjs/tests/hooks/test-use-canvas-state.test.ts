@@ -226,10 +226,10 @@ describe('useCanvasState Hook', () => {
 
     // Test hook default export
     it('should export useCanvasState as default', async () => {
-        const module = await import('@/hooks/useCanvasState');
+        const canvasStateModule = await import('@/hooks/useCanvasState');
 
-        expect(module.default).toBeDefined();
-        expect(module.default).toBe(module.useCanvasState);
+        expect(canvasStateModule.default).toBeDefined();
+        expect(canvasStateModule.default).toBe(canvasStateModule.useCanvasState);
     });
 
     // Test hook handles missing canvas gracefully

@@ -514,7 +514,7 @@ export const MyTemplatesPage: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Template?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteDialog.template?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{deleteDialog.template?.name}&quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

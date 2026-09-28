@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
   Card,
@@ -60,10 +60,10 @@ function JITVerificationDashboardContent() {
   const { toast } = useToast();
 
   // Poller for real-time updates
-  const poller = new AdminPoller();
+  const poller = useMemo(() => new AdminPoller(), []);
 
   // Fetch all dashboard data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const [workerRes, cacheRes, healthRes] = await Promise.all([
         jitVerificationAPI.getWorkerMetrics().catch((): null => null),
@@ -76,16 +76,16 @@ function JITVerificationDashboardContent() {
       if (healthRes?.data) setHealthStatus(healthRes.data);
 
       // Baseline fallbacks if backend endpoints are starting up
-      if (!workerRes?.data && !workerMetrics) {
-        setWorkerMetrics({
+      if (!workerRes?.data) {
+        setWorkerMetrics((current) => current ?? {
           status: "idle",
           processed_count: 124,
           error_count: 0,
           avg_latency_ms: 12,
         } as any);
       }
-      if (!cacheRes?.data && !cacheStats) {
-        setCacheStats({
+      if (!cacheRes?.data) {
+        setCacheStats((current) => current ?? {
           l1_verification_cache_size: 450,
           l1_query_cache_size: 20,
           l1_verification_hits: 450,
@@ -98,8 +98,8 @@ function JITVerificationDashboardContent() {
           l2_enabled: false,
         } as any);
       }
-      if (!healthRes?.data && !healthStatus) {
-        setHealthStatus({
+      if (!healthRes?.data) {
+        setHealthStatus((current) => current ?? {
           status: "healthy",
           components: { worker: "healthy", cache: "healthy" }
         } as any);
@@ -110,7 +110,7 @@ function JITVerificationDashboardContent() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   // Initial fetch and setup polling
   useEffect(() => {
@@ -136,7 +136,7 @@ function JITVerificationDashboardContent() {
     return () => {
       poller.stop();
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, fetchDashboardData, poller]);
 
   // Toggle auto-refresh
   const toggleAutoRefresh = () => {

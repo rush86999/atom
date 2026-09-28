@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Card,
     CardContent,
@@ -68,7 +68,7 @@ const BusinessHealthDashboard: React.FC = () => {
     const [executing, setExecuting] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             // Use Promise.allSettled so one failed endpoint doesn't blank the
@@ -137,7 +137,7 @@ const BusinessHealthDashboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
     const runSimulation = async () => {
         try {
@@ -197,7 +197,7 @@ const BusinessHealthDashboard: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -229,7 +229,7 @@ const BusinessHealthDashboard: React.FC = () => {
                             <div className="space-y-1">
                                 <h3 className="text-lg font-semibold opacity-90">Daily Strategic Insight</h3>
                                 <p className="text-xl font-medium leading-snug">
-                                    "{data?.owner_advice || "Analyzing business vitals..."}"
+                                    &quot;{data?.owner_advice || "Analyzing business vitals..."}&quot;
                                 </p>
                             </div>
                         </div>
@@ -580,7 +580,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">
-                                            "{simResult.prediction || "The cash flow impact is positive. Recommend proceeding if current volume holds."}"
+                                            &quot;{simResult.prediction || "The cash flow impact is positive. Recommend proceeding if current volume holds."}&quot;
                                         </p>
                                     </div>
                                 )}

@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-def evaluate_tool_call(
+def _evaluate_tool_call_inner(
     tool_name: str,
     args: Dict[str, Any],
     context: Dict[str, Any],
@@ -193,3 +193,65 @@ def evaluate_tool_call(
             tool_name=tool_name,
             metadata_json={"error": str(e)},
         )
+
+
+def _shadow_observe(tool_name: str, args: Dict[str, Any],
+                    context: Dict[str, Any] | None, label: str) -> None:
+    """Fire the advisory shadow. Never raises — the security path must never
+    be perturbed by telemetry (own try/except at every call site)."""
+    try:
+        from core import decision_shadow as _dsh
+        _dsh.observe_gate(
+            None,
+            (context or {}).get("workspace_id"),
+            tool_name,
+            args,
+            label,
+            context,
+        )
+    except Exception as _dsh_e:
+        logger.debug("decision gate shadow skipped for %s: %s", tool_name, _dsh_e)
+
+
+def evaluate_tool_call(
+    tool_name: str,
+    args: Dict[str, Any],
+    context: Dict[str, Any],
+) -> Optional[Any]:
+    """Single entry point: sandbox evaluation + advisory decision shadow.
+
+    Behavior is exactly ``_evaluate_tool_call_inner`` plus a log-only
+    observation of the local model's would-have verdict (deterministic
+    sample, tight budget, opt-in flag). The sandbox decision is never
+    altered; ``KillRunAborted`` still propagates. See
+    ``core/decision_shadow.observe_gate``.
+    """
+    try:
+        decision = _evaluate_tool_call_inner(tool_name, args, context)
+    except Exception as e:
+        from core.sandbox_killrun import KillRunAborted
+        if isinstance(e, KillRunAborted):
+            try:
+                _shadow_observe(tool_name, args, context, "blocked(killrun)")
+            except Exception:
+                pass
+            raise
+        raise
+    if decision is None:
+        try:
+            _shadow_observe(tool_name, args, context, "allowed(no-policy)")
+        except Exception:
+            pass
+        return None
+    try:
+        label = str(getattr(decision, "decision", "?"))
+        meta = getattr(decision, "metadata_json", None) or {}
+        if isinstance(meta, dict) and meta.get("error"):
+            label = "allowed(error)"
+    except Exception:
+        label = "?"
+    try:
+        _shadow_observe(tool_name, args, context, label)
+    except Exception:
+        pass
+    return decision

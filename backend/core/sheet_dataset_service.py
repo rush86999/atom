@@ -1778,12 +1778,28 @@ def _pandas_probe_entry(entry: Dict[str, Any], token: str):
 # max_rows) so a re-materialized file (new hash) invalidates naturally;
 # TTL bounds staleness for same-hash updates. Env kill switch + TTL:
 # ATOM_SHEET_PROBE_CACHE_TTL_SECONDS (default 300, 0 = off).
+#
+# The tuple is (timestamp, result, is_negative). A NEGATIVE result — the probe
+# found nothing — is NOT cached by default
+# (ATOM_SHEET_PROBE_NEGATIVE_TTL_SECONDS, default 0). A miss can be the
+# consequence of a transient read failure, and freezing one publishes a
+# confident "no matching row in the indexed content searched" for rows that are
+# present. This function cannot see turn boundaries, so any non-zero negative
+# window can straddle one; 0 is the only value that cannot.
+#
+# The cost is a re-read of the parquet on each miss. That is bounded and
+# deliberate: probes run per requested item per turn under the existing turn
+# budget, and the alternative being bought here is a cache that invents
+# evidence of absence. Raising this value trades that back.
 _PROBE_CACHE: Dict[tuple, tuple] = {}
 # Guards the cache dict only — never held across a probe (probing can take
 # seconds and must not serialize the evidence legs).
 _PROBE_CACHE_LOCK = threading.Lock()
 _PROBE_CACHE_TTL_S = float(
     os.getenv("ATOM_SHEET_PROBE_CACHE_TTL_SECONDS", "300") or 300
+)
+_PROBE_NEGATIVE_CACHE_TTL_S = float(
+    os.getenv("ATOM_SHEET_PROBE_NEGATIVE_TTL_SECONDS", "0") or 0
 )
 
 
@@ -1818,22 +1834,39 @@ def _probe_cached(entries: List[Dict[str, Any]], token: str, max_rows: int):
     if not any(identity):
         return _probe_sheet_hits(entries, token, max_rows)
     key = (identity, token, max_rows)
+    is_negative = False
     with _PROBE_CACHE_LOCK:
         hit = _PROBE_CACHE.get(key)
-        if hit and now - hit[0] < _PROBE_CACHE_TTL_S:
+        if hit and now - hit[0] < (
+                _PROBE_NEGATIVE_CACHE_TTL_S if hit[2] else _PROBE_CACHE_TTL_S):
             return copy.deepcopy(hit[1])
     result = _probe_sheet_hits(entries, token, max_rows)
+    is_negative = not result
     with _PROBE_CACHE_LOCK:
         # bound the cache: drop expired entries first (the common case), and
         # only clear wholesale when everything in it is still live.
         if len(_PROBE_CACHE) > 512:
-            expired = [k for k, (ts, _v) in _PROBE_CACHE.items()
-                       if now - ts >= _PROBE_CACHE_TTL_S]
+            expired = [k for k, (ts, _v, _neg) in _PROBE_CACHE.items()
+                       if now - ts >= (
+                           _PROBE_NEGATIVE_CACHE_TTL_S if _neg
+                           else _PROBE_CACHE_TTL_S)]
             for k in expired:
                 _PROBE_CACHE.pop(k, None)
             if len(_PROBE_CACHE) > 512:
                 _PROBE_CACHE.clear()
-        _PROBE_CACHE[key] = (now, copy.deepcopy(result))
+        # A MISS is not cached (see _PROBE_NEGATIVE_CACHE_TTL_S). Caching it
+        # for the positive TTL turned one transient read failure into FIVE
+        # MINUTES of confident "no matching row in the indexed content
+        # searched" — a false absence claim for a row that was present, and
+        # that the very next probe resolves. Observed live 2026-09-27: a probe
+        # failed while the data directory was being rebuilt, the None was
+        # cached, and every turn in the window reported the row absent while a
+        # fresh session answered it correctly with the exact cell binding
+        # (LINMAC!R26, column C26 'List Price', 1,777). When negative caching is
+        # explicitly re-enabled the entry is stored, and the read above honours
+        # the shorter TTL on the way back in.
+        if result or _PROBE_NEGATIVE_CACHE_TTL_S > 0:
+            _PROBE_CACHE[key] = (now, copy.deepcopy(result), is_negative)
     return result
 
 
@@ -1895,6 +1928,41 @@ def _probe_named_file(entries: List[Dict[str, Any]], max_rows: int) -> Optional[
     }
 
 
+def _matched_cells_in_row(row: Dict[str, Any], token: str,
+                          letters: Dict[str, str],
+                          row_number: Any) -> List[Dict[str, Any]]:
+    """Exact cells in this row whose TEXT matches the probe token.
+
+    The content probe knows a row matched but not WHICH cell did, so the
+    matched coordinate was thrown away and only a row locator survived.
+    A row is not an identity: several cells in one row can carry the
+    token, and identity may sit in any column (a model, a description, an
+    alias, a merged label) — never assume column A.
+
+    This is an exact value comparison against the token, not a positional
+    guess, so a cell is only reported when its own text matches. Several
+    matching cells stay several references.
+    """
+    out: List[Dict[str, Any]] = []
+    for column, value in (row or {}).items():
+        if column == "__sheet_row__":
+            continue
+        text = "" if value is None else str(value)
+        if not text.strip():
+            continue
+        if not re.search(rf"(?<![0-9.]){re.escape(token)}(?![0-9])", text):
+            continue
+        letter = letters.get(str(column))
+        if not letter:
+            continue
+        out.append({
+            "cell": f"{letter}{row_number}",
+            "column": str(column),
+            "value": text,
+        })
+    return out
+
+
 def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) -> Optional[Dict[str, Any]]:
     """Deterministic content probe for identifier lookups (SKUs, model codes).
 
@@ -1938,6 +2006,24 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         return None
     count, e, hit = best
     head = hit.head(max_rows)
+    # Capture the identity coordinates HERE, where the match happened: the
+    # probe knows which cells matched the token, and that fact was being
+    # discarded in favour of a bare row locator.
+    _letters = _column_letters([str(c) for c in head.columns])
+    _rows_all = head.to_dict("records")
+    # `_SHEET_ROW_COL` was never defined in this module; the constant is
+    # `SHEET_ROW_COL` (line 54). As written this raised NameError on the first
+    # probe that matched a token, and the caller swallowed it into an empty
+    # result -- so the identity coordinates this block exists to capture were
+    # silently never captured, which is the same laundering this module's
+    # neighbours were fixed for: a probe that fails looks exactly like a probe
+    # that found nothing.
+    _row_numbers = list(head[SHEET_ROW_COL]) if SHEET_ROW_COL in head.columns \
+        else list(range(1, len(_rows_all) + 1))
+    _matched_cells = []
+    for _rn, _row in zip(_row_numbers, _rows_all):
+        for _ref in _matched_cells_in_row(_row, token, _letters, _rn):
+            _matched_cells.append(_ref)
     # Column NAME -> LETTER travels with the rows: the workbook's formulas
     # address cells by letter, so without it a verifier cannot connect a value
     # to the formula that produces it (see _column_letters).
@@ -1965,6 +2051,7 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
             if re.search(
                 rf"(?<![0-9.]){re.escape(token)}(?![0-9])", _line
             ):
+                _rows = _rows_all
                 return {
                     "file_name": e.get("file_name"),
                     "entity_name": e.get("entity_name"),
@@ -1972,13 +2059,15 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
                     "source_modified_at": e.get("source_modified_at"),
                     "sql": f"-- content probe: scanned for '{token}' (whole-number match)",
                     "columns": head.columns.tolist(),
-                    "column_letters": _column_letters(head.columns.tolist()),
-                    "rows": head.to_dict("records"),
+                    "column_letters": _letters,
+                    "rows": _rows,
                     "row_count": count,
+                    "matched_cells": _matched_cells,
                     "formulas": load_formulas_for_parquet(str(e.get("parquet_path") or "")),
                 }
         return None  # only float-tail/substring matches — not this number
     rows = head.astype(object).where(head.notna(), None).to_dict(orient="records")
+    _rows = _rows_all
     return {
         "dataset_name": e["dataset_name"],
         "entity_name": e["entity_name"],
@@ -1991,8 +2080,10 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
         "sql": f"-- content probe: every sheet scanned for '{token}'",
         "row_count": int(count),
         "columns": [str(c) for c in head.columns],
-        "column_letters": _column_letters([str(c) for c in head.columns]),
+        "column_letters": _letters,
         "rows": rows,
+        # Identity coordinates, captured where the match actually happened.
+        "matched_cells": _matched_cells,
         # FORMULAS on the deterministic path too (gap fix 2026-09-16): the
         # sidecar exists at materialization time; only the LLM-SQL path
         # attached it before, so a Stage-0 answer rendered values without

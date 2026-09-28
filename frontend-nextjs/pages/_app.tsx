@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { SessionProvider, useSession } from "next-auth/react";
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,6 +15,10 @@ import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
 import { getCurrentUserId } from "@/lib/identity";
 import { checkApiVersion } from "@/lib/apiVersion";
+
+const subscribeToNothing = () => () => {};
+const getClientMounted = () => true;
+const getServerMounted = () => false;
 
 // Dev diagnostics tap: capture load-time errors that kill hydration before
 // any component effect can run (the direct-URL freeze on /canvas/[id] left
@@ -90,7 +94,11 @@ const TauriHooks: React.FC = () => {
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    getClientMounted,
+    getServerMounted
+  );
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -101,8 +109,6 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   }));
 
   useEffect(() => {
-    setMounted(true);
-
     // Global Theme Application
     const applyTheme = (theme: string) => {
         const root = document.documentElement;

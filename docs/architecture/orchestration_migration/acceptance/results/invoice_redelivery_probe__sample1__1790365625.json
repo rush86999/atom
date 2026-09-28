@@ -1,0 +1,23 @@
+{
+ "case_id": "invoice_redelivery_probe",
+ "sample": 1,
+ "session_id": "acc-absent-1790365624-1",
+ "captured_at": "2026-09-25T15:47:05-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "read_events_before": 0,
+ "read_events_after": 0,
+ "reply_served": true,
+ "deterministic": true,
+ "redelivery_verified": true,
+ "correct_completion": null
+}

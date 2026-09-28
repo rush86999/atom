@@ -1,0 +1,97 @@
+{
+ "case_id": "overlap_concurrent_reads",
+ "sample": 3,
+ "session_id": "acc-overlap-1790355457-3",
+ "captured_at": "2026-09-25T12:57:37-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.1",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.1"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "1",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "latency_s": 2.15,
+   "execution_id": "9aa7ef62-c161-4b00-93db-9d9adc0cc0f1"
+  },
+  {
+   "latency_s": 2.15,
+   "execution_id": "bcd0aa46-1076-4ae6-ac06-4ed32aee88fd"
+  }
+ ],
+ "total_s": 2.15,
+ "subturns": [
+  {
+   "reply": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| U-22 | FOUND | LINMAC!A26 R26 (values: C26=1777.0 [basis=List Price; currency=unspecified], M26=1777.0 [basis=List Price_2; currency=unspecified]) |\n\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (list price)\nVALUE U-22 | C26 | 1777.0 | field=List Price | basis=List Price | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE U-22 | M26 | 1777.0 | field=List Price_2 | basis=List Price_2 | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal",
+   "per_target": {
+    "U-22": {
+     "expected": "found",
+     "got": "found",
+     "label": "U-22",
+     "binding": {
+      "sheet": "LINMAC",
+      "cell": "A26",
+      "price_cell": "C26",
+      "basis": "List Price"
+     },
+     "row": {
+      "target": "U-22",
+      "status": "FOUND"
+     },
+     "pass": true
+    }
+   },
+   "claim_check": {
+    "unsupported": [],
+    "unsupported_count": 0,
+    "measured": true
+   },
+   "latency_s": 2.15,
+   "execution_id": "9aa7ef62-c161-4b00-93db-9d9adc0cc0f1",
+   "targets_ok": true
+  },
+  {
+   "reply": "Workbook read: the query NAMED this file, so the evidence is SCOPED to its materialized copy:\nSource: MATERIALIZED COPY \u2014 this evidence comes from the materialized copy of 'Consolidated Price List 2019.xlsx' (NOT a fresh read of the live file): source=zoho_workdrive, resource=u8ai1e3a4ceb717574b5bbf20429142d718b4, ingested=2026-09-07T23:06:19, content_hash=ff2597d26fc6d0ea216c (sha1), source_modified=unknown, 46 sheet(s) indexed.\nCoverage \u2014 indexed sheets=46; scanned entries=46; catalog_truncated=False; row display cap=8. 'not found' means NOT FOUND IN THE INDEXED CONTENT SEARCHED under case-insensitive substring and normalized alias probes. It does NOT prove absence from the live workbook; unindexed sheets, later versions, or formatting variants may still contain the item.\n\nPer-item results:\n\n| item | outcome | evidence |\n|---|---|---|\n| SLE24-16 | FOUND | Tennsmith !A101 R101 (values: E101=8880 [basis=PRICE; currency=unspecified], M101=4500.0 [basis=U.S. LIST; currency=unspecified], O101=3600.0 [basis=U.S. COST; currency=unspecified], W101=6250.96 [basis=FULL COST CDN; currency=unspecified]) |\n\nFIELD SELECTION: AMBIGUOUS; requested fields map to multiple columns (price)\nVALUE SLE24-16 | E101 | 8880 | field=PRICE | basis=PRICE | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | M101 | 4500.0 | field=U.S. LIST | basis=U.S. LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | O101 | 3600.0 | field=U.S. COST | basis=U.S. COST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | W101 | 6250.96 | field=FULL COST CDN | basis=FULL COST CDN | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal\nVALUE SLE24-16 | AA101 | 8879.48868 | field=CDN LIST | basis=CDN LIST | currency=UNLABELED (no ISO code or symbol in the header/format; basis is the column header VERBATIM \u2014 no conversion applied, do not infer one) | formula_state=literal",
+   "per_target": {
+    "SLE24-16": {
+     "expected": "found",
+     "got": "found",
+     "label": "SLE24-16",
+     "binding": {
+      "sheet": "Tennsmith",
+      "cell": "A101",
+      "price_cell": "E101",
+      "basis": "PRICE"
+     },
+     "row": {
+      "target": "SLE24-16",
+      "status": "FOUND"
+     },
+     "pass": true
+    }
+   },
+   "claim_check": {
+    "unsupported": [],
+    "unsupported_count": 0,
+    "measured": true
+   },
+   "latency_s": 2.15,
+   "execution_id": "bcd0aa46-1076-4ae6-ac06-4ed32aee88fd",
+   "targets_ok": true
+  }
+ ],
+ "distinct_execution_ids": true,
+ "correct_completion": true,
+ "unsupported_claims": 0,
+ "limitation": "read-read overlap only; write cross-binding requires the recorded-narration rig"
+}

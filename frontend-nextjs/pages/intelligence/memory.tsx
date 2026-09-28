@@ -59,7 +59,7 @@ export default function MemoryDashboardPage() {
                                 <h3 className="font-bold">Neural Security</h3>
                             </div>
                             <p className="text-xs text-slate-400 leading-relaxed">
-                                Atom's memory is siloed and encrypted. Agents recall patterns and multi-step logic without ever exposing underlying raw data to third-party model training.
+                                Atom&apos;s memory is siloed and encrypted. Agents recall patterns and multi-step logic without ever exposing underlying raw data to third-party model training.
                             </p>
                             <ul className="space-y-3 pt-2">
                                 {[

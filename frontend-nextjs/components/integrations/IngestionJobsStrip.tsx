@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { IngestJob } from '@/lib/ingest-jobs';
 
@@ -16,6 +16,11 @@ function jobLabel(job: IngestJob): string {
   }
   if (job.kind === 'sync') return 'Full-tree sync';
   return 'File ingest';
+}
+
+function JobTimestamp({ value }: { value?: string | null }) {
+  const [fallbackTimestamp] = useState(Date.now);
+  return <span className="text-gray-400">{new Date(value || fallbackTimestamp).toLocaleTimeString()}</span>;
 }
 
 /**
@@ -44,9 +49,7 @@ export default function IngestionJobsStrip({ jobs, max = 3 }: IngestionJobsStrip
                   ? ` completed — ${fileCount} file${fileCount === 1 ? '' : 's'}`
                   : ` failed${job.error ? `: ${job.error}` : ''}`}
             </span>
-            <span className="text-gray-400">
-              {new Date(job.finished_at || job.started_at || Date.now()).toLocaleTimeString()}
-            </span>
+            <JobTimestamp value={job.finished_at || job.started_at} />
           </div>
         );
       })}

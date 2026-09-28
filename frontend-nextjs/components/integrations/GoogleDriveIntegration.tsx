@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -95,7 +95,7 @@ const GoogleDriveIntegration: React.FC = () => {
 
   // Durable badge source of truth: which listed files are already in ATOM
   // memory (POST /ingested-ids probes the document store).
-  const hydrateIngestedIds = async (listed: GoogleDriveFile[]) => {
+  const hydrateIngestedIds = useCallback(async (listed: GoogleDriveFile[]) => {
     const fileIds = (listed || []).filter((f) => !f.isFolder).map((f) => f.id);
     if (fileIds.length === 0) return;
     try {
@@ -113,7 +113,7 @@ const GoogleDriveIntegration: React.FC = () => {
     } catch {
       // badges are best-effort
     }
-  };
+  }, []);
 
   // Fetch connection status
   const fetchConnectionStatus = async () => {
@@ -137,7 +137,7 @@ const GoogleDriveIntegration: React.FC = () => {
   };
 
   // Fetch files from Google Drive
-  const fetchFiles = async (folderId?: string, pageToken?: string, isLoadMore = false) => {
+  const fetchFiles = useCallback(async (folderId?: string, pageToken?: string, isLoadMore = false) => {
     if (!connectionStatus?.isConnected) return;
 
     try {
@@ -179,7 +179,7 @@ const GoogleDriveIntegration: React.FC = () => {
     } finally {
       setIsLoadingFiles(false);
     }
-  };
+  }, [connectionStatus?.isConnected, hydrateIngestedIds]);
 
   // Handle file/folder click
   const handleFileClick = (file: GoogleDriveFile) => {
@@ -411,7 +411,7 @@ const GoogleDriveIntegration: React.FC = () => {
     if (connectionStatus?.isConnected) {
       fetchFiles(currentFolderId);
     }
-  }, [connectionStatus?.isConnected, currentFolderId]);
+  }, [connectionStatus?.isConnected, currentFolderId, fetchFiles]);
 
   if (isLoading) {
     return (

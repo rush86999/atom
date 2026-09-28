@@ -4,7 +4,7 @@
  * Main debugging control panel that orchestrates all debugging features.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,12 +59,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   const [stopOnError, setStopOnError] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Fetch active session
-  useEffect(() => {
-    fetchActiveSession();
-  }, [workflowId]);
-
-  const fetchActiveSession = async () => {
+  const fetchActiveSession = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/workflows/${workflowId}/debug/sessions?user_id=${currentUserId}`
@@ -79,7 +74,11 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     } catch (err) {
       console.error('Error fetching debug session:', err);
     }
-  };
+  }, [workflowId, currentUserId, onSessionChange]);
+
+  useEffect(() => {
+    fetchActiveSession();
+  }, [workflowId, fetchActiveSession]);
 
   const startDebugSession = async () => {
     try {

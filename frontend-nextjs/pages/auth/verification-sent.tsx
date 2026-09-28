@@ -22,7 +22,7 @@ export default function VerificationSentPage() {
                         Check Your Email
                     </CardTitle>
                     <CardDescription className="text-center">
-                        We've sent a verification code to
+                        We&apos;ve sent a verification code to
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -54,7 +54,7 @@ export default function VerificationSentPage() {
                         </Button>
 
                         <div className="text-center text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                            <p>Didn't receive the email?</p>
+                            <p>Didn&apos;t receive the email?</p>
                             <ul className="space-y-1">
                                 <li>• Check your spam or junk folder</li>
                                 <li>• Make sure you entered the correct email address</li>

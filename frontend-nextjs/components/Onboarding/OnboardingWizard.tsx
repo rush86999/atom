@@ -476,7 +476,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     {activeStep === 3 && (
                         <div className="flex flex-col items-center text-center space-y-4">
                             <FaRocket className="w-16 h-16 text-green-500" />
-                            <h2 className="text-2xl font-bold">You're Ready!</h2>
+                            <h2 className="text-2xl font-bold">You&apos;re Ready!</h2>
                             <p className="text-gray-600 dark:text-gray-400 max-w-sm">
                                 Your workspace is ready. You can start by exploring templates or chatting with Atom to build a workflow.
                             </p>

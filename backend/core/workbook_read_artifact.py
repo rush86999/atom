@@ -1,12 +1,40 @@
-"""Structured workbook read artifacts and target coverage."""
+"""Structured workbook read artifacts and target coverage.
+
+COVERAGE VOCABULARY (shared with ``core.hybrid_search.documents_hybrid``)
+--------------------------------------------------------------------------
+A source that could not be READ and a source that was read and did not contain
+the item produce the same empty evidence list. Downstream that collapsed into
+one answer — "no matching row in the indexed content searched" — which is an
+absence claim about bytes nobody managed to read. Every scan therefore reports
+its per-source read legs under ``coverage.read_legs`` with a status and a
+non-leaking error CATEGORY, a source-level ``read_status``
+(success | partial | failed), and ``absence_claimable``. Absence may only be
+claimed when ``absence_claimable`` is true; a target with no evidence from a
+source that failed to read is reported ``unavailable``, never ``absent``.
+"""
 from __future__ import annotations
 
 import hashlib
 import io
 import json
+import logging
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
+
+from core.hybrid_search.documents_hybrid import error_category
+
+logger = logging.getLogger(__name__)
+
+# Per-source read-leg status (mirrors documents_hybrid LEG_*).
+READ_LEG_OK = "ok"
+READ_LEG_FAILED = "failed"
+# Source-level read status (mirrors documents_hybrid STATUS_*).
+READ_STATUS_SUCCESS = "success"
+READ_STATUS_PARTIAL = "partial"
+READ_STATUS_FAILED = "failed"
+# Per-target status for "we looked and the source would not open".
+TARGET_UNAVAILABLE = "unavailable"
 
 _TARGET_RE = re.compile(
     r"(?<![A-Za-z0-9])(?:[A-Za-z]{1,10}-[0-9](?![A-Za-z0-9])|"
@@ -585,17 +613,104 @@ def _cell_text(value: Any) -> str:
     return " ".join(str(value).split())
 
 
+def _left_drop_aliases(targets: Sequence[str]) -> Dict[str, List[str]]:
+    """Alias→targets map for multi-word targets (2026-09-25 review:
+    the ask's 'TK Multi Wheel Gang Slitter' vs the catalog's 'TK Gang
+    Slitter' — same machine, no shared substring). Catalog rows keep the
+    product NOUN-PHRASE tail while the ask prepends brand/series words,
+    so aliases are contiguous RIGHT tails of >= 2 significant words.
+    Pure-numeric targets never alias (381 must stay exact)."""
+    out: Dict[str, List[str]] = {}
+    requested = {str(t).lower() for t in targets}
+    for target in targets:
+        text = str(target or "").strip()
+        words = [
+            w for w in re.findall(r"[A-Za-z]+|\d+(?:-\d+)?", text)
+            if len(w) >= 2
+        ]
+        if len(words) < 3:
+            continue  # a 2-word name has no qualifier head to drop
+        for start in range(1, len(words) - 1):
+            alias = " ".join(words[start:])
+            if (
+                len(alias) >= 6
+                and alias.lower() not in requested
+                and alias.lower() != text.lower()
+            ):
+                out.setdefault(alias, []).append(text)
+    return out
+
+
+_MERGED_RANGE_RE = re.compile(
+    r"^([A-Z]{1,3})(\d{1,7}):([A-Z]{1,3})(\d{1,7})$")
+
+
+def _col_index(letters: str) -> int:
+    n = 0
+    for ch in letters:
+        n = n * 26 + (ord(ch) - 64)
+    return n
+
+
+def merged_anchor_for_cell(ranges: Sequence[str], cell: str) -> Optional[Dict[str, Any]]:
+    """The anchor of the merged range containing ``cell``, or None.
+
+    A merged cell's value lives in its top-left ANCHOR; every other cell in
+    the range reads as empty. So a match reported at, say, B88 when B88 is
+    inside a merged A88:D88 is really a match at the anchor A88, and
+    citing the member cell would point at a cell that holds nothing.
+
+    The anchor is read from workbook metadata — never inferred from a row
+    number or assumed to be column A. When the source carries no merge
+    metadata (a materialized dataset has none), this returns None and the
+    caller records the identity binding as unverified rather than
+    guessing an anchor.
+    """
+    m = re.match(r"^([A-Z]{1,3})(\d{1,7})$", str(cell or "").strip().upper())
+    if not m:
+        return None
+    col, row = _col_index(m.group(1)), int(m.group(2))
+    for raw in ranges or []:
+        rm = _MERGED_RANGE_RE.match(str(raw or "").strip().upper())
+        if not rm:
+            continue
+        c1, r1, c2, r2 = (_col_index(rm.group(1)), int(rm.group(2)),
+                          _col_index(rm.group(3)), int(rm.group(4)))
+        if min(c1, c2) <= col <= max(c1, c2) and \
+                min(r1, r2) <= row <= max(r1, r2):
+            # _column_letter is 1-indexed (see its definition).
+            anchor = f"{_column_letter(min(c1, c2))}{min(r1, r2)}"
+            return {"anchor": anchor, "range": f"{rm.group(0)}",
+                    "is_anchor": anchor == str(cell or "").strip().upper()}
+    return None
+
+
 def _matches_target(target: str, value: Any) -> bool:
     text = _cell_text(value)
     target_text = str(target or "").strip()
     if not text or not target_text:
         return False
-    return re.search(
-        rf"(?<![A-Za-z0-9_-]){re.escape(target_text)}(?![A-Za-z0-9_-])",
-        text,
-        re.IGNORECASE,
-    ) is not None
+    candidates = [target_text]
+    # Number-abbreviation honorific ("No. 381" vs a cell holding "381"):
+    # the designation is the same machine, so match the bare form too.
+    # Display keeps the user's literal text; only matching normalizes.
+    bare = re.sub(r"(?i)^no\.\s*", "", target_text)
+    if bare and bare != target_text:
+        candidates.append(bare)
+    return any(
+        re.search(
+            rf"(?<![A-Za-z0-9_-]){re.escape(cand)}(?![A-Za-z0-9_-])",
+            text,
+            re.IGNORECASE,
+        ) is not None
+        for cand in candidates
+    )
 
+
+
+_QUANTITY_WITH_UNIT_RE = re.compile(
+    r"^\s*[+-]?\d[\d,]*(?:\.\d+)?\s*([A-Za-z][A-Za-z0-9/]*)\s*$"
+)
 
 
 def _is_designation_match(
@@ -614,13 +729,33 @@ def _is_designation_match(
     identifies it as a product row rather than a bare number.
     """
     header = str(column_header or "").strip()
+    raw_text = _cell_text(text)
+    quantity_unit = _QUANTITY_WITH_UNIT_RE.fullmatch(raw_text)
+    if (
+        quantity_unit
+        and quantity_unit.group(1).casefold() in _UNIT_TOKENS
+        and (
+            _VALUE_HEADER_RE.search(header)
+            or re.search(
+                r"quantity|qty|stock|weight|mass|lead|delivery|date|time|"
+                r"expiry|expiration|version|revision|release",
+                header,
+                re.IGNORECASE,
+            )
+        )
+    ):
+        return False
     # ALPHANUMERIC CODES ARE DESIGNATIONS wherever they appear (2026-09-24
     # review: entity search, not just product rows): 'RF-2' in a
     # Certificate column, 'U-22' in any text column — a code with letters
-    # is an identifier, never a numeric coincidence. Only PURE-NUMERIC
-    # matches need the column-header corroboration below.
-    if any(ch.isalpha() for ch in str(text or "")):
-        if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
+    # is an identifier, never a numeric coincidence. INCLUDING headerless
+    # sheets, whose materialized columns are positional c1..cn: rejecting
+    # codes there made every entity in a headerless sheet structurally
+    # 'absent' (2026-09-25 trace). Only #REF! columns are junk. Pure-NUMERIC
+    # matches still need the column-header corroboration below — a bare
+    # number in a positional column cannot be told apart from a value.
+    if any(ch.isalpha() for ch in raw_text):
+        if re.fullmatch(r"#ref!", header, re.IGNORECASE):
             return False
         return True
     if re.fullmatch(r"(?:c\d+|#ref!|\d+)", header, re.IGNORECASE):
@@ -962,6 +1097,208 @@ def _fallback_artifact(
     }
 
 
+# GENERIC attribute vocabulary only — ask words, function words, and
+# filename words. NO domain terms (2026-09-25 review round 5: the previous
+# list embedded machinery vocabulary — slitter, flanger, rotary, …).
+# Domain filtering is done by the DATA: phrases must validate against the
+# workbook's schema (sheet names / identity-column values) before they can
+# constrain, so a descriptor like 'Roll Bender' dies on validation, not on
+# a hardcoded list.
+_GENERIC_ATTRIBUTE_STOPWORDS = {
+    "the", "and", "for", "with", "these", "those", "this", "that",
+    "find", "check", "price", "prices", "quote", "list", "no", "nos",
+    "model", "item", "part", "please", "when", "does", "do", "did",
+    "what", "which", "where", "how", "much", "many", "are", "is", "was",
+    "were", "have", "has", "had", "all", "any", "each", "per", "into",
+    "about", "give", "show", "tell", "get", "file", "files", "sheet",
+    "sheets", "workbook", "spreadsheet", "excel", "table", "row", "rows",
+    "column", "columns", "value", "values", "data", "in", "on", "of",
+    "to", "from", "by", "at", "or", "as", "an", "a",
+}
+_FILENAME_BLANK_RE = re.compile(
+    r"\b[A-Z0-9][A-Za-z0-9_()'\ -]*"
+    r"(?:\s+[A-Z0-9][A-Za-z0-9_()'\ -]*){0,6}"
+    r"\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?|pptx?|txt|md|json)\b",
+    re.IGNORECASE,
+)
+
+#: Provenance grades for attribute phrases. ``user`` phrases come from
+#: the user's own ask (supplied attributes); ``inferred`` phrases come
+#: from assistant answers or canvas bodies (assertions, not verified
+#: evidence) and therefore require ROW-identity schema confirmation —
+#: a sheet-name match alone never verifies an inferred attribute.
+_ATTRIBUTE_PROVENANCES = ("user", "inferred")
+
+
+def _attribute_hints_near(text: str, target: str) -> tuple:
+    """(brand candidates, type tokens) from the LINE naming the target.
+
+    Brand candidates: capitalized non-function-word runs and their
+    prefixes of 1-3 words ('Roper Whitney Rotary Machine' yields
+    'Roper', 'Roper Whitney', 'Roper Whitney Rotary' — schema validation
+    downstream picks the meaningful one; no domain vocabulary decides).
+    Type tokens: the line's remaining descriptor words (>=4 chars,
+    lowercased, generic stopwords and target tokens removed) — the
+    ENTITY TYPE the user supplied ('rotary machine'), used only after
+    brand validation removes the brand's own words."""
+    brands: List[str] = []
+    types: List[str] = []
+    target_tokens = set(
+        t.lower() for t in re.findall(r"[A-Za-z0-9]+", str(target or ""))
+    )
+    cleaned = _FILENAME_BLANK_RE.sub(" ", str(text or ""))
+    for line in cleaned.splitlines():
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_-]){re.escape(str(target))}(?![A-Za-z0-9_-])",
+            line, re.IGNORECASE,
+        ):
+            words = re.findall(r"[A-Za-z][A-Za-z'&.-]*", line[:match.start()])
+            run: List[str] = []
+            runs: List[List[str]] = []
+            for word in words:
+                if word[:1].isupper() and word.strip(".-").lower() not in (
+                        _GENERIC_ATTRIBUTE_STOPWORDS):
+                    run.append(word.strip(".-"))
+                else:
+                    if run:
+                        runs.append(run)
+                    run = []
+            if run:
+                runs.append(run)
+            for run in runs:
+                for size in (2, 3, 1):  # prefer 2-word brands
+                    if len(run) >= size:
+                        phrase = " ".join(run[:size])
+                        if (
+                            len(_canonical(phrase)) >= 4
+                            and phrase not in brands
+                        ):
+                            brands.append(phrase)
+                # ENTITY-TYPE tail: the product-name words beyond the
+                # brand prefix ('Roper Whitney | Rotary Machine') —
+                # positional, not vocabulary-driven. Arbitrary line words
+                # ('stock', 'machines') are not type tokens.
+                for word in run[2:]:
+                    lowered = word.lower()
+                    if (
+                        len(lowered) >= 4
+                        and lowered not in _GENERIC_ATTRIBUTE_STOPWORDS
+                        and lowered not in target_tokens
+                        and lowered not in types
+                    ):
+                        types.append(lowered)
+    return brands[:4], types[:4]
+
+
+def _target_attribute_context(
+    texts: Sequence[Any], targets: Sequence[str],
+) -> Dict[str, Dict[str, List[Any]]]:
+    """Per-target identity hints from the objective's own words, with
+    PROVENANCE (2026-09-25 review round 5): entries are ``str`` (treated
+    as user-supplied — the ask itself) or ``(text, source)`` where
+    source is 'user' | 'inferred' (assistant answers and canvas bodies
+    are assertions, not verified evidence). Validation against the
+    workbook schema happens at USE time; unvalidated phrases stay
+    unused (uncertain inferred attributes remain candidates, they never
+    constrain)."""
+    context: Dict[str, Dict[str, List[Any]]] = {}
+    for target in targets:
+        brands: List[tuple] = []
+        types: List[tuple] = []
+        seen_b: set = set()
+        for entry in texts or []:
+            if isinstance(entry, tuple):
+                text, source = str(entry[0] or ""), str(entry[1] or "")
+            else:
+                text, source = str(entry or ""), "user"
+            if source not in _ATTRIBUTE_PROVENANCES:
+                source = "inferred"
+            b, t = _attribute_hints_near(text, target)
+            for phrase in b:
+                key = (re.sub(r"[^A-Z0-9]+", "", phrase.upper()), source)
+                if key[0] and key not in seen_b:
+                    seen_b.add(key)
+                    brands.append((phrase, source))
+            for token in t:
+                if token and token not in [tok for tok, _s in types]:
+                    types.append((token, source))
+        if brands or types:
+            context[str(target)] = {"brand": brands, "type": types}
+    return context
+
+
+def _corroborates_brand(
+    evidence: Dict[str, Any], phrases: Sequence[str],
+    require_row_identity: bool = False, target: str = "",
+) -> bool:
+    """Does this candidate row carry one of the target's identity
+    phrases — canonically, with ROW IDENTITY OUTRANKING THE SHEET NAME
+    (2026-09-25 review round 5: a sheet-name match must never override
+    an explicit conflicting row attribute — the contract closed on
+    2026-09-24 and reintroduced by the earlier sheet-first order). When
+    the row carries identity-column values, ONLY those verify; the sheet
+    name corroborates solely when the row has no explicit identity.
+    ``require_row_identity`` (inferred-provenance phrases) always
+    demands row identity — an assistant assertion never verifies on a
+    sheet name alone."""
+    sheet = _canonical(evidence.get("sheet"))
+    target_key = _canonical(target)
+    # Row identity values that merely restate the TARGET'S OWN code are
+    # the entity identifier, not an attribute — only genuinely
+    # conflicting attributes (some OTHER identity value) can block the
+    # sheet name.
+    row_values = [
+        _canonical(value)
+        for value in _row_identity_values(evidence)
+        if _canonical(value)
+        and not (target_key and (
+            target_key in _canonical(value)
+            or _canonical(value) in target_key))
+    ]
+    has_conflicting_identity = any(row_values)
+
+    def _row_carries(brand: str) -> bool:
+        return any(
+            brand in value or value in brand
+            for value in row_values if value
+        )
+
+    for phrase in phrases or []:
+        brand = _canonical(phrase)
+        if not brand:
+            continue
+        if require_row_identity:
+            # Inferred (assistant/canvas) assertion: only ROW identity
+            # verifies — the sheet name never does.
+            if _row_carries(brand):
+                return True
+            continue
+        if has_conflicting_identity:
+            # An explicit conflicting row attribute outranks the sheet
+            # name (contract re-closed 2026-09-25).
+            if _row_carries(brand):
+                return True
+            continue
+        if brand in sheet:
+            return True
+    return False
+
+
+def _row_contains_type(
+    evidence: Dict[str, Any], tokens: Sequence[str],
+) -> bool:
+    """Does the row's own text carry the user-supplied ENTITY TYPE
+    ('rotary machine' vs accessory rows)? Stemmed containment over the
+    row's cells and sheet name; ALL tokens must hit."""
+    haystack = " ".join(
+        str(item.get("value") or "")
+        for item in evidence.get("row_context") or []
+        if isinstance(item, dict)
+    ) + " " + str(evidence.get("sheet") or "") + " " + str(
+        evidence.get("value") or "")
+    return all(_stem(t) in _stem(haystack.lower()) for t in tokens if t)
+
+
 def inspect_workbook_bytes(
     content: bytes,
     file_name: str,
@@ -976,10 +1313,22 @@ def inspect_workbook_bytes(
     source_metadata: Optional[Dict[str, Any]] = None,
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
+    attribute_texts: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Read every worksheet once and return one outcome per requested target."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    alias_map = _left_drop_aliases(requested)
+    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+    # constraints may be mined from ANY text — user asks, assistant
+    # answers quoting the catalog/thread, the canvas body — because only
+    # line-initial brand runs are collected (never entities). Entity
+    # extraction still sees context_texts alone (assistant renders stay
+    # out of the contamination-sensitive path).
+    target_attributes = _target_attribute_context(
+        list(attribute_texts or []) or [query or "", *(context_texts or [])],
+        requested,
+    )
     try:
         import openpyxl
     except Exception as exc:
@@ -1065,9 +1414,22 @@ def inspect_workbook_bytes(
                     formula_states.append(formula_state)
                 else:
                     formula_state = "literal"
-                for target in requested:
-                    if not _matches_target(target, text):
-                        continue
+                _target_hits: List[tuple] = [
+                    (target, None)
+                    for target in requested
+                    if _matches_target(target, text)
+                ]
+                _target_hits.extend(
+                    (target, alias)
+                    for alias, alias_targets in alias_map.items()
+                    if _matches_target(alias, text)
+                    for target in alias_targets
+                    if not any(
+                        _canonical(target) == _canonical(direct)
+                        for direct, _ in _target_hits
+                    )
+                )
+                for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
                     for descriptor in selected_columns:
                         column = int(descriptor["position"]) + 1
@@ -1109,6 +1471,7 @@ def inspect_workbook_bytes(
                             "cell": cell.coordinate,
                             "value": text,
                             "column": header_map.get(cell.column, ""),
+                            "matched_alias": matched_alias,
                             "designation": _is_designation_match(
                                 text, header_map.get(cell.column, "")),
                             "formula": value if is_formula else None,
@@ -1132,6 +1495,11 @@ def inspect_workbook_bytes(
     outcomes: List[Dict[str, Any]] = []
     for target in requested:
         found = evidence[target]
+        # Direct (exact-target) hits outrank alias hits; an alias lane is
+        # only consulted when the exact target matched nothing anywhere.
+        direct_hits = [e for e in found if not e.get("matched_alias")]
+        alias_hits = [e for e in found if e.get("matched_alias")]
+        found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
@@ -1174,6 +1542,130 @@ def inspect_workbook_bytes(
                 for item in designations
             ):
                 designations = []
+        # RETAINED IDENTITY CONSTRAINTS (2026-09-25 review round 4): the
+        # objective itself names each item's manufacturer — apply that
+        # BEFORE reporting ambiguity (381/622 are Roper Whitney per the
+        # quote; the gang slitter is Tin Knocker). Keep ALL candidates
+        # when none corroborate (an uninformative constraint never
+        # disqualifies).
+        hints = target_attributes.get(target) or {}
+        brand_entries = hints.get("brand") or []
+        type_entries = list(hints.get("type") or [])
+        constrained_note: Optional[str] = None
+        if brand_entries and len(designations) > 1:
+            # SCHEMA VALIDATION (2026-09-25 review rounds 5-6): a phrase
+            # is usable only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name.
+            # USER-supplied phrases may then RESOLVE ambiguity; INFERRED
+            # (assistant/canvas) phrases may only RANK candidates — a
+            # workbook containing the brand does not prove the user
+            # intended it, so an unsupported inference never silently
+            # eliminates a candidate supplier.
+            schema_sheets = {
+                _canonical(item.get("sheet")) for item in designations
+            }
+            validated: List[tuple] = []
+            for phrase, source in brand_entries:
+                brand = _canonical(phrase)
+                if not brand:
+                    continue
+                in_sheet = any(brand in s for s in schema_sheets if s)
+                if in_sheet:
+                    validated.append((phrase, source, in_sheet))
+
+            def _corroborated_subset(entries: List[tuple]) -> List[Any]:
+                return [
+                    item for item in designations
+                    if any(
+                        _corroborates_brand(
+                            item, [phrase],
+                            require_row_identity=not in_sheet,
+                            target=target,
+                        )
+                        for phrase, _s, in_sheet in entries
+                    )
+                ]
+
+            user_validated = [
+                e for e in validated if e[1] == "user"]
+            inferred_validated = [
+                e for e in validated if e[1] != "user"]
+            if user_validated:
+                corroborated = _corroborated_subset(user_validated)
+                if corroborated and len(corroborated) < len(designations):
+                    designations = corroborated
+                    in_sheet_phrases = [
+                        p for p, _s, v in user_validated if v
+                    ] or [p for p, _s, _v in user_validated]
+                    best_phrase = max(
+                        in_sheet_phrases,
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"identity constrained by '{best_phrase}' "
+                        "(from the request)")
+                    brand_words = {
+                        word.lower()
+                        for phrase, _s, _v in user_validated
+                        for word in str(phrase).split()
+                    }
+                    type_entries = [
+                        (t, s) for t, s in type_entries
+                        if t not in brand_words
+                    ]
+            elif inferred_validated and len(designations) > 1:
+                ranked = _corroborated_subset(inferred_validated)
+                if ranked and len(ranked) < len(designations):
+                    # RANK ONLY: hinted candidates first, the rest kept —
+                    # ambiguity survives an inferred hint.
+                    designations = ranked + [
+                        item for item in designations
+                        if item not in ranked
+                    ]
+                    best_phrase = max(
+                        (p for p, _s, _v in inferred_validated),
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"inferred identity hint '{best_phrase}' — "
+                        "candidates ranked, ambiguity kept")
+        user_types = [t for t, s in type_entries if s == "user"]
+        if user_types and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the
+            # USER'S own type words ('rotary machine') resolve machine-
+            # vs-accessory rows; inferred type words only rank.
+            typed = [
+                item for item in designations
+                if _row_contains_type(item, user_types)
+            ]
+            if typed and len(typed) < len(designations):
+                designations = typed
+                type_note = (
+                    "entity type matched from the request "
+                    f"({' '.join(user_types[:3])})")
+                constrained_note = (
+                    f"{constrained_note}; {type_note}"
+                    if constrained_note else type_note)
+        else:
+            inferred_types = [t for t, s in type_entries if s != "user"]
+            if inferred_types and len(designations) > 1:
+                typed = [
+                    item for item in designations
+                    if _row_contains_type(item, inferred_types)
+                ]
+                if typed and len(typed) < len(designations):
+                    designations = typed + [
+                        item for item in designations
+                        if item not in typed
+                    ]
+                    constrained_note = (
+                        f"{constrained_note}; inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept"
+                        if constrained_note else
+                        f"inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept")
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1216,6 +1708,15 @@ def inspect_workbook_bytes(
         note: Optional[str] = None
         if selection.get("ambiguous"):
             note = "requested fields map to multiple columns"
+        alias_note = None
+        if alias_hits and not direct_hits:
+            alias_note = (
+                f"matched via alias '{alias_hits[0].get('matched_alias')}' "
+                "(the exact requested name has no cell in this copy)"
+            )
+            note = f"{note}; {alias_note}" if note else alias_note
+        if constrained_note:
+            note = f"{note}; {constrained_note}" if note else constrained_note
         outcomes.append({
             "target": target,
             "status": status,
@@ -1226,6 +1727,8 @@ def inspect_workbook_bytes(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
             **({"note": note} if note else {}),
+            **({"matched_alias": alias_hits[0].get("matched_alias")}
+               if alias_hits and not direct_hits else {}),
         })
 
     return {
@@ -1262,6 +1765,17 @@ def inspect_workbook_bytes(
     }
 
 
+def _dominant_read_category(counts: Dict[str, int]) -> str:
+    """The category that best explains a failed read, for user-visible text.
+
+    A single damaged category outranks a tail of assorted ones; ties fall back
+    to sorted order so the reported reason is stable across runs.
+    """
+    if not counts:
+        return "unknown"
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
 def _column_letter(index: int) -> str:
     result = ""
     value = int(index)
@@ -1288,19 +1802,54 @@ def inspect_dataset_entries(
     content_hash_algorithm: str = "sha1",
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
+    attribute_texts: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
     criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    alias_map = _left_drop_aliases(requested)
+    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+    # constraints may be mined from ANY text — user asks, assistant
+    # answers quoting the catalog/thread, the canvas body — because only
+    # line-initial brand runs are collected (never entities). Entity
+    # extraction still sees context_texts alone (assistant renders stay
+    # out of the contamination-sensitive path).
+    target_attributes = _target_attribute_context(
+        list(attribute_texts or []) or [query or "", *(context_texts or [])],
+        requested,
+    )
     evidence: Dict[str, List[Dict[str, Any]]] = {target: [] for target in requested}
     sheets: List[Dict[str, Any]] = []
     complete = bool(entries)
     formula_states: List[str] = []
     sheets_scanned = 0
     unreadable_sheets: List[str] = []
+    unreadable_categories: Dict[str, int] = {}
+    read_legs: Dict[str, Dict[str, Any]] = {}
     truncated_sheets: List[str] = []
     coverage_unknown_sheets: List[str] = []
     target_evidence_capped = False
+
+    def _read_leg_failed(name: str, exc: Optional[BaseException]) -> None:
+        """One source we could not read, recorded with a CATEGORY.
+
+        The category is what reaches the model and the user; the raw exception
+        (which carries the file path, the reader library's internals and row
+        bytes) stays in the log. Silently dropping the exception here is what
+        let a total I/O failure render as a legitimate absence.
+        """
+        category = error_category(exc) if exc is not None else "source_missing"
+        unreadable_categories[category] = unreadable_categories.get(category, 0) + 1
+        logger.warning(
+            "workbook scan could not read %s (%s)", name, category
+        )
+        read_legs[str(name)] = {
+            "status": READ_LEG_FAILED,
+            "required": True,
+            "error_category": category,
+            "rows_read": 0,
+        }
+
     try:
         import pandas as pd
     except Exception as exc:
@@ -1317,15 +1866,23 @@ def inspect_dataset_entries(
         sheet_name = str(entry.get("entity_name") or entry.get("sheet_name") or "")
         if not path or not sheet_name:
             complete = False
+            _read_leg_failed(sheet_name or path or "<unnamed sheet>", None)
             unreadable_sheets.append(sheet_name or path or "<unnamed sheet>")
             continue
         try:
             frame = pd.read_parquet(path)
-        except Exception:
+        except Exception as exc:
             complete = False
+            _read_leg_failed(sheet_name, exc)
             unreadable_sheets.append(sheet_name)
             continue
         sheets_scanned += 1
+        read_legs[sheet_name] = {
+            "status": READ_LEG_OK,
+            "required": True,
+            "error_category": None,
+            "rows_read": int(len(frame.index)),
+        }
         expected_rows = entry.get("row_count")
         if expected_rows is not None:
             try:
@@ -1401,9 +1958,22 @@ def inspect_dataset_entries(
                     continue
                 cell_ref = f"{_column_letter(column_index)}{row_number}"
                 formula_states.append("cached" if cell_ref in formula_map else "literal")
-                for target in requested:
-                    if not _matches_target(target, text):
-                        continue
+                _target_hits: List[tuple] = [
+                    (target, None)
+                    for target in requested
+                    if _matches_target(target, text)
+                ]
+                _target_hits.extend(
+                    (target, alias)
+                    for alias, alias_targets in alias_map.items()
+                    if _matches_target(alias, text)
+                    for target in alias_targets
+                    if not any(
+                        _canonical(target) == _canonical(direct)
+                        for direct, _ in _target_hits
+                    )
+                )
+                for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
                     for descriptor in selected_columns:
                         value_index = int(descriptor["position"])
@@ -1436,6 +2006,7 @@ def inspect_dataset_entries(
                         "cell": cell_ref,
                         "value": text,
                         "column": column,
+                        "matched_alias": matched_alias,
                         "headers": {
                             _column_letter(index + 1): label
                             for index, label in enumerate(value_columns)
@@ -1463,9 +2034,28 @@ def inspect_dataset_entries(
             "searched": True,
         })
 
+    # SOURCE-LEVEL READ VERDICT (2026-09-26). Derived from the per-source legs,
+    # never from the evidence count: "no evidence" and "no readable source"
+    # both produce an empty list, and only the legs tell them apart.
+    read_failed_legs = [
+        name for name, leg in read_legs.items()
+        if leg.get("status") == READ_LEG_FAILED
+    ]
+    read_status = (
+        READ_STATUS_SUCCESS if not read_failed_legs
+        else READ_STATUS_FAILED if not sheets_scanned
+        else READ_STATUS_PARTIAL
+    )
+    absence_claimable = not read_failed_legs
+
     outcomes = []
     for target in requested:
         found = evidence[target]
+        # Direct (exact-target) hits outrank alias hits; an alias lane is
+        # only consulted when the exact target matched nothing anywhere.
+        direct_hits = [e for e in found if not e.get("matched_alias")]
+        alias_hits = [e for e in found if e.get("matched_alias")]
+        found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
@@ -1507,6 +2097,130 @@ def inspect_dataset_entries(
                 for item in designations
             ):
                 designations = []
+        # RETAINED IDENTITY CONSTRAINTS (2026-09-25 review round 4): the
+        # objective itself names each item's manufacturer — apply that
+        # BEFORE reporting ambiguity (381/622 are Roper Whitney per the
+        # quote; the gang slitter is Tin Knocker). Keep ALL candidates
+        # when none corroborate (an uninformative constraint never
+        # disqualifies).
+        hints = target_attributes.get(target) or {}
+        brand_entries = hints.get("brand") or []
+        type_entries = list(hints.get("type") or [])
+        constrained_note: Optional[str] = None
+        if brand_entries and len(designations) > 1:
+            # SCHEMA VALIDATION (2026-09-25 review rounds 5-6): a phrase
+            # is usable only when the candidates' own identity surface
+            # carries it — identity-column values, or the sheet name.
+            # USER-supplied phrases may then RESOLVE ambiguity; INFERRED
+            # (assistant/canvas) phrases may only RANK candidates — a
+            # workbook containing the brand does not prove the user
+            # intended it, so an unsupported inference never silently
+            # eliminates a candidate supplier.
+            schema_sheets = {
+                _canonical(item.get("sheet")) for item in designations
+            }
+            validated: List[tuple] = []
+            for phrase, source in brand_entries:
+                brand = _canonical(phrase)
+                if not brand:
+                    continue
+                in_sheet = any(brand in s for s in schema_sheets if s)
+                if in_sheet:
+                    validated.append((phrase, source, in_sheet))
+
+            def _corroborated_subset(entries: List[tuple]) -> List[Any]:
+                return [
+                    item for item in designations
+                    if any(
+                        _corroborates_brand(
+                            item, [phrase],
+                            require_row_identity=not in_sheet,
+                            target=target,
+                        )
+                        for phrase, _s, in_sheet in entries
+                    )
+                ]
+
+            user_validated = [
+                e for e in validated if e[1] == "user"]
+            inferred_validated = [
+                e for e in validated if e[1] != "user"]
+            if user_validated:
+                corroborated = _corroborated_subset(user_validated)
+                if corroborated and len(corroborated) < len(designations):
+                    designations = corroborated
+                    in_sheet_phrases = [
+                        p for p, _s, v in user_validated if v
+                    ] or [p for p, _s, _v in user_validated]
+                    best_phrase = max(
+                        in_sheet_phrases,
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"identity constrained by '{best_phrase}' "
+                        "(from the request)")
+                    brand_words = {
+                        word.lower()
+                        for phrase, _s, _v in user_validated
+                        for word in str(phrase).split()
+                    }
+                    type_entries = [
+                        (t, s) for t, s in type_entries
+                        if t not in brand_words
+                    ]
+            elif inferred_validated and len(designations) > 1:
+                ranked = _corroborated_subset(inferred_validated)
+                if ranked and len(ranked) < len(designations):
+                    # RANK ONLY: hinted candidates first, the rest kept —
+                    # ambiguity survives an inferred hint.
+                    designations = ranked + [
+                        item for item in designations
+                        if item not in ranked
+                    ]
+                    best_phrase = max(
+                        (p for p, _s, _v in inferred_validated),
+                        key=lambda p: len(_canonical(p)),
+                    )
+                    constrained_note = (
+                        f"inferred identity hint '{best_phrase}' — "
+                        "candidates ranked, ambiguity kept")
+        user_types = [t for t, s in type_entries if s == "user"]
+        if user_types and len(designations) > 1:
+            # ENTITY-TYPE tiebreak (2026-09-25 review round 5): the
+            # USER'S own type words ('rotary machine') resolve machine-
+            # vs-accessory rows; inferred type words only rank.
+            typed = [
+                item for item in designations
+                if _row_contains_type(item, user_types)
+            ]
+            if typed and len(typed) < len(designations):
+                designations = typed
+                type_note = (
+                    "entity type matched from the request "
+                    f"({' '.join(user_types[:3])})")
+                constrained_note = (
+                    f"{constrained_note}; {type_note}"
+                    if constrained_note else type_note)
+        else:
+            inferred_types = [t for t, s in type_entries if s != "user"]
+            if inferred_types and len(designations) > 1:
+                typed = [
+                    item for item in designations
+                    if _row_contains_type(item, inferred_types)
+                ]
+                if typed and len(typed) < len(designations):
+                    designations = typed + [
+                        item for item in designations
+                        if item not in typed
+                    ]
+                    constrained_note = (
+                        f"{constrained_note}; inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept"
+                        if constrained_note else
+                        f"inferred entity-type hint "
+                        f"({' '.join(inferred_types[:3])}) — ranked, "
+                        "ambiguity kept")
         if len(designations) > 1:
             exact = [
                 item for item in designations
@@ -1514,7 +2228,15 @@ def inspect_dataset_entries(
             ]
             if len(exact) == 1:
                 designations = exact
-        if not complete:
+        if not designations and read_failed_legs:
+            # READ FAILURE, NOT ABSENCE (2026-09-26). No candidate row was
+            # found AND part of the source could not be opened, so "the item
+            # is not in this workbook" is not a statement anybody can make.
+            # ``incomplete`` used to cover this and rendered as the honest
+            # absence sentence, which is how a corrupt parquet became a
+            # confident negative.
+            status = TARGET_UNAVAILABLE
+        elif not complete:
             status = "incomplete"
         elif not designations:
             status = "absent"
@@ -1542,6 +2264,14 @@ def inspect_dataset_entries(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
         }
+        if status == TARGET_UNAVAILABLE:
+            outcome["error_category"] = _dominant_read_category(unreadable_categories)
+            outcome["absence_claimable"] = False
+            outcome["note"] = (
+                "the source could not be read, so no result is reported for "
+                "this item — this is NOT a statement that the item is absent "
+                "from the workbook"
+            )
         if status == "ambiguous" and len(designations) >= _TARGET_EVIDENCE_CAP:
             outcome["note"] = (
                 "multiple plausible product rows remain; candidate evidence "
@@ -1558,6 +2288,21 @@ def inspect_dataset_entries(
                 "as product rows")
         if selection.get("ambiguous"):
             outcome["note"] = "requested fields map to multiple columns"
+        if alias_hits and not direct_hits:
+            outcome["matched_alias"] = alias_hits[0].get("matched_alias")
+            alias_note = (
+                f"matched via alias '{outcome['matched_alias']}' "
+                "(the exact requested name has no cell in this copy)"
+            )
+            outcome["note"] = (
+                f"{outcome['note']}; {alias_note}"
+                if outcome.get("note") else alias_note
+            )
+        if constrained_note:
+            outcome["note"] = (
+                f"{outcome.get('note')}; {constrained_note}"
+                if outcome.get("note") else constrained_note
+            )
         outcomes.append(outcome)
     digest = content_hash or sha256
     algorithm = content_hash_algorithm if content_hash else (
@@ -1584,6 +2329,14 @@ def inspect_dataset_entries(
         "coverage": {
             "requested": requested,
             "outcomes": outcomes,
+            "read_status": read_status,
+            "absence_claimable": absence_claimable,
+            "read_legs": read_legs,
+            "unreadable_sheet_count": len(unreadable_sheets),
+            "error_category": (
+                _dominant_read_category(unreadable_categories)
+                if read_failed_legs else None
+            ),
             "complete": (
                 complete
                 and all(
@@ -1597,6 +2350,13 @@ def inspect_dataset_entries(
             "sheets_expected": len(entries),
             "sheets_scanned": sheets_scanned,
             "unreadable_sheets": unreadable_sheets,
+            "unreadable_sheet_count": len(unreadable_sheets),
+            "read_status": read_status,
+            "absence_claimable": absence_claimable,
+            "error_category": (
+                _dominant_read_category(unreadable_categories)
+                if read_failed_legs else None
+            ),
             "coverage_unknown_sheets": coverage_unknown_sheets,
             "truncated_sheets": truncated_sheets,
             "target_evidence_cap": _TARGET_EVIDENCE_CAP,
@@ -2668,6 +3428,16 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
             f"TARGET {target}: {status.upper()}"
             + (f" | {'; '.join(refs[:8])}" if refs else "")
         )
+        if str(status or "") == TARGET_UNAVAILABLE:
+            # Spelled out for the reply model: a bare "UNAVAILABLE" next to an
+            # empty evidence list reads like an absence, and the model has no
+            # other way to learn that the source would not open.
+            lines.append(
+                f"  RETRIEVAL FAILURE: the source could not be read (error "
+                f"category: {outcome.get('error_category') or 'unknown'}). "
+                f"Report a failed read for {target} — do NOT report it as "
+                f"'not found' and do NOT claim it is absent."
+            )
         for item in (outcome.get("evidence") or [])[:2]:
             selection = item.get("field_selection") or {}
             values = item.get("values") or item.get("prices") or []

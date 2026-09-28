@@ -1,0 +1,244 @@
+{
+ "layer": "layer2-public-boundary",
+ "generated_at": "2026-09-26T20:28:21-0400",
+ "isolation": {
+  "mechanism": "run_isolated.py (imported, not reimplemented)",
+  "code_export": "a3169e895fe0638a3bfd376b0433cfa5b7b9b4cdf6ba70d930d9deaf6c513e44",
+  "db_sha256": "c8ef647dafc65568cb291a4845079ef0d6e37703193787eb25b305fd97030739",
+  "port": 8072,
+  "lifecycle_flag_effective": "1",
+  "provider": "deterministic shim (seatbelt blocks external egress); the real planner/model path is NOT covered by this layer"
+ },
+ "records": [
+  {
+   "case_id": "formatting_zero_retrieval",
+   "sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "invocations": {
+    "turn-1": 1,
+    "turn-2": 0
+   },
+   "search_status": "success",
+   "items": {},
+   "detail": {
+    "scans_after_first_turn": 1,
+    "scans_after_formatting_turn": 1,
+    "formatting_retrievals": 0,
+    "first_reply_served": true,
+    "formatting_reply_served": true
+   },
+   "verdict": "pass"
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "invocations": {
+    "turn-2": 1
+   },
+   "search_status": "success",
+   "detail": {
+    "scans_before": 2,
+    "scans_after": 3,
+    "new_attempt_retrievals": 1
+   },
+   "verdict": "pass"
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "invocations": {
+    "turn-2": 0
+   },
+   "search_status": "success",
+   "detail": {
+    "request_id": "search-l2-1b47c6388b09",
+    "scans_before_retry": 4,
+    "scans_after_retry": 4,
+    "retry_retrievals": 0,
+    "pinned_bytes_identical": true
+   },
+   "verdict": "pass"
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "invocations": {
+    "turn-2": -5
+   },
+   "search_status": "success",
+   "detail": {
+    "scans_before_restart": 5,
+    "restart_flag_effective": "1",
+    "identifiers_in_original_request": [
+     "U-22",
+     "SLE24-16",
+     "TK 1624",
+     "1624"
+    ],
+    "identifiers_surviving_in_reply": [
+     "U-22",
+     "SLE24-16",
+     "TK 1624"
+    ],
+    "followup_served": true,
+    "followup_reply_excerpt": "U-22, SLE24-16 and TK 1624 from Consolidated Price List 2019.xlsx, all in CAD. Reference: shim-1790468899455-33."
+   },
+   "verdict": "pass"
+  }
+ ],
+ "runs": [
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-1": 1,
+    "turn-2": 0
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "scans_after_first_turn": 1,
+    "scans_after_formatting_turn": 1,
+    "formatting_retrievals": 0,
+    "first_reply_served": true,
+    "formatting_reply_served": true
+   },
+   "blocked": null
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-1": 1,
+    "turn-2": 0
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "scans_after_first_turn": 1,
+    "scans_after_formatting_turn": 1,
+    "formatting_retrievals": 0,
+    "first_reply_served": true,
+    "formatting_reply_served": true
+   },
+   "blocked": null
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [
+    "linmac_consolidated.xlsx"
+   ],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-1": 1,
+    "turn-2": 0
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "scans_after_first_turn": 1,
+    "scans_after_formatting_turn": 1,
+    "formatting_retrievals": 0,
+    "first_reply_served": true,
+    "formatting_reply_served": true
+   },
+   "blocked": null
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-2": 1
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "scans_before": 2,
+    "scans_after": 3,
+    "new_attempt_retrievals": 1
+   },
+   "blocked": null
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-2": 0
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "request_id": "search-l2-1b47c6388b09",
+    "scans_before_retry": 4,
+    "scans_after_retry": 4,
+    "retry_retrievals": 0,
+    "pinned_bytes_identical": true
+   },
+   "blocked": null
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "layer": "layer2-public-boundary",
+   "asserts": [
+    "invocations",
+    "injected_failure_is_visible"
+   ],
+   "sources": [],
+   "items": {},
+   "search_status": "success",
+   "invocations": {
+    "turn-2": -5
+   },
+   "layer2_verdict": "pass",
+   "layer2_detail": {
+    "scans_before_restart": 5,
+    "restart_flag_effective": "1",
+    "identifiers_in_original_request": [
+     "U-22",
+     "SLE24-16",
+     "TK 1624",
+     "1624"
+    ],
+    "identifiers_surviving_in_reply": [
+     "U-22",
+     "SLE24-16",
+     "TK 1624"
+    ],
+    "followup_served": true,
+    "followup_reply_excerpt": "U-22, SLE24-16 and TK 1624 from Consolidated Price List 2019.xlsx, all in CAD. Reference: shim-1790468899455-33."
+   },
+   "blocked": null
+  }
+ ]
+}

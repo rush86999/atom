@@ -1799,6 +1799,46 @@ def _canvas_edit_shaped(
     )
 
 
+def _is_file_objective_turn(
+    message: str, session: Optional[Dict[str, Any]]
+) -> bool:
+    """This turn EDITS the item set of a file objective the conversation
+    already holds.
+
+    Two conditions, both required:
+
+    1. the turn is an entity-set edit (``replace U-22 with U-38``, ``drop
+       U-22``, ``also add U-38``) — ``entity_set_edit`` is fail-closed, so
+       ordinary sentences that merely contain a verb return ``None``;
+    2. the session carries a file objective — a stored pending-file task, a
+       resolved file identity, or a persisted file result. Without one there
+       is no item set to edit, and the turn really is whatever the NLU said
+       it was.
+
+    Used to keep an objective's own correction out of the task-creation lane:
+    see the call in ``_route_to_features``.
+    """
+    try:
+        from core.pending_file_task import (
+            FILE_TASK_SESSION_KEY,
+            entity_set_edit,
+        )
+    except Exception:  # noqa: BLE001 — pure gate, never blocks a turn
+        return False
+    try:
+        if entity_set_edit(message or "") is None:
+            return False
+    except Exception:  # noqa: BLE001 — the detector is pure, belt-only
+        return False
+    if not isinstance(session, dict):
+        return False
+    for key in (FILE_TASK_SESSION_KEY, "_resolved_file_identity",
+                "_pending_file_result"):
+        if isinstance(session.get(key), dict):
+            return True
+    return False
+
+
 def _canvas_non_edit_intent(intent: Any) -> bool:
     value = getattr(intent, "value", intent)
     return value in {
@@ -1817,6 +1857,58 @@ _CANVAS_ACTION_SHAPE_RE = re.compile(
     r"\b(?:send|export|share|post|publish|submit|schedule|ship)\b",
     re.IGNORECASE,
 )
+
+# Continuation routing vocabulary (NLU-fallback layer — the established
+# place for routing keywords, same class as the fallback's own
+# find/search/where list). Presentation preferences ONLY; retrieval
+# operations come from the file-task classifier. Fail-closed: anything
+# unrecognized is not a continuation.
+_PRESENTATION_TABLE_RE = re.compile(
+    r"\b(?:as\s+a\s+table|in\s+a\s+table|tabular|tabulate|make\s+it\s+a\s+table)\b",
+    re.IGNORECASE,
+)
+_PRESENTATION_COMPACT_RE = re.compile(
+    r"\b(?:clean(?:er|est|ly)?|clean\s*up|readable|easier\s+to\s+read|"
+    r"concise|shorter|brief(?:er|ly)?|simplif\w*|tidy|tidier|neat(?:er)?|"
+    r"compact)\b",
+    re.IGNORECASE,
+)
+# Control verbs that end a line of work, never continue a delivery.
+_HALT_RE = re.compile(
+    r"\b(?:stop|cancel(?:ling)?|halt|hold\s+on|never\s*mind|forget\s+it)\b",
+    re.IGNORECASE,
+)
+# Field selection needs an explicit selection verb: a bare field word in
+# passing prose ("thanks for the quick delivery") is not a selection.
+_FIELD_SELECT_RE = re.compile(
+    r"\b(?:use|using|show|showing|display|prefer|switch(?:ing)?(?:\s+to)?|"
+    r"change(?:\s+to)?|give(?:\s+me)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _match_field_preference(text: str) -> Optional[str]:
+    """Longest known field phrase present in the turn (word-boundary,
+    token-subsequence match over the scan layer's field vocabulary).
+    Returns the matched phrase or None."""
+    try:
+        from core.workbook_read_artifact import _FIELD_ALIASES
+    except Exception:
+        return None
+    phrases: List[str] = []
+    for _group, _aliases in (_FIELD_ALIASES or {}).items():
+        phrases.extend(str(a) for a in (_aliases or []))
+    normed = re.sub(r"[^a-z0-9]+", " ", str(text or "").lower()).strip()
+    words = normed.split(" ")
+    for phrase in sorted(set(phrases), key=len, reverse=True):
+        ptoks = [w for w in re.sub(
+            r"[^a-z0-9]+", " ", phrase.lower()).split(" ") if w]
+        if not ptoks:
+            continue
+        for i in range(len(words) - len(ptoks) + 1):
+            if words[i:i + len(ptoks)] == ptoks:
+                return phrase
+    return None
 
 # Read/lookup shape for a file-data ask ("find the prices…", "what does the
 # workbook say about…").
@@ -2896,6 +2988,312 @@ def _canvas_id_from_context(context: Any) -> Optional[str]:
     return None
 
 
+def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
+    """The active objective's ordered items, from the durable carriers on
+    the session, in precedence order.
+
+    1. the stored pending-file task's ``requested_targets``;
+    2. the latest structured file result's ``requested_items``.
+
+    THE TASK FIRST, and that order is the point. The two carriers are not
+    written at the same moment: ``requested_targets`` is stamped on the task
+    only when a revision actually LANDS, while the result row is rewritten on
+    every turn and therefore still holds the PRE-correction set after a
+    re-read that did not complete. Preferring the result row therefore
+    resurrects the outgoing item on the very next turn -- a failed re-read
+    silently undoing a correction the user was told had been applied.
+
+    The result row remains the fallback for sessions whose task predates
+    ``requested_targets``, and the task is also the carrier that survives a
+    restart (hydration restores ``_pending_file_task`` and not
+    ``_pending_file_result``).
+    """
+    try:
+        task = (session or {}).get("_pending_file_task") or {}
+        targets = task.get("requested_targets") or []
+        resolved = [str(v).strip() for v in targets if str(v).strip()]
+        if resolved:
+            return resolved
+    except Exception:
+        pass
+    try:
+        stored = ((session or {}).get("_pending_file_result") or {})
+        items = ((stored.get("structured_result") or {})
+                 .get("requested_items") or [])
+        return [str(v).strip() for v in items if str(v).strip()]
+    except Exception:
+        return []
+
+
+def _task_lifecycle_for(tenant_id: Any,
+                        workspace_id: Any) -> Optional[Any]:
+    """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
+
+    Returns None unless ``ATOM_TASK_LIFECYCLE_ENABLED=1``. Every failure
+    also returns None: lifecycle recording is best-effort and delivery
+    never depends on it. Callers wrap use in try/except regardless.
+    """
+    if os.getenv("ATOM_TASK_LIFECYCLE_ENABLED") != "1":
+        return None
+    try:
+        from core.database import get_db_session
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+
+        workspace = workspace_id or "default"
+        tenant = tenant_id or "default"
+        return TaskLifecycle(
+            GoalRunService(workspace_id=workspace, tenant_id=tenant,
+                           session_factory=get_db_session),
+            GoalService(workspace_id=workspace, tenant_id=tenant,
+                        session_factory=get_db_session),
+        )
+    except Exception as exc:  # noqa: BLE001 — best-effort only
+        logger.debug("task lifecycle unavailable: %r", exc)
+        return None
+
+
+def _canvas_edit_scope_validator(action: str, message: str,
+                                 context: Dict[str, Any]) -> bool:
+    """Approve widening a task's scope to ``edit`` for this turn.
+
+    Delegates to the turn's EXISTING edit-shape classifier rather than
+    inventing a second vocabulary of edit words — one notion of "this
+    message asks for a canvas change", already load-bearing across this
+    file. The lifecycle RUNS this; a caller asserting the validator's name
+    proves nothing on its own.
+    """
+    if action != "edit":
+        return False
+    if not str(message or "").strip():
+        return False
+    canvas = (context or {}).get("canvas")
+    try:
+        return bool(_canvas_edit_shaped(message, {"canvas": canvas or {}}))
+    except Exception as exc:  # noqa: BLE001 — a validator must not crash open
+        logger.warning("canvas edit scope validator failed closed: %r", exc)
+        return False
+
+
+# Registered at import so the lifecycle can resolve and RUN it. A name
+# that is not registered cannot approve anything.
+_tm = None
+try:
+    from core import task_lifecycle as _tm
+except Exception as _tm_import_error:  # noqa: BLE001
+    logger.debug("task lifecycle import deferred: %r", _tm_import_error)
+
+if _tm is not None:
+    _tm.register_scope_validator("chat_orchestrator.canvas_edit_lane")(
+        _canvas_edit_scope_validator)
+
+
+def _begin_task_edit(tenant_id: Any, workspace_id: Any,
+                     session: Optional[Dict[str, Any]],
+                     session_id: Optional[str], message: str,
+                     execution_id: Optional[str],
+                     canvas_ctx: Optional[Dict[str, Any]] = None,
+                     ) -> dict:
+    """Flag-gated pre-execution reservation for a canvas edit.
+
+    Returns a decision dict with ``status``:
+
+    * ``reserved``   — ``(run_id, operation_id)`` are set; mutate.
+    * ``denied``     — authorization refused (cancelled/revoked task, or
+      a scope that does not name ``edit`` and cannot be widened). The
+      mutation must not happen.
+    * ``unavailable`` — persistence failed. The mutation must not happen
+      either, but the reason is DIFFERENT and must stay distinguishable:
+      this is an infrastructure fault, not a policy decision, and the two
+      are reported separately rather than collapsed.
+
+    A flag-off world returns ``legacy`` so the lane behaves exactly as it
+    did before the lifecycle existed.
+    """
+    legacy = {"status": "legacy", "run_id": None, "operation_id": None,
+              "reason": None}
+    try:
+        from core import task_lifecycle as _tlm
+
+        denial_error = _tlm.TaskAuthorizationError
+        claimed_error = _tlm.OperationExecutionClaimed
+    except Exception as exc:  # noqa: BLE001 — module unavailable
+        logger.warning(
+            "task lifecycle unavailable — edit blocked: %r", exc)
+        return {"status": "unavailable", "run_id": None,
+                "operation_id": None, "reason": f"{type(exc).__name__}: {exc}"}
+    try:
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return legacy
+        # The user's OWN text is the grant evidence; the registered
+        # validator (not a label) decides whether that text asks for a
+        # canvas change, and the grant is persisted before execution.
+        run_id, operation_id = _tlm.begin_edit_turn(
+            lifecycle, session if isinstance(session, dict) else {},
+            session_id or "", message, execution_id,
+            idempotency_key=execution_id,
+            scope_grant={
+                "granted_by_message": message,
+                "validator": "chat_orchestrator.canvas_edit_lane",
+                "context": {"canvas": canvas_ctx},
+            })
+        return {"status": "reserved", "run_id": run_id,
+                "operation_id": operation_id, "reason": None}
+    except claimed_error as claimed:
+        # Another caller holds this effect. The record is singular; the
+        # loser must wait or replay, never mutate as well.
+        logger.info("task lifecycle: edit already claimed: %s", claimed)
+        return {"status": "already_claimed", "run_id": None,
+                "operation_id": None, "reason": str(claimed)}
+    except denial_error as denial:
+        logger.info("task lifecycle denied canvas edit: %s", denial)
+        return {"status": "denied", "run_id": None, "operation_id": None,
+                "reason": str(denial)}
+    except Exception as exc:  # noqa: BLE001 — denial on any failure
+        logger.warning(
+            f"task edit reservation failed — edit blocked: {exc!r}")
+        return {"status": "unavailable", "run_id": None,
+                "operation_id": None, "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def _release_unapplied_edit(tenant_id, workspace_id, reservation,
+                            execution_id) -> bool:
+    """Release a reserved edit claim when no VERIFIED effect happened.
+
+    D1. The reservation is taken before the mutation so an intention that
+    cannot be persisted never reaches the canvas — but that means a turn which
+    reserves and then does not apply leaves a claim held forever. Measured on
+    candidate_fix1 (2026-09-27): `edit` operations sitting at `status=pending`
+    with `updated_at == created_at`, untouched, one per declined turn.
+
+    The release mechanism already exists and is tested
+    (`task_lifecycle.finish_edit_turn` → `cancel_operation`, and
+    `test_declined_edit_releases_the_claim` passes). What was missing was the
+    CALL, which is why the stranded claim was observable at all: the mechanism's
+    own docstring says the claim "must not be left held (which would block every
+    later attempt at the same key)".
+
+    Best-effort by design. A failure to release must not turn a truthful answer
+    into an exception, and the claim is still visible in the operation record for
+    reconciliation, so a leak here is recoverable rather than silent.
+    """
+    run_id = (reservation or {}).get("run_id")
+    operation_id = (reservation or {}).get("operation_id")
+    if not run_id or not operation_id:
+        return False
+    try:
+        from core import task_lifecycle as _tlm
+
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return False
+        _tlm.finish_edit_turn(
+            lifecycle, run_id, operation_id, execution_id,
+            updated=False, needs_review=False, success=False)
+        logger.info(
+            "released an unapplied edit claim: run=%s operation=%s execution=%s",
+            run_id, operation_id, execution_id)
+        return True
+    except Exception as exc:  # noqa: BLE001 — never fail a truthful answer
+        logger.warning(
+            "could not release the unapplied edit claim (run=%s operation=%s): %r",
+            run_id, operation_id, exc)
+        return False
+
+
+def _finish_task_edit(tenant_id: Any, workspace_id: Any,
+                      session: Optional[Dict[str, Any]],
+                      session_id: Optional[str], message: str,
+                      execution_id: Optional[str],
+                      edit_data: Optional[Dict[str, Any]],
+                      success: bool,
+                      reserved: Optional[dict] = None,
+                      canvas_ctx: Optional[Dict[str, Any]] = None
+                      ) -> Optional[str]:
+    """Flag-gated settlement of a canvas edit (Step 2 wiring).
+
+    When the lane reserved an operation before mutating, that reservation
+    is settled here; otherwise the retrospective recorder runs (the
+    compatibility path for callers that never reserved). Maps the lane's
+    outcome shape to operation statuses; declined edits record nothing.
+    Never raises: lifecycle recording is best-effort after the fact, and
+    delivery never depends on it.
+    """
+    try:
+        lifecycle = _task_lifecycle_for(tenant_id, workspace_id)
+        if lifecycle is None:
+            return None
+        from core import task_lifecycle as _tlm
+
+        edit_data = edit_data or {}
+        outcome = {
+            "updated": bool(edit_data.get("updated")),
+            "needs_review": bool(edit_data.get("learning_mode"))
+            or edit_data.get("review_status") == "pending_review",
+            "success": bool(success),
+        }
+        reservation = reserved or {}
+        run_id = reservation.get("run_id")
+        operation_id = reservation.get("operation_id")
+        if run_id and operation_id:
+            return _tlm.finish_edit_turn(
+                lifecycle, run_id, operation_id, execution_id, **outcome)
+        # Compatibility path (nothing was reserved): this lane has already
+        # judged the turn to be an edit request, so it presents the user's
+        # own text as the grant and names itself as the validator.
+        return _tlm.record_edit_turn(
+            lifecycle, session if isinstance(session, dict) else {},
+            session_id or "", message, execution_id,
+            scope_grant={
+                "granted_by_message": message,
+                "validator": "chat_orchestrator.canvas_edit_lane",
+                "context": {"canvas": canvas_ctx},
+            },
+            **outcome)
+    except Exception as exc:  # noqa: BLE001 — best-effort only
+        logger.debug("task edit record skipped: %r", exc)
+        return None
+
+
+class _ForcedTurnFailure(Exception):
+    """Isolated-acceptance fault injection (never production traffic).
+
+    Raised AFTER the provisional answer is persisted so the failure
+    path (execution failed -> M1 transform -> M2 rewrite + pin sync)
+    can be proven against captured pre/post text. Armed ONLY by
+    ATOM_TEST_FORCE_TURN_FAILURE=1 plus a [force-fail] turn marker.
+    """
+
+    def __init__(self, provisional: str = ""):
+        super().__init__(
+            "forced turn failure after render: " + str(provisional or "")[:200])
+        self.provisional = provisional or ""
+
+
+def _maybe_force_turn_failure(session: Optional[Dict[str, Any]],
+                              execution_id: Optional[str],
+                              provisional: str,
+                              message: Optional[str] = None,
+                              context: Optional[Dict[str, Any]] = None) -> None:
+    if os.getenv("ATOM_TEST_FORCE_TURN_FAILURE") != "1":
+        return
+    armed = "[force-fail]" in str(message or "") or bool(
+        (context or {}).get("test_force_fail"))
+    if not armed:
+        return
+    try:
+        if isinstance(session, dict):
+            # The provisional row already stands as this turn's row; the
+            # outer handler must not append a second error row for the
+            # same execution (exact binding requires one row per turn).
+            session["_provisional_persisted_for"] = execution_id
+    except Exception:
+        pass
+    raise _ForcedTurnFailure(provisional)
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -3118,17 +3516,52 @@ class ChatOrchestrator:
         *,
         user_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> Optional[str]:
         """Create an AgentExecution row for a chat turn so the workspace
         panel has a run to group steps under — and so the trace survives
         reloads (the trace route joins executions via
-        metadata_json.session_id). Never raises; None means no trace."""
+        metadata_json.session_id). Never raises; None means no trace.
+
+        `request_id` is the client's keyed-transport id, recorded so a turn that
+        dies mid-flight can be ATTRIBUTED. Without it the durable
+        `ChatRequestRecord` has no link to the execution it was reserving --
+        `execution_id` is only written at finalization, so a crashed turn's key
+        is NULL and nothing can tell which key belongs to which crash. That
+        turned "resolve the crashed key" into a guess; with the id recorded it is
+        an exact join.
+        """
         try:
             import uuid as _uuid
             from core.database import get_db_session
             from core.models import AgentExecution
 
             execution_id = str(_uuid.uuid4())
+            _start_meta = {
+                "session_id": session_id,
+                "surface": "chat",
+                "user_id": user_id,
+                "workspace_id": workspace_id,
+            }
+            if request_id:
+                _start_meta["request_id"] = str(request_id)
+            if os.getenv("CHAT_FINALIZATION_M1") == "1":
+                try:
+                    from core import execution_outcome as _outcome
+
+                    _op = _outcome.new_operation_record(
+                        operation_id=execution_id,
+                        execution_id=execution_id,
+                        operation_class="chat_turn",
+                        producer="chat_orchestrator",
+                    )
+                    _outcome.transition(
+                        _op, "execution_status", "running",
+                        producer="chat_orchestrator")
+                    _start_meta = _outcome.store_operation_record(
+                        _start_meta, _op)
+                except Exception:
+                    pass
             with get_db_session() as db:
                 db.add(AgentExecution(
                     id=execution_id,
@@ -3136,12 +3569,7 @@ class ChatOrchestrator:
                     status="running",
                     input_summary=(message or "")[:300],
                     triggered_by="chat",
-                    metadata_json={
-                        "session_id": session_id,
-                        "surface": "chat",
-                        "user_id": user_id,
-                        "workspace_id": workspace_id,
-                    },
+                    metadata_json=_start_meta,
                 ))
             return execution_id
         except Exception as e:
@@ -3662,6 +4090,38 @@ class ChatOrchestrator:
                             "execution_id": execution_id,
                         }
                         row.metadata_json = meta
+                    if os.getenv("CHAT_FINALIZATION_M1") == "1":
+                        try:
+                            from core import execution_outcome as _outcome
+
+                            _raw_meta = getattr(row, "metadata_json", None)
+                            if _raw_meta is None:
+                                _raw_meta = {}
+                            if isinstance(_raw_meta, dict):
+                                _records = _outcome.load_operation_records(
+                                    _raw_meta)
+                                _op = _records.get(execution_id) or (
+                                    _outcome.new_operation_record(
+                                        operation_id=execution_id,
+                                        execution_id=execution_id,
+                                        operation_class="chat_turn",
+                                        producer="chat_orchestrator"))
+                                _mapped = {
+                                    "success": "succeeded",
+                                    "failed": "failed",
+                                }.get(status)
+                                if _mapped is not None:
+                                    try:
+                                        _outcome.transition(
+                                            _op, "execution_status", _mapped,
+                                            producer="chat_orchestrator")
+                                    except _outcome.IllegalTransition:
+                                        pass
+                                row.metadata_json = (
+                                    _outcome.store_operation_record(
+                                        _raw_meta, _op))
+                        except Exception:
+                            pass
                     db.commit()
         except Exception as e:
             logger.warning(f"chat execution finish skipped: {e}")
@@ -3841,6 +4301,36 @@ class ChatOrchestrator:
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
             try:
+                # TASK LIFECYCLE (Step 1, flag-gated): resolve the
+                # conversation's active task at turn entry so every lane
+                # below shares one record instead of re-resolving it. A
+                # halt-shaped turn ends the line of work: the active task
+                # transitions to cancelled (completed work is reported,
+                # outstanding work marked) and later retrieval starts a
+                # new task rather than appending to the stopped one.
+                _tl_entry = _task_lifecycle_for(
+                    getattr(self, "tenant_id", None),
+                    (context or {}).get("workspace_id"))
+                if _tl_entry is not None and isinstance(session, dict):
+                    _tl_record = None
+                    _tl_known = session.get("_task_run_id")
+                    if _tl_known:
+                        try:
+                            _tl_record = _tl_entry.get_task(_tl_known)
+                        except Exception:
+                            _tl_record = None
+                    if _tl_record is None:
+                        _tl_record = _tl_entry.find_active_task(session_id)
+                    if _tl_record is not None:
+                        session["_task_run_id"] = _tl_record["run_id"]
+                    if _HALT_RE.search(message or ""):
+                        from core import task_lifecycle as _tlm
+
+                        _tlm.cancel_task(
+                            _tl_entry, session, session_id, message)
+            except Exception as _tl_err:  # noqa: BLE001 — best-effort only
+                logger.debug("task lifecycle resolve skipped: %r", _tl_err)
+            try:
                 from core.pending_file_task import (
                     FILE_TASK_SESSION_KEY,
                     supersedes_pending_task,
@@ -3930,6 +4420,7 @@ class ChatOrchestrator:
                 message,
                 user_id=user_id,
                 workspace_id=(context or {}).get("workspace_id"),
+                request_id=(context or {}).get("request_id"),
             )
             session["_current_execution_id"] = _execution_id
             await self._emit_agent_status(
@@ -4070,6 +4561,12 @@ class ChatOrchestrator:
                     _pfr = self._load_pending_file_result(session_id)
                 except Exception:  # noqa: BLE001 — best-effort
                     _pfr = None
+            # NOTE: the reply leg's evidence-bound narration guard reads the
+            # record THIS turn produced, not this persisted copy — see
+            # `_turn_structured_record` in `_get_qwen_response`, which is bound
+            # beside the read that produced it. Reading the value here instead
+            # would judge the model against the PREVIOUS turn's answer, which is
+            # precisely the stale list the guard exists to reject.
             if (
                 isinstance(_pfr, dict)
                 and _pfr.get("status") in ("retrieved", "delivered")
@@ -4088,12 +4585,27 @@ class ChatOrchestrator:
 
                     _new_substantive = _is_substantive_request(message)
                     # RE-DELIVERY vs RE-RETRIEVAL (2026-09-24 review): a
-                    # bare approval may re-render the persisted result;
+                    # bare approval may re-serve the persisted result;
                     # "search again"/"refresh"/"check the latest version"
                     # is a NEW retrieval — it bypasses the cached copy and
                     # re-runs the file-scoped reader (the matching path
                     # re-opens a terminal task for refresh requests).
                     _refresh_request = is_retrieval_refresh_request(message)
+                    # CONTINUATION (work order Step 2): the NLU routing
+                    # layer resolves retrieval operation + presentation
+                    # preference as two independent fields BEFORE this
+                    # branch (no plan exists yet here; confident plan
+                    # fields win downstream). No speculative retrieval
+                    # starts while deciding — this verdict is pure text.
+                    _continuation = self._continuation_decision(message, session)
+                    _format_request = (
+                        _continuation is not None
+                        and _continuation.get("retrieval") == "none"
+                        and not _refresh_request
+                        and not _canvas_edit_shaped(message, context)
+                        and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
+                        and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
+                    )
                     _delivery_retry = (
                         (is_filename_confirmation(message)
                          or not _new_substantive)
@@ -4101,40 +4613,202 @@ class ChatOrchestrator:
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
-                if _delivery_retry:
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
-
-                        _deliver_content = _user_facing_workbook_answer(
-                            str(_pfr["rendered"]))
-                    except Exception:  # noqa: BLE001 — renderer optional
-                        _deliver_content = str(_pfr["rendered"])
+                    _continuation = None
+                    _format_request = False
+                if _format_request or _delivery_retry:
+                    _pfr_structured = _pfr.get("structured_result")
+                    if not isinstance(_pfr_structured, dict):
+                        _pfr_structured = None
+                    # None unless the formatting path below records a new
+                    # delivery on the task (transport retries record
+                    # nothing new by design).
+                    _tl_fmt_recorded = None
+                    # Objective comparison evidence rides both re-delivery
+                    # shapes (preserved from the pre-wiring path — a
+                    # comparison turn keeps its comparison block).
                     _objective_retry = _pfr.get("objective_evidence")
+                    _comparison_retry = ""
                     if isinstance(_objective_retry, dict):
                         try:
                             from core.workbook_read_artifact import (
                                 render_source_comparison,
                             )
 
-                            _comparison_retry = render_source_comparison(
-                                _objective_retry
+                            _comparison_retry = (
+                                render_source_comparison(_objective_retry)
+                                or ""
                             )
+                        except Exception:
+                            _comparison_retry = ""
+                    if _format_request and _pfr_structured is not None:
+                        # FORMATTING FOLLOW-UP (work order Step 2): a NEW
+                        # turn and delivery rendered from existing evidence
+                        # — zero retrieval calls. The routing decision's
+                        # presentation preference visibly changes the
+                        # rendering (compact/table/field); the new delivery
+                        # gets its own pin while history rows keep theirs.
+                        # serve_on_transport_retry is NEVER consulted here:
+                        # transport identity belongs to the keyed request
+                        # contract, not to conversation redelivery.
+                        from core.answer_presentation import (
+                            mark_delivered,
+                            present_from_record,
+                            set_presentation_intent,
+                        )
+                        from core.invocation_events import (
+                            RENDER as _RENDER_KIND,
+                        )
+                        from core.invocation_events import (
+                            Timer as _Timer,
+                        )
+                        from core.invocation_events import (
+                            record as _record_event,
+                        )
+
+                        _fmt_presentation = (
+                            (_continuation or {}).get("presentation") or {})
+                        _pres_action = set_presentation_intent(
+                            _pfr_structured,
+                            {"action": "re-render",
+                             "requested_message": str(message or "")[:200],
+                             "style": _fmt_presentation.get("style")
+                             or "default",
+                             "field": _fmt_presentation.get("field")},
+                        )
+                        _render_timer = _Timer()
+                        try:
+                            _re_rendered = present_from_record(
+                                _pfr_structured,
+                                presentation_action=_pres_action,
+                            )
+                            _re_core = str(
+                                _re_rendered.get("answer") or "")
+                            if not _re_core:
+                                raise ValueError("empty re-render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_pfr_structured.get("attempt_id"),
+                                evidence_revision=_pfr_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                        except Exception:
+                            _re_core = ""
+                        if not _re_core:
+                            _re_core = str(_pfr.get("rendered") or "")
+                        _deliver_content = _re_core
+                        if _comparison_retry and (
+                                _comparison_retry not in _deliver_content):
+                            _deliver_content += f"\n\n{_comparison_retry}"
+                        # TASK LIFECYCLE (milestone: controls delivery):
+                        # record BEFORE mutating anything. When the flag is
+                        # on and recording fails, the previous delivery is
+                        # preserved byte-for-byte with its original pin —
+                        # the turn must not claim a durable new delivery.
+                        _tl_fmt_previous = str(_pfr.get("rendered") or "")
+                        _tl_fmt_lifecycle = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None),
+                            (context or {}).get("workspace_id"))
+                        if _tl_fmt_lifecycle is not None:
+                            try:
+                                # A selected field additionally narrows the
+                                # requested fields so later renders
+                                # re-select from retained evidence instead
+                                # of re-reading.
+                                from core import task_lifecycle as _tlm
+                                _tl_field = (_fmt_presentation or {}).get(
+                                    "field")
+                                _tlm.record_presentation_turn(
+                                    _tl_fmt_lifecycle, session, session_id,
+                                    message,
+                                    (_fmt_presentation or {}).get("style")
+                                    or "default",
+                                    _tl_field,
+                                    requested_fields=[_tl_field]
+                                    if _tl_field else None)
+                                _tl_fmt_recorded = True
+                            except Exception as _tl_err:  # noqa: BLE001
+                                logger.warning(
+                                    "task lifecycle record failed — "
+                                    "previous delivery preserved: %r",
+                                    _tl_err)
+                                _tl_fmt_recorded = False
+                        if _tl_fmt_recorded is False:
+                            _deliver_content = _tl_fmt_previous
+                            _deliver_action_summary = None
+                        else:
+                            _pfr["status"] = "delivered"
+                            _pfr["delivered_at"] = time.time()
+                            _pfr["presentation_action"] = _pres_action
+                            _pfr["rendered_core"] = _re_core[:24000]
+                            try:
+                                _pfr = mark_delivered(
+                                    _pfr, _deliver_content[:24000])
+                            except Exception:  # noqa: BLE001 — pin optional
+                                _pfr["delivery_pin"] = {
+                                    "delivered_text":
+                                        _deliver_content[:24000]}
+                            _pfr["rendered"] = _deliver_content[:24000]
+                            session["_pending_file_result"] = _pfr
+                            _deliver_action_summary = {
+                            k: _pres_action.get(k) for k in (
+                                "action",
+                                "references_attempt_id",
+                                "references_evidence_revision",
+                                "created_at")
+                        }
+                    else:
+                        # TRANSPORT RETRY: the pinned delivered answer goes
+                        # back verbatim — no retrieval, no re-rendering (a
+                        # renderer upgrade must never rewrite history).
+                        _pinned = None
+                        try:
+                            from core.answer_presentation import (
+                                mark_delivered,
+                                serve_on_transport_retry,
+                            )
+
+                            _pinned = serve_on_transport_retry(_pfr)
+                        except Exception:  # noqa: BLE001 — pin optional
+                            _pinned = None
+                        if _pinned and not _comparison_retry:
+                            _deliver_content = _pinned
+                        else:
+                            try:
+                                from core.chat_tool_planner import (
+                                    _user_facing_workbook_answer,
+                                )
+
+                                _deliver_content = (
+                                    _user_facing_workbook_answer(
+                                        str(_pfr["rendered"])))
+                            except Exception:  # noqa: BLE001
+                                _deliver_content = str(_pfr["rendered"])
                             if _comparison_retry:
                                 _deliver_content += (
                                     f"\n\n{_comparison_retry}"
                                 )
-                        except Exception:
-                            pass
-                    _deliver_content += (
-                        "\n\n(Delivered from the persisted scan result — "
-                        "re-rendered without re-reading the file; the "
-                        "narration model was not used.)"
-                    )
-                    _pfr["status"] = "delivered"
-                    _pfr["delivered_at"] = time.time()
-                    session["_pending_file_result"] = _pfr
+                            _deliver_content += (
+                                "\n\n(Delivered from the persisted scan "
+                                "result — re-rendered without re-reading "
+                                "the file; the narration model was not used.)"
+                            )
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark,
+                                )
+
+                                _pfr = _mark(
+                                    _pfr, _deliver_content[:24000])
+                            except Exception:  # noqa: BLE001
+                                pass
+                            _pfr["rendered"] = _deliver_content[:24000]
+                        _pfr["status"] = "delivered"
+                        _pfr["delivered_at"] = time.time()
+                        session["_pending_file_result"] = _pfr
+                        _deliver_action_summary = None
                     _task_row = session.get(FILE_TASK_SESSION_KEY)
                     if isinstance(_task_row, dict):
                         session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
@@ -4143,6 +4817,7 @@ class ChatOrchestrator:
                         "success": True,
                         "message": _deliver_content,
                         "session_id": session_id,
+                        "execution_id": _execution_id,
                         "intent": "search",
                         "confidence": 0.9,
                         "model": "deterministic",
@@ -4152,6 +4827,9 @@ class ChatOrchestrator:
                             "file_identity": _pfr.get("identity"),
                             "objective_evidence": _objective_retry
                             if isinstance(_objective_retry, dict) else None,
+                            "presentation_action": _deliver_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_recorded": _tl_fmt_recorded,
                         },
                         "requires_confirmation": False,
                         "next_steps": [],
@@ -4214,6 +4892,12 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
+                _ask_active = _stored_requested_items(session)
+                if _ask_active:
+                    # Active-objective inheritance for vague follow-up
+                    # asks; the producer still prefers the turn's own
+                    # explicit items and never unions history.
+                    _ask_task["requested_targets"] = _ask_active
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -4249,26 +4933,162 @@ class ChatOrchestrator:
                             "resolved_file"):
                         _ask_task["resolved_file"] = _stored_ctx[
                             "resolved_file"]
+                _tl_begin = (None, None)
+                _tl_lifecycle = _task_lifecycle_for(
+                    getattr(self, "tenant_id", None),
+                    (context or {}).get("workspace_id"))
+                if _tl_lifecycle is not None:
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # persist the retrieval INTENTION before execution.
+                        # A failure between here and the settle below
+                        # leaves a durable pending operation with zero
+                        # tool effects.
+                        from core import task_lifecycle as _tlm
+                        _tl_begin = _tlm.begin_retrieval_turn(
+                            _tl_lifecycle, session, session_id, message,
+                            _execution_id,
+                            items=list(
+                                _ask_task.get("requested_targets") or []))
+                    except Exception as _tl_err:  # noqa: BLE001
+                        # FAIL-CLOSED: the operation could not be
+                        # recorded, so the read does not run. No tool
+                        # effects; the failure is reported honestly.
+                        logger.warning(
+                            "task lifecycle begin failed — read blocked: "
+                            "%r", _tl_err)
+                        _tl_blocked_reason = (
+                            "its operation could not be recorded on the "
+                            "task, so the read did not run")
+                        _tl_blocked_response = {
+                            "success": False,
+                            "message": (
+                                "I couldn't start this lookup safely: "
+                                + _tl_blocked_reason + ". Nothing was "
+                                "retrieved and nothing changed. You can "
+                                "retry the request."),
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "search",
+                            "confidence": 0.9,
+                            "data": {
+                                "deterministic_delivery": False,
+                                "blocked_reason": "operation_not_recorded",
+                                "task_run_id": session.get("_task_run_id"),
+                                "task_operation": None,
+                                "reconciliation_required": False,
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": [],
+                        }
+                        self._update_session(
+                            session, message, _tl_blocked_response,
+                            {"primary_intent": "search", "confidence": 0.9})
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            "failed")
+                        self._finish_chat_execution(
+                            _execution_id,
+                            "failed",
+                            "task operation could not be recorded; "
+                            "read blocked",
+                            session=session,
+                            message=message,
+                            response=_tl_blocked_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=[],
+                        )
+                        return _tl_blocked_response
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
-                    (context or {}).get("workspace_id"), _deadline)
+                    (context or {}).get("workspace_id"), _deadline,
+                    canvas=_canvas_ctx, execution_id=_execution_id,
+                    request_id=(context or {}).get("request_id"))
                 if _ask_result.get("ok"):
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
+                    _ask_structured = _ask_result.get("structured_result")
+                    _ask_action_summary = None
+                    _ask_full_action = None
+                    if isinstance(_ask_structured, dict):
+                        # ARTIFACT-NATIVE (structured renderer is the one
+                        # presentation path); legacy text-only results fall
+                        # through to the compatibility cleaner below.
+                        try:
+                            from core.answer_presentation import (
+                                present_from_record,
+                                set_presentation_intent,
+                            )
+                            from core.invocation_events import (
+                                RENDER as _RENDER_KIND,
+                            )
+                            from core.invocation_events import (
+                                Timer as _Timer,
+                            )
+                            from core.invocation_events import (
+                                record as _record_event,
+                            )
 
-                        _ask_content = _user_facing_workbook_answer(
-                            str(_ask_result.get("rendered_answer")
-                                or _ask_result.get("block") or ""))
-                    except Exception:  # noqa: BLE001 — renderer optional
-                        _ask_content = str(
-                            _ask_result.get("rendered_answer")
-                            or _ask_result.get("block") or "")
+                            _ask_action = set_presentation_intent(
+                                _ask_structured,
+                                {"action": "render",
+                                 "requested_message": str(
+                                     _ask_task.get("original_message")
+                                     or "")[:200]},
+                            )
+                            _render_timer = _Timer()
+                            _ask_content = str(
+                                present_from_record(
+                                    _ask_structured,
+                                    presentation_action=_ask_action,
+                                ).get("answer") or "")
+                            if not _ask_content:
+                                raise ValueError("empty structured render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_ask_structured.get("attempt_id"),
+                                evidence_revision=_ask_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                            _ask_full_action = _ask_action
+                            _ask_action_summary = {
+                                k: _ask_action.get(k) for k in (
+                                    "action",
+                                    "references_attempt_id",
+                                    "references_evidence_revision",
+                                    "created_at")
+                            }
+                        except Exception:  # noqa: BLE001 — compat fallback
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _ask_content = _user_facing_workbook_answer(
+                                str(_ask_result.get("rendered_answer")
+                                    or _ask_result.get("block") or ""))
+                    else:
+                        try:
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _ask_content = _user_facing_workbook_answer(
+                                str(_ask_result.get("rendered_answer")
+                                    or _ask_result.get("block") or ""))
+                        except Exception:  # noqa: BLE001 — renderer optional
+                            _ask_content = str(
+                                _ask_result.get("rendered_answer")
+                                or _ask_result.get("block") or "")
                     # REFRESH verdict rides the ask-turn answer too — a
                     # version request served by the ask lane ships the
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
+                    _ask_core = _ask_content
                     if _ask_freshness.get("note"):
                         _ask_content = (
                             _ask_content + str(_ask_freshness["note"]))
@@ -4286,24 +5106,125 @@ class ChatOrchestrator:
                         "target_extraction_version":
                             _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _ask_content[:24000],
+                        "rendered_core": _ask_core[:24000],
+                        "presentation_action": _ask_full_action,
                         "identity": _ask_identity,
                         "execution_id": _execution_id,
                         "coverage_complete": _ask_complete,
                         "retrieved_at": time.time(),
+                        "structured_result": _ask_structured
+                        if isinstance(_ask_structured, dict) else None,
+                        "attempt_id": (_ask_structured or {}).get("attempt_id")
+                        if isinstance(_ask_structured, dict) else None,
+                        "evidence_revision": (
+                            _ask_structured or {}).get("evidence_revision")
+                        if isinstance(_ask_structured, dict) else None,
+                        "evidence_action": (
+                            _ask_structured or {}).get("evidence_action")
+                        if isinstance(_ask_structured, dict) else None,
                     }
-                    session["_pending_file_result"] = _ask_result_row
-                    if not _ask_complete:
-                        from core.pending_file_task import (
-                            FILE_TASK_SESSION_KEY,
-                            merge_pending_task,
-                        )
+                    try:
+                        # PIN-AFTER-FINALIZATION: the pinned text is the
+                        # message as actually delivered (freshness verdict
+                        # included); the M1 finalizer leaves success
+                        # deliveries untouched and M2 persists the same
+                        # text, so this pin matches HTTP, history, reload.
+                        from core.answer_presentation import mark_delivered
 
-                        session[FILE_TASK_SESSION_KEY] = merge_pending_task(
-                            session.get(FILE_TASK_SESSION_KEY),
-                            message,
-                            _ask_mention,
-                            (context or {}).get("disambiguation"),
-                        )
+                        _ask_result_row = mark_delivered(
+                            _ask_result_row, _ask_content[:24000])
+                    except Exception:  # noqa: BLE001 — pin optional
+                        pass
+                    session["_pending_file_result"] = _ask_result_row
+                    _tl_outcome_uncertain = False
+                    _tl_operation_ref = None
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # settle the begun retrieval — running→applied with
+                        # observed evidence, or running when incomplete.
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            from core import task_lifecycle as _tlm
+                            _tlm.finish_retrieval_turn(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                _ask_structured if isinstance(
+                                    _ask_structured, dict) else {},
+                                _execution_id, _ask_complete)
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                    except Exception as _tl_err:  # noqa: BLE001
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            # FAIL-CLOSED on recording: the observed answer
+                            # is kept, but its outcome is explicitly
+                            # uncertain — retained for reconciliation via
+                            # the operation identity, never re-read.
+                            logger.warning(
+                                "task lifecycle settle failed — uncertain "
+                                "delivery retained: %r", _tl_err)
+                            _tl_outcome_uncertain = True
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                            _ask_content += (
+                                "\n\nNote: this answer could not be "
+                                "recorded on the task "
+                                f"(operation {_tl_begin[1]}); it is "
+                                "retained for reconciliation and the "
+                                "lookup will not be repeated automatically.")
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark_uncertain,
+                                )
+
+                                _ask_result_row = _mark_uncertain(
+                                    _ask_result_row, _ask_content[:24000])
+                                session["_pending_file_result"] = (
+                                    _ask_result_row)
+                            except Exception:
+                                pass
+                        else:
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
+                    # STORE THE OBJECTIVE ON EVERY COMPLETED ASK, not only
+                    # on the incomplete ones.
+                    #
+                    # The incomplete case stored a task so the user could be
+                    # asked for the rest; the COMPLETE case stored nothing,
+                    # which left a delivered read with no durable record of
+                    # what it was a read OF. Everything that continues such a
+                    # turn — an entity-set edit ("replace U-22 with U-38"), a
+                    # re-search, a reload — resolves through
+                    # `matching_pending_task`, so with no stored task the
+                    # resume lane was never entered and the turn fell through
+                    # to legacy feature routing, where the TASKS handler
+                    # answered "I've added 'Replace U-22 with U-38' to your
+                    # Tasks". `matching_pending_task` already treats a
+                    # delivered task as eligible for exactly these turns
+                    # (and NOT for a bare "yes", which the delivery path owns),
+                    # so marking it delivered here is the whole change.
+                    from core.pending_file_task import (
+                        FILE_TASK_SESSION_KEY,
+                        mark_task_delivered,
+                        mark_task_retrieved,
+                        merge_pending_task,
+                    )
+
+                    _ask_stored = merge_pending_task(
+                        session.get(FILE_TASK_SESSION_KEY),
+                        message,
+                        _ask_mention,
+                        (context or {}).get("disambiguation"),
+                    )
+                    if _ask_complete:
+                        # Mirrors the resume lane: the read finished, then the
+                        # answer reached the user. The resolved resource is
+                        # retained so a later re-read executes against the
+                        # same file, not a fresh resolution.
+                        _ask_stored = mark_task_delivered(
+                            mark_task_retrieved(_ask_stored, _ask_identity))
+                    session[FILE_TASK_SESSION_KEY] = _ask_stored
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -4317,6 +5238,10 @@ class ChatOrchestrator:
                             "coverage_complete": _ask_complete,
                             "resumable": not _ask_complete,
                             "freshness": _ask_freshness.get("status") or None,
+                            "presentation_action": _ask_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_operation": _tl_operation_ref,
+                            "reconciliation_required": _tl_outcome_uncertain,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4327,6 +5252,12 @@ class ChatOrchestrator:
                     self._update_session(
                         session, message, _ask_response,
                         {"primary_intent": "search", "confidence": 0.9})
+                    # Isolated fault injection (env + marker gated): fail
+                    # AFTER the provisional delivery persists, so the
+                    # failure path is provable against captured pre/post.
+                    _maybe_force_turn_failure(
+                        session, _execution_id, _ask_content, message,
+                        context)
                     if _ask_complete:
                         _ask_result_row["status"] = "delivered"
                         _ask_result_row["delivered_at"] = time.time()
@@ -4363,34 +5294,411 @@ class ChatOrchestrator:
                         "reason": "objective requires source comparison",
                     }
                 else:
-                    _direct_result = await self._direct_confirmed_file_read(
-                        _pending_file_task,
-                        history,
-                        user_id,
-                        session_id,
-                        (context or {}).get("workspace_id"),
-                        _deadline,
-                    )
+                            _direct_task = _pending_file_task
+                            _direct_active = _stored_requested_items(session)
+                            _direct_presentation = None
+                            try:
+                                _direct_decision = (
+                                    self._continuation_decision(message, session))
+                                if (_direct_decision is not None
+                                        and _direct_decision.get("retrieval")
+                                        in ("rerun", "refresh")):
+                                    # Compound re-search: both intents ride
+                                    # the fresh attempt (new retrieval +
+                                    # requested presentation of its result).
+                                    _direct_presentation = (
+                                        _direct_decision.get("presentation")
+                                        or {})
+                            except Exception:
+                                _direct_presentation = None
+                            # ENTITY-SET EDIT: apply the requested change to
+                            # the DURABLE TASK FIRST, then read the new set.
+                            #
+                            # Order matters and is the point of this branch.
+                            # The user's instruction is a revision of the
+                            # objective, so `revise_objective` is applied
+                            # BEFORE the attempt is begun: it replaces
+                            # `entities` with the edited set, records the
+                            # removed ids, and invalidates exactly the evidence
+                            # bound to removed items while keeping the rest.
+                            # Because U-22's evidence is invalidated there, the
+                            # read that follows cannot reuse it, and
+                            # `new_attempt_required` is set. Doing this after
+                            # the read (or not at all) is what let the previous
+                            # list be served as the answer to a new question.
+                            _objective_edit = None
+                            if isinstance(_direct_decision, dict):
+                                _objective_edit = _direct_decision.get(
+                                    "objective_edit")
+                            if isinstance(_objective_edit, dict) and isinstance(
+                                    _direct_task, dict):
+                                _direct_active = [
+                                    str(v) for v in (_objective_edit.get("items") or [])]
+                                _direct_task = dict(
+                                    _direct_task,
+                                    requested_targets=_direct_active,
+                                    objective_edit=dict(_objective_edit),
+                                )
+                                # NOTE: the durable carrier is stamped with the
+                                # revised set only AFTER `revise_objective`
+                                # succeeds, further down. Stamping it here
+                                # would leave the session claiming a
+                                # correction that the durable task never
+                                # accepted, so a blocked turn would still
+                                # hand the corrected set to the next turn --
+                                # a half-applied correction, reported as "not
+                                # applied".
+                            elif _direct_active and isinstance(_direct_task, dict):
+                                # The stored objective's ordered items ride the
+                                # read; the producer inherits them for vague
+                                # follow-ups and never unions history.
+                                _direct_task = dict(
+                                    _direct_task,
+                                    requested_targets=_direct_active,
+                                )
+                            _tl_begin = (None, None)
+                            _tl_lifecycle = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None),
+                                (context or {}).get("workspace_id"))
+                            if _tl_lifecycle is not None:
+                                try:
+                                    # TASK LIFECYCLE (milestone: controls
+                                    # execution): persist the retrieval
+                                    # INTENTION before execution (durable
+                                    # pending operation on pre-execution
+                                    # failure, zero tool effects).
+                                    from core import task_lifecycle as _tlm
+                                    # REVISE THE OBJECTIVE BEFORE THE ATTEMPT.
+                                    # `revise_objective` is the only transition
+                                    # that mutates the entity set, and it also
+                                    # invalidates the evidence bound to removed
+                                    # items and raises `new_attempt_required`.
+                                    # Applying it here -- ahead of
+                                    # begin_retrieval_turn -- is what makes the
+                                    # durable task the authority for what is
+                                    # being asked, instead of the read's
+                                    # observation reconciling the task after
+                                    # the fact (which is the only place this
+                                    # transition was previously called from).
+                                    # Fail-closed on error: if the revision
+                                    # cannot be persisted, the read below is
+                                    # blocked rather than run against an
+                                    # objective we failed to correct.
+                                    if isinstance(_objective_edit, dict):
+                                        _tl_run_id = session.get("_task_run_id")
+                                        try:
+                                            _existing = _tl_lifecycle.get_task(
+                                                _tl_run_id) or {}
+                                            _prev_entities = list(
+                                                (_existing.get("task_revision")
+                                                 or {}).get("entities") or [])
+                                            _prev_ids = [
+                                                str(e.get("id"))
+                                                for e in _prev_entities]
+                                            _new_ids = [
+                                                str(v) for v in (
+                                                    _objective_edit.get("items")
+                                                    or [])]
+                                            _removed_ids = [
+                                                i for i in _prev_ids
+                                                if i not in set(_new_ids)]
+                                            _tl_lifecycle.apply_transition(
+                                                _tl_run_id, {
+                                                    "kind": "revise_objective",
+                                                    "requested_change": (
+                                                        "user edited the "
+                                                        "requested items: "
+                                                        f"{_objective_edit.get('operation')}"
+                                                        f" -{_objective_edit.get('removed')}"
+                                                        f" +{_objective_edit.get('added')}"),
+                                                    "entities": [
+                                                        {"id": i, "label": i,
+                                                         "aliases": [],
+                                                         "provenance_turn": None,
+                                                         "inferred": False}
+                                                        for i in _new_ids],
+                                                    "removed_entity_ids": _removed_ids,
+                                                })
+                                            logger.info(
+                                                "[objective-edit] revise_objective "
+                                                "applied before read: -%s +%s",
+                                                _removed_ids,
+                                                [i for i in _new_ids
+                                                 if i not in set(_prev_ids)])
+                                            # The revision is now DURABLE, so
+                                            # the corrected set may be stamped
+                                            # on the carrier every later
+                                            # continuation resolves through.
+                                            #
+                                            # `_direct_task` above is this
+                                            # turn's working copy and dies with
+                                            # the request. The stored task is
+                                            # what survives a restart, and
+                                            # without this the corrected set
+                                            # existed only in
+                                            # `_pending_file_result` -- which
+                                            # session hydration does NOT
+                                            # restore -- so the next turn
+                                            # ("search again", "make this easier
+                                            # to read") inherited nothing,
+                                            # re-derived the item set from the
+                                            # stored ask, and resurrected the
+                                            # outgoing item.
+                                            _stored_row = session.get(
+                                                FILE_TASK_SESSION_KEY)
+                                            if isinstance(_stored_row, dict):
+                                                session[FILE_TASK_SESSION_KEY] = (
+                                                    dict(
+                                                        _stored_row,
+                                                        requested_targets=list(
+                                                            _new_ids),
+                                                        objective_edit=dict(
+                                                            _objective_edit),
+                                                    )
+                                                )
+                                        except Exception as _tl_edit_err:  # noqa: BLE001
+                                            # FAIL-CLOSED, AND IT ACTUALLY
+                                            # BLOCKS. This handler used to log
+                                            # "read blocked", clear
+                                            # `_objective_edit` and fall
+                                            # through: `_direct_task` still
+                                            # carried the REVISED targets, so
+                                            # the read executed against an
+                                            # objective that was never
+                                            # persisted. The answer would then
+                                            # be computed from the new set
+                                            # while the durable task still held
+                                            # the old one -- the exact
+                                            # durable/output disagreement this
+                                            # path exists to prevent, reached
+                                            # by a different route. Clearing
+                                            # the local variable changed
+                                            # nothing that the read reads.
+                                            #
+                                            # A correction whose revision
+                                            # cannot be recorded is not
+                                            # applied at all. Say so.
+                                            logger.warning(
+                                                "objective revision failed — "
+                                                "read blocked: %r",
+                                                _tl_edit_err)
+                                            _objective_edit = None
+                                            _revision_blocked = {
+                                                "success": False,
+                                                "message": (
+                                                    "I couldn't record the "
+                                                    "change to your list, so "
+                                                    "the lookup did not run. "
+                                                    "Nothing was retrieved "
+                                                    "and your original list "
+                                                    "is unchanged. You can "
+                                                    "retry the change."),
+                                                "session_id": session_id,
+                                                "execution_id": _execution_id,
+                                                "intent": "search",
+                                                "confidence": 0.9,
+                                                "data": {
+                                                    "deterministic_delivery":
+                                                        False,
+                                                    "blocked_reason":
+                                                        "objective_revision_"
+                                                        "not_recorded",
+                                                    "task_run_id": session.get(
+                                                        "_task_run_id"),
+                                                    "task_operation": None,
+                                                    "reconciliation_required":
+                                                        False,
+                                                },
+                                                "model": "deterministic",
+                                                "provider": "structured",
+                                                "requires_confirmation": False,
+                                                "next_steps": [],
+                                                "suggested_actions": [],
+                                            }
+                                            self._update_session(
+                                                session, message,
+                                                _revision_blocked,
+                                                {"primary_intent": "search",
+                                                 "confidence": 0.9})
+                                            await self._emit_agent_status(
+                                                session_id, _trace_agent_id,
+                                                _execution_id, "failed")
+                                            self._finish_chat_execution(
+                                                _execution_id,
+                                                "failed",
+                                                "objective revision could not "
+                                                "be recorded; read blocked",
+                                                session=session,
+                                                message=message,
+                                                response=_revision_blocked,
+                                                deadline=_deadline,
+                                                pending_task=session.get(
+                                                    "_pending_file_task"),
+                                                authorized_actions=[],
+                                            )
+                                            return _revision_blocked
+                                    _tl_begin = _tlm.begin_retrieval_turn(
+                                        _tl_lifecycle, session, session_id,
+                                        message, _execution_id,
+                                        items=list(
+                                            (_direct_task or {}).get(
+                                                "requested_targets") or []))
+                                except Exception as _tl_err:  # noqa: BLE001
+                                    # FAIL-CLOSED: the operation could not
+                                    # be recorded, so the read does not run.
+                                    logger.warning(
+                                        "task lifecycle begin failed — read "
+                                        "blocked: %r", _tl_err)
+                                    _tl_blocked_response = {
+                                        "success": False,
+                                        "message": (
+                                            "I couldn't resume this lookup "
+                                            "safely: its operation could not "
+                                            "be recorded on the task, so the "
+                                            "read did not run. Nothing was "
+                                            "retrieved and nothing changed. "
+                                            "You can retry the request."),
+                                        "session_id": session_id,
+                                        "execution_id": _execution_id,
+                                        "intent": "search",
+                                        "confidence": 0.9,
+                                        "data": {
+                                            "deterministic_delivery": False,
+                                            "blocked_reason":
+                                                "operation_not_recorded",
+                                            "task_run_id": session.get(
+                                                "_task_run_id"),
+                                            "task_operation": None,
+                                            "reconciliation_required": False,
+                                        },
+                                        "model": "deterministic",
+                                        "provider": "structured",
+                                        "requires_confirmation": False,
+                                        "next_steps": [],
+                                        "suggested_actions": [],
+                                    }
+                                    self._update_session(
+                                        session, message,
+                                        _tl_blocked_response,
+                                        {"primary_intent": "search",
+                                         "confidence": 0.9})
+                                    await self._emit_agent_status(
+                                        session_id, _trace_agent_id,
+                                        _execution_id, "failed")
+                                    self._finish_chat_execution(
+                                        _execution_id,
+                                        "failed",
+                                        "task operation could not be "
+                                        "recorded; read blocked",
+                                        session=session,
+                                        message=message,
+                                        response=_tl_blocked_response,
+                                        deadline=_deadline,
+                                        pending_task=session.get(
+                                            "_pending_file_task"),
+                                        authorized_actions=[],
+                                    )
+                                    return _tl_blocked_response
+                            _direct_result = await self._direct_confirmed_file_read(
+                                _direct_task,
+                                history,
+                                user_id,
+                                session_id,
+                                (context or {}).get("workspace_id"),
+                                _deadline,
+                                canvas=_canvas_ctx,
+                                execution_id=_execution_id,
+                                request_id=(context or {}).get("request_id"),
+                            )
                 if _direct_result.get("ok"):
-                    try:
-                        from core.chat_tool_planner import (
-                            _user_facing_workbook_answer,
-                        )
+                    _direct_structured = _direct_result.get("structured_result")
+                    _direct_full_action = None
+                    _direct_action_summary = None
+                    if isinstance(_direct_structured, dict):
+                        # ARTIFACT-NATIVE (one presentation path);
+                        # text-only results use the compat cleaner below.
+                        try:
+                            from core.answer_presentation import (
+                                present_from_record,
+                                set_presentation_intent,
+                            )
+                            from core.invocation_events import (
+                                RENDER as _RENDER_KIND,
+                            )
+                            from core.invocation_events import (
+                                Timer as _Timer,
+                            )
+                            from core.invocation_events import (
+                                record as _record_event,
+                            )
 
-                        _direct_content = _user_facing_workbook_answer(
-                            str(_direct_result.get("rendered_answer")
-                                or _direct_result.get("block") or "")
-                        )
-                    except Exception:
-                        _direct_content = str(
-                            _direct_result.get("rendered_answer")
-                            or _direct_result.get("block") or ""
-                        )
+                            _direct_action = set_presentation_intent(
+                                _direct_structured,
+                                {"action": "render",
+                                 "requested_message": str(
+                                     (_pending_file_task or {}).get(
+                                         "original_message") or message
+                                     or "")[:200],
+                                 "style": (_direct_presentation or {}).get(
+                                     "style") or "default",
+                                 "field": (_direct_presentation or {}).get(
+                                     "field")},
+                            )
+                            _render_timer = _Timer()
+                            _direct_content = str(
+                                present_from_record(
+                                    _direct_structured,
+                                    presentation_action=_direct_action,
+                                ).get("answer") or "")
+                            if not _direct_content:
+                                raise ValueError("empty structured render")
+                            _record_event(
+                                _RENDER_KIND, execution_id=_execution_id,
+                                attempt_id=_direct_structured.get("attempt_id"),
+                                evidence_revision=_direct_structured.get(
+                                    "evidence_revision"),
+                                duration_ms=_render_timer.ms(),
+                                session_id=session_id,
+                                request_id=(context or {}).get("request_id"),
+                                outcome="ok", detail={"path": "artifact"})
+                            _direct_full_action = _direct_action
+                            _direct_action_summary = {
+                                k: _direct_action.get(k) for k in (
+                                    "action",
+                                    "references_attempt_id",
+                                    "references_evidence_revision",
+                                    "created_at")
+                            }
+                        except Exception:  # noqa: BLE001 — compat fallback
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _direct_content = _user_facing_workbook_answer(
+                                str(_direct_result.get("rendered_answer")
+                                    or _direct_result.get("block") or "")
+                            )
+                    else:
+                        try:
+                            from core.chat_tool_planner import (
+                                _user_facing_workbook_answer,
+                            )
+
+                            _direct_content = _user_facing_workbook_answer(
+                                str(_direct_result.get("rendered_answer")
+                                    or _direct_result.get("block") or "")
+                            )
+                        except Exception:
+                            _direct_content = str(
+                                _direct_result.get("rendered_answer")
+                                or _direct_result.get("block") or ""
+                            )
                     # REFRESH verdict (2026-09-24 review round 3): a
                     # source-freshness request ships its verdict with the
                     # answer — refreshed, failed, or unverified — so an
                     # old copy can never pass as current.
                     _freshness = _direct_result.get("freshness") or {}
+                    _direct_core = _direct_content
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
@@ -4409,7 +5717,11 @@ class ChatOrchestrator:
                         "status": (
                             "retrieved" if _direct_complete
                             else "incomplete"),
+                        "target_extraction_version":
+                            _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _direct_content[:24000],
+                        "rendered_core": _direct_core[:24000],
+                        "presentation_action": _direct_full_action,
                         "identity": _direct_identity,
                         "workbook_read": (
                             _direct_result.get("meta") or {}
@@ -4420,7 +5732,28 @@ class ChatOrchestrator:
                         "freshness": _freshness.get("status") or None,
                         "execution_id": _execution_id,
                         "retrieved_at": time.time(),
+                        "structured_result": _direct_structured
+                        if isinstance(_direct_structured, dict) else None,
+                        "attempt_id": (_direct_structured or {}).get(
+                            "attempt_id")
+                        if isinstance(_direct_structured, dict) else None,
+                        "evidence_revision": (
+                            _direct_structured or {}).get("evidence_revision")
+                        if isinstance(_direct_structured, dict) else None,
+                        "evidence_action": (
+                            _direct_structured or {}).get("evidence_action")
+                        if isinstance(_direct_structured, dict) else None,
                     }
+                    try:
+                        # PIN-AFTER-FINALIZATION (as the ask lane): the
+                        # pinned text is the delivered message including
+                        # its freshness verdict.
+                        from core.answer_presentation import mark_delivered
+
+                        _direct_result_row = mark_delivered(
+                            _direct_result_row, _direct_content[:24000])
+                    except Exception:  # noqa: BLE001 — pin optional
+                        pass
                     # LAST-KNOWN-GOOD PRESERVATION (review round 5): a
                     # refresh that did NOT actually refresh (stale index,
                     # failed, unverified) must not erase the previously
@@ -4439,6 +5772,57 @@ class ChatOrchestrator:
                             _direct_result_row["previous_status"] = (
                                 _prior_row.get("status"))
                     session["_pending_file_result"] = _direct_result_row
+                    _tl_outcome_uncertain = False
+                    _tl_operation_ref = None
+                    try:
+                        # TASK LIFECYCLE (milestone: controls execution):
+                        # settle the begun retrieval with the observed
+                        # outcome.
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            from core import task_lifecycle as _tlm
+                            _tlm.finish_retrieval_turn(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                _direct_structured if isinstance(
+                                    _direct_structured, dict) else {},
+                                _execution_id, _direct_complete)
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                    except Exception as _tl_err:  # noqa: BLE001
+                        if _tl_lifecycle is not None and _tl_begin[0]:
+                            # FAIL-CLOSED on recording: keep the observed
+                            # answer, disclose the unrecorded outcome,
+                            # retain the identity, never repeat the read.
+                            logger.warning(
+                                "task lifecycle settle failed — uncertain "
+                                "delivery retained: %r", _tl_err)
+                            _tl_outcome_uncertain = True
+                            _tl_operation_ref = {
+                                "run_id": _tl_begin[0],
+                                "operation_id": _tl_begin[1],
+                            }
+                            _direct_content += (
+                                "\n\nNote: this answer could not be "
+                                "recorded on the task "
+                                f"(operation {_tl_begin[1]}); it is "
+                                "retained for reconciliation and the "
+                                "lookup will not be repeated automatically.")
+                            try:
+                                from core.answer_presentation import (
+                                    mark_delivered as _mark_uncertain,
+                                )
+
+                                _direct_result_row = _mark_uncertain(
+                                    _direct_result_row,
+                                    _direct_content[:24000])
+                                session["_pending_file_result"] = (
+                                    _direct_result_row)
+                            except Exception:
+                                pass
+                        else:
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
                     try:
                         from core.pending_file_task import (
                             FILE_TASK_SESSION_KEY,
@@ -4473,6 +5857,10 @@ class ChatOrchestrator:
                             "coverage_complete": _direct_complete,
                             "resumable": not _direct_complete,
                             "freshness": _freshness.get("status") or None,
+                            "presentation_action": _direct_action_summary,
+                            "task_run_id": session.get("_task_run_id"),
+                            "task_operation": _tl_operation_ref,
+                            "reconciliation_required": _tl_outcome_uncertain,
                         },
                         "model": "deterministic",
                         "provider": "structured",
@@ -4594,8 +5982,8 @@ class ChatOrchestrator:
             # earlier leg (edit/action) already answered.
             # Turn-scoped execution identity for durable stamping (see
             # _update_session): the assistant row carries the execution id
-            # so UI recovery matches the exact turn.
-            session["_last_execution_id"] = _execution_id
+            # so UI recovery matches the exact turn. (No shared session
+            # field: concurrent turns must not relabel each other's rows.)
             _tool_plan_task = None
             try:
                 from core.chat_tool_planner import plan_tool_use, _provenance_menu
@@ -4892,13 +6280,81 @@ class ChatOrchestrator:
                         "file-data ask (the reply leg runs the lookup)")
                     _edit_response = None
                 elif _canvas_ctx and not _canvas_action_bypassed:
-                    _edit_leg = self._try_canvas_edit(
-                        message, history, _canvas_ctx, user_id, session_id,
-                        _execution_id, (context or {}).get("agent_id"),
-                        provenance=(context or {}).get("canvas_provenance"),
-                        shared_tool_state=_shared_tool,
-                    )
-                    if _derivation_ask(message, context):
+                    # TASK LIFECYCLE (Step 2, flag-gated): reserve the edit
+                    # BEFORE the mutation, so an intention that cannot be
+                    # persisted never reaches the canvas. A denied
+                    # reservation skips the leg entirely.
+                    _edit_task_reserved = _begin_task_edit(
+                        getattr(self, "tenant_id", None),
+                        (context or {}).get("workspace_id"),
+                        session, session_id, message, _execution_id,
+                        canvas_ctx=_canvas_ctx)
+                    # Only a RESERVED decision may mutate. "denied" and
+                    # "unavailable" both block the leg, for different
+                    # reasons, and neither may be downgraded to a
+                    # fall-through that another route would then perform.
+                    _edit_leg = self._try_canvas_edit( \
+                        message, history, _canvas_ctx, user_id, session_id, \
+                        _execution_id, (context or {}).get("agent_id"), \
+                        provenance=(context or {}).get("canvas_provenance"), \
+                        shared_tool_state=_shared_tool, \
+                        # EXACT OPERATION STAMP (2026-09-25 review round 5):
+                        # the interactive write's audit row carries this
+                        # turn's execution id in details_json.operation_id,
+                        # so the canvas-claim guard binds verification to
+                        # THIS operation by structured field equality —
+                        # one logical operation per turn is also the
+                        # correct idempotency key.
+                        operation_id=_execution_id) \
+                        if _edit_task_reserved["status"] in (
+                            "reserved", "legacy") else None
+                    # D1: a reservation is a CLAIM, and a claim with no verified
+                    # effect must be released. This covers every reason the leg
+                    # did not apply — the planner declined, the store rejected,
+                    # the read-back did not verify (D0), or the leg returned
+                    # nothing at all — because "no verified update" is the single
+                    # condition that matters and `updated` is the only field
+                    # that asserts one. Before this, every declined turn leaked a
+                    # `pending` operation that nothing ever settled.
+                    _edit_claimed_effect = bool(
+                        isinstance(_edit_leg, dict)
+                        and ((_edit_leg.get("data") or {}).get("canvas_edit") or {})
+                        .get("updated") is True
+                        and ((_edit_leg.get("data") or {}).get("canvas_edit") or {})
+                        .get("postcondition_verified") is True)
+                    if (_edit_task_reserved.get("status") == "reserved"
+                            and not _edit_claimed_effect):
+                        _release_unapplied_edit(
+                            getattr(self, "tenant_id", None),
+                            (context or {}).get("workspace_id"),
+                            _edit_task_reserved, _execution_id)
+                    if _edit_leg is None:
+                        # Refused before execution: nothing ran, so there
+                        # is no edit leg to await and no outcome to settle
+                        # beyond any pending reservation. The reason is
+                        # carried through so the two refusals stay
+                        # distinguishable to the operator and the client.
+                        _tl_status = _edit_task_reserved.get("status")
+                        logger.info(
+                            "[canvas-edit] lane blocked — task lifecycle "
+                            "status=%s reason=%s",
+                            _tl_status, _edit_task_reserved.get("reason"))
+                        _shared_tool.setdefault("canvas_edit_no_apply", True)
+                        _shared_tool.setdefault(
+                            "canvas_edit_no_apply_reason",
+                            {"denied": "edit_not_authorized",
+                             "already_claimed": "edit_already_claimed",
+                             }.get(_tl_status, "edit_not_persistable"))
+                        # The client's message is chosen by no_apply_reason
+                        # above; the machine-readable block rides alongside
+                        # it so an operator can tell an authorization
+                        # refusal from a persistence outage.
+                        _shared_tool["task_lifecycle_block"] = {
+                            "status": _tl_status,
+                            "reason": _edit_task_reserved.get("reason"),
+                        }
+                        _edit_response = None
+                    elif _derivation_ask(message, context):
                         # A derivation ask is answered by the workbook row, and
                         # this leg declines it anyway (see the constant). Give
                         # it a short slice: a fast answer still wins, a slow
@@ -4976,6 +6432,19 @@ class ChatOrchestrator:
                                                 user_id=user_id,
                                                 session_id=session_id,
                                                 execution_id=_execution_id,
+                                                # IDENTITY CONTRACT: the
+                                                # interactive turn's lifecycle
+                                                # operation id. The write path
+                                                # stamps THIS onto the audit
+                                                # row, so without it the
+                                                # continuation cannot locate a
+                                                # write the interactive leg
+                                                # already landed.
+                                                origin_operation_id=(
+                                                    _edit_task_reserved.get(
+                                                        "operation_id")
+                                                    if _edit_task_reserved
+                                                    else None),
                                                 agent_id=(context or {}).get(
                                                     "agent_id"),
                                                 provenance=(context or {}).get(
@@ -4985,9 +6454,8 @@ class ChatOrchestrator:
                                                     or ""),
                                                 evidence_contract=(
                                                     _shared_tool.get(
-                                                        "objective_evidence"
-                                                    )
-                                                ),
+                                                        "objective_evidence")
+                                                    ),
                                             )
                                         )
                                         self._record_canvas_background_fork(
@@ -5030,6 +6498,27 @@ class ChatOrchestrator:
                                 else []
                             ),
                         )
+                        try:
+                            # TASK LIFECYCLE (Step 2, flag-gated): settle
+                            # the edit reserved before the mutation. Declined
+                            # edits record nothing — fall-through lanes own
+                            # the turn.
+                            _edit_task_run = _finish_task_edit(
+                                getattr(self, "tenant_id", None),
+                                (context or {}).get("workspace_id"),
+                                session, session_id, message, _execution_id,
+                                ((_edit_response.get("data") or {}).get(
+                                    "canvas_edit") or {}),
+                                _edit_response.get("success", True),
+                                reserved=_edit_task_reserved,
+                                canvas_ctx=_canvas_ctx)
+                            if _edit_task_run is not None:
+                                _edit_response.setdefault(
+                                    "data", {})["task_run_id"] = (
+                                        _edit_task_run)
+                        except Exception as _tl_err:  # noqa: BLE001
+                            logger.debug(
+                                "task lifecycle record skipped: %r", _tl_err)
                         return _edit_response
 
                     if (
@@ -5067,6 +6556,9 @@ class ChatOrchestrator:
                                     user_id=user_id,
                                     session_id=session_id,
                                     execution_id=_execution_id,
+                                    origin_operation_id=(
+                                        _edit_task_reserved.get("operation_id")
+                                        if _edit_task_reserved else None),
                                     agent_id=(context or {}).get("agent_id"),
                                     provenance=(context or {}).get(
                                         "canvas_provenance"),
@@ -5196,10 +6688,21 @@ class ChatOrchestrator:
                             "but nothing is confirmed changed yet."
                         )
                     elif _no_apply_reason == "planner_declined":
+                        # Do NOT tell the user to clarify. The planner read the
+                        # request and chose not to act; the request was not
+                        # ambiguous, and sending someone to rewrite a clear
+                        # instruction hides the real cause. The plan requires
+                        # denial, unavailable source, unavailable model and
+                        # uncertain effect to be distinguishable -- and this
+                        # branch is none of those, it is "the editor declined".
                         _no_apply_message = (
-                            "I couldn't safely make that canvas change, so "
-                            "nothing was changed. Please clarify the change and "
-                            "try again."
+                            "I didn't apply that canvas change, so nothing was "
+                            "changed. The change was clear; the canvas editor "
+                            "declined it, which usually means it could not "
+                            "match your wording to a specific part of this "
+                            "canvas. Naming the exact text to change (for "
+                            "example 'change \"Quote validity: 15 days\" to "
+                            "\"30 days\"') usually gets it applied."
                         )
                     elif _no_apply_reason in (
                         "evidence_declined", "evidence_unavailable"
@@ -5220,9 +6723,23 @@ class ChatOrchestrator:
                         "no_apply": True,
                         "reason": _no_apply_reason,
                         "background_started": _background_started,
+                        # D3: a refusal that mutates lifecycle state must still
+                        # be attributable. This turn reserved an operation and
+                        # released it, and the only way to bind that to a turn is
+                        # to carry the identity on the outcome. Without it the
+                        # reserved state is orphaned: `execution_id` was None
+                        # here, so nothing could connect the release to the
+                        # request that caused it.
+                        "execution_id": _execution_id,
+                        "operation_id": _edit_task_reserved.get("operation_id"),
+                        "task_run_id": _edit_task_reserved.get("run_id"),
+                        "outcome": "refused",
                     }
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _canvas_edit_data["plan_unavailable"] = True
+                    if _shared_tool.get("task_lifecycle_block"):
+                        _canvas_edit_data["task_lifecycle_block"] = (
+                            _shared_tool["task_lifecycle_block"])
                     if _shared_tool.get("canvas_planning_outcome"):
                         _canvas_edit_data["planner_outcome"] = _shared_tool[
                             "canvas_planning_outcome"
@@ -5231,6 +6748,8 @@ class ChatOrchestrator:
                         "success": True,
                         "message": _no_apply_message,
                         "session_id": session_id,
+                        # D3: every outcome carries the execution it belongs to.
+                        "execution_id": _execution_id,
                         "intent": "canvas_edit",
                         "confidence": 0.9,
                         "data": {"canvas_edit": _canvas_edit_data},
@@ -5856,6 +7375,7 @@ class ChatOrchestrator:
             error_response = self._generate_error_response(
                 "I encountered an error processing your message. Please try again.", session_id
             )
+            error_response["execution_id"] = locals().get("_execution_id")
             self._finish_chat_execution(
                 _execution_id,
                 "failed",
@@ -5866,16 +7386,22 @@ class ChatOrchestrator:
                 deadline=locals().get("_deadline"),
                 pending_task=locals().get("_pending_file_task"),
             )
-            try:
-                self._update_session(
-                    locals().get("session") or {"id": session_id, "history": []},
-                    message,
-                    error_response,
-                    locals().get("intent_analysis")
-                    or {"primary_intent": "error", "confidence": 0.0},
-                )
-            except Exception:
-                pass
+            # A fault-injection turn already persisted its provisional row
+            # for this execution: appending a second error row would break
+            # exact per-turn binding, so the persisted provisional stands.
+            _already = (locals().get("session") or {}).pop(
+                "_provisional_persisted_for", None)
+            if _already != locals().get("_execution_id"):
+                try:
+                    self._update_session(
+                        locals().get("session") or {"id": session_id, "history": []},
+                        message,
+                        error_response,
+                        locals().get("intent_analysis")
+                        or {"primary_intent": "error", "confidence": 0.0},
+                    )
+                except Exception:
+                    pass
             return error_response
         finally:
             if _interactive_token is not None:
@@ -6062,6 +7588,9 @@ class ChatOrchestrator:
         session_id: str,
         workspace_id: Optional[str],
         deadline: Optional["TurnDeadline"] = None,
+        canvas: Optional[Dict[str, Any]] = None,
+        execution_id: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
@@ -6088,6 +7617,30 @@ class ChatOrchestrator:
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
                         "disambiguation": pending_task.get("disambiguation"),
+                        "requested_targets": (
+                            pending_task.get("requested_targets") or []),
+                        # A REVISED OBJECTIVE IS AUTHORITATIVE, and it has to
+                        # be declared as such: the query handed to the reader
+                        # is the STORED ASK, which still names the outgoing
+                        # item ("...: No. 381, U-22, ..."). Re-deriving the
+                        # item set from that text outranks plain inheritance
+                        # and silently returns the pre-edit list, so the turn
+                        # answers the question it was correcting (measured:
+                        # the revised set arrived and was discarded, U-22
+                        # included). Only a turn that actually revised the
+                        # objective sets this.
+                        "revised_targets": (
+                            (pending_task.get("objective_edit") or {}).get(
+                                "items") or []),
+                        "execution_id": execution_id,
+                        "session_id": session_id,
+                        "request_id": request_id,
+                        # CANVAS RIDES THE BRAND CHANNEL (2026-09-25
+                        # review round 5): the objective's item lines
+                        # ('Roper Whitney … No. 381') live on the canvas
+                        # table; without it the reader's 6-entry history
+                        # window loses every identity hint.
+                        "canvas": canvas,
                     },
                     plan=direct_plan,
                 ),
@@ -6133,6 +7686,7 @@ class ChatOrchestrator:
                 meta.get("completed") and identity_verified and coverage_complete
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
+            "structured_result": meta.get("structured_result"),
             "reason": "" if block else "file-scoped reader returned no result",
         }
         if (pending_task or {}).get("operation") == "refresh":
@@ -6288,6 +7842,10 @@ class ChatOrchestrator:
                                              result.get("retrieval_complete")),
             "rendered_answer": reread.get("rendered_answer")
             or result.get("rendered_answer") or "",
+            # A re-read is a NEW attempt with its own identity even when
+            # the evidence revision is unchanged (same copy, new read).
+            "structured_result": reread.get("structured_result")
+            or result.get("structured_result"),
         })
         # EVIDENCE-BASED VERDICT (2026-09-24 review rounds 4-5): a new
         # ingestion timestamp alone does not prove refreshed evidence.
@@ -6375,6 +7933,494 @@ class ChatOrchestrator:
             "current; re-ingestion may still be in progress.",
             reason="index unchanged after refetch",
         )
+
+    # ENFORCED CANVAS-CLAIM VERIFICATION — A STRONGER LEGACY GUARD
+    # (2026-09-25 review rounds 3-10). NOT the finalization boundary.
+    #
+    # OPEN DEFECTS, carried to the unified finalizer (2026-09-25 review
+    # round 11) — do not close by expanding this guard:
+    #   1. UNSUPPORTED PROSE: a workflow claim whose shape the legacy
+    #      matcher does not know ('I sent the email.') reaches the user
+    #      beside the Operation-status section; the guard supersedes but
+    #      cannot strip arbitrary prose. (xfail-pinned safety criterion:
+    #      no_unsupported_workflow_claim_reaches_output.)
+    #   2. STREAMING BYPASS: streamed deltas reach the user BEFORE
+    #      finalization; only the final response returned here (what
+    #      persists and what recovery polling reads) carries the
+    #      structured section.
+    # The unified finalizer must validate or regenerate the COMPLETE
+    # answer before delivery — or withhold unvalidated narration and
+    # return structured results. This renderer (verified_criteria →
+    # statement) is the piece it carries forward; prompt instructions
+    # are supporting guidance, not enforcement.
+    _CANVAS_CLAIM_SENTENCE_RE = re.compile(
+        r"[^.\n]*\b(?:updated|changed|edited|applied|modified|revised|"
+        r"wrote)\b[^.\n]*\b(?:canvas|table|item|draft|quote|column|row|"
+        r"price|cell|value)\b[^.\n]*[.\n]?",
+        re.IGNORECASE,
+    )
+    # M3 PRE-DELIVERY VALIDATION BOUNDARY (2026-09-25): the legacy guard
+    # above is FROZEN — do not add verbs to it. These M3-only patterns
+    # withhold unvalidated narration mid-stream and strip it at close:
+    # - workflow completion ("I sent the email.") needs its own operation
+    #   evidence; canvas evidence never verifies a send/approve/submit.
+    # - split prefixes ("I've updated") reuse the legacy canvas verbs only
+    #   to detect a trailing fragment that could become a claim with more
+    #   text; they never broaden what counts as a complete claim.
+    _M3_WORKFLOW_CLAIM_RE = re.compile(
+        r"[^.\n]*\bI(?:['\u2019]ve\s+|\s+have\s+|\s+had\s+|\s+)"
+        r"(?:sent|emailed?|forwarded?|dispatched?|approved?|submitted?)"
+        r"\b[^.\n]*[.\n]?",
+        re.IGNORECASE,
+    )
+    _M3_SPLIT_PREFIX_RE = re.compile(
+        r"[^.\n]*\bI(?:['\u2019]ve\b| have\b| had\b)?\s*\w{0,30}$",
+        re.IGNORECASE,
+    )
+    # (Round 8's absolute-vocabulary and strong-action REWRITING regexes
+    # are retired: round 9 generates the confirmation from the verified
+    # criteria set, so no model claim text survives to need rewriting.)
+    _READY_FOR_REVIEW_NOTE = (
+        "The revised draft is verified and ready for review — not yet "
+        "accepted.")
+
+    @classmethod
+    def _verified_finalization_statement(
+        cls, verification: Dict[str, Any],
+    ) -> str:
+        """The finalization contract's output: generated ONLY from the
+        verified criteria and the audit's review status. Named criteria
+        become an explicit verified list; unnamed ones fall back to the
+        generic recorded-checks sentence. Review status is reported as
+        the fact the audit records — workflow actions (sent/approved/
+        submitted) are never generated: they require their own operation
+        evidence, at any review status."""
+        criteria = [
+            pc for pc in (
+                (verification or {}).get("verified_criteria") or []
+            ) if isinstance(pc, dict)
+        ]
+        named = [
+            pc for pc in criteria
+            if str(pc.get("entity_id") or "")
+            and str(pc.get("field") or "")
+        ]
+        if named:
+            listed = "; ".join(
+                f"{pc.get('entity_id')} — {pc.get('field')}"
+                for pc in named[:8]
+            )
+            parts = [f"Verified on the canvas as served: {listed}."]
+        else:
+            parts = [
+                "The recorded checks for this change passed (verified "
+                "against the canvas as served)."
+            ]
+        review_status = str((verification or {}).get("review_status") or "")
+        if review_status == "pending_review":
+            parts.append("Review status: pending review — not yet accepted.")
+        elif review_status:
+            parts.append(f"Review status: {review_status}.")
+        return " ".join(parts)
+
+    @classmethod
+    async def _canvas_claim_correction(
+        cls,
+        content: Optional[str],
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+    ) -> str:
+        text = str(content or "")
+        if not text or not isinstance(canvas_context, dict):
+            return text
+        # OUTCOME-BASED INVOCATION (2026-09-25 review round 10): the
+        # finalization runs whenever the turn is canvas-bound — whether
+        # or not the prose matches a claim pattern. Prose detection is
+        # the LEGACY layer only (it replaces known-shaped unsupported
+        # sentences); the structured statement below is generated from
+        # the operation's outcome and is the authoritative mutation
+        # confirmation. Known legacy-guard limitation: an unknown-shaped
+        # workflow claim ('I sent the email.') outside the matcher is
+        # superseded by — not stripped with — the section; generation-
+        # side prevention lives in the unified finalizer.
+        claim_found = bool(cls._CANVAS_CLAIM_SENTENCE_RE.search(text))
+        canvas_id = str(canvas_context.get("canvas_id") or "")
+        verification = await cls._canvas_write_for_operation(
+            canvas_id, session_id, user_id, execution_id,
+        )
+        verdict = (verification or {}).get("verdict") or "unverified"
+        review_status = (verification or {}).get("review_status")
+        if verdict == "result_verified":
+            # STRUCTURED SECTION from the operation's outcome: generated
+            # from the verified entity/field set, carrying the review
+            # status as the audit records it. Workflow actions
+            # (sent/approved/submitted) are never generated — they need
+            # their own operation evidence.
+            statement = cls._verified_finalization_statement(verification)
+            section = f"— Operation status: {statement}"
+            if claim_found:
+                # The FIRST replaced sentence becomes the labeled section;
+                # any further matches collapse into the bare statement —
+                # exactly one authoritative section per reply.
+                seen = []
+
+                def _sectioned(_m):
+                    if not seen:
+                        seen.append(True)
+                        return f"Operation status: {statement}"
+                    return statement
+
+                rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(
+                    _sectioned, text)
+                if rewritten == text:
+                    rewritten = f"{text}\n\n{section}"
+                return rewritten
+            return f"{text}\n\n{section}"
+        if verdict == "write_recorded":
+            if not claim_found:
+                # Outcome reported even without matching prose: the turn
+                # DID write; the user gets the honest status either way.
+                return (
+                    f"{text}\n\n— Operation status: a canvas write from "
+                    "this operation is recorded, but the requested "
+                    "change is not confirmed as served — unconfirmed "
+                    "until reviewed."
+                )
+            replacement = (
+                "*(Recorded, not verified: a canvas write from this "
+                "operation is on the audit trail, but the requested "
+                "change is not confirmed in the canvas as served — treat "
+                "the result as unconfirmed until reviewed.)*"
+            )
+        elif background_forked:
+            replacement = (
+                "*(The canvas edit is still running in the background — "
+                "nothing is confirmed changed yet.)*"
+            )
+        elif claim_found:
+            replacement = (
+                "*(Unverified: no canvas write from this operation is on "
+                "the audit trail — treat the canvas as unchanged and any "
+                "values above as proposed.)*"
+            )
+        else:
+            return text  # read-only canvas turn: nothing to report
+        logger.warning(
+            "[canvas-claim-guard] reply claimed a canvas change; "
+            "verification=%s (canvas=%s, session=%s, execution=%s) — "
+            "claim rewritten",
+            verdict, canvas_id or "?", session_id or "?",
+            execution_id or "?",
+        )
+        # REPLACE the unsupported claim sentences — leaving them intact
+        # and appending a contradiction says both things at once.
+        rewritten = cls._CANVAS_CLAIM_SENTENCE_RE.sub(replacement, text)
+        if rewritten == text:
+            # The sentence matcher missed (unusual formatting): fall back
+            # to appending so the user is never left with a bare claim.
+            rewritten = f"{text}\n\n{replacement}"
+        return rewritten
+
+    @classmethod
+    async def _m3_reconcile_stream_done(
+        cls,
+        streamed: Optional[str],
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Corrected stream-closing text, or None to keep legacy behavior.
+
+        The streamed reply never passes through the canvas-claim guard —
+        only the non-streaming return does — so on final-text validation
+        failure the frontend keeps the raw streamed text. Under the M3
+        flag, run the same guard over the streamed text and return it only
+        when a claim was actually rewritten; any error or no-op yields
+        None and the caller emits the legacy empty content.
+
+        M3 PRE-DELIVERY BOUNDARY (no verb-list expansion): workflow
+        completion narration ("I sent the email.") needs its own operation
+        evidence — canvas evidence never verifies a send. The frozen legacy
+        guard supersedes but cannot strip it, so M3 strips unsupported
+        workflow sentences here while preserving the authoritative
+        Operation-status section. Pure chat without workflow shape flows
+        untouched (None).
+        """
+        if not streamed or os.getenv("CHAT_FINALIZATION_M3") != "1":
+            return None
+        try:
+            corrected = await cls._canvas_claim_correction(
+                streamed, canvas_context, session_id, user_id,
+                background_forked,
+                execution_id=execution_id,
+            )
+        except Exception:
+            return None
+        # Strip unsupported workflow narration in canvas-bound turns only.
+        # Legacy _CANVAS_CLAIM_SENTENCE_RE is frozen; this M3-only pattern
+        # is the pre-delivery boundary, not an expansion.
+        try:
+            canvas_id = (
+                canvas_context.get("canvas_id")
+                if isinstance(canvas_context, dict) else None
+            )
+            if canvas_id and cls._M3_WORKFLOW_CLAIM_RE.search(corrected):
+                stripped = cls._M3_WORKFLOW_CLAIM_RE.sub("", corrected)
+                stripped = re.sub(r"\n\s*\n\s*\n+", "\n\n", stripped).strip()
+                stripped = re.sub(r"[ \t]{2,}", " ", stripped)
+                if stripped != corrected:
+                    if stripped:
+                        return stripped
+                    # Body was only the unsupported workflow claim and no
+                    # section survived: withhold with an honest notice
+                    # rather than releasing the hallucination or an empty
+                    # bubble.
+                    return (
+                        "*(Unverified: no canvas write from this operation "
+                        "is on the audit trail — treat the canvas as "
+                        "unchanged.)*"
+                    )
+        except Exception:
+            pass
+        return corrected if corrected != streamed else None
+
+    @classmethod
+    async def _m3_gate_stream_chunk(
+        cls,
+        pending: str,
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+        verified: Optional[Dict[str, bool]] = None,
+    ) -> Tuple[str, str]:
+        """Split unreleased stream text into (emit, hold).
+
+        Text before the first claim-shaped sentence is always released.
+        A claim-shaped sentence is released only after it verifies exactly
+        once per distinct sentence (cached for the stream); unverified
+        claims stay held so raw completion claims never reach the bubble
+        mid-stream — the stream-close reconciliation delivers the honest
+        wording instead. Verifier faults hold from the failure point
+        (fail-closed): releasing on fault would stream an unvalidated
+        completion claim. Split prefixes ("I've updated") and unknown
+        workflow shapes ("I sent the email.") are held via the M3-only
+        boundary without expanding the frozen legacy verb list; pure chat
+        without those shapes streams untouched. Outside the M3 flag it is
+        a passthrough.
+        """
+        if os.getenv("CHAT_FINALIZATION_M3") != "1" or not pending:
+            return pending, ""
+        if verified is None:
+            verified = {}
+        legacy_match = cls._CANVAS_CLAIM_SENTENCE_RE.search(pending)
+        if legacy_match is not None:
+            emit, hold = pending[:legacy_match.start()], pending[legacy_match.start():]
+            sentence = legacy_match.group(0)
+            try:
+                known = verified.get(sentence)
+                if known is None:
+                    corrected = await cls._canvas_claim_correction(
+                        sentence, canvas_context, session_id, user_id,
+                        background_forked,
+                        execution_id=execution_id,
+                    )
+                    known = corrected == sentence
+                    verified[sentence] = known
+                if known:
+                    return pending, ""
+                return emit, hold
+            except Exception:
+                # Fail-closed: hold from the failure point so a guard
+                # outage never streams an unvalidated claim.
+                return emit, hold
+        try:
+            canvas_id = (
+                canvas_context.get("canvas_id")
+                if isinstance(canvas_context, dict) else None
+            )
+            if not canvas_id:
+                # Non-canvas turns carry no operation outcome: no boundary.
+                return pending, ""
+            m3_match = cls._M3_WORKFLOW_CLAIM_RE.search(
+                pending
+            ) or cls._M3_SPLIT_PREFIX_RE.search(pending)
+            if m3_match is not None:
+                # Always hold mid-stream; close-time reconciliation (with
+                # full verification) decides release vs strip. No DB, no
+                # fault path — this boundary never stalls.
+                return pending[:m3_match.start()], pending[m3_match.start():]
+        except Exception:
+            # Fail-closed on boundary faults as well.
+            return "", pending
+        return pending, ""
+
+    @classmethod
+    async def _canvas_write_for_operation(
+        cls,
+        canvas_id: str,
+        session_id: Optional[str],
+        user_id: Optional[str],
+        execution_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Exact structured verification with SEPARATE VERDICTS — returns
+        ``{"verdict": "result_verified" | "write_recorded" | "unverified",
+        "review_status": <served review status or None>}``.
+
+        A write is RECORDED when an audit row's PARSED details match this
+        execution's operation set by field equality (``details.operation_id``
+        == execution_id — the interactive stamp — or in the continuation
+        ids this execution forked) and carry a mutation payload.
+
+        The REQUESTED RESULT is verified only when every ``postconditions``
+        entry stamped on that bound row — the operation's requested-change
+        criteria (entity/field/expected value) — is satisfied by the
+        revision the CANONICAL READ PATH serves (tools.canvas_crud_tool
+        .read_canvas: the newest body-bearing audit row, including
+        pending-review drafts — NOT Canvas.content, which is a stale
+        fallback and can still show an older accepted base while the UI
+        displays a newer pending draft). Payload equality alone proves
+        consistent storage, not task completion. Review state rides
+        separately and never gates content correctness. Substring
+        matches, session proximity, and time windows never verify
+        (round 5). Anything else — including every read failure — is
+        UNVERIFIED."""
+        if not canvas_id or not execution_id:
+            return {"verdict": "unverified", "review_status": None}
+        try:
+            import json as _json
+
+            from sqlalchemy import desc
+
+            from core.database import get_db_session
+            from core.models import AgentExecution, CanvasAudit
+            from core.sql_json import json_field_equals
+
+            with get_db_session() as db:
+                operation_ids = {execution_id}
+                try:
+                    predicate = json_field_equals(
+                        db, AgentExecution.metadata_json,
+                        "$.originating_execution_id", execution_id,
+                    )
+                    cont_query = db.query(AgentExecution).filter(
+                        AgentExecution.triggered_by == "continuation"
+                    )
+                    cont_rows = cont_query.filter(
+                        *([predicate] if predicate is not None else [])
+                    ).all() if predicate is not None else [
+                        row for row in cont_query.limit(200).all()
+                        if isinstance(row.metadata_json, dict)
+                        and row.metadata_json.get(
+                            "originating_execution_id") == execution_id
+                    ]
+                    for row in cont_rows or []:
+                        operation_ids.add(str(row.id))
+                except Exception:
+                    pass  # continuation binding is best-effort; the
+                    # direct stamp still verifies exactly
+                audit_rows = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == canvas_id,
+                        CanvasAudit.action_type.in_(
+                            ("update", "create", "edit", "delete",
+                             "restore")),
+                    )
+                    .order_by(desc(CanvasAudit.created_at))
+                    .limit(200)
+                    .all()
+                )
+                for row in audit_rows or []:
+                    details = row.details_json
+                    if isinstance(details, str):
+                        try:
+                            details = _json.loads(details)
+                        except Exception:
+                            continue
+                    if not isinstance(details, dict):
+                        continue
+                    if not (
+                        details.get("operation_id") in operation_ids
+                        or details.get("execution_id") == execution_id
+                    ):
+                        continue  # exact field equality only — a substring
+                        # or another turn's operation never verifies
+                    if details.get("content") is None and details.get(
+                            "data") is None:
+                        continue  # a marker row, not a recorded change
+                    # WRITE RECORDED ≠ RESULT VERIFIED (2026-09-25 review
+                    # round 6): a recorded mutation proves nothing about
+                    # the requested fields. The requested result verifies
+                    # only when the operation's own postconditions — the
+                    # criteria the edit was planned against — all hold on
+                    # the revision the CANONICAL read path serves.
+                    postconditions = [
+                        pc for pc in (
+                            details.get("postconditions") or []
+                        ) if isinstance(pc, dict)
+                    ]
+                    review_status = str(
+                        details.get("review_status") or ""
+                    ) or None
+                    if not postconditions:
+                        return {
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
+                    try:
+                        from tools.canvas_crud_tool import read_canvas
+
+                        readback = await read_canvas(
+                            str(user_id) if user_id else "system",
+                            canvas_id,
+                        )
+                        if not (readback or {}).get("success"):
+                            return {
+                                "verdict": "write_recorded",
+                                "review_status": review_status,
+                            }
+                        served_content = (readback or {}).get("content")
+                        from core.chat_canvas_editor import (
+                            _evidence_action_applied,
+                        )
+
+                        if all(
+                            _evidence_action_applied(served_content, pc)
+                            for pc in postconditions
+                        ):
+                            return {
+                                "verdict": "result_verified",
+                                "review_status": (
+                                    (readback or {}).get("review_status")
+                                    or review_status
+                                ),
+                                # STRUCTURED FINALIZATION (2026-09-25
+                                # review round 9): the confirmation is
+                                # generated from THIS set — the criteria
+                                # that actually held — never from the
+                                # model's claim text.
+                                "verified_criteria": postconditions,
+                            }
+                        return {
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
+                    except Exception:  # noqa: BLE001 — readback is
+                        return {  # best-effort; recorded stays
+                            "verdict": "write_recorded",
+                            "review_status": review_status,
+                        }
+                return {"verdict": "unverified", "review_status": None}
+        except Exception as exc:  # noqa: BLE001 — readback is best-effort
+            logger.debug(f"canvas write readback skipped: {exc}")
+            return {"verdict": "unverified", "review_status": None}
 
     async def _get_qwen_response(
         self,
@@ -6542,6 +8588,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             if _identity_rule:
                 system_prompt += "\n\n" + _identity_rule
+
+            # CANVAS TRUTH GATE (2026-09-25, live defect: a read-only
+            # turn's reply claimed "I've updated item 4" while the
+            # canvas-edit leg had been SKIPPED — the canvas still showed
+            # TBD). By the time the reply model writes, no canvas
+            # mutation has been executed this turn (an APPLIED edit
+            # returns deterministically and never reaches this prompt;
+            # background continuations apply later with their own
+            # reply). The reply may PROPOSE values, but must never claim
+            # a change happened without a confirmed write in the tool
+            # results.
+            if canvas_context:
+                system_prompt += (
+                    "\n\nCANVAS STATE: no change to the canvas has been "
+                    "executed in this turn unless a LIVE TOOL RESULT below "
+                    "explicitly confirms a successful canvas write. Do not "
+                    "claim you updated, changed, edited, or applied anything "
+                    "to the canvas. If you found values that belong on the "
+                    "canvas, present them as PROPOSED values the user can "
+                    "ask to apply. Mutation, send, approval, and submission "
+                    "confirmations are reported ONLY in the platform's "
+                    "'Operation status' section, generated from operation "
+                    "evidence — never state them yourself."
+                )
 
             messages = [
                 {
@@ -6779,6 +8849,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _off_request = False
             _deterministic_answer: Optional[str] = None
             _objective_comparison: Optional[Dict[str, Any]] = None
+            # THIS TURN'S structured workbook record, for the evidence-bound
+            # narration guard below. It must be bound HERE, beside the read
+            # that produced it, for two reasons.
+            #
+            # SCOPE: the guard lives in this method, so the record has to be
+            # a local of this method. It was previously hoisted in
+            # `process_message` as `_pfr_structured_for_turn`, which is not
+            # in scope here — every turn that produced a structured record
+            # raised `NameError` at the guard, the whole reply was discarded
+            # by the enclosing `except`, and the turn silently fell through
+            # to legacy feature routing (live: "Replace U-22 with U-38"
+            # answered "I've added ... to your Tasks", because the TASKS
+            # handler was the next thing to claim the turn).
+            #
+            # FRESHNESS: the record must be the one THIS turn read, never the
+            # session's persisted copy. The persisted copy is the PREVIOUS
+            # turn's answer, so validating narration against it would bless
+            # exactly the stale list this guard exists to reject.
+            _turn_structured_record: Optional[Dict[str, Any]] = None
             # PENDING FILE TASK support (2026-09-23): on a resume turn the
             # plan is built from the CONFIRMED ORIGINAL ask, so the
             # relevance gate and the executor's context (identifier net,
@@ -6867,6 +8956,35 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _requested_targets = extract_targets(
                     _gate_msg, [_canvas_identity],
                 )
+                # IDENTIFIER INHERITANCE (2026-09-25): when the stored ask
+                # is VAGUER than the identifier-rich ask it superseded
+                # (live: "find all these prices…" lost "8 machines: 381,
+                # U-22, …), the resumed read searched the canvas TITLE's
+                # phrases instead of the machines. The task carries the
+                # USER's own identifiers (user asks only — never assistant
+                # renders, the contamination source); they outrank
+                # title-derived phrases whenever the derivation found no
+                # digit/hyphen-bearing identifier of its own.
+                # NOTE: this reads the `pending_file_task` PARAMETER of
+                # _get_qwen_response. It previously referenced
+                # `_pending_file_task`, a name that does not exist in this
+                # scope, so the NameError was swallowed by the bare
+                # `except Exception` below and this feature silently never
+                # applied. Assert the identifiers actually REACH
+                # extract_targets — an "it did not raise" test cannot
+                # detect a regression swallowed by that handler.
+                _task_targets = [
+                    str(item).strip()
+                    for item in (
+                        (pending_file_task or {}).get("requested_targets")
+                        or []
+                    )
+                    if str(item).strip()
+                ] if isinstance(pending_file_task, dict) else []
+                if _task_targets and not any(
+                    re.search(r"[\d-]", item) for item in _requested_targets
+                ):
+                    _requested_targets = _task_targets
             except Exception:
                 _requested_targets = []
             _live_file_lookup_ran = False
@@ -7125,6 +9243,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _prefetch_meta:
                             _deterministic_answer = _prefetch_meta.get(
                                 "rendered_answer"
+                            ) or None
+                            _turn_structured_record = _prefetch_meta.get(
+                                "workbook_read"
                             ) or None
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -7642,6 +9763,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _deterministic_answer = _storage_read_meta.get(
                                 "rendered_answer"
                             ) or None
+                            _turn_structured_record = _storage_read_meta.get(
+                                "workbook_read"
+                            ) or None
                         if not _off_request and _storage_read_meta:
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -7905,7 +10029,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 {"message": _gate_msg,
                                  "workspace_id": workspace_id,
                                  "history": (planner_history
-                                             or history or [])[-6:]},
+                                             or history or [])[-6:],
+                                 "requested_targets": _stored_requested_items(
+                                     session)},
                                 plan=_direct_plan),
                             timeout=25,
                         )
@@ -7948,6 +10074,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _live_file_lookup_ran = True
                                 _deterministic_answer = (
                                     _sr_direct.get("rendered_answer")
+                                    or None)
+                                _turn_structured_record = (
+                                    _sr_direct.get("workbook_read")
                                     or None)
                             logger.info(
                                 "[pending-file-task] planner unavailable — "
@@ -8021,6 +10150,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "objective_evidence": _objective_comparison,
                             "execution_id": execution_id,
                             "retrieved_at": time.time(),
+                            "structured_result": (
+                                _storage_read_meta.get("structured_result")
+                                if isinstance(_storage_read_meta, dict)
+                                else None),
+                            "attempt_id": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("attempt_id")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
+                            "evidence_revision": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("evidence_revision")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
+                            "evidence_action": (
+                                _storage_read_meta.get(
+                                    "structured_result", {}) or {}
+                            ).get("evidence_action")
+                            if isinstance(_storage_read_meta, dict)
+                            else None,
                         }
                         session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
                             session.get(FILE_TASK_SESSION_KEY), _identity)
@@ -8152,16 +10303,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if not _resp or _reply_claims_inability(_resp):
                         continue  # refusal wobble is what anchors a re-refusal
-                    if _resp not in _answered:
-                        _answered.append(_resp)
+                    _answer_marker = (
+                        "[already answered earlier; prior response omitted; "
+                        f"length={len(_resp[:600])}]"
+                    )
+                    if _answer_marker not in _answered:
+                        _answered.append(_answer_marker)
                 for _h in _user_turns:
                     messages.append({"role": "user", "content": _h["message"]})
                 # Bounded: enough to show what was answered, not a second
                 # transcript competing with this turn's evidence.
-                for _resp in _answered[-2:]:
+                for _answer_marker in _answered[-2:]:
                     messages.append({
                         "role": "assistant",
-                        "content": "[already answered earlier] " + _resp[:600],
+                        "content": _answer_marker,
                     })
             else:
                 for h in history:
@@ -8663,6 +10818,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _stream_emitted = 0
                     _stream_residue_detected = False
+                    _m3_pending = ""
+                    _m3_verified: Dict[str, bool] = {}
                     while True:
                         # FIRST-VISIBLE DEADLINE, CHECKED ON EVERY CHUNK. The
                         # check below (in the timeout branch) only fires when a
@@ -8760,14 +10917,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if _stream_residue_detected:
                                 break
                             continue
-                        await _ws_manager.broadcast(f"user:{user_id}", {
-                            "type": "chat_token",
-                            "data": {
-                                "session_id": session_id,
-                                "execution_id": execution_id,
-                                "delta": _delta_out,
-                            },
-                        })
+                        if _delta_out and os.getenv("CHAT_FINALIZATION_M3") == "1":
+                            try:
+                                _m3_pending += _delta_out
+                                _delta_out, _m3_pending = await self._m3_gate_stream_chunk(
+                                    _m3_pending, canvas_context, session_id,
+                                    user_id, async_continuation_forked,
+                                    execution_id=execution_id,
+                                    verified=_m3_verified,
+                                )
+                            except Exception:
+                                _m3_pending = ""
+                        if _delta_out:
+                            await _ws_manager.broadcast(f"user:{user_id}", {
+                                "type": "chat_token",
+                                "data": {
+                                    "session_id": session_id,
+                                    "execution_id": execution_id,
+                                    "delta": _delta_out,
+                                },
+                            })
                         if _stream_residue_detected:
                             break
                     _full = "".join(_buf).strip()
@@ -9224,6 +11393,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             if _stream_done_validation.valid:
                                 _stream_done_content = _streamed
+                            else:
+                                _reconciled = await self._m3_reconcile_stream_done(
+                                    _streamed, canvas_context, session_id,
+                                    user_id, async_continuation_forked,
+                                    execution_id=execution_id,
+                                )
+                                if _reconciled is not None:
+                                    _stream_done_content = _reconciled
+                                elif (_m3_pending and _streamed
+                                        and os.getenv("CHAT_FINALIZATION_M3") == "1"):
+                                    try:
+                                        _end_check = await self._canvas_claim_correction(
+                                            _m3_pending, canvas_context,
+                                            session_id, user_id,
+                                            async_continuation_forked,
+                                            execution_id=execution_id,
+                                        )
+                                    except Exception:
+                                        _end_check = None
+                                    if _end_check == _m3_pending:
+                                        _stream_done_content = _streamed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -10173,6 +12363,80 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[deterministic-render] workbook answer rendered from "
                         "structured catalog evidence"
                     )
+                elif _turn_structured_record:
+                    # EVIDENCE-BOUND NARRATION (2026-09-27).
+                    #
+                    # This turn HAS a structured record, so the model is
+                    # narrating facts the record already states. Observed live:
+                    # on "Replace U-22 with U-38" the narration returned the
+                    # PREVIOUS list and reworded a sheet name the record had
+                    # exactly right (`Tinknock!R100` for `Tinknocker!R100`).
+                    # A user cannot distinguish a mangled coordinate from a real
+                    # one, so narrated text is no longer trusted for a turn
+                    # whose facts are already bound to evidence.
+                    #
+                    # Three outcomes, in order:
+                    #   1. narration validates -> deliver it;
+                    #   2. it does not, but a deterministic render of THIS
+                    #      record validates -> deliver that instead, so the
+                    #      user still gets a correct evidence-backed answer;
+                    #   3. neither validates -> an explicit incomplete outcome.
+                    #      Never the stale list, never a generic success.
+                    from core.answer_presentation import (
+                        present_from_record,
+                        validate_rendered_against_record,
+                    )
+                    _narration_check = validate_rendered_against_record(
+                        _content, _turn_structured_record)
+                    if not _narration_check.get("ok"):
+                        _repaired = None
+                        _repair_check = None
+                        try:
+                            _repaired = present_from_record(
+                                _turn_structured_record)["answer"]
+                            _repair_check = validate_rendered_against_record(
+                                _repaired, _turn_structured_record)
+                        except Exception:  # noqa: BLE001
+                            _repaired, _repair_check = None, None
+                        if _repaired and (_repair_check or {}).get("ok"):
+                            logger.warning(
+                                "[evidence-binding] narration rejected "
+                                "(%s); delivered the deterministic "
+                                "evidence-backed rendering instead",
+                                _narration_check.get("violations"),
+                            )
+                            _content = _repaired
+                            response_data["evidence_binding"] = {
+                                "narration_rejected": True,
+                                "violations": _narration_check.get(
+                                    "violations"),
+                                "delivered": "deterministic_render",
+                            }
+                        else:
+                            logger.error(
+                                "[evidence-binding] narration rejected AND no "
+                                "valid deterministic rendering available; "
+                                "delivering an explicit incomplete outcome")
+                            _content = (
+                                "I could not produce an answer I can stand "
+                                "behind for this request, so I am not going "
+                                "to show you a list. The evidence for it was "
+                                "retrieved, but it did not reconcile with the "
+                                "result I would have displayed. Nothing has "
+                                "been changed. You can ask me to search again, "
+                                "or rephrase which items you want.")
+                            response_data["evidence_binding"] = {
+                                "narration_rejected": True,
+                                "violations": _narration_check.get(
+                                    "violations"),
+                                "delivered": "incomplete",
+                            }
+                        response_data["content"] = _content
+                    else:
+                        response_data["evidence_binding"] = {
+                            "narration_rejected": False,
+                            "delivered": "narration",
+                        }
                 else:
                     _final_validation = _validate_response_payload(
                         _content,
@@ -10205,8 +12469,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
                     except Exception:
                         pass
+                _claimed_content = await self._canvas_claim_correction(
+                    _content, canvas_context, session_id, user_id,
+                    async_continuation_forked,
+                    execution_id=execution_id,
+                )
                 return {
-                    "content": _content,
+                    "content": _claimed_content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
@@ -11248,15 +13517,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "Updated the canvas — it should refresh beside this panel (and "
             "the new version is saved to its history)."
         )
-        if (
-            fresh.evidence_contract
-            and result.get("postcondition_verified") is False
-        ):
+        # D0: success is VERIFIED PERSISTENCE, not a tool saying OK.
+        #
+        # `plan.reply` is written by the planner and describes the edit it
+        # intended. Rendering it as this turn's answer is only honest once the
+        # durable canvas has been read back and found to contain the write.
+        # `apply_canvas_edit` now always reads back, so this is a real gate for
+        # every canvas, not only evidence-contract ones.
+        #
+        # Previously the guard was `fresh.evidence_contract and ... is False`,
+        # so an ordinary canvas skipped verification entirely and this path
+        # asserted `updated: True` over an unverified write. Measured 2026-09-27:
+        # the reply showed "**Canvas Updated:** ... Quote validity: **30
+        # days**" with no `canvas_audit` row anywhere and no canvas containing
+        # the new text.
+        _verified = result.get("postcondition_verified")
+        if _verified is not True:
+            logger.warning(
+                "canvas edit NOT verified for %s (postcondition_verified=%r); "
+                "answering with an unverified result rather than a success "
+                "claim", canvas.get("canvas_id"), _verified)
             reply = (
-                "The canvas write was recorded, but independent read-back "
-                "could not verify every source-backed change. Review the "
-                "artifact before relying on it."
+                "I did not complete that canvas change, so I am not going to "
+                "claim it is done. The edit could not be confirmed in the "
+                "saved canvas, so nothing here should be relied on — the "
+                "canvas still shows its previous content."
             )
+            return {
+                "success": False,
+                "message": reply,
+                "session_id": session_id,
+                "execution_id": execution_id,
+                "intent": "canvas_edit",
+                "confidence": 0.0,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                        "unverified": True,
+                        # D3: the outcome carries its identity and says which
+                        # way it went, so a pending record is never confused
+                        # with a completion and neither is orphaned.
+                        "execution_id": execution_id,
+                        "operation_id": operation_id,
+                        "outcome": "unverified",
+                        "postcondition_verified": _verified,
+                        "postcondition_error": result.get(
+                            "postcondition_error"),
+                        "postcondition_binding": result.get(
+                            "postcondition_binding"),
+                        "write_recorded": bool(result.get("write_recorded")),
+                        "audit_id": result.get("audit_id"),
+                    },
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+            }
         if learning_mode:
             if hitl_policy:
                 # Mature hire, but the owner demanded a human for canvas
@@ -11289,6 +13605,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "canvas_edit": {
                     "canvas_id": canvas.get("canvas_id"),
                     "updated": True,
+                    # D3: completion carries its identity and names its outcome,
+                    # so all three outcomes (refused / unverified / completed)
+                    # are distinguishable from the response alone.
+                    "execution_id": execution_id,
+                    "operation_id": operation_id,
+                    "outcome": "completed",
+                    "postcondition_verified": True,
                     **({"audit_id": result.get("audit_id")}
                        if result.get("audit_id") else {}),
                     "review_status": (
@@ -11695,6 +14018,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "source": "tool_plan",
         }
 
+    def _continuation_from_plan(self, plan: Any) -> Optional[Dict[str, Any]]:
+        """Prefer the planner-resolved continuation when it ran confidently
+        (same 0.6 contract as suggested_intent); the early branch resolves
+        via the NLU decision because no plan exists yet at that point."""
+        if plan is None:
+            return None
+        op = str(getattr(plan, "retrieval_operation", None) or "").strip().lower()
+        if op not in ("none", "read", "rerun", "refresh"):
+            return None
+        try:
+            conf = float(getattr(plan, "routing_confidence", None) or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if conf < 0.6:
+            return None
+        style = str(getattr(plan, "presentation_preference", None)
+                    or "default").strip().lower()
+        if style not in ("default", "compact", "table"):
+            style = "default"
+        field = str(getattr(plan, "field_preference", None) or "").strip() or None
+        return {"retrieval": op,
+                "presentation": {"style": style, "field": field},
+                "source": "tool_plan"}
+
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""
         try:
@@ -11769,6 +14116,105 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "command_type": "search"
         }
 
+    def _continuation_decision(
+        self, message: str, session: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Explicit continuation decision for turns on a delivered file
+        result (work order Step 2): two independent fields — retrieval
+        operation (none/read/rerun/refresh) and presentation preference
+        ({style, field}). None means NOT a continuation: normal flow.
+
+        Fail-closed by construction: only positively recognized shapes
+        (refresh/rerun operations from the existing file-task classifier,
+        or presentation/field routing vocabulary below) resolve; new work,
+        questions, outbound actions, halt words, and canvas-shaped turns
+        all return None. The vocabulary lives HERE in the established NLU
+        fallback layer (the same class as its find/search/where keywords),
+        never in a single-purpose sidecar detector.
+        """
+        from core.pending_file_task import (
+            _CONFIRMATION_ACTION_RE,
+            _OUTBOUND_ACTION_RE,
+            is_retrieval_refresh_request,
+            is_source_refresh_request,
+        )
+
+        t = (message or "").strip()
+        if not t:
+            return None
+        low = t.lower()
+        style = "default"
+        if _PRESENTATION_TABLE_RE.search(t):
+            style = "table"
+        elif _PRESENTATION_COMPACT_RE.search(t):
+            style = "compact"
+        field = None
+        if _FIELD_SELECT_RE.search(t):
+            field = _match_field_preference(t)
+        if is_retrieval_refresh_request(t):
+            operation = ("refresh" if is_source_refresh_request(t)
+                         else "rerun")
+            return {"retrieval": operation,
+                    "presentation": {"style": style, "field": field}}
+        if _HALT_RE.search(t):
+            return None
+        if "?" in t:
+            return None
+
+        # ENTITY-SET EDIT -> the "read" operation this method's own docstring
+        # advertised but never returned (2026-09-27).
+        #
+        # "Replace U-22 with U-38" changes WHAT is being asked for, so it needs
+        # a fresh read of the new set -- not a re-render of the old evidence
+        # and not narration. Before this, the turn died on the two guards
+        # immediately below: `_CONFIRMATION_ACTION_RE` contains "replace" (it
+        # exists so "replace the logo in the draft" cannot execute a
+        # mutation), and `extract_targets` sees ['U-22','U-38'] and reads the
+        # turn as a fresh ask. Either way `_format_request` was False, the
+        # cached-result lane was skipped, no structured read ran, and the turn
+        # reached `_get_qwen_response` -- which answered with the PREVIOUS list
+        # and, in doing so, reworded a citation the evidence had exactly right.
+        #
+        # The active item set is required to compute the RESULT of the edit
+        # (in-place substitution, so the requested ORDER survives), so this is
+        # only a continuation when there IS an active set to edit. With no
+        # active objective there is nothing to revise and the turn stays a
+        # normal ask -- which is why `session` is consulted here and why the
+        # canvas/outbound shapes are excluded first: an edit aimed at a canvas
+        # artifact is not an edit of a retrieval target list.
+        if not (_canvas_edit_shaped(t, None)
+                or _CANVAS_ACTION_SHAPE_RE.search(t or "")):
+            try:
+                from core.pending_file_task import entity_set_edit
+                _edit = entity_set_edit(t, _stored_requested_items(session))
+            except Exception:  # noqa: BLE001 — fail closed to "not a continuation"
+                _edit = None
+            if _edit is not None:
+                return {"retrieval": "read",
+                        "objective_edit": _edit,
+                        "presentation": {"style": style, "field": field}}
+
+        if _CONFIRMATION_ACTION_RE.search(t) or _OUTBOUND_ACTION_RE.search(t):
+            return None
+        try:
+            from core.agent_file_context import detect_file_mentions
+
+            if detect_file_mentions(t):
+                return None
+        except Exception:
+            pass
+        try:
+            from core.workbook_read_artifact import extract_targets
+
+            if extract_targets(t, [t]):
+                return None
+        except Exception:
+            return None
+        if style == "default" and field is None:
+            return None
+        return {"retrieval": "none",
+                "presentation": {"style": style, "field": field}}
+
     async def _route_to_features(
         self,
         message: str,
@@ -11799,6 +14245,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         }
 
         target_features = intent_to_features.get(primary_intent, [FeatureType.SEARCH])
+
+        # AN ENTITY-SET EDIT IS NOT A REQUEST TO CREATE A TASK (2026-09-27).
+        #
+        # "Replace U-22 with U-38" arrives here as TASK_MANAGEMENT — the NLU
+        # reads the verb `replace` as an action on a task — and the TASKS
+        # handler then creates a real task row and answers "I've added
+        # 'Replace U-22 with U-38' to your Tasks", inventing an obligation the
+        # user never asked for and losing the edit. Measured live: this was
+        # the turn's final answer on all four task-correction sequences.
+        #
+        # When the conversation holds a file objective, the turn is a
+        # CONTINUATION of that objective and belongs to the resume lane, which
+        # applies the edit to the objective and re-reads the edited set. So
+        # TASKS is dropped from the target set and the turn falls through to
+        # the general agent rather than manufacturing a task.
+        #
+        # Both conditions are required, and `entity_set_edit` is fail-closed by
+        # construction (entity-shaped tokens on the relevant side, judged with
+        # file mentions blanked out), so an ordinary "replace the logo in the
+        # draft" or a genuine "replace my Q3 task with Q4" is unaffected: the
+        # first is not a set edit, the second has no file objective.
+        if FeatureType.TASKS in target_features and _is_file_objective_turn(
+                message, session):
+            target_features = [
+                f for f in target_features if f is not FeatureType.TASKS
+            ]
+            logger.info(
+                "[feature-routing] entity-set edit on an active file "
+                "objective — TASKS not offered (%d target(s) remain)",
+                len(target_features))
 
         # Execute feature handlers
         feature_responses = {}
@@ -12677,6 +15153,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "intent": intent,
             "timestamp": datetime.now().isoformat(),
             "error": _is_error_turn,
+            # Exact assistant-message identity, allocated by this initial
+            # writer and propagated to the DB row below: later stages bind
+            # final writes by (message id, session, execution id) — never
+            # latest-in-session. Filled in after the DB insert.
+            "assistant_message_id": None,
         })
 
         # Session-dedup write-side: index this turn's content so future turns
@@ -12746,7 +15227,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # capture (feedback training) can pick it up.
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
+                        import uuid as _uuid_msg
+
+                        _asst_msg_id = str(_uuid_msg.uuid4())
+                        try:
+                            session["history"][-1]["assistant_message_id"] = (
+                                _asst_msg_id)
+                        except Exception:
+                            pass
                         _msg_meta: Dict[str, Any] = {}
+                        _msg_meta["assistant_message_id"] = _asst_msg_id
                         _turn_execution_id = (
                             response.get("execution_id")
                             if isinstance(response, dict) else None
@@ -12776,9 +15266,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # must match the EXACT execution, not 'latest
                         # unseen by session' — overlapping or repeated
                         # turns otherwise adopt each other's replies.
-                        _exec_stamp = session.get("_last_execution_id")
-                        if _exec_stamp:
-                            _msg_meta["execution_id"] = _exec_stamp
+                        # The response/turn identity stands as written
+                        # above; shared session fields never override it
+                        # (a concurrent turn reassigning the session field
+                        # must not relabel this row).
                         # PENDING FILE TASK (2026-09-23 review, gap 5): the
                         # session dict is NOT durable (restart rebuilds a
                         # projection), so the task and the resolved file
@@ -12818,6 +15309,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "_pending_file_task"
                         )
                         db.add(ChatMessageModel(
+                            id=_asst_msg_id,
                             conversation_id=session_id,
                             tenant_id=tenant_id,
                             role="assistant",
@@ -12836,6 +15328,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
         except Exception as e:
             logger.debug(f"Session metadata persistence skipped: {e}")
+        try:
+            return (session.get("history") or [{}])[-1].get(
+                "assistant_message_id")
+        except Exception:
+            return None
 
     def _load_conversation_mail_handles(
         self, session_id: Optional[str],

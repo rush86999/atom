@@ -58,6 +58,17 @@ interface SidebarItem {
     minLevel?: number;
 }
 
+const getProfileEmail = () =>
+    typeof window === "undefined" ? "" : window.localStorage.getItem("user_email") || "";
+
+const subscribeToProfile = (onStoreChange: () => void) => {
+    if (typeof window === "undefined") return () => {};
+    window.addEventListener("storage", onStoreChange);
+    return () => window.removeEventListener("storage", onStoreChange);
+};
+
+const getServerProfileEmail = () => "";
+
 /** Pending-count pill for the Approvals nav item: HITL actions + INTERN
  * action proposals (data triggers held for review). Discovery gap fix — the
  * queue previously surfaced only if you already knew to open the page.
@@ -151,12 +162,16 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     // the backend email in localStorage; NextAuth's session stays empty when
     // sign-in bypassed the NextAuth route, which used to leave the static
     // "Atom User" placeholder in the sidebar.
-    const [profile, setProfile] = useState<{ name?: string; email?: string }>({});
-    useEffect(() => {
-        if (session?.user?.email || typeof window === "undefined") return;
-        const email = localStorage.getItem("user_email");
-        if (email) setProfile({ name: email.split("@")[0], email });
-    }, [session?.user?.email]);
+    const profileEmail = React.useSyncExternalStore(
+        subscribeToProfile,
+        getProfileEmail,
+        getServerProfileEmail,
+    );
+    const profile = React.useMemo(() => {
+        if (!profileEmail) return {};
+        const [name] = profileEmail.split("@");
+        return { name, email: profileEmail };
+    }, [profileEmail]);
     const displayName = session?.user?.name || profile.name || "Atom User";
     const displayEmail = session?.user?.email || profile.email || "Premium Agent Ops";
 

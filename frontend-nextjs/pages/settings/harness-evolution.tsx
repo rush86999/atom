@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import {
@@ -49,7 +49,7 @@ const HarnessEvolutionPage = () => {
     const [refreshing, setRefreshing] = useState(false);
     const { toast } = useToast();
 
-    const fetchHarnessStatus = async () => {
+    const fetchHarnessStatus = useCallback(async () => {
         setRefreshing(true);
         try {
             const { apiClient } = await import('../../lib/api-client');
@@ -67,11 +67,11 @@ const HarnessEvolutionPage = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchHarnessStatus();
-    }, []);
+    }, [fetchHarnessStatus]);
 
     const triggerRemine = async () => {
         setRefreshing(true);

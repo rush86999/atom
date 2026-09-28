@@ -1,0 +1,2134 @@
+{
+ "superseded": [
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "superseded_layer": null,
+   "reason": "asserted at the public boundary by run_isolated.py (needs a live server, a session and a keyed request_id)",
+   "by_layer": "layer2-public-boundary"
+  }
+ ],
+ "totals": {
+  "pass": 51,
+  "fail": 0,
+  "blocked": 0
+ },
+ "by_category": {
+  "absent_within_coverage": {
+   "pass": 4,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 4
+  },
+  "ambiguous_identity": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "conflicting_stale_sources": {
+   "pass": 4,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 4
+  },
+  "crowded_lexical": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "distractors_replacement": {
+   "pass": 2,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 2
+  },
+  "exact_named_file": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "explicit_research": {
+   "pass": 1,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 1
+  },
+  "formatting_followup": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "long_request": {
+   "pass": 2,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 2
+  },
+  "mailbox_identity": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "multi_source": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "paraphrased_question": {
+   "pass": 2,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 2
+  },
+  "partial_failed_search": {
+   "pass": 6,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 6
+  },
+  "reranker_degraded": {
+   "pass": 4,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 4
+  },
+  "restart_retry": {
+   "pass": 2,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 2
+  },
+  "similar_identifiers": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  },
+  "source_owner_restriction": {
+   "pass": 3,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 3
+  }
+ },
+ "by_split": {
+  "development": {
+   "pass": 35,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 35
+  },
+  "heldout": {
+   "pass": 16,
+   "fail": 0,
+   "blocked": 0,
+   "denominator": 16
+  }
+ },
+ "note": "`blocked` is excluded from the denominator. A blocked case is a path that never ran, which is not evidence either way, and counting it as a pass is how a harness reports progress it did not make.",
+ "cases": [
+  {
+   "case_id": "exact_named_file_basic",
+   "category": "exact_named_file",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "exact_named_file_two_items",
+   "category": "exact_named_file",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22', 'SLE24-16'], reported ['U-22', 'SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "exact_named_file_version_bound",
+   "category": "exact_named_file",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['ingested', 'knowledge', 'linmac_consolidated.xlsx', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "similar_identifiers_U-22_0",
+   "category": "similar_identifiers",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "similar_identifiers_SLE24-16_1",
+   "category": "similar_identifiers",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "similar_identifiers_GSL48-16_2",
+   "category": "similar_identifiers",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:GSL48-16",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "value_binding:GSL48-16",
+     "verdict": "pass",
+     "detail": "expected '875.25', bound '875.25'"
+    },
+    {
+     "name": "unit:GSL48-16",
+     "verdict": "pass",
+     "detail": "expected 'CAD', got 'CAD'"
+    },
+    {
+     "name": "basis:GSL48-16",
+     "verdict": "pass",
+     "detail": "expected 'list', got 'list'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['GSL48-16'], reported ['GSL48-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "long_request_tail_identifiers",
+   "category": "long_request",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:TK 1624",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "item:GSL48-16",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "value_binding:GSL48-16",
+     "verdict": "pass",
+     "detail": "expected '875.25', bound '875.25'"
+    },
+    {
+     "name": "unit:GSL48-16",
+     "verdict": "pass",
+     "detail": "expected 'CAD', got 'CAD'"
+    },
+    {
+     "name": "item:U-22X",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22X",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:SLE24-160",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "item:GSL48-1",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22', 'SLE24-16', 'TK 1624', 'GSL48-16', 'U-22X', 'SLE24-160', 'GSL48-1'], reported ['U-22', 'SLE24-16', 'TK 1624', 'GSL48-16', 'U-22X', 'SLE24-160', 'GSL48-1']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "long_request_unit_constraint",
+   "category": "long_request",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22', 'SLE24-16'], reported ['U-22', 'SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "paraphrase_warranty_terms",
+   "category": "paraphrased_question",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:policy_manual.pdf",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:warranty term",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "span:warranty term",
+     "verdict": "pass",
+     "detail": "expected span '24 months from the date of delivery'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['warranty term'], reported ['warranty term']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "paraphrase_expense_policy",
+   "category": "paraphrased_question",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:expense_policy.md",
+     "verdict": "pass",
+     "detail": "read=['expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:receipt requirement",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "span:receipt requirement",
+     "verdict": "pass",
+     "detail": "expected span '$75 or more'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['receipt requirement'], reported ['receipt requirement']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "mailbox_exact_address",
+   "category": "mailbox_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:invoice 4417",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "sender:invoice 4417",
+     "verdict": "pass",
+     "detail": "expected sender 'dana.whitfield@linmac.example'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['invoice 4417'], reported ['invoice 4417']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "mailbox_similar_sender",
+   "category": "mailbox_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:stand-down",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "sender:stand-down",
+     "verdict": "pass",
+     "detail": "expected sender 'd.whitfield@linmac.example'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['stand-down'], reported ['stand-down']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "mailbox_long_address_tail",
+   "category": "mailbox_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:invoice 4417",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:invoice 4417",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['invoice 4417'], reported ['invoice 4417']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "crowded_lexical_0",
+   "category": "crowded_lexical",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "source:shift_handover_log.md",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:shift handover",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "span:shift handover",
+     "verdict": "pass",
+     "detail": "expected span 'handover'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['shift handover'], reported ['shift handover']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "crowded_lexical_1",
+   "category": "crowded_lexical",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "source:shift_handover_log.md",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:shift handover",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "span:shift handover",
+     "verdict": "pass",
+     "detail": "expected span 'handover'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['shift handover'], reported ['shift handover']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "crowded_lexical_2",
+   "category": "crowded_lexical",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "source:shift_handover_log.md",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:shift handover",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "span:shift handover",
+     "verdict": "pass",
+     "detail": "expected span 'handover'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['shift handover'], reported ['shift handover']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "owner_scope_other_user_excluded",
+   "category": "source_owner_restriction",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'other_tenant_pricing.xlsx', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:account 90210",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['account 90210'], reported ['account 90210']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "date_restriction_pre_cutoff",
+   "category": "source_owner_restriction",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:agreed price",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['agreed price'], reported ['agreed price']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "source_restriction_explicit",
+   "category": "source_owner_restriction",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:expense_policy.md",
+     "verdict": "pass",
+     "detail": "read=['expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf']"
+    },
+    {
+     "name": "no_source:communication",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:receipt requirement",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['receipt requirement'], reported ['receipt requirement']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "ambiguous_two_lookalikes",
+   "category": "ambiguous_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:No. 381",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:No. 381",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['No. 381'], reported ['No. 381']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "ambiguous_sender_name",
+   "category": "ambiguous_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf', 'shift_handover_log.md']"
+    },
+    {
+     "name": "item:the hold",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:the hold",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['the hold'], reported ['the hold']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "ambiguous_unit_variant",
+   "category": "ambiguous_identity",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:GSL48-16",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['GSL48-16'], reported ['GSL48-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "conflicting_stale_0",
+   "category": "conflicting_stale_sources",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "conflicting_stale_1",
+   "category": "conflicting_stale_sources",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "conflicting_stale_2",
+   "category": "conflicting_stale_sources",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:SLE24-16",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "conflicting_stale_saved_only",
+   "category": "conflicting_stale_sources",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:SLE24-16",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['SLE24-16'], reported ['SLE24-16']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "absent_within_coverage_0",
+   "category": "absent_within_coverage",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "absence:absent:genuinely not in the corpus",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "absent_within_coverage_1",
+   "category": "absent_within_coverage",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "absence:absent:the item exists elsewhere, not in the named source",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "absent_within_coverage_2",
+   "category": "absent_within_coverage",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'ingested', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "absence:absent:no such message",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "absent_within_coverage_3",
+   "category": "absent_within_coverage",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:expense_policy.md",
+     "verdict": "pass",
+     "detail": "read=['expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf']"
+    },
+    {
+     "name": "absence:absent:the policy genuinely does not cover parking",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_failed_lexical_0",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_failed_vector_1",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_failed_both_2",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=unresolved_due_to_retrieval_failure"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested [], reported []"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_failed_hydration_3",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_failed_mailbox_4",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "partial_corrupt_workbook",
+   "category": "partial_failed_search",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "injected_failure_is_visible",
+     "verdict": "pass",
+     "detail": "status=partial"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "formatting_zero_retrieval_0",
+   "category": "formatting_followup",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
+    }
+   ]
+  },
+  {
+   "case_id": "formatting_zero_retrieval_1",
+   "category": "formatting_followup",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
+    }
+   ]
+  },
+  {
+   "case_id": "formatting_zero_retrieval_2",
+   "category": "formatting_followup",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
+    }
+   ]
+  },
+  {
+   "case_id": "distractor_replacement",
+   "category": "distractors_replacement",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:TK 1624",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "value_binding:TK 1624",
+     "verdict": "pass",
+     "detail": "expected '875.00', bound '875.00'"
+    },
+    {
+     "name": "unit:TK 1624",
+     "verdict": "pass",
+     "detail": "expected 'CAD', got 'CAD'"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['TK 1624'], reported ['TK 1624']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "blocked",
+     "detail": "turn was not exercised by this layer"
+    }
+   ]
+  },
+  {
+   "case_id": "distractor_restart_continuation",
+   "category": "distractors_replacement",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "blocked",
+     "detail": "turn was not exercised by this layer"
+    }
+   ]
+  },
+  {
+   "case_id": "explicit_research_new_attempt",
+   "category": "explicit_research",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 1 retrieval invocation(s), observed 1"
+    }
+   ]
+  },
+  {
+   "case_id": "reranker_degraded_unavailable_0",
+   "category": "reranker_degraded",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "ranking_degradation_observable",
+     "verdict": "pass",
+     "detail": "ranking='degraded'"
+    },
+    {
+     "name": "degraded_ranking_not_claimed_as_full_coverage",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "reranker_degraded_slow_1",
+   "category": "reranker_degraded",
+   "split": "heldout",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "ranking_degradation_observable",
+     "verdict": "pass",
+     "detail": "ranking='degraded'"
+    },
+    {
+     "name": "degraded_ranking_not_claimed_as_full_coverage",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "reranker_degraded_saturated_2",
+   "category": "reranker_degraded",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "ranking_degradation_observable",
+     "verdict": "pass",
+     "detail": "ranking='degraded'"
+    },
+    {
+     "name": "degraded_ranking_not_claimed_as_full_coverage",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "reranker_degraded_bad_scores_3",
+   "category": "reranker_degraded",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'expense_policy.md', 'ingested', 'knowledge', 'linmac_consolidated.xlsx']"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:U-22",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['U-22'], reported ['U-22']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "ranking_degradation_observable",
+     "verdict": "pass",
+     "detail": "ranking='degraded'"
+    },
+    {
+     "name": "degraded_ranking_not_claimed_as_full_coverage",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "restart_retry_keyed",
+   "category": "restart_retry",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "invocations:turn-2",
+     "verdict": "pass",
+     "detail": "expected 0 retrieval invocation(s), observed 0"
+    }
+   ]
+  },
+  {
+   "case_id": "restart_retry_survives_restart",
+   "category": "restart_retry",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    },
+    {
+     "name": "item:U-22",
+     "verdict": "blocked",
+     "detail": "not asserted by this layer"
+    }
+   ]
+  },
+  {
+   "case_id": "multi_source_0",
+   "category": "multi_source",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:price",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:price",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:email or terms",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:email or terms",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['price', 'email or terms'], reported ['price', 'email or terms']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "multi_source_1",
+   "category": "multi_source",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:linmac_consolidated.xlsx",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "source:policy_manual.pdf",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-12', 'ingested', 'knowledge', 'linmac_consolidated.xlsx', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:price",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "item:email or terms",
+     "verdict": "pass",
+     "detail": "classification=supported"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['price', 'email or terms'], reported ['price', 'email or terms']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "case_id": "multi_source_2",
+   "category": "multi_source",
+   "split": "development",
+   "passed": true,
+   "checks": [
+    {
+     "name": "exercised",
+     "verdict": "pass",
+     "detail": ""
+    },
+    {
+     "name": "source:communication",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf']"
+    },
+    {
+     "name": "source:expense_policy.md",
+     "verdict": "pass",
+     "detail": "read=['communication', 'email \u2014 2024-03-10', 'email \u2014 2024-03-11', 'expense_policy.md', 'ingested', 'knowledge', 'policy_manual.pdf']"
+    },
+    {
+     "name": "item:price",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:price",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "item:email or terms",
+     "verdict": "pass",
+     "detail": "classification=ambiguous"
+    },
+    {
+     "name": "ambiguity_retained:email or terms",
+     "verdict": "pass",
+     "detail": "alternatives=2, needed >=2"
+    },
+    {
+     "name": "requested_order",
+     "verdict": "pass",
+     "detail": "requested ['price', 'email or terms'], reported ['price', 'email or terms']"
+    },
+    {
+     "name": "no_false_absence_on_failure",
+     "verdict": "pass",
+     "detail": ""
+    }
+   ]
+  }
+ ]
+}

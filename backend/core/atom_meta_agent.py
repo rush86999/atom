@@ -863,6 +863,21 @@ class AtomMetaAgent:
             if step_callback: await step_callback(routing_log)
             execution_history += f"System Routing: {route.category.value.upper()} ({route.reasoning})\n"
 
+            # Decision-plane intent shadow (telemetry, record-only): compare
+            # the NLU route against the local decision model. Own task, never
+            # blocks, never raises, never alters routing. Opt-in via
+            # ATOM_OLLAYA_SHADOW_INTENT. See core/decision_shadow.
+            try:
+                from core import decision_shadow as _dsh
+                _dsh.schedule_nlu_shadow(
+                    getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
+                    request,
+                    route.category.value if hasattr(route.category, "value") else str(route.category),
+                    getattr(route, "confidence", 0.0),
+                )
+            except Exception as _dsh_e:
+                logger.debug(f"decision nlu-shadow dispatch failed: {_dsh_e}")
+
             # --- P1a (W4): governed fleet-routing branch ---------------------
             # The previously-dead route_with_governance path (:2229) is wired in
             # here, BEHIND A FLAG (ATOM_FLEET_ROUTING_ENABLED, default false).
@@ -1410,6 +1425,20 @@ class AtomMetaAgent:
                     )
                 except Exception as e:
                     logger.debug(f"on_session_end extraction dispatch failed: {e}")
+
+            # Decision-plane turn judgments (shadow telemetry, record-only).
+            # Independent of the extraction flag above: own digest, own task,
+            # never blocks, never raises. Opt-in via ATOM_OLLAYA_SHADOW_TURN.
+            try:
+                from core import decision_shadow as _dsh
+                _dsh.schedule_turn_shadow(
+                    getattr(self, "workspace_id", None),
+                    _dsh.build_turn_digest(request, steps, final_answer),
+                    execution_id=execution_id,
+                    session_id=context.get("session_id") if context else None,
+                )
+            except Exception as _dsh_e:
+                logger.debug(f"decision turn-shadow dispatch failed: {_dsh_e}")
 
         except KillRunAborted as _kill:
             # A tripwire kill reached the top of the body: finalize the run as
@@ -3064,6 +3093,23 @@ Provide your Mentorship Guidance:"""
                         task.add_done_callback(_discard_extraction_task)
                     except Exception as e:
                         logger.debug(f"turn_fact extraction dispatch failed: {e}")
+
+                    # Decision-plane turn judgments (shadow telemetry,
+                    # record-only). Single-step digest; never blocks/raises.
+                    try:
+                        from core import decision_shadow as _dsh
+                        _dsh.schedule_turn_shadow(
+                            getattr(self, "workspace_id", None),
+                            _dsh.build_turn_digest(
+                                request,
+                                [{"thought": thought, "output": observation}],
+                                final_answer,
+                            ),
+                            execution_id=execution_id,
+                            session_id=context.get("session_id") if context else None,
+                        )
+                    except Exception as _dsh_e:
+                        logger.debug(f"decision turn-shadow dispatch failed: {_dsh_e}")
         except Exception as e:
             logger.error(f"Failed to persist reasoning step: {e}")
         return step_id

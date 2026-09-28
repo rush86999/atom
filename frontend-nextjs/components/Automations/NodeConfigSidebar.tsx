@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import {
     X,
     Save,
@@ -57,7 +58,14 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(false);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+    const handleConnectionChangeRef = useRef<(connectionId: string) => void>(() => {});
+    const fetchAllDynamicFieldsRef = useRef<(connectionId: string) => void>(() => {});
+    const configuredConnectionIdRef = useRef<string | undefined>(config.connectionId);
     const { toast } = useToast();
+
+    useEffect(() => {
+        configuredConnectionIdRef.current = config.connectionId;
+    }, [config.connectionId]);
 
     useEffect(() => {
         if (selectedNode?.data?.serviceId) {
@@ -67,14 +75,8 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         setSelectedConnection(selectedNode?.data?.config?.connectionId || null);
     }, [selectedNode]);
 
-    useEffect(() => {
-        if (metadata?.auth) {
-            fetchConnections();
-        }
-    }, [metadata]); // Re-fetch connections when metadata (and thus serviceId) is available
-
     // Fetch user connections for this piece
-    const fetchConnections = async () => {
+    const fetchConnections = useCallback(async () => {
         if (!metadata?.auth) return;
         setIsRefreshing(true);
         try {
@@ -94,11 +96,12 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                 setConnections(data);
 
                 // If we have a stored connectionId in config, select it
-                if (config.connectionId && data.some((conn: any) => conn.id === config.connectionId)) {
-                    setSelectedConnection(config.connectionId);
+                const configuredConnectionId = configuredConnectionIdRef.current;
+                if (configuredConnectionId && data.some((conn: any) => conn.id === configuredConnectionId)) {
+                    setSelectedConnection(configuredConnectionId);
                 } else if (data.length > 0) {
                     // Auto-select first connection if none selected
-                    handleConnectionChange(data[0].id);
+                    handleConnectionChangeRef.current(data[0].id);
                 } else {
                     setSelectedConnection(null); // No connections available
                 }
@@ -114,7 +117,13 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         } finally {
             setIsRefreshing(false);
         }
-    };
+    }, [metadata]);
+
+    useEffect(() => {
+        if (metadata?.auth) {
+            void fetchConnections();
+        }
+    }, [fetchConnections, metadata?.auth]); // Re-fetch connections when metadata (and thus serviceId) is available
 
     const handleMessage = (event: MessageEvent) => {
         if (event.data.type === 'AUTH_SUCCESS') {
@@ -194,15 +203,15 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         triggerDependentFields(key, value);
     };
 
-    const handleConnectionChange = (connectionId: string) => {
+    const handleConnectionChange = useCallback((connectionId: string) => {
         setSelectedConnection(connectionId);
         const newConfig = { ...config, connectionId };
         setConfig(newConfig);
         onUpdateNode(selectedNode.id, { ...selectedNode.data, config: newConfig });
 
         // Trigger all dynamic fields for this piece
-        fetchAllDynamicFields(connectionId);
-    };
+        fetchAllDynamicFieldsRef.current(connectionId);
+    }, [config, onUpdateNode, selectedNode]);
 
     const triggerDependentFields = (changedKey: string, newValue: any) => {
         // Implementation for Activepieces "refreshers"
@@ -265,6 +274,11 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
             setDynamicOptions(prev => ({ ...prev, [key]: { options: [], loading: false } }));
         }
     };
+
+    useEffect(() => {
+        handleConnectionChangeRef.current = handleConnectionChange;
+        fetchAllDynamicFieldsRef.current = fetchAllDynamicFields;
+    });
 
     const renderField = (key: string, prop: any) => {
         const value = config[key] || prop.defaultValue || '';
@@ -463,7 +477,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                 <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-white dark:bg-gray-900 rounded border shadow-sm">
                         {metadata?.icon ? (
-                            <img src={metadata.icon} alt={metadata.name} className="w-5 h-5 object-contain" />
+                            <Image src={metadata.icon} alt={metadata.name} width={20} height={20} className="w-5 h-5 object-contain" />
                         ) : (
                             <Zap className="w-5 h-5 text-purple-600" />
                         )}

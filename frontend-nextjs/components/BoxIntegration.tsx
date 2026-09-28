@@ -3,7 +3,7 @@
  * Complete Box file storage and collaboration platform integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
@@ -426,7 +426,7 @@ const BoxIntegration: React.FC = () => {
     const { toast } = useToast();
 
     // Check connection status
-    const checkConnection = async () => {
+    const checkConnection = useCallback(async () => {
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -438,12 +438,6 @@ const BoxIntegration: React.FC = () => {
                 const isConnected = providers?.box?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
-                if (isConnected) {
-                    loadUserProfile();
-                    loadRootFolder();
-                    loadUsers();
-                    loadCollaborations();
-                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
@@ -453,10 +447,10 @@ const BoxIntegration: React.FC = () => {
             setConnected(false);
             setHealthStatus("error");
         }
-    };
+    }, []);
 
     // Load Box data
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
             const response = await authFetch("/api/integrations/box/profile", {
@@ -476,9 +470,9 @@ const BoxIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, profile: false }));
         }
-    };
+    }, []);
 
-    const loadRootFolder = async () => {
+    const loadRootFolder = useCallback(async () => {
         setLoading((prev) => ({ ...prev, folders: true, files: true }));
         try {
             const response = await authFetch("/api/integrations/box/folder/0", {
@@ -517,7 +511,7 @@ const BoxIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, folders: false, files: false }));
         }
-    };
+    }, [toast]);
 
     const loadFolder = async (folder: BoxFolder) => {
         setLoading((prev) => ({ ...prev, folders: true, files: true }));
@@ -565,7 +559,7 @@ const BoxIntegration: React.FC = () => {
         }
     };
 
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
             const response = await authFetch("/api/integrations/box/users", {
@@ -586,9 +580,9 @@ const BoxIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, users: false }));
         }
-    };
+    }, []);
 
-    const loadCollaborations = async () => {
+    const loadCollaborations = useCallback(async () => {
         setLoading((prev) => ({ ...prev, collaborations: true }));
         try {
             const response = await authFetch("/api/integrations/box/collaborations", {
@@ -609,7 +603,7 @@ const BoxIntegration: React.FC = () => {
         } finally {
             setLoading((prev) => ({ ...prev, collaborations: false }));
         }
-    };
+    }, []);
 
     const createFolder = async () => {
         if (!folderForm.name) return;
@@ -791,7 +785,7 @@ const BoxIntegration: React.FC = () => {
 
     useEffect(() => {
         checkConnection();
-    }, []);
+    }, [checkConnection]);
 
     useEffect(() => {
         if (connected) {
@@ -800,7 +794,7 @@ const BoxIntegration: React.FC = () => {
             loadUsers();
             loadCollaborations();
         }
-    }, [connected]);
+    }, [connected, loadUserProfile, loadRootFolder, loadUsers, loadCollaborations]);
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleString();

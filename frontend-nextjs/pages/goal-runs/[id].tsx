@@ -145,6 +145,7 @@ export default function GoalRunDetailPage() {
     const isOwner = Boolean(
         userId && run?.created_by && String(userId) === String(run.created_by));
     const canActOnRun = canSupervise || isOwner;
+    const runStatus = run?.status;
 
     const load = useCallback(async (silent = false) => {
         if (typeof id !== "string") return;
@@ -171,14 +172,14 @@ export default function GoalRunDetailPage() {
     // elsewhere). Poll quietly while non-terminal so the timeline — and the
     // finish — are observable without a manual refresh.
     useEffect(() => {
-        if (!run || ["achieved", "failed", "cancelled"].includes(run.status)) return;
+        if (!runStatus || ["achieved", "failed", "cancelled"].includes(runStatus)) return;
         const tick = () => {
             if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
             void load(true);
         };
         const timer = setInterval(tick, 10000);
         return () => clearInterval(timer);
-    }, [run?.status, load]);
+    }, [runStatus, load]);
 
     // Promotion evidence is advisory supervisor material (team_lead+ on the
     // backend) — only fetched for users who can act on it.

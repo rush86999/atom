@@ -106,9 +106,75 @@ class CanvasEditPlan(BaseModel):
     reply: str = ""
 
 
+def _plan_shape(plan: "CanvasEditPlan") -> str:
+    """One-line description of a plan, for the repair-exchange log."""
+    if plan is None:
+        return "None"
+    ops = list(plan.ops or [])
+    return (
+        f"wants_edit={bool(plan.wants_edit)} edit_mode={plan.edit_mode!r} "
+        f"ops={len(ops)}[{_ops_preview(ops)}] "
+        f"replacement={'set' if (plan.updated_content_json or '').strip() else 'empty'} "
+        f"restore={'set' if (plan.restore_audit_id or '').strip() else 'empty'} "
+        f"violation={plan_contract_violation(plan)}")
+
+
+def plan_contract_violation(plan: "CanvasEditPlan") -> Optional[str]:
+    """The SCHEMA-BOUNDARY contract check (2026-09-28).
+
+    A plan must be exactly one of three forms:
+
+      (1) DECLINE          wants_edit=false AND no ops AND no replacement
+                           content AND no restore id
+      (2) OPERATION EDIT   wants_edit=true  AND ops present
+      (3) FULL REPLACEMENT wants_edit=true  AND updated_content_json present
+
+    Returns None when the plan is one of those, else a description naming the
+    CONCRETE conflicting fields, which is what the bounded repair is told.
+
+    This runs where the plan is parsed, so a contradictory answer is caught
+    before it can be mistaken for an accepted plan downstream. It deliberately
+    does NOT normalise the plan: silently flipping wants_edit to True would
+    manufacture an edit the planner did not authorise, and the lifecycle gate
+    upstream must keep being the thing that decides whether a canvas may change.
+    """
+    if plan is None:
+        return "no plan"
+    ops = list(plan.ops or [])
+    replacement = (plan.updated_content_json or "").strip()
+    restore = (plan.restore_audit_id or "").strip()
+    wants = bool(plan.wants_edit)
+    if not wants:
+        conflicting = []
+        if ops:
+            conflicting.append(f"ops[{len(ops)}]={_ops_preview(ops)}")
+        if replacement:
+            conflicting.append("updated_content_json=<set>")
+        if restore:
+            conflicting.append("restore_audit_id=<set>")
+        if conflicting:
+            return ("wants_edit=false but " + " AND ".join(conflicting)
+                    + " (legal forms: decline with all three empty, or "
+                      "wants_edit=true with the work)")
+        return None
+    # wants_edit=true must actually carry the work it claims.
+    if not (ops or replacement or restore):
+        return ("wants_edit=true but ops=[] AND updated_content_json=<empty> "
+                "AND restore_audit_id=<empty> (an edit claim with no work)")
+    return None
+
+
+def _ops_preview(ops: List[Any], limit: int = 2) -> str:
+    out = []
+    for op in list(ops)[:limit]:
+        field = getattr(op, "field", None) or "?"
+        find = str(getattr(op, "find", "") or "")[:24]
+        out.append(f"{{field={field},find={find!r}}}")
+    return "; ".join(out)
+
+
 class CanvasPlanUnavailable(Exception):
     """The planning LLM call failed (provider down / timeout / no JSON).
-
     Distinct from ``None`` (a legitimate "this turn is not an edit"): callers
     must NOT fall through to generic intent routing on this — an edit-shaped
     request misfiled into TASK_MANAGEMENT produces a chat reply claiming the
@@ -262,12 +328,20 @@ the authority, NOT your memory of earlier drafts:
 - EXTERNAL FACTS are never a guessing problem either: names, figures,
   prices, dates, and specs must come from the user's message, the canvas
   content, or the FRESH DATA section (when present) — never from memory or
-  plausibility. Live 2026-09-03: with no evidence in the prompt, a price
-  "from the consolidated price list" was typed into a draft as $14,500.00
+  plausibility. Live 2026-09-03: when no evidence is in the prompt, a price
+  from the consolidated price list was typed into a draft as $14,500.00
   (the workbook said $14,145.00). If a value the request needs is in none
   of those sources, do not invent it. If the user permits an explicit
   placeholder, use one and name the missing source in `reply`; if the user
   forbids placeholders, stop and report that the edit was not applied.
+- A structured SOURCE COMPARISON separates verified values, incomparable
+  values, gaps, and proposed actions. Numeric equality alone does not make
+  currency, unit, price basis, or effective date equivalent. A historical or
+  older list is not automatically authoritative, and a newer source is not
+  automatically correct. Never use an incomparable or historical-only value
+  to replace the artifact. Apply only a READY CHANGE explicitly supported by
+  the comparison and the user's edit request; otherwise explain the gap and
+  leave the artifact unchanged.
 - When the request supplies a count or a requested/alternative split, reconcile
   the complete source-backed product set before writing. Do not fill a named
   row with a generic "alternative" label, and do not invent an unnamed row to
@@ -286,6 +360,34 @@ the authority, NOT your memory of earlier drafts:
 # Field-scoped: the model returns ONLY the keys it is changing (merged on
 # apply) — echoing untouched fields verbatim was the burden that made small
 # models emit oversized, invalid JSON (observed live 2026-08-31).
+#: Appended when a plan contradicts itself. Names the CONCRETE conflicting
+#: fields, restates the three legal forms, and requires exactly one of them. It
+#: does not instruct the model to produce an edit -- the repair resolves an
+#: inconsistency, it does not authorise anything, and the flag is never flipped
+#: on the model's behalf.
+_INCONSISTENT_PLAN_SUFFIX = """
+
+IMPORTANT -- your previous answer was self-contradictory. It declared
+wants_edit=false while also carrying the edit work below. Both cannot be true,
+and a plan must be exactly one of these three forms:
+
+  (1) DECLINE           wants_edit=false, ops=[], updated_content_json=null,
+                        restore_audit_id=null. Use this when the user did not
+                        ask you to change THIS canvas.
+  (2) OPERATION EDIT    wants_edit=true, with ops=[] carrying find/replace
+                        pairs against the CURRENT canvas content you were
+                        shown, edit_mode="patch".
+  (3) FULL REPLACEMENT  wants_edit=true, edit_mode="replace", with
+                        updated_content_json holding the complete new content
+                        and ops=[].
+
+Re-answer as ONE of those three forms, choosing from the user's request and the
+canvas content above. Keep the user's request and the canvas content in view.
+Do not declare wants_edit=false and then carry operations. Do not invent an
+edit the user did not ask for in order to fill a field.
+"""
+
+
 _REPLACE_FALLBACK_SUFFIX = (
     "Your ops did not match the current content exactly, so they were "
     "discarded. Try again with edit_mode=\"replace\": return the new content "
@@ -475,6 +577,289 @@ def _table_rows(body: str) -> List[List[str]]:
     ):
         rows = rows[1:]
     return rows
+
+
+def artifact_observations(
+    canvas: Dict[str, Any],
+    *,
+    requested_entities: List[str],
+    requested_fields: List[str],
+    source: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    from core.workbook_read_artifact import (
+        _canonical_field_name,
+        _text_organization,
+        observations_from_text,
+    )
+
+    content = (canvas or {}).get("content")
+    body = _body_from_content(content)
+    source_data = dict(source or {})
+    source_data.setdefault(
+        "source_id",
+        str((canvas or {}).get("canvas_id") or "canvas-artifact"),
+    )
+    source_data.setdefault("source_type", "artifact")
+    source_data.setdefault("version", source_data.get("source_id"))
+    rows: List[Any] = []
+    if isinstance(content, dict) and isinstance(content.get("rows"), list):
+        rows = content["rows"]
+    elif isinstance(content, list):
+        rows = content
+    if not rows:
+        matrix: List[List[str]] = []
+        if "<table" in body.lower():
+            for row_html in re.findall(
+                r"<tr\b[^>]*>(.*?)</tr>", body, re.IGNORECASE | re.DOTALL
+            ):
+                cells = [
+                    _html_text(cell)
+                    for cell in re.findall(
+                        r"<t[dh]\b[^>]*>(.*?)</t[dh]>", row_html,
+                        re.IGNORECASE | re.DOTALL,
+                    )
+                ]
+                if cells:
+                    matrix.append(cells)
+        else:
+            for line in body.splitlines():
+                if "|" not in line:
+                    continue
+                cells = [
+                    _html_text(cell)
+                    for cell in line.strip().strip("|").split("|")
+                ]
+                if cells and not all(
+                    re.fullmatch(r"\s*:?-{3,}:?\s*", cell) for cell in cells
+                ):
+                    matrix.append(cells)
+        rows = matrix
+    if not rows:
+        return observations_from_text(
+            body,
+            requested_entities=requested_entities,
+            requested_fields=requested_fields,
+            source=source_data,
+            verification="verified",
+        )
+    if isinstance(rows[0], dict):
+        field_rows = [
+            {
+                str(key): str(value if value is not None else "")
+                for key, value in row.items()
+            }
+            for row in rows
+            if isinstance(row, dict)
+        ]
+        headers = list(field_rows[0].keys()) if field_rows else []
+        first_data_row = 1
+    else:
+        normalized_rows = [
+            [
+                str(cell if cell is not None else "")
+                for cell in row
+            ]
+            if isinstance(row, (list, tuple))
+            else [str(row if row is not None else "")]
+            for row in rows
+        ]
+        if (
+            len(normalized_rows) == 1
+            and len(requested_fields or []) == 1
+            and len(normalized_rows[0]) >= 2
+        ):
+            headers = ["entity", str(requested_fields[0])]
+            field_rows = [dict(zip(headers, normalized_rows[0]))]
+            first_data_row = 1
+        else:
+            headers = normalized_rows[0] if normalized_rows else []
+            field_rows = [
+                dict(zip(headers, row + [""] * max(0, len(headers) - len(row))))
+                for row in normalized_rows[1:]
+            ]
+            first_data_row = 2
+    identity_fields = {
+        "model", "model_number", "machine", "item", "product", "part",
+        "sku", "code", "id", "name", "description",
+    }
+    value_fields = {
+        "price", "cost", "amount", "rate", "value", "currency", "basis",
+        "quantity", "weight", "lead_time", "delivery",
+    }
+    identity_headers = [
+        header for header in headers
+        if _canonical_field_name(header) in identity_fields
+    ]
+    search_headers = identity_headers or [
+        header for header in headers
+        if _canonical_field_name(header) not in value_fields
+    ]
+    observations: List[Dict[str, Any]] = []
+    for entity in requested_entities or []:
+        entity_text = str(entity or "").strip()
+        if not entity_text:
+            continue
+        matching_rows: List[Tuple[int, Dict[str, Any], str, int]] = []
+        for row_number, row in enumerate(field_rows, start=first_data_row):
+            for header in search_headers:
+                text = str(row.get(header) or "").strip()
+                match = re.search(
+                    rf"(?<![A-Za-z0-9_-]){re.escape(entity_text)}"
+                    rf"(?![A-Za-z0-9_-])",
+                    text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    matching_rows.append((row_number, row, str(header), match.start()))
+                    break
+        for row_number, row, identity_header, match_start in matching_rows:
+            entity_attributes: Dict[str, str] = {}
+            for header in headers:
+                canonical_header = _canonical_field_name(header)
+                if canonical_header not in {
+                    "organization", "manufacturer", "vendor", "supplier",
+                }:
+                    continue
+                value = str(row.get(header) or "").strip()
+                if value:
+                    entity_attributes["organization"] = value
+            if not entity_attributes:
+                organization = _text_organization(
+                    str(row.get(identity_header) or "")[:match_start]
+                )
+                if organization:
+                    entity_attributes["organization"] = organization
+            for requested_field in requested_fields or []:
+                field = _canonical_field_name(requested_field)
+                matching_headers = [
+                    header
+                    for header in headers
+                    if _canonical_field_name(header) == field
+                    or field in re.sub(
+                        r"[^a-z0-9]+", " ", str(header).casefold()
+                    )
+                ]
+                for header in matching_headers:
+                    raw_value = str(
+                        row.get(header)
+                        if row.get(header) is not None
+                        else ""
+                    ).strip()
+                    synthetic = f"{entity_text}: {raw_value}\n{body}"
+                    verification = (
+                        "ambiguous"
+                        if len(matching_headers) > 1
+                        else "field_missing"
+                        if not raw_value or raw_value.casefold() in {"tbd", "n/a"}
+                        else "verified"
+                    )
+                    extracted = observations_from_text(
+                        synthetic,
+                        requested_entities=[entity_text],
+                        requested_fields=[requested_field],
+                        source=source_data,
+                        verification=verification,
+                    )
+                    for observation in extracted[:1]:
+                        observation["field_meaning"] = str(header)
+                        observation["entity_attributes"] = dict(
+                            entity_attributes
+                        )
+                        observation["observation_id"] = (
+                            f"{source_data['source_id']}:"
+                            f"{source_data.get('version') or 'current'}:"
+                            f"{row_number}:{entity_text}:{field}:{header}"
+                        )
+                        observation["locator"] = {
+                            "row": row_number,
+                            "column": str(header),
+                            "source_id": source_data["source_id"],
+                        }
+                        observations.append(observation)
+    return observations
+
+
+def build_canvas_evidence_comparison(
+    canvas: Dict[str, Any],
+    workbook_read: Dict[str, Any],
+    *,
+    source_observations: Optional[List[Dict[str, Any]]] = None,
+    decision_source_ids: Optional[List[str]] = None,
+    authorized_actions: Optional[List[str]] = None,
+    objective_text: str = "",
+) -> Dict[str, Any]:
+    from core.workbook_read_artifact import (
+        build_source_comparison,
+        designated_source_ids,
+        workbook_artifact_observations,
+    )
+
+    coverage = (workbook_read or {}).get("coverage") or {}
+    requested_entities = [
+        str(outcome.get("target") or "")
+        for outcome in coverage.get("outcomes") or []
+        if isinstance(outcome, dict) and outcome.get("target")
+    ]
+    if not requested_entities:
+        requested_entities = list(dict.fromkeys(
+            str(observation.get("entity_id") or "")
+            for observation in source_observations or []
+            if isinstance(observation, dict)
+            and str(observation.get("entity_id") or "").strip()
+        ))
+    requested_fields: List[str] = []
+    for outcome in coverage.get("outcomes") or []:
+        if not isinstance(outcome, dict):
+            continue
+        selections = [outcome.get("field_selection")]
+        selections.extend(
+            evidence.get("field_selection")
+            for evidence in outcome.get("evidence") or []
+            if isinstance(evidence, dict)
+        )
+        for selection in selections:
+            if not isinstance(selection, dict):
+                continue
+            for field in selection.get("requested_fields") or []:
+                if field not in requested_fields:
+                    requested_fields.append(str(field))
+    for observation in source_observations or []:
+        field = str((observation or {}).get("field") or "")
+        if field and field not in requested_fields:
+            requested_fields.append(field)
+    if not requested_fields:
+        requested_fields = ["price"]
+    canvas_source_id = str((canvas or {}).get("canvas_id") or "canvas-artifact")
+    draft_observations = artifact_observations(
+        canvas,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        source={
+            "source_id": canvas_source_id,
+            "source_type": "artifact",
+            "version": canvas_source_id,
+        },
+    )
+    observations = workbook_artifact_observations(workbook_read)
+    observations.extend(draft_observations)
+    observations.extend(
+        observation
+        for observation in source_observations or []
+        if isinstance(observation, dict)
+    )
+    decision_ids = list(
+        decision_source_ids
+        if decision_source_ids is not None
+        else designated_source_ids(objective_text, source_observations or [])
+    )
+    return build_source_comparison(
+        observations,
+        requested_entities=requested_entities,
+        requested_fields=requested_fields,
+        artifact_source_ids=[canvas_source_id],
+        decision_source_ids=decision_ids,
+        authorized_actions=authorized_actions or [],
+    )
 
 
 def _footer_start(body: str, after: int = 0) -> Optional[int]:
@@ -1188,6 +1573,7 @@ class FreshDataResult(NamedTuple):
     # must not tell the user a lookup "failed" when none executed — that
     # false report is the live incident's second defect.
     declined_irrelevant: bool = False
+    evidence_contract: Optional[Dict[str, Any]] = None
 
 
 async def fetch_fresh_data_section(
@@ -1201,6 +1587,8 @@ async def fetch_fresh_data_section(
     plan_task: Optional[Any] = None,
     existing_block: Optional[str] = None,
     allow_canvas_target: bool = True,
+    existing_evidence_contract: Optional[Dict[str, Any]] = None,
+    authorized_actions: Optional[List[str]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -1252,6 +1640,11 @@ async def fetch_fresh_data_section(
                 needed=True,
                 ok=True,
                 block=existing_block,
+                evidence_contract=(
+                    dict(existing_evidence_contract)
+                    if isinstance(existing_evidence_contract, dict)
+                    else None
+                ),
             )
 
         async def _resolve_plan() -> Any:
@@ -1452,6 +1845,31 @@ async def fetch_fresh_data_section(
                     }} if canvas else {}),
                 },
             )
+            result_meta = getattr(plan, "_result_meta", None) or {}
+            workbook_read = (
+                (result_meta.get("storage_read") or {}).get("workbook_read")
+                or {}
+            )
+            source_observations = list(
+                result_meta.get("source_observations") or []
+            )
+            if (workbook_read or source_observations) and canvas:
+                from core.workbook_read_artifact import render_source_comparison
+
+                comparison = build_canvas_evidence_comparison(
+                    canvas,
+                    workbook_read,
+                    source_observations=source_observations,
+                    authorized_actions=list(authorized_actions or []),
+                    objective_text=message,
+                )
+                result_meta["objective_evidence"] = comparison
+                comparison_text = render_source_comparison(comparison)
+                if comparison_text:
+                    block = (
+                        f"{block}\n\n{comparison_text}"
+                        if block else comparison_text
+                    )
             observation = (block or "lookup returned nothing usable")[:4000]
             if block and len(block) > 4000:
                 # Trace display only — the model-facing section below gets
@@ -1488,9 +1906,17 @@ async def fetch_fresh_data_section(
         needed, section, raw_block = await asyncio.wait_for(
             _lookup(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
         )
-        return FreshDataResult(section=section, needed=needed,
-                               ok=bool(section) or not needed,
-                               block=raw_block)
+        return FreshDataResult(
+            section=section,
+            needed=needed,
+            ok=bool(section) or not needed,
+            block=raw_block,
+            evidence_contract=(
+                (getattr(plan, "_result_meta", None) or {}).get(
+                    "objective_evidence"
+                )
+            ),
+        )
     except asyncio.TimeoutError:
         logger.info(
             "canvas edit fresh-data lookup timed out — reporting failed "
@@ -1788,7 +2214,69 @@ async def plan_canvas_edit(
             "canvas edit planning LLM returned no plan (provider failure)"
         )
     if not plan.wants_edit:
-        return plan
+        # D4: a plan that says "not an edit" while carrying operations is
+        # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
+        # Measured on candidate_fix1 (2026-09-27): the unpinned route resolves to
+        # opencode-go/gemini-3-flash, and on a valid canvas it returned
+        # wants_edit=False WITH ops=1 -- the correct edit operation, discarded
+        # because of one flag. The code's own comment blamed "flash-tier models"
+        # generally, which is contradicted by deepseek-flash handling the same
+        # prompt correctly.
+        #
+        # So it gets ONE bounded repair through the SAME structured-planning
+        # mechanism, mirroring the existing patch-failure re-ask. Two things this
+        # deliberately does NOT do:
+        #   * it does NOT execute the operations because they exist. Operations
+        #     present in a plan that disclaims the edit is a contradiction to be
+        #     resolved, not an authorization to proceed.
+        #   * it does NOT treat which model answered as meaningful. Model
+        #     selection is a routing decision and carries no authority over
+        #     whether this canvas may be changed; authorization is the
+        #     lifecycle gate's job, upstream, and is unaffected either way.
+        #
+        # If the repair also disagrees, the turn is a decline -- unchanged
+        # behaviour, and honest.
+        violation = plan_contract_violation(plan)
+        if violation is None:
+            return plan
+        logger.info(
+            "canvas edit: SCHEMA-BOUNDARY contract violation: %s", violation)
+        replan = await _plan_structured(
+            llm_service,
+            prompt=f"{prompt}\n\n{_INCONSISTENT_PLAN_SUFFIX}",
+            response_model=CanvasEditPlan,
+            system_instruction="You return only the requested JSON object.",
+        )
+        # CAPTURE (2026-09-28): both answers, so a failure is attributable
+        # without re-running. A model answering correctly is a routing fact and
+        # carries no authority over whether the canvas may change.
+        logger.info(
+            "canvas edit: repair exchange | original=%s | repair=%s",
+            _plan_shape(plan), _plan_shape(replan))
+        if replan is None:
+            # The repair is infrastructure, not a decision. Fall back to the
+            # original decline rather than guessing an edit.
+            logger.info(
+                "canvas edit: consistency repair returned no plan -- keeping "
+                "the decline")
+            return plan
+        if plan_contract_violation(replan) is not None:
+            logger.info(
+                "canvas edit: consistency repair ALSO violated the contract "
+                "(%s) -- treating the turn as not-an-edit",
+                plan_contract_violation(replan))
+            return replan
+        if not replan.wants_edit:
+            logger.info(
+                "canvas edit: consistency repair returned a consistent "
+                "decline -- treating the turn as not-an-edit")
+            return replan
+        if not (replan.ops or (replan.updated_content_json or "").strip()):
+            logger.info(
+                "canvas edit: consistency repair claimed an edit but produced "
+                "nothing to apply -- treating the turn as not-an-edit")
+            return replan
+        return replan
 
     # Patch validation: ops must match the current content EXACTLY. A
     # failed match discards the ops (never a partial write) and re-asks once
@@ -2116,6 +2604,158 @@ async def _new_dead_links(current: Any, new_content: Any) -> List[str]:
         return []
 
 
+def _evidence_action_applied(
+    content: Any,
+    action: Dict[str, Any],
+) -> bool:
+    from core.workbook_read_artifact import (
+        _comparison_number,
+        _comparison_verified,
+        _price_field_meaning,
+    )
+
+    entity = str(action.get("entity_id") or "")
+    field = str(action.get("field") or "")
+    expected_data = action.get("expected")
+    if not isinstance(expected_data, dict):
+        return False
+    expected = str(expected_data.get("raw_value") or "")
+    if not entity or not field or not expected:
+        return False
+    observations = artifact_observations(
+        {"canvas_id": "postcondition", "content": content},
+        requested_entities=[entity],
+        requested_fields=[field],
+        source={"source_id": "postcondition", "source_type": "artifact"},
+    )
+    if len(observations) != 1:
+        return False
+    matches = []
+    for observation in observations:
+        if not _comparison_verified(observation):
+            continue
+        actual = str(observation.get("raw_value") or "")
+        if not actual:
+            continue
+        if any(
+            expected_data.get(key) is not None
+            and observation.get(key) != expected_data.get(key)
+            for key in ("currency", "unit", "basis")
+        ):
+            continue
+        expected_meaning = str(
+            expected_data.get("destination_field_meaning")
+            or expected_data.get("field_meaning")
+            or "unspecified"
+        )
+        actual_meaning = _price_field_meaning(observation)
+        if actual_meaning != expected_meaning:
+            continue
+        expected_attributes = expected_data.get("entity_attributes") or {}
+        if expected_attributes and (
+            observation.get("entity_attributes") or {}
+        ) != expected_attributes:
+            continue
+        actual_number = _comparison_number(actual)
+        expected_number = _comparison_number(expected)
+        if actual_number is not None and expected_number is not None:
+            if actual_number == expected_number:
+                matches.append(observation)
+        elif actual.casefold() == expected.casefold():
+            matches.append(observation)
+    return len(matches) == 1
+
+
+def _op_text(op: Any, attr: str) -> str:
+    """The find/replace text of a patch op, whatever shape the model returned."""
+    if isinstance(op, dict):
+        return str(op.get(attr) or "")
+    return str(getattr(op, attr, "") or "")
+
+
+def _intended_change_marks(plan: Any, new_content: Any) -> List[Dict[str, Any]]:
+    """What the plan INTENDED to change, derived from its own ops.
+
+    Recorded so the verification can be audited against the request rather than
+    against itself. Each mark is the text that must now be present, and the text
+    that must now be gone.
+    """
+    marks: List[Dict[str, Any]] = []
+    for op in (getattr(plan, "ops", None) or []):
+        find = _op_text(op, "find")
+        replace = _op_text(op, "replace")
+        field = (op.get("field") if isinstance(op, dict)
+                 else getattr(op, "field", None))
+        if not find and not replace:
+            continue
+        marks.append({"field": field, "find": find, "replace": replace})
+    return marks
+
+
+def _verify_intended_change(plan: Any, readback_content: Any,
+                            content_persisted: bool = False) -> Dict[str, Any]:
+    """Did the durable canvas contain the INTENDED change?
+
+    Content equality proves the right bytes are stored. It does not prove they
+    are the change that was asked for: a plan that changed nothing would also
+    satisfy equality, and a canvas that already mentioned the target text
+    elsewhere would satisfy it while the intended field never moved.
+
+    So each op is checked as a pair -- the replacement must be present AND the
+    text it replaced must be gone -- scoped to the field the op named when the
+    content is an object. Scoping matters: for an email canvas, "30 days" must
+    appear in `body`, not merely somewhere in the document.
+
+    REPLACE-MODE plans carry no ops: they declare the entire new content, so the
+    intended change IS that content and content equality is the complete proof.
+    Failing them for having no ops would reject the one mode where the request is
+    fully specified -- so they are verified by equality, and reported as such
+    rather than being passed silently.
+    """
+    marks = _intended_change_marks(plan, readback_content)
+    if not marks:
+        replace_mode = bool(getattr(plan, "updated_content_json", None))
+        if replace_mode:
+            return {"all_intended_applied": bool(content_persisted),
+                    "unapplied_ops": ([] if content_persisted else
+                                      ["replace-mode plan: the durable content "
+                                       "is not the content the plan declared"]),
+                    "checked": 1,
+                    "scope": "declared full content (replace-mode plan)"}
+        # A plan with neither ops nor declared content asked for nothing. There
+        # is no intended change, so a success claim would be unfounded.
+        return {"all_intended_applied": False,
+                "unapplied_ops": ["the plan carried no operations and no "
+                                  "declared content, so there is no intended "
+                                  "change to verify"],
+                "checked": 0, "scope": "none"}
+
+    def _field_text(mark: Dict[str, Any]) -> str:
+        field = mark.get("field")
+        if field and isinstance(readback_content, dict):
+            return str(readback_content.get(field) or "")
+        return str(readback_content or "")
+
+    unapplied: List[str] = []
+    for mark in marks:
+        hay = _field_text(mark)
+        replace, find = mark["replace"], mark["find"]
+        if replace and replace not in hay:
+            unapplied.append(
+                f"field {mark.get('field')!r}: the replacement text is absent")
+            continue
+        # A non-empty `find` that survives means the edit did not replace what
+        # it claimed to. Ignored when find == replace, where nothing could change.
+        if find and find != replace and find in hay:
+            unapplied.append(
+                f"field {mark.get('field')!r}: the text it should have replaced "
+                f"is still present")
+    return {"all_intended_applied": not unapplied,
+            "unapplied_ops": unapplied[:6],
+            "checked": len(marks),
+            "scope": "field" if isinstance(readback_content, dict) else "document"}
+
+
 async def apply_canvas_edit(
     plan: CanvasEditPlan,
     user_id: str,
@@ -2127,6 +2767,8 @@ async def apply_canvas_edit(
     history: Optional[List[Dict[str, Any]]] = None,
     preserve_footer: bool = False,
     pending_review: bool = False,
+    evidence_contract: Optional[Dict[str, Any]] = None,
+    require_evidence_postconditions: bool = False,
 ):
     """Persist the planned edit through the general canvas CRUD layer
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
@@ -2149,6 +2791,19 @@ async def apply_canvas_edit(
     if not plan or not plan.wants_edit:
         return _out(None, "not_an_edit")
 
+    ready_actions = [
+        action
+        for action in (evidence_contract or {}).get("actions") or []
+        if isinstance(action, dict)
+        and str(action.get("action_type") or "") in {
+            "edit_artifact", "update_artifact",
+        }
+        and action.get("status") == "ready"
+        and action.get("authorized") is True
+    ]
+    if (evidence_contract or require_evidence_postconditions) and not ready_actions:
+        return _out(None, "no_ready_evidence_change")
+
     current = canvas.get("content")
     canvas_id = str(canvas.get("canvas_id"))
     canvas_type = str(canvas.get("canvas_type") or "generic")
@@ -2168,6 +2823,8 @@ async def apply_canvas_edit(
         (plan.edit_mode or "").strip().lower() == "restore"
         or (plan.restore_audit_id or "").strip()
     ):
+        if evidence_contract:
+            return _out(None, "evidence_contract_forbids_restore")
         audit_id = (plan.restore_audit_id or "").strip()
         if not audit_id:
             return _out(None, "restore_missing_version")
@@ -2221,6 +2878,21 @@ async def apply_canvas_edit(
     if scope_reason:
         return _out(None, scope_reason)
 
+    missing_ready_actions = [
+        action
+        for action in ready_actions
+        if not _evidence_action_applied(new_content, action)
+    ]
+    if missing_ready_actions:
+        return _out(
+            None,
+            "postcondition_missing:"
+            + ",".join(
+                str(action.get("entity_id") or "unknown")
+                for action in missing_ready_actions[:4]
+            ),
+        )
+
     # No-op guard: a plan whose result equals the current content writes
     # nothing and reports honestly. Live incident (2026-09-02, canvas
     # da27bb76…): four identical rewrites in a row — "mark is the dealer and
@@ -2242,6 +2914,22 @@ async def apply_canvas_edit(
         )
         return _out(None, f"dead_link: {dead_links[0]}")
 
+    evidence_refs = list(dict.fromkeys(
+        evidence_id
+        for action in ready_actions
+        for evidence_id in action.get("evidence_ids") or []
+        if evidence_id
+    ))
+    postconditions = [
+        {
+            "entity_id": action.get("entity_id"),
+            "field": action.get("field"),
+            "expected_value": action.get("proposed_value"),
+            "expected": action.get("expected") or {},
+            "evidence_ids": action.get("evidence_ids") or [],
+        }
+        for action in ready_actions
+    ]
     try:
         from tools.canvas_crud_tool import update_canvas_content
 
@@ -2250,6 +2938,8 @@ async def apply_canvas_edit(
             operation_id=operation_id,
             expected_prior_audit_id=expected_prior_audit_id,
             pending_review=pending_review,
+            evidence_refs=evidence_refs,
+            postconditions=postconditions,
         )
     except Exception as e:
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
@@ -2263,6 +2953,104 @@ async def apply_canvas_edit(
             return _out(None, "conflict: canvas changed during the edit")
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
         return _out(None, f"store_rejected: {(result or {}).get('error')}")
+    # INDEPENDENT READ-BACK, ALWAYS. Not only for evidence-contract canvases.
+    #
+    # The store reporting success is the tool's own claim about its own write.
+    # Until now the read-back ran only `if isinstance(evidence_contract, dict)`,
+    # so an ordinary canvas got NO verification at all -- and the orchestrator
+    # then set `updated: True` and rendered the planner's own success text over
+    # it. Measured consequence (2026-09-27, candidate_fix1): the reply rendered
+    # "**Canvas Updated:** ... Quote validity: **30 days**" while
+    # `canvas_audit` held no row for any canvas in 30 minutes and no canvas in
+    # the world contained the new text. A success claim with no verified write.
+    #
+    # So verification is now unconditional, and it is deliberately NOT the
+    # evidence-action check alone: a canvas with no contract has no actions, and
+    # "every action applied" would then be vacuously true -- a check that always
+    # passes is exactly the defect being fixed. The load-bearing assertion is
+    # CONTENT: the durable canvas must actually contain what we wrote.
+    #
+    # Exact equality is the conservative direction. If the store normalises
+    # content, this reports UNVERIFIED rather than falsely reporting success,
+    # and an unverified-but-applied edit is a much smaller problem than an
+    # unverified edit reported as done.
+    intended = _intended_change_marks(plan, new_content)
+    try:
+        from tools.canvas_crud_tool import read_canvas
+
+        readback = await read_canvas(user_id, canvas_id)
+        readback_content = (readback or {}).get("content")
+        readback_ok = bool((readback or {}).get("success"))
+        readback_id = (readback or {}).get("canvas_id")
+
+        right_canvas = readback_id in (None, canvas_id)
+        content_persisted = readback_ok and readback_content == new_content
+        field_result = _verify_intended_change(plan, readback_content, content_persisted)
+        operation_bound = bool(result.get("audit_id"))
+        revision_ok = not (result or {}).get("conflict")
+
+        missing_after_write = [
+            action
+            for action in ready_actions
+            if not _evidence_action_applied(readback_content, action)
+        ] if not content_persisted else []
+
+        result["postcondition_verified"] = bool(
+            readback_ok and right_canvas and content_persisted
+            and field_result["all_intended_applied"] and operation_bound
+            and revision_ok and not missing_after_write)
+        if isinstance(evidence_contract, dict):
+            result["postcondition_evidence_refs"] = evidence_refs
+        result["postcondition_binding"] = {
+            "canvas_id_expected": canvas_id,
+            "canvas_id_read_back": readback_id,
+            "right_canvas": right_canvas,
+            "operation_audit_id": result.get("audit_id"),
+            "operation_bound": operation_bound,
+            "expected_prior_audit_id": expected_prior_audit_id,
+            "revision_unchanged": revision_ok,
+            "content_matches_write": content_persisted,
+            "intended_marks": intended,
+            "fields": field_result,
+        }
+        if not result["postcondition_verified"]:
+            failed = []
+            if not right_canvas:
+                failed.append(f"read-back was canvas {readback_id!r}, not {canvas_id!r}")
+            if not content_persisted:
+                failed.append("read-back did not return the content that was written")
+            if not field_result["all_intended_applied"]:
+                failed.append(
+                    "the intended change is not present: "
+                    f"{field_result['unapplied_ops']}")
+            if not operation_bound:
+                failed.append("the store recorded no audit id for this operation")
+            if not revision_ok:
+                failed.append("the canvas changed concurrently during the edit")
+            if missing_after_write:
+                failed.append("written content did not satisfy every ready evidence action")
+            result["postcondition_error"] = "; ".join(failed)[:400]
+            result["postcondition_readback"] = {
+                "readback_ok": readback_ok,
+                "written_chars": len(new_content or ""),
+                "readback_chars": len(readback_content or ""),
+            }
+            logger.warning(
+                "canvas edit read-back did NOT verify for %s: %s",
+                canvas_id, result["postcondition_error"])
+    except Exception as verify_error:
+        result["postcondition_verified"] = False
+        result["postcondition_error"] = (
+            f"postcondition readback unavailable: {str(verify_error)[:160]}"
+        )
+    if result.get("postcondition_verified") is False:
+        # The write may or may not have landed. Either way the turn must not
+        # report it as done: `updated` is the orchestrator's success signal, and
+        # success is now defined as verified persistence, not as a tool saying
+        # OK. `write_recorded` preserves the distinction for reconciliation.
+        result["success"] = False
+        result["write_recorded"] = True
+        return _out(result, "postcondition_readback_failed")
     return _out(result, None)
 
 

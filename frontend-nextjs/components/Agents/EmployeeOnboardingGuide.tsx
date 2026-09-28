@@ -1,8 +1,24 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { Lightbulb, ChevronDown, GraduationCap, ShieldQuestion, Database } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const STORAGE_KEY = 'atom.agent_guide.dismissed.v1'
+
+const subscribeToDismissal = (callback: () => void) => {
+    window.addEventListener('storage', callback)
+    return () => window.removeEventListener('storage', callback)
+}
+
+const getDismissedSnapshot = () => {
+    try {
+        return window.localStorage.getItem(STORAGE_KEY) === '1'
+    } catch {
+        return false
+    }
+}
+
+const getServerDismissedSnapshot = () => true
 
 /**
  * "Managing AI employees" onboarding guide for the Agent Control Center.
@@ -13,20 +29,17 @@ const STORAGE_KEY = 'atom.agent_guide.dismissed.v1'
  * in docs. Dismissal is remembered (localStorage) and reversible.
  */
 export function EmployeeOnboardingGuide() {
-    const [dismissed, setDismissed] = useState(true) // hidden until mounted (SSR-safe)
+    const storedDismissed = useSyncExternalStore(
+        subscribeToDismissal,
+        getDismissedSnapshot,
+        getServerDismissedSnapshot
+    )
+    const [dismissedOverride, setDismissedOverride] = useState<boolean | null>(null)
     const [expanded, setExpanded] = useState(true)
-
-    useEffect(() => {
-        try {
-            setDismissed(localStorage.getItem(STORAGE_KEY) === '1')
-        } catch {
-            /* private mode etc. — just show the guide */
-            setDismissed(false)
-        }
-    }, [])
+    const dismissed = dismissedOverride ?? storedDismissed
 
     const dismiss = () => {
-        setDismissed(true)
+        setDismissedOverride(true)
         try {
             localStorage.setItem(STORAGE_KEY, '1')
         } catch { /* ignore */ }
@@ -36,7 +49,7 @@ export function EmployeeOnboardingGuide() {
         return (
             <button
                 onClick={() => {
-                    setDismissed(false)
+                    setDismissedOverride(false)
                     setExpanded(true)
                 }}
                 data-testid="agent-guide-restore"
@@ -76,7 +89,7 @@ export function EmployeeOnboardingGuide() {
                             <GraduationCap className="w-4 h-4 text-slate-500" /> 1. Hire &amp; train
                         </h3>
                         <p>
-                            Spawn an employee from a{' '}<a href="/marketplace" className="text-blue-600 underline">template</a>,
+                            Spawn an employee from a{' '}<Link href="/marketplace" className="text-blue-600 underline">template</Link>,
                             then run it on real tasks. Every clean run builds
                             confidence; employees graduate Student → Intern →
                             Supervised → Autonomous automatically as they earn trust.
@@ -92,7 +105,7 @@ export function EmployeeOnboardingGuide() {
                             action. <strong>Interns</strong> propose plans you start.
                             <strong> Supervised</strong> run automatically except
                             high-risk steps. Review requests in{' '}
-                            <a href="/approvals" className="text-blue-600 underline">Approvals</a> and
+                            <Link href="/approvals" className="text-blue-600 underline">Approvals</Link> and
                             correct mistakes via 👍/👎 on reasoning steps — feedback
                             directly shapes what they learn.
                         </p>

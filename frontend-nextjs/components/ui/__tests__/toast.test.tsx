@@ -7,6 +7,23 @@ jest.mock('@/components/ui/use-toast', () => jest.requireActual('@/components/ui
 import { ToastProvider, useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 
+class TestErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    return this.state.error
+      ? <div>Error: {this.state.error.message}</div>
+      : this.props.children;
+  }
+}
+
 describe('Toast Component', () => {
   describe('ToastProvider', () => {
     it('renders children without errors', () => {
@@ -37,15 +54,15 @@ describe('Toast Component', () => {
 
     it('throws error when useToast is used outside provider', () => {
       const TestComponent = () => {
-        try {
-          const { toast } = useToast();
-          return <div>Success</div>;
-        } catch (error) {
-          return <div>Error: {(error as Error).message}</div>;
-        }
+        useToast();
+        return <div>Success</div>;
       };
 
-      render(<TestComponent />);
+      render(
+        <TestErrorBoundary>
+          <TestComponent />
+        </TestErrorBoundary>
+      );
       expect(screen.getByText(/useToast must be used within ToastProvider/i)).toBeInTheDocument();
     });
   });

@@ -3,7 +3,7 @@
  * Real-time monitoring and management interface
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { UnifiedServicesManager } from "../../../components/UnifiedServicesManager";
 import {
   UnifiedServicesStatus,
@@ -22,17 +22,17 @@ export default function UnifiedCommunicationDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const apiConfig = {
+  const apiConfig = useMemo(() => ({
     baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
     endpoints: {
       health: "/health",
       implementations: "/implementations",
       statistics: "/statistics",
     },
-  };
+  }), []);
 
   // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -62,7 +62,7 @@ export default function UnifiedCommunicationDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiConfig]);
 
   // Handle implementation change
   const handleImplementationChange = (
@@ -86,7 +86,7 @@ export default function UnifiedCommunicationDashboard() {
     // Set up auto-refresh interval
     const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchDashboardData]);
 
   // Render overview tab
   const renderOverview = () => (

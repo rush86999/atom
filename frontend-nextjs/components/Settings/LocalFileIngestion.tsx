@@ -182,7 +182,7 @@ export default function LocalFileIngestion() {
             </h3>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Ingest local documents into Atom's memory for offline access and search.
+                Ingest local documents into Atom&apos;s memory for offline access and search.
             </p>
 
             {/* Action Buttons */}

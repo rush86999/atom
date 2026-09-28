@@ -1,0 +1,103 @@
+{
+ "comment": "Authored PROVIDER responses for the mutation-overlap case. Tool-plan requests decline; edit-plan requests are keyed by the turn token embedded in each ask. Find-strings extracted VERBATIM from the frozen canvas's audit-first resolved revision.",
+ "responses": [
+  {
+   "match": "tool planner for an AI automation platform",
+   "response": {
+    "tool_call": {
+     "name": "ToolPlan",
+     "arguments": {
+      "use_tool": false
+     }
+    }
+   }
+  },
+  {
+   "match": "Validation Error found",
+   "response": {
+    "tool_call": {
+     "name": "ToolPlan",
+     "arguments": {
+      "use_tool": false
+     }
+    }
+   }
+  },
+  {
+   "match": "expert NLU parser",
+   "response": {
+    "tool_call": {
+     "name": "CommandIntentResult",
+     "arguments": {
+      "command_type": "update",
+      "platforms": [],
+      "entities": [
+       "canvas"
+      ],
+      "parameters": {
+       "target": "canvas",
+       "action": "edit"
+      },
+      "confidence": 0.9,
+      "reasoning": "user asks to change canvas content"
+     }
+    }
+   }
+  },
+  {
+   "all": [
+    "updated_content_json",
+    "ovlapref-a"
+   ],
+   "response": {
+    "tool_call": {
+     "name": "CanvasEditPlan",
+     "arguments": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+       {
+        "field": "body",
+        "find": "All quotes are valid for 15 days only, thank you for understanding.",
+        "replace": "All quotes are valid for 30 days (OVLAP-A) only, thank you for understanding."
+       }
+      ],
+      "reply": "Footer validity updated to 30 days."
+     }
+    }
+   }
+  },
+  {
+   "all": [
+    "updated_content_json",
+    "ovlapref-b"
+   ],
+   "response": {
+    "tool_call": {
+     "name": "CanvasEditPlan",
+     "arguments": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+       {
+        "field": "body",
+        "find": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters.",
+        "replace": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters. (OVLAP-B)"
+       }
+      ],
+      "reply": "Row-group note updated."
+     }
+    }
+   }
+  },
+  {
+   "match": "ovlapref-a",
+   "response": "The canvas footer's quote validity was updated to 30 days (OVLAP-A)."
+  },
+  {
+   "match": "ovlapref-b",
+   "response": "The row-group note in the canvas now carries the OVLAP-B marker."
+  }
+ ],
+ "fail_unmatched": true
+}

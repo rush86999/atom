@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ function BusinessFactsPage() {
   const poller = new AdminPoller();
 
   // Fetch all facts
-  const fetchFacts = async () => {
+  const fetchFacts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await businessFactsAPI.listFacts(filters).catch((): null => null);
@@ -65,12 +65,12 @@ function BusinessFactsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [filters]);
 
   // Initial fetch
   useEffect(() => {
     fetchFacts();
-  }, [filters]);
+  }, [fetchFacts]);
 
   // Filter facts based on search query
   useEffect(() => {

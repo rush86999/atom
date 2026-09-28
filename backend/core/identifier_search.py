@@ -27,7 +27,7 @@ Pure functions, zero I/O, no repo dependencies — importable from any
 integration service without cycles.
 """
 import re
-from typing import Any, Awaitable, Callable, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 # --- Identifier shapes -------------------------------------------------------
 
@@ -101,8 +101,179 @@ def query_terms(query: str, min_len: int = 3) -> List[str]:
     return terms
 
 
+# --- Bounded, constraint-preserving query decomposition ----------------------
+
+_YEAR_RE = re.compile(r"^(19|20)\d{2}$")
+
+
+def exact_identifiers(query: str) -> List[str]:
+    """The exact identifiers a query names, in REQUESTED order, original spelling.
+
+    "Requested order" is the order the user wrote them: a search that reorders
+    the set changes which of two similar-looking items is reported first.
+    Recognised shapes are the ones real turns use — hyphenated catalog codes
+    ('U-22', 'SLE24-16', 'GSL48-16'), mixed alphanumeric runs ('TK1624'), and
+    bare part numbers ('381', '1624') — plus their word-joined forms ('No. 381',
+    'TK 1624'). Prose words are not identifiers, and the sub-tokens of a hyphen
+    compound are not separate identifiers: 'SLE24-16' is one identifier, not
+    'SLE24' and '16', or a decomposition would search for halves the user never
+    asked about.
+    """
+    text = query or ""
+    claimed: List[tuple] = []
+    found: List[str] = []
+
+    for match in _HYPHEN_COMPOUND_RE.finditer(text):
+        token = match.group(0)
+        if (any(ch.isdigit() for ch in token)
+                and any(ch.isalpha() for ch in token)
+                and len(token.split("-")) <= _MAX_CODE_PARTS):
+            found.append(token)
+            claimed.append(match.span())
+
+    def _inside_claim(start: int, end: int) -> bool:
+        return any(start >= s and end <= e for s, e in claimed)
+
+    for match in re.finditer(r"[A-Za-z0-9]+", text):
+        token = match.group(0)
+        if _inside_claim(*match.span()):
+            continue
+        if not any(ch.isdigit() for ch in token):
+            continue
+        if _YEAR_RE.match(token):
+            continue
+        if len(token) < 2:
+            continue
+        # Word-joined form: 'No. 381' / 'TK 1624' — keep the joining word with
+        # the part number so a provider matching on the full label still sees it.
+        prefix = re.search(r"([A-Za-z]{1,6}\.?)\s+$", text[: match.start()])
+        if prefix and not any(ch.isdigit() for ch in prefix.group(1)):
+            found.append(f"{prefix.group(1)} {token}")
+        found.append(token)
+
+    seen: set = set()
+    ordered: List[str] = []
+    for token in found:
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(token)
+    return ordered
+
+
+def bounded_query_variants(
+    query: str,
+    max_chars: int = 500,
+    max_variants: int = 8,
+    overlap: Optional[int] = None,
+) -> List[str]:
+    """Split a query into provider-sized pieces that TOGETHER still cover it.
+
+    The failure this replaces was a bare ``query[:N]``: a turn naming twenty
+    machines with the last eight past the cut searched only the first twelve
+    and then reported a confident total for all twenty. A character limit is a
+    transport constraint, not a licence to drop constraints.
+
+    The decomposition is OVERLAPPING WINDOWS over the original text, so the
+    union of the variants is the whole query — not a rephrasing, not a summary,
+    and never a reordering. Overlap matters: without it an identifier
+    straddling a window boundary is lost by both halves, which is the one case
+    a naive chunker cannot detect from the pieces alone. Each identifier also
+    gets its own variant so a code is never diluted by surrounding prose in a
+    provider that scores the whole string.
+
+    When the text is too long for ``max_variants`` windows the head and the tail
+    are covered and the MIDDLE is reported as uncovered rather than quietly
+    dropped — a bounded search says what it did not reach. Pair the call with
+    ``query_coverage`` to assert on it.
+
+    A query that already fits is returned unchanged as one variant, so the
+    common case costs nothing.
+    """
+    text = (query or "").strip()
+    if not text:
+        return []
+    max_chars = max(16, int(max_chars))
+    if len(text) <= max_chars:
+        return [text]
+
+    step = max(1, max_chars - (overlap if overlap is not None
+                               else max(24, max_chars // 5)))
+    # Window edges snap to a token boundary. Slicing at an arbitrary offset cut
+    # "invoice 4417" into "nvoice 4417", which is still a dropped constraint in
+    # substance — a provider asked for the fragment may not match the whole
+    # token — while `query_coverage` reported the run complete because the
+    # surviving fragment "4417" matched. The coverage check could not see it.
+    windows: List[str] = []
+    start = 0
+    while start < len(text) and len(windows) < max_variants:
+        end = min(start + max_chars, len(text))
+        if end < len(text):
+            boundary = text.find(" ", start + max_chars // 2, end)
+            if boundary != -1:
+                end = boundary
+        piece = text[start:end].strip()
+        if piece and piece not in windows:
+            windows.append(piece)
+        if end >= len(text):
+            break
+        nxt = text.find(" ", end)
+        start = (nxt + 1) if nxt != -1 else end
+        if start >= len(text):
+            break
+
+    if windows and windows[-1] != text[-max_chars:].strip():
+        windows[-1] = text[-max_chars:].strip()
+
+    seen: set = set()
+    variants: List[str] = []
+    for candidate in windows:
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            variants.append(candidate)
+
+    # Windows guarantee COVERAGE. A bare identifier variant adds PRECISION for
+    # providers that score the whole string against a document, so it is worth
+    # the remaining budget — but it is a bonus, never the mechanism that makes
+    # the search complete, and it must not push a window out.
+    covered = {t.lower() for v in variants for t in exact_identifiers(v)}
+    for token in exact_identifiers(text):
+        if token.lower() in covered or token in variants:
+            continue
+        if len(variants) >= max_variants:
+            break
+        variants.append(token)
+
+    return variants[:max_variants]
+
+
+def query_coverage(query: str, sent: Any) -> Dict[str, Any]:
+    """Which of the query's exact identifiers actually reached a provider.
+
+    ``sent`` is what was really transmitted: a string, or the sequence of
+    strings a decomposed search sent. Returns the requested set, the
+    transmitted set, and the identifiers that were dropped, so a caller can
+    report a bounded search instead of implying it covered everything. This is
+    the assertion a truncation regression has to fail — the drop must be
+    DETECTABLE, not merely avoided in the common case.
+    """
+    requested = exact_identifiers(query)
+    parts = [sent] if isinstance(sent, str) else list(sent or [])
+    transmitted: set = set()
+    for part in parts:
+        transmitted.update(t.lower() for t in exact_identifiers(part))
+    dropped = [t for t in requested if t.lower() not in transmitted]
+    return {
+        "requested_identifiers": requested,
+        "transmitted_identifiers": sorted(transmitted),
+        "dropped_identifiers": dropped,
+        "complete": not dropped,
+    }
+
+
 def _http_status_of(err: BaseException) -> Optional[int]:
-    """Status of an HTTP error, None for non-HTTP failures. Works for
+    """HTTP status of an HTTP error, None for non-HTTP failures. Works for
     httpx/requests HTTPStatusError alike via the shared .response shape."""
     response = getattr(err, "response", None)
     status = getattr(response, "status_code", None)

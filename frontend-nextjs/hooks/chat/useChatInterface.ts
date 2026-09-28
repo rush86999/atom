@@ -64,7 +64,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, []);
 
-    const loadSessionHistory = async (sid: string) => {
+    const loadSessionHistory = useCallback(async (sid: string) => {
         try {
             setIsProcessing(true);
             setStatusMessage("Loading history...");
@@ -177,7 +177,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         } finally {
             setIsProcessing(false);
         }
-    };
+    }, [onSessionCreated, toast]);
 
     const handleTitleSave = async () => {
         if (!sessionId || !tempTitle.trim()) {
@@ -240,6 +240,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
             const { apiClient } = await import('../../lib/api-client');
             // Create an AbortController so handleStop can cancel this request.
             abortControllerRef.current = new AbortController();
+            // Transport idempotency key for THIS submitted turn: axios-level
+            // network retries resend the identical body (same key → the
+            // server replays instead of re-executing); a user-composed
+            // retry is a new turn and mints a new key below.
+            const requestId = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `req_${Date.now()}_${Math.random().toString(36).slice(2)}`);
             // Safety-net: reset isProcessing after 120s if no response/stream-complete.
             if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
             processingTimeoutRef.current = setTimeout(() => {
@@ -251,6 +258,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 images: images && images.length ? images.slice(0, 2) : undefined,
                 session_id: sessionId,
                 user_id: getCurrentUserId(),
+                request_id: requestId,
                 context: {
                     current_page: "/chat",
                     agent_id: initialAgentId,
@@ -633,7 +641,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 return () => { cancelled = true; };
             }
         }
-    }, [sessionId, initialAgentId]);
+    }, [sessionId, initialAgentId, loadSessionHistory]);
 
     useEffect(() => {
         scrollToBottom();
@@ -755,7 +763,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         if (msg.type === "streaming:start") {
             setCurrentStreamId(msg.id);
         }
-    }, [lastMessage, currentStreamId, sessionId]);
+    }, [lastMessage, currentStreamId, sessionId, loadSessionHistory, toast]);
 
     return {
         input,

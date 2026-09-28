@@ -20,21 +20,23 @@ const MeetingAutomation = () => {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
     useEffect(() => {
-        fetchMeetings();
+        let cancelled = false;
+        void fetch("/api/sales/calls?workspace_id=temp_ws")
+            .then(response => response.json())
+            .then(data => {
+                if (cancelled) return;
+                setMeetings(data);
+                if (data.length > 0) {
+                    setSelectedMeeting(data[0]);
+                }
+            })
+            .catch(error => {
+                if (!cancelled) console.error("Error fetching meetings:", error);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, []);
-
-    const fetchMeetings = async () => {
-        try {
-            const response = await fetch("/api/sales/calls?workspace_id=temp_ws");
-            const data = await response.json();
-            setMeetings(data);
-            if (data.length > 0) {
-                setSelectedMeeting(data[0]);
-            }
-        } catch (error) {
-            console.error("Error fetching meetings:", error);
-        }
-    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-[600px]">

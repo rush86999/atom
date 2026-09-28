@@ -1,0 +1,116 @@
+{
+ "frozen_request": {
+  "ask": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit OVLAP-A [ovlapref-a]",
+  "context_keys": [
+   "canvas",
+   "canvas_content",
+   "canvas_title",
+   "canvas_type"
+  ],
+  "canvas_id": "aaaa1111-0000-4000-8000-000000000001",
+  "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3"
+ },
+ "points": {
+  "1_canvas_identity_authorization": {
+   "/api/canvases/aaaa1111-0000-4000-8000-000000000001": {
+    "status": 404,
+    "body_head": "{\"detail\":\"Not Found\"}"
+   },
+   "/api/canvas/aaaa1111-0000-4000-8000-000000000001": {
+    "status": 404,
+    "body_head": "{\"detail\":\"Canvas aaaa1111-0000-4000-8000-000000000001 not found\"}"
+   },
+   "audit_rows_pre_turn": 0
+  },
+  "4_branch_and_return": {
+   "http_status": 200,
+   "full_payload": {
+    "success": false,
+    "message": "Message processed successfully",
+    "session_id": "acc-frozen-1790368005",
+    "intent": "unknown",
+    "confidence": 0.5,
+    "suggested_actions": [],
+    "requires_confirmation": false,
+    "next_steps": [],
+    "timestamp": "2026-09-25T16:26:53.220077",
+    "metadata": {},
+    "memory_context": null,
+    "model": null,
+    "provider": null,
+    "reasoning": null,
+    "execution_id": null,
+    "error_code": null,
+    "recovery_url": null
+   },
+   "data_keys": [],
+   "intent": "unknown",
+   "model": null,
+   "execution_id": null
+  },
+  "4_execution_record": {
+   "rows": [
+    {
+     "status": "failed",
+     "result_summary": "fetch_fresh_data_section() got an unexpected keyword argument 'existing_evidence_contract'",
+     "metadata_keys": [
+      "session_id",
+      "surface",
+      "user_id",
+      "workspace_id"
+     ],
+     "task_outcome": {},
+     "completed_at": "2026-09-25 20:26:53.225245"
+    }
+   ],
+   "reasoning_steps": []
+  },
+  "5_audit_readback": {
+   "audit_rows_post": [],
+   "marker_in_audit": false
+  },
+  "3_provider_calls": {
+   "count": 3,
+   "calls": [
+    {
+     "model": "gpt-6-astra",
+     "tool_names": [
+      "ToolPlan"
+     ],
+     "matched_key": "tool planner for an ai automation platform",
+     "system_head": "You return only the requested JSON object."
+    },
+    {
+     "model": "gpt-6-astra",
+     "tool_names": [
+      "ToolPlan"
+     ],
+     "matched_key": "tool planner for an ai automation platform",
+     "system_head": "You return only the requested JSON object."
+    },
+    {
+     "model": "gpt-6-astra",
+     "tool_names": [
+      "ToolPlan"
+     ],
+     "matched_key": "tool planner for an ai automation platform",
+     "system_head": "You return only the requested JSON object."
+    }
+   ]
+  },
+  "2_dispatch_log_slice": [
+   "  canvas_context_detail: str = Query(\"summary\", regex=\"^(summary|standard|full)$\"),",
+   "INFO:main_api_app:\u2713 Canvas Email Routes Loaded (/api/canvas/email)",
+   "INFO:main_api_app:\u2713 Canvas PDF Routes Loaded (/api/canvas/pdf)",
+   "INFO:main_api_app:\ud83d\ude80 [ULTRA LOUD] GET /api/canvases/aaaa1111-0000-4000-8000-000000000001",
+   "INFO:main_api_app:\ud83c\udfc1 [ULTRA LOUD] GET /api/canvases/aaaa1111-0000-4000-8000-000000000001 -> 404",
+   "INFO:     127.0.0.1:56273 - \"GET /api/canvases/aaaa1111-0000-4000-8000-000000000001 HTTP/1.1\" 404 Not Found",
+   "INFO:main_api_app:\ud83d\ude80 [ULTRA LOUD] GET /api/canvas/aaaa1111-0000-4000-8000-000000000001",
+   "INFO:main_api_app:\ud83c\udfc1 [ULTRA LOUD] GET /api/canvas/aaaa1111-0000-4000-8000-000000000001 -> 404",
+   "INFO:     127.0.0.1:56274 - \"GET /api/canvas/aaaa1111-0000-4000-8000-000000000001 HTTP/1.1\" 404 Not Found",
+   "INFO:integrations.chat_routes:Processing chat message from user b83eb105-d9e7-41a5-83e3-a632b15b9ee3: in the open canvas, change the quote validity from 15 days to 30 days and mark the edit OVLAP-A [ovlapref-a]",
+   "INFO:integrations.chat_routes:[CHATCTX] request.agent_id=None context={'canvas': {'id': 'aaaa1111-0000-4000-8000-000000000001'}, 'canvas_content': '{\"to\": \"\", \"cc\": \"\", \"subject\": \"\", \"body\": \"Hi Steve,<br><br>Thank you for your inquiry. Please find our quote below. Rows 1\\\\u20135 are the requested machines; rows 6\\\\u20138 are alternative slitters.<br><br><table style=\\\\\"border-collapse: collapse; width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 14px; margin: 8px 0;\\\\\"><thead><tr><th style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\\\">#</th><th style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\\\">Description</th><th style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\\\">Unit Price</th><th style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; color: #ffffff; text-align: left;\\\\\">Delivery</th></tr></thead><tbody><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">1</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Roper Whitney 36&quot; Gauge Manual Roll Bender, No. 381</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$2,902.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">10\\\\u201311 weeks</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">2</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Linmac Bead Roller 22 Gauge, 7&quot; Throat, U-22</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$1,777.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">3\\\\u20134 months</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">3</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Manual Flanger</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$1,609.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">3\\\\u20134 weeks</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">4</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Roper Whitney No. 622 Rotary Machine</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$2,421.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">In Stock</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">5</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Tennsmith Single Wheel Slitter SLE24-16</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$8,880.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">11\\\\u201312 weeks</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">6</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">TK 1624 Slitter</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$8,040.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">4\\\\u20136 weeks</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">7</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Tin Knocker TK Multi Wheel Gang Slitter</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$12,838.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">In Stock</td></tr><tr><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">8</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">Tennsmith Multi Wheel Gang Slitter GSL48-16</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">$14,166.00</td><td style=\\\\\"border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;\\\\\">6\\\\u20138 weeks</td></tr></tbody></table><br><strong>Requested equipment:</strong> rows 1\\\\u20135. <strong>Alternative slitters:</strong> rows 6\\\\u20138.<br><br>Unit Price: CAD  <br>FOB: Woodstock  <br>Payment Terms: TBD<br><br><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\\\">Regards,</div><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\\\"><br></div><div style=\\\\\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\\\\\"><b><i>Rish M.</i></b></div><div style=\\\\\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\\\\\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\\\\\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\\\\\"><span style=\\\\\"color:black\\\\\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\\\\\"color:blue\\\\\"><a href=\\\\\"http://www.brennan.ca/\\\\\" target=\\\\\"_blank\\\\\" rel=\\\\\"noopener noreferrer\\\\\" style=\\\\\"color:blue; margin:0px\\\\\"><u>www.brennan.ca</u></a></span></div><div style=\\\\\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\\\\\"><span style=\\\\\"color:red; background-color:rgb(255,255,255)\\\\\"><b><i>How am I doing?</i></b></span><span style=\\\\\"color:rgb(68,84,106); background-color:rgb(255,255,255)\\\\\"><b><i>&nbsp;</i></b><a href=\\\\\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\\\\\" title=\\\\\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\\\\\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\\\\\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\\\\\"><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\\\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\\\">Simply reply with your machine specs, and we\\'ll leverage our buyer network to get it sold for you.</div><hr style=\\\\\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\\\\\"><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\\\"><span style=\\\\\"background-color:rgb(255,255,255)\\\\\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\\\\\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\\\\\"><span style=\\\\\"background-color:rgb(255,255,255)\\\\\"><br></span></div><div></div>\"}', 'canvas_type': 'email', 'canvas_title': 'Quote copy (acceptance rig)'}",
+   "INFO:integrations.chat_orchestrator:[timeline] chat planner finished: 7.4s after the turn's canvas-edit clock started"
+  ]
+ }
+}

@@ -3,7 +3,7 @@
  * Complete Tableau integration with dashboards, workbooks, datasources, views, and analytics
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
     Search,
@@ -126,12 +126,7 @@ const TableauIntegration: React.FC = () => {
 
     const { toast } = useToast();
 
-    // Load initial data
-    useEffect(() => {
-        loadTableauData();
-    }, []);
-
-    const loadTableauData = async () => {
+    const loadTableauData = useCallback(async () => {
         try {
             setIsLoading(true);
 
@@ -139,6 +134,10 @@ const TableauIntegration: React.FC = () => {
             const healthResponse = await fetch("/api/v1/tableau/health");
             if (healthResponse.ok) {
                 setIsConnected(true);
+                let loadedWorkbooks: TableauWorkbook[] = [];
+                let loadedDatasources: TableauDatasource[] = [];
+                let loadedViews: TableauView[] = [];
+                let loadedProjects: TableauProject[] = [];
 
                 // Load workbooks
                 const workbooksResponse = await fetch(
@@ -146,7 +145,8 @@ const TableauIntegration: React.FC = () => {
                 );
                 if (workbooksResponse.ok) {
                     const workbooksData = await workbooksResponse.json();
-                    setWorkbooks(workbooksData.data || []);
+                    loadedWorkbooks = workbooksData.data || [];
+                    setWorkbooks(loadedWorkbooks);
                 }
 
                 // Load datasources
@@ -155,21 +155,24 @@ const TableauIntegration: React.FC = () => {
                 );
                 if (datasourcesResponse.ok) {
                     const datasourcesData = await datasourcesResponse.json();
-                    setDatasources(datasourcesData.data || []);
+                    loadedDatasources = datasourcesData.data || [];
+                    setDatasources(loadedDatasources);
                 }
 
                 // Load views
                 const viewsResponse = await fetch("/api/v1/tableau/views?limit=50");
                 if (viewsResponse.ok) {
                     const viewsData = await viewsResponse.json();
-                    setViews(viewsData.data || []);
+                    loadedViews = viewsData.data || [];
+                    setViews(loadedViews);
                 }
 
                 // Load projects
                 const projectsResponse = await fetch("/api/v1/tableau/projects");
                 if (projectsResponse.ok) {
                     const projectsData = await projectsResponse.json();
-                    setProjects(projectsData.data || []);
+                    loadedProjects = projectsData.data || [];
+                    setProjects(loadedProjects);
                 }
 
                 // Load user profile
@@ -181,12 +184,12 @@ const TableauIntegration: React.FC = () => {
 
                 // Calculate stats
                 const calculatedStats: TableauStats = {
-                    total_workbooks: workbooks.length,
-                    total_datasources: datasources.length,
-                    total_views: views.length,
-                    total_projects: projects.length,
+                    total_workbooks: loadedWorkbooks.length,
+                    total_datasources: loadedDatasources.length,
+                    total_views: loadedViews.length,
+                    total_projects: loadedProjects.length,
                     active_users: 1,
-                    storage_used: workbooks.reduce((sum, w) => sum + (w.size || 0), 0),
+                    storage_used: loadedWorkbooks.reduce((sum, w) => sum + (w.size || 0), 0),
                 };
                 setStats(calculatedStats);
             }
@@ -196,7 +199,11 @@ const TableauIntegration: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadTableauData();
+    }, [loadTableauData]);
 
     const handleConnect = async () => {
         try {

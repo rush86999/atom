@@ -3,7 +3,7 @@
  * Simplified version using Shadcn UI components
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   MessageCircle,
   Phone,
@@ -103,15 +103,32 @@ const WhatsAppBusinessIntegration: React.FC = () => {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchWhatsAppData();
-    const interval = setInterval(fetchConversations, 30000);
-    return () => clearInterval(interval);
+  const fetchConversations = useCallback(async () => {
+    try {
+      const response = await fetch('/api/whatsapp/conversations');
+      const data = await response.json();
+      if (data.success) {
+        setConversations(data.conversations);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
   }, []);
 
-  const fetchWhatsAppData = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
-      setIsLoading(true);
+      const response = await fetch('/api/whatsapp/analytics');
+      const data = await response.json();
+      if (data.success) {
+        setAnalytics(data.analytics);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  }, []);
+
+  const fetchWhatsAppData = useCallback(async () => {
+    try {
       const healthResponse = await fetch('/api/whatsapp/health');
       const healthData = await healthResponse.json();
       const isHealthy = healthData.status === 'healthy';
@@ -133,19 +150,13 @@ const WhatsAppBusinessIntegration: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchAnalytics, fetchConversations, toast]);
 
-  const fetchConversations = async () => {
-    try {
-      const response = await fetch('/api/whatsapp/conversations');
-      const data = await response.json();
-      if (data.success) {
-        setConversations(data.conversations);
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    }
-  };
+  useEffect(() => {
+    fetchWhatsAppData();
+    const interval = setInterval(fetchConversations, 30000);
+    return () => clearInterval(interval);
+  }, [fetchConversations, fetchWhatsAppData]);
 
   const fetchMessages = async (whatsappId: string) => {
     try {
@@ -156,18 +167,6 @@ const WhatsAppBusinessIntegration: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
-    }
-  };
-
-  const fetchAnalytics = async () => {
-    try {
-      const response = await fetch('/api/whatsapp/analytics');
-      const data = await response.json();
-      if (data.success) {
-        setAnalytics(data.analytics);
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
     }
   };
 

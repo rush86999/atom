@@ -6,6 +6,7 @@ import type { AxeResults, Result } from 'axe-core';
 type Violation = Result;
 import React, { ReactElement } from 'react';
 import { SessionProvider } from 'next-auth/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Extend Jest with jest-axe matcher
 expect.extend(toHaveNoViolations);
@@ -227,7 +228,19 @@ export async function authenticatedAxeRender(
     })
   ) as jest.Mock;
 
-  return render(<SessionProvider session={null}>{ui}</SessionProvider>, options);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider session={null}>{ui}</SessionProvider>
+    </QueryClientProvider>,
+    options
+  );
 }
 
 /**

@@ -1,0 +1,48 @@
+{
+ "case_id": "planner_down_no_apply",
+ "sample": 2,
+ "session_id": "acc-no_apply-1790355440-2",
+ "captured_at": "2026-09-25T12:57:20-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.1",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.1"
+ },
+ "config": {
+  "ATOM_CHAT_STREAMING": "1",
+  "server_env": "whitelist, credential-free",
+  "network_boundary": "seatbelt: external blocked, loopback restricted to the test server port"
+ },
+ "turns": [
+  {
+   "message": "update the canvas prices with the figures from this conversation",
+   "success": true,
+   "latency_s": 6.63,
+   "model": "auto"
+  }
+ ],
+ "total_s": 6.63,
+ "canvas_edit": {
+  "updated": null,
+  "no_apply": null,
+  "reason": null,
+  "plan_unavailable": null
+ },
+ "mutation_performed": false,
+ "per_target": {},
+ "claim_check": {
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true
+ },
+ "correct_completion": true,
+ "unsupported_claims": 0,
+ "reply": "I couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.",
+ "reply_excerpt": "I couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again."
+}

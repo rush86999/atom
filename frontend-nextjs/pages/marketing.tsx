@@ -203,7 +203,7 @@ const MarketingDashboard: React.FC = () => {
                                     <div className="p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-lg animate-in fade-in slide-in-from-top-2">
                                         <h4 className="font-bold text-purple-900 dark:text-purple-300 mb-2">AI Research Summary:</h4>
                                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                                            "{researchResult.answer}"
+                                            &quot;{researchResult.answer}&quot;
                                         </p>
                                     </div>
                                 )}

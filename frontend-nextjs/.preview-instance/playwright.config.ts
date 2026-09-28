@@ -1,0 +1,1 @@
+/Users/rushiparikh/projects/atom/frontend-nextjs/playwright.config.ts

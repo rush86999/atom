@@ -1,0 +1,51 @@
+{
+  "schema": "lane3-c16-d2-result-v1",
+  "generated_at": "2026-09-28T02:30:00-0400",
+  "headline": "Combined candidate: all three controlled cases re-run green on ONE export that includes the email-canvas creation-invariant fix. Synchronous 15/15, background success 26/26, background failure 26/26.",
+  "candidate": {
+    "world": "c16_d2",
+    "backend_port": 8076,
+    "code_manifest_sha256_32": "f6a6c5c229b1c297cacec48c9a5799fd",
+    "code_export_sha256_16": "d6bbd5611fd3",
+    "fixture_sha256_32": "60f6a62f909e",
+    "identity": "d5d6705960 (rev) / 46 parquets verified / seatbelt local-only",
+    "superseedes": "c16_d1 export 9cdf562d10aa5989"
+  },
+  "rerun_accounting": {
+    "rule": "a production change gets a new fingerprint; every case is re-run on the combined source so no result is carried across exports",
+    "production_changes_in_this_export": [
+      "core/canvas_email_service.py - create_email_canvas now writes the Canvas row as well as the CanvasAudit row",
+      "core/async_turn_continuation.py - four-id identity contract (origin_operation_id), mutation located through the relationship, revision-currency reconciliation, READBACK-DECISION / effects-stage diagnostics",
+      "integrations/chat_orchestrator.py - both fork sites pass the interactive turn's lifecycle operation id",
+      "scripts/orchestration_acceptance/provider_shim.py - stall gated on the advertised tool, per-leg arming, gate-miss and stall-hit records",
+      "scripts/orchestration_acceptance/preview_stack.py - ATOM_CHAT_REQUEST_DEADLINE_SECONDS passed through the server env allowlist and recorded in effective_flags"
+    ],
+    "cases_rerun_on_this_export": ["case 1 synchronous", "case 2 background success", "case 3 background failure"],
+    "cases_carried_over": "none"
+  },
+  "results": {
+    "case_1_synchronous": {"pass": true, "checks": "15/15", "budget": "(product default)", "injection_proven": true},
+    "case_2_background_success": {"pass": true, "checks": "26/26", "budget": "60.0", "edit_leg_slice": 20.0, "stall": 40.0, "terminal": "completed / [applied]", "notification": "received", "history": "recovers"},
+    "case_3_background_failure": {"pass": true, "checks": "26/26", "budget": "60.0", "terminal": "failed", "update_audits": 0, "notification_channel": "empty by design", "durable_outcome": "not lost", "mutation": "not repeated"}
+  },
+  "creation_invariant_finding_and_fix": {
+    "defect": "POST /api/canvas/email/create returned 200 with a canvas_id and wrote a CanvasAudit row with action_type='create', but NEVER inserted the Canvas row. The canvas it returned did not exist in `canvases`, so it was unreadable and uneditable while its audit trail claimed a create. The blank-canvas path in api/canvas_routes.py already requires content in BOTH places ('readers treat the audit trail as the source of truth'); the email path did not match it.",
+    "evidence_before": "canvas_row=False, audit_rows=1, canvas_id cf381bf9-2296-4aa1-af53-32d34a5904bc",
+    "fix": "create_email_canvas now adds a Canvas row (name/title from subject, canvas_type='email', status='active', content mirroring the draft's to/cc/subject/body) in the same transaction as the audit row",
+    "first_fix_attempt_error": "'title' is an invalid keyword argument for Canvas - the model has no title column. Caught because the service refuses to fabricate success; the harness fixture had masked this by filtering inserts to existing columns.",
+    "evidence_after": "verified twice: through the real service in-process (canvas row present, content_len=79, audit ['create']) and end-to-end through the live HTTP API on this export (canvas=1, audit=1 for e773826e-fe87-4299-ab96-788562fa6322)"
+  },
+  "fixture_realism_note": "The controlled harness seeds canvases by direct sqlite INSERT with NO audit row - the inverse of what the product does. Every controlled result therefore rests on a fixture the product never creates. The product invariant is now verified separately through the real API; making the harness seed via the creation API is outstanding.",
+  "still_open": {
+    "origin_operation_path_live": "Unit-verified against real recorded evidence and wired into the harness assertions, but not exercised end to end: in every regime where the fork is taken the interactive edit leg is abandoned (_edit_response=None) and its write never applies, so the landed mutation is always the continuation's own. See c16_d1_controlled/OPEN_BLOCKER_origin_operation_path.md",
+    "directive_steps_not_done": ["D5 completion UX polish", "real-planner trials", "harness seeding via the creation API", "combined freeze + browser acceptance of the supported edit workflow", "handoff publication"],
+    "artifact_editing": "correctly still excluded"
+  },
+  "evidence": {
+    "c16_d2_controlled/c16_controlled_sync.json": "case 1",
+    "c16_d2_controlled/c16_controlled_bg-success.json": "case 2",
+    "c16_d2_controlled/c16_controlled_bg-failure.json": "case 3",
+    "c16_d1_controlled/RESULT.json": "previous export, retained",
+    "c16_d1_controlled/OPEN_BLOCKER_origin_operation_path.md": "open blocker"
+  }
+}

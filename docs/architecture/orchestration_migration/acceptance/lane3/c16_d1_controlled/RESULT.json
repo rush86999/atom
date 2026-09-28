@@ -1,0 +1,145 @@
+{
+  "schema": "lane3-c16-d1-result-v1",
+  "generated_at": "2026-09-27T22:55:00-0400",
+  "headline": "One immutable export, three separately-launched cases, all green: synchronous 15/15, background success 24/24, background failure 26/26 (with an empty notification channel). Interruption recovery verified separately.",
+  "candidate": {
+    "world": "c16_d1",
+    "backend_port": 8075,
+    "code_source": "WORKING-TREE SNAPSHOT (hash-pinned, read-only)",
+    "code_snapshot_sha256_32": "9cdf562d10aa5989c6f4fe663fd52709",
+    "code_snapshot_matches_working_tree": "core/async_turn_continuation.py sha256_16=822b0ee42f4c3f78 in both",
+    "fixture_sha256_32": "6d28d0e9ddc9dbe2ef849b088cd10060",
+    "identity": "a8bc48dc13e5-dirty.32f44",
+    "preflight": "rev=d5d6705960 export=0410e02f13 db=6d28d0e9dd scrubbed venv fixtures ok; 46 parquets verified; seatbelt local-only profile"
+  },
+  "launch_binding": {
+    "note": "The two cases need different interactive budgets and the budget is fixed at server launch, so they are separate launches. Same export, same fixture, separate run dirs. Nothing is carried across from c16_d0.",
+    "sync": {
+      "run_dir": "run-5405e6d383ee",
+      "effective_interactive_budget": "(product default)",
+      "stall_armed": false
+    },
+    "background": {
+      "run_dir": "run-2bc197b9e021",
+      "effective_interactive_budget": "60.0",
+      "reply_leg_reserve_seconds": 40.0,
+      "edit_leg_slice_seconds": 20.0,
+      "stall_seconds": 40.0,
+      "stall_gate": "the armed tool name (CanvasEditPlan) as advertised in tools[], never prompt text"
+    }
+  },
+  "case_1_synchronous": {
+    "pass": true,
+    "checks": "15/15",
+    "boundaries": {
+      "b1_served": true,
+      "b2_parser_accepted": true,
+      "b3_no_fallback": true,
+      "b4_mutation_audited": true,
+      "b5_readback_verified": true
+    },
+    "injection_proven_at_shim": true,
+    "completion_requests_served": 1,
+    "evidence": "c16_controlled_sync.json"
+  },
+  "case_2_background_success": {
+    "pass": true,
+    "checks": "24/24",
+    "inconclusive": false,
+    "evidence": "c16_controlled_bg-success.json",
+    "assertions_required_by_the_direction": {
+      "edit_leg_actually_ran": true,
+      "intended_stall_was_consumed": true,
+      "continuation_actually_forked": true,
+      "origin_operation_linked_to_the_exact_audit_row": true,
+      "exactly_one_mutation": true,
+      "readback_and_terminal_reporting_correct": true,
+      "notification_received": true,
+      "history_recovery": true
+    },
+    "terminal": {
+      "continuation_id": "bebcda64-b0e3-46ad-b7f7-c219cd9354c5",
+      "status": "completed",
+      "result_summary": "[applied] Updated the quote validity to 30 days.",
+      "duration": "4s"
+    },
+    "identity_chain": {
+      "update_count": 1,
+      "landed_operation_id": "bebcda64-b0e3-46ad-b7f7-c219cd9354c5",
+      "landed_matches_continuation": true,
+      "note": "In THIS run the continuation performed the write itself, so the landed row carries the continuation's own operation_id. The origin-operation reconciliation path (the interactive attempt's write landing first) is unit-verified against the real c16_d0 evidence but was not the path taken here, and remains to be exercised by a run where the interactive write wins the race."
+    }
+  },
+  "case_3_background_failure": {
+    "pass": true,
+    "checks": "25/25",
+    "inconclusive": false,
+    "run_dir": "run-20a91c7096a1",
+    "evidence": "c16_controlled_bg-failure.json",
+    "injection": "a plan the parser ACCEPTS (so the turn reserves, claims and reaches execution) whose `find` text is absent from the canvas, so it fails at EXECUTION time. The previous bg-failure mode submitted the same accepting PATCH_OPS as the success case, which contradicted its own zero-mutation assertions; a planner DECLINE would also have proved nothing about truthful failure reporting.",
+    "terminal": {
+      "status": "failed",
+      "result_summary": "[failed] The background edit attempt did not apply after 3 attempts (the edit planner could not complete; ...)",
+      "update_count": 0
+    },
+    "assertions": {
+      "no_unsupported_success": true,
+      "zero_update_audits": true,
+      "old_text_intact": true,
+      "no_false_success_in_summary": true,
+      "history_reports_the_failure": true,
+      "empty_channel_lost_no_durable_outcome": true,
+      "empty_channel_repeated_no_mutation": true,
+      "no_stranded_operation": true
+    },
+    "empty_notification_channel": "subscribed to no websocket at all; the durable outcome was still recorded, the history still reported the failure, and the mutation was neither lost nor repeated",
+    "readback_diagnostic": "the READBACK-DECISION log fired and named the gate: gate=no-response, response=False, note='the edit planner could not complete'"
+  },
+  "case_4_origin_operation_attribution": {
+    "pass": "27/27 checks green, but attribution = 'continuation'",
+    "run_dir": "run-9ec67f4f-linked",
+    "stall_first_n": 2,
+    "origin_operation_id_recorded": "50d80bf9-5883-4b74-9b26-e3b649cae60a",
+    "continuation_id": "75922b59-9cd8-4f25-8391-f58985e8eb86",
+    "attribution": "continuation",
+    "note": "The new assertions landed_mutation_attributable_to_this_request and landed_mutation_is_the_current_revision are green and the origin id is durably recorded, but the interactive attempt's write never landed, so the origin reconciliation path was NOT exercised. See OPEN_BLOCKER_origin_operation_path.md",
+    "evidence": "c16_d1_origin/c16_controlled_bg-success.json"
+  },
+  "interruption_recovery": {
+    "status": "verified separately from the normal background run",
+    "method": "an interrupted continuation left a durable row at status='running'; the world was then restarted on the SAME run dir",
+    "before": "01c83cc6-dfdd-48bc-a4f6-6f6e5fb15f7d status='running', empty summary",
+    "after": "status='failed', error_message='Process restarted while execution was running (crashed)'",
+    "log": "WARNING:core.execution_recovery:Crash recovery: reconciled 0 workflow execution(s) and 1 agent execution(s) orphaned in a running state",
+    "rows_still_running_after_recovery": 0,
+    "conclusion": "A continuation killed mid-flight does not stay 'running' forever: boot reconciliation converts it to a truthful terminal failure. The earlier 'stranded row' symptom was process death between runs plus working recovery, not an unhandled product defect. The normal background run is unaffected - it reached terminal in 4s with no row left running."
+  },
+  "harness_corrections_that_made_this_possible": [
+    "BUDGET FEASIBILITY PRECONDITION. The product reserves ATOM_REPLY_LEG_MIN_SECONDS (default 40) for the answer and refuses to START a pre-reply leg it cannot pay for, so any budget <= 40s skips the canvas-edit leg entirely: no edit, no fork, and the edit planner is never called. The harness now refuses such a budget up front. This is what made the earlier 'background' runs meaningless.",
+    "STALL GATED ON THE TOOL, NOT PROMPT TEXT. The shim matched its script on the substring 'canvaseditplan' across the whole message blob, and the REPLY leg's prompt contains that string too, so the reply leg drew the stall and starved the edit leg. The stall is now armed for one exact tool advertised in tools[], requires exactly one gated match to consume it, and records non-matching requests separately.",
+    "SUBSCRIBE BEFORE EXECUTION. The websocket subscription was opened after the interactive reply returned, but the whole continuation completes seconds after the fork - before that reply. The broadcast could never be observed. The subscription is now established first and the request is issued on its own thread.",
+    "STALL ARITHMETIC CORRECTED. The check compared the stall to the whole budget; the stall must exceed the EDIT LEG'S SLICE (budget - reply reserve), which is what actually bounds the leg.",
+    "INJECTION PROOF. 'Provider loaded' and 'no fallback marker' do not prove a request occurred. The harness now traces provider selection -> attempted request -> shim receipt -> served response -> parser acceptance, and a case whose injection is unproven is INCONCLUSIVE.",
+    "EXACT DURABLE LOOKUP with a served-database cross-check and missing/duplicate/running/terminal controls; an untrustworthy lookup is INCONCLUSIVE, never 'no continuation'.",
+    "SEPARATE LAUNCHES with each server's effective budget, run dir, fixture hash and code-snapshot hash recorded in the report."
+  ],
+  "product_changes_made_earlier_and_now_exercised": [
+    "IDENTITY CONTRACT: fork_canvas_edit_continuation now carries the interactive turn's task-lifecycle operation id (origin_operation_id); both fork sites pass it; it is persisted durably in the AgentExecution metadata; _operation_identity/_matched_operation_row locate the mutation through that relationship with exact operation_id equality.",
+    "RECONCILIATION: _classify_preapply claims already_applied only when the matched row is still the canvas's current revision. This narrows what counts as done; the revision door and every read-back gate are unchanged.",
+    "These explain why the background case now reports outcome=applied in 4s where it previously retried three times and reported failure against a write that had actually landed."
+  ],
+  "not_done": [
+    "THE ORIGIN-OPERATION PATH, LIVE. Unit-verified against real recorded evidence and its assertions are wired and green, but every regime that actually forks also cancels the interactive edit before it can apply, so the landed write is always the continuation's own. Recorded as a specific blocker with the next probe in OPEN_BLOCKER_origin_operation_path.md. Consequence: every controlled result on this export was obtained on the continuation's-own-write path.",
+    "directive step 2: D5 completion UX - readable execution-bound outcome instead of bracketed diagnostic text, notification-to-turn binding, disconnected reload recovery",
+    "directive step 3: API-created canvas validation (read/edit of a canvas created through the normal creation API, with no hand-seeded audit row)",
+    "directive step 4: real-planner trials, kept separate from controlled-provider results",
+    "directive step 5: concurrency and reproducible interruption tests, combined candidate freeze, browser test of the supported edit workflow, handoff",
+    "artifact editing promotion (correctly still excluded)"
+  ],
+  "preserved": {
+    "preview_v1": {"fe": 3101, "be": 8051, "state": "untouched, listening"},
+    "candidate_fix1": {"fe": 3102, "be": 8071, "state": "untouched, listening"},
+    "c16_d0": "left intact as the evidence world for the 16:36 snapshot",
+    "git": "HEAD unchanged at a8bc48dc1; nothing committed or staged; the 7 pre-existing staged paths untouched"
+  }
+}

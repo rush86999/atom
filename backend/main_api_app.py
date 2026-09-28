@@ -4383,6 +4383,25 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Fleet router management routes failed to load: {e}")
 
+    # 40c. Decision Plane Management Routes (certification + approval queue)
+    try:
+        from api.decision_automation_routes import router as decision_mgmt_router
+
+        app.include_router(decision_mgmt_router)
+        logger.info("✓ Decision Plane Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Decision plane management routes failed to load: {e}")
+
+    # Start the consent-gated decision-plane certification loop (no-op when off).
+    try:
+        from core.decision_automation import ensure_automation_task
+
+        ensure_automation_task()
+        logger.info("✓ Decision Automation Loop Scheduled (mode=%s)",
+                    os.getenv("ATOM_DECISION_AUTO_ENFORCE", "off"))
+    except Exception as e:
+        logger.warning(f"Decision automation scheduling failed: {e}")
+
     # 40b. Org-Politics Management Routes (consent-gated lifecycle automation)
     try:
         from api.org_politics_routes import router as org_politics_mgmt_router

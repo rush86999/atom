@@ -1,0 +1,68 @@
+{
+ "case_id": "narration_followup_poisoned",
+ "sample": 1,
+ "session_id": "acc-narr-1790358518-1",
+ "captured_at": "2026-09-25T13:48:57-0400",
+ "path": "old",
+ "harness_version": "enforced-isolation-v3.2",
+ "preflight": {
+  "source_revision": "39d6532d5af3edbd51c4abec2c3f98ab026cf13b",
+  "code_archive_sha256": "4d86bd5ed9e1b27239d4ea9b7fdab7b6754eba05bc26c51c08b1419d07561930",
+  "db_sha256": "d64135e0d65ea870c175810649de1c5a5109395782c9c3f8dff9417e4affe692",
+  "credentials_scrubbed": true,
+  "venv_verified": true,
+  "fixtures_verified": true,
+  "harness_version": "enforced-isolation-v3.2"
+ },
+ "config": {
+  "provider": "local shim (recorded responses)",
+  "network_boundary": "seatbelt: external blocked; loopback = server port + shim :8099"
+ },
+ "turns": [
+  {
+   "message": "find the prices of these 8 machines in Consolidated Price Li",
+   "latency_s": 4.06,
+   "model": "deterministic"
+  },
+  {
+   "message": "in one sentence, why does lead time matter when quoting mach",
+   "latency_s": 15.36,
+   "model": "auto"
+  }
+ ],
+ "total_s": 19.42,
+ "answer_availability_latency_s": 15.36,
+ "answer_availability_basis": "HTTP response receipt (narration turn)",
+ "per_target": {},
+ "claim_check": {
+  "ruleset": "v2.1",
+  "unsupported": [],
+  "unsupported_count": 0,
+  "measured": true,
+  "scope": "bounded diagnostic; acceptance gate for claim correctness remains open"
+ },
+ "claim_calibration": {
+  "action_evidence": {
+   "send": {
+    "status": "unverified",
+    "source": null
+   },
+   "mutation": {
+    "status": "unverified",
+    "source": null
+   }
+  },
+  "provider_completions_served": 0
+ },
+ "claim_gate_eligible": true,
+ "shim_log": [],
+ "injected_claim": "I have updated the canvas with these prices",
+ "injected_claim_survives_uncorrected": false,
+ "production_guard_verdict": "claim corrected",
+ "narration_model": "auto",
+ "correct_completion": true,
+ "unsupported_claims_detected_by_ruleset": 0,
+ "unsupported_claims": 0,
+ "reply": "I couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again.",
+ "reply_excerpt": "I couldn't generate a response \u2014 every configured provider failed. Last error: Connection error.. Check provider status or credentials in Settings and try again."
+}

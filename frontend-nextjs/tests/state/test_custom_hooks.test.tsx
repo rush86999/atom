@@ -99,13 +99,15 @@ function useSessionStorage<T>(key: string, initialValue: T): [T, (value: T) => v
 }
 
 function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T>();
+  const [previousValue, setPreviousValue] = useState<T>();
+  const [currentValue, setCurrentValue] = useState(value);
 
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
+  if (currentValue !== value) {
+    setPreviousValue(currentValue);
+    setCurrentValue(value);
+  }
 
-  return ref.current;
+  return previousValue;
 }
 
 function useAsync<T>(
@@ -118,7 +120,9 @@ function useAsync<T>(
   execute: () => Promise<void>;
   reset: () => void;
 } {
-  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>(
+    immediate ? 'pending' : 'idle'
+  );
   const [value, setValue] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
@@ -145,7 +149,7 @@ function useAsync<T>(
 
   useEffect(() => {
     if (immediate) {
-      execute();
+      void Promise.resolve().then(execute);
     }
   }, [immediate, execute]);
 

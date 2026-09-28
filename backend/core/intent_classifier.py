@@ -122,7 +122,7 @@ Respond in JSON format:
                 IntentCategory.TASK: "fleet_admiral"
             }
             
-            return IntentClassification(
+            result = IntentClassification(
                 category=classification["category"],
                 confidence=classification["confidence"],
                 reasoning=classification["reasoning"],
@@ -137,16 +137,37 @@ Respond in JSON format:
         except Exception as e:
             logger.warning(f"LLM classification failed, using heuristics: {e}")
             # Fallback to heuristic classification
-            return self._heuristic_classify(user_request)
+            result = self._heuristic_classify(user_request)
+
+        self._schedule_decision_shadow(user_request, result)
+        return result
+
+    def _schedule_decision_shadow(self, user_request: str,
+                                  result: "IntentClassification") -> None:
+        """Shadow-only telemetry vs the local decision model.
+
+        Never raises, never alters the result. Opt-in via
+        ATOM_OLLAYA_SHADOW_INTENT (default off). See core/decision_shadow.py.
+        """
+        try:
+            from core import decision_shadow as _ds
+            category = result.category
+            category_value = category.value if hasattr(category, "value") else str(category)
+            _ds.schedule_intent_shadow(
+                self.workspace_id, user_request,
+                category_value, result.confidence,
+            )
+        except Exception as exc:
+            logger.warning(f"Decision shadow schedule skipped: {exc}")
 
     async def _llm_classify(self, user_request: str) -> Dict[str, Any]:
         """Use LLM to classify intent"""
         prompt = self.CLASSIFICATION_PROMPT.format(user_request=user_request)
         
-        response = await self.llm.call(
-            user_id=self.workspace_id,
+        response = await self.llm.generate_completion(
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1  # Low temperature for consistent classification
+            temperature=0.1,  # Low temperature for consistent classification
+            workspace_id=self.workspace_id,
         )
         
         # Parse JSON response

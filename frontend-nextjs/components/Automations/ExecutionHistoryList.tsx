@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import {
     Table,
@@ -37,7 +37,7 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         if (!workflowId) return;
 
         try {
@@ -54,11 +54,11 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [workflowId]);
 
     useEffect(() => {
-        fetchHistory();
-    }, [workflowId, refreshTrigger]);
+        void fetchHistory();
+    }, [fetchHistory, refreshTrigger]);
 
     const getStatusColor = (status: string) => {
         switch (status) {

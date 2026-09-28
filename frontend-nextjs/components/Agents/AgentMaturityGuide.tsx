@@ -33,12 +33,25 @@ export function AgentMaturityGuideDialog({ agentId, open, onOpenChange }: AgentM
 
   useEffect(() => {
     if (!open || !agentId) return;
-    setIsLoading(true);
-    setError(null);
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setIsLoading(true);
+      setError(null);
+    });
     getAgentMaturityGuide(agentId)
-      .then(setGuide)
-      .catch(() => setError('Could not load the maturity guide for this agent.'))
-      .finally(() => setIsLoading(false));
+      .then((nextGuide) => {
+        if (!cancelled) setGuide(nextGuide);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load the maturity guide for this agent.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, agentId]);
 
   return (

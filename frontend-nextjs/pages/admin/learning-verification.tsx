@@ -253,6 +253,7 @@ function FlagRow({
             </select>
           ) : (
             <NumSave
+              key={`${def.key}:${value}`}
               ariaLabel={def.label}
               testId={`lv-flag-${def.key}`}
               initial={value}
@@ -293,7 +294,6 @@ function NumSave({
   onSave: (value: string) => void;
 }) {
   const [val, setVal] = useState(initial);
-  useEffect(() => setVal(initial), [initial]);
   return (
     <Box display="flex" alignItems="center" gap={2}>
       <input

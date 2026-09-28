@@ -57,3 +57,26 @@ All endpoints require an admin role (`super_admin`/`owner`/`admin`/`workspace_ad
 1. Add one line to `core/settings_catalog.py`: `B("MY_FLAG", True, "My Category", "What it does")` (or `I`/`F`/`S`/`J`).
 2. In the subsystem's config module, replace `os.getenv(...)` with `get_bool_setting("MY_FLAG", True)` (or the typed getter).
 3. Done — it appears in the UI automatically.
+
+## Decision Plane (Ollaya sidecar)
+
+Category `Decision Plane (Ollaya)` — local calibrated classifiers shadowing
+agent decisions. All telemetry, no enforcement until a surface certifies
+(see `docs/architecture/OLLAYA_DECISION_PLAN.md`).
+
+| Key | Default | Effect when on |
+|---|---|---|
+| `ATOM_OLLAYA_ENABLED` | `false` | Master switch. Off = zero HTTP, zero overhead. |
+| `ATOM_OLLAYA_URL` | `http://127.0.0.1:11435` | Sidecar base URL. |
+| `ATOM_OLLAYA_MODEL` | `laya` | Default decision model. |
+| `ATOM_OLLAYA_TIMEOUT_S` | `0.8` | Inline HTTP budget; shadow background calls use 30s. |
+| `ATOM_OLLAYA_SHADOW_INTENT` | `false` | Intent-routing audit (needs a live caller; meta NLU seam wired). |
+| `ATOM_OLLAYA_SHADOW_TURN` | `false` | Turn-judgment audit at extraction hooks. |
+| `ATOM_OLLAYA_SHADOW_GATE` | `false` | Pre-action gate audit on a deterministic sample. |
+| `ATOM_OLLAYA_GATE_SAMPLE_RATE` | `0.1` | Fraction of tool calls shadowed (hot path: ~110ms each when warm). |
+| `ATOM_OLLAYA_FORCE_ENFORCE` | `false` | Env hard-switch. Leave OFF until a surface certifies. |
+| `ATOM_OLLAYA_INTENT_ACT_THRESHOLD` | `0.6` | Min confidence to act (_holder; no prod path acts yet). |
+| `ATOM_DECISION_AUTO_ENFORCE` | `off` | `off\|notify\|approve\|auto`. Revocation is always automatic. |
+
+Operator surfaces: `GET /health/decision-router` (public), `/api/v1/decision-automation/*`
+(admin: status, automation, run-now, approve, reject).

@@ -178,7 +178,7 @@ export const decryptZoomTokens = (encrypted: string): any => {
 };
 
 // Default export
-export default {
+const apiBackendHelper = {
   resilientFetch,
   exchangeCodeForTokens,
   generateGoogleAuthUrl,
@@ -188,3 +188,5 @@ export default {
   encryptZoomTokens,
   decryptZoomTokens,
 };
+
+export default apiBackendHelper;

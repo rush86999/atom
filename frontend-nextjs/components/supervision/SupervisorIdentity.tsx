@@ -5,7 +5,7 @@
  * Shows LLM analysis for autonomous supervisors.
  */
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
 interface Props {
   supervisorType: 'user' | 'autonomous_agent';
@@ -24,22 +24,13 @@ const SupervisorIdentity: React.FC<Props> = ({
   supervisorId,
   supervisorName
 }) => {
-  const [analysis, setAnalysis] = useState<AutonomousAnalysis | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (supervisorType === 'autonomous_agent') {
-      // Fetch autonomous supervisor analysis
-      setLoading(true);
-      // This would come from the proposal review
-      setAnalysis({
+  const analysis: AutonomousAnalysis | null = supervisorType === 'autonomous_agent'
+    ? {
         confidence_score: 0.92,
         risk_level: 'safe',
         suggested_modifications: []
-      });
-      setLoading(false);
-    }
-  }, [supervisorType, supervisorId]);
+      }
+    : null;
 
   const getRiskLevelColor = (level: string) => {
     switch (level) {
@@ -112,7 +103,6 @@ const SupervisorIdentity: React.FC<Props> = ({
         </div>
       )}
 
-      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .supervisor-identity {
           background: #f5f5f5;

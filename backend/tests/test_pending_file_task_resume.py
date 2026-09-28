@@ -1426,8 +1426,8 @@ async def test_acceptance_planner_and_narration_unavailable():
     for item in ("381", "U-22", "622", "SLE24-16", "GSL48-16",
                  "GSL24-16", "SLE16-8", "U-38"):
         assert item in msg, f"missing per-item outcome: {item}"
-    assert "1777" in msg and "8880" in msg
-    assert "materialized copy" in msg.lower() or "MATERIALIZED COPY" in msg
+    assert "1,777" in msg and "8,880" in msg  # readable formatting (pres-v2)
+    assert "saved copy" in msg.lower() or "materialized copy" in msg.lower()
     # Misses carry the honest scoped vocabulary (INCOMPLETE when the
     # fixture's coverage flags are partial, NOT FOUND otherwise) — never
     # a bare claim of absence from the workbook.
@@ -1524,7 +1524,7 @@ async def test_ask_turn_never_ships_fabricated_prices():
             "fab1", context={"agent_id": "a1"})
     assert result["success"] is True
     assert result.get("model") == "deterministic"
-    assert "8880" in result["message"], "the REAL workbook price must ship"
+    assert "8,880" in result["message"], "the REAL workbook price must ship"
     assert "5,850" not in result["message"], "fabricated values must not"
     orch.llm_service.generate_completion.assert_not_awaited()
 
@@ -1594,7 +1594,7 @@ async def test_non_price_fields_flow_through_the_same_pipeline():
     assert "R-15" in msg and "120" in msg and "21" in msg, (
         "requested non-price fields must ship from the matched row")
     assert "Spec Sheet 2025.xlsx" in msg
-    assert "MATERIALIZED COPY" in msg
+    assert "saved copy" in msg.lower()  # provenance (was MATERIALIZED COPY)
     # Field labels come from the schema (column headers), not price vocab.
     assert "Weight kg" in msg and "Lead Time days" in msg
 
@@ -2232,6 +2232,728 @@ class TestLegacyTaskRecovery:
         assert "invoice totals" in task["original_message"]
 
 
+class TestIdentifierInheritance:
+    """2026-09-25: a vague re-ask superseded the identifier-rich ask, and
+    the resumed read searched the canvas TITLE's phrases instead of the
+    machines. The task must carry the USER's explicit identifiers forward
+    — user asks only; assistant renders (markdown tables of canvas
+    values) are the contamination source and never contribute."""
+
+    MACHINES_ASK = (
+        "find the prices of these 8 machines in Consolidated Price List "
+        "2019.xlsx: 381, U-22, 622, SLE24-16, GSL48-16, GSL24-16, SLE16-8 "
+        "and U-38")
+    MACHINES = [
+        "381", "U-22", "622", "SLE24-16", "GSL48-16",
+        "GSL24-16", "SLE16-8", "U-38",
+    ]
+
+    def test_user_history_harvests_the_machines(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK,
+             "response": "searching now"},
+            {"message": LEGACY_ASK, "response": "unverified"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        for machine in self.MACHINES:
+            assert machine in targets, machine
+
+    def test_comma_formatted_amounts_never_become_entities(self):
+        """2026-09-25 review round 4: splitting on ',' BEFORE removing
+        monetary tails made '902.00' a standalone entity out of
+        '$2,902.00'. Thousands-separator commas must never split."""
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "find the prices: No. 381 — $2,902.00, U-22 — $1,777.00, "
+            "SLE24-16 — $8,880.00")
+        assert items == ["No. 381", "U-22", "SLE24-16"]
+        assert not any(
+            "902" in item or "777" in item or "880" in item
+            for item in items)
+
+    def test_numbered_price_list_is_an_enumeration(self):
+        """The ORIGINAL objective's shape (2026-09-25 review round 4:
+        colon-only parsing never matched it): a numbered list with
+        prices and delivery terms, full entity names preserved."""
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "quote these:\n"
+            "1. Roper Whitney No. 381 — $2,902.00 — 10–11 weeks\n"
+            "2. Linmac U-22 — $1,777.00 — 3–4 months\n"
+            "3. TK Manual Flanger — $1,609.00")
+        assert items == [
+            "Roper Whitney No. 381", "Linmac U-22", "TK Manual Flanger",
+        ]
+
+    def test_negation_items_are_removed_numero_survives(self):
+        from core.pending_file_task import _enumeration_items
+
+        items = _enumeration_items(
+            "check: 381, U-22, not 0381, SLE24-16, no U-38 and TK 1624")
+        assert items == ["381", "U-22", "SLE24-16", "TK 1624"]
+
+    def test_assistant_renders_never_contribute(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK, "response": "ok"},
+            # role-marked assistant render carrying the contaminating table
+            {"role": "assistant",
+             "content": "| 902 | ABSENT |\n| 00 | ABSENT |\n| 609 | ABSENT |"},
+            # message/response shape: the render lives in 'response'
+            {"message": "",
+             "response": "| 777 | ABSENT |\n| 880 | ABSENT |"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        assert not any(t in {"902", "00", "609", "777", "880"} for t in targets)
+
+    def test_different_file_asks_are_excluded(self):
+        from core.pending_file_task import identifier_targets_from_user_history
+
+        history = [
+            {"message": self.MACHINES_ASK, "response": "ok"},
+            {"message": "check R-9 in Training Records.xlsx",
+             "response": "ok"},
+        ]
+        targets = identifier_targets_from_user_history(
+            history, "consolidated price list 2019.xlsx")
+        assert "R-9" not in targets
+
+    def test_recovery_stamps_requested_targets(self):
+        from core.pending_file_task import recover_pending_task_from_history
+
+        history = [
+            {"message": self.MACHINES_ASK,
+             "response": "the WorkDrive lookup came back unverified"},
+            {"message": LEGACY_ASK, "response": "unverified again"},
+            {"message": LEGACY_CONFIRM,
+             "response": "Noted that the filename to target is the 2019 list."},
+        ]
+        task = recover_pending_task_from_history(history, LEGACY_RETRY)
+        assert task is not None
+        assert task["original_message"] == LEGACY_ASK
+        stamped = task.get("requested_targets") or []
+        for machine in self.MACHINES:
+            assert machine in stamped, machine
+
+
+class TestCanvasTruthGate:
+    """2026-09-25 live defect: a read-only turn's reply claimed 'I've
+    updated item 4' while the canvas-edit leg was SKIPPED (the canvas kept
+    TBD). The reply model must be told no canvas change executed."""
+
+    def test_reply_prompt_carries_canvas_state_rule(self):
+        import inspect
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        source = inspect.getsource(ChatOrchestrator._get_qwen_response)
+        assert "CANVAS STATE: no change to the canvas has been" in source
+        assert "present them as PROPOSED values" in source
+
+    # -- guard plumbing -------------------------------------------------
+    @staticmethod
+    def _seed_audit(op_id, canvas_id, payload, review_status,
+                    postconditions=None, when=None):
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        details = {
+            "operation_id": op_id,
+            "content": payload,
+            "review_status": review_status,
+        }
+        if postconditions is not None:
+            details["postconditions"] = postconditions
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=f"audit-{uuid4().hex[:10]}", canvas_id=canvas_id,
+                tenant_id="default", session_id="s-g",
+                action_type="update", user_id="u-g",
+                created_at=when or datetime.now(timezone.utc),
+                details_json=details,
+            ))
+
+    @staticmethod
+    def _patch_checker(marker):
+        """Isolate the guard from the editor's evidence checker (which has
+        its own suite): the checker 'holds' only on the canvas content
+        carrying the marker key."""
+        from unittest.mock import patch
+
+        def _applied(content, action):
+            return isinstance(content, dict) and content.get(
+                "marker") == marker
+        return patch(
+            "core.chat_canvas_editor._evidence_action_applied",
+            side_effect=_applied)
+
+    # -- verdicts --------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_unbound_claim_is_unverified_and_rewritten(self):
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        out = await ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4 to reflect that pricing.",
+            {"canvas_id": "cv-never"}, "s-g", "u-g", False,
+        )
+        assert "I've updated item 4" not in out
+        assert "Unverified" in out
+
+    @pytest.mark.asyncio
+    async def test_overlapping_turn_write_does_not_verify(self):
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import AgentExecution
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        with get_db_session() as db:
+            db.add(AgentExecution(
+                id=exec_id, status="running",
+                started_at=datetime.now(timezone.utc),
+            ))
+        self._seed_audit(
+            f"op-other-{uuid4().hex[:6]}", canvas_id,
+            {"marker": "other"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "unverified"
+
+    @pytest.mark.asyncio
+    async def test_substring_operation_never_verifies(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            f"{exec_id}-suffix", canvas_id, {"marker": "x"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "unverified"
+
+    @pytest.mark.asyncio
+    async def test_result_verified_when_postconditions_hold_on_served(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        payload = {"marker": "requested-result"}
+        self._seed_audit(
+            exec_id, canvas_id, payload, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "result_verified"
+        assert verdict["review_status"] == "accepted"
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "item 4" not in out  # replaced by the verified set
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_verified_pending_draft_says_ready_for_review(self):
+        """Round 6: pending review and successful draft preparation are
+        COMPATIBLE — verified contents may be called updated/ready, never
+        accepted; the review state rides separately."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "pending_review",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "item 4" not in out  # replaced by the verified set
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: pending review — not yet accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_accepted_base_vs_pending_draft_served(self):
+        """Round 6 boundary pin: an OLDER ACCEPTED write whose payload
+        matches the stale Canvas.content fallback must NOT verify — the
+        canonical read path serves a NEWER pending-review draft. Only the
+        postconditions decide, and they hold on the pending draft, so the
+        older operation stays write_recorded."""
+        from datetime import datetime, timedelta, timezone
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc)
+        accepted_payload = {"marker": "accepted-base"}
+        pending_payload = {"marker": "pending-draft"}
+        self._seed_audit(
+            exec_id, canvas_id, accepted_payload, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }], when=now - timedelta(minutes=5))
+        self._seed_audit(
+            f"op-newer-{uuid4().hex[:6]}", canvas_id, pending_payload,
+            "pending_review", when=now)
+        with get_db_session() as db:
+            db.add(Canvas(  # the STALE fallback the old guard trusted
+                id=canvas_id, tenant_id="default", created_by="u-g",
+                name="Quote", content=accepted_payload,
+            ))
+        with self._patch_checker("accepted-base"):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded", (
+            "the accepted base must not verify through the stale "
+            "Canvas.content fallback while the UI serves the pending draft")
+
+    @pytest.mark.asyncio
+    async def test_bound_write_without_criteria_is_recorded_only(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"body": "x"}, "accepted")
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
+
+    @pytest.mark.asyncio
+    async def test_read_failure_is_recorded_not_verified(self):
+        """read_canvas failing (ownership, DB) degrades to write_recorded
+        — never a verified result, never 'unchanged'."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "x"}, "accepted",
+            postconditions=[{
+                "entity_id": "e", "field": "f",
+                "expected": {"raw_value": "v"},
+            }])
+        with patch(
+            "tools.canvas_crud_tool.read_canvas",
+            new=AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            verdict = await ChatOrchestrator._canvas_write_for_operation(
+                canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
+
+    @pytest.mark.asyncio
+    async def test_claim_replaced_by_generated_verified_set(self):
+        """Round 9: the confirmation is GENERATED from the verified
+        entity/field set — total-success wording AND unchecked specific
+        claims ('item 4' when only 381 was checked) cannot survive,
+        qualifier or not."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                # only the 381 price is recorded — item 4 and the
+                # footer-preservation condition were never stamped
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        for text in (
+            "I've updated all the prices and everything is done on the "
+            "canvas.",
+            "I've updated item 4 to reflect that pricing.",
+        ):
+            with self._patch_checker("requested-result"):
+                out = await ChatOrchestrator._canvas_claim_correction(
+                    text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                    execution_id=exec_id,
+                )
+            assert "everything is done" not in out
+            assert "item 4" not in out, (
+                "an unchecked specific claim cannot survive a qualifier")
+            assert "Verified on the canvas as served: 381 — price." in out
+            assert "Review status: accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_unnamed_criteria_fall_back_to_generic_statement(self):
+        """Postconditions without entity/field cannot name what held —
+        the statement falls back to the generic recorded-checks sentence
+        rather than pretending specificity."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted", postconditions=[{"expected": {"raw_value": "x"}}])
+        text = "I've updated item 4 to reflect that pricing."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "item 4" not in out
+        assert "The recorded checks for this change passed" in out
+        assert "Review status: accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_action_claims_replaced_at_every_review_status(self):
+        """Round 9: acceptance does not prove sending — sent/approved/
+        submitted claims are unsupported at ANY review status, because
+        the generated statement only ever carries content criteria plus
+        the audit's own review status."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        for verb in ("sent", "approved", "submitted", "accepted"):
+            text = f"I've {verb} the updated quote on the canvas."
+            with self._patch_checker("requested-result"):
+                out = await ChatOrchestrator._canvas_claim_correction(
+                    text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                    execution_id=exec_id,
+                )
+            assert f"I've {verb}" not in out, verb
+            assert "Verified on the canvas as served: 381 — price." in out
+            assert "Review status: accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_integration_real_postconditions_real_checker(self):
+        """Integration: real stamped postconditions, the REAL evidence
+        checker, and the canonical readback (read_canvas over the audit
+        trail) — no patched seams. The recorded price change holds on the
+        served revision → result_verified, accepted → claim stands."""
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        body = (
+            "Quote below:\n\n"
+            "| item | price |\n|---|---|\n"
+            "| 381 | $8,880.00 |\n"
+            "| 622 | $2,421.00 |\n"
+        )
+        content = {"to": "steve@example.com", "subject": "Quote",
+                   "body": body}
+        postcondition = {
+            "entity_id": "381", "field": "price",
+            "expected": {"raw_value": "$8,880.00"},
+        }
+        self._seed_audit(
+            exec_id, canvas_id, content, "accepted",
+            postconditions=[postcondition])
+        with get_db_session() as db:
+            db.add(Canvas(
+                id=canvas_id, tenant_id="default", created_by="u-g",
+                name="Quote", content=content,
+            ))
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "result_verified", verdict
+        text = "I've updated item 381 in the quote table."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "u-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert "I've updated" not in out, (
+            "the claim is replaced by the generated verified set")
+        assert "Verified on the canvas as served: 381 — price." in out
+        assert "Review status: accepted." in out
+
+    @pytest.mark.asyncio
+    async def test_integration_real_checker_rejects_wrong_served_value(self):
+        """The real checker through canonical readback: when the served
+        revision's value does not match the recorded criterion, the
+        verdict is write_recorded even though the payload round-trips."""
+        from uuid import uuid4
+
+        from core.database import get_db_session
+        from core.models import Canvas
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        from datetime import datetime, timedelta, timezone
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        recorded = {"body": "| item | price |\n|---|---|\n| 381 | $123.00 |"}
+        served = {"body": "| item | price |\n|---|---|\n| 381 | $999.00 |"}
+        now = datetime.now(timezone.utc)
+        self._seed_audit(
+            exec_id, canvas_id, recorded, "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "$123.00"},
+            }], when=now - timedelta(minutes=5))
+        # a NEWER operation's write supersedes the served revision
+        self._seed_audit(
+            f"op-newer-{uuid4().hex[:6]}", canvas_id, served, "accepted",
+            when=now)
+        verdict = await ChatOrchestrator._canvas_write_for_operation(
+            canvas_id, "s-g", "u-g", exec_id)
+        assert verdict["verdict"] == "write_recorded"
+
+    @pytest.mark.asyncio
+    async def test_unknown_shaped_workflow_claim_gets_the_section(self):
+        """Round 10 counterexample: 'I sent the email.' does not match the
+        legacy sentence shapes — outcome-based invocation still attaches
+        the structured section (generated from evidence), which is the
+        authoritative status; the section never reinforces the send."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I sent the email."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "Operation status:" in out
+        assert "Verified on the canvas as served: 381 — price." in out
+        # the section is the ONLY place confirmations come from
+        assert out.count("Verified on the canvas as served") == 1
+
+    @pytest.mark.asyncio
+    async def test_no_unsupported_workflow_claim_reaches_output(self):
+        """THE SAFETY CRITERION (2026-09-25 review round 11, strict-xfail
+        per round 12): no unsupported workflow claim may reach any
+        user-visible output. Expected failure AT THE SAFETY ASSERTION
+        ONLY while the legacy guard stands (setup/other errors surface
+        as errors, never masked as xfail). When the unified finalizer
+        lands: make this a mandatory passing test, retire the
+        known-defect survival regressions, and test streamed output as
+        well as final persisted text."""
+        import pytest as _pytest
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                "I sent the email.", {"canvas_id": canvas_id},
+                "s-g", "u-g", False, execution_id=exec_id,
+            )
+        # the structured section still rides (its contract is separate)
+        assert "Operation status:" in out
+        try:
+            assert "sent" not in out.lower(), (
+                "OPEN DEFECT (unified finalizer): the unsupported send "
+                "claim reaches user-visible output")
+        except AssertionError:
+            _pytest.xfail(
+                "OPEN DEFECT, carried to the unified finalizer: "
+                "unsupported prose outside the legacy matcher reaches "
+                "output; XPASS forces removal of this expectation and "
+                "promotion to a mandatory check")
+        _pytest.fail(
+            "Safety criterion holds — remove the xfail expectation from "
+            "this test and make it a mandatory passing check (with the "
+            "streamed-output variant)")
+
+    @pytest.mark.asyncio
+    async def test_known_defect_mixed_claims_body_survives_with_section(self):
+        """KNOWN-DEFECT REGRESSION (2026-09-25 review round 11 — NOT a
+        passing safety criterion): the first sentence is legacy-replaced,
+        the unsupported 'I sent the email.' SURVIVES in the body beside
+        the section. Documents today's behavior so the unified finalizer
+        can prove the change."""
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        text = "I updated the draft. I sent the email."
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert out.count("Operation status:") == 1
+        assert out.count("Verified on the canvas as served") == 1
+        assert "I sent the email." in out  # the open defect, pinned
+
+    @pytest.mark.asyncio
+    async def test_no_unsupported_claim_in_mixed_body(self):
+        """THE SAFETY CRITERION for the mixed-claim counterexample —
+        strict-xfail scoped to the safety assertion (round 12): unrelated
+        errors surface as errors, never masked as xfail. Finalizer-landing
+        duties: mandatory passing test, retire the known-defect survival
+        regression, add the streamed-output variant."""
+        import pytest as _pytest
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"marker": "requested-result"},
+            "accepted",
+            postconditions=[{
+                "entity_id": "381", "field": "price",
+                "expected": {"raw_value": "123.0"},
+            }])
+        with self._patch_checker("requested-result"):
+            out = await ChatOrchestrator._canvas_claim_correction(
+                "I updated the draft. I sent the email.",
+                {"canvas_id": canvas_id}, "s-g", "u-g", False,
+                execution_id=exec_id,
+            )
+        assert "Operation status:" in out
+        try:
+            assert "sent" not in out.lower(), (
+                "OPEN DEFECT (unified finalizer): the unsupported send "
+                "claim survives in the mixed body")
+        except AssertionError:
+            _pytest.xfail(
+                "OPEN DEFECT, carried to the unified finalizer: the "
+                "mixed body carries the unsupported send claim")
+        _pytest.fail(
+            "Safety criterion holds — remove the xfail expectation from "
+            "this test and make it a mandatory passing check (with the "
+            "streamed-output variant)")
+
+    @pytest.mark.asyncio
+    async def test_write_recorded_reported_even_without_matching_prose(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        exec_id = f"exec-{uuid4().hex[:12]}"
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        self._seed_audit(
+            exec_id, canvas_id, {"body": "x"}, "accepted")
+        text = "The quote is ready below."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=exec_id,
+        )
+        assert "Operation status:" in out
+        assert "not confirmed as served" in out
+
+    @pytest.mark.asyncio
+    async def test_read_only_turn_without_claim_is_untouched(self):
+        from uuid import uuid4
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        canvas_id = f"cv-{uuid4().hex[:8]}"
+        text = "The recorded checks: U-22 is 1777.0 in the indexed copy."
+        out = await ChatOrchestrator._canvas_claim_correction(
+            text, {"canvas_id": canvas_id}, "s-g", "u-g", False,
+            execution_id=f"exec-{uuid4().hex[:12]}",
+        )
+        assert out == text  # a read-only turn acquires no status section
+
+    def test_prompt_keeps_workflow_confirmations_in_the_section(self):
+        import inspect
+
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        source = inspect.getsource(ChatOrchestrator._get_qwen_response)
+        assert "ONLY in the platform's" in source
+        assert "'Operation status' section" in source
+
+    @pytest.mark.asyncio
+    async def test_enforced_guard_ignores_non_claims_and_canvasless(self):
+        from integrations.chat_orchestrator import ChatOrchestrator
+
+        assert await ChatOrchestrator._canvas_claim_correction(
+            "The price is 8880.", {"canvas_id": "cv-x"}, "s", "u", False
+        ) == "The price is 8880."
+        assert await ChatOrchestrator._canvas_claim_correction(
+            "I've updated item 4.", None, None, None, False
+        ) == "I've updated item 4."
+
+
+
 class TestLineageMatching:
     def test_intervening_confirmation_does_not_break_the_match(self):
         """Even WITH stored state, the old history check hit the filename
@@ -2660,6 +3382,55 @@ class TestReDeliveryVsRefresh:
             "the fresh read re-drives the lifecycle")
         assert session_again[FILE_TASK_SESSION_KEY].get("refreshed") is \
             None or True  # lifecycle stamp; revival recorded on merge
+
+        # --- STALE-RESULT INVALIDATION (2026-09-25 review round 2): a
+        # persisted result built by an OLDER extractor (no version stamp,
+        # or a lower one) must NEVER replay — even a bare approval
+        # re-derives. Live instance: this conversation's contaminated
+        # 24-target row (no stamp) re-rendered until superseded.
+        for stale_version in (None, 2):
+            session_stale = {
+                "id": "s-stale", "history": list(LEGACY_HISTORY),
+                FILE_TASK_SESSION_KEY: dict(base_task),
+                "_pending_file_result": {
+                    "status": "delivered", "rendered": cached_render,
+                    "identity": {"file_id": "wd-77"},
+                    **({"target_extraction_version": stale_version}
+                       if stale_version is not None else {}),
+                },
+            }
+            with (
+                patch.object(orch, "_get_or_create_session",
+                             return_value=session_stale),
+                patch.object(orch, "_resolve_canvas_ctx",
+                             new=AsyncMock(return_value=None)),
+                patch.object(orch, "_start_chat_execution",
+                             return_value="rd-stale"),
+                patch.object(orch, "_record_chat_step", new=AsyncMock()),
+                patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+                patch.object(orch, "_finish_chat_execution"),
+                patch.object(orch, "_update_session"),
+                patch("core.chat_mini_app_authoring.try_handle",
+                      new=AsyncMock(return_value=None)),
+                patch.object(orch, "_try_zoho_crm_write",
+                             new=AsyncMock(return_value=None)),
+                patch.object(orch, "_route_to_features",
+                             new=AsyncMock(return_value={})),
+                patch.object(orch, "_load_pending_file_result",
+                             return_value=(
+                                 session_stale["_pending_file_result"])),
+                patch.object(orch, "_direct_confirmed_file_read",
+                             new=AsyncMock(return_value={
+                                 "success": True, "message": fresh_render,
+                                 "data": {},
+                             })) as stale_read,
+            ):
+                stale = await orch.process_chat_message(
+                    "u1", LEGACY_APPROVAL, "s-stale", context={})
+            assert cached_render not in str(stale.get("message", "")), (
+                f"a persisted result stamped {stale_version!r} must never "
+                "replay — its contaminated render is re-derived, not "
+                "re-delivered")
 
 
 # ---------------------------------------------------------------------------

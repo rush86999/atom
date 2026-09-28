@@ -1,0 +1,973 @@
+{
+  "world": "preview_v1",
+  "frontend": "http://localhost:3101",
+  "backend_port": 8051,
+  "steps": {
+    "M01": {
+      "expect": "relevant answer, no unintended task or action",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M01.png",
+      "ok": true,
+      "elapsed_s": 19.7,
+      "network": {
+        "total_requests": 69,
+        "requests_to_our_backend": 32,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M02": {
+      "expect": "eight ordered entries, honest ambiguity, readable evidence",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M02.png",
+      "ok": true,
+      "elapsed_s": 21.7,
+      "network": {
+        "total_requests": 73,
+        "requests_to_our_backend": 36,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M03": {
+      "expect": "new concise answer; prior answer unchanged",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nMake this easier to read\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M03.png",
+      "ok": true,
+      "elapsed_s": 9.7,
+      "network": {
+        "total_requests": 74,
+        "requests_to_our_backend": 37,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M04": {
+      "expect": "new read; saved/live status truthful",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nMake this easier to read\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nSearch again and show the same items\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M04.png",
+      "ok": true,
+      "elapsed_s": 21.7,
+      "network": {
+        "total_requests": 81,
+        "requests_to_our_backend": 44,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M05": {
+      "expect": "correct labeled values; no silent substitution",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nMake this easier to read\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nSearch again and show the same items\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nUse the factory price instead\n09:45 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-22 - matched at LINMAC!R26 matched at A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknocker!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:45 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M05.png",
+      "ok": true,
+      "elapsed_s": 9.7,
+      "network": {
+        "total_requests": 82,
+        "requests_to_our_backend": 45,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M06": {
+      "expect": "updated list without resurrecting old distractors",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nMake this easier to read\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nSearch again and show the same items\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nUse the factory price instead\n09:45 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-22 - matched at LINMAC!R26 matched at A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknocker!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:45 PM\ndeterministic\nReplace U-22 with U-38\n09:45 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-38 - matched at LINMAC!R27 matched at A27; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknock!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\nReasoning Process (4 steps)\nView My Tasks\nAdd a deadline\nAssign to team\n09:45 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (2,433 chars)",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M06.png",
+      "ok": true,
+      "elapsed_s": 25.7,
+      "network": {
+        "total_requests": 86,
+        "requests_to_our_backend": 49,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M07": {
+      "expect": "unrelated question answered without losing the task",
+      "visible_text": "In one sentence, what is a price list used for?\n09:43 PM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (4 steps)\n09:44 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (3,109 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nMake this easier to read\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nSearch again and show the same items\n09:44 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:44 PM\ndeterministic\nUse the factory price instead\n09:45 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-22 - matched at LINMAC!R26 matched at A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknocker!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n09:45 PM\ndeterministic\nReplace U-22 with U-38\n09:45 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-38 - matched at LINMAC!R27 matched at A27; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknock!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\nReasoning Process (4 steps)\nView My Tasks\nAdd a deadline\nAssign to team\n09:45 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (2,433 chars)\nWhat is the capital of France?\n09:45 PM\n\nParis.\n\nReasoning Process (6 steps)\n09:45 PM\nkimi-k2.7-code\n\ud83e\udde0 Context used (2,242 chars)",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M07.png",
+      "ok": true,
+      "elapsed_s": 17.7,
+      "network": {
+        "total_requests": 93,
+        "requests_to_our_backend": 56,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M08": {
+      "expect": "reload: same final answers, artifact and evidence association",
+      "visible_text": "In one sentence, what is a price list used for?\n01:44 AM\n\nA price list is used to set and communicate the standard selling prices of products or services to customers.\n\nReasoning Process (1 steps)\n01:44 AM\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n01:44 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:44 AM\nMake this easier to read\n01:44 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, 'List Price')\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:44 AM\nSearch again and show the same items\n01:44 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89 at D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90 at B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26 matched at A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266 at A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268 at A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42 matched at A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101 matched at A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101 matched at A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106 at D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100 at A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106 matched at A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:44 AM\nUse the factory price instead\n01:45 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-22 - matched at LINMAC!R26 matched at A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknocker!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n01:45 AM\nReplace U-22 with U-38\n01:45 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88 at A88, B88, L88; RoperWhitney!R89 at D89; RoperWhitney!R90 at B90, L90); which one is yours needs your confirmation\nU-38 - matched at LINMAC!R27 matched at A27; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (RoperWhitney!R265 at B265, D265, L265; RoperWhitney!R266 at A266; RoperWhitney!R268 at A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (Tinknocker!R42 matched at A42, column H42 'Factory Price')\nSLE24-16 - matched at Tennsmith!R101 matched at A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (Tinknocker!R101 matched at A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105 at A105; Tennsmith!R106 at D106; Tinknock!R100 at A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at Tennsmith!R106 matched at A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\nReasoning Process (1 steps)\n01:45 AM\nWhat is the capital of France?\n01:45 AM\n\nParis.\n\nReasoning Process (1 steps)\n01:45 AM",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/preview_v1_M08.png",
+      "ok": true,
+      "elapsed_s": 16.9,
+      "network": {
+        "total_requests": 136,
+        "requests_to_our_backend": 77,
+        "our_backend_origins": [
+          "localhost:8051"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:3101/_next/webpack-hmr",
+            "origin": "localhost:3101"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          },
+          {
+            "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+            "origin": "localhost:8051"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3101",
+          "localhost:8051"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+          "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+          "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    }
+  },
+  "login": {
+    "attempted": false,
+    "method": "seeded session token",
+    "note": "login FORM not exercised; see report"
+  },
+  "final_network": {
+    "total_requests": 136,
+    "requests_to_our_backend": 77,
+    "our_backend_origins": [
+      "localhost:8051"
+    ],
+    "websockets": [
+      {
+        "url": "ws://localhost:3101/_next/webpack-hmr",
+        "origin": "localhost:3101"
+      },
+      {
+        "url": "ws://localhost:3101/_next/webpack-hmr",
+        "origin": "localhost:3101"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:3101/_next/webpack-hmr",
+        "origin": "localhost:3101"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      },
+      {
+        "url": "ws://localhost:8051/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJ1c2VyX2lkIjoiYjgzZWIxMDUtZDllNy00MWE1LTgzZTMtYTYzMmIxNWI5ZWUzIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJ3b3Jrc3BhY2VfYWRtaW4iLCJleHAiOjE3OTA1NTk4MjEsImp0aSI6IjM2OD",
+        "origin": "localhost:8051"
+      }
+    ],
+    "websocket_origins": [
+      "localhost:3101",
+      "localhost:8051"
+    ],
+    "foreign_origin_hits": [],
+    "isolated": true,
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON}",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "page_errors": [],
+    "failed_requests": [
+      "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/auth/session :: net::ERR_ABORTED",
+      "GET http://localhost:8051/api/users/me :: net::ERR_ABORTED",
+      "POST http://localhost:3101/api/auth/_log :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED",
+      "GET http://localhost:3101/api/agents/approvals/pending :: net::ERR_ABORTED"
+    ]
+  }
+}

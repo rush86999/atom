@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { getAuthToken, getCurrentUserId } from "@/lib/identity";
 import { SelfDirectedPathwayCard } from "@/components/Agents/SelfDirectedPathwayCard";
 import {
@@ -68,16 +69,33 @@ const API = process.env.NEXT_PUBLIC_API_URL || "";
 /** First-time walkthrough for the very first training session, login to
  * graduation. Dismissible; remembers dismissal for the browser. */
 const TRAINING_GUIDE_KEY = "atom_training_guide_dismissed";
+const subscribeToNothing = () => () => {};
+const getClientTrue = () => true;
+const getServerFalse = () => false;
+const subscribeToTrainingGuide = (onStoreChange: () => void) => {
+    if (typeof window === "undefined") return () => {};
+    const onStorage = (event: StorageEvent) => {
+        if (event.key === TRAINING_GUIDE_KEY) onStoreChange();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+};
+const getTrainingGuideOpen = () =>
+    typeof window !== "undefined" && window.localStorage.getItem(TRAINING_GUIDE_KEY) !== "1";
 
 const TrainingGuide: React.FC = () => {
-    const [open, setOpen] = React.useState(false);
-    const [ready, setReady] = React.useState(false);
-
-    React.useEffect(() => {
-        if (typeof window === "undefined") return;
-        setOpen(window.localStorage.getItem(TRAINING_GUIDE_KEY) !== "1");
-        setReady(true);
-    }, []);
+    const ready = React.useSyncExternalStore(
+        subscribeToNothing,
+        getClientTrue,
+        getServerFalse
+    );
+    const restoredOpen = React.useSyncExternalStore(
+        subscribeToTrainingGuide,
+        getTrainingGuideOpen,
+        getServerFalse
+    );
+    const [openOverride, setOpenOverride] = React.useState<boolean | undefined>(undefined);
+    const open = openOverride ?? restoredOpen;
 
     if (!ready) return null;
 
@@ -96,7 +114,7 @@ const TrainingGuide: React.FC = () => {
                 <button
                     onClick={() => {
                         window.localStorage.setItem(TRAINING_GUIDE_KEY, "1");
-                        setOpen(false);
+                        setOpenOverride(false);
                     }}
                     className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 shrink-0"
                 >
@@ -107,7 +125,7 @@ const TrainingGuide: React.FC = () => {
                 <ol className="mt-4 space-y-3 text-sm text-gray-300 list-decimal list-inside">
                     <li>
                         <span className="font-medium text-gray-100">Sign in</span> at{" "}
-                        <a href="/login" className="text-sky-400 hover:underline">/login</a> with your
+                        <Link href="/login" className="text-sky-400 hover:underline">/login</Link> with your
                         supervisor account (must be TEAM_LEAD+ to decide trainings).
                     </li>
                     <li>
@@ -118,7 +136,7 @@ const TrainingGuide: React.FC = () => {
                     </li>
                     <li>
                         <span className="font-medium text-gray-100">Train it on real work</span> — open{" "}
-                        <a href="/agents" className="text-sky-400 hover:underline">/agents</a>, run the
+                        <Link href="/agents" className="text-sky-400 hover:underline">/agents</Link>, run the
                         hire on a genuine task drawn from its connected data (e.g. “Review the newest
                         Zoho CRM leads and draft outreach for the top one” — leads from the Zoho sync,
                         customer threads from the Outlook poller, documents from WorkDrive/OneDrive).
@@ -239,7 +257,7 @@ export default function ApprovalsPage() {
     } catch {
       // Non-critical: the HITL queue still works without this section.
     }
-  }, [headers, loadSessionCanvases, role, isSupervisor]);
+  }, [canDecide, headers, loadSessionCanvases, roleKnown]);
 
   const loadSelfDirected = useCallback(async () => {
     if (roleKnown && !canDecide) return;
@@ -252,7 +270,7 @@ export default function ApprovalsPage() {
     } catch {
       // Non-critical: the HITL queue still works without this section.
     }
-  }, [headers, role, isSupervisor]);
+  }, [canDecide, headers, roleKnown]);
 
   const promoteFromQueue = async (agentId: string) => {
     setNotice(null);
@@ -666,7 +684,7 @@ export default function ApprovalsPage() {
           <h2 className="text-lg font-semibold">Active Training Sessions</h2>
           <p className="text-sm text-gray-400 mb-4">
             Approved trainings in progress. Work with the agent (chat at /agents), then score the
-            supervised pass here — completion boosts the agent's confidence and can promote it to INTERN.
+            supervised pass here — completion boosts the agent&apos;s confidence and can promote it to INTERN.
             An INTERN may then PROPOSE automated actions: those arrive in this same queue for your
             approval, and you keep coaching it over chat the same way.
           </p>
@@ -707,18 +725,18 @@ export default function ApprovalsPage() {
                       </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <a
+                      <Link
                         href={`/chat?agent_id=${p.agent_id}`}
                         className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-medium"
                       >
                         Chat with student →
-                      </a>
-                      <a
+                      </Link>
+                      <Link
                         href="/chat?agent_id=atom_main"
                         className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium"
                       >
                         Ask mentor (Atom) →
-                      </a>
+                      </Link>
                       <span className="text-xs text-gray-500 self-center">
                         Tip: ask the mentor “how should we train the new hire on this lead?”, then run
                         its suggestion with the student and refine.
@@ -758,12 +776,12 @@ export default function ApprovalsPage() {
                             >
                               Save lesson
                             </button>
-                            <a
+                            <Link
                               href={`/chat?agent_id=${p.agent_id}`}
                               className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-medium"
                             >
                               Open training chat →
-                            </a>
+                            </Link>
                           </div>
                         </div>
                       );

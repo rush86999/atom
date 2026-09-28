@@ -94,7 +94,7 @@ const AtomAgentSettings: React.FC = () => {
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label htmlFor="wake-word">Wake Word Detection</Label>
-                            <p className="text-sm text-muted-foreground">Allow ATOM to listen for "Hey Atom" to activate.</p>
+                            <p className="text-sm text-muted-foreground">Allow ATOM to listen for &quot;Hey Atom&quot; to activate.</p>
                         </div>
                         <Switch
                             id="wake-word"

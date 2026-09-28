@@ -38,7 +38,7 @@ class TestChatIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -68,7 +68,7 @@ class TestChatIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -97,7 +97,7 @@ class TestChatIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -129,7 +129,7 @@ class TestWorkflowIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -160,7 +160,7 @@ class TestWorkflowIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -189,7 +189,7 @@ class TestWorkflowIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -221,7 +221,7 @@ class TestTaskIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -252,7 +252,7 @@ class TestTaskIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -281,7 +281,7 @@ class TestTaskIntentClassification:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -313,7 +313,7 @@ class TestConfidenceScoring:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -341,7 +341,7 @@ class TestConfidenceScoring:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -368,7 +368,7 @@ class TestConfidenceScoring:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -399,7 +399,7 @@ class TestFeatureExtraction:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -426,7 +426,7 @@ class TestFeatureExtraction:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -457,7 +457,7 @@ class TestRoutingLogic:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -484,7 +484,7 @@ class TestRoutingLogic:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "workflow",
@@ -511,7 +511,7 @@ class TestRoutingLogic:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "task",
@@ -542,7 +542,7 @@ class TestEdgeCases:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -581,7 +581,7 @@ class TestEdgeCases:
 }
 ```'''
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={"content": wrapped_json}
         )
 
@@ -599,7 +599,7 @@ class TestEdgeCases:
         mock_llm = Mock()
 
         # Mock LLM failure
-        mock_llm.call = AsyncMock(side_effect=Exception("LLM unavailable"))
+        mock_llm.generate_completion = AsyncMock(side_effect=Exception("LLM unavailable"))
 
         with patch('core.intent_classifier.get_llm_service', return_value=mock_llm):
             classifier = IntentClassifier(db=mock_db, workspace_id="default")
@@ -617,7 +617,7 @@ class TestEdgeCases:
         mock_llm = Mock()
 
         # Mock invalid JSON response
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={"content": "This is not valid JSON"}
         )
 
@@ -637,7 +637,7 @@ class TestEdgeCases:
         mock_llm = Mock()
 
         # Mock LLM failure to trigger heuristics
-        mock_llm.call = AsyncMock(side_effect=Exception("LLM down"))
+        mock_llm.generate_completion = AsyncMock(side_effect=Exception("LLM down"))
 
         with patch('core.intent_classifier.get_llm_service', return_value=mock_llm):
             classifier = IntentClassifier(db=mock_db, workspace_id="default")
@@ -685,7 +685,7 @@ class TestWorkspaceHandling:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.call = AsyncMock(
+        mock_llm.generate_completion = AsyncMock(
             return_value={
                 "content": json.dumps({
                     "category": "chat",
@@ -705,9 +705,9 @@ class TestWorkspaceHandling:
             await classifier.classify_intent("Test")
 
             # Verify workspace_id was passed to LLM
-            mock_llm.call.assert_called_once()
-            call_kwargs = mock_llm.call.call_args[1]
-            assert call_kwargs["user_id"] == "test-workspace"
+            mock_llm.generate_completion.assert_called_once()
+            call_kwargs = mock_llm.generate_completion.call_args[1]
+            assert call_kwargs["workspace_id"] == "test-workspace"
 
 
 class TestSingletonPattern:

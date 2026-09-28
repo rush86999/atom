@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface TierPreference {
   id: string;
@@ -42,7 +42,7 @@ export function useCognitiveTier(wsId: string = "default") {
   const [saving, setSaving] = useState(false);
 
   // Fetch preferences
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/cognitive-tier/preferences/${workspaceId}`);
@@ -55,7 +55,7 @@ export function useCognitiveTier(wsId: string = "default") {
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
 
   // Save preferences
   const savePreferences = async (prefs: Partial<TierPreference>) => {
@@ -109,7 +109,7 @@ export function useCognitiveTier(wsId: string = "default") {
 
   useEffect(() => {
     fetchPreferences();
-  }, []);
+  }, [fetchPreferences]);
 
   return {
     preferences,

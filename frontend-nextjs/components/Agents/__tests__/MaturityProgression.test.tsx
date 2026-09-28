@@ -19,11 +19,13 @@ import { MaturityProgression, MaturityLevel } from '../MaturityProgression';
 
 jest.mock('framer-motion', () => {
   const React = require('react');
-  const make = (tag: string) =>
-    React.forwardRef((props: any, ref: any) => {
+  const make = (tag: string) => {
+    const MockComponent = React.forwardRef(function MockComponent(props: any, ref: any) {
       const { initial, animate, exit, transition, layoutId, ...rest } = props;
       return React.createElement(tag, { ...rest, ref });
     });
+    return MockComponent;
+  };
   return {
     motion: { div: make('div') },
     AnimatePresence: ({ children }: { children: any }) => children,

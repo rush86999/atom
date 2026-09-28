@@ -486,6 +486,52 @@ async def fleet_router_status_route() -> Dict[str, Any]:
 
 
 @router.get(
+    "/health/decision-router",
+    summary="Decision Plane Phase & Guidance",
+    description=(
+        "Operator guidance for the local decision plane (Ollaya sidecar): what "
+        "phase it is in (off / collecting / ready / enforced) and exactly "
+        "which flag to flip next. Read-only; returns row counts only, no "
+        "sensitive data. See docs/architecture/OLLAYA_DECISION_PLAN.md."
+    ),
+    tags=["Health", "Monitoring"],
+    responses={
+        200: {
+            "description": "Decision plane phase, audit-row counts, and next-action guidance",
+        }
+    },
+    openapi_extra={"x-auth-required": False},
+)
+async def decision_router_status_route() -> Dict[str, Any]:
+    """Decision plane phase + operator guidance.
+
+    Answers "when do I certify a surface?" — shadow collection first,
+    calibration second, consent-gated certify only after the automation's
+    verdict. Revocation is always automatic.
+    """
+    session = None
+    try:
+        from core.database import SessionLocal
+        from core.decision_automation import decision_status
+
+        session = SessionLocal()
+        return decision_status(session)
+    except Exception as e:
+        logger.error(f"Decision router status failed: {e}")
+        return {
+            "phase": "error",
+            "next_action": "Status unavailable",
+            "error": "internal",
+        }
+    finally:
+        try:
+            if session is not None:
+                session.close()
+        except Exception:
+            pass
+
+
+@router.get(
     "/health/metrics",
     summary="Prometheus Metrics",
     description=(

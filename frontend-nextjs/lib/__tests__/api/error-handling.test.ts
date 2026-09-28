@@ -25,7 +25,6 @@ import { server } from '@/tests/mocks/server';
 // Jest 30's types only allow one argument for `toBe`, but Jest itself ignores
 // an optional custom failure message. Widen the matcher type accordingly.
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
     interface Matchers<R, T = {}> {
       toBe<E = any>(expected: E, message?: string): R;

@@ -1,6 +1,8 @@
 import { renderWithProviders, screen, waitFor } from '../test-utils';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import userEvent from '@testing-library/user-event';
 
 // Mock next-auth
@@ -74,7 +76,7 @@ describe('Workflow accessibility', () => {
       renderWithProviders(
         <div>
           <button>Submit</button>
-          <a href="/">Link</a>
+          <Link href="/">Link</Link>
           <input type="text" placeholder="Text input" />
         </div>
       );
@@ -299,8 +301,8 @@ describe('Workflow accessibility', () => {
       // Test images have alt text or presentation role
       const { container } = renderWithProviders(
         <div>
-          <img src="/test.jpg" alt="Test image" />
-          <img src="/decorative.jpg" alt="" role="presentation" />
+          <Image src="/test.jpg" alt="Test image" width={640} height={480} />
+          <Image src="/decorative.jpg" alt="" role="presentation" width={640} height={480} />
         </div>
       );
 
@@ -325,7 +327,7 @@ describe('Workflow accessibility', () => {
       // Test informative images have non-empty alt text
       renderWithProviders(
         <div>
-          <img src="/chart.png" alt="Sales chart showing 20% increase" />
+          <Image src="/chart.png" alt="Sales chart showing 20% increase" width={640} height={480} />
         </div>
       );
 
@@ -461,8 +463,8 @@ describe('Workflow accessibility', () => {
       const { container } = renderWithProviders(
         <div>
           <nav aria-label="Main navigation">
-            <a href="/">Home</a>
-            <a href="/about">About</a>
+            <Link href="/">Home</Link>
+            <Link href="/about">About</Link>
           </nav>
           <main aria-label="Main content">
             <h1>Main Content</h1>
@@ -540,11 +542,11 @@ describe('Workflow accessibility', () => {
       // Test skip link allows bypassing navigation
       renderWithProviders(
         <div>
-          <a href="#main-content" className="skip-link">
+          <Link href="#main-content" className="skip-link">
             Skip to main content
-          </a>
+          </Link>
           <nav aria-label="Navigation">
-            <a href="/">Home</a>
+            <Link href="/">Home</Link>
           </nav>
           <main id="main-content">
             <h1>Main Content</h1>

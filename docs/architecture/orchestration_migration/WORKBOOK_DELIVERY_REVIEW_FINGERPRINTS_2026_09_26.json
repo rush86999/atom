@@ -1,0 +1,15 @@
+{
+  "captured_at_utc": "2026-09-26T13:43:27.462301+00:00",
+  "purpose": "End-of-review working-tree fingerprints; not a running-server identity or an atomic source snapshot",
+  "files": {
+    "backend/core/answer_presentation.py": "50b9c440ec6eeec5a61585d1d9ed8cbda500bb5ac8666e12ca895818226fb35e",
+    "backend/core/pending_file_task.py": "083d272d2ffd5489d214e96f18a575125ad7cbe0eae969b44f08ed0ad3eb95c0",
+    "backend/core/chat_tool_planner.py": "8817cc0ed974e99c8642a4194c3470f075db1d0ccc1db8c4996544187c96fe81",
+    "backend/integrations/chat_orchestrator.py": "d8fdbfddaef40a1d2724c0937fbe49964b55ee4554f1b049effca288a1be199c",
+    "backend/integrations/chat_routes.py": "4ae9f91a3f7c50f9781cc5cae70d92be5a08677aa009dd056f2011c45591fc92",
+    "backend/scripts/orchestration_acceptance/live_integration_acceptance.py": "0232f81f12bd18380fdf309683a4ace0c8c3808b289653381c5dd09def10b888",
+    "backend/scripts/orchestration_acceptance/m1_overlay/apply.py": "424f28d0fb74908ca3d64dcfeb6dbaf0ab50dd60500ad7bc573f8e27f00e2612",
+    "backend/scripts/orchestration_acceptance/run_isolated.py": "08a74145f6bdcef889fab48c24861459d6ec30b18c52a18602b3763bb9676b37",
+    "backend/tests/test_workbook_structured_delivery.py": "ee2c62182237f516ea9303fbcb067dac7d79ed354b4d97d19dbb1470af240b97"
+  }
+}
