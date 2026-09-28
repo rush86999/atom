@@ -204,7 +204,20 @@ def point_world_at_shim(world: str, port: int) -> Dict[str, Any]:
             "pin": f"{key}/{SHIM_MODEL}", "workspace_id": WORKSPACE_ID}
 
 
-def seed_canvas(db: str, marker: str, user_id: str) -> Dict[str, Any]:
+def seed_canvas(db: str, marker: str, user_id: str,
+                base: str = "", tok: str = "") -> Dict[str, Any]:
+    """Create the probe canvas through the SUPPORTED APIs.
+
+    The previous version inserted the row straight into `canvases` with
+    sqlite3 and wrote NO CanvasAudit row -- the exact inverse of what the
+    product does, and a state the product never creates. Readers treat the
+    audit trail as the source of truth, so every result earned on that fixture
+    was measured on a canvas the product would never have produced. Creation
+    now goes through POST /api/canvas/email/create and the body through
+    PUT /api/canvas/{id}, so the fixture carries the same evidence trail a real
+    user's canvas does. The direct-insert path is kept only as an explicit
+    fallback for offline use and is reported when used.
+    """
     import sqlite3
     import uuid
     canvas_id = str(uuid.uuid4())
@@ -212,8 +225,28 @@ def seed_canvas(db: str, marker: str, user_id: str) -> Dict[str, Any]:
                  f"<p><b>{BODY_OLD}</b></p>"
                  f"<p>Rows 1-5 are the requested machines.</p>"
                  f"<!-- {marker} --></div>")
-    content = json.dumps({"to": "steve@example.com", "cc": "",
-                          "subject": "Quote for Steve", "body": body_html})
+    content = {"to": "steve@example.com", "cc": "",
+               "subject": "Quote for Steve", "body": body_html}
+    if base and tok:
+        import httpx as _h
+        hdr = {"Authorization": f"Bearer {tok}",
+               "Origin": base.replace("http://", "http://")}
+        r = _h.post(f"{base}/api/canvas/email/create", headers=hdr,
+                    trust_env=False, timeout=60,
+                    json={"subject": "Quote for Steve",
+                          "recipients": ["steve@example.com"],
+                          "canvas_id": canvas_id, "user_id": user_id})
+        if r.status_code != 200:
+            raise SystemExit(f"canvas creation API failed: {r.status_code} "
+                             f"{r.text[:200]}")
+        made = (r.json() or {}).get("canvas_id") or canvas_id
+        u = _h.put(f"{base}/api/canvas/{made}", headers=hdr, trust_env=False,
+                   timeout=60, params={"canvas_type": "email"},
+                   json=content)
+        if u.status_code != 200:
+            raise SystemExit(f"canvas content API failed: {u.status_code} "
+                             f"{u.text[:200]}")
+        return {"canvas_id": made, "content": content, "seeded_via": "api"}
     con = sqlite3.connect(db)
     try:
         cols = {r[1] for r in con.execute("PRAGMA table_info(canvases)")}
@@ -229,7 +262,7 @@ def seed_canvas(db: str, marker: str, user_id: str) -> Dict[str, Any]:
         values = {"id": canvas_id, "name": f"C16 controlled {marker}",
                   "title": f"C16 controlled {marker}",
                   "description": "C16 controlled-planner probe",
-                  "content": content, "canvas_type": row[4] or "email",
+                  "content": json.dumps(content), "canvas_type": row[4] or "email",
                   "status": row[3] or "active", "tenant_id": row[0],
                   "created_by": user_id, "workspace_id": row[1]}
         names = [c for c in values if c in cols]
@@ -539,6 +572,13 @@ def identity_chain(db: str, canvas_id: str, session_id: str,
             continuation_id) and last.get("operation_id") == continuation_id
         out["landed_by_interactive_attempt"] = bool(
             continuation_id) and last.get("operation_id") != continuation_id
+        # Current revision means the LAST audit row on this canvas is the
+        # mutation -- not that there is exactly one update. Seeding through the
+        # supported APIs legitimately writes an earlier create + body update.
+        out["current_revision_is_the_landed_row"] = bool(
+            last.get("operation_id")
+            and out["audit_rows"]
+            and out["audit_rows"][-1].get("audit_id") == last.get("audit_id"))
     return out
 
 
@@ -877,6 +917,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if (args.mode != "sync" and args.only != "sync") else None),
             "reply_leg_reserve_seconds": _reply_reserve,
             "fixture_sha256": _fixture_sha(args.world),
+            "canvas_seeded_via": "api",
             "code_snapshot_sha256": _code_snapshot_sha(args.world),
         },
         "scope": ("ONLY the planner's model response is injected. Auth, "
@@ -914,7 +955,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         # ---------------- case 1: synchronous edit -----------------------
         log_off = log_offset(args.world)
         marker = f"C16SYNC-{int(time.time())}"
-        seeded = seed_canvas(db, marker, uid)
+        seeded = seed_canvas(db, marker, uid, base=base, tok=tok)
         before = read_state(db, seeded["canvas_id"])
         r = httpx.post(f"{base}/api/chat/message", headers=headers,
                        trust_env=False, timeout=900,
@@ -969,8 +1010,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             "checks": {
                 "injection_was_consumed": bool(served),
                 "injection_hits": len(served),
+                # Measured as a DELTA from the post-seed state, not an absolute
+                # count. Seeding through the supported APIs writes its own
+                # audited `update` (create + body), so an absolute count of one
+                # is only true for a hand-seeded fixture. What matters is that
+                # the REQUEST added exactly one mutation.
                 "exactly_one_audit_row": (
-                    after["audit_actions"].count("update") == 1),
+                    after["audit_actions"].count("update")
+                    - before["audit_actions"].count("update") == 1),
                 "durable_content_has_the_intended_change":
                     after["has_new_text"],
                 "the_old_text_is_gone": not after["has_old_text"],
@@ -1014,7 +1061,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.mode != "sync" and args.only != "sync":
             # ---- background: the SAME request, now through the real fork ----
             marker = f"C16BG-{args.mode.upper()}-{int(time.time())}"
-            bseed = seed_canvas(db, marker, uid)
+            bseed = seed_canvas(db, marker, uid, base=base, tok=tok)
+            # Post-seed audit baseline: seeding through the supported APIs
+            # writes its own audited create + update, so the request's effect is
+            # measured as a delta from here.
+            bseed_before = read_state(db, bseed["canvas_id"])
             # Arm the stall for THIS leg only, and re-arm the per-key counters.
             # The counter is global over the shim's life, so without this the
             # budget is already spent and the background planner call answers
@@ -1153,7 +1204,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             chain["continuation_operation_id"] = cont_id or None
             chain["origin_operation_id"] = origin_op or None
             chain["current_revision_is_the_landed_row"] = bool(
-                landed_op and chain.get("update_count") == 1)
+                chain.get("current_revision_is_the_landed_row"))
             # The knob must be OBSERVED, not assumed: read back the budget the
             # server process was actually launched with, and require the stall
             # to exceed it (otherwise there is nothing to overrun and the
@@ -1201,7 +1252,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             if expect_success:
                 checks.update({
                     "exactly_one_update_audit":
-                        after_bg["audit_actions"].count("update") == 1,
+                        after_bg["audit_actions"].count("update")
+                        - bseed_before["audit_actions"].count("update") == 1,
                     "intended_mutation_persisted": after_bg["has_new_text"],
                     "old_text_gone": not after_bg["has_old_text"],
                     "live_notification_received": bool(cont_events),
@@ -1214,7 +1266,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 checks.update({
                     "no_unsupported_success": not after_bg["has_new_text"],
                     "zero_update_audits":
-                        after_bg["audit_actions"].count("update") == 0,
+                        after_bg["audit_actions"].count("update")
+                        - bseed_before["audit_actions"].count("update") == 0,
                     "old_text_intact": after_bg["has_old_text"],
                     "no_false_success_in_summary":
                         "30 days" not in (term.get("result_summary") or ""),
