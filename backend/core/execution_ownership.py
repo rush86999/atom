@@ -212,6 +212,12 @@ def owner_liveness(metadata: Optional[Dict[str, Any]]) -> Tuple[str, Dict[str, A
         return "dead", {**detail, "reason": "owner is a zombie (already exited, "
                                             "awaiting reaping by its parent)"}
 
+    # NOTE: the stamp's "process_started_at" is an ISO WALL-CLOCK time
+    # (datetime.now), not an OS process start time, so it must NOT be compared
+    # against _os_process_start()'s "ps:..." string -- the formats differ and
+    # every live owner would look dead. The comparable value is written by
+    # record_os_start() under "os_process_start"; the legacy spelling is
+    # accepted only in that same, comparable form.
     recorded = owner.get("os_process_start")
     if recorded:
         current = _os_process_start(pid)
@@ -229,7 +235,6 @@ def owner_liveness(metadata: Optional[Dict[str, Any]]) -> Tuple[str, Dict[str, A
                               "reuse can be neither confirmed nor excluded. Treated "
                               "as live because the harmful direction is failing a "
                               "running turn."}
-
 
 def record_os_start(metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Stamp the current OS start time into this process's owner block.

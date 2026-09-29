@@ -250,7 +250,28 @@ def reconcile_orphaned_executions() -> dict:
                 f"(ownership not established -- not touched, not declared crashed)"
             )
         else:
-            logger.info("Crash recovery: no orphaned executions found")
+            # "no orphaned executions found" is only true when there was nothing
+            # to look at. With candidates deliberately LEFT ALONE it is false,
+            # and it was the reason the finish-line F11 investigation (2026-09-29)
+            # could not see why a killed continuation's row stayed `running`:
+            # the sweep reported success while a running row sat right there.
+            # Name the rows and the verdict for each.
+            if untouched or unknown:
+                # `untouched` is a COUNT; the rows themselves are in
+                # `untouched_detail` / `unknown`. Formatting the count as if it
+                # were the list raised TypeError inside the sweep, which the
+                # outer handler turned into "Execution recovery sweep failed" --
+                # the sweep then reconciled nothing and reported nothing, the
+                # same silence this branch exists to remove.
+                logger.warning(
+                    f"Crash recovery: no executions reconciled, but "
+                    f"{untouched} running execution(s) were LEFT ALONE "
+                    f"(live owner) and {len(unknown)} are UNKNOWN (ownership "
+                    f"not established): "
+                    f"live={untouched_detail[:5]} unknown={unknown[:5]}"
+                )
+            else:
+                logger.info("Crash recovery: no orphaned executions found")
         if unknown:
             # Loud on purpose: these are rows this process cannot account for.
             # They are NOT reconciled, so somebody has to be able to see them.
