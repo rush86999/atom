@@ -3193,7 +3193,12 @@ def _failed_edit_retry_target(
                 continue
             if not isinstance(record, dict):
                 continue
-            if str(record.get("outcome") or "") != "failed":
+            # FAILED *or CONFLICT* (2026-09-29 live): a conflict means the
+            # background edit was held back because the canvas moved — the
+            # edit still has not landed, and a bare retry is exactly the
+            # re-ask the conflict message invites. Both are un-landed
+            # terminal outcomes a retry should re-dispatch.
+            if str(record.get("outcome") or "") not in ("failed", "conflict"):
                 continue
             canvas_id = str(record.get("canvas_id") or "").strip()
             if not canvas_id:

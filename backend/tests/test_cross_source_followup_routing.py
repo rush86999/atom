@@ -25,6 +25,7 @@ Pinned behavior:
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -893,9 +894,10 @@ class TestPossessiveSourceRefinement:
 # ---------------------------------------------------------------------------
 
 class TestFailedEditRetryIntent:
-    def _fake_failed_row(self, monkeypatch, instruction, canvas_id="c-orig"):
-        """Stub the durable scan: one failed continuation row + the user
-        message that spawned it."""
+    def _fake_failed_row(self, monkeypatch, instruction, canvas_id="c-orig",
+                         outcome="failed"):
+        """Stub the durable scan: one terminal (failed OR conflict)
+        continuation row + the user message that spawned it."""
         import integrations.chat_orchestrator as chat_mod
 
         def fake_target(session_id, message, history=None):
@@ -916,10 +918,57 @@ class TestFailedEditRetryIntent:
                     extra_anchor=_RETRY_LINEAGE_VOCABULARY):
                 return None
             return {"instruction": instruction, "canvas_id": canvas_id,
-                    "execution_id": "exec-1"}
+                    "execution_id": "exec-1", "outcome": outcome}
 
         monkeypatch.setattr(chat_mod, "_failed_edit_retry_target",
                             fake_target)
+
+    def test_conflict_outcome_is_retryable_too(self, monkeypatch):
+        """Live 2026-09-29 23:34: a CONFLICT held the background edit back
+        ("Re-ask and it will run against the current canvas") — and the
+        user's bare "try again" fell to the older workbook read instead.
+        A conflict is an un-landed edit: the retry must re-dispatch it."""
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        # Drive the REAL detector with a stubbed durable layer: one
+        # conflict continuation row + the instruction that spawned it.
+        from unittest.mock import patch
+
+        class _FakeRow:
+            created_at = None
+            metadata_json = json.dumps({"continuation": str({
+                "id": "cont-9", "outcome": "conflict",
+                "canvas_id": "c-orig"})})
+        import datetime as _dt
+        _FakeRow.created_at = _dt.datetime.now()
+
+        class _FakeQuery:
+            def __init__(self, *a, **k): pass
+            def filter(self, *a, **k): return self
+            def order_by(self, *a, **k): return self
+            def limit(self, *a, **k): return self
+            def all(self): return [_FakeRow()]
+            def first(self):
+                return type("R", (), {"content": "original instruction",
+                                      "created_at": _FakeRow.created_at})()
+
+        import core.database as db_mod
+
+        class _FakeSession:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def query(self, *a, **k): return _FakeQuery()
+
+        with patch.object(db_mod, "get_db_session",
+                          return_value=_FakeSession()):
+            out = chat_mod._failed_edit_retry_target(
+                "sess-1", "try again", [])
+        assert out is not None, (
+            "a conflict outcome must be re-dispatched by a bare retry")
+        assert out["canvas_id"] == "c-orig"
+        assert out["instruction"] == "original instruction"
 
     def test_bare_retry_targets_the_failed_edit(self, monkeypatch):
         import asyncio
