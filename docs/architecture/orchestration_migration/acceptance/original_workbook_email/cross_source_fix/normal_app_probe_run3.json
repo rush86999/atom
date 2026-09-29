@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:8001",
-  "user_email": "crosssrc-probe-60662f76@example.com",
+  "user_email": "<redacted-probe-user>",
   "user_id": "c1fd52fd-3081-47e9-84f7-0270af177395",
   "session_id": "crosssrc-probe-1790702589",
   "turns": [

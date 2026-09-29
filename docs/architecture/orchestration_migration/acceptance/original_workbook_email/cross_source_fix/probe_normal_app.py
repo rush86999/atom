@@ -44,8 +44,10 @@ async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8001")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--token", default="",
-                    help="reuse an existing JWT instead of registering")
+    ap.add_argument("--email", default="",
+                    help="existing probe user to log in as (password via"
+                         " --password; never a token on argv)")
+    ap.add_argument("--password", default="")
     args = ap.parse_args()
 
     client = httpx.AsyncClient(trust_env=False, timeout=420)
@@ -54,8 +56,17 @@ async def main() -> int:
     email = f"crosssrc-probe-{stamp}@example.com"
     password = f"probe-{stamp}-pass"
 
-    token = args.token
+    token = ""
     reg = None
+    if args.email and args.password:
+        login = (await client.post(f"{base}/api/auth/login", json={
+            "username": args.email, "password": args.password})).json()
+        token = (login.get("access_token")
+                 or (login.get("data") or {}).get("access_token"))
+        if not token:
+            print(json.dumps({"login_failed": "invalid credentials"},
+                             indent=1))
+            return 2
     if not token:
         reg = (await client.post(f"{base}/api/auth/register", json={
             "username": email, "email": email, "password": password,
