@@ -335,4 +335,11 @@ async def await_barrier(stage: str,
 #: The stage names the product call sites use. Named here so a harness and a
 #: call site cannot drift apart on a string literal.
 STAGE_CONTINUATION_AFTER_EFFECT = "continuation_after_effect"
+#: Inside ``_apply_effects``, AFTER the terminal-delivery claim is taken and
+#: BEFORE the durable terminal message is written. That window is microseconds
+#: wide and cannot be hit by polling, and it is the one state recovery exists
+#: for: the claim says a delivery is owned, and nothing was written. Same
+#: confinement as every other stage -- inert unless armed, refused outside an
+#: isolated acceptance world, bounded, and a pause that changes no outcome.
+STAGE_CONTINUATION_AFTER_CLAIM = "continuation_after_claim"
 STAGE_CHAT_TURN_AFTER_CLAIM = "chat_turn_after_claim"

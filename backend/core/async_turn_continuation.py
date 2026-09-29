@@ -1747,6 +1747,24 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                 "duplicate-delivery warning.", cont.continuation_id,
                 _claim_reason)
 
+    # ACCEPTANCE BARRIER (test-only; confined by core/acceptance_barrier — inert
+    # unless ATOM_ACCEPTANCE_BARRIER names a stage, and refused outside an
+    # isolated acceptance world). Stage ``continuation_after_claim`` parks here:
+    # the claim above is taken, and the durable terminal message is NOT yet
+    # written. That is precisely the state a crash in this window leaves, and it
+    # is unreachable by polling, so the recovery path could not otherwise be
+    # exercised at all. It only PAUSES.
+    if os.getenv("ATOM_ACCEPTANCE_BARRIER"):
+        from core.acceptance_barrier import await_barrier as _barrier
+
+        await _barrier("continuation_after_claim", {
+            "surface": "async_turn_continuation",
+            "continuation_id": cont.continuation_id,
+            "session_id": cont.session_id,
+            "canvas_id": (cont.canvas or {}).get("canvas_id"),
+            "outcome": cont.outcome,
+        })
+
     # DIAGNOSIS (2026-09-27, c16 case 2): _finish_durable_record() -- the ONLY
     # thing that moves the AgentExecution row off 'running' -- runs in the
     # `finally` of `await _apply_effects()`. So a stall inside any stage here
