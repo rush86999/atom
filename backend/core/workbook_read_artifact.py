@@ -792,6 +792,24 @@ def _criteria_values(value: Any) -> List[str]:
     return [text] if text else []
 
 
+def _is_data_payload_value(text: str) -> bool:
+    """Whether a mined constraint VALUE is actually a pasted data row.
+
+    "here's the data: 381<TAB>167072381<TAB>Roll Bending Machine,
+    $3,254.00" colon-mines as ``s_the_data = 381 167072381 …`` — a
+    constraint no cell can satisfy, which filtered out every row and
+    rendered the row the user themselves supplied as "absent" (2026-09-29
+    row-338 incident). A real attribute value ("capacity is 22 tons",
+    "organization is Brennan Machinery", "model: 381") carries at most
+    ONE standalone number and no tab-separated columns; a value with a
+    tab or two or more standalone numbers is the THING BEING LOOKED UP.
+    """
+    t = str(text or "")
+    if "\t" in t:
+        return True
+    return len(re.findall(r"(?<![\w.,])\d[\d,]*(?:\.\d+)?(?![\w.])", t)) >= 2
+
+
 def _add_criteria_value(
     criteria: Dict[str, List[str]], attribute: Any, value: Any,
 ) -> None:
@@ -801,6 +819,8 @@ def _add_criteria_value(
         return
     values = criteria.setdefault(field, [])
     for text in _criteria_values(value):
+        if _is_data_payload_value(text):
+            continue
         if text.lower() not in {item.lower() for item in values}:
             values.append(text)
 

@@ -718,3 +718,73 @@ def test_employee_certification_date_and_version_fields_are_schema_driven():
     )
     software = artifact["coverage"]["outcomes"][0]["evidence"][0]
     assert [item["column"] for item in software["values"]] == ["Minimum Version"]
+
+
+def test_pasted_data_row_is_not_an_attribute_constraint(tmp_path):
+    """Row-338 incident (2026-09-29): the user pasted the row itself —
+    "here's the data: 381\\t167072381\\tRoll Bending Machine,\\t$3,254.00" —
+    and the colon miner read it as the constraint
+    ``s_the_data = "381 167072381 Roll Bending Machine"``. A constraint no
+    cell can satisfy, it filtered out EVERY row and the target that exists
+    in the materialized copy came back "absent". A pasted data payload
+    (tabs, or two or more standalone numbers) is the THING BEING LOOKED
+    UP, never an attribute constraint."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import (
+        _disambiguation_criteria,
+        inspect_dataset_entries,
+    )
+
+    message = (
+        "roper whitney and tennsmith are 2 brands under 1 ownership. "
+        "no. 381 is on the Tennsmith sheet under row 338. here's the "
+        "data: 381\t167072381\t\tRoll Bending Machine,\t $3,254.00 . "
+        "find this in the workbook")
+
+    criteria = _disambiguation_criteria(message, [message], None)
+    for attribute, values in criteria.items():
+        for value in values:
+            assert not ("\t" in value), (attribute, value)
+            assert len(re.findall(r"(?<![\w.,])\d[\d,]*(?:\.\d+)?", value)) \
+                < 2, (attribute, value)
+
+    path = tmp_path / "tennsmith.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338],
+        "MODEL NO.": ["381"],
+        "CAT. NO.": ["167072381"],
+        "DESCRIPTION": ["Roll Bending Machine,"],
+        "PRICE": ["3254"],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "Tennsmith",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry], "Consolidated Price List 2019.xlsx",
+        query=message, context_texts=[message], targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous"), (
+        "the row the user pasted must be found, not filtered to absence")
+    assert outcome["evidence"], outcome
+
+
+def test_single_number_constraint_still_applies(tmp_path):
+    """Positive control: a genuine single-value constraint ("capacity is
+    22 tons") keeps filtering — the guard only rejects pasted-data
+    shapes, never ordinary attribute constraints."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import _disambiguation_criteria
+
+    message = "capacity is 22 tons in the workbook"
+    criteria = _disambiguation_criteria(message, [message], None)
+    assert any(
+        "22" in str(value)
+        for values in criteria.values()
+        for value in values
+    ), criteria
