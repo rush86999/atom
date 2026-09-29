@@ -173,11 +173,18 @@ workbook→email workflow verified."** Not "the entire migration is complete" �
 M3 is off, F02a is unexplained, F02c is pending, and the boundaries below are
 real.
 
-1. **Runtime vs remote HEAD.** The serving process runs `c647b0ca1`; remote
-   HEAD is `561427e25`. Verified: `git diff c647b0ca1..561427e25` over every
-   serving directory (core, integrations, api, tools, main_api_app,
-   websocket_routes) is EMPTY — the three intervening commits are harness +
-   docs only. The runtime needs no redeploy for them.
+1. **Runtime vs remote HEAD — verified precisely.** The serving process
+   started 09:37 EDT from the working tree; the parallel stream's `6a6e918c`
+   (terminal-delivery reconciliation — SERVING code in
+   `async_turn_continuation`/`acceptance_barrier`/`models`) was committed at
+   10:33 but existed as working-tree content at process start, and **no
+   serving file has been modified since 09:37** (mtime sweep over core,
+   integrations, api, tools, main_api_app, websocket_routes: empty). So the
+   runtime executes exactly the serving content now at remote HEAD; the
+   commits after `c647b0ca1` are harness + docs only. Note `6a6e918c` IS the
+   deferral reconciliation: the five-fact 7/10 ran on an export WITHOUT it,
+   so an M3 rollout requires a five-fact rerun against a fresh export of
+   current main.
 2. **Effective planner pin, recorded with the flags.** The dev rollout flags
    are M1/M2/lifecycle `=1` (M3 off). `ATOM_ASYNC_EDIT_PLAN_MODEL` is UNSET on
    the dev stack: edit plans are BPC-routed per call. Observed edit-plan models
