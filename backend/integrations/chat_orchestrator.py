@@ -7370,6 +7370,11 @@ class ChatOrchestrator:
             used_model = None
             used_provider = None
             if ai_response:
+                from core.chat_canvas_editor import (
+                    canvas_operation_has_receipt,
+                    reply_claims_canvas_change,
+                )
+
                 main_message = ai_response["content"]
                 # HONEST EXECUTION STATUS (2026-09-24 task-continuity
                 # regression): a turn resuming an outstanding file task
@@ -7411,6 +7416,39 @@ class ChatOrchestrator:
                     logger.warning(
                         "[pending-file-task] promise gate crashed — "
                         "honest-status check skipped: %r", _gate_err)
+                # CANVAS-CLAIM RECEIPT GATE (2026-09-29 live): the edit lane
+                # declined/bypassed, and the narration claimed the canvas
+                # was UPDATED — with no audit row carrying this turn's
+                # operation id. A success claim without a receipt is
+                # replaced with the honest outcome, regardless of provider
+                # availability.
+                try:
+                    if (
+                        _canvas_ctx
+                        and (_canvas_ctx or {}).get("canvas_id")
+                        and _canvas_edit_shaped(
+                            message, {"canvas": _canvas_ctx})
+                        and main_message
+                        and reply_claims_canvas_change(main_message)
+                        and not canvas_operation_has_receipt(
+                            user_id,
+                            (_canvas_ctx or {}).get("canvas_id"),
+                            _execution_id)
+                    ):
+                        main_message = (
+                            "The canvas edit did not apply — nothing was "
+                            "changed. The edit step could not be completed "
+                            "just now; you can try again, and nothing on "
+                            "the canvas was modified.")
+                        ai_response["content"] = main_message
+                        logger.warning(
+                            "[canvas-claim] reply claimed a canvas update "
+                            "with no audit receipt — replaced with the "
+                            "honest outcome (execution=%s)", _execution_id)
+                except Exception as _cc_err:  # noqa: BLE001 — observable
+                    logger.warning(
+                        "[canvas-claim] receipt gate crashed — check "
+                        "skipped: %r", _cc_err)
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the

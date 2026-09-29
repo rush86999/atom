@@ -571,3 +571,99 @@ def test_named_identity_may_leave_the_canvas():
         "<tr><td>2</td><td>Linmac U-22</td><td>$1,777.00</td></tr>", "")
     assert _validate_scoped_edit(
         {"body": EMAIL_BODY_8}, {"body": new_body}, [instruction]) is None
+
+
+# ---------------------------------------------------------------------------
+# FALSE-SUCCESS NARRATION GATE (2026-09-29 live): the edit lane declined
+# (planner unavailable), and the reply leg narrated an "updated quote" as
+# text — no canvas write, no audit row, yet the user read success. If the
+# turn had an open canvas, was edit-shaped, and no audit row carries THIS
+# turn's operation id, a success claim must be replaced with the honest
+# outcome. The four correct wordings:
+#   unavailable provider -> honest "did not apply"
+#   legitimate decline   -> honest decline (existing no-apply branch)
+#   pending background   -> "still running" (existing fork branch)
+#   successful edit      -> claim allowed (audit receipt exists)
+# ---------------------------------------------------------------------------
+
+def test_reply_claiming_canvas_update_without_receipt_is_detected():
+    from core.chat_canvas_editor import reply_claims_canvas_change
+
+    assert reply_claims_canvas_change(
+        "Please find our updated quote below for the requested equipment:")
+    assert reply_claims_canvas_change(
+        "I've updated the email with the new price.")
+    assert reply_claims_canvas_change(
+        "Done — applied the change to the draft.")
+    # denials / pending / questions are NOT success claims
+    assert not reply_claims_canvas_change(
+        "I didn't apply that canvas change, so nothing was changed.")
+    assert not reply_claims_canvas_change(
+        "The canvas edit is still running in the background.")
+    assert not reply_claims_canvas_change(
+        "Which line should I update?")
+
+
+def test_receipt_check_queries_audit_by_operation_id(tmp_path):
+    from core.chat_canvas_editor import canvas_operation_has_receipt
+
+    # No DB row -> no receipt (the function must not raise).
+    assert canvas_operation_has_receipt(
+        "u1", "00000000-0000-0000-0000-000000000000", "exec-x") is False
+
+
+def test_fallback_after_failed_pin_excludes_that_route():
+    """Fork 91fedfd1 (2026-09-29): the pinned plan route truncated at
+    max_tokens, and the unpinned fallback re-ranked the SAME route —
+    repeating a deterministic failure until the plan budget died. The
+    fallback must exclude the failed pin so the cascade lands on a
+    different model."""
+    import asyncio
+
+    from core.llm.pinned_planning import pinned_structured_call
+
+    seen_kwargs = []
+
+    class _FakeLLM:
+        async def generate_structured_response(self, **kwargs):
+            seen_kwargs.append(kwargs)
+            if kwargs.get("provider_model") == ("deepseek", "deepseek-v4-pro"):
+                return None  # the pin's route failed (e.g. truncation)
+            return "ok"
+
+    result = asyncio.run(pinned_structured_call(
+        _FakeLLM(),
+        prompt="plan the edit",
+        response_model=dict,
+        system_instruction="json",
+        call_kwargs={"provider_model": ("deepseek", "deepseek-v4-pro")},
+        log_label="canvas edit planning",
+        task_type="planning",
+    ))
+    assert result == "ok"
+    assert len(seen_kwargs) == 2, "pin attempt + one fallback"
+    assert seen_kwargs[0].get("provider_model") == (
+        "deepseek", "deepseek-v4-pro")
+    assert seen_kwargs[1].get("exclude_provider_model") == (
+        "deepseek", "deepseek-v4-pro"), (
+        "the fallback must carry the failed route as an exclusion")
+    assert seen_kwargs[1].get("provider_model") is None
+
+
+def test_failed_pin_exclusion_filter():
+    """The cascade's options filter: the failed route is dropped from a
+    multi-route pool, and a single-option pool is left intact (an empty
+    dispatch pool is worse than a known route)."""
+    from core.llm.byok_handler import apply_failed_pin_exclusion
+
+    pool = [("deepseek", "deepseek-v4-pro"), ("deepseek", "deepseek-flash"),
+            ("opencode-go", "kimi-k2.7-code")]
+    out = apply_failed_pin_exclusion(pool, ("deepseek", "deepseek-v4-pro"))
+    assert ("deepseek", "deepseek-v4-pro") not in out
+    assert len(out) == 2
+    # single-option pool untouched
+    assert apply_failed_pin_exclusion(
+        [("deepseek", "deepseek-v4-pro")],
+        ("deepseek", "deepseek-v4-pro")) == [("deepseek", "deepseek-v4-pro")]
+    # no exclusion -> unchanged
+    assert apply_failed_pin_exclusion(pool, None) == pool

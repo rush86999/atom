@@ -306,6 +306,25 @@ def _record_structured_latency(provider_id: str, model: str,
     _save_pair_memos()
 
 
+def apply_failed_pin_exclusion(
+    options: List[Any], exclude_provider_model: Optional[tuple],
+) -> List[Any]:
+    """Drop a just-failed pinned route from a fallback sweep's options.
+
+    A max_tokens truncation (finish=length) is deterministic per
+    route+cap: re-ranking the same route repeats the failure and burns
+    the plan budget (fork 91fedfd1, 2026-09-29). A single-option pool is
+    left intact — an empty dispatch pool is worse than a known route.
+    """
+    if not exclude_provider_model or len(options or []) <= 1:
+        return options
+    filtered = [
+        o for o in options
+        if tuple(o) != tuple(exclude_provider_model)
+    ]
+    return filtered or [tuple(exclude_provider_model)]
+
+
 def _interactive_structured_max_seconds() -> float:
     raw = os.getenv("ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS")
     if raw is not None and str(raw).strip() != "":
@@ -6313,6 +6332,7 @@ class BYOKHandler:
         image_payload: Optional[str] = None, # Phase 14: Vision Support
         cascade: bool = False,  # Phase 2 hallucination mitigation
         provider_model: Optional[tuple] = None,  # R72 F: pin a single (provider, model)
+        exclude_provider_model: Optional[tuple] = None,  # route a fallback must NOT retry (e.g. a failed pin: truncation is deterministic per route+cap)
         allow_moa: bool = True,                  # R72 F: opt out of MoA dispatch
         disable_reasoning: bool = False,         # tiny planning calls: skip hidden thinking
         max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
@@ -6508,6 +6528,13 @@ class BYOKHandler:
                     provider_model = None
                 else:
                     options = [provider_model]
+
+            # FAILED-PIN EXCLUSION (2026-09-29, fork 91fedfd1): a fallback
+            # sweep must not re-rank the route that just failed
+            # deterministically (output truncated at max_tokens repeats
+            # identically). Filtered where the pin filters — before vision
+            # coordination and dispatch.
+            options = apply_failed_pin_exclusion(options, exclude_provider_model)
 
             # --- Phase 14.5: Coordinated Vision Logic ---
             if image_payload:

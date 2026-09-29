@@ -904,6 +904,65 @@ def _bounded_email_content(
     return merged
 
 
+# A reply CLAIMING a canvas change was made ("updated the email",
+# "applied the change", "updated quote below"). Deliberately generic
+# across artifacts and businesses; denials ("didn't apply", "still
+# running") and questions never match. Consumed by the chat reply gate
+# that replaces an unbacked success claim with the honest outcome.
+_CANVAS_SUCCESS_CLAIM_RE = re.compile(
+    r"\b(?:updated|revised|applied|swapped|replaced)\b[^.\n]{0,60}?"
+    r"\b(?:email|draft|canvas|quote|table|document)\b"
+    r"|\bupdated quote below\b"
+    r"|\bquote below\b",
+    re.IGNORECASE,
+)
+_CANVAS_CLAIM_NEGATION_RE = re.compile(
+    r"\b(?:didn'?t|did not|could not|couldn'?t|cannot|can't|not)\b"
+    r"[^.]{0,60}\b(?:updated|applied|changed|applied the change)\b"
+    r"|\bstill running in the background\b",
+    re.IGNORECASE,
+)
+
+
+def reply_claims_canvas_change(text: str) -> bool:
+    """Whether a reply claims a canvas change was made (success wording).
+
+    Negations and pending/background wording are not claims. Generic
+    across artifacts; no business vocabulary.
+    """
+    t = str(text or "")
+    if not t:
+        return False
+    if _CANVAS_CLAIM_NEGATION_RE.search(t):
+        return False
+    return bool(_CANVAS_SUCCESS_CLAIM_RE.search(t))
+
+
+def canvas_operation_has_receipt(
+    user_id: Any, canvas_id: Any, execution_id: Any,
+) -> bool:
+    """Whether a canvas_audit row carries THIS operation's id — the
+    receipt that a claimed change actually landed. Fault-isolated: any
+    failure returns False (no receipt), never raises."""
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        with get_db_session() as db:
+            row = (
+                db.query(CanvasAudit)
+                .filter(
+                    CanvasAudit.canvas_id == str(canvas_id),
+                    CanvasAudit.details_json.like(
+                        f'%{{"operation_id": "{str(execution_id)}"%'),
+                )
+                .first()
+            )
+            return row is not None
+    except Exception:  # noqa: BLE001 — no receipt on any failure
+        return False
+
+
 def _scope_placeholder_violations(body: str, rows: List[List[str]]) -> List[str]:
     violations: List[str] = []
     if re.search(r"\[[^\]]+\]", body):
