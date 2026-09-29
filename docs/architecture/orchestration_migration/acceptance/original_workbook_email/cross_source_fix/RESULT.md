@@ -220,3 +220,40 @@ documented snapshot procedure (pids 89980, 93166, 94478 healthy).
 Suites: routing 45, artifact 27, resume+workbook neighbors 299 passed
 + 2 xfailed. The owner can simply re-send the message in their own
 session; no state migration is needed.
+
+## Addendum 2 (2026-09-29): domain-independence pass + cheap-NLU layers
+
+Owner directive: the row-338 guards must be business/domain independent,
+with cheap NLU wherever a noun-list regex is too rigid. Audit of every
+vocabulary the five fix commits added:
+
+| Guard | Kind | Generalization |
+|---|---|---|
+| `_GENERIC_FILE_REF_RE` nouns | file-kind nouns | floor widened with generic document/doc/report; residue judged by cheap NLU |
+| `_COMMUNICATION_SOURCE_NOUN_RE` nouns | communication nouns | floor widened (notes/memos/letters/replies/comments/posts/tickets/announcements/reminders/forwards/attachments/transcripts); residue judged by cheap NLU |
+| `_is_data_payload_value` | structural (tabs / 2+ standalone numbers) | already domain-free |
+| `request_extends_objective` + operation vocab | verb-group/object signatures + HOW-words | already domain-free; pinned by the 6-domain matrix |
+| spreadsheet-extension resolver guard | capability-driven (the reader serves sheets) | correct as-is; documented |
+
+New `core/llm/cheap_nlu.py` — the repo's established tiebreaker pattern
+(match_confidence_tiebreaker) applied to NLU: strictly-scoped yes/no
+micro-questions, budget-tier LLM (`model="auto"` BPC), bounded TTL cache,
+circuit breaker, call-time switches (`TESTING=1`, `ATOM_CHEAP_NLU_LLM=false`),
+never raises, `None` keeps the caller's deterministic floor. Two task
+prompts: `is_source_reference` (possessive = where-to-look vs row
+attribute) and `refers_to_resolved_file` (generic noun → the resolved
+file). Floors stay authoritative in every test; the LLM only refines the
+residue, fail-closed in BOTH directions (no verdict = floor; NO = floor).
+
+Live verification (:8001, pid 3646): (1) a possessive source-reference
+turn ("check Maya's ticket comments…") routed to planning; (2) the exact
+row-338 message still binds `381 = 3,254 (Tennsmith!R338, identity A338,
+E338 'PRICE')` deterministically in 5.0s WITH that turn in history;
+(3) the document-noun variant ("find this in the document") binds the
+same row via the widened floor in 4.5s. The LLM tail fail-closed silently
+on this box (routed budget provider out of credits) — floors carried
+every case, which is the designed posture; the tail activates wherever a
+funded provider serves `auto`.
+
+Suites: cheap_nlu 17, routing 55, artifact 27, resume/workbook/objective
+neighbors 396 passed + 2 xfailed. Commit 27feff7e7.
