@@ -224,6 +224,25 @@ DOMAIN_MATRIX = [
      "check the wiki page and or summary in the notes to find correct "
      "section for confirmation",
      "search the notes again"),
+    # NON-BUSINESS domains (2026-09-29 owner audit): the decision must
+    # hold where no commerce exists at all — cooking, training logs,
+    # academic reading. If any guard only works because the incident was
+    # a price list, these rows fail.
+    ("find the oven temperatures for these 4 breads in my recipe log.xlsx",
+     "recipe log.xlsx",
+     "check the chef's video notes and or description in the sheet to "
+     "find correct row and temperature for confirmation",
+     "search the sheet again"),
+    ("find the pace targets for these 5 intervals in training_plan.csv",
+     "training_plan.csv",
+     "check the coach's message and or notes in the file to find correct "
+     "row and pace for confirmation",
+     "search the file again"),
+    ("find the publication years for these 6 papers in the reading list",
+     "reading list",
+     "check the author's abstract and or summary in the list to find "
+     "correct entry and year for confirmation",
+     "search the list again"),
 ]
 
 
