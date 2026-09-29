@@ -86,13 +86,22 @@ def stamp_owner(metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
 
 def _process_state(pid: int) -> Optional[str]:
-    """The OS single-letter process state of ``pid`` (``R``/``S``/``Z``/...),
-    or None if this platform cannot tell us.
+    """The OS process state of ``pid`` (``S``/``R``/``Z``/...), or None if this
+    platform cannot tell us.
 
-    Read-only, one small subprocess, and only for a pid that already answered
-    ``os.kill(pid, 0)`` -- so it runs at most once per candidate row during a
-    boot sweep. ``/proc`` is authoritative on Linux; macOS needs ``ps``.
+    psutil first: it reads the state without spawning anything, which matters
+    because the acceptance worlds run under a seatbelt profile that DENIES
+    ``process-exec`` -- ``ps`` fails there with EPERM, so a `ps`-only check
+    silently returned None under test and the zombie verdict never fired (the
+    finish-line F11 case, 2026-09-29). ``/proc`` and ``ps`` remain as fallbacks
+    for a host where psutil is unavailable.
     """
+    try:
+        import psutil
+
+        return psutil.Process(pid).status()
+    except Exception:  # noqa: BLE001 — any failure just means "cannot tell"
+        pass
     try:
         with open(f"/proc/{pid}/stat", "rb") as fh:
             fields = fh.read().rsplit(b")", 1)[-1].split()
@@ -208,7 +217,8 @@ def owner_liveness(metadata: Optional[Dict[str, Any]]) -> Tuple[str, Dict[str, A
     state = _process_state(pid)
     if state is not None:
         detail["os_process_state"] = state
-    if state is not None and state.startswith("Z"):
+    # psutil spells states out ("zombie"); /proc and ps use one letter ("Z").
+    if state is not None and state.strip()[:1].upper() == "Z":
         return "dead", {**detail, "reason": "owner is a zombie (already exited, "
                                             "awaiting reaping by its parent)"}
 
