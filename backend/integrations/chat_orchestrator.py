@@ -4549,6 +4549,29 @@ class ChatOrchestrator:
                 logger.warning(
                     "[pending-file-task] resume/recovery check failed: %r",
                     _pft_err)
+            # CANVAS EDIT PRECEDENCE (2026-09-29, original workbook→email
+            # incident): a turn that is edit-shaped against the ACTUALLY
+            # OPEN canvas belongs to the canvas-edit lane even while a file
+            # objective is pending. Without this yield the objective's
+            # continuation replans the OLD ask over the new request (live:
+            # two draft-update turns after a workbook search were answered
+            # as fresh searches, one of them re-running the read with
+            # item tokens extracted from the edit prose itself), and the
+            # edit planner is never reached. The file objective is only
+            # retained on the session here -- a research-only follow-up
+            # ("search again") is not edit-shaped and resumes exactly as
+            # before, and with no canvas open nothing changes at all.
+            if (
+                _pending_file_task is not None
+                and _canvas_ctx
+                and _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
+            ):
+                logger.info(
+                    "[pending-file-task] yielding to the canvas-edit lane: "
+                    "the turn is edit-shaped against the open canvas "
+                    "(session=%s, file objective retained)",
+                    session_id)
+                _pending_file_task = None
             if _pending_file_task is not None:
                 # THREE OPERATIONS (2026-09-24 review round 3): stamp what
                 # THIS continuation turn asks for — re-deliver / re-run /
