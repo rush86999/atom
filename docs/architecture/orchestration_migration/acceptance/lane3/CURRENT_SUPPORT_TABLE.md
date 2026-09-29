@@ -165,3 +165,44 @@ The verified configuration is **enabled and exercised in the normal dev app**
   config); one undetermined backend process death (restarted per procedure).
 - **Editing is supported under the disclosed pin** `deepseek/deepseek-v4-pro`.
   The email was never sent. F02a remains UNEXPLAINED; F02c PENDING.
+
+## Record closure — headline, pin, claim-boundary scope (2026-09-29, final)
+
+**Accurate headline: "M1/M2/lifecycle rollout completed and the original
+workbook→email workflow verified."** Not "the entire migration is complete" —
+M3 is off, F02a is unexplained, F02c is pending, and the boundaries below are
+real.
+
+1. **Runtime vs remote HEAD.** The serving process runs `c647b0ca1`; remote
+   HEAD is `561427e25`. Verified: `git diff c647b0ca1..561427e25` over every
+   serving directory (core, integrations, api, tools, main_api_app,
+   websocket_routes) is EMPTY — the three intervening commits are harness +
+   docs only. The runtime needs no redeploy for them.
+2. **Effective planner pin, recorded with the flags.** The dev rollout flags
+   are M1/M2/lifecycle `=1` (M3 off). `ATOM_ASYNC_EDIT_PLAN_MODEL` is UNSET on
+   the dev stack: edit plans are BPC-routed per call. Observed edit-plan models
+   in the serving log tonight: `deepseek/deepseek-v4-pro` and
+   `opencode-go/kimi-k2.7-code` — both authorized and applied. Editing support
+   remains CLAIMED only for the disclosed pin; the unpinned stack's routing
+   happens to select capable models but is not a supported-editing guarantee.
+   For a deterministic pin set `ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-v4-pro`.
+3. **Why the claim-boundary failure is a supported-path limitation, not a
+   blocked rollout.** The canvas-edit continuation and its terminal-delivery
+   claim run in the enabled configuration (the fork gate carries no M3/lifecycle
+   flag — the disposable edit forked, applied and delivered with M3 off). So the
+   release-line recovery behavior IS in the enabled path and is recorded as a
+   limitation: a worker killed while holding a delivery claim is recovered at
+   BOOT on this line rather than deferred-then-delivered by the recurring pass
+   (five-fact 7/10 on the seam export). Mitigating evidence from the exercised
+   scenario: exactly one terminal row, no additional mutation. Enabling M3 does
+   not change this; reconciling the deferral behavior does.
+
+**Handoff draft (recreated after the test-data cleanup):**
+http://localhost:3000/canvas/b6156b79-6de3-4ba1-9336-b9e6184b3e61 — the full
+mixed-source quote (8 rows, $2,902 vendor-quote preserved, alternatives
+paragraph, currency caveat). Unresolved: delivery estimates for rows 3/5/6/7/8.
+To try the workflow yourself: open the draft, use the right-panel composer —
+ask for the workbook prices (research), then ask for the edit (the fixed
+routing carries it); the Try-it caveat: the ATOM Assistant bubble may cover
+the Send button (UI defect) — if Send appears dead, the turn likely did not
+submit. No email is sent by any of this.
