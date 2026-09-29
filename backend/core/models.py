@@ -1049,33 +1049,6 @@ class AsyncContinuationClaim(Base):
     canvas_id = Column(String, nullable=True, index=True)
     claimed_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
-class AsyncDeliveryLease(Base):
-    """TERMINAL-DELIVERY lease for recovered async-turn continuations
-    (2026-09-28 review direction).
-
-    The ``notified`` flag on the execution record is check-then-act: two
-    processes running the recovery pass concurrently can both read "not
-    notified", both deliver, and both set the flag — the user receives the
-    terminal outcome twice. This lease makes the claim atomic: the row's
-    primary key is the continuation id, the owner names the delivering
-    process, and an UNEXPIRED foreign lease blocks delivery. An EXPIRED
-    lease is taken over (the holder died mid-delivery), so delivery is
-    retried automatically even when an earlier recovery pass ran before
-    expiry. Completion sets ``completed`` — a resuming original holder then
-    cannot commit a duplicate.
-
-    Disabled by ``ATOM_DELIVERY_LEASE_DISABLED=1`` (negative control: the
-    duplicate race becomes observable again).
-    """
-    __tablename__ = "async_delivery_leases"
-
-    continuation_id = Column(String, primary_key=True)
-    owner = Column(String, nullable=False, default="")
-    leased_at = Column(DateTime(timezone=True), server_default=func.now())
-    completed = Column(Boolean, nullable=False, default=False)
-
-
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).

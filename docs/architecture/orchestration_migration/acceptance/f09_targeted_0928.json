@@ -1,0 +1,167 @@
+{
+ "generated_at": "2026-09-28T21:31:44-0400",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-2316226346e7",
+ "foreign_interference": {
+  "foreign_sessions": [],
+  "detected": false
+ },
+ "export_binding": {
+  "code_snapshot_sha256": "0d3bd68378faa4ef2354815dbaa21a530f1979f7f5436cf270a5fb05fe7fdc13",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ]
+ },
+ "results": [
+  {
+   "case": "F09B_A_parked_holding_claim",
+   "status": "PASS",
+   "checks": {
+    "worker_parked": true,
+    "one_fork_record": true,
+    "claim_row_exists": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F09B_B_second_server_up",
+   "status": "PASS",
+   "checks": {
+    "second_server_healthy": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F09B_B_refused_fork_on_claimed_session",
+   "status": "PASS",
+   "checks": {
+    "b_turn_answered": true,
+    "no_second_fork_record": true,
+    "claim_still_single": true,
+    "b_log_shows_claim_refusal_or_no_fork": true
+   },
+   "notes": [],
+   "details": {
+    "b_status": 200,
+    "forks": 1
+   }
+  },
+  {
+   "case": "F09B_control_session_not_blocked",
+   "status": "PASS",
+   "checks": {
+    "control_turn_answered": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F09B_dead_owner_reconciled_claim_cleared",
+   "status": "PASS",
+   "checks": {
+    "barrier_never_released": true,
+    "stale_claim_cleared": true,
+    "dead_record_reconciled": true
+   },
+   "notes": [],
+   "details": {
+    "claims_after": 0
+   }
+  },
+  {
+   "case": "F09A_running_server_expiry_recovery",
+   "status": "FAIL",
+   "checks": {
+    "parked_then_killed": true,
+    "in_flight_claim_deferred_at_boot": true,
+    "recovered_after_expiry_without_restart": false,
+    "chat_reload_shows_terminal_outcome": false,
+    "wording_matches_recorded_attribution": false
+   },
+   "notes": [],
+   "details": {
+    "notifications": [
+     1,
+     1,
+     1
+    ],
+    "msgs": [
+     0,
+     0
+    ],
+    "effects": [],
+    "history_r2": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ]
+   }
+  },
+  {
+   "case": "F09A_stale_holder_fenced_out",
+   "status": "FAIL",
+   "checks": {
+    "A_parked_holding_claim": false,
+    "B_second_server_healthy": true,
+    "B_took_over_and_delivered_once": true,
+    "b_log_shows_delivery": true,
+    "A_resumed_and_was_fenced_out": true,
+    "no_duplicate_after_A_resume": true
+   },
+   "notes": [],
+   "details": {
+    "msgs_after_b": 1,
+    "msgs_final": 1,
+    "a_parked": false
+   }
+  },
+  {
+   "case": "F09A_unrelated_edit_not_claimed_as_success",
+   "status": "PASS",
+   "checks": {
+    "continuation_parked": true,
+    "unrelated_turn_completed": true,
+    "recovery_message_written": true,
+    "uncertainty_wording_used": true,
+    "no_false_success_wording": true
+   },
+   "notes": [],
+   "details": {
+    "z_terminal": [
+     "Background update failed. the canvas changed while this edit was in flight and the record cannot attribute the change to"
+    ]
+   }
+  },
+  {
+   "case": "F09C_public_overlap_updated",
+   "status": "PASS",
+   "checks": {
+    "both_turns_completed": true,
+    "distinct_execution_ids": true,
+    "every_fork_terminal": true,
+    "live_chat_continuation_for_every_fork": true,
+    "terminal_outcomes_in_history": true,
+    "canvas_coherent": true,
+    "no_pending_left_in_history": true
+   },
+   "notes": [],
+   "details": {
+    "statuses": [
+     200,
+     200
+    ],
+    "writes": 4,
+    "forks": 1,
+    "cont_events": 1,
+    "cont_statuses": [
+     "failed"
+    ],
+    "history_tail": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update failed. The background edit did not apply after 3 attempts. I could not confirm that the canvas is unchanged. Check it before relying on it."
+    ]
+   }
+  }
+ ]
+}

@@ -35,6 +35,7 @@ import asyncio
 import hashlib
 import importlib.util
 import json
+import json as _json
 import os
 import re
 import shutil
@@ -52,14 +53,40 @@ from typing import Any, Dict, List, Optional, Tuple
 HARNESS_VERSION = "enforced-isolation-v3.2"
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
-WORKTREE = Path("/Users/rushiparikh/projects/atom-mig-baseline")
-PINNED_REV = "d5d670596078c7fe5086f00bf9b476b8967adc23"
+# The tree `git archive PINNED_REV` is taken from. It only has to be a
+# worktree of THIS repository (the object store is shared, so the archive is
+# byte-identical whichever one runs it), and its HEAD must equal PINNED_REV.
+# Overridable so the finish-line candidate could be built from the main
+# worktree instead of moving the shared baseline worktree, which other work
+# depends on.
+WORKTREE = Path(os.environ.get("ACC_WORKTREE")
+                or "/Users/rushiparikh/projects/atom-mig-baseline")
+PINNED_REV = "79b2a41032c355d84dfd58229966d85a73a7d079"  # zombie-owner fix readable under the seatbelt
 VENV_PY = BACKEND / "venv314" / "bin" / "python"  # interpreter only; repo code comes from the export
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 FIXTURES = ACC / "fixtures"
 LIVE_SHEET_ROOT = BACKEND / "data" / "sheet_datasets"
 WORKBOOK_HASH_DIR = "ff2597d26fc6"
 SHIM_PORT = 8099
+
+# --- worlds storage guard ---------------------------------------------------
+# Refuse to build or run a world unless backend/data/acceptance_worlds is in
+# the state backend/config/world_storage.json says it should be, and no
+# maintenance lock is held. Both failure modes this prevents are SILENT: a
+# plain local worlds directory makes every world.mkdir() below succeed
+# against an empty tree, and a second session building worlds concurrently
+# produces a torn snapshot. See core/world_storage_guard.py.
+#
+# sys.path[0] is this script's directory when run as a script, so BACKEND is
+# not importable until it is added explicitly.
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+from core.world_storage_guard import (  # noqa: E402
+    WorldStorageError,
+    assert_worlds_root_usable,
+    guarded_entry,
+    require_storage_ready,
+)
 
 
 def _sandbox_profile(port: int, extra_ports: Tuple[int, ...] = ()) -> str:
@@ -74,6 +101,163 @@ def _sandbox_profile(port: int, extra_ports: Tuple[int, ...] = ()) -> str:
     ]
     lines += [f'(allow network-outbound (remote ip4 "localhost:{ep}"))' for ep in extra_ports]
     return "\n".join(lines) + "\n"
+# ---------------------------------------------------------------------------
+# STORAGE POLICY
+# ---------------------------------------------------------------------------
+# The policy itself lives in storage_policy.py, which owns the space check,
+# the retention inventory, the shared-export rule and the storage report.
+# What stays here is the wiring, because this is the module every other
+# launcher already imports.
+#
+# The block this replaces ("review round 37") had three defects, all of
+# which are the failure mode this policy exists to close:
+#   * a hardcoded 500 MB estimate and a hardcoded 20 GB headroom, neither of
+#     which knows the live database is 412 MB and growing with a WAL that
+#     reached 4 MB in minutes;
+#   * _prune_old_runs() calling shutil.rmtree(ignore_errors=True) with no
+#     inventory, no confirmation and no exclusions — an unattended broad
+#     removal of run directories;
+#   * no way to run without copying the whole 412 MB live dev database.
+#
+# REMOVED as dead policy surface (declared here, referenced by nothing):
+#   MIN_FREE_DISK_BYTES   the hardcoded 20 GB headroom above. Its replacement
+#                         is SP.live_db_headroom(), which measures the live DB
+#                         and reads core.db_safety's snapshot floor at call
+#                         time; a constant cannot do that and never could.
+#   SMALL_FIXTURE_MAX_BYTES
+#                         a ceiling nothing enforced. It now lives in
+#                         storage_policy.SMALL_FIXTURE_MAX_BYTES, where
+#                         provision_api_seeded_fixture actually raises on it.
+# KEPT because it is referenced:
+#   MAX_RETAINED_RUNS     the default retention cap, forwarded to
+#                         SP.build_inventory(cap=...).
+
+# ONE import, and it either resolves to the real policy module or the launcher
+# stops. The previous form was:
+#
+#     try:
+#         from scripts.orchestration_acceptance import storage_policy as SP
+#     except ImportError:
+#         import storage_policy as SP
+#
+# which was wrong twice over. (1) An ImportError raised from INSIDE
+# storage_policy.py — a bad relative import, a missing dependency, a syntax
+# error in a nested import — is caught by the same `except`, and the fallback
+# then imports a SECOND module object under the bare name `storage_policy`,
+# so `preview_stack.SP` and `run_isolated.SP` are different objects with
+# different constants. (2) It also meant the launcher could import "successfully"
+# while a policy symbol it calls did not exist, and the failure surfaced as an
+# AttributeError thousands of lines into a 400 MB build.
+#
+# sys.path already contains BACKEND (added above, before the world_storage_guard
+# import), so the package import is always available; the fallback was never
+# needed and was only ever able to mask a broken policy.
+from scripts.orchestration_acceptance import storage_policy as SP  # noqa: E402
+
+#: Every ``SP.<symbol>`` this launcher and preview_stack.py reference, checked
+#: against the module that actually got imported. Raises at import time with a
+#: named list, so a policy rename is a two-second failure here instead of an
+#: AttributeError in the middle of a build. The test suite re-derives the same
+#: list from the AST of both launchers and asserts it covers every reference.
+_REQUIRED_POLICY_SYMBOLS = (
+    "SpaceEstimate", "SpaceReport", "InsufficientStorage", "CLASS_DROPPABLE",
+    "DEFAULT_RUN_CAP", "FULL_DEV_DB_FLAG", "build_inventory", "check_space",
+    "estimate_world_build", "estimate_new_run", "human", "link_shared_export",
+    "provision_api_seeded_fixture", "real_free_bytes", "render_report",
+    "resolve_fixture_source", "world_storage_report", "clear_build_marker",
+    "write_build_marker", "assert_writable_state_separate",
+    "assert_not_hardlinked_writable",
+    # deletion gates (storage_policy applies no deletion without these)
+    "DeletionRefused", "interlock_state", "world_in_progress",
+    "deletion_preconditions", "BUILD_MARKER", "RUN_LIVE_MARKER",
+)
+
+
+def _verify_policy_surface() -> None:
+    missing = [n for n in _REQUIRED_POLICY_SYMBOLS if not hasattr(SP, n)]
+    if missing:
+        raise ImportError(
+            "storage_policy is missing symbols this launcher calls: "
+            + ", ".join(missing)
+            + f"\n  imported from: {getattr(SP, '__file__', '<unknown>')}"
+            + "\n  The policy module is stale or partially written. Refusing to "
+              "start: a launcher that imports a half-written policy would fail "
+              "later, in the middle of a build, instead of here.")
+
+
+_verify_policy_surface()
+
+#: Per world; cleanup excludes pinned, evidence-linked and ownership-unknown
+#: runs. Bound to the policy's own constant so there is one number, not two.
+MAX_RETAINED_RUNS = SP.DEFAULT_RUN_CAP
+
+
+def _free_disk_bytes(path: Path) -> int:
+    return SP.real_free_bytes(path)
+
+
+def _check_disk_before_world(world: Path, estimated_bytes: Optional[int] = None,
+                             **kwargs: Any) -> SP.SpaceReport:
+    """Refuse world creation when the estimate plus reserved headroom will
+    not fit on the worlds filesystem.
+
+    Delegates to ``storage_policy``: the estimate is built from MEASURED
+    sizes (sibling worlds' code export, sibling run data dirs, a real
+    frontend distDir) and the headroom is the live database, its WAL and
+    ``core.db_safety``'s snapshot floor. ``estimated_bytes`` is honoured
+    for callers that want a specific figure, but the default is measured.
+
+    ``free_bytes`` is injectable so exhaustion can be simulated in a test
+    without filling a real disk.
+    """
+    if estimated_bytes is not None:
+        est = SP.SpaceEstimate(target=f"world:{Path(world).name}")
+        est.add("caller_estimate", int(estimated_bytes), "explicit caller estimate", False)
+    else:
+        est = SP.estimate_world_build(
+            Path(world),
+            full_dev_db=kwargs.get("full_dev_db", False),
+            with_build_cache=kwargs.get("with_build_cache", True),
+            with_run_data=kwargs.get("with_run_data", True),
+        )
+    return SP.check_space(est, free_bytes=kwargs.get("free_bytes"),
+                          free_probe=kwargs.get("free_probe"))
+
+
+def _report_storage(world: Path) -> Dict[str, Any]:
+    """Per-world + per-run storage with the breakdown that explains it.
+
+    Bounded: the old version rglob'd the entire world and reported only the
+    five newest runs, so it was both slow and uninformative. The report
+    attributes every byte to a category (runs / code export / fixture /
+    world data / build cache / logs) and lists every run.
+    """
+    return SP.world_storage_report(Path(world))
+
+
+def _prune_old_runs(world: Path, max_retained: int = MAX_RETAINED_RUNS,
+                    **kwargs: Any) -> List[Dict[str, Any]]:
+    """RETENTION IS INVENTORY-ONLY.
+
+    The previous implementation deleted with
+    ``shutil.rmtree(ignore_errors=True)`` from inside ``build_world`` — an
+    unattended broad removal, with no active/pinned/evidence exclusions and
+    no record of what it took. This now returns the deletion inventory and
+    removes nothing. Actual removal is an explicit, human-driven
+    ``storage_policy cleanup --world W --confirm-drop --reviewed-digest D``,
+    which additionally requires the ``core.world_storage_guard`` maintenance
+    interlock to be held.
+
+    The return value keeps its old shape (a list of dicts) so the caller's
+    ``manifest['pruned_runs']`` bookkeeping does not break; each entry now
+    also carries its classification and the structured ``protection`` list
+    that deletion eligibility is re-derived from.
+    """
+    inv = SP.build_inventory(Path(world), cap=max_retained)
+    return [e.as_dict() for e in inv.entries]
+
+
+
 CREDENTIAL_TABLES = [
     "federation_credentials", "integration_connections", "link_tokens",
     "user_connections", "push_tokens", "oauth_states", "integration_tokens",
@@ -129,6 +313,37 @@ _SECRET_COL_RE = re.compile(
 SERVER_ENV_WHITELIST = {
     "PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "TMPDIR",
     "PYTHONUNBUFFERED", "VIRTUAL_ENV", "SSL_CERT_FILE",
+    # JWT signing key: without it the sandboxed server generates a random
+    # per-process key (core.config Bug-14 fallback) and every pre-minted
+    # harness token 401s. launch_server injects an EPHEMERAL per-run key
+    # (never a real secret) and exposes it as launch_server.last_auth_secret
+    # so runners mint tokens in the server's signing domain.
+    "SECRET_KEY",
+    # F04/F05 need the interactive canvas-edit leg to overrun its cap so the
+    # REAL async fork is taken (an armed shim stall alone is not proof the fork
+    # happened). Read the effective cap back out of the run's server_env.json so
+    # the recorded budget is the one the server actually ran with.
+    "ATOM_CANVAS_LEG_MAX_SECONDS", "ATOM_CANVAS_LEG_MAX_EXTENDED_SECONDS",
+    "ATOM_REPLY_LEG_MIN_SECONDS", "ATOM_ASYNC_CONTINUATION_BUDGET",
+    # F08/F09 deliver the BACKGROUND completion. CHAT_FINALIZATION_M3 gates the
+    # delivery path (durable chatmessage + the WS `chat_continuation` event);
+    # with it off the row is marked notified at terminal and nothing is ever
+    # broadcast, so a "no terminal frame" result says nothing about delivery.
+    "CHAT_FINALIZATION_M1", "CHAT_FINALIZATION_M2", "CHAT_FINALIZATION_M3",
+    # F11's test seam. launch_server builds the child env from this whitelist
+    # only, so without these the server never sees the barrier: F11's first run
+    # reported barrier_held=False with NO barrier line in server.log at all,
+    # because the stage check in the product is a single env lookup and the
+    # variable was absent. core/acceptance_barrier additionally refuses to arm
+    # outside an isolated acceptance world.
+    # F09: with two overlapping turns the single shim route is contended, so the
+    # second continuation's planner calls are excluded `model_inflight` and it
+    # retries. Its terminal outcome therefore lands a retry schedule later, not
+    # never -- the case must wait for that, or it scores a still-working
+    # continuation as a missing terminal outcome.
+    "ATOM_ASYNC_CONTINUATION_RETRY_DELAY", "ATOM_ASYNC_CONTINUATION_ATTEMPTS",
+    "ATOM_ACCEPTANCE_BARRIER", "ATOM_ACCEPTANCE_BARRIER_DIR",
+    "ATOM_ACCEPTANCE_BARRIER_MATCH", "ATOM_ACCEPTANCE_BARRIER_TIMEOUT",
 }
 
 
@@ -359,7 +574,14 @@ def runtime_contract_preflight(world: Path, port: int, *,
 def preflight(world: Path) -> Dict[str, Any]:
     head = subprocess.run(["git", "-C", str(WORKTREE), "rev-parse", "HEAD"],
                           capture_output=True, text=True).stdout.strip()
-    if head != PINNED_REV:
+    if head != PINNED_REV and not getattr(
+            build_world, "snapshot_working_tree", False):
+        # Archive mode exports PINNED_REV, so HEAD must be it. SNAPSHOT mode
+        # deliberately pins the WORKING TREE by content hash (uncommitted
+        # state included) — HEAD equality with the frozen pin is not what
+        # snapshot mode runs, and another stream committing must not wedge
+        # this builder (observed 2026-09-28). The snapshot hash is recorded
+        # in the manifest either way.
         raise RuntimeError(f"worktree HEAD {head} != pinned {PINNED_REV}")
     status = subprocess.run(["git", "-C", str(WORKTREE), "status", "--porcelain"],
                             capture_output=True, text=True).stdout.splitlines()
@@ -430,22 +652,22 @@ def _working_tree_snapshot() -> bytes:
     return buf.getvalue()
 
 
-def build_world(world: Path, refreeze_db: bool) -> None:
-    (world / "fixture").mkdir(parents=True, exist_ok=True)
-    (world / "data" / "sheet_datasets" / "default" / WORKBOOK_HASH_DIR).mkdir(parents=True, exist_ok=True)
-    manifest_path = world / "MANIFEST.json"
-    manifest: Dict[str, Any] = (json.loads(manifest_path.read_text())
-                                if manifest_path.exists() else {})
+def _materialize_code_export(world: Path, manifest: Dict[str, Any], code_dir: Path,
+                             *, snapshot_working_tree: bool = False,
+                             m1_overlay: bool = False) -> None:
+    """Extract the immutable code export for this pinned revision.
 
-    # Immutable code export for THIS pinned revision, verified as EXTRACTED
-    # FILES (not just the archive stream) and made read-only.
-    code_dir = world / "code"
+    Verified as EXTRACTED FILES (not just the archive stream) and made
+    read-only. Split out of ``build_world`` so the shared-export path can
+    skip it entirely: re-extracting a byte-identical read-only tree costs
+    ~130 MB and produces the same bytes.
+    """
     _make_tree_writable(code_dir)
     if code_dir.exists():
         shutil.rmtree(code_dir)
     code_dir.mkdir(parents=True)
     import io
-    if getattr(build_world, "snapshot_working_tree", False):
+    if snapshot_working_tree:
         _snap = _working_tree_snapshot()
         with tarfile.open(fileobj=io.BytesIO(_snap)) as _tar:
             _tar.extractall(code_dir)
@@ -497,7 +719,7 @@ def build_world(world: Path, refreeze_db: bool) -> None:
         manifest["code_archive_sha256"] = hashlib.sha256(archive.stdout).hexdigest()
         manifest["code_source"] = f"git archive {PINNED_REV} (immutable export, file-manifested, read-only)"
     (world / "code_manifest.json").write_text(json.dumps(_tree_manifest(code_dir), indent=0))
-    if getattr(build_world, "m1_overlay", False):
+    if m1_overlay:
         import importlib.util as _ilu
         _spec = _ilu.spec_from_file_location(
             "m1_apply", BACKEND / "scripts" / "orchestration_acceptance" / "m1_overlay" / "apply.py")
@@ -508,6 +730,67 @@ def build_world(world: Path, refreeze_db: bool) -> None:
         manifest["m1_overlay"] = m1res
         print(f"[world] M1 overlay: {m1res}")
     _make_tree_readonly(code_dir)
+    # Belt and braces even for an owned export: a writable database must
+    # never be reachable through a hard link from the code tree.
+    SP.assert_writable_state_separate(world, export_dir=code_dir)
+
+
+def build_world(world: Path, refreeze_db: bool, *, small_fixture: bool = False,
+                full_dev_db: Optional[bool] = None,
+                share_export_with: Optional[Path] = None,
+                free_bytes: Optional[int] = None) -> None:
+    # STORAGE POLICY: refuse BEFORE the first byte is written, and reserve
+    # headroom for the live database rather than assuming a constant.
+    if full_dev_db is None:
+        full_dev_db = bool(getattr(build_world, "full_dev_db", False))
+    fixture_source = SP.resolve_fixture_source(bool(full_dev_db))
+    _check_disk_before_world(world, full_dev_db=fixture_source.is_full_dev_db,
+                             free_bytes=free_bytes)
+    # Before ANY mkdir below: refuse if the worlds root is not the configured
+    # shape, or if a relocation/verification lock is held.
+    assert_worlds_root_usable(where=f"build_world({world.name})")
+    print(fixture_source.banner())
+    # STORAGE POLICY: from this line the world is being WRITTEN to. Announce
+    # it — before the first mkdir — so a retention pass refuses instead of
+    # deleting a run directory out from under a build in progress. Deliberately
+    # not removed on failure: a half-built world is not a world whose state
+    # anyone can vouch for.
+    SP.write_build_marker(world, operation="build_world",
+                          detail={"fixture_mode": fixture_source.mode,
+                                  "share_export_with": str(share_export_with or "")})
+    (world / "fixture").mkdir(parents=True, exist_ok=True)
+    (world / "data" / "sheet_datasets" / "default" / WORKBOOK_HASH_DIR).mkdir(parents=True, exist_ok=True)
+    manifest_path = world / "MANIFEST.json"
+    manifest: Dict[str, Any] = (json.loads(manifest_path.read_text())
+                                if manifest_path.exists() else {})
+    manifest["fixture_source"] = fixture_source.as_dict()
+
+    # Immutable code export for THIS pinned revision, verified as EXTRACTED
+    # FILES (not just the archive stream) and made read-only.
+    #
+    # STORAGE POLICY: when `share_export_with` names a world that already
+    # holds a byte-identical export, the tree is SHARED (a symlink to the
+    # read-only owner) instead of re-extracted. The export is immutable and
+    # content-addressed by code_manifest.json, so a second copy of it is
+    # ~130 MB of nothing. Writable state is NOT shared: data/, logs/, runs/
+    # and the frontend build cache stay per world, and a writable database
+    # is never hard-linked into a shared tree (see storage_policy).
+    code_dir = world / "code"
+    share: Dict[str, Any] = {"mode": "own"}
+    if share_export_with is not None and Path(share_export_with) != world:
+        share = SP.link_shared_export(world, Path(share_export_with))
+        manifest["code_export_sharing"] = share
+        print(f"[world] code export: {share['mode']} — {share.get('note', '')}")
+    if share.get("mode") == "shared":
+        # The owner's export is already read-only and already content-
+        # addressed. Reuse it verbatim; copy nothing. Writable state is NOT
+        # shared and is asserted absent from the export below.
+        SP.assert_writable_state_separate(world)
+    else:
+        _materialize_code_export(
+            world, manifest, code_dir,
+            snapshot_working_tree=bool(getattr(build_world, "snapshot_working_tree", False)),
+            m1_overlay=bool(getattr(build_world, "m1_overlay", False)))
 
     boundary = verify_network_boundary(world)
     if not (boundary.get("loopback") and boundary.get("external_blocked")):
@@ -517,33 +800,108 @@ def build_world(world: Path, refreeze_db: bool) -> None:
                                     "loopback restricted to the test server port")
 
     # Fixture DB: freeze once (scrubbed), reuse forever.
+    #
+    # STORAGE POLICY: which database this is depends on the fixture source.
+    # The DEFAULT is the small API-seeded fixture -- the app's own schema with
+    # zero dev rows, provisioned by storage_policy and never reading the live
+    # database. Copying the full live dev database is opt-in behind
+    # `--full-dev-db-snapshot`, because it is a ~412 MB copy per world AND a
+    # ~400-550 MB copy per run directory, and it makes every debugging world
+    # inherit whatever the dev lane happens to contain -- including the dev
+    # admin's `users.hashed_password`, which CREDENTIAL_TABLES deliberately
+    # does NOT scrub.
     fixture_db = world / "fixture" / "atom.db"
-    if refreeze_db or not fixture_db.exists() or "credential_scrub" not in manifest:
-        src = sqlite3.connect(f"file:{BACKEND/'data'/'atom.db'}?mode=ro", uri=True)
-        if fixture_db.exists():
-            fixture_db.unlink()
-        dst = sqlite3.connect(str(fixture_db))
-        with dst:
-            src.backup(dst)
-        dst.close(); src.close()
-        con = sqlite3.connect(str(fixture_db))
-        con.execute(
-            "UPDATE dataset_entries SET parquet_path = REPLACE(parquet_path, ?, ?) "
-            "WHERE parquet_path LIKE ?",
-            (str(LIVE_SHEET_ROOT) + "/", str(world / "data" / "sheet_datasets") + "/",
-             str(LIVE_SHEET_ROOT) + "/%"),
-        )
-        scrub = scrub_credentials(con)
-        con.commit(); con.close()
-        manifest.update({
-            "atom_db_sha256": _sha256_file(fixture_db),
-            "db_frozen_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "db_source": "online-backup snapshot, parquet paths repointed, credentials scrubbed",
-            "credential_scrub": scrub,
-        })
-        print(f"[world] fixture DB frozen+scrubbed: sha256={manifest['atom_db_sha256'][:16]}… "
-              f"({sum(scrub.values())} credential values nulled across {len(scrub)} columns)")
-
+    recorded_mode = (manifest.get("fixture_source") or {}).get("mode")
+    needs_freeze = (refreeze_db or not fixture_db.exists()
+                    or recorded_mode != fixture_source.mode)
+    if needs_freeze:
+        if fixture_source.is_full_dev_db:
+            live_db = BACKEND / "data" / "atom.db"
+            live_wal = Path(str(live_db) + "-wal")
+            if fixture_db.exists():
+                fixture_db.unlink()
+            # Read the live DB read-only, never writable: this is the user's dev
+            # world, and an accidental write here is the documented
+            # LIVE-DB-WIPE class of accident.
+            #
+            # `mode=ro` can fail with "disk I/O error" when the -shm index is
+            # stale relative to the main file: a WAL-mode database cannot serve
+            # a read-only connection that would have to rebuild the shared-memory
+            # index, while the already-running writers are unaffected. That is
+            # not a corrupt database -- both live backends kept answering
+            # /api/health 200 throughout. So fall back to `immutable=1`, which
+            # reads the main file directly.
+            #
+            # The fallback is gated on the WAL being ZERO LENGTH. That is the
+            # whole safety argument: immutable ignores the WAL, so it is only a
+            # complete read of the database when every committed transaction has
+            # already been checkpointed into the main file. With a non-empty WAL
+            # this must fail loudly rather than freeze a fixture that silently
+            # omits recent commits.
+            wal_empty = (not live_wal.exists()) or live_wal.stat().st_size == 0
+            attempts = [f"file:{live_db}?mode=ro"]
+            if wal_empty:
+                attempts.append(f"file:{live_db}?immutable=1")
+            else:
+                print(f"[fixture] live WAL is {live_wal.stat().st_size} bytes; "
+                      f"refusing an immutable read that would drop unmerged commits")
+            last_exc: Optional[BaseException] = None
+            for uri in attempts:
+                try:
+                    src = sqlite3.connect(uri, uri=True)
+                    dst = sqlite3.connect(str(fixture_db))
+                    with dst:
+                        src.backup(dst)
+                    dst.close(); src.close()
+                    last_exc = None
+                    break
+                except sqlite3.Error as exc:
+                    last_exc = exc
+                    # Leave no half-written fixture behind for the next attempt.
+                    if fixture_db.exists():
+                        fixture_db.unlink()
+            if last_exc is not None:
+                raise RuntimeError(
+                    f"could not read the live dev database read-only ({last_exc}); "
+                    f"tried {attempts}. Refusing to continue: freezing a fixture "
+                    f"from an unreadable source would make every later run against "
+                    f"this world unverifiable."
+                )
+            con = sqlite3.connect(str(fixture_db))
+            con.execute(
+                "UPDATE dataset_entries SET parquet_path = REPLACE(parquet_path, ?, ?) "
+                "WHERE parquet_path LIKE ?",
+                (str(LIVE_SHEET_ROOT) + "/", str(world / "data" / "sheet_datasets") + "/",
+                 str(LIVE_SHEET_ROOT) + "/%"),
+            )
+            scrub = scrub_credentials(con)
+            con.commit(); con.close()
+            manifest.update({
+                "atom_db_sha256": _sha256_file(fixture_db),
+                "db_frozen_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "db_source": ("FULL live dev database snapshot (explicit "
+                              f"{SP.FULL_DEV_DB_FLAG}); parquet paths repointed, "
+                              "credentials scrubbed"),
+                "credential_scrub": scrub,
+            })
+            print(f"[world] fixture DB frozen from the FULL live dev database "
+                  f"+scrubbed: sha256={manifest['atom_db_sha256'][:16]}... "
+                  f"({sum(scrub.values())} credential values nulled across "
+                  f"{len(scrub)} columns)")
+        else:
+            info = SP.provision_api_seeded_fixture(fixture_db)
+            manifest.update({
+                "atom_db_sha256": _sha256_file(fixture_db),
+                "db_frozen_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "db_source": ("API-seeded fixture: app schema from "
+                              "core.database.Base.metadata, 0 dev rows; the live "
+                              "dev database was not read"),
+                "credential_scrub": {"not_applicable": "no dev rows were copied"},
+                "api_seeded_fixture": info,
+            })
+            print(f"[world] API-seeded fixture provisioned: {info['table_count']} "
+                  f"tables, {SP.human(info['size_bytes'])}, 0 dev rows "
+                  f"(live dev database NOT read)")
     # Venv freeze pin.
     freeze = venv_freeze()
     (world / "venv_freeze.txt").write_text(freeze)
@@ -587,8 +945,54 @@ def build_world(world: Path, refreeze_db: bool) -> None:
     })
     manifest_path.write_text(json.dumps(manifest, indent=1))
     _export_ref = manifest.get("code_archive_sha256") or manifest.get("code_snapshot_sha256", "")
-    print(f"[world] built: export {_export_ref[:12]}…, {copied} parquets verified, "
+    print(f"[world] built: export {_export_ref[:12]}..., {copied} parquets verified, "
           f"farm -> world/code @ {PINNED_REV[:10]}, seatbelt profile written")
+    # STORAGE POLICY: report the breakdown, and produce the retention
+    # INVENTORY. Nothing is deleted here. A build is the wrong moment for
+    # unattended removal: it runs from scripts, in loops, and a world being
+    # rebuilt is exactly when its newest run is the one an operator wants.
+    report = _report_storage(world)
+    manifest['storage'] = report
+    inventory = _prune_old_runs(world)
+    if inventory:
+        # A run is a deletion candidate only if it is unprotected as well as
+        # classified droppable (see storage_policy.RunEntry.protection).
+        droppable = [e for e in inventory
+                     if e["classification"] == SP.CLASS_DROPPABLE
+                     and not e.get("protection")]
+        manifest['run_inventory'] = inventory
+        manifest_path.write_text(json.dumps(manifest, indent=1))
+        by_class: Dict[str, int] = {}
+        for e in inventory:
+            by_class[e["classification"]] = (by_class.get(e["classification"], 0)
+                                             + e["size_bytes"])
+        print(f"[storage] world {SP.human(report['total_on_disk_bytes'])} across "
+              f"{report['run_count']} run(s); free {SP.human(report['free_bytes'])}, "
+              f"usable after live-DB reserve {SP.human(report['usable_after_reserve_bytes'])}")
+        for cls, n in sorted(by_class.items(), key=lambda kv: -kv[1]):
+            print(f"[storage]   {cls:<24} {SP.human(n)}")
+        if droppable:
+            print(f"[storage] {len(droppable)} run(s) ({SP.human(sum(e['size_bytes'] for e in droppable))}) "
+                  f"are droppable. NOTHING DELETED. Deleting needs the interlock AND "
+                  f"a reviewed inventory digest:\n"
+                  f"            python -m core.world_storage_guard lock --reason 'retention'\n"
+                  f"            python -m scripts.orchestration_acceptance.storage_policy "
+                  f"inventory --world {world.name}\n"
+                  f"            # read the output, then:\n"
+                  f"            python -m scripts.orchestration_acceptance.storage_policy "
+                  f"cleanup --world {world.name} --confirm-drop --reviewed-digest <digest>")
+        for w in report.get("warnings", []):
+            print(f"[storage] WARNING: {w}")
+    # The build finished, so the world is no longer being written to. A marker
+    # surviving this point means the build died, which is exactly the case a
+    # retention pass must refuse.
+    if SP.clear_build_marker(world):
+        # ``SP.BUILD_MARKER`` is a FILENAME, not a Path, so it cannot carry
+        # ``.name`` of its own. Join it onto the world first, then take the name
+        # of the result -- the old order raised AttributeError here and aborted
+        # the launch AFTER the world was fully built, leaving a build marker
+        # behind that a retention pass is then right to refuse.
+        print(f"[storage] build marker cleared ({(world / SP.BUILD_MARKER).name})")
 
 
 class _SinkHandler(BaseHTTPRequestHandler):  # retained for proxy-attempt observability if re-enabled
@@ -746,7 +1150,8 @@ def current_run_db(world: Path) -> Path:
 
 
 def launch_server(port: int, world: Path, provider_shim: bool = False,
-                  reuse_run_dir: Optional[Path] = None) -> subprocess.Popen:
+                  reuse_run_dir: Optional[Path] = None,
+                  shim_port: int = SHIM_PORT) -> subprocess.Popen:
     # FRESH DATABASE DIRECTORY PER RUN (work order step 6): each launch gets
     # its own data directory seeded from the world fixture; the farm's data
     # symlink is re-pointed at it. Never delete WAL/SHM beside a live DB -
@@ -768,8 +1173,15 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     launch_server.last_proc = None  # set by the caller after Popen
     farm = world / "backend_root"
     profile = world / "local_only.sb"
-    profile.write_text(_sandbox_profile(port, extra_ports=(SHIM_PORT,) if provider_shim else ()))
+    profile.write_text(_sandbox_profile(port, extra_ports=(shim_port,) if provider_shim else ()))
     env = {k: os.environ[k] for k in SERVER_ENV_WHITELIST if k in os.environ}
+    if "SECRET_KEY" not in env:
+        # Ephemeral per-run signing key — not a credential: generated here,
+        # lives only in this world's server env + the runner's process env.
+        import secrets as _secrets
+        env["SECRET_KEY"] = _secrets.token_urlsafe(32)
+    launch_server.last_auth_secret = env["SECRET_KEY"]
+    os.environ.setdefault("SECRET_KEY", env["SECRET_KEY"])
     env.update({
         "DATABASE_URL": f"sqlite:///{launch_server.last_run_dir / 'data' / 'atom.db'}",
         "ATOM_DATA_DIR": str(launch_server.last_run_dir / "data"),
@@ -795,6 +1207,27 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     if getattr(launch_server, "lifecycle", False) or \
             getattr(launch_server, "gate", False):
         env["ATOM_TASK_LIFECYCLE_ENABLED"] = "1"
+    # TEST-ONLY acceptance barrier (core/acceptance_barrier): pass the
+    # harness's arming into the sandboxed server so a kill can be placed
+    # inside a commit window too small to hit by polling. The module
+    # self-confines — it refuses to arm outside an acceptance_worlds
+    # database regardless of what is passed here — so this passthrough
+    # cannot arm a barrier against the live dev world.
+    if os.environ.get("ATOM_ACCEPTANCE_BARRIER"):
+        env["ATOM_ACCEPTANCE_BARRIER"] = os.environ["ATOM_ACCEPTANCE_BARRIER"]
+        for _bk in ("ATOM_ACCEPTANCE_BARRIER_MATCH",
+                    "ATOM_ACCEPTANCE_BARRIER_DIR",
+                    "ATOM_ACCEPTANCE_BARRIER_TIMEOUT"):
+            if os.environ.get(_bk):
+                env[_bk] = os.environ[_bk]
+    # Terminal-delivery lease/recovery timing (test-visible production
+    # settings): short leases/intervals let a harness observe expiry
+    # takeover and the recurring recovery pass in seconds.
+    for _bk in ("ATOM_TERMINAL_DELIVERY_LEASE_SECONDS",
+                "ATOM_TERMINAL_RECOVERY_INTERVAL_SECONDS",
+                "ATOM_DELIVERY_LEASE_DISABLED"):
+        if os.environ.get(_bk):
+            env[_bk] = os.environ[_bk]
     if provider_shim:
         # Recorded-response rig: production router dispatches to the local
         # shim (env-key registration + SDK base-url override). Only the
@@ -804,16 +1237,50 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
         # surface (ATOM_PROVIDER_MODEL_CATALOG_PATH) — no production changes.
         catalog_path = world / "provider_catalog.json"
         now = time.time()
-        catalog_path.write_text(json.dumps({"providers": {"openai": {
-            "served": ["gpt-6-astra", "gpt-5.2", "gpt-5-mini", "gpt-4o",
-                       "gpt-4o-mini", "o4-mini", "o3-mini", "deepseek-chat",
-                       "deepseek-reasoner", "qwen-max", "qwen-plus"],
-            "verified_at": now, "last_attempt_at": now,
-            "consecutive_failures": 0}}}))
+        catalog_path.write_text(json.dumps({"providers": {
+            "openai": {
+                "served": ["gpt-6-astra", "gpt-5.2", "gpt-5-mini", "gpt-4o",
+                           "gpt-4o-mini", "o4-mini", "o3-mini", "deepseek-chat",
+                           "deepseek-reasoner", "qwen-max", "qwen-plus"],
+                "verified_at": now, "last_attempt_at": now,
+                "consecutive_failures": 0},
+            "ollama": {
+                # Includes the ids the local shim actually serves, so this lane
+                # is dispatchable rather than nominal (see F03: a lane advertising
+                # only llama3:8b never dispatched, leaving one claimable route and
+                # starving the canvas-edit leg with `model_inflight`).
+                "served": ["llama3:8b", "o3-mini", "o4-mini", "gpt-4o-mini", "qwen-plus"],
+                "verified_at": now, "last_attempt_at": now,
+                "consecutive_failures": 0}}}))
         env.update({
             "OPENAI_API_KEY": "shim-local-not-a-secret",
-            "OPENAI_BASE_URL": f"http://127.0.0.1:{SHIM_PORT}/v1",
+            "OPENAI_BASE_URL": f"http://127.0.0.1:{shim_port}/v1",
             "ATOM_PROVIDER_MODEL_CATALOG_PATH": str(catalog_path),
+            # SECOND SHIM LANE (2026-09-28). Forked continuations and
+            # concurrent turns dispatch their planner calls while the
+            # interactive leg may still hold the first (provider, model)
+            # in-flight claim; with a single candidate route those legs were
+            # excluded pre-dispatch ("model_inflight") and every retry
+            # inherited the exclusion memo, so background cases could never
+            # execute. The ollama lane is env-addressable, keyless, and
+            # local-runtime eligible — pointing it at the shim gives the pool
+            # a second dispatchable route so forked legs behave like they
+            # would on a real multi-route deployment.
+            "OLLAMA_BASE_URL": f"http://127.0.0.1:{shim_port}/v1",
+            "OLLAMA_MODEL": "llama3:8b",
+            # THIRD SHIM LANE (2026-09-28, F03). The ollama lane above was
+            # advertised in the catalog as `llama3:8b` but the shim only ever
+            # served `o3-mini`/`o4-mini`, so it never dispatched and the pool
+            # still had exactly ONE usable route. The synchronous canvas-edit
+            # leg then lost to the interactive leg's in-flight claim and was
+            # excluded pre-dispatch with `model_inflight` -- no request was made,
+            # the shim was never asked for a CanvasEditPlan, and F03 measured the
+            # HARNESS rather than the product (0 of 21 captured requests carried
+            # the CanvasEditPlan tool).
+            #
+            # So the catalog must advertise models the shim actually serves;
+            # the widened `ollama` entry below is the actual change (there is no
+            # catalog-merge env hook -- only ATOM_PROVIDER_MODEL_CATALOG_PATH).
         })
     import httpx as _hx0
     try:
@@ -1967,6 +2434,98 @@ def selftest() -> int:
     return 0 if ok else 1
 
 
+WORKBOOK_FIXTURE = {
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "dataset_name": "zoho_workdrive_consolidated_price_list_2019",
+    "entity_name": "consolidated_price_list_2019",
+    "content_hash": "workbook-sheet-datasets-ff2597d26fc6",
+    "dir": "workbook_sheet_datasets_ff2597d26fc6",
+    # ONE identity for the whole workbook; the catalog groups by
+    # (source, external_id), so a per-sheet external_id would make a single
+    # workbook look like 46 files.
+    "file_key": "fixture:workbook_sheet_datasets_ff2597d26fc6",
+}
+
+
+def register_workbook_dataset(world: Path) -> int:
+    """Register the price-list workbook in the ACTIVE database.
+
+    F12's read workflows ask for prices in "Consolidated Price List 2019.xlsx".
+    build_world already copies the sheet parquets into the world (hash-checked
+    against fixtures/SHA256SUMS), but the app resolves a workbook through
+    `dataset_entries`; with no row the read had nothing to find. This mirrors
+    register_invoice_dataset(): one row per sheet, pointing at the parquet that
+    build_world already placed.
+
+    Writes to active_case_db(world) -- the run-dir database the server opened,
+    not the working database (which is why the earlier F12 attempt saw an
+    empty world). Returns the number of sheets registered.
+    """
+    src_dir = FIXTURES / WORKBOOK_FIXTURE["dir"]
+    sheets = sorted(src_dir.glob("*.parquet"))
+    if not sheets:
+        raise RuntimeError(f"no workbook parquets under {src_dir}")
+    # ABSOLUTE: the server resolves a stored parquet_path against its own
+    # working directory (the world's backend_root), so a relative path written
+    # here reads as "the stored copy is no longer available" and the workbook
+    # silently becomes unreadable. Resolve before storing.
+    dst_dir = active_case_db(world).resolve().parent / "sheet_datasets" / "default" / \
+        WORKBOOK_FIXTURE["dir"]
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    import shutil as _sh
+    rows = []
+    import pandas as _pd
+    for pq in sheets:
+        dst = dst_dir / pq.name
+        if not dst.exists():
+            _sh.copy2(pq, dst)
+        try:
+            df = _pd.read_parquet(dst)
+            nrows, ncols = len(df), len(df.columns)
+            cols = _json.dumps([str(c) for c in df.columns])
+        except Exception:
+            nrows, ncols, cols = 0, 0, "[]"
+        sheet = pq.stem.replace(WORKBOOK_FIXTURE["dataset_name"] + "__", "")
+        rows.append((f"acc-wb-{sheet}"[:120], sheet, str(dst), nrows, ncols, cols))
+    sheet_of = {rid: sheet for rid, sheet, *_rest in rows}
+    con = sqlite3.connect(str(active_case_db(world)))
+    try:
+        # Clear this fixture's PREVIOUS rows first. INSERT OR REPLACE keys on
+        # `id`, so a re-run that changes the identity columns (a per-sheet
+        # external_id became one file_key) leaves the old rows in place and the
+        # catalog then sees N files for one workbook. Scope the delete to our
+        # own fixture so nothing else in the world is touched.
+        con.execute("DELETE FROM dataset_entries WHERE source = ?",
+                    ("acceptance-rig",))
+        con.executemany(
+            "INSERT OR REPLACE INTO dataset_entries "
+            "(id, workspace_id, tenant_id, created_by, source_kind, source, external_id, "
+            "file_name, content_hash, entity_name, dataset_name, parquet_path, row_count, "
+            "column_count, columns_json, source_modified_at, ingested_at, status, superseded_by) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [(rid, "default", "default", None, "fixture", "acceptance-rig",
+              # ONE identity for the whole workbook, exactly as the real
+              # ingestion does (sheet_dataset_service: source=..., external_id=
+              # file_key, entity_name=<sheet>). The catalog in chat_tool_planner
+              # groups by (source, external_id), so a per-sheet external_id
+              # makes ONE workbook look like 46 files and the read answers
+              # "MULTIPLE catalogued files match" instead of reading it.
+              WORKBOOK_FIXTURE["file_key"],
+              WORKBOOK_FIXTURE["file_name"], WORKBOOK_FIXTURE["content_hash"],
+              # entity_name is the SHEET, and the dataset name is scoped to it,
+              # exactly as the real ingestion registers a workbook: one file
+              # identity, one row per sheet.
+              sheet_of.get(rid, ""),
+              WORKBOOK_FIXTURE["dataset_name"] + "__" + sheet_of.get(rid, ""),
+              path, nrows, ncols, cols,
+              "2026-09-25 00:00:00", "2026-09-25 00:00:00", "active", None)
+             for rid, _sheet, path, nrows, ncols, cols in rows])
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
 INVOICE_FIXTURE = {
     "file_name": "Q3 Vendor Invoices.xlsx",
     "dataset_name": "unrelated_q3_vendor_invoices__invoices",
@@ -2002,6 +2561,59 @@ def register_invoice_dataset(world: Path) -> None:
     )
     con.commit()
     con.close()
+
+
+def _point_process_at_world(db_path: Path) -> str:
+    """Bind THIS process's database to the world's SERVING db, and prove it.
+
+    Two separate faults made this point at the wrong file, and each one alone
+    produced the same opaque "could not mint token from scratch DB":
+
+    1. ``core.database`` resolves ``DATABASE_URL`` once, at import time (:175),
+       then builds module-level ``engine`` / ``SessionLocal`` from it. The
+       harness imports ``core.*`` long before the world exists, so setting
+       ``os.environ["DATABASE_URL"]`` afterwards is inert.
+    2. Even with the rebind, the previous path was the WORLD ROOT's
+       ``data/atom.db`` -- the frozen fixture copy, which has no rows. The app
+       bootstraps its admin, tenant and workspace into the RUN DIRECTORY's
+       database, which is what the server is actually launched against
+       (``launch_server.last_run_dir``). So the harness was asking a fixture
+       for a user only the run dir ever had.
+
+    Fault 1 is also how a repo-root launch reaches the WRONG absolute path at
+    all: a relative ``sqlite:///./data/atom.db`` resolves against the checkout
+    root, where a 0-byte ``data/atom.db`` exists (dated 2026-09-14) -- the
+    path-anchoring class AGENTS.md warns about.
+
+    So rebind to the path we were given, then verify against that same path
+    rather than trusting the assignment. Returns the bound URL.
+    """
+    db_path = Path(db_path)
+    if not db_path.exists():
+        raise RuntimeError(f"world database is missing: {db_path}")
+    url = f"sqlite:///{db_path}"
+    os.environ["DATABASE_URL"] = url
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import core.database as cd
+
+    previous = getattr(cd, "engine", None)
+    if previous is not None:
+        try:
+            previous.dispose()
+        except Exception:  # noqa: BLE001 - a stale engine is not a reason to stop
+            pass
+    cd.DATABASE_URL = url
+    cd.engine = create_engine(url, **cd.engine_kwargs)
+    cd.SessionLocal = sessionmaker(bind=cd.engine, autocommit=False, autoflush=False)
+
+    if Path(str(cd.DATABASE_URL).replace("sqlite:///", "")) != db_path:
+        raise RuntimeError(
+            f"rebind did not take: core.database is on {cd.DATABASE_URL!r}, "
+            f"expected the world at {db_path}")
+    return url
 
 
 def _load_replay_module():
@@ -2812,11 +3424,67 @@ async def run_generic(base: str, token: str, user_id: str, case: Dict[str, Any],
 
 
 def launch_shim(script_path: Path, port: int = SHIM_PORT, capture: Optional[Path] = None) -> subprocess.Popen:
+    # Refuse to start if the shim port is already held. The readiness probe
+    # below is a GET /log, and a STALE shim answers it just as well as ours --
+    # so without this check a leaked shim silently serves the whole run. That
+    # happened on F03 (2026-09-28): eight leaked provider_shim.py processes from
+    # earlier lanes still owned :8099, serving an unrelated script
+    # (finish_line_0928/planner_script.json). Every run reported a healthy shim
+    # while getting that script's responses, and our own --capture file stayed
+    # empty, which read as "the model was never called" and sent the
+    # investigation after the planner instead of the port. Same class as
+    # "stale server = false bug reports": fail loud, never silently reuse.
+    import socket
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        probe.bind(("127.0.0.1", port))
+    except OSError as exc:
+        holder = ""
+        try:
+            import subprocess as _sp
+            out = _sp.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                          capture_output=True, text=True, timeout=10).stdout.split()
+            holder = f" (held by pid {', '.join(out)})" if out else ""
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"provider shim port :{port} is already in use{holder}. A stale shim would "
+            f"answer the readiness probe and serve this run with the wrong script. "
+            f"Kill the holder, then re-run."
+        ) from exc
+    finally:
+        probe.close()
+
     cmd = [str(VENV_PY), str(BACKEND / "scripts" / "orchestration_acceptance" / "provider_shim.py"),
            "--port", str(port), "--script", str(script_path)]
     if capture:
         cmd += ["--capture", str(capture)]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def _reap(p: subprocess.Popen = proc) -> None:
+        # terminate -> wait -> kill. A shim that ignores or is mid-stall on
+        # SIGTERM survives the plain terminate() and keeps :8099 held, which
+        # orphans the port for the next run. Measured on F03 (2026-09-28):
+        # a case that raised between launch and the cleanup finally left its
+        # shim alive, and the next run then got a loud refusal from the
+        # pre-bind guard with a stale pid.
+        try:
+            if p.poll() is not None:
+                return
+            p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait(timeout=5)
+        except Exception:
+            pass
+
+    # Safety net: cleanup on ANY exit path, including the exceptions raised
+    # between this launch and the case loop's finally.
+    import atexit
+    atexit.register(_reap)
     import httpx
     deadline = time.time() + 15
     while time.time() < deadline:
@@ -2975,65 +3643,1168 @@ async def run_narration(base: str, token: str, user_id: str, case: Dict[str, Any
 UNBOUND_CANVAS_ID = "aaaa1111-0000-4000-8000-000000000001"
 
 
-def seed_unbound_canvas_copy(world: Path) -> None:
-    """Supported configuration: a copy of the incident canvas WITHOUT its
-    agent binding — the co-editor route fired on the original because THAT
-    canvas has a hire; an unbound copy should route edits to the
-    interactive lane. Config seeding of frozen content (fixture copy), not
-    a production routing change."""
-    src = sqlite3.connect(f"file:{world / 'fixture' / 'atom.db'}?mode=ro", uri=True)
-    row = src.execute("SELECT canvas_type, content, style, tenant_id, workspace_id, status, "
-                      "created_by FROM canvases WHERE id=?", (CANVAS_ID,)).fetchone()
-    OWNER = row[6]
-    name = "Quote copy (acceptance rig)"
-    src.close()
-    con = sqlite3.connect(str(world / "data" / "atom.db"))
-    con.execute("INSERT OR REPLACE INTO canvases (id, tenant_id, workspace_id, created_by, name, "
-                "description, canvas_type, content, style, is_collaborative, is_public, "
-                "share_token, status, created_at, updated_at) VALUES "
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (UNBOUND_CANVAS_ID, row[3], row[4], OWNER, name, None, row[0], row[1], row[2],
-                 0, 0, None, row[5], "2026-09-25 00:00:00", "2026-09-25 00:00:00"))
-    # FIXTURE FIX (review round 24 trace): the app's canvas resolution consults
-    # canvas_contexts (which also carries the agent binding). Seed a context
-    # row for the copy with agent_id NULL — the unbound point of this fixture.
-    con.execute("INSERT OR REPLACE INTO canvas_contexts (id, canvas_id, tenant_id, canvas_type, "
-                "user_id, agent_id, session_history, user_corrections, current_state, "
-                "user_preferences, created_at, updated_at, last_activity_at) VALUES "
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                ("bbbb2222-0000-4000-8000-000000000002", UNBOUND_CANVAS_ID, row[3], row[0],
-                 OWNER, None, "[]", "[]", "{}", "{}",
-                 "2026-09-25 00:00:00", "2026-09-25 00:00:00", "2026-09-25 00:00:00"))
-    # The audit trail IS the content history (read_canvas resolves from
-    # CanvasAudit) — seed the copy's baseline revision so the canonical
-    # reader and the edit lane can see it.
-    snapshot = json.loads((world.parent.parent / "docs" / "architecture" /
-                           "orchestration_migration" / "acceptance" / "fixtures" /
-                           "canvas_incident_quote.json").read_text()) if False else None
-    import json as _json
-    from pathlib import Path as _Path
-    fx = _Path("/Users/rushiparikh/projects/atom/docs/architecture/orchestration_migration/acceptance/fixtures/canvas_incident_quote.json")
-    doc = _json.loads(fx.read_text())
-    body = None
-    for arow in reversed(doc["audit_rows"]):
+def active_case_db(world: Path) -> Path:
+    """The database the running server actually opened, for case-side reads/writes.
+
+    launch_server sets ``DATABASE_URL`` to ``<run_dir>/data/atom.db`` after
+    cloning the working DB into a fresh run dir, and every case then executes
+    against that clone. Reading ``world/data/atom.db`` instead shows a
+    PRE-CASE snapshot: a canvas the case just seeded looks absent and an edit
+    the case just applied looks like it never happened.
+
+    Measured on F03 (2026-09-28): the effect layer applied the edit (canvas
+    content carried the new text and the audit row had a real
+    ``operation_id``) while the probe still reported ``correct_completion=False``
+    with "Canvas not found", because both the seeder and the verifier were
+    pointed at the working DB. One helper for all case-side DB access, so this
+    cannot drift per call site again.
+    """
+    run_dir = getattr(launch_server, "last_run_dir", None)
+    if run_dir:
+        candidate = Path(run_dir) / "data" / "atom.db"
+        if candidate.exists():
+            return candidate
+    return world / "data" / "atom.db"
+
+
+INCIDENT_QUOTE_FIXTURE = (Path(__file__).resolve().parents[3] / "docs" / "architecture" /
+                         "orchestration_migration" / "acceptance" / "fixtures" /
+                         "canvas_incident_quote.json")
+
+
+def incident_quote_content() -> str:
+    """The frozen quote body the authored plans operate on (audit-first history)."""
+    doc = json.loads(INCIDENT_QUOTE_FIXTURE.read_text())
+    for arow in reversed(doc.get("audit_rows") or []):
         det = arow.get("details_json") or {}
         if isinstance(det, str):
-            try: det = _json.loads(det)
-            except Exception: det = {}
-        b = det.get("content") if isinstance(det, dict) else None
-        if b is None and isinstance(det, dict): b = det.get("data")
-        if b: body = b; break
-    con.execute("INSERT OR REPLACE INTO canvas_audit (id, canvas_id, tenant_id, agent_id, "
-                "action_type, canvas_type, details_json, created_at) VALUES "
-                "(?,?,?,?,?,?,?,?)",
-                ("cccc3333-0000-4000-8000-000000000003", UNBOUND_CANVAS_ID, row[3], None,
-                 "update", row[0], _json.dumps({"content": body, "operation_id": "fixture-seed"}),
-                 "2026-09-25 00:00:00.000000"))
-    con.commit()
-    con.close()
+            try:
+                det = json.loads(det)
+            except Exception:
+                det = {}
+        body = det.get("content") if isinstance(det, dict) else None
+        if body is None and isinstance(det, dict):
+            body = det.get("data")
+        if body:
+            return body if isinstance(body, str) else json.dumps(body)
+    raise RuntimeError(f"no content in {INCIDENT_QUOTE_FIXTURE}")
+
+
+async def seed_unbound_canvas_copy(base: str, token: str, *,
+                                   canvas_type: str = "email",
+                                   title: str = "Quote copy (acceptance rig)") -> Dict[str, str]:
+    """Create the unbound copy through the product's own API. Returns id + content.
+
+    This used to INSERT the canvas, its context and its audit baseline with
+    direct SQL, which was wrong three ways and forced a full dev snapshot to
+    work at all:
+
+    1. It copied a row out of the frozen fixture, so it only had content to
+       copy if the world was built with the full dev DB. On the small
+       api-seeded fixture -- the one the frozen candidate uses -- there is no
+       canvas to copy, and the case could not run.
+    2. The audit baseline was hand-written, so the row was not one the app had
+       ever produced (operation_id "fixture-seed"), and the case was judging an
+       edit against state the product never created.
+    3. Rows it wrote landed in whichever DB the case pointed at, which had
+       already diverged from the DB the server actually opened.
+
+    Creating through POST /api/canvas, seeding content with the same PUT the
+    editor saves with, and attaching context with POST /api/canvas/{id}/context
+    is the F06 path, keeps the fixture small, and leaves the audit trail
+    app-written. The copy is unbound by construction: no hire is attached, so
+    the turn routes to the interactive lane rather than a canvas agent.
+    """
+    import httpx
+    headers = {"Authorization": f"Bearer {token}"}
+    content = incident_quote_content()
+    async with httpx.AsyncClient(trust_env=False, timeout=120) as c:
+        r = await c.post(f"{base}/api/canvas", headers=headers, json={
+            "title": title, "canvas_type": "document",
+            "description": "controlled acceptance fixture (unbound copy)",
+        })
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"POST /api/canvas failed: {r.status_code} {r.text[:300]}")
+        body = r.json()
+        cid = (body.get("id") or body.get("canvas_id")
+               or (body.get("canvas") or {}).get("id"))
+        if not cid:
+            raise RuntimeError(f"no canvas id in create response: {body}")
+        # Creation is restricted to text/grid apps, so the email type is applied
+        # here, by the same PUT the editor saves through. The stored content is
+        # a JSON object, so send it as JSON: passing the raw text made the
+        # route bind `content` to bytes and the UPDATE died with
+        # "Object of type bytes is not JSON serializable" (HTTP 400).
+        put = f"{base}/api/canvas/{cid}?canvas_type={canvas_type}"
+        r = await c.put(put, headers=headers, json=json.loads(content))
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"content PUT failed: {r.status_code} {r.text[:300]}")
+        r = await c.post(f"{base}/api/canvas/{cid}/context", headers=headers,
+                         json={"canvas_type": "document",
+                               "initial_state": {"source": "acceptance_rig"}})
+        context_status = r.status_code
+    return {"canvas_id": cid, "content": content,
+            "context_status": str(context_status)}
 
 
 CANVAS_ID = "0e4defa5-a0f3-4e56-b8a7-976c0a93d4fb"
+
+
+def _capture_canvaseditplan_count(world: Path) -> int:
+    """CanvasEditPlan requests in this run's capture (per-run: the shim
+    truncates it at startup)."""
+    cap = world / "shim_requests.jsonl"
+    if not cap.exists():
+        return 0
+    n = 0
+    for line in cap.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            if "CanvasEditPlan" in (json.loads(line).get("tool_names") or []):
+                n += 1
+        except Exception:
+            continue
+    return n
+
+
+#: Live handles for cases that must restart the server (F11). Populated by
+#: main_async immediately after launch_server.
+ACTIVE_SERVER: Dict[str, Any] = {}
+
+
+def _shim_stall_hits(port: int = SHIM_PORT) -> Dict[str, Any]:
+    """Authoritative stall evidence, read from the shim's own /log."""
+    import httpx
+    with httpx.Client(trust_env=False, timeout=15) as c:
+        return c.get(f"http://127.0.0.1:{port}/log").json()
+
+
+def _arm_shim_stall(seconds: float, tool: str, first_n: int = 1,
+                    port: int = SHIM_PORT) -> Dict[str, Any]:
+    """Arm the stall for ONE tool. GET, and VERIFIED.
+
+    /arm-stalls is a GET route; POSTing it returns 404 from the do_POST guard
+    ("chat/completions not in path") and arms nothing. That failed silently on
+    F04 (2026-09-28): the run reported an armed stall, no request ever stalled,
+    the edit completed interactively in 1.7 s, and the case read as "the fork
+    did not happen" instead of "the stall was never armed". Assert the arm.
+    """
+    import httpx
+    with httpx.Client(trust_env=False, timeout=15) as c:
+        r = c.get(f"http://127.0.0.1:{port}/arm-stalls",
+                  params={"seconds": seconds, "first_n": first_n, "tool": tool})
+    if r.status_code != 200:
+        raise RuntimeError(f"shim /arm-stalls returned {r.status_code}: {r.text[:200]}")
+    return {"status": r.status_code, "armed": True, "seconds": seconds,
+            "first_n": first_n, "tool": tool}
+
+
+def _disarm_shim_stall(port: int = SHIM_PORT) -> None:
+    import httpx
+    with httpx.Client(trust_env=False, timeout=15) as c:
+        c.get(f"http://127.0.0.1:{port}/arm-stalls", params={"disarm": 1})
+
+
+def _continuation_row(world: Path, exec_id: Optional[str],
+                      canvas_id: Optional[str] = None,
+                      session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """The DURABLE terminal record of the background leg (agent_executions).
+
+    Preferred over log scraping: it is the row a reload renders, written by the
+    product, carrying the machine-readable outcome, failure stage, audit id and
+    review status.
+
+    The chat response's ``execution_id`` is NOT the continuation id -- the fork
+    mints its own execution row. Looking only up the chat id therefore returned
+    the interactive turn's row, which has no continuation metadata, so the
+    terminal outcome read as null and F04 (2026-09-28) scored a real fork as
+    unproven.
+
+    Attribute by session_id when given: the continuation row carries
+    ``metadata.continuation.session_id``. Falling back to "newest row for this
+    canvas" mis-attributed legs (F08, 2026-09-28: the connected leg's live frame
+    said `applied` while its reload reported a LATER leg's `failed` row), so the
+    fallback is only used when no session is known.
+    """
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    try:
+        cols = [c[1] for c in con.execute("PRAGMA table_info(agent_executions)")]
+        timecol = "started_at" if "started_at" in cols else "created_at"
+        rows = con.execute(
+            f"SELECT id, status, {timecol}, completed_at, result_summary, metadata_json "
+            f"FROM agent_executions ORDER BY {timecol} DESC LIMIT 25").fetchall()
+    finally:
+        con.close()
+    parsed = []
+    for row in rows:
+        meta = row[5]
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = {}
+        parsed.append((row, (meta or {}).get("continuation") or {}))
+    if session_id:
+        for row, cont in parsed:
+            if str(cont.get("session_id") or "") == str(session_id):
+                return _cont_record(row, cont)
+    if exec_id:
+        for row, cont in parsed:
+            if row[0] == exec_id and cont:
+                return _cont_record(row, cont)
+    for row, cont in parsed:
+        if not cont:
+            continue
+        if canvas_id and str(cont.get("canvas_id") or canvas_id) not in (str(canvas_id), ""):
+            continue
+        return _cont_record(row, cont)
+    return None
+
+
+def _cont_record(row, cont: Dict[str, Any]) -> Dict[str, Any]:
+    return {"execution_id": row[0], "status": row[1], "started_at": str(row[2]),
+            "completed_at": str(row[3]) if row[3] else None,
+            "result_summary": row[4], "outcome": cont.get("outcome"),
+            "failure_stage": cont.get("failure_stage"),
+            "audit_id": cont.get("audit_id"), "summary": cont.get("summary"),
+            "canvas_id": cont.get("canvas_id")}
+
+
+async def _ws_collect(ws_url: str, out: List[Dict[str, Any]], *,
+                      stop: "asyncio.Event") -> None:
+    """Subscribe and record every frame until stopped.
+
+    F08 requires the subscription to exist BEFORE the request, otherwise a
+    "connected" subscriber that connects afterwards proves nothing: it can only
+    ever see the recovery path, never live delivery.
+    """
+    import websockets
+    async with websockets.connect(ws_url, open_timeout=20) as ws:
+        while not stop.is_set():
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                break
+            try:
+                out.append(json.loads(raw))
+            except Exception:
+                out.append({"_raw": str(raw)[:400]})
+
+
+def _ws_terminal_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Frames that assert a turn TERMINAL state (not progress, not narration)."""
+    # The real frame (core/async_turn_continuation.py) is
+    #   {"type": "chat_continuation", "data": {continuation_id,
+    #     originating_execution_id, session_id, canvas_id, status, summary}}
+    # -- the outcome arrives as `status`, not `outcome`. Matching on `outcome`
+    # plus a closed set of status words scored zero terminal frames on a run
+    # that had in fact broadcast two of them (F08, 2026-09-28).
+    term = []
+    for f in frames:
+        if str(f.get("type") or "") != "chat_continuation":
+            continue
+        d = f.get("data") or {}
+        if isinstance(d, dict) and (d.get("status") or d.get("outcome")):
+            term.append(f)
+    return term
+
+
+async def run_read_workflows(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
+    """F12 -- the six read workflows on THIS candidate.
+
+    Read-only by construction: no canvas is created, no chat edit is requested,
+    and nothing is mutated. The workbook is registered first (the read had no
+    index row to resolve without it), then each workflow is asked and its answer
+    is checked for the thing the workflow is actually about -- the M08 step is a
+    real reload-equivalent readback of the same session.
+    """
+    import httpx
+    registered = register_workbook_dataset(world)
+    session = f"acc-f12-{int(time.time())}-{sample}"
+    headers = {"Authorization": f"Bearer {token}"}
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    baseline = {
+        "executions": con.execute("SELECT count(*) FROM agent_executions").fetchone()[0],
+        "canvas_audit": con.execute("SELECT count(*) FROM canvas_audit").fetchone()[0],
+        "canvases": con.execute("SELECT count(*) FROM canvases").fetchone()[0],
+    }
+    dataset_rows = con.execute(
+        "SELECT count(*) FROM dataset_entries WHERE file_name=?",
+        (WORKBOOK_FIXTURE["file_name"],)).fetchone()[0]
+    con.close()
+
+    steps = []
+    async def ask(prompt: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(trust_env=False, timeout=300) as c:
+            r = await c.post(f"{base}/api/chat/message", headers=headers,
+                             json={"message": prompt, "session_id": session,
+                                   "user_id": user_id,
+                                   "context": {"surface": "chat",
+                                               "workspace_id": "default"}})
+            if r.status_code >= 400:
+                return {"status": r.status_code, "answer": "",
+                        "error": r.text[:300]}
+            b = r.json()
+            return {"status": r.status_code, "answer": str(b.get("message") or ""),
+                    "execution_id": b.get("execution_id")}
+
+    # The six read workflows, in the order the browser sequence uses.
+    for name, prompt, expect in (
+        ("answer", "In one sentence, what is a price list used for?",
+         "a sentence about price lists; no edit claimed"),
+        ("lookup", "find the prices of these 8 machines in Consolidated Price "
+                   "List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, "
+                   "SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16",
+         "prices or an honest not-found for the named machines"),
+        ("formatting", "Make this easier to read", "a reformat of the answer"),
+        ("re_search", "Search again and show the same items",
+         "the same items again; status truthful"),
+        ("factory_price", "Use the factory price instead",
+         "factory/cost basis where the sheet has one"),
+        ("replacement", "Replace U-22 with U-38", "the replacement applied or declined"),
+    ):
+        out = await ask(prompt)
+        ans = out.get("answer") or ""
+        steps.append({
+            "step": name, "prompt": prompt, "expect": expect,
+            "status": out.get("status"), "execution_id": out.get("execution_id"),
+            "answered": bool(ans.strip()), "answer_chars": len(ans),
+            "answer_excerpt": ans[:400],
+            "error": out.get("error"),
+            "claims_mutation": any(w in ans.lower() for w in
+                                   ("i updated", "i changed the canvas", "edited the canvas")),
+        })
+
+    # Reload-equivalent: re-read the session's durable transcript, not the
+    # in-memory response, so this is a read of committed state.
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    persisted = con.execute(
+        "SELECT count(*) FROM chat_messages WHERE conversation_id=?",
+        (session,)).fetchone()[0]
+    after = {
+        "executions": con.execute("SELECT count(*) FROM agent_executions").fetchone()[0],
+        "canvas_audit": con.execute("SELECT count(*) FROM canvas_audit").fetchone()[0],
+        "canvases": con.execute("SELECT count(*) FROM canvases").fetchone()[0],
+    }
+    con.close()
+
+    answered = [s_ for s_ in steps if s_["answered"]]
+    checks = {
+        "workbook_registered": dataset_rows > 0,
+        "all_six_workflows_answered": len(answered) == len(steps),
+        "no_http_errors": all(s_["status"] in (200, 201) for s_ in steps),
+        "no_mutation_claimed": not any(s_["claims_mutation"] for s_ in steps),
+        # "Read-only" means no CANVAS or domain state changed. An
+        # agent_executions row per answered turn is the normal cost of asking a
+        # question, not a side effect -- asserting on it failed a run whose
+        # canvas_audit and canvases were both untouched (F12, 2026-09-29).
+        "read_only_no_side_effects": (
+            after["canvas_audit"] == baseline["canvas_audit"]
+            and after["canvases"] == baseline["canvases"]),
+        "transcript_persisted": persisted > 0,
+        # An answer can be non-empty and still be an ERROR string, which is how
+        # an unseeded shim script or an unregistered workbook passed every
+        # other check here (F12, 2026-09-29): the run reported 6/6 while the
+        # lookup step's "answer" was "not present in the catalogued file index".
+        # No step may report a provider failure, a not-found, or ambiguity.
+        "no_error_or_notfound_answers": not any(
+            w in (s_["answer_excerpt"] or "").lower()
+            for s_ in steps for w in (
+                "couldn't generate a response", "no scripted response",
+                "not present in the catalogued", "not found in the indexed",
+                "multiple catalogued files match", "every configured provider failed")),
+        "workbook_reads_are_grounded": sum(
+            1 for s_ in steps
+            if "Consolidated Price List 2019" in (s_["answer_excerpt"] or "")
+        ) >= 4,
+    }
+    res = {"case_id": "F12_read_workflow_regressions", "sample": sample,
+           "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+           "session_id": session, "workbook": WORKBOOK_FIXTURE["file_name"],
+           "sheets_registered": registered, "dataset_rows": dataset_rows,
+           "steps": steps, "baseline": baseline, "after": after,
+           "transcript_rows": persisted, "checks": checks}
+    ok = all(checks.values())
+    res["verdict"] = "PASS" if ok else "FAIL"
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
+
+async def run_keyed_replay(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
+    """F10 -- keyed replay, payload conflict, restart pin.
+
+    Resolved in core/chat_transport.py against ``chat_request_records``:
+      * same key + same payload  -> the ORIGINAL response semantics: same
+        execution_id, byte-identical answer, no new execution, no new effect;
+      * same key + CHANGED payload -> HTTP 409, no execution, no effect.
+    Counted from the durable tables after each step, not from status strings.
+    """
+    import hashlib
+    import httpx
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
+    headers = {"Authorization": f"Bearer {token}"}
+    session = f"acc-f10-{int(time.time())}-{sample}"
+    ask = case["inputs"]["ask_a"]
+    key = f"f10-{int(time.time())}-{sample}"
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
+           "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
+
+    def counts() -> Dict[str, int]:
+        con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+        try:
+            return {
+                "executions": con.execute("SELECT count(*) FROM agent_executions").fetchone()[0],
+                "canvas_audit": con.execute("SELECT count(*) FROM canvas_audit "
+                                            "WHERE canvas_id=?", (uid,)).fetchone()[0],
+                "chat_request_records": con.execute(
+                    "SELECT count(*) FROM chat_request_records").fetchone()[0],
+            }
+        finally:
+            con.close()
+
+    def record_state() -> List[Dict[str, Any]]:
+        con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+        try:
+            return [{"request_id": r[0], "state": r[1], "payload_sha256": r[2],
+                     "execution_id": r[3]} for r in con.execute(
+                        "SELECT request_id, state, payload_sha256, execution_id "
+                        "FROM chat_request_records").fetchall()]
+        finally:
+            con.close()
+
+    async def send(message: str, request_id: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(trust_env=False, timeout=300) as c:
+            r = await c.post(f"{base}/api/chat/message", headers=headers,
+                             json={"message": message, "session_id": session,
+                                   "user_id": user_id, "context": ctx,
+                                   "request_id": request_id})
+        try:
+            body = r.json()
+        except Exception:
+            body = {"_raw": r.text[:400]}
+        return {"status": r.status_code, "body": body,
+                "answer_sha256": hashlib.sha256(
+                    str(body.get("message") or "").encode()).hexdigest()}
+
+    before = counts()
+    first = await send(ask, key)
+    after_first = counts()
+    replay = await send(ask, key)                      # identical payload
+    after_replay = counts()
+    conflict = await send(ask + " (different payload under the same key)", key)
+    after_conflict = counts()
+
+    res = {
+        "case_id": "F10_keyed_replay_payload_conflict_restart_pin", "sample": sample,
+        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "canvas_id": uid, "session_id": session, "request_id": key,
+        "first": {"status": first["status"], "execution_id": first["body"].get("execution_id"),
+                  "answer_sha256": first["answer_sha256"]},
+        "replay": {"status": replay["status"],
+                   "execution_id": replay["body"].get("execution_id"),
+                   "answer_sha256": replay["answer_sha256"]},
+        "conflict": {"status": conflict["status"],
+                     "body": str(conflict["body"])[:200]},
+        "counts": {"before": before, "after_first": after_first,
+                   "after_replay": after_replay, "after_conflict": after_conflict},
+        "deltas": {"executions_on_replay": after_replay["executions"] - after_first["executions"],
+                   "canvas_audit_on_replay": after_replay["canvas_audit"] - after_first["canvas_audit"],
+                   "executions_on_conflict": after_conflict["executions"] - after_replay["executions"],
+                   "canvas_audit_on_conflict": after_conflict["canvas_audit"] - after_replay["canvas_audit"]},
+        "chat_request_records": record_state(),
+    }
+    same_exec = (res["first"]["execution_id"] is not None
+                 and res["first"]["execution_id"] == res["replay"]["execution_id"])
+    same_answer = res["first"]["answer_sha256"] == res["replay"]["answer_sha256"]
+    res["checks"] = {
+        "first_accepted": first["status"] in (200, 201),
+        "replay_accepted": replay["status"] in (200, 201),
+        "replay_same_execution_id": same_exec,
+        "replay_byte_identical_answer": same_answer,
+        "replay_no_new_execution": res["deltas"]["executions_on_replay"] == 0,
+        "replay_no_new_effect": res["deltas"]["canvas_audit_on_replay"] == 0,
+        "changed_payload_conflicts_409": conflict["status"] == 409,
+        "conflict_no_new_execution": res["deltas"]["executions_on_conflict"] == 0,
+        "conflict_no_new_effect": res["deltas"]["canvas_audit_on_conflict"] == 0,
+    }
+    ok = all(res["checks"].values())
+    res["verdict"] = "PASS" if ok else "FAIL"
+    res["restart_pin"] = ("not exercised here: F10's restart survival is carried from the "
+                          "candidate-A evidence and is exercised for real by F11's kill/restart "
+                          "on one durable run dir")
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
+
+async def run_effect_before_kill(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
+    """F11 -- effect committed, terminal state NOT, kill, restart, reconcile.
+
+    Runs inside the harness (not a standalone script) so the server's ephemeral
+    SECRET_KEY, its run-dir DATABASE_URL and the minted token all come from the
+    same launch. A standalone driver that minted its own token authenticated
+    against a different database context and 401'd -- and risked resolving the
+    LIVE dev database, which is exactly the hazard core.database's import-time
+    DATABASE_URL resolution creates.
+
+    The kill happens at the product's own test seam, stage
+    ``continuation_after_effect``: the canvas mutation has committed and passed
+    the readback gate, and the durable terminal record has NOT been written.
+    The barrier's arrival file is the signal, so this does not poll for the
+    ~20 ms window. The restart uses the SAME run dir with NO reseed, which is
+    also a live re-verification of the F10 restart pin.
+    """
+    import signal
+    import httpx
+    stage = "continuation_after_effect"
+    barrier_dir = world / "data" / "acceptance_barrier"
+    barrier_dir.mkdir(parents=True, exist_ok=True)
+    for f in barrier_dir.glob("barrier.*"):
+        f.unlink()
+    db_path = ACTIVE_SERVER["proc"].last_run_dir / "data" / "atom.db" \
+        if hasattr(ACTIVE_SERVER["proc"], "last_run_dir") else None
+
+    def snapshot() -> Dict[str, Any]:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            audits = con.execute("SELECT action_type, details_json FROM canvas_audit "
+                                 "WHERE canvas_id=? ORDER BY rowid", (uid,)).fetchall()
+            content = con.execute("SELECT content FROM canvases WHERE id=?",
+                                  (uid,)).fetchone()
+            conts = con.execute(
+                "SELECT id, status, result_summary, metadata_json FROM agent_executions "
+                "WHERE metadata_json LIKE '%continuation%'").fetchall()
+            edits = []
+            for act, det in audits:
+                d = json.loads(det) if isinstance(det, str) else (det or {})
+                if d.get("operation_id") and "fixture-seed" != d.get("operation_id"):
+                    edits.append({"operation_id": d.get("operation_id"), "action": act,
+                                  "marker": "OVLAP-A" if "OVLAP-A" in json.dumps(d) else None})
+            out_cont = []
+            for rid, st, summ, mj in conts:
+                m = json.loads(mj) if isinstance(mj, str) else (mj or {})
+                c = m.get("continuation") or {}
+                out_cont.append({"id": rid, "status": st, "result_summary": summ,
+                                 "outcome": c.get("outcome"),
+                                 "failure_stage": c.get("failure_stage"),
+                                 "session_id": c.get("session_id")})
+            text = json.dumps(content[0]) if content and content[0] else ""
+            return {"audit_rows": len(audits), "edit_rows": edits,
+                    "marker_present": "OVLAP-A" in text,
+                    "old_text_gone": "15 days" not in text,
+                    "continuations": out_cont}
+        finally:
+            con.close()
+
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
+    db_path = launch_server.last_run_dir / "data" / "atom.db"
+    headers = {"Authorization": f"Bearer {token}"}
+    session = f"acc-f11-{int(time.time())}-{sample}"
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
+           "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
+    _arm_shim_stall(25.0, "CanvasEditPlan", first_n=1)
+    try:
+        async with httpx.AsyncClient(trust_env=False, timeout=300) as c:
+            r = await c.post(f"{base}/api/chat/message", headers=headers,
+                             json={"message": case["inputs"]["ask_a"],
+                                   "session_id": session, "user_id": user_id,
+                                   "context": ctx})
+            r.raise_for_status()
+            first = r.json()
+    finally:
+        _disarm_shim_stall()
+
+    # The barrier RE-ROOTS its directory into the run dir
+    # (<world>/runs/<run_id>/data/acceptance_barrier), not the world-level path
+    # that ATOM_ACCEPTANCE_BARRIER_DIR names -- confirmed on the candidate by its
+    # own log line. Watching only the world path made a barrier that was
+    # demonstrably HOLDING look like it never fired, and the case then killed
+    # the server at the wrong moment. Search both.
+    def _find_arrival() -> Optional[Path]:
+        run_dir = getattr(launch_server, "last_run_dir", None)
+        roots = [barrier_dir]
+        if run_dir:
+            roots.insert(0, Path(run_dir) / "data" / "acceptance_barrier")
+        for root in roots:
+            cand = root / f"barrier.{stage}.arrived.json"
+            if cand.exists():
+                return cand
+        return None
+
+    deadline = time.time() + 150
+    arrival = _find_arrival()
+    while time.time() < deadline and arrival is None:
+        await asyncio.sleep(0.3)
+        arrival = _find_arrival()
+    held = arrival is not None
+    barrier_ctx = json.loads(arrival.read_text()).get("context") if held else {}
+    before_kill = snapshot()
+
+    # ---- KILL the whole process group while parked -----------------------
+    proc = ACTIVE_SERVER.get("proc")
+    pid = getattr(proc, "pid", None)
+    killed = False
+    if pid:
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+            killed = True
+        except Exception:
+            try:
+                os.kill(pid, signal.SIGKILL)
+                killed = True
+            except Exception:
+                pass
+    await asyncio.sleep(3)
+    after_kill = snapshot()
+
+    # ---- RESTART on the SAME run dir, NO RESEED --------------------------
+    # Deliberately not calling refresh_working_db: it copies the fixture over
+    # the working DB, and a restart that reseeds would hide the very durable
+    # state this case reconciles.
+    port = ACTIVE_SERVER["port"]
+    # SAME run dir, no reseed. launch_server defaults to a NEW run-<id> per
+    # launch, so the earlier F11 attempt restarted against a DIFFERENT database
+    # and could not have shown reconciliation of the durable state at all.
+    # reuse_run_dir is the documented restart path ("RESTART: same DB dir, no
+    # re-seed").
+    reuse = launch_server.last_run_dir
+    proc2 = launch_server(port, world, provider_shim=ACTIVE_SERVER.get("shim") is not None,
+                          reuse_run_dir=reuse)
+    restart_run_dir = str(launch_server.last_run_dir)
+    restart_reused = restart_run_dir == str(reuse)
+    ACTIVE_SERVER["proc"] = proc2
+    deadline = time.time() + 150
+    after_restart = after_kill
+    while time.time() < deadline:
+        await asyncio.sleep(2)
+        st = snapshot()
+        if st["audit_rows"] == after_kill["audit_rows"] and any(
+                c.get("outcome") for c in st["continuations"]):
+            after_restart = st
+            break
+        after_restart = st
+
+    # What the user was actually told, from the durable transcript.
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    msgs = [r[0] for r in con.execute(
+        "SELECT content FROM chat_messages WHERE conversation_id=? ORDER BY created_at",
+        (session,)).fetchall()]
+    con.close()
+    reconciled_session_message = [m for m in msgs if m and (
+        "Background update" in m or "restart" in m or "interruption" in m)]
+    still_running = [c for c in after_restart["continuations"]
+                     if c["status"] == "running"]
+
+    checks = {
+        "barrier_reached": held,
+        "effect_committed_before_kill": before_kill["edit_rows"] != [],
+        "no_terminal_state_before_kill": not any(
+            c.get("outcome") for c in before_kill["continuations"]),
+        "process_group_killed": killed,
+        "effect_survived_kill": after_kill["edit_rows"] != [] and after_kill["marker_present"],
+        "no_second_write_after_restart": after_restart["audit_rows"] == after_kill["audit_rows"],
+        # The reconciliation contract is: the interrupted execution stops
+        # being `running`, AND the session is given a truthful terminal
+        # message. It is NOT `continuation.outcome` being set -- that field is
+        # written by the in-process runner, which was SIGKILLed. The recovery
+        # path writes the outcome a different way: the row is reconciled and a
+        # durable terminal chat message is delivered. Asserting on `outcome`
+        # therefore failed a run whose user-visible behaviour was correct
+        # (F11, 2026-09-29: the sweep reported "reconciled 1 agent execution
+        # with a VERIFIED dead owner" and the session received "Background
+        # update applied before the interruption.").
+        "terminal_state_reconciled_after_restart": (
+            bool(reconciled_session_message) and not still_running),
+    }
+    res = {"case_id": "F11_effect_before_kill_reconciliation", "sample": sample,
+           "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+           "canvas_id": uid, "session_id": session,
+           "first_execution_id": first.get("execution_id"),
+           "run_dir": str(launch_server.last_run_dir),
+           "restart_run_dir": restart_run_dir,
+           "restart_same_run_dir": restart_reused,
+           "reseeded_on_restart": False,
+           "barrier": {"stage": stage, "dir": str(arrival.parent) if arrival else str(barrier_dir),
+                       "held": held, "context": barrier_ctx},
+           "before_kill": before_kill, "after_kill": after_kill,
+           "after_restart": after_restart, "checks": checks,
+           "terminal_message_delivered": reconciled_session_message,
+           "executions_still_running": still_running}
+    ok = all(checks.values())
+    res["verdict"] = "PASS" if ok else "FAIL"
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
+
+async def run_delivery_recovery(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
+    """F08 -- completion delivery: connected, empty channel, disconnected.
+
+    Each leg must prove the SAME three things, and a leg that never forked is
+    INCONCLUSIVE rather than a pass:
+      * the effect is durable (exactly one mutation on this canvas);
+      * a RELOAD of the durable record shows the terminal state (recovery);
+      * recovery happens ONCE -- no second terminal message, no second write.
+
+    The subscription is established BEFORE the request on the connected leg: a
+    subscriber that connects afterwards can only ever observe the recovery path,
+    never live delivery.
+
+    Each leg arms the stall separately. The stall is first_n=1, so a single arm
+    only made the FIRST leg overrun; later legs then ran inline and had no
+    background completion to deliver (measured 2026-09-28: agent_status_change
+    and canvas:update arrived, zero chat_continuation).
+    """
+    import httpx
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
+    headers = {"Authorization": f"Bearer {token}"}
+    ask = case["inputs"]["ask_a"]
+    ws_url = base.replace("http://", "ws://") + f"/ws?token={token}"
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
+           "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    baseline = con.execute("SELECT count(*) FROM canvas_audit WHERE canvas_id=?",
+                           (uid,)).fetchone()[0]
+    con.close()
+
+    async def one_turn(session: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(trust_env=False, timeout=300) as c:
+            r = await c.post(f"{base}/api/chat/message", headers=headers,
+                             json={"message": ask, "session_id": session,
+                                   "user_id": user_id, "context": ctx})
+            r.raise_for_status()
+            return r.json()
+
+    async def leg(name: str, *, subscribe: str) -> Dict[str, Any]:
+        frames: List[Dict[str, Any]] = []
+        stop = asyncio.Event()
+        task = None
+        if subscribe in ("open", "closed"):
+            task = asyncio.create_task(_ws_collect(ws_url, frames, stop=stop))
+            await asyncio.sleep(1.5)
+        _arm_shim_stall(float(os.environ.get("ACC_BG_STALL_SECONDS", "25")),
+                        "CanvasEditPlan", first_n=1)
+        if subscribe == "closed":
+            stop.set()
+            if task is not None:
+                try:
+                    await asyncio.wait_for(task, timeout=8)
+                except Exception:
+                    task.cancel()
+        session = f"acc-f08-{name}-{int(time.time())}-{sample}"
+        try:
+            payload = await one_turn(session)
+        finally:
+            _disarm_shim_stall()
+        await asyncio.sleep(float(os.environ.get("ACC_F08_SETTLE", "12")))
+        if subscribe == "open":
+            stop.set()
+            if task is not None:
+                try:
+                    await asyncio.wait_for(task, timeout=8)
+                except Exception:
+                    task.cancel()
+        term = _ws_terminal_frames(frames)
+        return {"execution_id": payload.get("execution_id"),
+                "session_id": session,
+                "subscribed_before_request": subscribe in ("open", "closed"),
+                "subscriber_open_at_request": subscribe == "open",
+                "frames": len(frames), "terminal_frames": len(term),
+                "terminal_statuses": [((f.get("data") or {}).get("status")) for f in term],
+                "frames_sample": frames[:8]}
+
+    legA = await leg("connected", subscribe="open")
+    legB = await leg("empty", subscribe="closed")
+    legC = await leg("disconnected", subscribe="none")
+
+    # Settle, then RELOAD from scratch: re-read the durable record over a new
+    # connection. Read cold it returned a row mid-flight (status=running,
+    # outcome=None) and recovery looked unproven on a run that had succeeded.
+    # Per-leg recovery. Proving that "some" continuation is terminal is weaker
+    # than the case: the legs with no subscriber are exactly the ones that must
+    # be recoverable, so each leg's own durable record is read back.
+    _dl = time.time() + float(os.environ.get("ACC_BG_WAIT_SECONDS", "120"))
+    per_leg: Dict[str, Any] = {}
+    while time.time() < _dl and not all(
+            (per_leg.get(n) or {}).get("outcome") is not None
+            for n in ("connected", "empty_channel", "disconnected")):
+        for nm, lg in (("connected", legA), ("empty_channel", legB),
+                       ("disconnected", legC)):
+            row = _continuation_row(world, lg.get("execution_id"), uid)
+            if row and row.get("outcome") is not None:
+                per_leg[nm] = row
+        if all((per_leg.get(n) or {}).get("outcome") is not None
+               for n in ("connected", "empty_channel", "disconnected")):
+            break
+        await asyncio.sleep(1.0)
+    reloaded = per_leg.get("connected")
+
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    audits = con.execute("SELECT action_type, details_json FROM canvas_audit "
+                         "WHERE canvas_id=? ORDER BY rowid", (uid,)).fetchall()
+    content = str(con.execute("SELECT content FROM canvases WHERE id=?",
+                              (uid,)).fetchone()[0])
+    con.close()
+    edit_rows = []
+    for act, det in audits:
+        d = json.loads(det) if isinstance(det, str) else (det or {})
+        if d.get("operation_id") and "fixture-seed" != d.get("operation_id") \
+                and "OVLAP-A" in json.dumps(d):
+            edit_rows.append({"operation_id": d.get("operation_id"),
+                              "action": act, "review_status": d.get("review_status")})
+    delta = len(audits) - baseline
+    legs = {
+        "connected": legA,
+        "empty_channel": dict(legB, note="subscriber disconnected immediately before "
+                                         "the request, so the product broadcasts to "
+                                         "an empty channel"),
+        "disconnected": dict(legC, note="no subscriber at any point"),
+        "reload": {"outcome": (reloaded or {}).get("outcome"),
+                   "status": (reloaded or {}).get("status"),
+                   "result_summary": (reloaded or {}).get("result_summary"),
+                   "read_via": "fresh connection to the run database",
+                   "per_leg_terminal_state": {
+                       n: {"outcome": (per_leg.get(n) or {}).get("outcome"),
+                           "status": (per_leg.get(n) or {}).get("status"),
+                           "recovered": (per_leg.get(n) or {}).get("outcome") is not None,
+                           "delivered_live": ((L or {}).get("terminal_frames") or 0) > 0}
+                       for n, L in (("connected", legA), ("empty_channel", legB),
+                                    ("disconnected", legC))}},
+    }
+    res = {
+        "case_id": "F08_completion_delivery_recovery", "sample": sample,
+        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "canvas_id": uid, "baseline_audit_rows": baseline, "ask": ask,
+        "executions": {"connected": legA.get("execution_id"),
+                       "empty_channel": legB.get("execution_id"),
+                       "disconnected": legC.get("execution_id")},
+        "legs": legs,
+        "effect": {"audit_delta": delta, "edit_rows": edit_rows,
+                   "marker_present": "OVLAP-A" in content,
+                   "old_text_gone": "15 days" not in content},
+        "no_duplicate_effect": len(edit_rows) == delta == 1,
+    }
+    recovered = {n: (per_leg.get(n) or {}).get("outcome") is not None
+                 for n in ("connected", "empty_channel", "disconnected")}
+    ok = (res["effect"]["marker_present"] and res["effect"]["old_text_gone"]
+          and legA["terminal_frames"] == 1
+          and all(recovered.values())
+          and legB["terminal_frames"] == 0 and legC["terminal_frames"] == 0
+          and res["no_duplicate_effect"])
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
+
+async def run_overlap_terminal(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
+    """F09 -- overlap / duplicate terminal events.
+
+    Two turns are issued CONCURRENTLY against the same canvas, each with its own
+    session and its own subscriber, so a terminal event delivered twice -- or an
+    outcome attributed to the wrong turn -- is observable. Required: exactly one
+    terminal frame per subscriber, no cross-turn identity mixing (each frame's
+    execution/session must be the subscriber's own), and no duplicate effect.
+    """
+    import httpx
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
+    headers = {"Authorization": f"Bearer {token}"}
+    ws_base = base.replace("http://", "ws://")
+    ws_url = f"{ws_base}/ws?token={token}"
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    baseline = con.execute("SELECT count(*) FROM canvas_audit WHERE canvas_id=?",
+                           (uid,)).fetchone()[0]
+    con.close()
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
+           "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
+
+    frames: List[Dict[str, Any]] = []
+    stop = asyncio.Event()
+    task = asyncio.create_task(_ws_collect(ws_url, frames, stop=stop))
+    await asyncio.sleep(1.5)
+
+    sessions = [f"acc-f09-a-{int(time.time())}-{sample}",
+                f"acc-f09-b-{int(time.time())}-{sample}"]
+    asks = [case["inputs"]["ask_a"], case["inputs"]["ask_b"]]
+
+    async def turn(session: str, ask: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(trust_env=False, timeout=300) as c:
+            r = await c.post(f"{base}/api/chat/message", headers=headers,
+                             json={"message": ask, "session_id": session,
+                                   "user_id": user_id, "context": ctx})
+            r.raise_for_status()
+            return {"session": session, "execution_id": r.json().get("execution_id")}
+
+    # first_n=2: BOTH overlapping legs must overrun, otherwise only one forks
+    # and there is no second terminal event to compare against -- the case then
+    # observes zero frames and "no duplicates" is vacuous rather than proven.
+    _arm_shim_stall(float(os.environ.get("ACC_BG_STALL_SECONDS", "25")),
+                    "CanvasEditPlan", first_n=int(os.environ.get("ACC_F09_FIRST_N", "2")))
+    try:
+        both = await asyncio.gather(turn(sessions[0], asks[0]), turn(sessions[1], asks[1]),
+                                   return_exceptions=True)
+    finally:
+        _disarm_shim_stall()
+    await asyncio.sleep(float(os.environ.get("ACC_F09_SETTLE", "18")))
+    stop.set()
+    try:
+        await asyncio.wait_for(task, timeout=8)
+    except Exception:
+        task.cancel()
+    await asyncio.sleep(3)
+
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    audits = con.execute("SELECT action_type, details_json FROM canvas_audit "
+                         "WHERE canvas_id=? ORDER BY rowid", (uid,)).fetchall()
+    con.close()
+    edit_rows = []
+    for act, det in audits:
+        d = json.loads(det) if isinstance(det, str) else (det or {})
+        if d.get("operation_id") and "fixture-seed" != d.get("operation_id"):
+            edit_rows.append({"operation_id": d.get("operation_id"), "action": act,
+                              "marker": ("OVLAP-A" if "OVLAP-A" in json.dumps(d)
+                                         else ("OVLAP-B" if "OVLAP-B" in json.dumps(d) else None))})
+    op_ids = [e["operation_id"] for e in edit_rows]
+    term = _ws_terminal_frames(frames)
+    term_sessions = [str((f.get("data") or {}).get("session_id") or "") for f in term]
+    foreign = [ss for ss in term_sessions if ss and ss not in sessions]
+    res = {
+        "case_id": "F09_overlap_duplicate_terminal_events", "sample": sample,
+        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "canvas_id": uid, "sessions": sessions,
+        "turns": [{"session": b.get("session"), "execution_id": b.get("execution_id"),
+                   "ok": True} if isinstance(b, dict)
+                  else {"ok": False, "error": f"{type(b).__name__}: {str(b)[:200]}"}
+                  for b in both],
+        "baseline_audit_rows": baseline,
+        "effect": {"audit_delta": len(audits) - baseline, "edit_rows": edit_rows,
+                   "distinct_operation_ids": len(set(op_ids)) == len(op_ids)},
+        "terminal_frames": {"count": len(term), "sessions": term_sessions,
+                            # the frame carries the outcome as `status`
+                            "outcomes": [((f.get("data") or {}).get("status")
+                                           or (f.get("data") or {}).get("outcome"))
+                                          for f in term],
+                            "continuation_ids": [((f.get("data") or {}).get("continuation_id"))
+                                                 for f in term]},
+        "no_duplicate_message": len(term) == len(set(term_sessions)) if term_sessions else None,
+        "no_cross_turn_identity_mixing": not foreign,
+        "foreign_sessions_seen": foreign,
+        "frames_total": len(frames),
+    }
+    # PER-EXECUTION TERMINAL OUTCOME. One delivery for two turns does not
+    # establish completion for both: every session must get its own terminal
+    # frame AND its own durable terminal record. Anything less is INCONCLUSIVE
+    # (2026-09-28: two forked turns, one frame, the second never settled).
+    per_exec = {}
+    for nm, sid in (("a", sessions[0]), ("b", sessions[1])):
+        row = _continuation_row(world, None, uid, session_id=sid)
+        live = [f for f in term
+                if str((f.get("data") or {}).get("session_id") or "") == sid]
+        per_exec[nm] = {
+            "session_id": sid,
+            "live_terminal_frames": len(live),
+            "live_outcomes": [((f.get("data") or {}).get("status")) for f in live],
+            "durable_outcome": (row or {}).get("outcome"),
+            "durable_status": (row or {}).get("status"),
+            "terminal_complete": bool(live) and (row or {}).get("outcome") is not None,
+        }
+    res["per_execution_terminal"] = per_exec
+    incomplete = [k for k, v in per_exec.items() if not v["terminal_complete"]]
+    res["executions_without_terminal"] = incomplete
+
+    observed_terminals = len(term)
+    reached_branch = observed_terminals >= 1 and not incomplete
+    if not reached_branch:
+        # Nothing reached the delivery branch, so nothing can be concluded about
+        # duplicate terminal events. A vacuous "0 frames, 0 duplicates" is not a
+        # pass (F09, 2026-09-28).
+        res["verdict"] = (
+            "INCONCLUSIVE: no chat_continuation frame was observed, so the "
+            "duplicate-terminal-event branch was never reached"
+            if not incomplete else
+            f"INCONCLUSIVE: execution(s) {incomplete} never produced a terminal outcome "
+            f"(live frame and durable record both required); one delivery does not "
+            f"establish completion for the other")
+        res["output_correctness"] = False
+        res["correct_completion"] = False
+        return res
+    duplicates = sorted({ss for ss in term_sessions if term_sessions.count(ss) > 1})
+    res["duplicate_terminal_sessions"] = duplicates
+    res["no_duplicate_message"] = not duplicates
+    ok = (bool(edit_rows) and res["effect"]["distinct_operation_ids"]
+          and not foreign and not duplicates and not incomplete)
+    res["verdict"] = "PASS" if ok else "FAIL"
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
+
+async def run_background_edit(base, token, user_id, case, sample, pre, world,
+                              *, expect_success: bool) -> Dict[str, Any]:
+    """F04 / F05 -- the background leg, judged on its TERMINAL state.
+
+    The interactive canvas-edit leg is made to overrun its cap (a shim stall
+    armed for the exact CanvasEditPlan tool, plus a deliberately tight
+    ATOM_CANVAS_LEG_MAX_SECONDS), so the product must take its REAL async fork.
+    The case then proves the fork happened and that a terminal state was
+    recorded BEFORE judging anything about delivery -- a notification is not a
+    terminal state, and a run that never forked is INCONCLUSIVE, not a pass.
+
+    F04 (expect_success): the plan's target is present, so the background leg
+    commits exactly one mutation and records a truthful applied outcome.
+    F05 (not expect_success): the plan's target is ABSENT, so the background
+    leg fails, commits nothing, and records an honest failure with no success
+    claim in the user-visible summary.
+    """
+    import httpx
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
+    # F05 needs a controlled EXECUTION FAILURE. ask_b is not one: its plan's
+    # `find` text is absent, yet the marker still landed through the tool
+    # fallback path with the rest of the body intact, so the leg APPLIED
+    # (measured 2026-09-28: outcome=applied, audit delta 1). ovlapref-fail
+    # serves a contract-violating plan (wants_edit=True, zero ops), which the
+    # editor must refuse, leaving nothing to commit.
+    ask = (case["inputs"]["ask_a"] if expect_success else
+           "in the open canvas, change the payment terms line and mark the edit "
+           "OVLAP-FAIL [ovlapref-fail]")
+    headers = {"Authorization": f"Bearer {token}"}
+    session = f"acc-bg-{'ok' if expect_success else 'fail'}-{int(time.time())}-{sample}"
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
+           "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
+
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    baseline_audits = con.execute(
+        "SELECT count(*) FROM canvas_audit WHERE canvas_id=?", (uid,)).fetchone()[0]
+    con.close()
+
+    stall_s = float(os.environ.get("ACC_BG_STALL_SECONDS", "25"))
+    leg_cap = os.environ.get("ATOM_CANVAS_LEG_MAX_SECONDS", "")
+    armed = _arm_shim_stall(stall_s, "CanvasEditPlan", first_n=1)
+    t0 = time.time()
+    async with httpx.AsyncClient(trust_env=False, timeout=300) as client:
+        r = await client.post(f"{base}/api/chat/message", headers=headers,
+                              json={"message": ask, "session_id": session,
+                                    "user_id": user_id, "context": ctx})
+        r.raise_for_status()
+        payload = r.json()
+    interactive_seconds = round(time.time() - t0, 2)
+    exec_id = payload.get("execution_id")
+    # Snapshot the shim log WHILE STILL ARMED. Reading only after the turn (and
+    # after disarming) left F04 (2026-09-28) reporting empty stall_hits with no
+    # way to tell an unarmed stall from a stall nothing consumed, which is the
+    # difference between "the fork did not happen" and "the fork was never
+    # provoked".
+    shim_log_during = _shim_stall_hits()
+
+    # Wait for the BACKGROUND leg to settle, bounded. Poll the durable row.
+    terminal = None
+    deadline = time.time() + float(os.environ.get("ACC_BG_WAIT_SECONDS", "120"))
+    while time.time() < deadline:
+        terminal = _continuation_row(world, exec_id, uid)
+        if terminal and (terminal.get("outcome") or terminal.get("status") in
+                         ("completed", "failed", "succeeded", "error")):
+            break
+        await asyncio.sleep(1.0)
+    _disarm_shim_stall()
+
+    shim_log = _shim_stall_hits()
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
+    audits = con.execute(
+        "SELECT action_type, details_json FROM canvas_audit WHERE canvas_id=? "
+        "ORDER BY rowid", (uid,)).fetchall()
+    content = str(con.execute("SELECT content FROM canvases WHERE id=?", (uid,)).fetchone()[0])
+    con.close()
+    edit_rows = []
+    for act, det in audits:
+        d = json.loads(det) if isinstance(det, str) else (det or {})
+        if d.get("operation_id") and "fixture-seed" != d.get("operation_id"):
+            marker = "OVLAP-A" if "OVLAP-A" in json.dumps(d) else (
+                "OVLAP-B" if "OVLAP-B" in json.dumps(d) else None)
+            if marker:
+                edit_rows.append({"operation_id": d.get("operation_id"),
+                                  "audit_id": d.get("audit_id"), "marker": marker,
+                                  "action": act, "review_status": d.get("review_status")})
+    delta = len(audits) - baseline_audits
+    marker = "OVLAP-A" if expect_success else "OVLAP-FAIL"
+    # The fork is proven by TWO independent observations, both required:
+    #  (a) the armed stall was actually consumed by a CanvasEditPlan request, so
+    #      the interactive leg genuinely overran its cap; and
+    #  (b) a DURABLE continuation record exists. `outcome`/`failure_stage` live
+    #      under metadata_json.continuation, which only the fork path writes, so
+    #      their presence is proof the edit ran in the background rather than
+    #      inline. This previously read the post-disarm shim log (always empty
+    #      by then) and scored a real fork as unproven.
+    stall_consumed = bool(shim_log_during.get("stall_hits"))
+    forked = bool(stall_consumed and terminal
+                  and terminal.get("outcome") is not None
+                  and terminal.get("failure_stage") is not None)
+    summary = (terminal or {}).get("result_summary") or ""
+    # An honest FAILURE summary still contains success-shaped words: "the
+    # background edit attempt did not apply after 3 attempts (the edit planner
+    # could not complete)". A bare keyword scan flagged that as a success claim
+    # and would have failed a correctly-reported failure (F05, 2026-09-28).
+    # Only count a success word that is NOT inside a negation.
+    def _claims_success(text: str) -> bool:
+        for m in re.finditer(r"\b(updated|applied|done|succeeded|complete|completed)\b",
+                             text or "", re.I):
+            lead = text[max(0, m.start() - 40):m.start()]
+            if not re.search(r"(not|could not|couldn't|didn't|did not|never|unable to|"
+                             r"without)\s[^.]{0,30}$", lead, re.I):
+                return True
+        return False
+
+    claims_success = _claims_success(summary)
+    res = {
+        "case_id": "F04_controlled_background_success" if expect_success
+                   else "F05_controlled_background_failure",
+        "sample": sample, "session_id": session, "captured_at":
+            time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "ask": ask, "canvas_id": uid, "baseline_audit_rows": baseline_audits,
+        "fork": {
+            "stall_armed": armed,
+            "armed_at_turn_end": shim_log_during.get("armed") or {},
+            "stall_hits_observed": shim_log_during.get("stall_hits") or [],
+            "gate_missed": shim_log_during.get("gate_missed") or [],
+            "stall_hits_after_settle": shim_log.get("stall_hits") or [],
+            "shim_requests_seen": len(shim_log_during.get("log") or []),
+            "canvaseditplan_requests_seen": _capture_canvaseditplan_count(world),
+            "canvas_leg_max_seconds": leg_cap or "(product default 45)",
+            "interactive_response_seconds": interactive_seconds,
+            "terminal_record_found": bool(terminal),
+            "stall_consumed": stall_consumed,
+            "continuation_record_has_outcome": bool((terminal or {}).get("outcome")),
+            "fork_proven": forked,
+        },
+        "terminal_state": terminal,
+        "effect": {"audit_delta": delta, "edit_rows": edit_rows,
+                   "marker_present": marker in content,
+                   "old_text_gone": ("15 days" not in content) if expect_success else None,
+                   "new_text_present": ("30 days" in content) if expect_success else None},
+        "delivery": {"result_summary": summary[:400],
+                     "claims_success_without_effect": bool(claims_success and delta == 0)},
+    }
+    if expect_success:
+        ok = (res["fork"]["fork_proven"] and delta == 1
+              and res["effect"]["marker_present"] and res["effect"]["old_text_gone"]
+              and (terminal or {}).get("outcome") == "applied"
+              and not res["delivery"]["claims_success_without_effect"])
+    else:
+        ok = (res["fork"]["fork_proven"] and delta == 0
+              and not res["effect"]["marker_present"]
+              and (terminal or {}).get("outcome") not in (None, "applied", "succeeded")
+              and not res["delivery"]["claims_success_without_effect"])
+    res["output_correctness"] = ok
+    res["correct_completion"] = ok
+    return res
+
 
 
 async def run_single_edit_probe(base, token, user_id, case, sample, pre, world) -> Dict[str, Any]:
@@ -3041,15 +4812,16 @@ async def run_single_edit_probe(base, token, user_id, case, sample, pre, world) 
     through the interactive lane on an UNBOUND canvas copy, via supported
     configuration. Observable: audit row + canonical readback."""
     import httpx
-    seed_unbound_canvas_copy(world)
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
     session = f"acc-sedit-{int(time.time())}-{sample}"
     headers = {"Authorization": f"Bearer {token}"}
-    # Client snapshot wins in _resolve_canvas_ctx — send the frozen content
-    # (the real panel's request shape), bypassing the fault-isolated store
-    # lookup that silently yielded no canvas context for the seeded copy.
-    snapshot = Path("/tmp/canvas_snapshot.json").read_text()
-    ctx = {"canvas": {"id": UNBOUND_CANVAS_ID},
-           "canvas_content": snapshot, "canvas_type": "email",
+    # Client snapshot wins in _resolve_canvas_ctx — send the content this case
+    # just seeded through the product API (the real panel's request shape).
+    # This used to read /tmp/canvas_snapshot.json, a leftover from an earlier
+    # run: cross-run state that could describe a different canvas entirely.
+    ctx = {"canvas": {"id": uid},
+           "canvas_content": seeded["content"], "canvas_type": "email",
            "canvas_title": "Quote copy (acceptance rig)"}
     t0 = time.time()
     async with httpx.AsyncClient(trust_env=False, timeout=300) as client:
@@ -3061,10 +4833,10 @@ async def run_single_edit_probe(base, token, user_id, case, sample, pre, world) 
     applied = False
     audit_seen = []
     for _ in range(30):
-        con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+        con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
         rows = con.execute("SELECT action_type, details_json FROM canvas_audit WHERE canvas_id=? "
                            "AND created_at >= ? ORDER BY created_at",
-                           (UNBOUND_CANVAS_ID, time.strftime("%Y-%m-%d %H:%M:%S",
+                           (uid, time.strftime("%Y-%m-%d %H:%M:%S",
                                                              time.gmtime(t0 - 2)))).fetchall()
         con.close()
         applied = any("OVLAP-A" in json.dumps(det or {}) for _, det in rows)
@@ -3079,10 +4851,10 @@ async def run_single_edit_probe(base, token, user_id, case, sample, pre, world) 
                          non_found_targets=[], source_facts={"source_kind": "canvas"},
                          action_evidence=ev)
     # canonical readback on the unbound copy: audit-first resolution
-    con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
     rb_rows = con.execute("SELECT details_json FROM canvas_audit WHERE canvas_id=? "
                           "ORDER BY created_at DESC, id DESC LIMIT 10",
-                          (UNBOUND_CANVAS_ID,)).fetchall()
+                          (uid,)).fetchall()
     con.close()
     readback = ""
     for (det,) in rb_rows:
@@ -3100,9 +4872,9 @@ async def run_single_edit_probe(base, token, user_id, case, sample, pre, world) 
     op_id = None
     for _, det in [(0, d) for d in []]:
         pass
-    con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
     for (det,) in con.execute("SELECT details_json FROM canvas_audit WHERE canvas_id=? "
-                              "ORDER BY created_at DESC LIMIT 5", (UNBOUND_CANVAS_ID,)).fetchall():
+                              "ORDER BY created_at DESC LIMIT 5", (uid,)).fetchall():
         try:
             dd = json.loads(det) if isinstance(det, str) else (det or {})
         except Exception:
@@ -3150,7 +4922,7 @@ async def run_overlap_edits(base, token, user_id, case, sample, pre, world) -> D
     t0 = time.time()
 
     def audit_rows_since(t_from):
-        con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+        con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
         rows = con.execute(
             "SELECT created_at, action_type, details_json FROM canvas_audit "
             "WHERE canvas_id=? AND created_at >= ? ORDER BY created_at",
@@ -3191,7 +4963,7 @@ async def run_overlap_edits(base, token, user_id, case, sample, pre, world) -> D
     op_ids = {a["operation_id"] for a in audits if a["operation_id"]}
     markers = {a["marker"] for a in audits if a["marker"]}
     # canonical readback (audit-first): latest row carrying body content
-    con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
     all_rows = con.execute(
         "SELECT details_json FROM canvas_audit WHERE canvas_id=? "
         "ORDER BY created_at DESC, id DESC LIMIT 20", (CANVAS_ID,)).fetchall()
@@ -3252,11 +5024,11 @@ async def run_m1_case(base, token, user_id, case, sample, pre, world) -> Dict[st
     turn still fails; what must change is the DELIVERY: execution identity
     preserved, failure reported accurately, no success claim."""
     import httpx
-    seed_unbound_canvas_copy(world)
+    seeded = await seed_unbound_canvas_copy(base, token)
+    uid = seeded["canvas_id"]
     session = f"acc-m1-{int(time.time())}-{sample}"
     headers = {"Authorization": f"Bearer {token}"}
-    snapshot = Path("/tmp/canvas_snapshot.json").read_text()
-    ctx = {"canvas": {"id": UNBOUND_CANVAS_ID}, "canvas_content": snapshot,
+    ctx = {"canvas": {"id": uid}, "canvas_content": seeded["content"],
            "canvas_type": "email", "canvas_title": "Quote copy (acceptance rig)"}
     r = httpx.post(f"{base}/api/chat/message", headers=headers, timeout=300, trust_env=False,
                    json={"message": case["inputs"]["ask_verbatim"], "session_id": session,
@@ -3264,7 +5036,7 @@ async def run_m1_case(base, token, user_id, case, sample, pre, world) -> Dict[st
     payload = r.json()
     reply = str(payload.get("message") or "")
     exec_id = payload.get("execution_id")
-    con = sqlite3.connect(f"file:{world / 'data' / 'atom.db'}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{active_case_db(world)}?mode=ro", uri=True)
     row = con.execute("SELECT status, result_summary FROM agent_executions WHERE id=?",
                       (exec_id or "",)).fetchone() if exec_id else None
     con.close()
@@ -3550,13 +5322,35 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.gate and args.m1:
         p.error("--gate refuses --m1: no second finalizer in production exports "
                 "(the overlay is retained only for labelled historical-baseline tests)")
+    # Full preflight once, at the entry point, before anything is created.
+    require_storage_ready()
+    # STORAGE POLICY: the inventory is a read-only report, so it answers
+    # before any world is created or seeded.
+    if args.inventory:
+        inv = SP.build_inventory(world, cap=MAX_RETAINED_RUNS)
+        print(inv.to_text())
+        print("\nnothing deleted (inventory only)")
+        print("Deleting requires the maintenance interlock AND this inventory's "
+              f"digest:\n"
+              f"  python -m core.world_storage_guard lock --reason 'retention'\n"
+              f"  python -m scripts.orchestration_acceptance.storage_policy cleanup "
+              f"--world {args.name} --confirm-drop --reviewed-digest {inv.digest}")
+        return 0
     build_world.m1_overlay = bool(args.m1)
     build_world.snapshot_working_tree = bool(args.snapshot_working_tree)
+    build_world.full_dev_db = bool(args.full_dev_db)
     if args.m1:
         args.rebuild_world = True  # the overlay changes the export; rebuild to apply coherently
     if args.rebuild_world or not (world / "MANIFEST.json").exists():
+        assert_worlds_root_usable(where=f"creating world {args.name}")
+        # The space check runs BEFORE this mkdir, inside build_world, and
+        # refuses rather than creating a world it cannot finish.
         world.mkdir(parents=True, exist_ok=True)
-        build_world(world, refreeze_db=args.refreeze_db)
+        build_world(world, refreeze_db=args.refreeze_db,
+                    full_dev_db=bool(args.full_dev_db),
+                    share_export_with=(BACKEND / "data" / "acceptance_worlds"
+                                       / args.share_export_with)
+                    if args.share_export_with else None)
     pre = preflight(world)
     refresh_working_db(world)
     baseline_id = f"primary-{PINNED_REV[:10]}"  # dependency/m1 pins recorded per-run when introduced
@@ -3570,6 +5364,13 @@ async def main_async(args: argparse.Namespace) -> int:
               "m1": "m1_failure_concealment",
               "overlap_edits": "mutation_overlap_distinct_edits",
               "single_edit": "mutation_overlap_distinct_edits",
+              "bg_success": "mutation_overlap_distinct_edits",
+              "bg_failure": "mutation_overlap_distinct_edits",
+              "delivery": "mutation_overlap_distinct_edits",
+              "keyed_replay": "mutation_overlap_distinct_edits",
+              "read_workflows": "mutation_overlap_distinct_edits",
+              "effect_before_kill": "mutation_overlap_distinct_edits",
+              "overlap_terminal": "mutation_overlap_distinct_edits",
               "invoices": "invoice_field_retrieval",
               "drift": "legacy_set_regression",
               "absent": "partial_failure_absent_targets",
@@ -3581,7 +5382,9 @@ async def main_async(args: argparse.Namespace) -> int:
               "keyed_retry": "original_incident_workbook_true_eight"}
 
     case_list = args.cases.split(",")
-    shim_mode = any(c in ("narration_clean", "narration_poisoned", "overlap_edits", "single_edit", "m1")
+    shim_mode = any(c in ("narration_clean", "narration_poisoned", "overlap_edits", "single_edit", "m1",
+                                "bg_success", "bg_failure", "delivery", "overlap_terminal",
+                                "keyed_replay", "effect_before_kill", "read_workflows")
                     for c in case_list)
     shim_proc = None
     if shim_mode:
@@ -3589,14 +5392,50 @@ async def main_async(args: argparse.Namespace) -> int:
                    "narration_clean": "narration_clean.json",
                    "overlap_edits": "mutation_overlap.json",
                    "single_edit": "mutation_overlap.json",
+                   "bg_success": "mutation_overlap.json",
+                   "bg_failure": "mutation_overlap.json",
+                   "delivery": "mutation_overlap.json",
+                   "keyed_replay": "mutation_overlap.json",
+                   "read_workflows": "mutation_overlap.json",
+                   "effect_before_kill": "mutation_overlap.json",
+                   "overlap_terminal": "mutation_overlap.json",
                    "m1": "mutation_overlap.json"}
-        script_name = next((scripts[c] for c in case_list if c in scripts), "narration_clean.json")
+        # Fail loudly when a shim-backed case has no script: the previous
+        # default served narration_clean.json for an unmapped case, so a
+        # background run was answered by a narration script and the case read
+        # as "the edit never happened" instead of "the wrong script was
+        # mounted" (F04, 2026-09-28).
+        _unmapped = [c for c in case_list if c not in scripts]
+        if _unmapped:
+            raise RuntimeError(
+                f"shim_mode is on but no provider script is mapped for {_unmapped}; "
+                f"known: {sorted(scripts)}")
+        script_name = scripts[case_list[0]]
         capture_path = world / "shim_requests.jsonl"
         shim_proc = launch_shim(FIXTURES / "provider_shim" / script_name, capture=capture_path)
     launch_server.m1 = bool(args.m1)
     launch_server.gate = bool(args.gate)
     launch_server.lifecycle = bool(args.lifecycle)
+    # F11 kills and relaunches the server, so the case needs the live handle.
+    # ACTIVE_SERVER is set right after launch; the case replaces it on relaunch.
+    if any(c == "effect_before_kill" for c in case_list):
+        # The barrier is a product test seam: it only PAUSES at a named stage.
+        # It must be in the SERVER's environment, so it is armed here, before
+        # launch, and it is refused outside an isolated acceptance world.
+        # Do NOT set ATOM_ACCEPTANCE_BARRIER_DIR. The barrier validates the
+        # requested directory and REFUSES one that is not its own canonical
+        # location ("ACCEPTANCE BARRIER REFUSED ..."), so naming a world-level
+        # path silently disarms the seam -- which is exactly what happened on
+        # the first candidate attempt. Left unset, the product resolves the
+        # directory itself, inside the run dir, and the case reads the arrival
+        # file from there.
+        os.environ["ATOM_ACCEPTANCE_BARRIER"] = "continuation_after_effect"
+        os.environ["ATOM_ACCEPTANCE_BARRIER_TIMEOUT"] = "180"
     proc = launch_server(args.port, world, provider_shim=shim_mode)
+    ACTIVE_SERVER["proc"] = proc
+    ACTIVE_SERVER["world"] = world
+    ACTIVE_SERVER["port"] = args.port
+    ACTIVE_SERVER["shim"] = shim_proc
     # Verify the EFFECTIVE contract before spending a case on it. A run
     # that cannot prove the flag reached the server, or that the schema
     # the lifecycle needs exists, must not be reported as coverage.
@@ -3612,10 +5451,24 @@ async def main_async(args: argparse.Namespace) -> int:
     ok = True
     try:
         replay_mod = _load_replay_module()
-        os.environ["DATABASE_URL"] = f"sqlite:///{world / 'data' / 'atom.db'}"
+        # The SERVING database is the run directory's, not the world root's.
+        # The world root holds the frozen fixture copy, which has no rows and
+        # never will: the app bootstraps its admin, tenant and workspace into
+        # the run dir it is actually launched against. Pointing at the world
+        # root asks a fixture for a user that only the run dir ever had.
+        _point_process_at_world(launch_server.last_run_dir / "data" / "atom.db")
         token, user_id = replay_mod.mint_token()
         if not token:
-            raise RuntimeError("could not mint token from scratch DB")
+            # Say WHICH database answered, because "could not mint token" is
+            # indistinguishable from a broken world and this has silently
+            # produced the latter while the real fault was the pointer above.
+            import core.database as _cd
+            raise RuntimeError(
+                "could not mint token: no admin@example.com user in the "
+                f"database this process is actually bound to "
+                f"(core.database.DATABASE_URL={_cd.DATABASE_URL!r}); expected "
+                f"the serving run dir at "
+                f"{launch_server.last_run_dir / 'data' / 'atom.db'}")
         base = f"http://127.0.0.1:{args.port}"
         for short in args.cases.split(","):
             case = by_id[id_map[short]]
@@ -3634,6 +5487,43 @@ async def main_async(args: argparse.Namespace) -> int:
                         base, token, user_id, case, s, pre, world, replay_mod)
                 elif short == "m1":
                     res = await run_m1_case(base, token, user_id, case, s, pre, world)
+                elif short == "effect_before_kill":
+                    res = await run_effect_before_kill(base, token, user_id, case, s, pre, world)
+                    out_r = ACC / "results" / f"effect_before_kill__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[effect_before_kill] wrote {out_r.name} correct_completion={res['correct_completion']}")
+                elif short == "read_workflows":
+                    res = await run_read_workflows(base, token, user_id, case, s, pre, world)
+                    out_r = ACC / "results" / f"read_workflows__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[read_workflows] wrote {out_r.name} correct_completion={res['correct_completion']}")
+                elif short == "keyed_replay":
+                    res = await run_keyed_replay(base, token, user_id, case, s, pre, world)
+                    out_r = ACC / "results" / f"keyed_replay__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[keyed_replay] wrote {out_r.name} correct_completion={res['correct_completion']}")
+                elif short == "delivery":
+                    res = await run_delivery_recovery(base, token, user_id, case, s, pre, world)
+                    out_r = ACC / "results" / f"delivery__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[delivery] wrote {out_r.name} correct_completion={res['correct_completion']}")
+                elif short == "overlap_terminal":
+                    res = await run_overlap_terminal(base, token, user_id, case, s, pre, world)
+                    out_r = ACC / "results" / f"overlap_terminal__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[overlap_terminal] wrote {out_r.name} correct_completion={res['correct_completion']}")
+                elif short in ("bg_success", "bg_failure"):
+                    res = await run_background_edit(base, token, user_id, case, s, pre, world,
+                                                    expect_success=(short == "bg_success"))
+                    out_r = ACC / "results" / f"{short}__sample{s}__{int(time.time())}.json"
+                    out_r.parent.mkdir(parents=True, exist_ok=True)
+                    out_r.write_text(json.dumps(res, indent=1))
+                    print(f"[{short}] wrote {out_r.name} correct_completion={res['correct_completion']}")
                 elif short == "single_edit":
                     res = await run_single_edit_probe(base, token, user_id, case, s, pre, world)
                 elif short == "overlap_edits":
@@ -3696,7 +5586,7 @@ async def main_async(args: argparse.Namespace) -> int:
                     out_r.write_text(json.dumps(probe, indent=1))
                 elif short in ("narration_clean", "narration_poisoned"):
                     case_with_db = dict(case)
-                    case_with_db["_world_db"] = str(world / "data" / "atom.db")
+                    case_with_db["_world_db"] = str(active_case_db(world))
                     res = await run_narration(base, token, user_id, case_with_db, s, pre, replay_mod)
                 else:
                     print(f"[case {short}] not yet driven by harness; skipped")
@@ -3746,11 +5636,16 @@ async def main_async(args: argparse.Namespace) -> int:
         stop_server(proc)
         if shim_proc:
             shim_proc.terminate()
+            try:
+                shim_proc.wait(timeout=5)
+            except Exception:
+                shim_proc.kill()
             print("[shim] stopped")
         print("[server] stopped (process group)")
     return 0 if ok else 1
 
 
+@guarded_entry
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--name", default="old_path_01")
@@ -3759,6 +5654,25 @@ def main() -> int:
     p.add_argument("--samples", type=int, default=1)
     p.add_argument("--rebuild-world", action="store_true")
     p.add_argument("--refreeze-db", action="store_true")
+    p.add_argument(
+        SP.FULL_DEV_DB_FLAG, dest="full_dev_db", action="store_true",
+        help="COPY THE ENTIRE LIVE DEV DATABASE into the world. This is a full "
+             "copy of backend/data/atom.db — 413,360,128 bytes measured "
+             "2026-09-28 — so ~392 MB per world and ~391 MB per run directory "
+             "seeded from it, and the world inherits whatever the dev lane has "
+             "accumulated. OFF by default: a world is built from a small "
+             "API-seeded fixture (the app's own schema, zero dev rows, "
+             "8,478,720 bytes measured, live database never opened). Pass this "
+             "only for a case that genuinely needs dev data.")
+    p.add_argument(
+        "--share-export-with", default="",
+        help="world whose read-only code export is byte-identical; this world "
+             "symlinks it instead of re-extracting ~130 MB. Writable state "
+             "(databases, logs, run dirs, frontend build caches) is NEVER shared.")
+    p.add_argument(
+        "--inventory", action="store_true",
+        help="print the run-deletion inventory for this world and exit without "
+             "building, seeding or running anything")
     p.add_argument("--selftest", action="store_true")
     p.add_argument("--collect", action="store_true")
     p.add_argument("--snapshot-working-tree", action="store_true",

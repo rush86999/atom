@@ -1,0 +1,290 @@
+{
+  "default": "Understood - no additional changes are needed for this part of the request.",
+  "responses": [
+    {
+      "match": "you are the tool planner",
+      "response": {
+        "tool": "ToolPlan",
+        "tool_call": {
+          "name": "ToolPlan",
+          "arguments": {
+            "use_tool": false,
+            "service": null,
+            "intent": "answer",
+            "query": null,
+            "reason": "No external lookup needed; the turn is answered or routed by the canvas edit pipeline."
+          }
+        }
+      }
+    },
+    {
+      "match": "iota",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "This sentence does not exist on any canvas.",
+                "replace": "Nothing to replace with."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Replaced the sentence."
+          }
+        }
+      }
+    },
+    {
+      "match": "kappa",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Warranty: 12 months.",
+                "replace": "Warranty: twelve months."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Reformatted the warranty wording to: Warranty: twelve months."
+          }
+        }
+      }
+    },
+    {
+      "match": "theta",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "subject",
+                "find": "Machinery quote",
+                "replace": "Machinery quote - revised"
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the subject line."
+          }
+        }
+      }
+    },
+    {
+      "match": "omega",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": false,
+            "edit_mode": "none",
+            "ops": [],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Which part of the quote email would you like me to change - the validity period, the payment terms, or the closing?"
+          }
+        }
+      }
+    },
+    {
+      "match": "alpha",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Regards,",
+                "replace": "Best regards,"
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the closing."
+          }
+        }
+      }
+    },
+    {
+      "match": "beta",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Payment terms: net 30.",
+                "replace": "Payment terms: net 45."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the payment terms."
+          }
+        }
+      }
+    },
+    {
+      "match": "eps",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Hi Steve,",
+                "replace": "Hello Steve,"
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the greeting."
+          }
+        }
+      }
+    },
+    {
+      "match": "zeta",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Payment terms: net 45.",
+                "replace": "Payment terms: net 60."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the payment terms again."
+          }
+        }
+      }
+    },
+    {
+      "match": "gamma",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Quote validity: 30 days.",
+                "replace": "Quote validity: 45 days."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the validity to 45 days."
+          }
+        }
+      }
+    },
+    {
+      "match": "delta",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "subject",
+                "find": "Machinery quote",
+                "replace": "Warm subject marker"
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the subject."
+          }
+        }
+      }
+    },
+    {
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Quote validity: 15 days.",
+                "replace": "Quote validity: 30 days."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the quote validity to 30 days."
+          }
+        }
+      }
+    },
+    {
+      "match": "what does the delivery section of the canvas say",
+      "response": "Reading the canvas: the delivery section says \"Delivery: 2 weeks.\""
+    },
+    {
+      "match": "what is the warranty period in the canvas",
+      "response": "Looking up the canvas: the warranty period is \"Warranty: 12 months.\""
+    },
+    {
+      "match": "search the canvas for the delivery line",
+      "response": "Re-search of the canvas found the delivery line: \"Delivery: 2 weeks.\""
+    }
+  ]
+}

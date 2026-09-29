@@ -381,13 +381,21 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
         from core.models import AgentExecution
 
         with get_db_session() as db:
+            # OS OWNERSHIP EVIDENCE (2026-09-28): without a stamped owner
+            # block the crash sweep cannot VERIFY this record's holder is
+            # dead, leaves it `running` forever, and terminal recovery never
+            # sees it — the user's chat stays stuck on the pre-crash
+            # acknowledgement. Stamp pid + process start so a later sweep
+            # can prove the owner is gone and reconcile the record.
+            from core.execution_ownership import record_os_start
+
             db.add(AgentExecution(
                 id=cont.continuation_id,
                 agent_id=cont.agent_id,
                 status="running",
                 input_summary=cont.message[:300],
                 triggered_by="continuation",
-                metadata_json={
+                metadata_json=record_os_start({
                     "session_id": cont.session_id,
                     "surface": "async_turn_continuation",
                     # EXACT ORIGIN BINDING (2026-09-25 review round 5): the
@@ -418,8 +426,8 @@ def _create_durable_record(cont: AsyncTurnContinuation) -> None:
                             cont.evidence_contract
                         ),
                     },
-                },
-            ))
+                })))
+
     except Exception as e:  # noqa: BLE001 — durability is best-effort
         logger.debug(f"continuation durable record skipped: {e}")
 
@@ -498,115 +506,70 @@ def _finish_durable_record(
         logger.debug(f"continuation durable finish skipped: {e}")
 
 
-#: Terminal-delivery lease (AsyncDeliveryLease). The notified flag is
-#: check-then-act: two processes running the recovery pass concurrently can
-#: both read "not notified" and both deliver. The lease makes the claim
-#: atomic; expiry lets a dead holder's delivery be retried automatically
-#: (even when an earlier recovery pass ran before expiry); completion makes
-#: a resuming original holder unable to commit a duplicate.
-DELIVERY_LEASE_DISABLED_ENV = "ATOM_DELIVERY_LEASE_DISABLED"
-DELIVERY_LEASE_TTL_ENV = "ATOM_DELIVERY_LEASE_TTL_SECONDS"
-DEFAULT_DELIVERY_LEASE_TTL_SECONDS = 600.0
-_DELIVERY_BOOT_TOKEN = uuid.uuid4().hex[:12]
-
-
-def _delivery_owner() -> str:
-    return f"{os.getpid()}-{_DELIVERY_BOOT_TOKEN}"
-
-
-def _delivery_lease_ttl() -> float:
-    raw = os.getenv(DELIVERY_LEASE_TTL_ENV, "").strip()
-    try:
-        v = float(raw) if raw else DEFAULT_DELIVERY_LEASE_TTL_SECONDS
-    except (TypeError, ValueError):
-        v = DEFAULT_DELIVERY_LEASE_TTL_SECONDS
-    return v if v > 0 else DEFAULT_DELIVERY_LEASE_TTL_SECONDS
-
-
-def _delivery_lease_state(db, continuation_id: str) -> str:
-    """Claim terminal delivery for ``continuation_id``.
-
-    Returns one of:
-      "acquired"       no lease existed — we hold it now
-      "resumed"        the lease is OURS already (we paused mid-delivery)
-      "taken-over"     a foreign lease EXPIRED — its holder died mid-
-                       delivery; delivery is retried automatically
-      "held-elsewhere" a foreign lease is UNEXPIRED — not ours to deliver
-      "completed"      delivery already committed — must not duplicate
-      "disabled"       ATOM_DELIVERY_LEASE_DISABLED=1 (negative control:
-                       no arbitration; the duplicate race is observable)
-    """
-    from datetime import datetime, timezone
-
-    from core.models import AsyncDeliveryLease
-
-    if os.getenv(DELIVERY_LEASE_DISABLED_ENV, "").strip().lower() in (
-            "1", "true", "yes"):
-        return "disabled"
-    owner = _delivery_owner()
-    now = datetime.now(timezone.utc)
-    row = db.query(AsyncDeliveryLease).filter(
-        AsyncDeliveryLease.continuation_id == continuation_id).first()
-    if row is None:
-        db.add(AsyncDeliveryLease(
-            continuation_id=continuation_id, owner=owner, leased_at=now,
-            completed=False))
-        return "acquired"
-    if row.completed:
-        return "completed"
-    if row.owner == owner:
-        row.leased_at = now  # refresh our hold
-        return "resumed"
-    leased = row.leased_at
-    if leased is not None and leased.tzinfo is None:
-        leased = leased.replace(tzinfo=timezone.utc)
-    age = ((now - leased).total_seconds()
-           if leased is not None else _delivery_lease_ttl() + 1)
-    if age > _delivery_lease_ttl():
-        row.owner = owner  # take over: the holder died mid-delivery
-        row.leased_at = now
-        return "taken-over"
-    return "held-elsewhere"
-
-
-def _complete_delivery_lease(db, continuation_id: str) -> None:
-    """Mark terminal delivery committed: a resuming original holder must
-    not deliver again."""
-    from core.models import AsyncDeliveryLease
-
-    row = db.query(AsyncDeliveryLease).filter(
-        AsyncDeliveryLease.continuation_id == continuation_id).first()
-    if row is not None:
-        row.completed = True
-
-
 def _recovery_effect_status(cont: Dict[str, Any]) -> str:
-    """Did the continuation's canvas mutation LAND before the interruption?
+    """Did THIS continuation's edit land before the interruption?
 
-    "Interrupted by restart" must never imply nothing changed: the mutation
-    and the completion report are separate commits and the crash window sits
-    between them. Compare the canvas content hash against the fork-time
-    snapshot hash persisted in the durable record.
-    Returns "landed" | "none" | "unknown"."""
+    Attribution is OPERATION-LINKED, never hash-based: a canvas hash change
+    proves only that SOMETHING changed — another turn could have written it,
+    and conversely this edit could have landed and later been superseded.
+    The write path stamps the logical operation into the audit row
+    (``canvas_audit.details_json.operation_id``), and the durable record
+    carries that id as ``origin_operation_id``, so:
+
+      "landed"     an audit row whose operation_id equals THIS
+                   continuation's origin_operation_id OR its own
+                   continuation id (a forked continuation stamps its own
+                   id as the audit operation) exists
+      "uncertain"  no linked row, but the canvas differs from the fork-time
+                   snapshot — the change may be this edit (superseded later)
+                   or another turn's; the record cannot tell. Recovery
+                   reports UNCERTAINTY, never success or "nothing changed".
+      "none"       canvas identical to the fork-time snapshot
+      "unknown"    attribution unavailable (no canvas / no snapshot / error)
+    """
+    from sqlalchemy import text
+
     from core.database import get_db_session
     from core.models import Canvas
 
     canvas_id = cont.get("canvas_id")
+    origin_op = str(cont.get("origin_operation_id") or "")
+    own_id = str(cont.get("continuation_id") or "")
+    # A forked continuation stamps ITS OWN id as the audit operation; the
+    # interactive turn's operation id is the other legal linkage.
+    op_ids = [o for o in (origin_op, own_id) if o]
     snapshot = str(cont.get("snapshot_content_hash") or "")
-    if not canvas_id or not snapshot:
+    if not canvas_id:
         return "unknown"
     try:
-        with get_db_session() as db:
-            row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-            if row is None:
-                return "unknown"
-            try:
-                content = json.loads(row.content) if isinstance(
-                    row.content, str) else row.content
-            except Exception:
-                return "unknown"
-        current = _content_hash({"content": content})
-        return "landed" if current != snapshot else "none"
+        if op_ids:
+            with get_db_session() as db:
+                linked = 0
+                for op in op_ids:
+                    linked += db.execute(
+                        text("SELECT count(*) FROM canvas_audit "
+                             "WHERE canvas_id = :cid AND "
+                             "json_extract(details_json, "
+                             "'$.operation_id') = :op"),
+                        {"cid": canvas_id, "op": op},
+                    ).fetchone()[0]
+            if linked:
+                return "landed"
+        if snapshot:
+            with get_db_session() as db:
+                row = db.query(Canvas).filter(
+                    Canvas.id == canvas_id).first()
+                if row is not None:
+                    try:
+                        content = json.loads(row.content) if isinstance(
+                            row.content, str) else row.content
+                    except Exception:
+                        content = None
+                    if content is not None:
+                        changed = _content_hash({"content": content}) != (
+                            snapshot)
+                        return "uncertain" if changed else "none"
+        return "unknown" if not origin_op else "uncertain"
     except Exception:  # noqa: BLE001 — wording must never block recovery
         return "unknown"
 
@@ -639,8 +602,15 @@ def _recovered_terminal_continuations(session_ids=None):
             if not isinstance(cm, dict):
                 continue
             outcome = cm.get("outcome")
-            if not outcome:
-                continue  # not terminal yet
+            crashed = bool((meta.get("recovery") or {}).get("crashed"))
+            if not outcome and not (crashed and not cm.get("notified")):
+                # Terminal rows are candidates; so are rows the crash sweep
+                # marked failed before their outcome was ever recorded (the
+                # kill window sits between the mutation and the record) --
+                # those get effect-attributed wording at delivery time.
+                continue
+            if cm.get("notified") and not outcome:
+                continue
             cid = str(row.id)
             delivered = db.query(ChatMessageModel).filter(
                 ChatMessageModel.conversation_id == str(
@@ -655,10 +625,18 @@ def _recovered_terminal_continuations(session_ids=None):
                 "continuation_id": cid,
                 "session_id": str(cm.get("session_id") or ""),
                 "canvas_id": cm.get("canvas_id"),
-                "outcome": str(outcome),
+                "outcome": str(outcome or ""),
                 "summary": str(cm.get("summary") or ""),
                 "execution_id": str(cm.get("originating_execution_id")
                                     or row.id or ""),
+                # ATTRIBUTION INPUTS: the effect wording is decided against
+                # operation-linked audit evidence, not the canvas hash alone.
+                "origin_operation_id": str(
+                    meta.get("origin_operation_id")
+                    or cm.get("origin_operation_id") or ""),
+                "snapshot_content_hash": str(
+                    cm.get("snapshot_content_hash") or ""),
+                "user_id": str(cm.get("user_id") or ""),
                 "claimed": bool(cm.get("terminal_delivered")),
                 "claimed_at": float(cm.get("terminal_delivered_at") or 0.0),
             })
@@ -697,6 +675,7 @@ async def recover_missing_terminal_deliveries(session_ids=None) -> Dict[str, int
                     "deferred": f"claimed {age:.1f}s ago, lease {lease:.0f}s"})
                 continue
         shim = _recovery_shim(cand)
+        _apply_recovery_wording(shim, cand)
         try:
             await _apply_effects(shim)
         except Exception as e:  # noqa: BLE001 — one bad row must not stop the pass
@@ -754,6 +733,43 @@ def _recovery_shim(cand: Dict[str, Any]):
     )
     shim._recovery_delivered = False
     return shim
+
+
+def _apply_recovery_wording(shim: Any, cand: Dict[str, Any]) -> None:
+    """Effect-attributed, honest outcome wording for a recovered delivery.
+
+    The mutation and the completion report are separate commits, so the
+    interruption wording must never imply the mutation did not land — and a
+    changed canvas does not prove THIS edit landed. Attribution is
+    operation-linked (canvas_audit.details_json.operation_id ==
+    origin_operation_id); when attribution is unavailable but the canvas
+    differs from the fork snapshot, the outcome says UNCERTAIN.
+    """
+    effect = _recovery_effect_status({
+        "canvas_id": cand.get("canvas_id"),
+        "origin_operation_id": cand.get("origin_operation_id"),
+        "continuation_id": cand.get("continuation_id"),
+        "snapshot_content_hash": cand.get("snapshot_content_hash"),
+    })
+    if effect == "landed" and not cand.get("outcome"):
+        shim.outcome = OUTCOME_ALREADY_APPLIED
+        shim.summary = ("the edit itself landed before a restart cut off "
+                        "its confirmation — the change is on the canvas; "
+                        "no re-run needed")
+    elif effect == "uncertain" and not cand.get("outcome"):
+        shim.outcome = OUTCOME_FAILED
+        shim.summary = ("the canvas changed while this edit was in flight "
+                        "and the record cannot attribute the change to "
+                        "this edit — check the canvas before relying on "
+                        "either outcome")
+    elif not cand.get("outcome"):
+        shim.outcome = OUTCOME_FAILED
+        shim.summary = ("the process restarted while this background edit "
+                        "was in flight")
+    else:
+        shim.outcome = cand["outcome"]
+        shim.summary = cand.get("summary") or ""
+    shim.effect_on_canvas = effect
 
 
 #: The recurring task handle, so shutdown can stop it cleanly.
@@ -877,140 +893,24 @@ def notify_recovered_continuations() -> Dict[str, int]:
     except Exception as e:  # noqa: BLE001 — boot pass must never fail boot
         logger.warning(f"stale-claim clearing skipped: {e}")
     try:
-        from core.database import get_db_session
-        from core.models import AgentExecution
-
-        with get_db_session() as db:
-            rows = (
-                db.query(AgentExecution)
-                .filter(AgentExecution.triggered_by == "continuation")
-                .all()
-            )
-            pending = []
-            for row in rows:
-                meta = row.metadata_json or {}
-                cont = meta.get("continuation") or {}
-                if (meta.get("recovery") or {}).get("crashed") and not (
-                        cont.get("notified")):
-                    pending.append(row)
-        for row in pending:
-            cont = (row.metadata_json or {}).get("continuation") or {}
-            user_id = cont.get("user_id")
-            if not user_id:
-                continue
-            try:
-                from core.notification_service import NotificationService
-
-                # TERMINAL-DELIVERY LEASE: atomic claim so two processes
-                # running this pass concurrently cannot both deliver (the
-                # notified flag alone is check-then-act). An expired foreign
-                # lease is taken over — delivery retries automatically even
-                # when an earlier pass ran before expiry — and completion
-                # blocks a resuming original holder from duplicating.
-                with get_db_session() as ldb:
-                    state = _delivery_lease_state(ldb, str(row.id))
-                    ldb.commit()
-                if state in ("held-elsewhere", "completed"):
-                    out.setdefault("delivery_skipped", 0)
-                    out["delivery_skipped"] += 1
-                    continue
-
-                # EFFECT STATUS: the mutation and the completion report are
-                # separate commits. "Interrupted" must never imply nothing
-                # changed — when the edit landed before the crash, say so.
-                effect = _recovery_effect_status(cont)
-                if effect == "landed":
-                    title = "Background update reached the canvas"
-                    message = ("The edit itself applied before a server "
-                               "restart cut off its confirmation — the "
-                               "change is on the canvas. No re-run needed.")
-                    chat_text = ("Background update applied before the "
-                                 "interruption. The change is on the "
-                                 "canvas; only its confirmation was cut "
-                                 "off by the restart.")
-                else:
-                    title = "Background update could not finish"
-                    message = ("A background canvas update was interrupted "
-                               "by a server restart.")
-                    chat_text = _readable_outcome_text(
-                        OUTCOME_FAILED,
-                        "the process restarted while this background edit "
-                        "was in flight")
-
-                async def _notify() -> None:
-                    await NotificationService().send_notification(
-                        user_id, "async_turn_failed",
-                        {
-                            "title": title,
-                            "message": message,
-                            "session_id": cont.get("session_id"),
-                            "canvas_id": cont.get("canvas_id"),
-                            "action_url": (
-                                f"/canvas/{cont['canvas_id']}"
-                                if cont.get("canvas_id") else "/chat"),
-                        })
-
-                try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    loop = None
-                if loop is not None:
-                    loop.create_task(_notify())
-                else:
-                    asyncio.run(_notify())
-                out["recovered_notified"] += 1
-
-                # CHAT RELOAD SHOWS A TERMINAL OUTCOME: a separate
-                # notification does not unstick the conversation — the
-                # session history itself must carry the terminal message
-                # (bound, like live completions, to the continuation id).
-                try:
-                    from core.models import ChatMessage as ChatMessageModel
-
-                    with get_db_session() as db:
-                        db.add(ChatMessageModel(
-                            conversation_id=cont.get("session_id") or "",
-                            tenant_id="default",
-                            role="assistant",
-                            content=chat_text,
-                            metadata_json=json.dumps({"continuation": {
-                                "id": str(row.id),
-                                "outcome": ("applied_before_interruption"
-                                            if effect == "landed"
-                                            else OUTCOME_FAILED),
-                                "effect_on_canvas": effect,
-                                "recovery_delivery": True,
-                            }}),
-                        ))
-                except Exception as e:  # noqa: BLE001
-                    logger.debug(
-                        f"recovery chatmessage skipped: {e}")
-
-                with get_db_session() as db:
-                    r2 = db.query(AgentExecution).filter(
-                        AgentExecution.id == row.id).first()
-                    if r2:
-                        meta = dict(r2.metadata_json or {})
-                        c = meta.get("continuation") or {}
-                        c["notified"] = True
-                        c["effect_on_canvas"] = effect
-                        meta["continuation"] = c
-                        r2.metadata_json = meta
-                        # flag_modified is REQUIRED: mutating a JSON column's
-                        # dict in place is invisible to SQLAlchemy's change
-                        # tracker, so without it the notified flag was never
-                        # written and every later boot pass re-notified the
-                        # same crash ("Background update could not finish"
-                        # delivered twice). _mark_continuation_notified has
-                        # always done this; this was the site that forgot.
-                        from sqlalchemy.orm.attributes import flag_modified
-
-                        flag_modified(r2, "metadata_json")
-                with get_db_session() as ldb:
-                    _complete_delivery_lease(ldb, str(row.id))
-                    ldb.commit()
-            except Exception as e:  # noqa: BLE001
-                logger.debug(f"recovered-continuation notify skipped: {e}")
+        # DELIVERY DELEGATES TO THE ONE AUTHORITATIVE PATH: the recurring
+        # terminal-delivery scan (recover_missing_terminal_deliveries) owns
+        # candidate selection, effect-attributed wording, the fenced
+        # _apply_effects delivery, and lease/expiry arbitration. Duplicating
+        # that logic here created two independent claims that could disagree
+        # or suppress each other; this pass now clears stale fork claims and
+        # then delegates.
+        # The scan is async; this boot pass is a SYNC entry point. Without a
+        # running loop, run it to completion; with one (never the case from
+        # startup, but defensive), schedule it rather than nest a loop.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            delivered = asyncio.run(recover_missing_terminal_deliveries())
+        else:
+            delivered = {"delivered": 0, "deferred_in_flight": 0}
+        out["recovered_notified"] = delivered.get("delivered", 0)
+        out["delivery_skipped"] = delivered.get("deferred_in_flight", 0)
     except Exception as e:  # noqa: BLE001 — boot pass must never fail boot
         logger.warning(f"continuation recovery pass skipped: {e}")
     return out
@@ -1714,6 +1614,21 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
     # surface is touched, so it cannot duplicate the durable message, the live
     # bubble, or the notification.
     _claimed, _claim_reason, _token = _claim_terminal_delivery(cont)
+    # ACCEPTANCE BARRIER (test-only; confined by core/acceptance_barrier):
+    # parks a holder AFTER it claimed terminal delivery and BEFORE it
+    # persists — the exact window the stale-holder test needs (the holder
+    # is alive, its lease expires, another process takes over, and on
+    # resume the fence must refuse its write). Inert unless armed.
+    if os.getenv("ATOM_ACCEPTANCE_BARRIER"):
+        from core.acceptance_barrier import await_barrier as _abarrier
+
+        await _abarrier("recovery_delivery_held", {
+            "surface": "async_turn_continuation",
+            "continuation_id": cont.continuation_id,
+            "session_id": cont.session_id,
+            "claimed": _claimed,
+            "claim_reason": _claim_reason,
+        })
     if not _claimed:
         # TWO DISTINCT REFUSALS, and only one of them is fail-open.
         #  * another holder owns the delivery  -> a real, arbitrated refusal.
@@ -1753,6 +1668,24 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
     # leaves the durable row 'running' forever AND the WS event and history
     # record unmade, while the write itself stays applied. Log entry and every
     # stage boundary so a stall is attributable to a stage, not just visible.
+    # ACCEPTANCE BARRIER (test-only; confined by core/acceptance_barrier — inert
+    # unless ATOM_ACCEPTANCE_BARRIER names a stage, and refused outside an
+    # isolated acceptance world). Stage ``continuation_after_claim`` parks here:
+    # the claim below is taken, and the durable terminal message is NOT yet
+    # written. That is precisely the state a crash in this window leaves, and it
+    # is unreachable by polling, so the recovery path could not otherwise be
+    # exercised at all. It only PAUSES.
+    if os.getenv("ATOM_ACCEPTANCE_BARRIER"):
+        from core.acceptance_barrier import await_barrier as _barrier
+
+        await _barrier("continuation_after_claim", {
+            "surface": "async_turn_continuation",
+            "continuation_id": cont.continuation_id,
+            "session_id": cont.session_id,
+            "canvas_id": (cont.canvas or {}).get("canvas_id"),
+            "outcome": cont.outcome,
+        })
+
     # (1) In-memory session context (backend continuity — NOT only the
     # frontend refresh).
     try:
@@ -1860,6 +1793,16 @@ async def _apply_effects(cont: AsyncTurnContinuation) -> None:
                         "audit_id": cont.audit_id or None,
                         "postcondition_verified": cont.postcondition_verified,
                         "review_status": cont.review_status or None,
+                        # RECOVERY ATTRIBUTION (2026-09-28): an interrupted
+                        # completion's message records whether THIS edit's
+                        # effect is on the canvas (operation-linked audit
+                        # evidence) — success wording must never imply more
+                        # than the evidence supports.
+                        "effect_on_canvas": getattr(
+                            cont, "effect_on_canvas", None),
+                        "recovery_delivery": (
+                            getattr(cont, "failure_stage", "")
+                            == "recovery"),
                     }}),
                 ))
                 _mark = getattr(cont, "_recovery_delivered", None)

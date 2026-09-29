@@ -1,0 +1,162 @@
+{
+ "generated_at": "2026-09-28T22:38:01-0400",
+ "export_binding": {
+  "code_snapshot_sha256": "56801e7be6731be845490e6cfb5117c4cda2efd9d35b04e89e7891aaf3abaa4b",
+  "world": "final_promotion",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ],
+  "provider": "local shim (provider responses only)"
+ },
+ "results": [
+  {
+   "case": "F11_committed_but_unrecorded",
+   "status": "PASS",
+   "checks": {
+    "barrier_parked": true,
+    "mutation_committed": true,
+    "parked_outcome_applied": true,
+    "operation_linked_audit": true,
+    "terminal_completion_unrecorded": true,
+    "durable_record_running": true
+   },
+   "notes": [],
+   "details": {
+    "audit_rows": 1
+   }
+  },
+  {
+   "case": "F11_crash_recovery_one_effect_one_outcome",
+   "status": "PASS",
+   "checks": {
+    "mutation_present_once": true,
+    "no_second_write": true,
+    "record_reconciled": true,
+    "recovery_wording_honest": true,
+    "pending_ack_preserved": true
+   },
+   "notes": [],
+   "details": {
+    "writes": 1,
+    "forks": [
+     {
+      "continuation_id": "dff507ed-2804-47b3-afff-791ab1df78be",
+      "status": "failed",
+      "meta": "{\"session_id\":\"fx-f11-8fe72b8e\",\"surface\":\"async_turn_continuation\",\"originating_execution_id\":\"286a7117-cf6f-427a-b2da-57b0085c411a\",\"origin_operation_id\":\"ad6e1b58-949d-4eac-a4e7-f5e6f1a18cfa\",\"continuation\":{\"session_id\":\"fx-f11-8fe72b8e\",\"canvas_id\":\"d394d76a-13d5-4284-9845-83747fcb7ecb\",\"user_id\":\"fecdccc2-7ae3-485d-982f-05eb18579d00\",\"message\":\"change the quote validity from 15 days to 30 days\",\"snapshot_content_hash\":\"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40\",\"snap"
+     }
+    ],
+    "history": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update was already applied. the edit itself landed before a restart cut off its confirmat"
+    ]
+   }
+  },
+  {
+   "case": "F11_keyed_retry_truthful",
+   "status": "PASS",
+   "checks": {
+    "answered": true,
+    "no_new_write": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "DLC_claim_exists_message_does_not",
+   "status": "PASS",
+   "checks": {
+    "worker_parked_at_delivery_claim": true,
+    "claim_stamped_on_record": true,
+    "terminal_message_absent": true,
+    "mutation_already_landed": true
+   },
+   "notes": [],
+   "details": {
+    "cid": "6a8cd89b"
+   }
+  },
+  {
+   "case": "DLC_restart_before_expiry_defers",
+   "status": "PASS",
+   "checks": {
+    "restarted_before_lease_expiry": true,
+    "boot_pass_deferred": true
+   },
+   "notes": [],
+   "details": {
+    "claim_age_at_boot": 10.6,
+    "n_base": 1
+   }
+  },
+  {
+   "case": "DLC_automatic_delivery_after_expiry",
+   "status": "PASS",
+   "checks": {
+    "no_restart_used": true,
+    "delivered_automatically": true,
+    "exactly_one_terminal_row": true,
+    "no_additional_canvas_mutation": true
+   },
+   "notes": [],
+   "details": {
+    "notifications": [
+     1,
+     2
+    ],
+    "terminal_rows": 1
+   }
+  },
+  {
+   "case": "F09_overlap_own_truthful_outcomes",
+   "status": "PASS",
+   "checks": {
+    "both_turns_completed": true,
+    "distinct_execution_ids": true,
+    "every_fork_terminal": true,
+    "live_outcome_event_per_fork": true,
+    "outcomes_in_history_after_reload": true,
+    "canvas_coherent": true
+   },
+   "notes": [],
+   "details": {
+    "forks": 1,
+    "cont_events": 1,
+    "writes": 3
+   }
+  },
+  {
+   "case": "F09_duplicate_terminal_events_no_duplicate",
+   "status": "PASS",
+   "checks": {
+    "visible_completions_stable": true,
+    "canvas_unchanged_by_repass": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F12_read_workflows",
+   "status": "PASS",
+   "checks": {
+    "chat_read": true,
+    "lookup": true,
+    "replacement_reply": true,
+    "replacement_landed_once": true,
+    "formatting_readback": true,
+    "re_search": true,
+    "reload_agrees": true
+   },
+   "notes": [],
+   "details": {
+    "replies": [
+     "Reading the canvas: the delivery section says \"Delivery: 2 weeks.\"",
+     "Looking up the canvas: the warranty period is \"Warranty: 12 months.\"",
+     "Reformatted the warranty wording to: Warranty: twelve months.",
+     "Re-search of the canvas found the delivery line: \"Delivery: 2 weeks.\""
+    ]
+   }
+  }
+ ]
+}

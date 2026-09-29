@@ -1,0 +1,200 @@
+{
+ "generated_at": "2026-09-28T18:53:30-0400",
+ "what": "F11 effect-before-completion crash-window verification (barrier-held kill + disarmed recovery)",
+ "export_binding": {
+  "world": "write_combined",
+  "code_snapshot_sha256": "423f5189ae518decb242afe2147d175d4d6be60e600bbbf29d77d04056e43e06",
+  "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+  "runtime_identity_lines": [
+   "INFO:core.runtime_identity:runtime identity: source_id=1a953b58934d-dirty.07d91e7715f1 revision=1a953b58934d dirty=True (82 modified, 13641 untracked)",
+   "INFO:core.runtime_identity:runtime identity: source_id=1a953b58934d-dirty.07d91e7715f1 revision=1a953b58934d dirty=True (82 modified, 13641 untracked)",
+   "INFO:core.runtime_identity:runtime identity: source_id=1a953b58934d-dirty.07d91e7715f1 revision=1a953b58934d dirty=True (82 modified, 13641 untracked)"
+  ],
+  "launch_descriptor_run_id": "run-f44bc23c9350",
+  "db_path": "data/acceptance_worlds/write_combined/runs/run-f44bc23c9350/data/atom.db",
+  "db_sha256_at_persist": "9814957b52358ab8b8f9418729742549bbe65c43e845c3281e3defed05f8ac90",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED",
+   "ATOM_ACCEPTANCE_BARRIER=continuation_after_effect",
+   "ATOM_ACCEPTANCE_BARRIER_MATCH=<crashwin session>",
+   "provider=local shim (port 8098, canary-verified)"
+  ]
+ },
+ "process_identity": {
+  "parked_worker_pid": 77945,
+  "parked_at": "2026-09-28T22:41:00.352704+00:00",
+  "barrier_stage": "continuation_after_effect",
+  "barrier_context": {
+   "surface": "async_turn_continuation",
+   "continuation_id": "892ae8a7-ce05-4337-8dd6-64d515703724",
+   "session_id": "fl-crashwin-abfdb93b",
+   "canvas_id": "bf04d3c9-2260-4642-9319-e5ef122d6aa4",
+   "origin_operation_id": "6a34d975-8306-411a-903f-9af259fec0b8",
+   "outcome": "applied",
+   "audit_id": "85cf669e-a9de-4b44-bd34-5439348ddde8"
+  },
+  "release_file_ever_created": false
+ },
+ "recovered_terminal_status": {
+  "continuation_records": [
+   {
+    "continuation_id": "892ae8a7-ce05-4337-8dd6-64d515703724",
+    "status": "failed",
+    "completed_at": "2026-09-28 22:41:13.819146",
+    "recovery": {
+     "crashed": true,
+     "recovered_at": "2026-09-28T22:41:13.819146+00:00",
+     "owner_state": "dead"
+    },
+    "notified_flag_persisted": null
+   },
+   {
+    "continuation_id": "3a1950e3-59fc-46df-b161-c74adb185185",
+    "status": "running",
+    "completed_at": null,
+    "recovery": null,
+    "notified_flag_persisted": null
+   }
+  ],
+  "interpretation": "the crashed continuation's durable record was reconciled by the boot sweep to status=failed with recovery.owner_state=dead; exactly one recovery record exists"
+ },
+ "user_visible_outcome": {
+  "notifications": [
+   {
+    "id": "8f017fcc-4205-487e-a38c-28f728d16e1e",
+    "user_id": "0469b70d-41df-4040-9112-85806d7bdcc3",
+    "title": "Background update could not finish",
+    "message": "A background canvas update was interrupted by a server restart.",
+    "type": "info",
+    "read": "0",
+    "created_at": "2026-09-28 22:41:13"
+   }
+  ],
+  "notification_count": 1,
+  "interpretation": "the user receives the terminal outcome through the notification channel exactly once ('Background update could not finish' / 'interrupted by a server restart'); chat history correctly preserves the pending acknowledgements and was NOT retroactively rewritten",
+  "history": [
+   {
+    "at": "2026-09-28 22:41:00.235793",
+    "role": "user",
+    "text": "change the quote validity from 15 days to 30 days"
+   },
+   {
+    "at": "2026-09-28 22:41:00.235961",
+    "role": "assistant",
+    "text": "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+   },
+   {
+    "at": "2026-09-28 22:41:27.321930",
+    "role": "user",
+    "text": "change the quote validity from 15 days to 30 days"
+   },
+   {
+    "at": "2026-09-28 22:41:27.322096",
+    "role": "assistant",
+    "text": "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+   }
+  ],
+  "mutations": [
+   {
+    "at": "2026-09-28 22:41:00.341245",
+    "audit_id": "85cf669e-a9de-4b44-bd34-5439348ddde8"
+   }
+  ]
+ },
+ "known_defect_found_in_this_evidence": "continuation.notified flag was NOT persisted by this export (the recovery-notify site mutated the JSON dict without flag_modified), so a second restart would have re-notified. Fixed in the working tree after this run; unit test test_notified_flag_persists_through_real_orm guards it; the F09 delivery-claim crash case re-verifies it live on a rebuilt export.",
+ "case_results": [
+  {
+   "case": "F11CW_worker_parked",
+   "status": "PASS",
+   "checks": {
+    "barrier_arrived": true,
+    "no_release_yet": true,
+    "fork_record_exists": true
+   },
+   "notes": [],
+   "details": {
+    "arrival": "{\n \"stage\": \"continuation_after_effect\",\n \"pid\": 77945,\n \"arrived_at\": \"2026-09-28T22:41:00.352704+00:00\",\n \"wall_clock\": 1790635260.352711,\n \"context\": {\n  \"surface\": \"async_turn_continuation\",\n  \"continuation_id\": \"892ae8a7-ce05-4337-8dd6-64d515703724\",\n  \"session_id\": \"fl-crashwin-abfdb93b\",\n  \"c"
+   }
+  },
+  {
+   "case": "F11CW_committed_but_unrecorded",
+   "status": "PASS",
+   "checks": {
+    "mutation_committed_at_hold": true,
+    "parked_outcome_is_applied": true,
+    "parked_audit_id_present": true,
+    "mutation_is_operation_linked": true,
+    "terminal_outcome_unrecorded": true,
+    "durable_record_still_running": true,
+    "worker_alive_while_parked": true
+   },
+   "notes": [],
+   "details": {
+    "audit_rows_at_hold": 1,
+    "history_at_hold": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "barrier_outcome": "applied",
+    "barrier_audit_id": "85cf669e-a9d"
+   }
+  },
+  {
+   "case": "F11CW_crash_window_recovery",
+   "status": "PASS",
+   "checks": {
+    "barrier_never_released": true,
+    "one_effect_exactly": true,
+    "mutation_present_once": true,
+    "durable_record_reconciled": true,
+    "exactly_one_continuation_record": true,
+    "no_fabricated_history_outcome": true,
+    "pending_ack_preserved_on_reload": true
+   },
+   "notes": [],
+   "details": {
+    "forks_post": [
+     {
+      "continuation_id": "892ae8a7-ce05-4337-8dd6-64d515703724",
+      "status": "failed",
+      "meta": "{\"session_id\": \"fl-crashwin-abfdb93b\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"9cf8c938-a4db-4e6b-a615-4233ae99295f\", \"origin_operation_id\": \"6a34d975-8306-411a-903f-9af259fec0b8\", \"continuation\": {\"session_id\": \"fl-crashwin-abfdb93b\", \"canvas_id\": \"bf04d3c9-2260-4642-9319-e5ef122d6aa4\", \"user_id\": \"0469b70d-41df-4040-9112-85806d7bdcc3\", \"message\": \"change the quote validity from 15 days to 30 days\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457"
+     }
+    ],
+    "history_post": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "writes_post": 1
+   }
+  },
+  {
+   "case": "F11CW_retry_truthful_after_crash",
+   "status": "PASS",
+   "checks": {
+    "keyed_retry_answered": true,
+    "replays_ack_or_honest_state": true,
+    "no_new_write_from_retry": true
+   },
+   "notes": [],
+   "details": {
+    "status": 409,
+    "reply_head": ""
+   }
+  },
+  {
+   "case": "F11CW_new_id_no_repeat_effect",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "no_repeat_effect": true
+   },
+   "notes": [],
+   "details": {}
+  }
+ ],
+ "evidence_notes": [
+  "continuation record 3a1950e3 was mid-flight at run teardown (the suite SIGKILLs the world at case end while the new-id turn's continuation was still inside its retry backoff); it is a teardown artifact of this run, not part of the crash-window scenario",
+  "notification row and recovery metadata copied verbatim from the run database at persistence time"
+ ],
+ "semantic_qualification": "The mutation had ALREADY LANDED when the process was killed (barrier context outcome=applied; audit id present in the hold-state evidence). The recovery wording in THIS export ('Background update could not finish / interrupted by a server restart') wrongly implies nothing changed. The durable effect is recorded SEPARATELY from the interrupted completion: the canvas audit row (85cf669e...) is the effect; the reconciliation to failed is the completion-report status. Fixed in the working tree after this run: recovery now detects the landed effect (fork-time snapshot hash vs current canvas) and words the outcome 'applied before the interruption' with the effect recorded in the message metadata (effect_on_canvas)."
+}

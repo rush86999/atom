@@ -1,0 +1,105 @@
+{
+ "generated_at": "2026-09-28T18:41:33-0400",
+ "world": "write_combined",
+ "port": 8026,
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-f44bc23c9350",
+ "export_binding": {
+  "code_snapshot_sha256": "423f5189ae518decb242afe2147d175d4d6be60e600bbbf29d77d04056e43e06",
+  "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+  "runtime_identity": "see server.log (1a953b58934d-dirty.<hash>)",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ],
+  "provider": "local shim (provider responses only)"
+ },
+ "results": [
+  {
+   "case": "F11CW_worker_parked",
+   "status": "PASS",
+   "checks": {
+    "barrier_arrived": true,
+    "no_release_yet": true,
+    "fork_record_exists": true
+   },
+   "notes": [],
+   "details": {
+    "arrival": "{\n \"stage\": \"continuation_after_effect\",\n \"pid\": 77945,\n \"arrived_at\": \"2026-09-28T22:41:00.352704+00:00\",\n \"wall_clock\": 1790635260.352711,\n \"context\": {\n  \"surface\": \"async_turn_continuation\",\n  \"continuation_id\": \"892ae8a7-ce05-4337-8dd6-64d515703724\",\n  \"session_id\": \"fl-crashwin-abfdb93b\",\n  \"c"
+   }
+  },
+  {
+   "case": "F11CW_committed_but_unrecorded",
+   "status": "PASS",
+   "checks": {
+    "mutation_committed_at_hold": true,
+    "parked_outcome_is_applied": true,
+    "parked_audit_id_present": true,
+    "mutation_is_operation_linked": true,
+    "terminal_outcome_unrecorded": true,
+    "durable_record_still_running": true,
+    "worker_alive_while_parked": true
+   },
+   "notes": [],
+   "details": {
+    "audit_rows_at_hold": 1,
+    "history_at_hold": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "barrier_outcome": "applied",
+    "barrier_audit_id": "85cf669e-a9d"
+   }
+  },
+  {
+   "case": "F11CW_crash_window_recovery",
+   "status": "PASS",
+   "checks": {
+    "barrier_never_released": true,
+    "one_effect_exactly": true,
+    "mutation_present_once": true,
+    "durable_record_reconciled": true,
+    "exactly_one_continuation_record": true,
+    "no_fabricated_history_outcome": true,
+    "pending_ack_preserved_on_reload": true
+   },
+   "notes": [],
+   "details": {
+    "forks_post": [
+     {
+      "continuation_id": "892ae8a7-ce05-4337-8dd6-64d515703724",
+      "status": "failed",
+      "meta": "{\"session_id\": \"fl-crashwin-abfdb93b\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"9cf8c938-a4db-4e6b-a615-4233ae99295f\", \"origin_operation_id\": \"6a34d975-8306-411a-903f-9af259fec0b8\", \"continuation\": {\"session_id\": \"fl-crashwin-abfdb93b\", \"canvas_id\": \"bf04d3c9-2260-4642-9319-e5ef122d6aa4\", \"user_id\": \"0469b70d-41df-4040-9112-85806d7bdcc3\", \"message\": \"change the quote validity from 15 days to 30 days\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457"
+     }
+    ],
+    "history_post": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "writes_post": 1
+   }
+  },
+  {
+   "case": "F11CW_retry_truthful_after_crash",
+   "status": "PASS",
+   "checks": {
+    "keyed_retry_answered": true,
+    "replays_ack_or_honest_state": true,
+    "no_new_write_from_retry": true
+   },
+   "notes": [],
+   "details": {
+    "status": 409,
+    "reply_head": ""
+   }
+  },
+  {
+   "case": "F11CW_new_id_no_repeat_effect",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "no_repeat_effect": true
+   },
+   "notes": [],
+   "details": {}
+  }
+ ]
+}
