@@ -86,3 +86,35 @@ any gate. Re-test Mica/JevK5-9B when the registry publishes them; keep
 the labeled incident+control set (in test_cross_source_followup_routing
 + this bench) as the gate. Test models removed after measurement;
 runtime + laya remain installed.
+
+## Addendum 2 (same day): JevK5-9B v0.3.3 measured — it crosses the gate on one task
+
+The 9B is absent from the ollaya registry, so it was run through the
+OFFICIAL path: Q8_0 GGUF (sha256-verified against the repo's SHA256SUMS)
+on the portable drive, llama-server on Metal (port 8190), and the
+stdlib-only `jevk5` runtime (`pip install --no-deps`, python3.12 venv on
+the drive) — the exact SemIf readout with the repo's own calibration
+(temperature 1.316 / knockout 1.05 from jevk5_config.json). Pipeline
+sanity first: the README's parcel example reproduces exactly
+(misdelivered p=0.978), and plain propositions calibrate correctly
+(sky-blue 0.84 true / absurd 0.14).
+
+| task (same 9 labeled cases) | laya 421M | JevK5-4B | JevK5-9B Q8 |
+|---|---|---|---|
+| possessive source-vs-attribute | 1/5 | 2/5 | 3/5 — true sources right (0.57–0.67), Brennan Machinery wrongly 0.69, supplier 0.49 coin-flip |
+| anaphoric file-reference | 2/4 | 2/4 | **4/4** with margin: 0.79 / 0.71 yes, 0.17 / 0.03 no |
+| median latency | 40–70 ms | ~215 ms | ~600–700 ms (Metal, cold load ~45 s) |
+
+Reading: the 9B is genuinely discriminative where the smaller models
+were biased — the anaphoric task would PASS the quality gate today. The
+possessive judgment (pragmatic, needs world knowledge about
+persons-vs-organizations) still belongs to the LLM tail. Practical
+caveats for adoption: ~10 GB weights + ~1 GB KV on a local-first box, a
+separate llama-server daemon (ollaya 0.7.5 cannot serve this model), and
+English-only. A gated integration — 9B for the anaphoric refinement,
+LLM for the possessive residue — is now a measured option rather than
+speculation.
+
+Artifacts on the portable drive (user-directed): /Volumes/Seagate
+Portable Drive/jevk5-9b/ — GGUF (8.9 GB, hash-verified), scratch venv,
+bench_9b.py. Servers stopped after measurement.
