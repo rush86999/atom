@@ -177,3 +177,46 @@ session `crosssrc-probe-1790702589`):
 World `crosssrc_fix_0929` (~360 MB) + farm
 `/Users/rushiparikh/projects/atom/.preview-farms/crosssrc_fix_0929` once
 the evidence is no longer needed. The preview stack is DOWN.
+
+## Addendum (2026-09-29 evening): the row-338 follow-up chain
+
+The owner continued the ORIGINAL session (replay-retry2-20260923) on the
+deployed fix and hit a NEW failure: after "…no. 381 is on Tennsmith sheet
+of the workbook under row 338 … $3,254.00 . find this in the workbook",
+the agent could not confirm the row. Four distinct seams, each fixed
+TDD-first and verified live on :8001:
+
+1. `aa017c587` — ANAPHORIC FILE REFERENCE: "find this in the workbook"
+   names no `.xlsx` file, so the deterministic file-ask lane never fired
+   and the turn fell to mail/integration planning that cannot match
+   workbook cells. `_resolve_anaphoric_file_mention` resolves the generic
+   reference against the conversation's RESOLVED identity (live task or
+   supersession stash); questions and confirmation-shaped turns excluded.
+2. `b834d68da` — PIN THREADING: the reader derived the file from the ask
+   text only and still returned None. `_direct_confirmed_file_read` now
+   passes `named_file_mention` (resolved_file name, stored mention as
+   fallback) and `_datasets_named_file_block` consumes the pin when text
+   detection is empty (also fixes legacy extensionless stored mentions).
+3. `54d9b43fa` — PASTED DATA ROW: the user's own pasted row ("here's the
+   data: 381<TAB>167072381…") colon-mined as the constraint
+   `s_the_data = "381 167072381 Roll Bending Machine"`, filtering every
+   row. `_is_data_payload_value` rejects constraint values with tabs or
+   2+ standalone numbers.
+4. `664ad0807` — POSSESSIVE SOURCE REFERENCE (the one that produced the
+   live all-miss): the earlier turn "check Priya's text message… in
+   workbook" mined organization="Priya", which rode the user history into
+   the next read and filtered every row. The possessive miner now skips
+   "<name>'s <communication-source noun>" — a source reference, not a
+   row attribute.
+
+Verified live (:8001, probe session, exact user wording): the turn now
+serves deterministically in ~3s with the row bound —
+`381 - 3,254 (Tennsmith!R338, identity A338, column E338 'PRICE'; also
+M338 'U.S. LIST' 1,845, O338 'U.S. COST' 1,476 …)` — plus honest
+outcomes for the other extracted targets (exchange-index match flagged,
+row-number target reported absent, "Roll Bending Machine" left
+ambiguous with candidates). Backend restarted twice more with the
+documented snapshot procedure (pids 89980, 93166, 94478 healthy).
+Suites: routing 45, artifact 27, resume+workbook neighbors 299 passed
++ 2 xfailed. The owner can simply re-send the message in their own
+session; no state migration is needed.
