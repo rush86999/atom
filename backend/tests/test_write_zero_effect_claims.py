@@ -415,6 +415,9 @@ async def _planner_unavailable_turn(message, session_id, reply_text):
         patch.object(orchestrator, "_emit_agent_status", new=AsyncMock()),
         patch.object(orchestrator, "_finish_chat_execution"),
         patch.object(orchestrator, "_update_session"),
+        patch.object(chat, "_begin_task_edit",
+                     return_value={"status": "reserved", "run_id": "run-z",
+                                   "operation_id": "op-z", "reason": None}), \
         patch.object(orchestrator, "_try_canvas_edit", side_effect=planner_down),
         patch.object(orchestrator, "_try_canvas_action", new=AsyncMock()),
         patch.object(orchestrator, "_get_qwen_response",

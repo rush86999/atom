@@ -107,8 +107,10 @@ async def main() -> int:
     result["control_turn1"] = {
         "execution_id": r1.get("execution_id"),
         "model": r1.get("model"),
-        "deterministic_delivery": (r1.get("data") or {}).get(
-            "deterministic_delivery"),
+        "deterministic_delivery": ((r1.get("data") or {})
+                                   .get("deterministic_delivery")
+                                   or ((r1.get("metadata") or {})
+                                       .get("deterministic_delivery"))),
         "items_found": found1,
         "eight_delivered": len(found1) >= 6,
     }

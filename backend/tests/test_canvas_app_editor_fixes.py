@@ -667,3 +667,14 @@ def test_failed_pin_exclusion_filter():
         ("deepseek", "deepseek-v4-pro")) == [("deepseek", "deepseek-v4-pro")]
     # no exclusion -> unchanged
     assert apply_failed_pin_exclusion(pool, None) == pool
+
+
+def test_observed_false_success_sentence_is_caught_by_the_receipt_gate():
+    """The exact narration that reached the user on 2026-09-29 (the edit
+    lane declined, the reply narrated an updated quote) must be detected
+    by the generic claim detector — no business vocabulary required."""
+    from core.chat_canvas_editor import reply_claims_canvas_change
+
+    assert reply_claims_canvas_change(
+        "Hi Steve,\n\nThank you for your inquiry. Please find our updated "
+        "quote below for the requested equipment:")
