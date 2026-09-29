@@ -133,7 +133,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             };
-            const res = await fetch('/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default', { headers });
+            const res = await fetch(`/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default`, { headers });
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.theme) {
