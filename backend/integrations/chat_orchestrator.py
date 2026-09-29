@@ -4356,6 +4356,16 @@ class ChatOrchestrator:
                                 "resolved_file"),
                             "confirmed_mention": _superseded.get(
                                 "confirmed_mention"),
+                            # ORDERED TARGET IDENTITIES ride with the
+                            # stash (2026-09-29 cross-source incident): a
+                            # superseding objective (identity
+                            # disambiguation across email + workbook)
+                            # still executes against the same requested
+                            # items — the objective is replaced, never
+                            # the context needed to serve the new one.
+                            "requested_targets": (
+                                _superseded.get("requested_targets")
+                                or _stored_requested_items(session)),
                         }
             except Exception as _pft_supersede_err:
                 logger.debug(
@@ -14195,10 +14205,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         never in a single-purpose sidecar detector.
         """
         from core.pending_file_task import (
+            FILE_TASK_SESSION_KEY,
             _CONFIRMATION_ACTION_RE,
             _OUTBOUND_ACTION_RE,
             is_retrieval_refresh_request,
             is_source_refresh_request,
+            request_extends_objective,
         )
 
         t = (message or "").strip()
@@ -14214,10 +14226,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if _FIELD_SELECT_RE.search(t):
             field = _match_field_preference(t)
         if is_retrieval_refresh_request(t):
-            operation = ("refresh" if is_source_refresh_request(t)
-                         else "rerun")
-            return {"retrieval": operation,
-                    "presentation": {"style": style, "field": field}}
+            # COVERAGE GATE (2026-09-29 cross-source incident): the
+            # rerun/refresh contract is valid only when the stored read
+            # can satisfy the WHOLE current request. A retry-shaped
+            # follow-up that adds a source or changes the requested
+            # information ("check <person>'s email and the workbook
+            # descriptions…") is new work, not a continuation — fall
+            # through to the guards below (the outbound/action vocabulary
+            # stops most such turns; otherwise None = normal flow).
+            _stored_task = (session or {}).get(FILE_TASK_SESSION_KEY) if (
+                isinstance(session, dict)) else None
+            try:
+                _extends = request_extends_objective(t, _stored_task)
+            except Exception:  # noqa: BLE001 — keep the decision fail-closed
+                _extends = False
+            if not _extends:
+                operation = ("refresh" if is_source_refresh_request(t)
+                             else "rerun")
+                return {"retrieval": operation,
+                        "presentation": {"style": style, "field": field}}
+            # An extending follow-up is not a continuation of the stored
+            # read in ANY sense — neither a re-run nor a format-only
+            # re-render (a trailing style word must not hand it the
+            # "none" contract). Normal flow owns the turn.
+            return None
         if _HALT_RE.search(t):
             return None
         if "?" in t:
