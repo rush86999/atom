@@ -46,6 +46,7 @@ from core.pending_file_task import (
     is_rerun_request,
     matching_pending_task,
     recover_pending_task_from_history,
+    request_extends_objective,
     supersedes_pending_task,
 )
 
@@ -189,6 +190,68 @@ class TestCrossSourceGenerality:
     def test_supersession_for_equivalent_additional_source_requests(
             self, msg):
         assert supersedes_pending_task(_delivered_task(), msg) is True, msg
+
+
+# DOMAIN INDEPENDENCE MATRIX (2026-09-29 review): the same decision must
+# hold for ANY source/target pair — messaging surfaces, calendars, PDFs,
+# CSVs, CRM records, drive docs, plain notes — not just the incident's
+# email+workbook. Each row: (stored objective, mention, a cross-source
+# follow-up in the incident's shape, an explicit same-read retry).
+DOMAIN_MATRIX = [
+    ("find the rescheduled dates for the vendor visits in "
+     "catering_contracts.pdf",
+     "catering_contracts.pdf",
+     "check the calendar invites and or notes in the pdf to find correct "
+     "page and row for confirmation",
+     "read the pdf again"),
+    ("find the invoice totals in the Q3 billing summary",
+     "q3 billing summary",
+     "check the CRM record and or description in billing to find correct "
+     "entry and total from billing for confirmation",
+     "check the totals again"),
+    ("find the churn reasons in churn_export.csv",
+     "churn_export.csv",
+     "check Dana's slack thread and or description in the csv to find "
+     "correct column and row for confirmation",
+     "search the csv again"),
+    ("find the approved budgets in the 2027 planning sheet",
+     "2027 planning sheet",
+     "check the shared drive memo and or description in the sheet to find "
+     "correct tab and cell for confirmation",
+     "open the sheet again"),
+    ("find the onboarding steps in the handbook notes",
+     "handbook notes",
+     "check the wiki page and or summary in the notes to find correct "
+     "section for confirmation",
+     "search the notes again"),
+]
+
+
+class TestDomainIndependence:
+    @pytest.mark.parametrize("orig,mention,followup,retry", DOMAIN_MATRIX)
+    def test_cross_source_followup_supersedes_in_every_domain(
+            self, orig, mention, followup, retry):
+        task = build_pending_task(orig, mention)
+        task["status"] = "delivered"
+        assert request_extends_objective(followup, task) is True, followup
+        assert supersedes_pending_task(task, followup) is True, followup
+        assert matching_pending_task(
+            task, followup, [{"message": orig, "response": "x"}]) is None, (
+            f"{followup!r} must not resume the stored read")
+        # The same-read retry control stays lineage in the same domain.
+        assert matching_pending_task(
+            task, retry, [{"message": orig, "response": "x"}]) is not None, (
+            f"{retry!r} must keep resuming the stored read")
+
+    @pytest.mark.parametrize("orig,mention", [
+        (o, m) for o, m, _f, _r in DOMAIN_MATRIX])
+    def test_approvals_stay_lineage_in_every_domain(self, orig, mention):
+        task = build_pending_task(orig, mention)
+        for approval in ("yes", "go ahead", "correct."):
+            assert request_extends_objective(approval, task) is False
+            assert matching_pending_task(
+                task, approval, [{"message": orig, "response": "x"}]) is not (
+                None), (orig, approval)
 
 
 # ---------------------------------------------------------------------------
