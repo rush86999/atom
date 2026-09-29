@@ -481,3 +481,182 @@ async def test_plain_retry_still_re_runs_through_the_resume_lane():
     assert direct_task["original_message"] == STORED_ASK
     assert result["data"]["deterministic_delivery"] is True
     qwen_mock.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# 6. Anaphoric file reference ("find this in the workbook") — the row-338
+#    incident (2026-09-29): the user gave the exact Tennsmith row and value
+#    and said "find this in the workbook". The message names no extension-
+#    ful filename, so the deterministic file-ask lane never fired; the turn
+#    fell to mail/integration planning that cannot match workbook cells.
+#    When the conversation holds a RESOLVED spreadsheet identity (live task
+#    or the supersession stash), the generic reference IS that file.
+# ---------------------------------------------------------------------------
+
+ROW338_MSG = (
+    "roper whitney and tennsmith are 2 brands under 1 ownership and they "
+    "sometimes mix the names. no. 381 is on Tennsmith sheet of the workbook "
+    "under row 338. under roll bending machines --- here's the data: 381\t"
+    "167072381\t\tRoll Bending Machine,\t $3,254.00 . find this in the "
+    "workbook")
+RESOLVED_IDENTITY = {
+    "file_id": "wd-77", "resource_id": "wd-77",
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "identity_verified": True,
+}
+
+
+def _session_with_stash() -> dict:
+    return {
+        "id": "s-anaphoric",
+        "history": list(INCIDENT_HISTORY),
+        "_superseded_file_task_context": {
+            "resolved_file": dict(RESOLVED_IDENTITY),
+            "confirmed_mention": STORED_MENTION,
+            "requested_targets": list(EIGHT_ITEMS),
+        },
+        "_pending_file_result": {
+            "status": "delivered",
+            "rendered": "CACHED PRICE RENDER",
+            "target_extraction_version": chat._TARGET_EXTRACTION_VERSION_NOW,
+            "identity": {"file_id": "wd-77"},
+            "structured_result": {
+                "attempt_id": "attempt-old",
+                "requested_items": list(EIGHT_ITEMS),
+            },
+        },
+    }
+
+
+class TestAnaphoricFileReference:
+    @pytest.mark.asyncio
+    async def test_generic_workbook_reference_reads_the_resolved_file(self):
+        orch = _orch()
+        session = _session_with_stash()
+        rendered = ("Workbook read: Consolidated Price List 2019.xlsx\n"
+                    "| 381 | FOUND | Tennsmith!A338 R338 [PRICE=3254] |")
+        direct = {
+            "ok": True, "block": rendered, "rendered_answer": rendered,
+            "identity": dict(RESOLVED_IDENTITY, coverage_complete=True),
+            "meta": {
+                "completed": True, "identity_verified": True,
+                "coverage_complete": True,
+                "workbook_read": {"coverage": {"complete": True}},
+            },
+            "retrieval_complete": True,
+        }
+        with (
+            patch.object(orch, "_get_or_create_session", return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=None)),
+            patch.object(orch, "_start_chat_execution", return_value="e-an"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch("core.chat_mini_app_authoring.try_handle",
+                  new=AsyncMock(return_value=None)),
+            patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+            patch.object(orch, "_route_to_features",
+                         new=AsyncMock(return_value={})),
+            patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                side_effect=AssertionError(
+                    "a targeted same-workbook ask must not fall to generic "
+                    "mail/integration planning"))) as qwen_mock,
+            patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+                return_value=direct)) as direct_mock,
+        ):
+            result = await orch.process_chat_message(
+                "u1", ROW338_MSG, "s-anaphoric", context={})
+
+        direct_mock.assert_awaited_once()
+        task = direct_mock.await_args.args[0]
+        assert task["mention"] == STORED_MENTION, (
+            "the generic 'the workbook' reference resolves to the "
+            "conversation's resolved file identity")
+        assert task["original_message"] == ROW338_MSG
+        assert task.get("resolved_file", {}).get("file_id") == "wd-77", (
+            "the pinned resource rides with the read")
+        assert result["data"]["deterministic_delivery"] is True
+        qwen_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_no_resolved_identity_stays_with_normal_planning(self):
+        orch = _orch()
+        session = _session_with_stash()
+        del session["_superseded_file_task_context"]["resolved_file"]
+        with (
+            patch.object(orch, "_get_or_create_session", return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=None)),
+            patch.object(orch, "_start_chat_execution", return_value="e-an2"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch("core.chat_mini_app_authoring.try_handle",
+                  new=AsyncMock(return_value=None)),
+            patch.object(orch, "_try_canvas_edit", new=AsyncMock()),
+            patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+            patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+            patch.object(orch, "_route_to_features",
+                         new=AsyncMock(return_value={})),
+            patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+                side_effect=AssertionError(
+                    "with nothing to resolve the reference to, the "
+                    "deterministic lane must not fire"))) as direct_mock,
+            patch.object(planner, "plan_tool_use", new=AsyncMock(
+                return_value=planner.ToolPlan(use_tool=False))),
+            patch.object(planner, "_provenance_menu",
+                         new=AsyncMock(return_value="")),
+            patch("core.memory_context_assembler.assembly_enabled",
+                  return_value=False),
+            patch.object(chat, "_verbatim_mail_evidence",
+                         new=AsyncMock(return_value=[])),
+            patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                return_value={"success": True, "content": "honest answer",
+                              "model": "m", "provider": "p"})),
+        ):
+            await orch.process_chat_message(
+                "u1", ROW338_MSG, "s-anaphoric", context={})
+        direct_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_confirmation_and_question_forms_never_read(self):
+        orch = _orch()
+        for msg in ("that workbook is correct", "is the workbook correct",
+                    "which sheet is it in the workbook?"):
+            session = _session_with_stash()
+            with (
+                patch.object(orch, "_get_or_create_session",
+                             return_value=session),
+                patch.object(orch, "_resolve_canvas_ctx",
+                             new=AsyncMock(return_value=None)),
+                patch.object(orch, "_start_chat_execution", return_value="e"),
+                patch.object(orch, "_record_chat_step", new=AsyncMock()),
+                patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+                patch.object(orch, "_finish_chat_execution"),
+                patch.object(orch, "_update_session"),
+                patch("core.chat_mini_app_authoring.try_handle",
+                      new=AsyncMock(return_value=None)),
+                patch.object(orch, "_try_canvas_edit", new=AsyncMock()),
+                patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+                patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+                patch.object(orch, "_route_to_features",
+                             new=AsyncMock(return_value={})),
+                patch.object(orch, "_direct_confirmed_file_read",
+                             new=AsyncMock(side_effect=AssertionError(msg))),
+                patch.object(planner, "plan_tool_use", new=AsyncMock(
+                    return_value=planner.ToolPlan(use_tool=False))),
+                patch.object(planner, "_provenance_menu",
+                             new=AsyncMock(return_value="")),
+                patch("core.memory_context_assembler.assembly_enabled",
+                      return_value=False),
+                patch.object(chat, "_verbatim_mail_evidence",
+                             new=AsyncMock(return_value=[])),
+                patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                    return_value={"success": True, "content": "ok",
+                                  "model": "m", "provider": "p"})),
+            ):
+                await orch.process_chat_message("u1", msg, "s-anaphoric",
+                                                context={})

@@ -1928,6 +1928,20 @@ _OBJECTIVE_SYNTHESIS_RE = re.compile(
     r"what\s+do\s+these\s+mean|do\s+i\s+need\s+to\s+(?:change|update))\b",
     re.IGNORECASE,
 )
+# An ANAPHORIC file reference: "find this in the workbook", "of the
+# spreadsheet", "in the sheet" — the file is named only by a generic noun,
+# resolvable only through the conversation's own resolved identity
+# (2026-09-29 row-338 incident: the exact Tennsmith row was in hand, the
+# materialized copy HAD it, and the turn still fell to mail search because
+# no extension-ful filename was named). Action verbs (delete/update/send)
+# are deliberately absent — the read-shape gate above stays the action
+# boundary; this regex only ever RESOLVES a name.
+_GENERIC_FILE_REF_RE = re.compile(
+    r"\b(?:in|from|of|into|across|on)\s+(?:the\s+|this\s+|that\s+)?"
+    r"(?:workbooks?|spreadsheets?|excel(?:\s+files?)?|sheets?|"
+    r"price\s+lists?|files?)\b",
+    re.IGNORECASE,
+)
 
 # Services whose live lookups can actually serve a file-scoped ask (storage
 # reads, sheet datasets, ingested documents). A mailbox/calendar hit does
@@ -3024,6 +3038,50 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
         return [str(v).strip() for v in items if str(v).strip()]
     except Exception:
         return []
+
+
+def _resolve_anaphoric_file_mention(
+    message: str, session: Optional[Dict[str, Any]],
+) -> str:
+    """Resolve "find this in the workbook" to the conversation's file.
+
+    A turn that names the file only generically ("the workbook", "the
+    sheet") can still be a file-scoped read ask — but only when THIS
+    conversation holds a RESOLVED spreadsheet identity to resolve the
+    reference to: the live stored task's or the supersession stash's
+    ``resolved_file`` (2026-09-29 row-338 incident: the user gave the
+    exact sheet, row and value; the materialized copy had the row; the
+    turn was answered from mail search because no ``.xlsx`` name was
+    typed). Guarded: questions and confirmation-shaped turns ("that
+    workbook is correct", "search the sheet again") are never resolved —
+    their own lanes own them — and a non-spreadsheet resolved identity
+    never matches workbook vocabulary. Returns the resolved file NAME
+    (the caller's direct reader consumes the resource pin separately)
+    or "".
+    """
+    t = (message or "").strip()
+    if not t or "?" in t:
+        return ""
+    if not _GENERIC_FILE_REF_RE.search(t):
+        return ""
+    try:
+        from core.agent_file_context import SPREADSHEET_EXTENSIONS
+        from core.pending_file_task import is_filename_confirmation
+
+        if is_filename_confirmation(t):
+            return ""
+    except Exception:  # noqa: BLE001 — fail toward normal planning
+        return ""
+    for carrier in ((session or {}).get("_pending_file_task"),
+                    (session or {}).get("_superseded_file_task_context")):
+        identity = (carrier or {}).get("resolved_file") if isinstance(
+            carrier, dict) else None
+        name = str((identity or {}).get("file_name") or "").strip()
+        if not name:
+            continue
+        if name.rsplit(".", 1)[-1].lower() in SPREADSHEET_EXTENSIONS:
+            return name.lower()
+    return ""
 
 
 def _task_lifecycle_for(tenant_id: Any,
@@ -4928,6 +4986,20 @@ class ChatOrchestrator:
 
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
+                if not _ask_mention:
+                    # ANAPHORIC FILE REFERENCE (2026-09-29 row-338
+                    # incident): "find this in the workbook" names no
+                    # extension-ful filename; resolve it against the
+                    # conversation's own resolved identity so the
+                    # deterministic reader serves the targeted ask
+                    # instead of generic mail/integration planning.
+                    _ask_mention = _resolve_anaphoric_file_mention(
+                        message, session)
+                    if _ask_mention:
+                        logger.info(
+                            "[file-ask] anaphoric reference resolved: "
+                            "'the workbook' -> %r (session=%s)",
+                            _ask_mention, session_id)
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
                     from core.plan_relevance import _is_substantive_request
 
