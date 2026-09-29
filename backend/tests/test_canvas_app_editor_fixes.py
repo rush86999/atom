@@ -511,3 +511,63 @@ def test_bounded_email_merge_keeps_footer_and_links():
     assert "Regards, Rish M." in merged["body"]
     assert "Someone Else" not in merged["body"]
     assert "https://brennan.ca/" in merged["body"]
+
+
+# ---------------------------------------------------------------------------
+# Scope validation sources (2026-09-29 live incident): validate the DIFF
+# against the artifact's own previous state — never against conversation
+# history. A pasted data row (381<TAB>167072381…) in history made every
+# edit plan fail scope_missing_product because no email body contains a
+# raw catalog number, so the user's explicit price update dead-ended
+# after 3 honest retries.
+# ---------------------------------------------------------------------------
+
+EMAIL_BODY_8 = (
+    "<p>Requested equipment</p>"
+    "<table><tr><th>#</th><th>Description</th><th>Price</th></tr>"
+    "<tr><td>1</td><td>Roper Whitney No. 381</td><td>$2,902.00</td></tr>"
+    "<tr><td>2</td><td>Linmac U-22</td><td>$1,777.00</td></tr>"
+    "<tr><td>3</td><td>Tennsmith SLE24-16</td><td>$8,880.00</td></tr>"
+    "</table><p>Regards, Rish M.</p>"
+)
+
+
+def test_pasted_lookup_data_in_history_never_poisons_edit_scope():
+    """The user's update instruction names 381; the pasted data row lives
+    only in HISTORY. The edited email keeps every product it had and
+    changes one price — the scope check must pass."""
+    from core.chat_canvas_editor import _scope_user_messages  # noqa: F401
+    from core.chat_canvas_editor import _validate_scoped_edit
+
+    instruction = ("as you found the latest price for the roper 381 roll "
+                   "bender, update the email price accordingly")
+    new_body = EMAIL_BODY_8.replace("$2,902.00", "$3,254.00")
+    assert _validate_scoped_edit(
+        {"body": EMAIL_BODY_8}, {"body": new_body}, [instruction]) is None
+
+
+def test_edit_may_not_silently_drop_a_product_identity():
+    """Preservation invariant: a regeneration that drops a product code
+    the canvas already had (without the instruction naming it) is content
+    loss — refused even though no request code is missing."""
+    from core.chat_canvas_editor import _validate_scoped_edit
+
+    instruction = "update the email price accordingly for the 381"
+    new_body = EMAIL_BODY_8.replace(
+        "<tr><td>2</td><td>Linmac U-22</td><td>$1,777.00</td></tr>", ""
+    ).replace("$2,902.00", "$3,254.00")
+    reason = _validate_scoped_edit(
+        {"body": EMAIL_BODY_8}, {"body": new_body}, [instruction])
+    assert reason and reason.startswith("scope_dropped_product"), reason
+
+
+def test_named_identity_may_leave_the_canvas():
+    """'Remove U-22 from the email' names the identity it removes — the
+    preservation check exempts codes the instruction itself names."""
+    from core.chat_canvas_editor import _validate_scoped_edit
+
+    instruction = "remove the U-22 line from the email"
+    new_body = EMAIL_BODY_8.replace(
+        "<tr><td>2</td><td>Linmac U-22</td><td>$1,777.00</td></tr>", "")
+    assert _validate_scoped_edit(
+        {"body": EMAIL_BODY_8}, {"body": new_body}, [instruction]) is None
