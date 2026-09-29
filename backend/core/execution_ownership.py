@@ -85,6 +85,29 @@ def stamp_owner(metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     return meta
 
 
+def _process_state(pid: int) -> Optional[str]:
+    """The OS single-letter process state of ``pid`` (``R``/``S``/``Z``/...),
+    or None if this platform cannot tell us.
+
+    Read-only, one small subprocess, and only for a pid that already answered
+    ``os.kill(pid, 0)`` -- so it runs at most once per candidate row during a
+    boot sweep. ``/proc`` is authoritative on Linux; macOS needs ``ps``.
+    """
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as fh:
+            fields = fh.read().rsplit(b")", 1)[-1].split()
+        # First field after comm is the state character.
+        return fields[0].decode()
+    except (OSError, IndexError, ValueError):
+        pass
+    try:
+        out = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        return out or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def _os_process_start(pid: int) -> Optional[str]:
     """The OS start time of `pid`, or None if this platform cannot tell us.
 
@@ -167,6 +190,27 @@ def owner_liveness(metadata: Optional[Dict[str, Any]]) -> Tuple[str, Dict[str, A
         return "live", detail
     except OSError as exc:
         return "unknown", {**detail, "reason": f"liveness inspection failed: {exc}"}
+
+    # A ZOMBIE is not a live owner. os.kill(pid, 0) succeeds for one -- the pid
+    # entry survives until the parent reaps it -- so a killed-but-unreaped owner
+    # was classified `live` and its execution stayed `running` FOREVER. Measured
+    # on the finish-line F11 case (2026-09-29): the boot sweep reported "no
+    # orphaned executions found" while the killed continuation's row sat
+    # `running` with a verified-dead owner; running the same recovery function
+    # by hand, after the harness had exited and reaped the child, recovered it
+    # immediately (owner_liveness -> dead).
+    #
+    # A zombie has already exited: it holds no lock, runs no turn, and its work
+    # is unrecoverable by definition. Treating it as `dead` therefore cannot
+    # fail a RUNNING turn, which is the direction this function is careful
+    # about -- so this narrows a false `live`, and leaves `live` (a real
+    # process), `unknown` (cannot tell) and the pid-reuse check untouched.
+    state = _process_state(pid)
+    if state is not None:
+        detail["os_process_state"] = state
+    if state is not None and state.startswith("Z"):
+        return "dead", {**detail, "reason": "owner is a zombie (already exited, "
+                                            "awaiting reaping by its parent)"}
 
     recorded = owner.get("os_process_start")
     if recorded:

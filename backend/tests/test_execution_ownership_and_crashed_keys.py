@@ -162,6 +162,42 @@ def test_a_live_foreign_owner_is_live():
         proc.wait()
 
 
+def test_a_zombie_owner_is_dead_not_live():
+    """A killed-but-unreaped owner is DEAD, not live.
+
+    os.kill(pid, 0) succeeds for a zombie, so before this was handled the boot
+    sweep read a SIGKILLed-but-unreaped server as a LIVE owner and left its
+    continuation `running` forever. Measured on the finish-line F11 case
+    (2026-09-29): the sweep logged "no orphaned executions found" while the
+    killed continuation's row sat `running`; the same recovery function, run by
+    hand after the harness exited and reaped the child, recovered it at once.
+
+    Uses os.fork + kill WITHOUT wait() so the child stays a real zombie for the
+    duration of the assertion (subprocess.Popen reaps too eagerly to show it).
+    """
+    import signal
+    import time
+
+    pid = os.fork()
+    if pid == 0:                                    # child
+        os._exit(0)
+    try:
+        time.sleep(0.3)
+        os.kill(pid, signal.SIGKILL)
+        time.sleep(0.5)                             # no wait(): still a zombie
+        # Precondition: the pid answerable to signal 0, i.e. a real zombie.
+        os.kill(pid, 0)
+        state, info = owner_liveness(
+            {"owner": {"pid": pid, "token": "other", "host": HOSTNAME}})
+        assert state == "dead", info
+        assert "zombie" in info.get("reason", ""), info
+    finally:
+        try:
+            os.waitpid(pid, 0)                      # reap
+        except ChildProcessError:
+            pass
+
+
 def test_a_live_pid_with_a_different_start_time_is_dead():
     """PID reuse: the number is alive, the process behind it is not ours."""
     proc = _live_process()
