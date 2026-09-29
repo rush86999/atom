@@ -18,11 +18,17 @@
   "workbook_search": "PASS \u2014 the eight-item ask against the REAL dev workbook (saved copy 2026-09-07, the incident's own revision): all 8 in order, values matching the independent checklist, honest ambiguity",
   "formatting": "PASS \u2014 new presentation, SAME attempt id (no new retrieval \u2014 correct), prior history preserved; 'no cell references' only partially honored (refs remain)",
   "re_search": "PASS \u2014 NEW attempt id (attempt-6bfc8b85 != attempt-ea8eac5b), clean output, no canvas mutation",
-  "disposable_draft_edit": "PARTIAL \u2014 BLOCKED AT AN HONEST BOUNDARY + A CLIENT DEFECT: (1) the edit turn REACHED the planner through the fixed routing (yield logged) and the planner AUTHORIZED an op (wants_edit=True ops=1), then the task-lifecycle scope guard refused the write with a truthful 'source-backed product list does not match the requested scope' \u2014 the session's durable eight-machine task vs a widgets canvas (three phrasings tried, incl. user-confirmed-price and complete-two-row forms); (2) after the backend restart, the canvas panel silently stopped delivering sends (zero POST /api/chat/message post-restart) \u2014 the final 8-row dev edit could not be submitted. RECORDED DEFECTS: (a) panel sends wedge after a backend restart until a full client reset; (b) the scope guard has no path for editing a DIFFERENT canvas in a session with an active task.",
+  "disposable_draft_edit": {
+   "final": "PASS \u2014 landed 2026-09-29 14:07 on disposable-3 (3ea4012a\u2026, the quote clone matching the session's task scope)",
+   "outcome": "8-row table applied, all prices durable in the user's original order, footer/greeting/recipient/subject preserved, audit exactly +1, terminal 'Background update applied\u2026' truthful; reload renders the draft",
+   "earlier_refusals": "single-row and widgets-canvas phrasings were refused by the task-scope guard (honest; the session's durable task set the scope)",
+   "root_cause_of_the_earlier_'wedge'": "CORRECTED: not a state wedge \u2014 the floating ATOM Assistant launcher overlays the canvas panel's Send button at some viewport sizes, and Enter does not submit in that composer; a programmatic click on the button submits normally. UI z-order/keyboard-submit defect, not message loss.",
+   "config_note": "dev stack is UNPINNED: this edit was planned by glm-5.3-flash (declines are known on unpinned for the quote canvas; this widgets edit was authorized and applied)"
+  },
   "email_sent": false
  },
  "incidents": {
-  "backend_death": "pid 4207 vanished mid-planner-call with NO traceback or jetsam evidence; cause UNDETERMINED; restarted per procedure (pid 12881) with a fresh snapshot; durable state intact"
+  "backend_death": "pid 4207 vanished mid-planner-call, cause undetermined (no traceback/jetsam); restarted per procedure; NOTE the 'panel wedge' first seen then was this overlay defect, not restart state"
  },
  "disposables_left_for_user": [
   "e6b6f252-2e63-4c7f-9422-e2950f23406a (widgets)",
