@@ -7,12 +7,19 @@ import { ChatMessage, ChatMessageData } from "../GlobalChat/ChatMessage";
 import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 
+interface BackgroundRunState {
+    continuationId?: string;
+    executionId?: string;
+    since: number;
+}
+
 interface MessageListProps {
     messages: ChatMessageData[];
     currentStreamId: string | null;
     streamingContent: Map<string, string>;
     isProcessing: boolean;
     statusMessage: string;
+    backgroundRun?: BackgroundRunState | null;
     messagesEndRef: React.RefObject<HTMLDivElement>;
     handleActionClick: (action: any) => void;
     handleFeedback: (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => Promise<void>;
@@ -21,12 +28,45 @@ interface MessageListProps {
     handleOpenInCanvas?: (message: ChatMessageData) => void;
 }
 
+
+// BACKGROUND-RUN INDICATOR (2026-09-29): bound to a forked background
+// run (e.g. a canvas edit that replied "still running"). Spins while
+// fresh; after the stale window it stops animating and states the
+// honest expectation (a notification will arrive) — never an eternal
+// spinner, never a fake completion. Cleared by the terminal
+// `chat_continuation` WS event.
+const BACKGROUND_RUN_STALE_MS = 180000;
+
+const BackgroundRunChip: React.FC<{ run: BackgroundRunState }> = ({ run }) => {
+    const [now, setNow] = React.useState(Date.now());
+    React.useEffect(() => {
+        const t = setInterval(() => setNow(Date.now()), 15000);
+        return () => clearInterval(t);
+    }, []);
+    const stale = now - run.since > BACKGROUND_RUN_STALE_MS;
+    return (
+        <div
+            className="flex items-center gap-2 text-xs text-muted-foreground ml-2 animate-in fade-in slide-in-from-bottom-2"
+            data-testid="background-run-indicator"
+            aria-live="polite"
+        >
+            {!stale && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+            <span>
+                {stale
+                    ? "Still running in the background — you'll get a notification when it finishes."
+                    : "Working in the background — this can take a couple of minutes…"}
+            </span>
+        </div>
+    );
+};
+
 export const MessageList: React.FC<MessageListProps> = ({
     messages,
     currentStreamId,
     streamingContent,
     isProcessing,
     statusMessage,
+    backgroundRun,
     messagesEndRef,
     handleActionClick,
     handleFeedback,
@@ -76,6 +116,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                         <span>{statusMessage}</span>
                     </div>
                 )}
+                {backgroundRun && <BackgroundRunChip run={backgroundRun} />}
                 <div ref={messagesEndRef} />
             </div>
         </ScrollArea>

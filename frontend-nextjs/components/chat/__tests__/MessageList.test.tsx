@@ -347,3 +347,41 @@ describe('MessageList', () => {
     expect(container.textContent).toContain('Test');
   });
 });
+
+describe('background-run indicator', () => {
+    const base = {
+        currentStreamId: null,
+        streamingContent: new Map(),
+        isProcessing: false,
+        statusMessage: '',
+        messagesEndRef: { current: null },
+        handleActionClick: jest.fn(),
+        handleFeedback: jest.fn(),
+    } as any;
+
+    it('shows a spinning pending chip for a fresh background run', () => {
+        renderWithProviders(
+            <MessageList
+                {...base}
+                messages={[]}
+                backgroundRun={{ continuationId: 'c1', since: Date.now() - 5000 }}
+            />,
+        );
+        const chip = screen.getByTestId('background-run-indicator');
+        expect(chip.textContent).toContain('Working in the background');
+    });
+
+    it('switches to honest still-running wording after the stale window', () => {
+        jest.useFakeTimers().setSystemTime(Date.now());
+        renderWithProviders(
+            <MessageList
+                {...base}
+                messages={[]}
+                backgroundRun={{ continuationId: 'c1', since: Date.now() - 200000 }}
+            />,
+        );
+        const chip = screen.getByTestId('background-run-indicator');
+        expect(chip.textContent).toContain('Still running in the background');
+        jest.useRealTimers();
+    });
+});

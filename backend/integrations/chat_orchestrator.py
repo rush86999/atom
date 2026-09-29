@@ -3679,6 +3679,10 @@ class ChatOrchestrator:
     ) -> None:
         if continuation_id:
             shared_tool["async_continuation_forked"] = True
+            # BACKGROUND-RUN UI (2026-09-29): the reply payload carries the
+            # id so the frontend can bind a pending indicator to THIS run
+            # and resolve it on the terminal chat_continuation event.
+            shared_tool["async_continuation_id"] = continuation_id
             return
         try:
             from core.async_turn_continuation import continuation_in_flight
@@ -3689,6 +3693,7 @@ class ChatOrchestrator:
         if existing_id:
             shared_tool["async_continuation_forked"] = True
             shared_tool["async_continuation_existing"] = True
+            shared_tool["async_continuation_id"] = existing_id
             return
         shared_tool["canvas_edit_no_apply"] = True
         shared_tool["canvas_edit_no_apply_reason"] = "background_fork_unavailable"
@@ -7057,6 +7062,10 @@ class ChatOrchestrator:
                         "no_apply": True,
                         "reason": _no_apply_reason,
                         "background_started": _background_started,
+                        # BACKGROUND-RUN UI: the id the pending indicator
+                        # binds to (None when no fork actually started).
+                        "continuation_id": (
+                            _shared_tool.get("async_continuation_id")),
                         # D3: a refusal that mutates lifecycle state must still
                         # be attributable. This turn reserved an operation and
                         # released it, and the only way to bind that to a turn is
