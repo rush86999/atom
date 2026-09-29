@@ -660,3 +660,92 @@ class TestAnaphoricFileReference:
             ):
                 await orch.process_chat_message("u1", msg, "s-anaphoric",
                                                 context={})
+
+
+class TestAnaphoricPinReachesTheReader:
+    """The row-338 chain has TWO seams: the orchestrator must resolve
+    "the workbook" (covered above), and the reader must accept the
+    resolved pin when the ask text itself names no file."""
+
+    @pytest.mark.asyncio
+    async def test_named_file_block_resolves_through_the_pinned_mention(
+            self):
+        from core.chat_tool_planner import _datasets_named_file_block
+
+        catalog_entries = [
+            {"source": "catalog", "external_id": "wb-2019",
+             "file_name": "Consolidated Price List 2019.xlsx"},
+            {"source": "catalog", "external_id": "sept-2026",
+             "file_name": "All Prices For All Parts INDUSTRIAL "
+                          "Sept 2026.xlsx"},
+        ]
+
+        def fake_probe(entries, token, max_rows):
+            if entries and entries[0].get("external_id") == "wb-2019":
+                return {"file_name": entries[0]["file_name"],
+                        "entity_name": "Tennsmith",
+                        "columns": ["MODEL NO.", "PRICE"],
+                        "rows": [{"__row__": 338, "MODEL NO.": "381",
+                                  "PRICE": 3254}],
+                        "row_count": 1}
+            return None
+
+        with (
+            patch("core.sheet_dataset_service.sheet_datasets_enabled",
+                  return_value=True),
+            patch("core.sheet_dataset_service.find_entries_sync",
+                  return_value=list(catalog_entries)),
+            patch("core.sheet_dataset_service._probe_cached",
+                  side_effect=fake_probe),
+            patch("core.sheet_dataset_service.candidate_probe_tokens",
+                  return_value=["167072381", "381", "3254"]),
+        ):
+            # The ask text names NO file; the pin scopes the read.
+            block = await _datasets_named_file_block(
+                "u1", ROW338_MSG,
+                {"workspace_id": "ws",
+                 "named_file_mention": "consolidated price list 2019.xlsx"},
+            )
+        assert block, "the pinned mention must scope the read"
+        assert "Consolidated Price List 2019.xlsx" in block
+        assert "Sept 2026" not in block
+
+    @pytest.mark.asyncio
+    async def test_no_pin_and_no_name_stays_none(self):
+        from core.chat_tool_planner import _datasets_named_file_block
+
+        with (
+            patch("core.sheet_dataset_service.sheet_datasets_enabled",
+                  return_value=True),
+            patch("core.sheet_dataset_service.find_entries_sync",
+                  return_value=[]),
+        ):
+            block = await _datasets_named_file_block(
+                "u1", ROW338_MSG, {"workspace_id": "ws"})
+        assert block is None, (
+            "without a text name or a resolved pin there is nothing to "
+            "scope the read to")
+
+    @pytest.mark.asyncio
+    async def test_direct_read_threads_the_resolved_pin(self):
+        captured = {}
+
+        async def fake_block(user_id, query, context, plan=None):
+            captured.update(context or {})
+            return "BLOCK"
+
+        orch = _orch()
+        task = {
+            "mention": "consolidated price list 2019.xlsx",
+            "original_message": ROW338_MSG,
+            "resolved_file": dict(RESOLVED_IDENTITY),
+        }
+        with patch("core.chat_tool_planner._datasets_named_file_block",
+                   side_effect=fake_block):
+            result = await orch._direct_confirmed_file_read(
+                task, [], "u1", "s1", "ws")
+        assert result["ok"] is True
+        assert captured.get("named_file_mention") == (
+            "Consolidated Price List 2019.xlsx"), (
+            "the resolved identity's name, not just the loose mention, "
+            "scopes the reader")

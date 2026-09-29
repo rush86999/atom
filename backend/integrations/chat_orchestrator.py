@@ -7776,6 +7776,15 @@ class ChatOrchestrator:
                         "revised_targets": (
                             (pending_task.get("objective_edit") or {}).get(
                                 "items") or []),
+                        # ANAPHORIC RESOLUTION (2026-09-29 row-338): the
+                        # ask text may name the file only generically
+                        # ("the workbook"); the resolved identity —
+                        # resource pin name first, stored mention second
+                        # — scopes the read to THIS conversation's file.
+                        "named_file_mention": (
+                            ((pending_task.get("resolved_file") or {}).get(
+                                "file_name"))
+                            or mention),
                         "execution_id": execution_id,
                         "session_id": session_id,
                         "request_id": request_id,

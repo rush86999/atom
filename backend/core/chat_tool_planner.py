@@ -5938,6 +5938,18 @@ async def _datasets_named_file_block(
     lookup_text = " ".join(value for value in (query, msg_text) if value)
     mentions = detect_file_mentions(lookup_text)
     if not mentions:
+        # ANAPHORIC RESOLUTION (2026-09-29 row-338 incident): "find this
+        # in the workbook" names no extension-ful filename. When the
+        # caller already RESOLVED the file in this conversation (the
+        # task's resource pin), that identity scopes the read — the same
+        # executable-context rule the resume lane runs on. Without it
+        # the named-file path returns None and a same-workbook targeted
+        # ask falls to mail/integration search that cannot match cells.
+        pinned = str((context or {}).get("named_file_mention")
+                     or "").strip()
+        if pinned:
+            mentions = [pinned]
+    if not mentions:
         return None
     ws = (context or {}).get("workspace_id")
     entries = await asyncio.to_thread(
