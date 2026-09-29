@@ -1,0 +1,33 @@
+{
+ "result_kind": "NORMAL-APP VERIFICATION (dev stack :3000/:8001 \u2014 separate from preview acceptance)",
+ "date": "2026-09-29",
+ "rollout": {
+  "enabled": {
+   "CHAT_FINALIZATION_M1": "1",
+   "CHAT_FINALIZATION_M2": "1",
+   "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+   "CHAT_FINALIZATION_M3": "deliberately NOT set (explicit-rollout-only)"
+  },
+  "code": "working tree @ c647b0ca1 (routing fix d84a42552 live)",
+  "procedure": "backend/.env lines + scripts/restart_backend.sh (DB snapshot atom-pre-restart-20260929-092519.db.gz, copied to external drive)",
+  "rollback": "remove the three flag lines from backend/.env, re-run scripts/restart_backend.sh (recorded in .env comment)"
+ },
+ "effective_flags_proof": "serving-process durable artifacts of ==\"1\"-gated paths: 3 agent_executions with execution_outcome_v1 (lifecycle), 3 messages with M1/M2 execution-bound metadata, 3 chat_request_records (keyed transport) \u2014 after live turns",
+ "flows": {
+  "ordinary_chat": "PASS \u2014 clean one-sentence answer",
+  "workbook_search": "PASS \u2014 the eight-item ask against the REAL dev workbook (saved copy 2026-09-07, the incident's own revision): all 8 in order, values matching the independent checklist, honest ambiguity",
+  "formatting": "PASS \u2014 new presentation, SAME attempt id (no new retrieval \u2014 correct), prior history preserved; 'no cell references' only partially honored (refs remain)",
+  "re_search": "PASS \u2014 NEW attempt id (attempt-6bfc8b85 != attempt-ea8eac5b), clean output, no canvas mutation",
+  "disposable_draft_edit": "PARTIAL \u2014 BLOCKED AT AN HONEST BOUNDARY + A CLIENT DEFECT: (1) the edit turn REACHED the planner through the fixed routing (yield logged) and the planner AUTHORIZED an op (wants_edit=True ops=1), then the task-lifecycle scope guard refused the write with a truthful 'source-backed product list does not match the requested scope' \u2014 the session's durable eight-machine task vs a widgets canvas (three phrasings tried, incl. user-confirmed-price and complete-two-row forms); (2) after the backend restart, the canvas panel silently stopped delivering sends (zero POST /api/chat/message post-restart) \u2014 the final 8-row dev edit could not be submitted. RECORDED DEFECTS: (a) panel sends wedge after a backend restart until a full client reset; (b) the scope guard has no path for editing a DIFFERENT canvas in a session with an active task.",
+  "email_sent": false
+ },
+ "incidents": {
+  "backend_death": "pid 4207 vanished mid-planner-call with NO traceback or jetsam evidence; cause UNDETERMINED; restarted per procedure (pid 12881) with a fresh snapshot; durable state intact"
+ },
+ "disposables_left_for_user": [
+  "e6b6f252-2e63-4c7f-9422-e2950f23406a (widgets)",
+  "9c8b2c58-2c0a-4032-8d7c-f0ce866e5921 (widgets-2)",
+  "3ea4012a-fff2-4044-a318-095e5ae25595 (quote clone) \u2014 all titled DISPOSABLE, safe to delete"
+ ],
+ "original_canvas_0e4defa5": "untouched throughout"
+}

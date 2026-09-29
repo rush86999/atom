@@ -1,0 +1,1180 @@
+{
+ "source": {
+  "world": "cand_79b2a4103_preview",
+  "run_db": "runs/run-098f9b3f86fd/data/atom.db",
+  "workbook": "Consolidated Price List 2019.xlsx",
+  "content_hash_prefix": "ff2597d26fc6",
+  "ingested_at": "2026-09-07T23:06:19",
+  "sheet_parquet_sha256": {
+   "roperwhitney": "a37d70827ddd6517d93b69eeec4c7162e34d514d44fb6f747081f197b3cfef56",
+   "linmac": "159e44b3e1491b1b076f96c8c8d39d60b11c47f38b0eb56332284e1d135c5826",
+   "tennsmith": "b74146b4dedfc0362eacc7d5690a5574492b0e68fc9800fd980e90ec521f01a3",
+   "tinknocker": "c15aea6bcbd7c95089a2f9b04e8f221e6750d631b877a5df50c7455cc9c3e3e7"
+  },
+  "method": "direct parquet read; independent of the application's answer path"
+ },
+ "items": [
+  {
+   "requested_label": "No. 381",
+   "status": "RESOLVED_ONE_PRODUCT_TWO_LISTINGS",
+   "candidates": [
+    {
+     "sheet": "roperwhitney",
+     "identity_row": 88,
+     "values": {
+      "A88": {
+       "column": "MODEL NO.",
+       "value": "381"
+      },
+      "B88": {
+       "column": "CAT. NO.",
+       "value": "167 072 381"
+      },
+      "D88": {
+       "column": "DESCRIPTION",
+       "value": "ROLL BENDING MACH, MANUALLY OPERATED"
+      },
+      "G88": {
+       "column": "DEALER CODE",
+       "value": "I"
+      },
+      "H88": {
+       "column": "CAPACITY (TONS)",
+       "value": "22"
+      },
+      "I88": {
+       "column": "THROAT DEPTH",
+       "value": "36\""
+      },
+      "J88": {
+       "column": "WEIGHT (LBS)",
+       "value": "245"
+      },
+      "L88": {
+       "column": "ITEM",
+       "value": "167 072 381"
+      },
+      "N88": {
+       "column": "MULT. #",
+       "value": "#4"
+      },
+      "O88": {
+       "column": "WEIGHT",
+       "value": 245
+      },
+      "P88": {
+       "column": "U.S. COST",
+       "value": 0
+      },
+      "Q88": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 0
+      },
+      "R88": {
+       "column": "CANADIAN COST INCL. MISC",
+       "value": 0
+      },
+      "T88": {
+       "column": "WEIGHT_2",
+       "value": 245
+      },
+      "U88": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 166.60000000000002
+      },
+      "X88": {
+       "column": "FULL COST CDN",
+       "value": 166.60000000000002
+      },
+      "Y88": {
+       "column": "CDN NET MULT",
+       "value": 31
+      },
+      "Z88": {
+       "column": "c26",
+       "value": 1.1364
+      },
+      "AA88": {
+       "column": "CDN NET",
+       "value": 189.32424000000003
+      },
+      "AB88": {
+       "column": "CDN LIST MULT",
+       "value": 35
+      },
+      "AC88": {
+       "column": "c29",
+       "value": 1.25
+      },
+      "AD88": {
+       "column": "CDN LIST",
+       "value": 236.65530000000004
+      },
+      "AE88": {
+       "column": "Percent Difference",
+       "value": "#DIV/0!"
+      }
+     }
+    },
+    {
+     "sheet": "tennsmith",
+     "identity_row": 338,
+     "values": {
+      "A338": {
+       "column": "MODEL NO.",
+       "value": "381"
+      },
+      "B338": {
+       "column": "CAT. NO.",
+       "value": "167072381"
+      },
+      "D338": {
+       "column": "DESCRIPTION",
+       "value": "Roll Bending Machine,"
+      },
+      "E338": {
+       "column": "PRICE",
+       "value": "3254"
+      },
+      "G338": {
+       "column": "DEALER CODE",
+       "value": "Q"
+      },
+      "H338": {
+       "column": "CAPACITY (TONS)",
+       "value": "22"
+      },
+      "I338": {
+       "column": "THROAT DEPTH",
+       "value": "36"
+      },
+      "J338": {
+       "column": "WEIGHT (LBS)",
+       "value": 275
+      },
+      "L338": {
+       "column": "ITEM",
+       "value": "167072381"
+      },
+      "M338": {
+       "column": "U.S. LIST",
+       "value": 1845
+      },
+      "O338": {
+       "column": "U.S. COST",
+       "value": 1476
+      },
+      "P338": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 2110.68
+      },
+      "Q338": {
+       "column": "CDN INCL. MISC",
+       "value": 2152.8936
+      },
+      "S338": {
+       "column": "WEIGHT",
+       "value": 275
+      },
+      "T338": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 137.5
+      },
+      "W338": {
+       "column": "FULL COST CDN",
+       "value": 2290.3936
+      },
+      "X338": {
+       "column": "c24",
+       "value": 1.1364
+      },
+      "Y338": {
+       "column": "CDN NET",
+       "value": 2602.80328704
+      },
+      "Z338": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA338": {
+       "column": "CDN LIST",
+       "value": 3253.5041088000003
+      },
+      "AB338": {
+       "column": "% Difference",
+       "value": "1.7634168611382115"
+      }
+     }
+    }
+   ],
+   "notes": "Same product cross-listed: identical CAT. NO. 167 072 381. RoperWhitney listing has BLANK PRICE and U.S. LIST; Tennsmith listing PRICE=3254. Quote basis candidates: PRICE (Tennsmith) only usable. Historical canvas value $2,902.00 matches no column on either row of this revision."
+  },
+  {
+   "requested_label": "U-22",
+   "status": "RESOLVED",
+   "candidates": [
+    {
+     "sheet": "linmac",
+     "identity_row": 26,
+     "values": {
+      "A26": {
+       "column": "Part Number",
+       "value": "U-22"
+      },
+      "B26": {
+       "column": "Description",
+       "value": "722 Rotary Machine - Manual Operation W/7 Roll Sets"
+      },
+      "C26": {
+       "column": "List Price",
+       "value": 1777
+      },
+      "E26": {
+       "column": "US NET",
+       "value": 680
+      },
+      "F26": {
+       "column": "Exch",
+       "value": 972.4
+      },
+      "H26": {
+       "column": "Freight",
+       "value": 135
+      },
+      "I26": {
+       "column": "Landed",
+       "value": 1107.4
+      },
+      "J26": {
+       "column": "Warehouse",
+       "value": 1165.6842105263158
+      },
+      "K26": {
+       "column": "Brenn",
+       "value": 1421.5661103979462
+      },
+      "L26": {
+       "column": "Dealer",
+       "value": 1776.9576379974326
+      },
+      "M26": {
+       "column": "List Price_2",
+       "value": 1777
+      },
+      "N26": {
+       "column": "Profit",
+       "value": 669.5999999999999
+      }
+     }
+    }
+   ],
+   "notes": "List Price C26=1777; List Price_2 M26=1777 (same value, second basis column)."
+  },
+  {
+   "requested_label": "No. 622",
+   "status": "RESOLVED_WITH_VARIANT_NOTE",
+   "candidates": [
+    {
+     "sheet": "roperwhitney",
+     "identity_row": 268,
+     "values": {
+      "A268": {
+       "column": "MODEL NO.",
+       "value": "622"
+      },
+      "B268": {
+       "column": "CAT. NO.",
+       "value": "164 990 010"
+      },
+      "D268": {
+       "column": "DESCRIPTION",
+       "value": "COMBINATION ROTARY MACHINE"
+      },
+      "E268": {
+       "column": "PRICE",
+       "value": "2421"
+      },
+      "G268": {
+       "column": "DEALER CODE",
+       "value": "I"
+      },
+      "H268": {
+       "column": "CAPACITY (TONS)",
+       "value": "22"
+      },
+      "I268": {
+       "column": "THROAT DEPTH",
+       "value": "7"
+      },
+      "J268": {
+       "column": "WEIGHT (LBS)",
+       "value": "50"
+      },
+      "L268": {
+       "column": "ITEM",
+       "value": "164 990 010"
+      },
+      "M268": {
+       "column": "U.S. LIST",
+       "value": "1350"
+      },
+      "N268": {
+       "column": "MULT. #",
+       "value": "#1"
+      },
+      "O268": {
+       "column": "WEIGHT",
+       "value": 50
+      },
+      "P268": {
+       "column": "U.S. COST",
+       "value": 1012.5
+      },
+      "Q268": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 1447.875
+      },
+      "R268": {
+       "column": "CANADIAN COST INCL. MISC",
+       "value": 1447.875
+      },
+      "T268": {
+       "column": "WEIGHT_2",
+       "value": 50
+      },
+      "U268": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 101.35125
+      },
+      "X268": {
+       "column": "FULL COST CDN",
+       "value": 1549.22625
+      },
+      "Y268": {
+       "column": "CDN NET MULT",
+       "value": 32
+      },
+      "Z268": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA268": {
+       "column": "CDN NET",
+       "value": 1936.5328125
+      },
+      "AB268": {
+       "column": "CDN LIST MULT",
+       "value": 35
+      },
+      "AC268": {
+       "column": "c29",
+       "value": 1.25
+      },
+      "AD268": {
+       "column": "CDN LIST",
+       "value": 2420.666015625
+      },
+      "AE268": {
+       "column": "Percent Difference",
+       "value": "1.7930859374999999"
+      }
+     }
+    },
+    {
+     "sheet": "roperwhitney",
+     "identity_row": 263,
+     "values": {
+      "A263": {
+       "column": "MODEL NO.",
+       "value": "622LR"
+      },
+      "B263": {
+       "column": "CAT. NO.",
+       "value": "164 006 220"
+      },
+      "D263": {
+       "column": "DESCRIPTION",
+       "value": "COMBINATION ROTARY MACHINE"
+      },
+      "E263": {
+       "column": "PRICE",
+       "value": "2583"
+      },
+      "G263": {
+       "column": "DEALER CODE",
+       "value": "I"
+      },
+      "H263": {
+       "column": "CAPACITY (TONS)",
+       "value": "22"
+      },
+      "I263": {
+       "column": "THROAT DEPTH",
+       "value": "7"
+      },
+      "J263": {
+       "column": "WEIGHT (LBS)",
+       "value": "45"
+      },
+      "L263": {
+       "column": "ITEM",
+       "value": "164 006 220"
+      },
+      "M263": {
+       "column": "U.S. LIST",
+       "value": "1350"
+      },
+      "N263": {
+       "column": "MULT. #",
+       "value": "#4"
+      },
+      "O263": {
+       "column": "WEIGHT",
+       "value": 45
+      },
+      "P263": {
+       "column": "U.S. COST",
+       "value": 1080
+      },
+      "Q263": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 1544.4
+      },
+      "R263": {
+       "column": "CANADIAN COST INCL. MISC",
+       "value": 1544.4
+      },
+      "T263": {
+       "column": "WEIGHT_2",
+       "value": 45
+      },
+      "U263": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 108.108
+      },
+      "X263": {
+       "column": "FULL COST CDN",
+       "value": 1652.5079999999998
+      },
+      "Y263": {
+       "column": "CDN NET MULT",
+       "value": 32
+      },
+      "Z263": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA263": {
+       "column": "CDN NET",
+       "value": 2065.635
+      },
+      "AB263": {
+       "column": "CDN LIST MULT",
+       "value": 35
+      },
+      "AC263": {
+       "column": "c29",
+       "value": 1.25
+      },
+      "AD263": {
+       "column": "CDN LIST",
+       "value": 2582.04375
+      },
+      "AE263": {
+       "column": "Percent Difference",
+       "value": "1.9126249999999998"
+      }
+     }
+    },
+    {
+     "sheet": "roperwhitney",
+     "identity_row": 265,
+     "values": {
+      "A265": {
+       "column": "MODEL NO.",
+       "value": "ROLL PKG"
+      },
+      "B265": {
+       "column": "CAT. NO.",
+       "value": "264 900 622"
+      },
+      "D265": {
+       "column": "DESCRIPTION",
+       "value": "622 A,C,D,E,F ROLLS W/TURNING GAUGE"
+      },
+      "E265": {
+       "column": "PRICE",
+       "value": "670"
+      },
+      "G265": {
+       "column": "DEALER CODE",
+       "value": "L"
+      },
+      "J265": {
+       "column": "WEIGHT (LBS)",
+       "value": "5"
+      },
+      "L265": {
+       "column": "ITEM",
+       "value": "264 900 622"
+      },
+      "M265": {
+       "column": "U.S. LIST",
+       "value": "350"
+      },
+      "N265": {
+       "column": "MULT. #",
+       "value": "#4"
+      },
+      "O265": {
+       "column": "WEIGHT",
+       "value": 5
+      },
+      "P265": {
+       "column": "U.S. COST",
+       "value": 280
+      },
+      "Q265": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 400.4
+      },
+      "R265": {
+       "column": "CANADIAN COST INCL. MISC",
+       "value": 400.4
+      },
+      "T265": {
+       "column": "WEIGHT_2",
+       "value": 5
+      },
+      "U265": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 28.028
+      },
+      "X265": {
+       "column": "FULL COST CDN",
+       "value": 428.428
+      },
+      "Y265": {
+       "column": "CDN NET MULT",
+       "value": 32
+      },
+      "Z265": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA265": {
+       "column": "CDN NET",
+       "value": 535.535
+      },
+      "AB265": {
+       "column": "CDN LIST MULT",
+       "value": 35
+      },
+      "AC265": {
+       "column": "c29",
+       "value": 1.25
+      },
+      "AD265": {
+       "column": "CDN LIST",
+       "value": 669.4187499999999
+      },
+      "AE265": {
+       "column": "Percent Difference",
+       "value": "1.9126249999999998"
+      }
+     }
+    },
+    {
+     "sheet": "roperwhitney",
+     "identity_row": 266,
+     "values": {
+      "A266": {
+       "column": "MODEL NO.",
+       "value": "622"
+      },
+      "B266": {
+       "column": "CAT. NO.",
+       "value": "164 006 221"
+      },
+      "D266": {
+       "column": "DESCRIPTION",
+       "value": "NO LONGER SOLD AS A PKG"
+      },
+      "E266": {
+       "column": "PRICE",
+       "value": "0"
+      },
+      "G266": {
+       "column": "DEALER CODE",
+       "value": "I"
+      },
+      "H266": {
+       "column": "CAPACITY (TONS)",
+       "value": "22"
+      },
+      "I266": {
+       "column": "THROAT DEPTH",
+       "value": "7"
+      },
+      "J266": {
+       "column": "WEIGHT (LBS)",
+       "value": "50"
+      },
+      "L266": {
+       "column": "ITEM",
+       "value": "164 006 221"
+      },
+      "N266": {
+       "column": "MULT. #",
+       "value": "#1"
+      },
+      "O266": {
+       "column": "WEIGHT",
+       "value": 50
+      },
+      "P266": {
+       "column": "U.S. COST",
+       "value": 0
+      },
+      "Q266": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 0
+      },
+      "R266": {
+       "column": "CANADIAN COST INCL. MISC",
+       "value": 0
+      },
+      "T266": {
+       "column": "WEIGHT_2",
+       "value": 50
+      },
+      "U266": {
+       "column": "FREIGHT BY WEIGHT",
+       "value": 0
+      },
+      "X266": {
+       "column": "FULL COST CDN",
+       "value": 0
+      },
+      "Y266": {
+       "column": "CDN NET MULT",
+       "value": 32
+      },
+      "Z266": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA266": {
+       "column": "CDN NET",
+       "value": 0
+      },
+      "AB266": {
+       "column": "CDN LIST MULT",
+       "value": 35
+      },
+      "AC266": {
+       "column": "c29",
+       "value": 1.25
+      },
+      "AD266": {
+       "column": "CDN LIST",
+       "value": 0
+      },
+      "AE266": {
+       "column": "Percent Difference",
+       "value": "#DIV/0!"
+      }
+     }
+    }
+   ],
+   "notes": "The MACHINE is A268 '622' COMBINATION ROTARY MACHINE: PRICE=2421, U.S. LIST=1350. 622LR variant A263: PRICE=2583. A265 'ROLL PKG' (CAT 264 900 622, PRICE=670) is the roll ACCESSORY package \u2014 the historical incident answer surfaced this row as its primary 622 candidate. A266 '622' is discontinued (PRICE=0). Which variant the customer receives is a business choice."
+  },
+  {
+   "requested_label": "TK Manual Flanger",
+   "status": "RESOLVED",
+   "candidates": [
+    {
+     "sheet": "tinknocker",
+     "identity_row": 42,
+     "values": {
+      "A42": {
+       "column": "c1",
+       "value": "TK Manual Flanger"
+      },
+      "C42": {
+       "column": "Capacity",
+       "value": "20 ga x 7/32\""
+      },
+      "D42": {
+       "column": "Price",
+       "value": 1609
+      },
+      "E42": {
+       "column": "Weight (lbs)",
+       "value": "35"
+      },
+      "H42": {
+       "column": "Factory Price",
+       "value": 950
+      },
+      "I42": {
+       "column": "Factory Discount",
+       "value": 712.5
+      },
+      "J42": {
+       "column": "Freight",
+       "value": 812.5
+      },
+      "K42": {
+       "column": "Exchange",
+       "value": 1161.875
+      },
+      "L42": {
+       "column": "CSA",
+       "value": 1161.875
+      },
+      "M42": {
+       "column": "Brennan margin",
+       "value": 1366.9117647058824
+      },
+      "N42": {
+       "column": "Dealer Margin",
+       "value": 1608.1314878892736
+      },
+      "O42": {
+       "column": "Dealer Factor",
+       "value": 1.692769987251867
+      },
+      "P42": {
+       "column": "Brennan Factor",
+       "value": 1.4388544891640869
+      },
+      "U42": {
+       "column": "Dealer Margin_2",
+       "value": 0.2775
+      }
+     }
+    }
+   ],
+   "notes": "Price D42=1609; Factory Price H42=950 (internal \u2014 keep out of customer prose)."
+  },
+  {
+   "requested_label": "SLE24-16",
+   "status": "RESOLVED",
+   "candidates": [
+    {
+     "sheet": "tennsmith",
+     "identity_row": 101,
+     "values": {
+      "A101": {
+       "column": "MODEL NO.",
+       "value": "SLE24-16"
+      },
+      "B101": {
+       "column": "CAT. NO.",
+       "value": "82110"
+      },
+      "D101": {
+       "column": "DESCRIPTION",
+       "value": "Single Wheel Slitter"
+      },
+      "E101": {
+       "column": "PRICE",
+       "value": "8880"
+      },
+      "G101": {
+       "column": "DEALER CODE",
+       "value": "U"
+      },
+      "H101": {
+       "column": "CAPACITY (TONS)",
+       "value": "16"
+      },
+      "I101": {
+       "column": "THROAT DEPTH",
+       "value": "24"
+      },
+      "J101": {
+       "column": "WEIGHT (LBS)",
+       "value": 350
+      },
+      "M101": {
+       "column": "U.S. LIST",
+       "value": 4500
+      },
+      "N101": {
+       "column": "DISCOUNT",
+       "value": "0.8"
+      },
+      "O101": {
+       "column": "U.S. COST",
+       "value": 3600
+      },
+      "P101": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 5148
+      },
+      "Q101": {
+       "column": "CDN INCL. MISC",
+       "value": 5250.96
+      },
+      "R101": {
+       "column": "QPS",
+       "value": 650
+      },
+      "V101": {
+       "column": "FLAT FREIGHT RATE",
+       "value": 350
+      },
+      "W101": {
+       "column": "FULL COST CDN",
+       "value": 6250.96
+      },
+      "X101": {
+       "column": "c24",
+       "value": 1.1364
+      },
+      "Y101": {
+       "column": "CDN NET",
+       "value": 7103.5909440000005
+      },
+      "Z101": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA101": {
+       "column": "CDN LIST",
+       "value": 8879.48868
+      },
+      "AB101": {
+       "column": "% Difference",
+       "value": "1.9732197066666668"
+      }
+     }
+    }
+   ],
+   "notes": "PRICE E101=8880."
+  },
+  {
+   "requested_label": "TK 1624",
+   "status": "RESOLVED_PREFIX_MATCH",
+   "candidates": [
+    {
+     "sheet": "tinknocker",
+     "identity_row": 101,
+     "values": {
+      "A101": {
+       "column": "c1",
+       "value": "TK 1624 Slitter"
+      },
+      "C101": {
+       "column": "Capacity",
+       "value": "16 ga"
+      },
+      "D101": {
+       "column": "Price",
+       "value": 8040
+      },
+      "E101": {
+       "column": "Weight (lbs)",
+       "value": "550"
+      },
+      "H101": {
+       "column": "Factory Price",
+       "value": 3950
+      },
+      "I101": {
+       "column": "Factory Discount",
+       "value": 2962.5
+      },
+      "J101": {
+       "column": "Freight",
+       "value": 3712.5
+      },
+      "K101": {
+       "column": "Exchange",
+       "value": 5308.875
+      },
+      "L101": {
+       "column": "CSA",
+       "value": 5808.875
+      },
+      "M101": {
+       "column": "Brennan margin",
+       "value": 6833.9705882352955
+      },
+      "N101": {
+       "column": "Dealer Margin",
+       "value": 8039.965397923876
+      },
+      "O101": {
+       "column": "Dealer Factor",
+       "value": 2.035434277955412
+      },
+      "P101": {
+       "column": "Brennan Factor",
+       "value": 1.7301191362620998
+      },
+      "U101": {
+       "column": "Dealer Margin_2",
+       "value": 0.2775
+      }
+     }
+    }
+   ],
+   "notes": "Identity cell is 'TK 1624 Slitter' \u2014 the requested label is a prefix of the cell text. Price D101=8040; Factory Price H101=3950 (internal)."
+  },
+  {
+   "requested_label": "TK Multi Wheel Gang Slitter",
+   "status": "AMBIGUOUS_BUSINESS_MAPPING",
+   "candidates": [
+    {
+     "sheet": "tinknocker",
+     "identity_row": 100,
+     "values": {
+      "A100": {
+       "column": "c1",
+       "value": "TK Gang Slitter"
+      },
+      "D100": {
+       "column": "Price",
+       "value": 12838
+      },
+      "E100": {
+       "column": "Weight (lbs)",
+       "value": "525"
+      },
+      "H100": {
+       "column": "Factory Price",
+       "value": 5450
+      },
+      "I100": {
+       "column": "Factory Discount",
+       "value": 4087.5
+      },
+      "J100": {
+       "column": "Freight",
+       "value": 5087.5
+      },
+      "K100": {
+       "column": "Exchange",
+       "value": 7275.125
+      },
+      "L100": {
+       "column": "CSA",
+       "value": 9275.125
+      },
+      "M100": {
+       "column": "Brennan margin",
+       "value": 10911.911764705885
+      },
+      "N100": {
+       "column": "Dealer Margin",
+       "value": 12837.543252595156
+      },
+      "O100": {
+       "column": "Dealer Factor",
+       "value": 2.355512523411955
+      },
+      "P100": {
+       "column": "Brennan Factor",
+       "value": 2.002185644900162
+      },
+      "U100": {
+       "column": "Dealer Margin_2",
+       "value": 0.2775
+      }
+     }
+    },
+    {
+     "sheet": "tennsmith",
+     "identity_row": 106,
+     "values": {
+      "A106": {
+       "column": "MODEL NO.",
+       "value": "GSL48-16"
+      },
+      "B106": {
+       "column": "CAT. NO.",
+       "value": "82111"
+      },
+      "D106": {
+       "column": "DESCRIPTION",
+       "value": "Gang Slitter (Includes Two Sets of"
+      },
+      "E106": {
+       "column": "PRICE",
+       "value": "14166"
+      },
+      "G106": {
+       "column": "DEALER CODE",
+       "value": "U"
+      },
+      "H106": {
+       "column": "CAPACITY (TONS)",
+       "value": "16"
+      },
+      "I106": {
+       "column": "THROAT DEPTH",
+       "value": "48-1/2"
+      },
+      "J106": {
+       "column": "WEIGHT (LBS)",
+       "value": 545
+      },
+      "M106": {
+       "column": "U.S. LIST",
+       "value": 6575
+      },
+      "N106": {
+       "column": "DISCOUNT",
+       "value": "0.8"
+      },
+      "O106": {
+       "column": "U.S. COST",
+       "value": 5260
+      },
+      "P106": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 7521.799999999998
+      },
+      "Q106": {
+       "column": "CDN INCL. MISC",
+       "value": 7672.235999999999
+      },
+      "R106": {
+       "column": "QPS",
+       "value": 1500
+      },
+      "V106": {
+       "column": "FLAT FREIGHT RATE",
+       "value": 800
+      },
+      "W106": {
+       "column": "FULL COST CDN",
+       "value": 9972.236
+      },
+      "X106": {
+       "column": "c24",
+       "value": 1.1364
+      },
+      "Y106": {
+       "column": "CDN NET",
+       "value": 11332.4489904
+      },
+      "Z106": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA106": {
+       "column": "CDN LIST",
+       "value": 14165.561238
+      },
+      "AB106": {
+       "column": "% Difference",
+       "value": "2.1544579829657797"
+      }
+     }
+    }
+   ],
+   "notes": "Requested name matches no cell exactly. 'TK Gang Slitter' (tinknocker A100, Price=12838) matches brand+type; Tennsmith A106 'GSL48-16' DESCRIPTION also says 'Gang Slitter...' but GSL48-16 is requested separately as item 8. Which machine the customer means is a business choice; treat as pending unless confirmed."
+  },
+  {
+   "requested_label": "GSL48-16",
+   "status": "RESOLVED",
+   "candidates": [
+    {
+     "sheet": "tennsmith",
+     "identity_row": 106,
+     "values": {
+      "A106": {
+       "column": "MODEL NO.",
+       "value": "GSL48-16"
+      },
+      "B106": {
+       "column": "CAT. NO.",
+       "value": "82111"
+      },
+      "D106": {
+       "column": "DESCRIPTION",
+       "value": "Gang Slitter (Includes Two Sets of"
+      },
+      "E106": {
+       "column": "PRICE",
+       "value": "14166"
+      },
+      "G106": {
+       "column": "DEALER CODE",
+       "value": "U"
+      },
+      "H106": {
+       "column": "CAPACITY (TONS)",
+       "value": "16"
+      },
+      "I106": {
+       "column": "THROAT DEPTH",
+       "value": "48-1/2"
+      },
+      "J106": {
+       "column": "WEIGHT (LBS)",
+       "value": 545
+      },
+      "M106": {
+       "column": "U.S. LIST",
+       "value": 6575
+      },
+      "N106": {
+       "column": "DISCOUNT",
+       "value": "0.8"
+      },
+      "O106": {
+       "column": "U.S. COST",
+       "value": 5260
+      },
+      "P106": {
+       "column": "CANADIAN AT FACTORY",
+       "value": 7521.799999999998
+      },
+      "Q106": {
+       "column": "CDN INCL. MISC",
+       "value": 7672.235999999999
+      },
+      "R106": {
+       "column": "QPS",
+       "value": 1500
+      },
+      "V106": {
+       "column": "FLAT FREIGHT RATE",
+       "value": 800
+      },
+      "W106": {
+       "column": "FULL COST CDN",
+       "value": 9972.236
+      },
+      "X106": {
+       "column": "c24",
+       "value": 1.1364
+      },
+      "Y106": {
+       "column": "CDN NET",
+       "value": 11332.4489904
+      },
+      "Z106": {
+       "column": "c26",
+       "value": 1.25
+      },
+      "AA106": {
+       "column": "CDN LIST",
+       "value": 14165.561238
+      },
+      "AB106": {
+       "column": "% Difference",
+       "value": "2.1544579829657797"
+      }
+     }
+    }
+   ],
+   "notes": "PRICE E106=14166."
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+{
+ "result_kind": "PREVIEW ACCEPTANCE (isolated candidate \u2014 separate from normal-app verification)",
+ "date": "2026-09-29",
+ "candidate": {
+  "commit": "d84a42552846",
+  "export": "06aebbb48b39",
+  "world": "wb_email_fix_0929",
+  "run": "run-1fb848be7ca0",
+  "ports": ":8172/:3172",
+  "config": {
+   "ATOM_ASYNC_EDIT_PLAN_MODEL": "deepseek/deepseek-v4-pro",
+   "ATOM_ASYNC_EDIT_PLAN_TIMEOUT": "420",
+   "ATOM_ASYNC_CONTINUATION_BUDGET": "900",
+   "flags": "M1=1 M2=1 lifecycle=1 (M3 off)"
+  }
+ },
+ "O06_final": "PASS \u2014 the original incident's workflow is complete in the isolated app",
+ "evidence": {
+  "routing": "yield-to-canvas-edit-lane logged with an ACTIVE workbook objective (the exact pre-fix hijack precondition); edit turn reached the planner",
+  "edit_landed": "8-row table, user's original order, $2,902 vendor-quote preserved for No. 381, workbook prices for the rest, footer/greeting/recipient/subject preserved, currency caveat note added (one follow-up turn completed a truncated note)",
+  "audit": "2 baseline -> 4 after two intended updates (one per edit turn), no other mutations",
+  "direction_B": "research-only follow-up after the edits: audit stayed 4, no mutation, honest reply",
+  "reload": "fresh tab re-rendered the 8-row draft; history terminal present; screenshot final_draft_reloaded.png",
+  "not_sent": true
+ },
+ "files": [
+  "o06_fix_candidate_result.json",
+  "final_draft_reloaded.png",
+  "fix_candidate_baseline.json"
+ ]
+}

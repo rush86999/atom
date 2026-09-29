@@ -1,0 +1,3997 @@
+{
+  "dataset_dir": "backend/data/acceptance_worlds/cand_79b2a4103_preview/backend_root/data/sheet_datasets/default/ff2597d26fc6",
+  "rows_scanned": 25251,
+  "sheets": [
+    "_20_tooling",
+    "_40_tooling",
+    "ams",
+    "burrking",
+    "cedarberg",
+    "circ_cold_saw",
+    "circ_cold_saw_blades_lub",
+    "dake",
+    "dual_belt_sander",
+    "dumore",
+    "dumoregrindingwheels",
+    "dumoremounted_points",
+    "dumoreparts",
+    "dumorerotary_files",
+    "ercolina",
+    "everett_mach",
+    "exchange_index",
+    "femi",
+    "fmb",
+    "gary",
+    "gmpcpricing",
+    "gmpump",
+    "grinder_notcher",
+    "heck",
+    "kal_ind",
+    "linmac",
+    "lock_pricing",
+    "mult_scotch_tooling",
+    "national",
+    "presspro",
+    "rock_ettco_proc_2_for_print",
+    "rock_ettco_proc_complete",
+    "roperwhitney",
+    "rw_pch_die",
+    "scantool",
+    "scantool_grinder",
+    "scotchman_iw",
+    "servo",
+    "steelmax",
+    "tennsmith",
+    "tinknocker",
+    "us_scotch_parts",
+    "utility_bandsaw",
+    "vibratory_media",
+    "wheels",
+    "woodward_fab"
+  ],
+  "items": [
+    {
+      "requested_label": "No. 381",
+      "identity_candidates": [
+        {
+          "probe": "381",
+          "match": "exact",
+          "cell": "G501",
+          "column": "c7",
+          "cell_text": "381",
+          "sheet": "gmpump",
+          "sheet_row": 501,
+          "values": []
+        },
+        {
+          "probe": "381",
+          "match": "exact",
+          "cell": "A88",
+          "column": "MODEL NO.",
+          "cell_text": "381",
+          "sheet": "roperwhitney",
+          "sheet_row": 88,
+          "values": [
+            {
+              "cell": "O88",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 245.0,
+              "state": "number",
+              "displayed": "245"
+            },
+            {
+              "cell": "P88",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "Q88",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "R88",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "S88",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T88",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": 245.0,
+              "state": "number",
+              "displayed": "245"
+            },
+            {
+              "cell": "U88",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 166.60000000000002,
+              "state": "number",
+              "displayed": "166.6"
+            },
+            {
+              "cell": "V88",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W88",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "X88",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 166.60000000000002,
+              "state": "number",
+              "displayed": "166.6"
+            },
+            {
+              "cell": "Y88",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 31.0,
+              "state": "number",
+              "displayed": "31"
+            },
+            {
+              "cell": "Z88",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "AA88",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 189.32424000000003,
+              "state": "number",
+              "displayed": "189.32"
+            },
+            {
+              "cell": "AB88",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC88",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD88",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 236.65530000000004,
+              "state": "number",
+              "displayed": "236.66"
+            },
+            {
+              "cell": "AJ88",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "no 381",
+          "match": "token_subsequence",
+          "cell": "D89",
+          "column": "DESCRIPTION",
+          "cell_text": "NO. 381 HVY DUTY WELDED FLOOR MOUNT STAND",
+          "sheet": "roperwhitney",
+          "sheet_row": 89,
+          "values": [
+            {
+              "cell": "O89",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 160.0,
+              "state": "number",
+              "displayed": "160"
+            },
+            {
+              "cell": "P89",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "Q89",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "R89",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "S89",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T89",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": 160.0,
+              "state": "number",
+              "displayed": "160"
+            },
+            {
+              "cell": "U89",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 108.8,
+              "state": "number",
+              "displayed": "108.8"
+            },
+            {
+              "cell": "V89",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W89",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "X89",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 108.8,
+              "state": "number",
+              "displayed": "108.8"
+            },
+            {
+              "cell": "Y89",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 32.0,
+              "state": "number",
+              "displayed": "32"
+            },
+            {
+              "cell": "Z89",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA89",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 136.0,
+              "state": "number",
+              "displayed": "136"
+            },
+            {
+              "cell": "AB89",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC89",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD89",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 170.0,
+              "state": "number",
+              "displayed": "170"
+            },
+            {
+              "cell": "AJ89",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "381",
+          "match": "exact",
+          "cell": "D343",
+          "column": "c4",
+          "cell_text": "381",
+          "sheet": "servo",
+          "sheet_row": 343,
+          "values": [
+            {
+              "cell": "T343",
+              "column": "0.65",
+              "basis_verbatim": "0.65",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "381",
+          "match": "exact",
+          "cell": "D406",
+          "column": "c4",
+          "cell_text": "381",
+          "sheet": "servo",
+          "sheet_row": 406,
+          "values": [
+            {
+              "cell": "T406",
+              "column": "0.65",
+              "basis_verbatim": "0.65",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "381",
+          "match": "exact",
+          "cell": "A338",
+          "column": "MODEL NO.",
+          "cell_text": "381",
+          "sheet": "tennsmith",
+          "sheet_row": 338,
+          "values": [
+            {
+              "cell": "J338",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 275.0,
+              "state": "number",
+              "displayed": "275"
+            },
+            {
+              "cell": "M338",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 1845.0,
+              "state": "number",
+              "displayed": "1,845"
+            },
+            {
+              "cell": "O338",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 1476.0,
+              "state": "number",
+              "displayed": "1,476"
+            },
+            {
+              "cell": "P338",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 2110.68,
+              "state": "number",
+              "displayed": "2,110.68"
+            },
+            {
+              "cell": "Q338",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 2152.8936,
+              "state": "number",
+              "displayed": "2,152.89"
+            },
+            {
+              "cell": "R338",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "S338",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 275.0,
+              "state": "number",
+              "displayed": "275"
+            },
+            {
+              "cell": "T338",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 137.5,
+              "state": "number",
+              "displayed": "137.5"
+            },
+            {
+              "cell": "U338",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V338",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W338",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 2290.3936,
+              "state": "number",
+              "displayed": "2,290.39"
+            },
+            {
+              "cell": "X338",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y338",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 2602.80328704,
+              "state": "number",
+              "displayed": "2,602.8"
+            },
+            {
+              "cell": "Z338",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA338",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 3253.5041088000003,
+              "state": "number",
+              "displayed": "3,253.5"
+            },
+            {
+              "cell": "AF338",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG338",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "no 381",
+          "match": "token_subsequence",
+          "cell": "D340",
+          "column": "DESCRIPTION",
+          "cell_text": "No. 381 Heavy Duty Welded Floor",
+          "sheet": "tennsmith",
+          "sheet_row": 340,
+          "values": [
+            {
+              "cell": "J340",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 120.0,
+              "state": "number",
+              "displayed": "120"
+            },
+            {
+              "cell": "M340",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 495.0,
+              "state": "number",
+              "displayed": "495"
+            },
+            {
+              "cell": "O340",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 396.0,
+              "state": "number",
+              "displayed": "396"
+            },
+            {
+              "cell": "P340",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 566.28,
+              "state": "number",
+              "displayed": "566.28"
+            },
+            {
+              "cell": "Q340",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 577.6056,
+              "state": "number",
+              "displayed": "577.61"
+            },
+            {
+              "cell": "R340",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "S340",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 120.0,
+              "state": "number",
+              "displayed": "120"
+            },
+            {
+              "cell": "T340",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 60.0,
+              "state": "number",
+              "displayed": "60"
+            },
+            {
+              "cell": "U340",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V340",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W340",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 637.6056,
+              "state": "number",
+              "displayed": "637.61"
+            },
+            {
+              "cell": "X340",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y340",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 724.57500384,
+              "state": "number",
+              "displayed": "724.58"
+            },
+            {
+              "cell": "Z340",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA340",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 905.7187548,
+              "state": "number",
+              "displayed": "905.72"
+            },
+            {
+              "cell": "AF340",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG340",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "gmpump!501",
+        "roperwhitney!88",
+        "roperwhitney!89",
+        "servo!343",
+        "servo!406",
+        "tennsmith!338",
+        "tennsmith!340"
+      ],
+      "ambiguity": true,
+      "identity_resolved": false,
+      "unresolved_candidates": [],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "U-22",
+      "identity_candidates": [
+        {
+          "probe": "U-22",
+          "match": "exact",
+          "cell": "A26",
+          "column": "Part Number",
+          "cell_text": "U-22",
+          "sheet": "linmac",
+          "sheet_row": 26,
+          "values": [
+            {
+              "cell": "C26",
+              "column": "List Price",
+              "basis_verbatim": "List Price",
+              "is_money_header": true,
+              "raw": 1777.0,
+              "state": "number",
+              "displayed": "1,777"
+            },
+            {
+              "cell": "D26",
+              "column": "Weight",
+              "basis_verbatim": "Weight",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "E26",
+              "column": "US NET",
+              "basis_verbatim": "US NET",
+              "is_money_header": true,
+              "raw": 680.0,
+              "state": "number",
+              "displayed": "680"
+            },
+            {
+              "cell": "F26",
+              "column": "Exch",
+              "basis_verbatim": "Exch",
+              "is_money_header": false,
+              "raw": 972.4,
+              "state": "number",
+              "displayed": "972.4"
+            },
+            {
+              "cell": "G26",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "H26",
+              "column": "Freight",
+              "basis_verbatim": "Freight",
+              "is_money_header": true,
+              "raw": 135.0,
+              "state": "number",
+              "displayed": "135"
+            },
+            {
+              "cell": "I26",
+              "column": "Landed",
+              "basis_verbatim": "Landed",
+              "is_money_header": true,
+              "raw": 1107.4,
+              "state": "number",
+              "displayed": "1,107.4"
+            },
+            {
+              "cell": "J26",
+              "column": "Warehouse",
+              "basis_verbatim": "Warehouse",
+              "is_money_header": false,
+              "raw": 1165.6842105263158,
+              "state": "number",
+              "displayed": "1,165.68"
+            },
+            {
+              "cell": "K26",
+              "column": "Brenn",
+              "basis_verbatim": "Brenn",
+              "is_money_header": false,
+              "raw": 1421.5661103979462,
+              "state": "number",
+              "displayed": "1,421.57"
+            },
+            {
+              "cell": "L26",
+              "column": "Dealer",
+              "basis_verbatim": "Dealer",
+              "is_money_header": false,
+              "raw": 1776.9576379974326,
+              "state": "number",
+              "displayed": "1,776.96"
+            },
+            {
+              "cell": "M26",
+              "column": "List Price_2",
+              "basis_verbatim": "List Price_2",
+              "is_money_header": true,
+              "raw": 1777.0,
+              "state": "number",
+              "displayed": "1,777"
+            },
+            {
+              "cell": "N26",
+              "column": "Profit",
+              "basis_verbatim": "Profit",
+              "is_money_header": true,
+              "raw": 669.5999999999999,
+              "state": "number",
+              "displayed": "669.6"
+            }
+          ]
+        },
+        {
+          "probe": "u 22",
+          "match": "token_subsequence",
+          "cell": "A26",
+          "column": "Part Number",
+          "cell_text": "U-22",
+          "sheet": "linmac",
+          "sheet_row": 26,
+          "values": [
+            {
+              "cell": "C26",
+              "column": "List Price",
+              "basis_verbatim": "List Price",
+              "is_money_header": true,
+              "raw": 1777.0,
+              "state": "number",
+              "displayed": "1,777"
+            },
+            {
+              "cell": "D26",
+              "column": "Weight",
+              "basis_verbatim": "Weight",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "E26",
+              "column": "US NET",
+              "basis_verbatim": "US NET",
+              "is_money_header": true,
+              "raw": 680.0,
+              "state": "number",
+              "displayed": "680"
+            },
+            {
+              "cell": "F26",
+              "column": "Exch",
+              "basis_verbatim": "Exch",
+              "is_money_header": false,
+              "raw": 972.4,
+              "state": "number",
+              "displayed": "972.4"
+            },
+            {
+              "cell": "G26",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "H26",
+              "column": "Freight",
+              "basis_verbatim": "Freight",
+              "is_money_header": true,
+              "raw": 135.0,
+              "state": "number",
+              "displayed": "135"
+            },
+            {
+              "cell": "I26",
+              "column": "Landed",
+              "basis_verbatim": "Landed",
+              "is_money_header": true,
+              "raw": 1107.4,
+              "state": "number",
+              "displayed": "1,107.4"
+            },
+            {
+              "cell": "J26",
+              "column": "Warehouse",
+              "basis_verbatim": "Warehouse",
+              "is_money_header": false,
+              "raw": 1165.6842105263158,
+              "state": "number",
+              "displayed": "1,165.68"
+            },
+            {
+              "cell": "K26",
+              "column": "Brenn",
+              "basis_verbatim": "Brenn",
+              "is_money_header": false,
+              "raw": 1421.5661103979462,
+              "state": "number",
+              "displayed": "1,421.57"
+            },
+            {
+              "cell": "L26",
+              "column": "Dealer",
+              "basis_verbatim": "Dealer",
+              "is_money_header": false,
+              "raw": 1776.9576379974326,
+              "state": "number",
+              "displayed": "1,776.96"
+            },
+            {
+              "cell": "M26",
+              "column": "List Price_2",
+              "basis_verbatim": "List Price_2",
+              "is_money_header": true,
+              "raw": 1777.0,
+              "state": "number",
+              "displayed": "1,777"
+            },
+            {
+              "cell": "N26",
+              "column": "Profit",
+              "basis_verbatim": "Profit",
+              "is_money_header": true,
+              "raw": 669.5999999999999,
+              "state": "number",
+              "displayed": "669.6"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "linmac!26"
+      ],
+      "ambiguity": false,
+      "identity_resolved": true,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "E119",
+          "column": "c5",
+          "cell_text": "22.8MM",
+          "sheet": "_40_tooling",
+          "sheet_row": 119
+        },
+        {
+          "shared_tokens": [
+            "u"
+          ],
+          "cell": "K4",
+          "column": "c11",
+          "cell_text": "U.S. Cost",
+          "sheet": "burrking",
+          "sheet_row": 4
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "AA29",
+          "column": "MULT#1",
+          "cell_text": "MULT#22",
+          "sheet": "burrking",
+          "sheet_row": 29
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q396",
+          "column": "c17",
+          "cell_text": "22.034819664",
+          "sheet": "burrking",
+          "sheet_row": 396
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "K419",
+          "column": "c11",
+          "cell_text": "22.989599999999999",
+          "sheet": "burrking",
+          "sheet_row": 419
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q518",
+          "column": "c17",
+          "cell_text": "22.076178696000003",
+          "sheet": "burrking",
+          "sheet_row": 518
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "S535",
+          "column": "c19",
+          "cell_text": "22.968049104000002",
+          "sheet": "burrking",
+          "sheet_row": 535
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "M550",
+          "column": "c13",
+          "cell_text": "22.068755279999994",
+          "sheet": "burrking",
+          "sheet_row": 550
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "M551",
+          "column": "c13",
+          "cell_text": "22.068755279999994",
+          "sheet": "burrking",
+          "sheet_row": 551
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "K557",
+          "column": "c11",
+          "cell_text": "22.989599999999999",
+          "sheet": "burrking",
+          "sheet_row": 557
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "L574",
+          "column": "c12",
+          "cell_text": "22.290839999999999",
+          "sheet": "burrking",
+          "sheet_row": 574
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "M574",
+          "column": "c13",
+          "cell_text": "22.9595652",
+          "sheet": "burrking",
+          "sheet_row": 574
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "H575",
+          "column": "c8",
+          "cell_text": "22.21",
+          "sheet": "burrking",
+          "sheet_row": 575
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "I575",
+          "column": "c9",
+          "cell_text": "22.21",
+          "sheet": "burrking",
+          "sheet_row": 575
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "L575",
+          "column": "c12",
+          "cell_text": "22.867415999999999",
+          "sheet": "burrking",
+          "sheet_row": 575
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q578",
+          "column": "c17",
+          "cell_text": "22.034819664",
+          "sheet": "burrking",
+          "sheet_row": 578
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "S589",
+          "column": "c19",
+          "cell_text": "22.968049104000002",
+          "sheet": "burrking",
+          "sheet_row": 589
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q610",
+          "column": "c17",
+          "cell_text": "22.499313407999999",
+          "sheet": "burrking",
+          "sheet_row": 610
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q611",
+          "column": "c17",
+          "cell_text": "22.499313407999999",
+          "sheet": "burrking",
+          "sheet_row": 611
+        },
+        {
+          "shared_tokens": [
+            "22"
+          ],
+          "cell": "Q612",
+          "column": "c17",
+          "cell_text": "22.499313407999999",
+          "sheet": "burrking",
+          "sheet_row": 612
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "No. 622",
+      "identity_candidates": [
+        {
+          "probe": "622",
+          "match": "exact",
+          "cell": "A266",
+          "column": "MODEL NO.",
+          "cell_text": "622",
+          "sheet": "roperwhitney",
+          "sheet_row": 266,
+          "values": [
+            {
+              "cell": "O266",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 50.0,
+              "state": "number",
+              "displayed": "50"
+            },
+            {
+              "cell": "P266",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "Q266",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "R266",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "S266",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T266",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": 50.0,
+              "state": "number",
+              "displayed": "50"
+            },
+            {
+              "cell": "U266",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "V266",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W266",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "X266",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "Y266",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 32.0,
+              "state": "number",
+              "displayed": "32"
+            },
+            {
+              "cell": "Z266",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA266",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "AB266",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC266",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD266",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 0.0,
+              "state": "zero"
+            },
+            {
+              "cell": "AJ266",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "622",
+          "match": "exact",
+          "cell": "A268",
+          "column": "MODEL NO.",
+          "cell_text": "622",
+          "sheet": "roperwhitney",
+          "sheet_row": 268,
+          "values": [
+            {
+              "cell": "O268",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": 50.0,
+              "state": "number",
+              "displayed": "50"
+            },
+            {
+              "cell": "P268",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 1012.5,
+              "state": "number",
+              "displayed": "1,012.5"
+            },
+            {
+              "cell": "Q268",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 1447.875,
+              "state": "number",
+              "displayed": "1,447.88"
+            },
+            {
+              "cell": "R268",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 1447.875,
+              "state": "number",
+              "displayed": "1,447.88"
+            },
+            {
+              "cell": "S268",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T268",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": 50.0,
+              "state": "number",
+              "displayed": "50"
+            },
+            {
+              "cell": "U268",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": 101.35125,
+              "state": "number",
+              "displayed": "101.35"
+            },
+            {
+              "cell": "V268",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "W268",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "X268",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 1549.22625,
+              "state": "number",
+              "displayed": "1,549.23"
+            },
+            {
+              "cell": "Y268",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 32.0,
+              "state": "number",
+              "displayed": "32"
+            },
+            {
+              "cell": "Z268",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA268",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 1936.5328125,
+              "state": "number",
+              "displayed": "1,936.53"
+            },
+            {
+              "cell": "AB268",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC268",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD268",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 2420.666015625,
+              "state": "number",
+              "displayed": "2,420.67"
+            },
+            {
+              "cell": "AJ268",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "622",
+          "match": "exact",
+          "cell": "A279",
+          "column": "MODEL NO.",
+          "cell_text": "622 &",
+          "sheet": "roperwhitney",
+          "sheet_row": 279,
+          "values": [
+            {
+              "cell": "O279",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "P279",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 56.0,
+              "state": "number",
+              "displayed": "56"
+            },
+            {
+              "cell": "Q279",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 80.08,
+              "state": "number",
+              "displayed": "80.08"
+            },
+            {
+              "cell": "R279",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 80.08,
+              "state": "number",
+              "displayed": "80.08"
+            },
+            {
+              "cell": "S279",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T279",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U279",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V279",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": 5.605600000000001,
+              "state": "number",
+              "displayed": "5.61"
+            },
+            {
+              "cell": "W279",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 10.0,
+              "state": "number",
+              "displayed": "10"
+            },
+            {
+              "cell": "X279",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 95.6856,
+              "state": "number",
+              "displayed": "95.69"
+            },
+            {
+              "cell": "Y279",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 32.0,
+              "state": "number",
+              "displayed": "32"
+            },
+            {
+              "cell": "Z279",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA279",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 119.607,
+              "state": "number",
+              "displayed": "119.61"
+            },
+            {
+              "cell": "AB279",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC279",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD279",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 149.50875,
+              "state": "number",
+              "displayed": "149.51"
+            },
+            {
+              "cell": "AJ279",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "622",
+          "match": "exact",
+          "cell": "A293",
+          "column": "MODEL NO.",
+          "cell_text": "622",
+          "sheet": "roperwhitney",
+          "sheet_row": 293,
+          "values": [
+            {
+              "cell": "O293",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "P293",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 136.0,
+              "state": "number",
+              "displayed": "136"
+            },
+            {
+              "cell": "Q293",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 194.48,
+              "state": "number",
+              "displayed": "194.48"
+            },
+            {
+              "cell": "R293",
+              "column": "CANADIAN COST INCL. MISC",
+              "basis_verbatim": "CANADIAN COST INCL. MISC",
+              "is_money_header": true,
+              "raw": 194.48,
+              "state": "number",
+              "displayed": "194.48"
+            },
+            {
+              "cell": "S293",
+              "column": "ELECTRICAL COSTS",
+              "basis_verbatim": "ELECTRICAL COSTS",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T293",
+              "column": "WEIGHT_2",
+              "basis_verbatim": "WEIGHT_2",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U293",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V293",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": 13.6136,
+              "state": "number",
+              "displayed": "13.61"
+            },
+            {
+              "cell": "W293",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 10.0,
+              "state": "number",
+              "displayed": "10"
+            },
+            {
+              "cell": "X293",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 218.0936,
+              "state": "number",
+              "displayed": "218.09"
+            },
+            {
+              "cell": "Y293",
+              "column": "CDN NET MULT",
+              "basis_verbatim": "CDN NET MULT",
+              "is_money_header": true,
+              "raw": 32.0,
+              "state": "number",
+              "displayed": "32"
+            },
+            {
+              "cell": "Z293",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA293",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 272.617,
+              "state": "number",
+              "displayed": "272.62"
+            },
+            {
+              "cell": "AB293",
+              "column": "CDN LIST MULT",
+              "basis_verbatim": "CDN LIST MULT",
+              "is_money_header": true,
+              "raw": 35.0,
+              "state": "number",
+              "displayed": "35"
+            },
+            {
+              "cell": "AC293",
+              "column": "c29",
+              "basis_verbatim": "c29",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AD293",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 340.77124999999995,
+              "state": "number",
+              "displayed": "340.77"
+            },
+            {
+              "cell": "AJ293",
+              "column": "35",
+              "basis_verbatim": "35",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "roperwhitney!266",
+        "roperwhitney!268",
+        "roperwhitney!279",
+        "roperwhitney!293"
+      ],
+      "ambiguity": true,
+      "identity_resolved": false,
+      "unresolved_candidates": [],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "TK Manual Flanger",
+      "identity_candidates": [
+        {
+          "probe": "TK Manual Flanger",
+          "match": "exact",
+          "cell": "A42",
+          "column": "c1",
+          "cell_text": "TK Manual Flanger",
+          "sheet": "tinknocker",
+          "sheet_row": 42,
+          "values": [
+            {
+              "cell": "D42",
+              "column": "Price",
+              "basis_verbatim": "Price",
+              "is_money_header": true,
+              "raw": 1609.0,
+              "state": "number",
+              "displayed": "1,609"
+            },
+            {
+              "cell": "H42",
+              "column": "Factory Price",
+              "basis_verbatim": "Factory Price",
+              "is_money_header": true,
+              "raw": 950.0,
+              "state": "number",
+              "displayed": "950"
+            },
+            {
+              "cell": "I42",
+              "column": "Factory Discount",
+              "basis_verbatim": "Factory Discount",
+              "is_money_header": true,
+              "raw": 712.5,
+              "state": "number",
+              "displayed": "712.5"
+            },
+            {
+              "cell": "J42",
+              "column": "Freight",
+              "basis_verbatim": "Freight",
+              "is_money_header": true,
+              "raw": 812.5,
+              "state": "number",
+              "displayed": "812.5"
+            },
+            {
+              "cell": "K42",
+              "column": "Exchange",
+              "basis_verbatim": "Exchange",
+              "is_money_header": true,
+              "raw": 1161.875,
+              "state": "number",
+              "displayed": "1,161.88"
+            },
+            {
+              "cell": "L42",
+              "column": "CSA",
+              "basis_verbatim": "CSA",
+              "is_money_header": false,
+              "raw": 1161.875,
+              "state": "number",
+              "displayed": "1,161.88"
+            },
+            {
+              "cell": "M42",
+              "column": "Brennan margin",
+              "basis_verbatim": "Brennan margin",
+              "is_money_header": true,
+              "raw": 1366.9117647058824,
+              "state": "number",
+              "displayed": "1,366.91"
+            },
+            {
+              "cell": "N42",
+              "column": "Dealer Margin",
+              "basis_verbatim": "Dealer Margin",
+              "is_money_header": true,
+              "raw": 1608.1314878892736,
+              "state": "number",
+              "displayed": "1,608.13"
+            },
+            {
+              "cell": "O42",
+              "column": "Dealer Factor",
+              "basis_verbatim": "Dealer Factor",
+              "is_money_header": true,
+              "raw": 1.692769987251867,
+              "state": "number",
+              "displayed": "1.69"
+            },
+            {
+              "cell": "P42",
+              "column": "Brennan Factor",
+              "basis_verbatim": "Brennan Factor",
+              "is_money_header": true,
+              "raw": 1.4388544891640869,
+              "state": "number",
+              "displayed": "1.44"
+            },
+            {
+              "cell": "R42",
+              "column": "Exchange Rate",
+              "basis_verbatim": "Exchange Rate",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T42",
+              "column": "Brennan Margin",
+              "basis_verbatim": "Brennan Margin",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U42",
+              "column": "Dealer Margin_2",
+              "basis_verbatim": "Dealer Margin_2",
+              "is_money_header": true,
+              "raw": 0.2775,
+              "state": "number",
+              "displayed": "0.28"
+            }
+          ]
+        },
+        {
+          "probe": "tk manual flanger",
+          "match": "token_subsequence",
+          "cell": "A42",
+          "column": "c1",
+          "cell_text": "TK Manual Flanger",
+          "sheet": "tinknocker",
+          "sheet_row": 42,
+          "values": [
+            {
+              "cell": "D42",
+              "column": "Price",
+              "basis_verbatim": "Price",
+              "is_money_header": true,
+              "raw": 1609.0,
+              "state": "number",
+              "displayed": "1,609"
+            },
+            {
+              "cell": "H42",
+              "column": "Factory Price",
+              "basis_verbatim": "Factory Price",
+              "is_money_header": true,
+              "raw": 950.0,
+              "state": "number",
+              "displayed": "950"
+            },
+            {
+              "cell": "I42",
+              "column": "Factory Discount",
+              "basis_verbatim": "Factory Discount",
+              "is_money_header": true,
+              "raw": 712.5,
+              "state": "number",
+              "displayed": "712.5"
+            },
+            {
+              "cell": "J42",
+              "column": "Freight",
+              "basis_verbatim": "Freight",
+              "is_money_header": true,
+              "raw": 812.5,
+              "state": "number",
+              "displayed": "812.5"
+            },
+            {
+              "cell": "K42",
+              "column": "Exchange",
+              "basis_verbatim": "Exchange",
+              "is_money_header": true,
+              "raw": 1161.875,
+              "state": "number",
+              "displayed": "1,161.88"
+            },
+            {
+              "cell": "L42",
+              "column": "CSA",
+              "basis_verbatim": "CSA",
+              "is_money_header": false,
+              "raw": 1161.875,
+              "state": "number",
+              "displayed": "1,161.88"
+            },
+            {
+              "cell": "M42",
+              "column": "Brennan margin",
+              "basis_verbatim": "Brennan margin",
+              "is_money_header": true,
+              "raw": 1366.9117647058824,
+              "state": "number",
+              "displayed": "1,366.91"
+            },
+            {
+              "cell": "N42",
+              "column": "Dealer Margin",
+              "basis_verbatim": "Dealer Margin",
+              "is_money_header": true,
+              "raw": 1608.1314878892736,
+              "state": "number",
+              "displayed": "1,608.13"
+            },
+            {
+              "cell": "O42",
+              "column": "Dealer Factor",
+              "basis_verbatim": "Dealer Factor",
+              "is_money_header": true,
+              "raw": 1.692769987251867,
+              "state": "number",
+              "displayed": "1.69"
+            },
+            {
+              "cell": "P42",
+              "column": "Brennan Factor",
+              "basis_verbatim": "Brennan Factor",
+              "is_money_header": true,
+              "raw": 1.4388544891640869,
+              "state": "number",
+              "displayed": "1.44"
+            },
+            {
+              "cell": "R42",
+              "column": "Exchange Rate",
+              "basis_verbatim": "Exchange Rate",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T42",
+              "column": "Brennan Margin",
+              "basis_verbatim": "Brennan Margin",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U42",
+              "column": "Dealer Margin_2",
+              "basis_verbatim": "Dealer Margin_2",
+              "is_money_header": true,
+              "raw": 0.2775,
+              "state": "number",
+              "displayed": "0.28"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "tinknocker!42"
+      ],
+      "ambiguity": false,
+      "identity_resolved": true,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "A49",
+          "column": "BURR KING",
+          "cell_text": "MODEL 720  -  MANUAL TENSION 2 X 72 BELT (C) ",
+          "sheet": "burrking",
+          "sheet_row": 49
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B7",
+          "column": "c2",
+          "cell_text": "30/60 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 7
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B8",
+          "column": "c2",
+          "cell_text": "30/60 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B9",
+          "column": "c2",
+          "cell_text": "30/60 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 9
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B10",
+          "column": "c2",
+          "cell_text": "30/60 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 10
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B11",
+          "column": "c2",
+          "cell_text": "60/120 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 11
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B12",
+          "column": "c2",
+          "cell_text": "60/120 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 12
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B13",
+          "column": "c2",
+          "cell_text": "60/120 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 13
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B14",
+          "column": "c2",
+          "cell_text": "60/120 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B15",
+          "column": "c2",
+          "cell_text": "60 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 15
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B44",
+          "column": "c2",
+          "cell_text": "22/44 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 44
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B45",
+          "column": "c2",
+          "cell_text": "22/44 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 45
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B46",
+          "column": "c2",
+          "cell_text": "22/44 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 46
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B47",
+          "column": "c2",
+          "cell_text": "22/44 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 47
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B48",
+          "column": "c2",
+          "cell_text": "44 RPM Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 48
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B49",
+          "column": "c2",
+          "cell_text": "44/88 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 49
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B50",
+          "column": "c2",
+          "cell_text": "44/88 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 50
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B51",
+          "column": "c2",
+          "cell_text": "44/88 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 51
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B52",
+          "column": "c2",
+          "cell_text": "44/88 Manual",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 52
+        },
+        {
+          "shared_tokens": [
+            "manual"
+          ],
+          "cell": "B53",
+          "column": "c2",
+          "cell_text": "11-177 Manual 5hp ",
+          "sheet": "circ_cold_saw",
+          "sheet_row": 53
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "SLE24-16",
+      "identity_candidates": [
+        {
+          "probe": "SLE24-16",
+          "match": "exact",
+          "cell": "A101",
+          "column": "MODEL NO.",
+          "cell_text": "SLE24-16",
+          "sheet": "tennsmith",
+          "sheet_row": 101,
+          "values": [
+            {
+              "cell": "J101",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 350.0,
+              "state": "number",
+              "displayed": "350"
+            },
+            {
+              "cell": "M101",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 4500.0,
+              "state": "number",
+              "displayed": "4,500"
+            },
+            {
+              "cell": "O101",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 3600.0,
+              "state": "number",
+              "displayed": "3,600"
+            },
+            {
+              "cell": "P101",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 5148.0,
+              "state": "number",
+              "displayed": "5,148"
+            },
+            {
+              "cell": "Q101",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 5250.96,
+              "state": "number",
+              "displayed": "5,250.96"
+            },
+            {
+              "cell": "R101",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": 650.0,
+              "state": "number",
+              "displayed": "650"
+            },
+            {
+              "cell": "S101",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T101",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U101",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V101",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 350.0,
+              "state": "number",
+              "displayed": "350"
+            },
+            {
+              "cell": "W101",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 6250.96,
+              "state": "number",
+              "displayed": "6,250.96"
+            },
+            {
+              "cell": "X101",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y101",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 7103.5909440000005,
+              "state": "number",
+              "displayed": "7,103.59"
+            },
+            {
+              "cell": "Z101",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA101",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 8879.48868,
+              "state": "number",
+              "displayed": "8,879.49"
+            },
+            {
+              "cell": "AF101",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG101",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "sle24 16",
+          "match": "token_subsequence",
+          "cell": "A101",
+          "column": "MODEL NO.",
+          "cell_text": "SLE24-16",
+          "sheet": "tennsmith",
+          "sheet_row": 101,
+          "values": [
+            {
+              "cell": "J101",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 350.0,
+              "state": "number",
+              "displayed": "350"
+            },
+            {
+              "cell": "M101",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 4500.0,
+              "state": "number",
+              "displayed": "4,500"
+            },
+            {
+              "cell": "O101",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 3600.0,
+              "state": "number",
+              "displayed": "3,600"
+            },
+            {
+              "cell": "P101",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 5148.0,
+              "state": "number",
+              "displayed": "5,148"
+            },
+            {
+              "cell": "Q101",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 5250.96,
+              "state": "number",
+              "displayed": "5,250.96"
+            },
+            {
+              "cell": "R101",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": 650.0,
+              "state": "number",
+              "displayed": "650"
+            },
+            {
+              "cell": "S101",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T101",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U101",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V101",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 350.0,
+              "state": "number",
+              "displayed": "350"
+            },
+            {
+              "cell": "W101",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 6250.96,
+              "state": "number",
+              "displayed": "6,250.96"
+            },
+            {
+              "cell": "X101",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y101",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 7103.5909440000005,
+              "state": "number",
+              "displayed": "7,103.59"
+            },
+            {
+              "cell": "Z101",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA101",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 8879.48868,
+              "state": "number",
+              "displayed": "8,879.49"
+            },
+            {
+              "cell": "AF101",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG101",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "tennsmith!101"
+      ],
+      "ambiguity": false,
+      "identity_resolved": true,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R6",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 6
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R7",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 7
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A8",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "3/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E8",
+          "column": "c5",
+          "cell_text": "3/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R8",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R9",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 9
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R10",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 10
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R11",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 11
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R12",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 12
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R13",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 13
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A14",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "5/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E14",
+          "column": "c5",
+          "cell_text": "5/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R14",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R15",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 15
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R16",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 16
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R17",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 17
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A18",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "7/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E18",
+          "column": "c5",
+          "cell_text": "7/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R18",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R19",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 19
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "TK 1624",
+      "identity_candidates": [
+        {
+          "probe": "tk 1624",
+          "match": "token_subsequence",
+          "cell": "A101",
+          "column": "c1",
+          "cell_text": "TK 1624 Slitter",
+          "sheet": "tinknocker",
+          "sheet_row": 101,
+          "values": [
+            {
+              "cell": "D101",
+              "column": "Price",
+              "basis_verbatim": "Price",
+              "is_money_header": true,
+              "raw": 8040.0,
+              "state": "number",
+              "displayed": "8,040"
+            },
+            {
+              "cell": "H101",
+              "column": "Factory Price",
+              "basis_verbatim": "Factory Price",
+              "is_money_header": true,
+              "raw": 3950.0,
+              "state": "number",
+              "displayed": "3,950"
+            },
+            {
+              "cell": "I101",
+              "column": "Factory Discount",
+              "basis_verbatim": "Factory Discount",
+              "is_money_header": true,
+              "raw": 2962.5,
+              "state": "number",
+              "displayed": "2,962.5"
+            },
+            {
+              "cell": "J101",
+              "column": "Freight",
+              "basis_verbatim": "Freight",
+              "is_money_header": true,
+              "raw": 3712.5,
+              "state": "number",
+              "displayed": "3,712.5"
+            },
+            {
+              "cell": "K101",
+              "column": "Exchange",
+              "basis_verbatim": "Exchange",
+              "is_money_header": true,
+              "raw": 5308.875,
+              "state": "number",
+              "displayed": "5,308.88"
+            },
+            {
+              "cell": "L101",
+              "column": "CSA",
+              "basis_verbatim": "CSA",
+              "is_money_header": false,
+              "raw": 5808.875,
+              "state": "number",
+              "displayed": "5,808.88"
+            },
+            {
+              "cell": "M101",
+              "column": "Brennan margin",
+              "basis_verbatim": "Brennan margin",
+              "is_money_header": true,
+              "raw": 6833.9705882352955,
+              "state": "number",
+              "displayed": "6,833.97"
+            },
+            {
+              "cell": "N101",
+              "column": "Dealer Margin",
+              "basis_verbatim": "Dealer Margin",
+              "is_money_header": true,
+              "raw": 8039.965397923876,
+              "state": "number",
+              "displayed": "8,039.97"
+            },
+            {
+              "cell": "O101",
+              "column": "Dealer Factor",
+              "basis_verbatim": "Dealer Factor",
+              "is_money_header": true,
+              "raw": 2.035434277955412,
+              "state": "number",
+              "displayed": "2.04"
+            },
+            {
+              "cell": "P101",
+              "column": "Brennan Factor",
+              "basis_verbatim": "Brennan Factor",
+              "is_money_header": true,
+              "raw": 1.7301191362620998,
+              "state": "number",
+              "displayed": "1.73"
+            },
+            {
+              "cell": "R101",
+              "column": "Exchange Rate",
+              "basis_verbatim": "Exchange Rate",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T101",
+              "column": "Brennan Margin",
+              "basis_verbatim": "Brennan Margin",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U101",
+              "column": "Dealer Margin_2",
+              "basis_verbatim": "Dealer Margin_2",
+              "is_money_header": true,
+              "raw": 0.2775,
+              "state": "number",
+              "displayed": "0.28"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "tinknocker!101"
+      ],
+      "ambiguity": false,
+      "identity_resolved": true,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "I236",
+          "column": "c9",
+          "cell_text": "1624",
+          "sheet": "ercolina",
+          "sheet_row": 236
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "H277",
+          "column": "c8",
+          "cell_text": "1624",
+          "sheet": "ercolina",
+          "sheet_row": 277
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "H278",
+          "column": "c8",
+          "cell_text": "1624",
+          "sheet": "ercolina",
+          "sheet_row": 278
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "H279",
+          "column": "c8",
+          "cell_text": "1624",
+          "sheet": "ercolina",
+          "sheet_row": 279
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "H280",
+          "column": "c8",
+          "cell_text": "1624",
+          "sheet": "ercolina",
+          "sheet_row": 280
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "AD15",
+          "column": "c30",
+          "cell_text": "1624.2491232999998",
+          "sheet": "gmpump",
+          "sheet_row": 15
+        },
+        {
+          "shared_tokens": [
+            "1624"
+          ],
+          "cell": "V374",
+          "column": "c22",
+          "cell_text": "1624",
+          "sheet": "gmpump",
+          "sheet_row": 374
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A44",
+          "column": "Part Number",
+          "cell_text": "TK-2236",
+          "sheet": "linmac",
+          "sheet_row": 44
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A45",
+          "column": "Part Number",
+          "cell_text": "TK-2024",
+          "sheet": "linmac",
+          "sheet_row": 45
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A46",
+          "column": "Part Number",
+          "cell_text": "TK-2024-STAND",
+          "sheet": "linmac",
+          "sheet_row": 46
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A47",
+          "column": "Part Number",
+          "cell_text": "TK-30",
+          "sheet": "linmac",
+          "sheet_row": 47
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A48",
+          "column": "Part Number",
+          "cell_text": "TK-30-STAND",
+          "sheet": "linmac",
+          "sheet_row": 48
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A3",
+          "column": "c1",
+          "cell_text": "TK No. 30 Bar Folder",
+          "sheet": "tinknocker",
+          "sheet_row": 3
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A7",
+          "column": "c1",
+          "cell_text": "TK 1660 Duct Beader",
+          "sheet": "tinknocker",
+          "sheet_row": 7
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A10",
+          "column": "c1",
+          "cell_text": "TK No. 30 Cleat Bender",
+          "sheet": "tinknocker",
+          "sheet_row": 10
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A12",
+          "column": "c1",
+          "cell_text": "TK No. 30 Power Cleat Bender",
+          "sheet": "tinknocker",
+          "sheet_row": 12
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A13",
+          "column": "c1",
+          "cell_text": "TK No 3618 Power Cleat Bender",
+          "sheet": "tinknocker",
+          "sheet_row": 13
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A14",
+          "column": "c1",
+          "cell_text": "TK No. 24 Cheek Bender (2 sided)",
+          "sheet": "tinknocker",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A16",
+          "column": "c1",
+          "cell_text": "TK Button Punch Cheek Bender",
+          "sheet": "tinknocker",
+          "sheet_row": 16
+        },
+        {
+          "shared_tokens": [
+            "tk"
+          ],
+          "cell": "A19",
+          "column": "c1",
+          "cell_text": "TK 1630 Square to Round Brake",
+          "sheet": "tinknocker",
+          "sheet_row": 19
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "TK Multi Wheel Gang Slitter",
+      "identity_candidates": [],
+      "distinct_rows": [],
+      "ambiguity": false,
+      "identity_resolved": false,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B59",
+          "column": "c2",
+          "cell_text": "MULTI-LOC STANDARD LEFT HAND",
+          "sheet": "ams",
+          "sheet_row": 59
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B65",
+          "column": "c2",
+          "cell_text": "MULTI-LOC STANDARD RIGHT HAND",
+          "sheet": "ams",
+          "sheet_row": 65
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B71",
+          "column": "c2",
+          "cell_text": "STANDARD DUTY MULTI-LOC STOP BLOCKS ONLY",
+          "sheet": "ams",
+          "sheet_row": 71
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B76",
+          "column": "c2",
+          "cell_text": "MULTI-LOC HEAVY DUTY LEFT HAND",
+          "sheet": "ams",
+          "sheet_row": 76
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B82",
+          "column": "c2",
+          "cell_text": "MULTI-LOC HEAVY DUTY RIGHT HAND",
+          "sheet": "ams",
+          "sheet_row": 82
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B88",
+          "column": "c2",
+          "cell_text": "HEAVY DUTY MULTI-LOC STOP BLOCKS ONLY",
+          "sheet": "ams",
+          "sheet_row": 88
+        },
+        {
+          "shared_tokens": [
+            "multi"
+          ],
+          "cell": "B95",
+          "column": "c2",
+          "cell_text": "MULTI-LOC ACCESSORIES",
+          "sheet": "ams",
+          "sheet_row": 95
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "A40",
+          "column": "BURR KING",
+          "cell_text": "8 inch Contact Wheel",
+          "sheet": "burrking",
+          "sheet_row": 40
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "A43",
+          "column": "BURR KING",
+          "cell_text": "10 inch Contact Wheel",
+          "sheet": "burrking",
+          "sheet_row": 43
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "A96",
+          "column": "BURR KING",
+          "cell_text": "SURFACE GRINDER PARTS - Parts will fit Burr King 2-Wheel 960 Grinders",
+          "sheet": "burrking",
+          "sheet_row": 96
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "C174",
+          "column": "45782",
+          "cell_text": "W/DA2212 WHEEL",
+          "sheet": "burrking",
+          "sheet_row": 174
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "A181",
+          "column": "BURR KING",
+          "cell_text": "WHEEL OPTIONS FOR ATTACHMENTS (B)",
+          "sheet": "burrking",
+          "sheet_row": 181
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B182",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL 7/16\" X 3/8\"",
+          "sheet": "burrking",
+          "sheet_row": 182
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B183",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL 7/16\" X 3/8\"",
+          "sheet": "burrking",
+          "sheet_row": 183
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B184",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL 5/8 X 3/8",
+          "sheet": "burrking",
+          "sheet_row": 184
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B185",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL 5/16\" X 3/8\"",
+          "sheet": "burrking",
+          "sheet_row": 185
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B186",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL, .56X1,FORK,70D",
+          "sheet": "burrking",
+          "sheet_row": 186
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B187",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL, .75X1,FORK,70D",
+          "sheet": "burrking",
+          "sheet_row": 187
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B188",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL, 1X1,FORK,70D,SM",
+          "sheet": "burrking",
+          "sheet_row": 188
+        },
+        {
+          "shared_tokens": [
+            "wheel"
+          ],
+          "cell": "B189",
+          "column": "c2",
+          "cell_text": "CONTACT WHEEL, 1.5X1,FORK,70D",
+          "sheet": "burrking",
+          "sheet_row": 189
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    },
+    {
+      "requested_label": "GSL48-16",
+      "identity_candidates": [
+        {
+          "probe": "GSL48-16",
+          "match": "exact",
+          "cell": "A106",
+          "column": "MODEL NO.",
+          "cell_text": "GSL48-16",
+          "sheet": "tennsmith",
+          "sheet_row": 106,
+          "values": [
+            {
+              "cell": "J106",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 545.0,
+              "state": "number",
+              "displayed": "545"
+            },
+            {
+              "cell": "M106",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 6575.0,
+              "state": "number",
+              "displayed": "6,575"
+            },
+            {
+              "cell": "O106",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 5260.0,
+              "state": "number",
+              "displayed": "5,260"
+            },
+            {
+              "cell": "P106",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 7521.799999999998,
+              "state": "number",
+              "displayed": "7,521.8"
+            },
+            {
+              "cell": "Q106",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 7672.235999999999,
+              "state": "number",
+              "displayed": "7,672.24"
+            },
+            {
+              "cell": "R106",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": 1500.0,
+              "state": "number",
+              "displayed": "1,500"
+            },
+            {
+              "cell": "S106",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T106",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U106",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V106",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 800.0,
+              "state": "number",
+              "displayed": "800"
+            },
+            {
+              "cell": "W106",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 9972.236,
+              "state": "number",
+              "displayed": "9,972.24"
+            },
+            {
+              "cell": "X106",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y106",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 11332.4489904,
+              "state": "number",
+              "displayed": "11,332.45"
+            },
+            {
+              "cell": "Z106",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA106",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 14165.561238,
+              "state": "number",
+              "displayed": "14,165.56"
+            },
+            {
+              "cell": "AF106",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG106",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        },
+        {
+          "probe": "gsl48 16",
+          "match": "token_subsequence",
+          "cell": "A106",
+          "column": "MODEL NO.",
+          "cell_text": "GSL48-16",
+          "sheet": "tennsmith",
+          "sheet_row": 106,
+          "values": [
+            {
+              "cell": "J106",
+              "column": "WEIGHT (LBS)",
+              "basis_verbatim": "WEIGHT (LBS)",
+              "is_money_header": false,
+              "raw": 545.0,
+              "state": "number",
+              "displayed": "545"
+            },
+            {
+              "cell": "M106",
+              "column": "U.S. LIST",
+              "basis_verbatim": "U.S. LIST",
+              "is_money_header": true,
+              "raw": 6575.0,
+              "state": "number",
+              "displayed": "6,575"
+            },
+            {
+              "cell": "O106",
+              "column": "U.S. COST",
+              "basis_verbatim": "U.S. COST",
+              "is_money_header": true,
+              "raw": 5260.0,
+              "state": "number",
+              "displayed": "5,260"
+            },
+            {
+              "cell": "P106",
+              "column": "CANADIAN AT FACTORY",
+              "basis_verbatim": "CANADIAN AT FACTORY",
+              "is_money_header": true,
+              "raw": 7521.799999999998,
+              "state": "number",
+              "displayed": "7,521.8"
+            },
+            {
+              "cell": "Q106",
+              "column": "CDN INCL. MISC",
+              "basis_verbatim": "CDN INCL. MISC",
+              "is_money_header": true,
+              "raw": 7672.235999999999,
+              "state": "number",
+              "displayed": "7,672.24"
+            },
+            {
+              "cell": "R106",
+              "column": "QPS",
+              "basis_verbatim": "QPS",
+              "is_money_header": true,
+              "raw": 1500.0,
+              "state": "number",
+              "displayed": "1,500"
+            },
+            {
+              "cell": "S106",
+              "column": "WEIGHT",
+              "basis_verbatim": "WEIGHT",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "T106",
+              "column": "FREIGHT BY WEIGHT",
+              "basis_verbatim": "FREIGHT BY WEIGHT",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "U106",
+              "column": "FREIGHT BY %",
+              "basis_verbatim": "FREIGHT BY %",
+              "is_money_header": true,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "V106",
+              "column": "FLAT FREIGHT RATE",
+              "basis_verbatim": "FLAT FREIGHT RATE",
+              "is_money_header": true,
+              "raw": 800.0,
+              "state": "number",
+              "displayed": "800"
+            },
+            {
+              "cell": "W106",
+              "column": "FULL COST CDN",
+              "basis_verbatim": "FULL COST CDN",
+              "is_money_header": true,
+              "raw": 9972.236,
+              "state": "number",
+              "displayed": "9,972.24"
+            },
+            {
+              "cell": "X106",
+              "column": "c24",
+              "basis_verbatim": "c24",
+              "is_money_header": false,
+              "raw": 1.1364,
+              "state": "number",
+              "displayed": "1.14"
+            },
+            {
+              "cell": "Y106",
+              "column": "CDN NET",
+              "basis_verbatim": "CDN NET",
+              "is_money_header": true,
+              "raw": 11332.4489904,
+              "state": "number",
+              "displayed": "11,332.45"
+            },
+            {
+              "cell": "Z106",
+              "column": "c26",
+              "basis_verbatim": "c26",
+              "is_money_header": false,
+              "raw": 1.25,
+              "state": "number",
+              "displayed": "1.25"
+            },
+            {
+              "cell": "AA106",
+              "column": "CDN LIST",
+              "basis_verbatim": "CDN LIST",
+              "is_money_header": true,
+              "raw": 14165.561238,
+              "state": "number",
+              "displayed": "14,165.56"
+            },
+            {
+              "cell": "AF106",
+              "column": "0.75",
+              "basis_verbatim": "0.75",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            },
+            {
+              "cell": "AG106",
+              "column": "30",
+              "basis_verbatim": "30",
+              "is_money_header": false,
+              "raw": "nan",
+              "state": "nan"
+            }
+          ]
+        }
+      ],
+      "distinct_rows": [
+        "tennsmith!106"
+      ],
+      "ambiguity": false,
+      "identity_resolved": true,
+      "unresolved_candidates": [
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R6",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 6
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R7",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 7
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A8",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "3/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E8",
+          "column": "c5",
+          "cell_text": "3/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R8",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 8
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R9",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 9
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R10",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 10
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R11",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 11
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R12",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 12
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R13",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 13
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A14",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "5/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E14",
+          "column": "c5",
+          "cell_text": "5/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R14",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 14
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R15",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 15
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R16",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 16
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R17",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 17
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "A18",
+          "column": "#20 ROUND PUNCHES AND DIES \u2013 STOCKING SIZES",
+          "cell_text": "7/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "E18",
+          "column": "c5",
+          "cell_text": "7/16",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R18",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 18
+        },
+        {
+          "shared_tokens": [
+            "16"
+          ],
+          "cell": "R19",
+          "column": "CANADA COST US $$$$_2",
+          "cell_text": "16.2",
+          "sheet": "_20_tooling",
+          "sheet_row": 19
+        }
+      ],
+      "fragment_probe_would_also_match": []
+    }
+  ],
+  "distractors": [
+    {
+      "label": "GSL24-16",
+      "matches": [],
+      "match_count": 0
+    },
+    {
+      "label": "SLE16-8",
+      "matches": [],
+      "match_count": 0
+    },
+    {
+      "label": "U-38",
+      "matches": [],
+      "match_count": 0
+    },
+    {
+      "label": "Manual Flanger",
+      "matches": [
+        [
+          "tinknocker",
+          42,
+          "A42",
+          "TK Manual Flanger"
+        ]
+      ],
+      "match_count": 1
+    },
+    {
+      "label": "1624",
+      "matches": [
+        [
+          "ercolina",
+          236,
+          "I236",
+          "1624"
+        ],
+        [
+          "ercolina",
+          277,
+          "H277",
+          "1624"
+        ],
+        [
+          "ercolina",
+          278,
+          "H278",
+          "1624"
+        ],
+        [
+          "ercolina",
+          279,
+          "H279",
+          "1624"
+        ],
+        [
+          "ercolina",
+          280,
+          "H280",
+          "1624"
+        ],
+        [
+          "gmpump",
+          374,
+          "V374",
+          "1624"
+        ]
+      ],
+      "match_count": 6
+    },
+    {
+      "label": "Multi Wheel Gang Slitter",
+      "matches": [],
+      "match_count": 0
+    }
+  ]
+}
