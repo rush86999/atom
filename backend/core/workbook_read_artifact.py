@@ -832,6 +832,18 @@ _INTERROGATIVE_GUARD = {
     "search", "check", "tell", "show", "give",
 }
 
+# A possessive over a COMMUNICATION-SOURCE noun — "Priya's text message",
+# "Chandrakant's email", "Dana's slack thread" — names WHERE to look, not
+# an attribute the rows carry (2026-09-29 row-338 incident, seam four: the
+# prior turn's cross-source request mined organization="Priya", and that
+# constraint filtered every workbook row to absence on the next read).
+_COMMUNICATION_SOURCE_NOUN_RE = re.compile(
+    r"^\s*(?:e-?mails?|mails?|messages?|msgs?|texts?|chats?|threads?|dms?|"
+    r"whats?apps?|slacks?|teams?|inbox(?:es)?|voicemails?|calendars?|"
+    r"invites?|pings?|calls?)\b",
+    re.IGNORECASE,
+)
+
 
 def extract_natural_language_criteria(
     texts: Sequence[str],
@@ -849,6 +861,14 @@ def extract_natural_language_criteria(
     for text in texts or []:
         value_text = str(text or "")
         for match in possessive.finditer(value_text):
+            # SOURCE REFERENCE, NOT CONSTRAINT: "<name>'s email/message/
+            # thread/…" scopes where to search — it never describes the
+            # rows, so mining it as an organization value filters out
+            # every candidate (live: "check Priya's text message … in
+            # workbook" made the NEXT workbook read return absent).
+            if _COMMUNICATION_SOURCE_NOUN_RE.match(
+                    value_text[match.end():]):
+                continue
             parts = match.group(1).strip().split()
             # INTERROGATIVE GUARD (2026-09-24): "when does A. Kumar's
             # certificate expire" is a QUESTION — the possessive phrase

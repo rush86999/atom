@@ -788,3 +788,37 @@ def test_single_number_constraint_still_applies(tmp_path):
         for values in criteria.values()
         for value in values
     ), criteria
+
+
+def test_possessive_source_reference_is_not_an_organization_constraint():
+    """Row-338 incident, seam four: the conversation's earlier turn "check
+    Priya's text message and or description in workbook…" mined
+    organization="Priya" from the possessive — a SOURCE reference (whose
+    messages to check), which then filtered every workbook row to absence
+    on the NEXT turn's read. "<name>'s <communication-source noun>" names
+    where to look, never an attribute the rows carry. Organization
+    possessives over document/company nouns are untouched."""
+    from core.workbook_read_artifact import _disambiguation_criteria
+
+    for message in (
+        "check Priya's text message and or description in workbook to "
+        "find correct sheet",
+        "check Chandrakant's email and or description in workbook",
+        "search Dana's slack thread for the churn numbers",
+    ):
+        criteria = _disambiguation_criteria(message, [message], None)
+        for attribute, values in criteria.items():
+            assert "priya" not in [v.lower() for v in values], (message, criteria)
+            assert "chandrakant" not in [v.lower() for v in values], (message, criteria)
+            assert "dana" not in [v.lower() for v in values], (message, criteria)
+
+    # Positive control: an organization possessive over a document/company
+    # noun still constrains.
+    criteria = _disambiguation_criteria(
+        "check Brennan Machinery's quote totals in the workbook",
+        ["check Brennan Machinery's quote totals in the workbook"], None)
+    assert any(
+        "brennan" in str(v).lower()
+        for values in criteria.values()
+        for v in values
+    ), criteria
