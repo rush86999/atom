@@ -132,10 +132,45 @@ QUALITY needs a mailbox-seeded run — not claimed here.
 
 ## Deployment status
 
-NOT deployed to the dev stack. The fix is verified in the isolated world
-only; :8001 was left untouched. To roll out when in scope:
-`scripts/restart_backend.sh` (snapshot + restart), then re-run this
-scenario in the normal app.
+DEPLOYED to the dev stack 2026-09-29 (owner-requested): DB snapshot
+`backend/data/backups/atom-pre-restart-20260929-131615.db.gz` (also copied
+to the external drive), then `scripts/restart_backend.sh` — healthy pid
+70300 on :8001 serving the fixed working tree.
+
+Normal-app probe (`probe_normal_app.py`, `normal_app_probe_run3.json`;
+public API on :8001, disposable registered user `probe-check-1@example.com`,
+session `crosssrc-probe-1790702589`):
+
+- Turn 1 (eight-price ask, execution 3f155dc1-e9c6-4dc1-ba7c-eb59da530479):
+  all eight prices delivered deterministically against the REAL dev
+  workbook — the read lane is intact in production.
+- Turn 2 — cross-source variant with a DIFFERENT person and DIFFERENT
+  channel ("check Priya's text message and or description in workbook…",
+  execution a5861609-03ad-4e7a-b91e-f58fac272e74): routed to real planning
+  (deepseek-v4-pro / fireworks), NOT a deterministic price re-run, no
+  price-table repeat; the answer honestly reports Priya's message was not
+  found in the available data and asks for the missing input. Server log
+  carries `[pending-file-task] superseded by a newer request`.
+- Registrations rate-limited after two probe users — `probe-check-1@…`
+  is the only row created; deletable by the owner along with session
+  `crosssrc-probe-1790702589`.
+
+## Domain independence
+
+- Diff audit: the only domain words in the change are comments quoting the
+  incident; the added vocabulary is generic retrieval-operation words
+  (latest/version/refresh/clean/table/…) and articles.
+- Pinned matrix (`TestDomainIndependence`): six source/target pairs —
+  calendar+PDF, CRM+billing, Slack+CSV, drive+sheet, wiki+notes, plus the
+  incident's messaging+workbook — each asserting the cross-source follow-up
+  supersedes and never resumes, while same-read retry controls and bare
+  approvals stay lineage in every domain. 205 passed in the two routing
+  suites after the matrix landed.
+- Live generality evidence: the :8001 probe used a different person
+  (Priya) and channel (text message) and routed identically to the
+  incident's Chandrakant/email shape.
+
+## Earlier verification (isolated world, pre-deployment)
 
 ## Disposables for the owner to delete
 
