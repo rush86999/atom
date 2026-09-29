@@ -118,3 +118,22 @@ speculation.
 Artifacts on the portable drive (user-directed): /Volumes/Seagate
 Portable Drive/jevk5-9b/ — GGUF (8.9 GB, hash-verified), scratch venv,
 bench_9b.py. Servers stopped after measurement.
+
+## Decision (owner, 2026-09-29)
+
+Keep the budget-LLM tail as the sole refinement backend for now. The
+local-decision-model option (JevK5-9B etc.) stays RESEARCH-ONLY; expand
+only if recurring use shows problems. Concrete expansion triggers:
+
+- the cheap-nlu circuit breaker opens repeatedly in normal use (provider
+  outages/credit exhaustion of the kind already observed once);
+- refinement latency or metered cost becomes visible in real sessions;
+- new high-volume classification work lands in cheap_nlu where free +
+  local compounds.
+
+If a trigger fires: expand the labeled gate set from real session
+history first (the 9 cases rank backends, they do not license adoption),
+then re-run the staged benchmark (/Volumes/Seagate Portable Drive/
+jevk5-9b/ — hash-verified GGUF, venv, bench script) and wire the winning
+backend per question kind behind the existing kill switches, shadowed
+before it routes anything. No production change in this decision.
