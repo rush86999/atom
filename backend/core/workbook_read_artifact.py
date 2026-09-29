@@ -837,30 +837,112 @@ _INTERROGATIVE_GUARD = {
 # an attribute the rows carry (2026-09-29 row-338 incident, seam four: the
 # prior turn's cross-source request mined organization="Priya", and that
 # constraint filtered every workbook row to absence on the next read).
+# GENERIC communication nouns only — no person, product or integration
+# names. The noun list is the deterministic FLOOR; the residue is judged
+# semantically by the cheap-NLU layer (core/llm/cheap_nlu.py), so the
+# behavior does not depend on this list staying current.
 _COMMUNICATION_SOURCE_NOUN_RE = re.compile(
     r"^\s*(?:e-?mails?|mails?|messages?|msgs?|texts?|chats?|threads?|dms?|"
     r"whats?apps?|slacks?|teams?|inbox(?:es)?|voicemails?|calendars?|"
-    r"invites?|pings?|calls?)\b",
+    r"invites?|pings?|calls?|notes?|memos?|letters?|repl(?:y|ies)|"
+    r"responses?|comments?|posts?|tickets?|announcements?|reminders?|"
+    r"forwards?|attachments?|transcripts?)\b",
+    re.IGNORECASE,
+)
+
+# The possessive miner's own regex, exposed so the candidate collector and
+# the miner cannot drift apart.
+_POSSESSIVE_RE = re.compile(
+    r"(?<![\w])([A-Za-z][A-Za-z0-9&.'-]*(?:\s+[A-Za-z][A-Za-z0-9&.'-]*){0,3})'s\b",
+    re.IGNORECASE,
+)
+
+# Explicitly labelled attributes ("organization is X", "vendor: Y") — the
+# high-precision lane; never affected by source-reference filtering.
+_POSSESSIVE_LABELLED_RE = re.compile(
+    r"\b(organization|company|manufacturer|supplier|vendor|owner|brand)"
+    r"\s*(?:is|=|:)\s*([A-Za-z0-9][A-Za-z0-9 ._&-]*)",
     re.IGNORECASE,
 )
 
 
-def extract_natural_language_criteria(
+def _possessor_phrase(group: str) -> Optional[str]:
+    """Normalize a possessive match's holder to the entity phrase.
+
+    Shared by the constraint miner and the cheap-NLU candidate collector
+    so the two cannot drift: pops leading stopwords/interrogatives
+    ("check Priya" -> "Priya") and strips glued conjunction tails
+    ("email and Meera" -> "Meera" — the holder after the conjunction is
+    the possessor). Returns None when nothing remains.
+    """
+    parts = [p for p in str(group or "").strip().split() if p]
+    while parts and (
+        parts[0].lower() in _ATTRIBUTE_STOPWORDS
+        or parts[0].lower() in _INTERROGATIVE_GUARD
+        or parts[0].lower() in {"does", "do", "did", "is", "are"}
+    ):
+        parts.pop(0)
+    while len(parts) > 1 and parts[-1].lower() in {"and", "or", "the"}:
+        parts.pop()
+    for i in range(len(parts) - 2, -1, -1):
+        if parts[i].lower() in {"and", "or"}:
+            parts = parts[i + 1:]
+            break
+    if not parts or parts[0].lower() in _INTERROGATIVE_GUARD:
+        return None
+    return " ".join(parts)
+
+
+def possessive_source_candidates(
     texts: Sequence[str],
-) -> Dict[str, List[str]]:
-    criteria: Dict[str, List[str]] = {}
-    possessive = re.compile(
-        r"(?<![\w])([A-Za-z][A-Za-z0-9&.'-]*(?:\s+[A-Za-z][A-Za-z0-9&.'-]*){0,3})'s\b",
-        re.IGNORECASE,
-    )
-    labelled = re.compile(
-        r"\b(organization|company|manufacturer|supplier|vendor|owner|brand)"
-        r"\s*(?:is|=|:)\s*([A-Za-z0-9][A-Za-z0-9 ._&-]*)",
-        re.IGNORECASE,
-    )
+) -> List[Dict[str, str]]:
+    """Possessives NOT settled by the deterministic floor, for cheap-NLU.
+
+    Each item is ``{"possessor": <joined phrase>, "noun": <following
+    word>}`` for a possessive whose following noun is not a known
+    communication source (those are already skipped) — e.g. "Meera's
+    Notion page", "Sam's ticket queue". The LLM layer judges only this
+    residue, so the noun list never has to anticipate every surface.
+    """
+    out: List[Dict[str, str]] = []
+    seen: set = set()
     for text in texts or []:
         value_text = str(text or "")
-        for match in possessive.finditer(value_text):
+        for match in _POSSESSIVE_RE.finditer(value_text):
+            if _COMMUNICATION_SOURCE_NOUN_RE.match(value_text[match.end():]):
+                continue
+            possessor = _possessor_phrase(match.group(1))
+            if not possessor:
+                continue
+            key = possessor.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            rest = value_text[match.end():].lstrip()
+            noun = rest.split()[0].strip(",.;:!?") if rest.split() else ""
+            out.append({"possessor": possessor, "noun": noun})
+    return out
+
+
+def extract_natural_language_criteria(
+    texts: Sequence[str],
+    source_reference_names: Optional[Sequence[str]] = None,
+) -> Dict[str, List[str]]:
+    """Mine attribute constraints from natural language.
+
+    ``source_reference_names`` carries possessor phrases the cheap-NLU
+    layer judged to be SOURCE references (where to look) rather than row
+    attributes; they are skipped like the deterministic communication
+    noun floor. Uncertain/absent verdicts keep the floor's behavior.
+    """
+    criteria: Dict[str, List[str]] = {}
+    source_refs = {
+        str(name or "").strip().lower()
+        for name in (source_reference_names or [])
+    }
+    for text in texts or []:
+        value_text = str(text or "")
+        for match in _POSSESSIVE_RE.finditer(value_text):
             # SOURCE REFERENCE, NOT CONSTRAINT: "<name>'s email/message/
             # thread/…" scopes where to search — it never describes the
             # rows, so mining it as an organization value filters out
@@ -869,20 +951,16 @@ def extract_natural_language_criteria(
             if _COMMUNICATION_SOURCE_NOUN_RE.match(
                     value_text[match.end():]):
                 continue
-            parts = match.group(1).strip().split()
-            # INTERROGATIVE GUARD (2026-09-24): "when does A. Kumar's
-            # certificate expire" is a QUESTION — the possessive phrase
-            # 'when does A. Kumar' must never become an organization
-            # constraint (it filtered out the only matching row).
-            while parts and (
-                parts[0].lower() in _ATTRIBUTE_STOPWORDS
-                or parts[0].lower() in _INTERROGATIVE_GUARD
-                or parts[0].lower() in {"does", "do", "did", "is", "are"}
-            ):
-                parts.pop(0)
-            if parts and not parts[0].lower() in _INTERROGATIVE_GUARD:
-                _add_criteria_value(criteria, "organization", " ".join(parts))
-        for match in labelled.finditer(value_text):
+            # INTERROGATIVE GUARD (2026-09-24, inside the shared
+            # normalizer): "when does A. Kumar's certificate expire" is
+            # a QUESTION — its possessive phrase must never become an
+            # organization constraint (it filtered out the only match).
+            possessor = _possessor_phrase(match.group(1))
+            if possessor:
+                if possessor.lower() in source_refs:
+                    continue  # cheap-NLU verdict: source, not attribute
+                _add_criteria_value(criteria, "organization", possessor)
+        for match in _POSSESSIVE_LABELLED_RE.finditer(value_text):
             _add_criteria_value(criteria, match.group(1), match.group(2).strip())
     return criteria
 
@@ -891,6 +969,7 @@ def _disambiguation_criteria(
     query: str = "",
     context_texts: Optional[Sequence[str]] = None,
     explicit: Optional[Dict[str, Any]] = None,
+    source_reference_names: Optional[Sequence[str]] = None,
 ) -> Dict[str, List[str]]:
     criteria: Dict[str, List[str]] = {}
     explicit = explicit or {}
@@ -942,7 +1021,8 @@ def _disambiguation_criteria(
                 criteria, field_text, match.group(2).strip(" \"'")
             )
     for attribute, values in extract_natural_language_criteria(
-        [query or "", *(context_texts or [])]
+        [query or "", *(context_texts or [])],
+        source_reference_names=source_reference_names,
     ).items():
         for value in values:
             _add_criteria_value(criteria, attribute, value)
@@ -1843,10 +1923,13 @@ def inspect_dataset_entries(
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
     attribute_texts: Optional[Sequence[str]] = None,
+    source_reference_names: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
-    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    criteria = _disambiguation_criteria(
+        query, context_texts, disambiguation,
+        source_reference_names=source_reference_names)
     alias_map = _left_drop_aliases(requested)
     # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
     # constraints may be mined from ANY text — user asks, assistant

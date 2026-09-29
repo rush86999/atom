@@ -749,3 +749,116 @@ class TestAnaphoricPinReachesTheReader:
             "Consolidated Price List 2019.xlsx"), (
             "the resolved identity's name, not just the loose mention, "
             "scopes the reader")
+
+
+# ---------------------------------------------------------------------------
+# 7. Cheap-NLU refinement layers (2026-09-29 generalization pass): the
+#    deterministic noun-list floors stay authoritative in tests (TESTING=1
+#    disables every LLM call); the semantic RESIDUE is judged by
+#    core/llm/cheap_nlu.py — fail-closed, so None/NO keeps floor behavior.
+# ---------------------------------------------------------------------------
+
+class TestCheapNluRefinements:
+    def test_floor_resolves_generic_document_nouns_without_llm(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        async def _resolve(msg):
+            return await chat_mod._resolve_anaphoric_file_mention(
+                msg, _session_with_stash())
+
+        for msg in ("find this in the workbook",
+                    "locate that row in the document",
+                    "find the price from the report",
+                    "find the model in the sheet"):
+            assert asyncio.run(_resolve(msg)) == STORED_MENTION, msg
+        # Unknown generic noun: floor declines, no LLM under TESTING.
+        assert asyncio.run(_resolve("find this in the tracker")) == ""
+
+    def test_llm_yes_resolves_unknown_generic_noun(self, monkeypatch):
+        import asyncio
+
+        import core.llm.cheap_nlu as cheap
+        import integrations.chat_orchestrator as chat_mod
+
+        async def yes(message, file_name, llm_service=None):
+            assert llm_service is None or True
+            return True
+
+        monkeypatch.delenv("TESTING", raising=False)
+        monkeypatch.setattr(cheap, "refers_to_resolved_file", yes)
+        monkeypatch.setattr(chat_mod, "_GENERIC_FILE_REF_RE",
+                            __import__("re").compile(r"(?!x)x"))
+        resolved = asyncio.run(
+            chat_mod._resolve_anaphoric_file_mention(
+                "find this in the tracker", _session_with_stash()))
+        assert resolved == STORED_MENTION
+
+    def test_llm_no_keeps_normal_planning(self, monkeypatch):
+        import asyncio
+
+        import core.llm.cheap_nlu as cheap
+        import integrations.chat_orchestrator as chat_mod
+
+        async def no(message, file_name, llm_service=None):
+            return False
+
+        monkeypatch.delenv("TESTING", raising=False)
+        monkeypatch.setattr(cheap, "refers_to_resolved_file", no)
+        monkeypatch.setattr(chat_mod, "_GENERIC_FILE_REF_RE",
+                            __import__("re").compile(r"(?!x)x"))
+        resolved = asyncio.run(
+            chat_mod._resolve_anaphoric_file_mention(
+                "find this in the tracker", _session_with_stash()))
+        assert resolved == ""
+
+
+class TestPossessiveSourceRefinement:
+    def test_candidates_exclude_floor_nouns_and_keep_the_tail(self):
+        from core.workbook_read_artifact import possessive_source_candidates
+
+        text = ("check Priya's email and Meera's Notion page and "
+                "Brennan Machinery's quote totals")
+        cands = {c["possessor"]: c["noun"]
+                 for c in possessive_source_candidates([text])}
+        assert "Priya" not in cands, "email is settled by the floor"
+        assert cands.get("Meera") == "Notion", cands
+        assert "Brennan Machinery" in cands, cands
+
+    def test_source_reference_names_skip_the_org_constraint(self, tmp_path):
+        import pandas as pd
+
+        from core.workbook_read_artifact import (
+            _disambiguation_criteria,
+            inspect_dataset_entries,
+        )
+
+        history = "check Meera's Notion page and or description in workbook"
+        with_ref = _disambiguation_criteria(
+            "find 381 in the workbook", [history],
+            None, source_reference_names=["Meera"])
+        without = _disambiguation_criteria(
+            "find 381 in the workbook", [history], None)
+        assert any("meera" in str(v).lower() for vs in without.values()
+                   for v in vs)
+        assert not any("meera" in str(v).lower()
+                       for vs in with_ref.values() for v in vs)
+
+        # Attribute possessives are untouched by the refinement.
+        kept = _disambiguation_criteria(
+            "Brennan Machinery's quote totals", ["same"], None,
+            source_reference_names=["Meera"])
+        assert any("brennan" in str(v).lower()
+                   for vs in kept.values() for v in vs), kept
+
+    def test_floor_now_covers_generic_communication_nouns(self):
+        from core.workbook_read_artifact import _disambiguation_criteria
+
+        for tail in ("ticket comments", "memo", "notes", "letter",
+                     "announcement"):
+            criteria = _disambiguation_criteria(
+                f"check Maya's {tail} in the workbook",
+                [f"check Maya's {tail} in the workbook"], None)
+            assert not any("maya" in str(v).lower()
+                           for vs in criteria.values() for v in vs), tail

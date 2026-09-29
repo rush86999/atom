@@ -1933,13 +1933,15 @@ _OBJECTIVE_SYNTHESIS_RE = re.compile(
 # resolvable only through the conversation's own resolved identity
 # (2026-09-29 row-338 incident: the exact Tennsmith row was in hand, the
 # materialized copy HAD it, and the turn still fell to mail search because
-# no extension-ful filename was named). Action verbs (delete/update/send)
-# are deliberately absent — the read-shape gate above stays the action
-# boundary; this regex only ever RESOLVES a name.
+# no extension-ful filename was named). GENERIC file nouns only; the
+# cheap-NLU layer judges the residue ("the tracker", "our numbers") so
+# behavior never depends on this list anticipating every domain. Action
+# verbs (delete/update/send) are deliberately absent — the read-shape gate
+# above stays the action boundary; this regex only ever RESOLVES a name.
 _GENERIC_FILE_REF_RE = re.compile(
-    r"\b(?:in|from|of|into|across|on)\s+(?:the\s+|this\s+|that\s+)?"
+    r"\b(?:in|from|of|into|across|on)\s+(?:the\s+|this\s+|that\s+|our\s+)?"
     r"(?:workbooks?|spreadsheets?|excel(?:\s+files?)?|sheets?|"
-    r"price\s+lists?|files?)\b",
+    r"price\s+lists?|files?|documents?|docs?|reports?)\b",
     re.IGNORECASE,
 )
 
@@ -3040,8 +3042,9 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
         return []
 
 
-def _resolve_anaphoric_file_mention(
+async def _resolve_anaphoric_file_mention(
     message: str, session: Optional[Dict[str, Any]],
+    llm_service: Any = None,
 ) -> str:
     """Resolve "find this in the workbook" to the conversation's file.
 
@@ -3055,23 +3058,28 @@ def _resolve_anaphoric_file_mention(
     typed). Guarded: questions and confirmation-shaped turns ("that
     workbook is correct", "search the sheet again") are never resolved —
     their own lanes own them — and a non-spreadsheet resolved identity
-    never matches workbook vocabulary. Returns the resolved file NAME
-    (the caller's direct reader consumes the resource pin separately)
-    or "".
+    never matches workbook vocabulary.
+
+    Deterministic floor first (generic file nouns). The RESIDUE the noun
+    list cannot anticipate ("find this in the tracker", "check our
+    numbers doc") is judged by the cheap-NLU layer
+    (``core.llm.cheap_nlu.refers_to_resolved_file``): a confident YES
+    resolves, everything else (NO/uncertain/disabled/error) keeps normal
+    planning — fail-closed by construction. Returns the resolved file
+    NAME (the caller's direct reader consumes the resource pin
+    separately) or "".
     """
     t = (message or "").strip()
     if not t or "?" in t:
         return ""
-    if not _GENERIC_FILE_REF_RE.search(t):
-        return ""
     try:
-        from core.agent_file_context import SPREADSHEET_EXTENSIONS
         from core.pending_file_task import is_filename_confirmation
 
         if is_filename_confirmation(t):
             return ""
     except Exception:  # noqa: BLE001 — fail toward normal planning
         return ""
+    resolved_name = ""
     for carrier in ((session or {}).get("_pending_file_task"),
                     (session or {}).get("_superseded_file_task_context")):
         identity = (carrier or {}).get("resolved_file") if isinstance(
@@ -3079,8 +3087,31 @@ def _resolve_anaphoric_file_mention(
         name = str((identity or {}).get("file_name") or "").strip()
         if not name:
             continue
-        if name.rsplit(".", 1)[-1].lower() in SPREADSHEET_EXTENSIONS:
-            return name.lower()
+        try:
+            from core.agent_file_context import SPREADSHEET_EXTENSIONS
+
+            if name.rsplit(".", 1)[-1].lower() in SPREADSHEET_EXTENSIONS:
+                resolved_name = name
+                break
+        except Exception:  # noqa: BLE001 — belt-only
+            break
+    if not resolved_name:
+        return ""
+    # Deterministic floor: generic file nouns resolve outright.
+    if _GENERIC_FILE_REF_RE.search(t):
+        return resolved_name.lower()
+    # Cheap-NLU residue: unknown generic noun, judged semantically.
+    try:
+        from core.llm.cheap_nlu import (
+            refers_to_resolved_file,
+            switch_enabled as _nlu_switch_on,
+        )
+
+        if _nlu_switch_on():
+            if await refers_to_resolved_file(t, resolved_name, llm_service):
+                return resolved_name.lower()
+    except Exception:  # noqa: BLE001 — fail-closed to normal planning
+        pass
     return ""
 
 
@@ -4993,8 +5024,8 @@ class ChatOrchestrator:
                     # conversation's own resolved identity so the
                     # deterministic reader serves the targeted ask
                     # instead of generic mail/integration planning.
-                    _ask_mention = _resolve_anaphoric_file_mention(
-                        message, session)
+                    _ask_mention = await _resolve_anaphoric_file_mention(
+                        message, session, self.llm_service)
                     if _ask_mention:
                         logger.info(
                             "[file-ask] anaphoric reference resolved: "

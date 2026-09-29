@@ -6244,6 +6244,31 @@ async def _datasets_named_file_block(
             except Exception:  # noqa: BLE001 — attribute extraction optional
                 _attr_words = []
                 _field_requests = []
+            # SOURCE-REFERENCE REFINEMENT (2026-09-29 row-338 seam four):
+            # possessives the deterministic communication-noun floor does
+            # not settle ("Meera's Notion page", "Sam's ticket queue")
+            # are judged by the cheap-NLU layer — a source reference
+            # names WHERE to look and must never become a row constraint.
+            # Fail-closed: no verdict ⇒ floor behavior; disabled under
+            # TESTING/kill switch ⇒ zero LLM calls.
+            _source_ref_names: List[str] = []
+            try:
+                from core.llm.cheap_nlu import (
+                    is_source_reference,
+                    switch_enabled as _nlu_switch_on,
+                )
+                from core.workbook_read_artifact import (
+                    possessive_source_candidates,
+                )
+
+                if _nlu_switch_on():
+                    _cands = possessive_source_candidates(context_texts)
+                    for _cand in _cands[:4]:
+                        if await is_source_reference(
+                                _cand["possessor"], _cand["noun"]):
+                            _source_ref_names.append(_cand["possessor"])
+            except Exception:  # noqa: BLE001 — refinement is optional
+                _source_ref_names = []
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -6261,6 +6286,7 @@ async def _datasets_named_file_block(
                 ingested_at=prov["ingested_at"],
                 disambiguation=(context or {}).get("disambiguation"),
                 attribute_texts=_brand_texts,
+                source_reference_names=_source_ref_names,
             )
             render_artifact = render_workbook_artifact(workbook_read)
         except Exception as artifact_error:
