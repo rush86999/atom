@@ -52,3 +52,37 @@ are the honest candidates.
 
 Runtime left installed at ~/.local/bin/ollaya (server stopped). No
 production wiring changed by this research.
+
+## Addendum (same day): Mica / JevK5 measured
+
+Owner asked to test the 4B/9B decoders. Results on this box (arm64 Mac,
+llama.cpp, Q8_0):
+
+- **Mica**: NOT published in registry 0.7.5 (tried mica, :latest, :v0.1,
+  :4b — "not found"). Site lineup is ahead of the registry/runtime;
+  untestable until published or a newer runtime ships.
+- **JevK5-9b**: not in registry either. **JevK5-4b**: pulled (4.5 GB) and
+  measured.
+
+| Task | laya:en 421M | JevK5-4B | gate |
+|---|---|---|---|
+| possessive source-vs-attribute | 1/5 (NO-bias) | 2/5 — clear case p=0.78 YES ✓, but Brennan Machinery p=0.58 (wrong), Sam 0.43, supplier 0.41 | fail |
+| anaphoric file-reference | 2/4 (NO-bias) | 2/4 — all probs 0.30–0.44, non-discriminative | fail |
+| warm latency | 40–70 ms | ~215 ms (20 s cold load) | — |
+
+Notable: JevK5's noul readout returned IDENTICAL probabilities under
+instruction-style and short-statement phrasings — the readout keys on
+the state text and is phrasing-insensitive, so prompt tuning will not
+rescue these scores. Custom two-option CHOICE schemas are rejected by
+the runtime (both models; ~9 ms no-op) — only preset label sets work in
+0.7.5.
+
+Verdict unchanged and now measured across both weight classes available
+locally: the runtime pattern is right, the models are not. JevK5-4B
+shows real calibration signal on the clearest case (0.78) and its
+failure mode in our architecture would be fail-open (dropping a
+legitimate org constraint), not dangerous — but 2/5+2/4 is far below
+any gate. Re-test Mica/JevK5-9B when the registry publishes them; keep
+the labeled incident+control set (in test_cross_source_followup_routing
++ this bench) as the gate. Test models removed after measurement;
+runtime + laya remain installed.
