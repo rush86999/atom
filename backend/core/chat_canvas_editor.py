@@ -33,6 +33,7 @@ from typing import Any, Awaitable, Callable, Dict, List, NamedTuple, Optional, T
 
 from pydantic import BaseModel
 
+from core import log_redaction
 from core.evidence_grounding import CANVAS_ARTIFACT_GROUNDING_RULE
 
 logger = logging.getLogger(__name__)
@@ -2071,6 +2072,26 @@ def canvas_evidence_note(status: CanvasEvidenceStatus) -> str:
     return ""
 
 
+def _count_occurrences(haystack: str, needle: str) -> int:
+    if not needle:
+        return 0
+    return haystack.count(needle)
+
+
+def _quoted_value(message: str) -> str:
+    """The value the user quoted, if any ("from X to Y" / "change X to Y").
+
+    Used only to COUNT occurrences in the canvas body the planner received, so a
+    decision can be attributed. The value itself is never logged.
+    """
+    m = re.search(r"\bfrom\s+([^\s]+)\s+to\s+([^\s.]+)", message or "",
+                  re.IGNORECASE)
+    if m:
+        return m.group(1).strip().strip("'\"")
+    m = re.search(r"\bchange\s+(?:the\s+)?[^\s]+\s+from\s+([^\s]+)\s+to\s+([^\s.]+)",
+                  message or "", re.IGNORECASE)
+    return m.group(1).strip().strip("'\"") if m else ""
+
 async def plan_canvas_edit(
     message: str,
     history: List[Dict[str, Any]],
@@ -2216,6 +2237,47 @@ async def plan_canvas_edit(
     if not plan.wants_edit:
         # D4: a plan that says "not an edit" while carrying operations is
         # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
+        #
+        # OBSERVABILITY (2026-09-28). The decision this branch makes is the
+        # single boundary that decides whether a canvas changes at all
+        # (chat_orchestrator.py gates on `plan.wants_edit` before apply), and it
+        # was the only branch with NO log line. A clean decline -- wants_edit
+        # false, no ops, no replacement, no restore -- returned here in
+        # silence, so the recorded symptom was "the planner ran, then nothing
+        # happened": on a browser edit of an unambiguous field the world saw
+        # `canvas-edit plan: 8.2s` and no explanation whatsoever, and the reason
+        # existed only in in-memory `shared_tool_state`. The bounded repair
+        # below was logged; the ordinary decline, which is the common case, was
+        # not.
+        #
+        # Shapes only: counts, flags and the contract verdict. No canvas text, no
+        # user text -- same rule as core.log_redaction.
+        # Identity evidence, not just sizes. A character count proves the input
+        # was NON-EMPTY; it cannot prove the RIGHT body and the RIGHT request
+        # reached the model, which is the question that decides whether a
+        # decline is the model's judgement or an empty-context artefact. So log
+        # truncated hashes of the canvas body and of the user's request, plus
+        # how many times the request's quoted value occurs in the body the
+        # planner was actually given. All are shapes/identities: no canvas or
+        # user text, per the routine-log rule.
+        _body_for_id = _body_from_content((canvas or {}).get("content")) or ""
+        logger.info(
+            "canvas edit: plan DECLINED | wants_edit=%s ops=%d "
+            "replacement=%s restore=%s contract_violation=%s",
+            bool(plan.wants_edit), len(list(plan.ops or [])),
+            bool((plan.updated_content_json or "").strip()),
+            bool((plan.restore_audit_id or "").strip()),
+            plan_contract_violation(plan))
+        logger.info(
+            "canvas edit: planner input identity | prompt_chars=%d "
+            "canvas_type=%r history_msgs=%d "
+            "canvas_body_sha256_12=%s request_sha256_12=%s "
+            "request_value_occurrences_in_body=%d",
+            len(prompt or ""), (canvas or {}).get("canvas_type"),
+            len(history or []),
+            log_redaction.fingerprint(_body_for_id),
+            log_redaction.fingerprint(message or ""),
+            _count_occurrences(_body_for_id, _quoted_value(message or "")))
         # Measured on candidate_fix1 (2026-09-27): the unpinned route resolves to
         # opencode-go/gemini-3-flash, and on a valid canvas it returned
         # wants_edit=False WITH ops=1 -- the correct edit operation, discarded
@@ -2276,7 +2338,31 @@ async def plan_canvas_edit(
                 "canvas edit: consistency repair claimed an edit but produced "
                 "nothing to apply -- treating the turn as not-an-edit")
             return replan
+        # FENCE (2026-09-28, F02): the repair may resolve the contradiction, not
+        # widen the edit. Reproduced here: a body-scoped request, a
+        # self-contradictory plan naming `body`, and a repair that changed
+        # `subject` — written, verified true, reported as a completed edit.
+        _widened = repair_out_of_scope(replan, plan, canvas.get("content"))
+        if _widened:
+            logger.warning(
+                "canvas edit: consistency repair REJECTED — %s. The turn stays "
+                "a decline; the user is asked to name the exact text instead.",
+                _widened)
+            # `None`, not `replan`: the plan is applicable-looking but out of
+            # scope, and returning it would hand the orchestrator an edit the
+            # user never asked for. `None` is the module's existing "no usable
+            # plan for this turn", which the caller renders as an honest
+            # no-apply.
+            return None
         return replan
+
+    logger.info(
+        "canvas edit: plan AUTHORIZED by the planner | wants_edit=True "
+        "ops=%d replacement=%s restore=%s contract_violation=%s "
+        "(this is a planning fact, not an authorization to change the canvas)",
+        len(list(plan.ops or [])), bool((plan.updated_content_json or "").strip()),
+        bool((plan.restore_audit_id or "").strip()),
+        plan_contract_violation(plan))
 
     # Patch validation: ops must match the current content EXACTLY. A
     # failed match discards the ops (never a partial write) and re-asks once
@@ -2323,6 +2409,17 @@ async def plan_canvas_edit(
             )
         if not replan.wants_edit:
             return None
+        # FENCE (2026-09-28, F02) — same rule as the consistency repair. This is
+        # the leg the reported subject-line change actually came through: the
+        # discarded ops named `body`, the re-ask returned a payload that changed
+        # `subject`, and it was written and reported as a completed edit.
+        _widened = repair_out_of_scope(replan, plan, canvas.get("content"))
+        if _widened:
+            logger.warning(
+                "canvas edit: replace-mode re-ask REJECTED — %s. Nothing is "
+                "written; the turn answers honestly and asks for the exact "
+                "text.", _widened)
+            return None
         # Only a usable replace plan rescues the turn; another broken patch
         # set does not — fall through to conversation instead of guessing.
         if replan.updated_content_json and replan.updated_content_json.strip():
@@ -2344,6 +2441,15 @@ async def plan_canvas_edit(
         raw_plan = await _raw_json_replace_plan(
             llm_service, f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}", {}
         )
+        # The raw leg is the SAME bounded repair, so the same fence applies to
+        # it: being reached through a different parser changes nothing about
+        # what the answer is allowed to say.
+        _raw_widened = repair_out_of_scope(raw_plan, plan, canvas.get("content"))
+        if _raw_widened:
+            logger.warning(
+                "canvas edit: raw-JSON replace fallback REJECTED — %s. Nothing "
+                "is written.", _raw_widened)
+            return None
         if raw_plan is not None and (raw_plan.updated_content_json or "").strip():
             logger.info("canvas edit replace plan recovered via raw-JSON fallback")
             return raw_plan
@@ -2486,6 +2592,108 @@ def _merge_replace_content(
         return None, "replace payload was plain text but the canvas content is structured"
 
     return None, "replace payload shape does not match the current content"
+
+
+# ---------------------------------------------------------------------------
+# BOUNDED-REPAIR SCOPE (2026-09-28, F02).
+#
+# REPRODUCED on this source: with a patch plan whose `find` text was absent
+# from the canvas, the product discarded the ops and re-asked in replace mode.
+# The re-ask was answered with a full content payload that changed `subject`
+# and left the body alone. That payload was merged field-scoped, written,
+# reported `postcondition_verified: true`, and the user was told "Updated the
+# canvas and refreshed the subject line" — for a request that concerned quote
+# validity in the body. One mutation audit row, on the subject. The same thing
+# is reachable through the self-contradictory-plan consistency repair.
+#
+# The bounded repairs are the only place in this module where a model is handed
+# authorship of fields the user's request never named: the discarded patch set
+# already said WHICH fields the edit was about, and a recovery answer is allowed
+# to fix HOW they are written, not to choose a different edit. So the fence is
+# expressed in the plan's own terms — no vocabulary, no phrase list, no
+# per-integration branch:
+#
+#   a bounded repair may not change a content key the discarded plan did not
+#   name.
+#
+# It is deliberately silent where the scope is not knowable (a whole-document
+# op, a grid, a reference plan with no ops, a payload that is not key-scoped):
+# an unauditable scope is not a scope violation, and refusing there would
+# suppress supported edits rather than protect them.
+# ---------------------------------------------------------------------------
+
+
+def _plan_field_scope(plan: Any) -> Optional[set]:
+    """The content keys a plan's ops name.
+
+    ``None`` means "not key-scoped, nothing to fence against": no ops at all,
+    an op with no ``field`` (a whole-document or per-cell op), or a field-less
+    op on a string canvas. Callers must treat ``None`` as 'cannot judge', never
+    as 'in scope'.
+    """
+    ops = list(getattr(plan, "ops", None) or [])
+    if not ops:
+        return None
+    scope: set = set()
+    for op in ops:
+        field = (op.get("field") if isinstance(op, dict)
+                 else getattr(op, "field", None))
+        if not field:
+            return None
+        scope.add(str(field))
+    return scope or None
+
+
+def _changed_content_keys(parsed: Any, current: Any) -> Optional[set]:
+    """Keys a decoded replace payload would actually CHANGE.
+
+    Keys whose value equals the current content's are not changes — the
+    echo burden of "return only the keys you are changing" is exactly why a
+    model may legitimately hand back a whole object. ``None`` when the payload
+    is not key-scoped against key-scoped current content (arrays, grids,
+    scalars, a shape mismatch that ``_merge_replace_content`` will reject
+    anyway), so the caller can tell "nothing out of scope" from "cannot judge".
+    """
+    if not (isinstance(parsed, dict) and isinstance(current, dict)):
+        return None
+    if isinstance(current.get("rows"), list) or isinstance(current.get("cells"), dict):
+        return None
+    return {key for key, value in parsed.items() if current.get(key) != value}
+
+
+def repair_out_of_scope(
+    replan: "CanvasEditPlan",
+    reference: "CanvasEditPlan",
+    current: Any,
+) -> Optional[str]:
+    """Does this BOUNDED REPAIR widen the edit beyond the plan it replaces?
+
+    Returns a human-readable reason when it does, ``None`` when it does not.
+    Only meaningful for the two repair legs; the first-plan replace mode is
+    untouched, because there the model authored the whole edit from the
+    request rather than recovering a plan the product had already scoped.
+    """
+    if replan is None or reference is None:
+        return None
+    raw = (getattr(replan, "updated_content_json", "") or "").strip()
+    if not raw:
+        return None  # a patch answer is field-scoped by construction
+    parsed = _repair_json(raw)
+    if not isinstance(parsed, dict):
+        return None
+    scope = _plan_field_scope(reference)
+    if not scope:
+        return None
+    changed = _changed_content_keys(parsed, current)
+    if not changed:
+        return None
+    widened = sorted(changed - scope)
+    if not widened:
+        return None
+    return (
+        f"bounded repair would change content key(s) {widened} that the "
+        f"discarded plan did not name (it named {sorted(scope)})"
+    )
 
 
 def _decode_replace_content(
@@ -2745,8 +2953,16 @@ def _verify_intended_change(plan: Any, readback_content: Any,
                 f"field {mark.get('field')!r}: the replacement text is absent")
             continue
         # A non-empty `find` that survives means the edit did not replace what
-        # it claimed to. Ignored when find == replace, where nothing could change.
-        if find and find != replace and find in hay:
+        # it claimed to. Ignored when find == replace, where nothing could
+        # change — and for the same reason when `replace` CONTAINS `find`
+        # (observed 2026-09-28, F02 control n3: replacing the subject
+        # "Quote … WG-350DSAV" with "Quote … WG-350DSAV (updated)"). Applying
+        # the op leaves the original text present BY CONSTRUCTION, so the
+        # substring test cannot discriminate and reports a landed, verified
+        # edit as unapplied — a false failure claim on a durable write. The
+        # replacement-present check above still discriminates in that case.
+        if (find and replace and find != replace
+                and find not in replace and find in hay):
             unapplied.append(
                 f"field {mark.get('field')!r}: the text it should have replaced "
                 f"is still present")
@@ -2833,12 +3049,24 @@ async def apply_canvas_edit(
 
             result = await restore_canvas_version(user_id, canvas_id, audit_id)
         except Exception as e:
+            # An exception that ESCAPES the store call says nothing about
+            # whether its append landed — the store swallows its own, but a
+            # cancellation or a fault outside its try block reaches here. It is
+            # therefore never a verified zero effect.
             logger.warning(f"canvas restore apply failed for {canvas_id}: {e}")
-            return _out(None, f"store_error: {e}")
+            return _out(None, f"write_uncertain: {e}")
         if not (result or {}).get("success"):
             err = str((result or {}).get("error") or "")
             if err.strip().lower() == "version not found":
+                # Refused while LOOKING for the version: nothing was appended.
                 return _out(None, "version_not_found")
+            _write_outcome = str((result or {}).get("write_outcome") or "").strip()
+            if _write_outcome != "not_attempted":
+                logger.warning(
+                    "canvas restore store reported failure for %s with "
+                    "write_outcome=%r — the append may already be durable: %s",
+                    canvas_id, _write_outcome or "(not reported)", err)
+                return _out(None, f"write_uncertain: {err}")
             logger.info(f"canvas restore rejected for {canvas_id}: {err}")
             return _out(None, f"store_rejected: {err}")
         if (result or {}).get("no_change"):
@@ -2942,8 +3170,10 @@ async def apply_canvas_edit(
             postconditions=postconditions,
         )
     except Exception as e:
+        # Same rule as the restore path: an exception escaping the store call
+        # cannot establish that nothing was written.
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
-        return _out(None, f"store_error: {e}")
+        return _out(None, f"write_uncertain: {e}")
 
     if not (result or {}).get("success"):
         if (result or {}).get("conflict"):
@@ -2951,6 +3181,19 @@ async def apply_canvas_edit(
                 f"canvas edit CONFLICT for {canvas_id}: "
                 f"{(result or {}).get('error')}")
             return _out(None, "conflict: canvas changed during the edit")
+        # A refusal is NOT a zero effect until the store says the append was
+        # never attempted. It reports the same `success: False` for a failure
+        # that happened AFTER its commit, and "the store refused, so nothing
+        # changed" is exactly the false zero-effect claim D0 is about. Only the
+        # store knows which of the two happened, so it is asked, and an
+        # unrecognised answer is treated as unknown rather than as no.
+        _write_outcome = str((result or {}).get("write_outcome") or "").strip()
+        if _write_outcome != "not_attempted":
+            logger.warning(
+                "canvas edit store reported failure for %s with "
+                "write_outcome=%r — the write may already be durable: %s",
+                canvas_id, _write_outcome or "(not reported)", (result or {}).get("error"))
+            return _out(None, f"write_uncertain: {(result or {}).get('error')}")
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
         return _out(None, f"store_rejected: {(result or {}).get('error')}")
     # INDEPENDENT READ-BACK, ALWAYS. Not only for evidence-contract canvases.
@@ -3159,6 +3402,49 @@ async def _raw_json_replace_plan(
         return None
 
 
+#: Refusals that were decided BEFORE the store was asked to write anything, so
+#: "nothing was changed" is a VERIFIED statement about the canvas rather than a
+#: guess. Everything that reaches the store is absent from this list on purpose:
+#: a store refusal is only a zero effect when the store itself reported that the
+#: append was never attempted (it reports the opposite for a failure that
+#: happened after its own commit), and `apply_canvas_edit` encodes that as
+#: ``write_uncertain``. Prefixes are matched, so a family of reasons
+#: (``scope_*``, ``footer_*``, ``dead_link:…``) is listed once.
+#:
+#: The default direction is therefore UNCERTAIN: a reason nobody has audited
+#: gets wording that preserves the doubt, instead of a new confident claim
+#: appearing the next time a refusal path is added.
+VERIFIED_PRE_WRITE_REFUSALS = (
+    "not_an_edit",
+    "no_ready_evidence_change",
+    "evidence_contract_forbids_restore",
+    "file_backed",
+    "not_valid_json",
+    "no_content",
+    "ops_no_longer_match",
+    "merge_failed",
+    "no_change",
+    "restore_missing_version",
+    "version_not_found",
+    "store_rejected",
+    "dead_link",
+    "postcondition_missing",
+    "scope_",
+    "footer_",
+)
+
+
+def _verified_zero_effect_refusal(reason: Optional[str]) -> bool:
+    """Is this refusal a VERIFIED no-write for the current canvas?"""
+    text = str(reason or "").strip()
+    if not text:
+        return False
+    head = text.split(":", 1)[0].strip()
+    return head in VERIFIED_PRE_WRITE_REFUSALS or any(
+        head.startswith(prefix) for prefix in VERIFIED_PRE_WRITE_REFUSALS
+    )
+
+
 def describe_apply_failure(
     reason: Optional[str],
     canvas_type: Optional[str],
@@ -3222,10 +3508,38 @@ def describe_apply_failure(
             "search the site again."
         )
     if reason and reason.startswith("store_rejected"):
+        # Only reachable when the store reported the append was never attempted
+        # (see `apply_canvas_edit`), which is what makes this a verified
+        # zero-effect claim rather than a hopeful one.
         return (
             "The canvas store refused that edit. Nothing was changed — "
             f"the store said: {reason.split(':', 1)[1].strip()}. Try again "
             "in a moment."
+        )
+    if reason and reason.startswith("write_uncertain"):
+        detail = reason.split(":", 1)[1].strip() if ":" in reason else ""
+        return (
+            "The canvas store reported a failure at the same moment as the "
+            "write, so I can't tell you whether your change landed. Open the "
+            "canvas and check before relying on it — and don't repeat the "
+            "request until you have, because it may already be applied."
+            + (f" (the store said: {detail})" if detail else "")
+        )
+    if reason and reason.startswith("conflict"):
+        # Not a zero effect: the canvas DID move, by someone else. Saying
+        # "nothing was changed" here would be false about the artifact the
+        # user is about to look at.
+        return (
+            "The canvas changed while I was working on it, so I held my "
+            "edit back rather than overwrite a change I hadn't seen. Nothing "
+            "of mine was written. Ask me again and I'll apply it to the "
+            "current canvas."
+        )
+    if reason and reason.startswith("store_error"):
+        return (
+            "The canvas store failed in a way that doesn't tell me whether "
+            "the change landed. Please check the canvas before relying on "
+            "it, and ask me again if it's unchanged."
         )
     if reason == "not_valid_json" or reason == "no_content":
         return (
@@ -3265,6 +3579,20 @@ def describe_apply_failure(
             "The proposed edit would remove part of the existing footer or "
             "its links, so nothing was written. I kept the customer footer "
             "unchanged."
+        )
+    if not _verified_zero_effect_refusal(reason):
+        # DEFAULT DIRECTION IS UNCERTAIN. Every branch above either decided
+        # before the store was called, or is one of the store-facing cases whose
+        # effect is unknown. Whatever lands here is a reason nobody has audited
+        # for a verified zero effect, so the sentence keeps the doubt instead of
+        # denying something we cannot see.
+        logger.warning(
+            "canvas apply failure with NO verified zero-effect evidence "
+            "(reason=%r) — answering with uncertain wording", reason)
+        return (
+            "I tried to make that edit but couldn't confirm whether the "
+            "canvas changed. Please check the canvas before relying on it. "
+            "Try rephrasing or pointing me at the exact text to change."
         )
     if field_hint:
         return (

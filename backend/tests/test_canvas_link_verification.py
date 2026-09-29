@@ -131,10 +131,29 @@ async def test_apply_proceeds_when_all_new_links_live():
     import json
 
     new_content = {"body": '<a href="https://live.ca/products/y">spec</a>'}
+    written = {}
+
+    async def _update(user_id, canvas_id, content, canvas_type=None,
+                      title=None, **kwargs):
+        written["content"] = content
+        # A real store records the id of the row it appended; verification is
+        # bound to it, so a stub that returns only `{"success": True}` is the
+        # tool's own claim about its own write, not a verified edit.
+        return {"success": True, "audit_id": "audit-1",
+                "write_outcome": "committed"}
+
+    async def _read(user_id, canvas_id, **kwargs):
+        if "content" not in written:
+            return {"success": False, "error": "not found"}
+        return {"success": True, "canvas_id": canvas_id, "canvas_type": "email",
+                "content": written["content"]}
+
     with patch("core.chat_canvas_editor._new_dead_links",
                new=AsyncMock(return_value=[])), \
          patch("tools.canvas_crud_tool.update_canvas_content",
-               new=AsyncMock(return_value={"success": True})) as upd:
+               new=AsyncMock(side_effect=_update)) as upd, \
+         patch("tools.canvas_crud_tool.read_canvas",
+               new=AsyncMock(side_effect=_read)):
         result, reason = await apply_canvas_edit(
             _plan(json.dumps(new_content)), "user-1",
             {"canvas_id": "c-1", "canvas_type": "email", "content": {"body": "old"}},
@@ -142,6 +161,7 @@ async def test_apply_proceeds_when_all_new_links_live():
         )
     assert reason is None
     assert (result or {}).get("success")
+    assert (result or {}).get("postcondition_verified") is True
     upd.assert_called_once()
 
 

@@ -11,6 +11,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 import asyncio
 import time
 from core.turn_learning import get_turn_learning
+from core import log_redaction
 import json
 import logging
 import os
@@ -4426,6 +4427,27 @@ class ChatOrchestrator:
             await self._emit_agent_status(
                 session_id, _trace_agent_id, _execution_id, "running"
             )
+            # ACCEPTANCE BARRIER (test-only; confined by
+            # core/acceptance_barrier — inert unless
+            # ATOM_ACCEPTANCE_BARRIER names a stage, and refused outside an
+            # isolated acceptance world). The turn's AgentExecution row is
+            # committed 'running' by the call above, and every
+            # _finish_chat_execution site is thousands of lines below, so this
+            # is the one narrow point that is unambiguously "after the row
+            # exists, before it is finalized". It only PAUSES: it does not
+            # answer, finalize, or persist anything, and a turn that would
+            # have failed still fails after the release. One env lookup when
+            # unset.
+            if os.getenv("ATOM_ACCEPTANCE_BARRIER"):
+                from core.acceptance_barrier import await_barrier as _barrier
+
+                await _barrier("chat_turn_after_claim", {
+                    "surface": "chat",
+                    "execution_id": _execution_id,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "request_id": (context or {}).get("request_id"),
+                })
 
             # Canvas co-editor turns (/canvas/{id} side panel): the request
             # carries the open canvas in context. Before anything else, give
@@ -6703,6 +6725,23 @@ class ChatOrchestrator:
                             "canvas. Naming the exact text to change (for "
                             "example 'change \"Quote validity: 15 days\" to "
                             "\"30 days\"') usually gets it applied."
+                        )
+                    elif _no_apply_reason == "planner_returned_none":
+                        # DISTINCT from `planner_declined`, which asserts the
+                        # editor read the request and chose not to act. Here the
+                        # editor never produced an APPLICABLE plan: the patch
+                        # targets did not match, and the bounded repairs either
+                        # failed or were rejected for widening the edit past the
+                        # fields the request named (F02). Saying it "declined"
+                        # would name a cause we did not observe; saying nothing
+                        # actionable would hide the one thing that does help.
+                        _no_apply_message = (
+                            "I didn't apply that canvas change, so nothing was "
+                            "changed. I couldn't match your request to exact "
+                            "text on this canvas, and I won't substitute a "
+                            "different edit for it. Naming the exact text to "
+                            "change (for example 'change \"Quote validity: 15 "
+                            "days\" to \"30 days\"') gets it applied."
                         )
                     elif _no_apply_reason in (
                         "evidence_declined", "evidence_unavailable"
@@ -14306,14 +14345,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if not handled or primary_intent == ChatIntent.AGENT_REQUEST:
              try:
                 # Use the General Agent (ComputerUseAgent) for unhandled queries
-                logger.info(f"Fallback to ComputerUseAgent for: {message}")
+                # Identity and size, not the goal text. The user's own words do
+                # not belong in a routine log line; the length/fingerprint is
+                # what a fallback complaint actually needs.
+                logger.info(
+                    "Fallback to ComputerUseAgent for: %s",
+                    log_redaction.describe(message))
                 
                 # Determine mode based on intent
                 mode = "thinker" # Default
                 if primary_intent in [ChatIntent.TASK_MANAGEMENT, ChatIntent.WORKFLOW_CREATION]:
                     mode = "tasker"
                 
-                logger.info(f"Calling agent_service.execute_task with goal: {message}")
+                logger.info(
+                    "Calling agent_service.execute_task with goal: %s",
+                    log_redaction.describe(message))
                 
                 # Execute agent task (short-lived)
                 task = await agent_service.execute_task(

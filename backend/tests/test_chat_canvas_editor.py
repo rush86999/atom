@@ -64,6 +64,63 @@ def _canvas(content=None):
     }
 
 
+class _durable_store:
+    """A canvas store that ACTUALLY persists, so verification can succeed.
+
+    `apply_canvas_edit` now reads the canvas back and refuses to report success
+    unless the read-back contains what it wrote — success means verified
+    persistence, not "the write tool returned success". The autouse
+    `_hermetic_canvas_store` fixture makes `read_canvas` report not-found, which
+    is the right default for tests that are not about persistence but the wrong
+    default for a test that is asserting a successful edit.
+
+    So a test about a successful edit composes this with the write tool, and
+    `read_canvas` then returns exactly what `update_canvas_content` was given.
+    That makes the fake honest rather than merely permissive: if the code wrote
+    something other than what it passed to the store, the read-back disagrees
+    and the edit is correctly reported unverified.
+    """
+
+    def __init__(self, canvas_id: str = "c-123") -> None:
+        self.canvas_id = canvas_id
+        self.content: object = None
+        self.writes = 0
+
+    def patches(self):
+        store = self
+
+        async def _update(user_id, canvas_id, content, canvas_type=None,
+                          title=None, **kwargs):
+            store.writes += 1
+            store.content = content
+            return {"success": True, "audit_id": f"audit-{store.writes}"}
+
+        async def _read(user_id, canvas_id, **kwargs):
+            if store.content is None:
+                return {"success": False, "error": "not found"}
+            return {"success": True, "canvas_id": store.canvas_id,
+                    "canvas_type": "document", "title": "Draft",
+                    "content": store.content}
+
+        return (patch("tools.canvas_crud_tool.update_canvas_content",
+                      new=AsyncMock(side_effect=_update)),
+                patch("tools.canvas_crud_tool.read_canvas",
+                      new=AsyncMock(side_effect=_read)))
+
+
+def _verified_apply(**extra):
+    """The stub shape a SUCCESSFUL `apply_canvas_edit` now has to have.
+
+    A bare `{"success": True}` is not a successful edit any more: the
+    orchestrator treats a missing `postcondition_verified` as unverified and
+    answers honestly instead of claiming the canvas changed. Tests that stub the
+    apply to exercise unrelated wiring (planner inputs, governance, routing) must
+    therefore say the edit was verified, or they are asserting the old fiction
+    where the tool's own claim was enough.
+    """
+    return {"success": True, "postcondition_verified": True, **extra}
+
+
 # ───────────────────────── plan_canvas_edit ─────────────────────────
 
 @pytest.mark.asyncio
@@ -288,9 +345,8 @@ async def test_apply_patch_preserves_untouched_bytes():
         ops=[CanvasPatchOp(find="We discussed the 115C.",
                            replace="We discussed the 115C bandsaw quote.")],
     )
-    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
-        return_value={"success": True}
-    )) as upd:
+    _store = _durable_store()
+    with _store.patches()[0] as upd, _store.patches()[1]:
         result = await apply_canvas_edit(plan, "user-1", _canvas(content=content))
     assert result and result["success"]
     assert upd.await_args.args[2] == (
@@ -310,9 +366,8 @@ async def test_apply_patch_edits_only_the_named_field_of_object_content():
         ops=[CanvasPatchOp(field="body", find="Are you stocking the 115C?",
                            replace="As a Grainger dealer, do you carry the 115C line?")],
     )
-    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
-        return_value={"success": True}
-    )) as upd:
+    _store = _durable_store()
+    with _store.patches()[0] as upd, _store.patches()[1]:
         result = await apply_canvas_edit(plan, "user-1", _canvas(content=content))
     assert result and result["success"]
     out = upd.await_args.args[2]
@@ -427,7 +482,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
              "title": "T", "content": {"body": "fresh DB body"}})), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})):
+             return_value=_verified_apply())):
         resp = await orch._try_canvas_edit(
             "update it", [],
             {"canvas_id": "c-123", "canvas_type": "email", "title": "stale",
@@ -462,7 +517,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch("core.service_factory.ServiceFactory.get_canvas_context_service",
                return_value=ctx_svc):
         resp = await orch._try_canvas_edit(
@@ -487,7 +542,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch("core.database.get_db_session", side_effect=RuntimeError("db down")):
         resp = await orch._try_canvas_edit(
             "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
@@ -623,9 +678,8 @@ async def test_apply_persists_full_content_through_crud_tool():
         title="Draft v2",
         reply="Removed the sign-off.",
     )
-    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
-        return_value={"success": True, "canvas_id": "c-123"}
-    )) as upd:
+    _store = _durable_store()
+    with _store.patches()[0] as upd, _store.patches()[1]:
         result = await apply_canvas_edit(plan, "user-1", _canvas())
     assert result and result["success"]
     upd.assert_awaited_once()
@@ -646,9 +700,8 @@ async def test_apply_discards_malformed_json_for_object_content():
 async def test_apply_accepts_bare_string_for_string_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json="plain new body")
     canvas = _canvas(content="plain old body")
-    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
-        return_value={"success": True}
-    )) as upd:
+    _store = _durable_store()
+    with _store.patches()[0] as upd, _store.patches()[1]:
         result = await apply_canvas_edit(plan, "user-1", canvas)
     assert result and upd.await_args.args[2] == "plain new body"
 
@@ -840,7 +893,7 @@ async def test_canvas_edit_passes_sender_identity_to_planner():
              return_value={"name": "Rish Maniar", "email": "rish@brennan.ca"})), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})):
+             return_value=_verified_apply())):
         await orch._try_canvas_edit(
             "adjust the signature", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
         )
@@ -861,7 +914,7 @@ async def test_canvas_edit_turn_returns_early_without_feature_routing():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True, "canvas_id": "c-123"})), \
+             return_value=_verified_apply(canvas_id="c-123"))), \
          patch.object(orch, "_update_session") as upd, \
          patch.object(orch, "_emit_agent_status", new=AsyncMock()), \
          patch.object(orch, "_finish_chat_execution") as finish:
@@ -1379,7 +1432,7 @@ async def test_immature_hire_edits_in_learning_mode():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})) as apply_mock, \
+             return_value=_verified_apply())) as apply_mock, \
          patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
          patch("core.service_factory.ServiceFactory.get_canvas_context_service", return_value=ctx_svc):
         resp = await orch._try_canvas_edit(
@@ -1409,7 +1462,7 @@ async def test_mature_hire_edits_normally():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
          patch("core.service_factory.ServiceFactory.get_canvas_context_service", return_value=ctx_svc):
         resp = await orch._try_canvas_edit(
@@ -1444,7 +1497,7 @@ async def test_human_always_edit_policy_forces_proposal_even_for_mature_hire():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch("core.autonomy_policy.get_effective_mode", return_value=MODE_HUMAN_ALWAYS), \
          patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
          patch("core.service_factory.ServiceFactory.get_canvas_context_service", return_value=ctx_svc):
@@ -1470,7 +1523,7 @@ async def test_no_agent_means_no_governance_gate():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch("core.service_factory.ServiceFactory.get_governance_service") as gov:
         resp = await orch._try_canvas_edit(
             "edit it", [], _canvas(), "user-1", "s-1", "exec-1", None,
@@ -2110,7 +2163,7 @@ async def test_canvas_edit_passes_recent_versions_to_planner():
          patch.object(orch, "_recent_canvas_versions", return_value=versions), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})):
+             return_value=_verified_apply())):
         resp = await orch._try_canvas_edit(
             "restore my previous draft", [], _canvas(), "user-1", "s-1", "exec-1", None,
         )
@@ -2244,7 +2297,7 @@ async def test_canvas_edit_passes_taught_lessons_to_planner():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})), \
+             return_value=_verified_apply())), \
          patch.object(orch, "_agent_lessons", return_value=lessons):
         resp = await orch._try_canvas_edit(
             "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
@@ -2267,7 +2320,7 @@ async def test_canvas_edit_without_agent_passes_no_lessons():
     with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
          patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
          patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
-             return_value={"success": True})):
+             return_value=_verified_apply())):
         resp = await orch._try_canvas_edit(
             "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", None,
         )

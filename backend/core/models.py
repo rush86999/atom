@@ -1050,6 +1050,32 @@ class AsyncContinuationClaim(Base):
     claimed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class AsyncDeliveryLease(Base):
+    """TERMINAL-DELIVERY lease for recovered async-turn continuations
+    (2026-09-28 review direction).
+
+    The ``notified`` flag on the execution record is check-then-act: two
+    processes running the recovery pass concurrently can both read "not
+    notified", both deliver, and both set the flag — the user receives the
+    terminal outcome twice. This lease makes the claim atomic: the row's
+    primary key is the continuation id, the owner names the delivering
+    process, and an UNEXPIRED foreign lease blocks delivery. An EXPIRED
+    lease is taken over (the holder died mid-delivery), so delivery is
+    retried automatically even when an earlier recovery pass ran before
+    expiry. Completion sets ``completed`` — a resuming original holder then
+    cannot commit a duplicate.
+
+    Disabled by ``ATOM_DELIVERY_LEASE_DISABLED=1`` (negative control: the
+    duplicate race becomes observable again).
+    """
+    __tablename__ = "async_delivery_leases"
+
+    continuation_id = Column(String, primary_key=True)
+    owner = Column(String, nullable=False, default="")
+    leased_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed = Column(Boolean, nullable=False, default=False)
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).
@@ -13107,3 +13133,32 @@ class KnowledgePattern(Base):
     __table_args__ = (
         Index("ix_knowledge_patterns_tenant_kind", "tenant_id", "kind"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Execution ownership — stamped on every AgentExecution insert
+# ---------------------------------------------------------------------------
+# WHY A LISTENER AND NOT A CALL-SITE EDIT
+# There are a dozen places that create an AgentExecution, and the boot sweep in
+# `core.execution_recovery` has to be able to tell "running, owner alive" from
+# "running, owner dead". Stamping each call site would work until the eleventh
+# one, and the miss is silent: an unstamped row is indistinguishable from a
+# legacy row, so the sweep would reconcile a live turn and nothing would say so.
+# One mapper-level insert hook covers every writer, present and future, and it
+# cannot be forgotten because there is nothing to remember.
+#
+# `core.execution_ownership` documents the policy; this is only the wiring.
+# The import is local so the model module keeps no import-time dependency on the
+# helper (which imports nothing from here in turn).
+from sqlalchemy import event as _sa_event  # noqa: E402
+
+
+@_sa_event.listens_for(AgentExecution, "before_insert", propagate=True)
+def _stamp_execution_owner(mapper, connection, target):  # noqa: ANN001
+    """Record this process as the owner of a newly created execution."""
+    try:
+        from core.execution_ownership import record_os_start
+
+        target.metadata_json = record_os_start(target.metadata_json)
+    except Exception:  # noqa: BLE001 — never fail an insert over bookkeeping
+        pass

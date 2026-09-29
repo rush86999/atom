@@ -23,6 +23,7 @@ These pins cover the six contract points:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 
@@ -346,7 +347,13 @@ class TestEffectsAndContextContinuity:
             await atc._apply_effects(cont)
         row = added[0]
         assert row.role == "assistant"
-        assert "awaiting_approval" in row.content
+        # D5: the visible text is a sentence. The internal outcome token used to
+        # be asserted here, which is the defect: it welded `[background
+        # continuation — awaiting_approval of: "..."]` into what the user reads.
+        # The token is metadata, and the next two lines assert it there.
+        assert "Background update needs your approval" in row.content
+        assert "[background continuation" not in row.content
+        assert "awaiting_approval" not in row.content
         import json as _json
         meta = _json.loads(row.metadata_json)
         assert meta["continuation"]["outcome"] == "awaiting_approval"
@@ -382,7 +389,12 @@ class TestEffectsAndContextContinuity:
 
 
 class TestRecoveryPass:
-    def test_crashed_unnotified_rows_get_notified_once(self):
+    # These two tests exercise the NOTIFIED-FLAG mechanics with the
+    # SimpleNamespace fake DB, which cannot serve the delivery-lease
+    # queries; the lease is disabled for them. The lease itself is covered
+    # by the real-ORM tests below.
+    def test_crashed_unnotified_rows_get_notified_once(self, monkeypatch):
+        monkeypatch.setenv("ATOM_DELIVERY_LEASE_DISABLED", "1")
         row = SimpleNamespace(
             id="c-x",
             metadata_json={
@@ -411,10 +423,318 @@ class TestRecoveryPass:
             out2 = atc.notify_recovered_continuations()
         assert out2["recovered_notified"] == 0
 
+    def test_notified_flag_persists_through_real_orm(self, monkeypatch):
+        monkeypatch.setenv("ATOM_DELIVERY_LEASE_DISABLED", "1")
+        """The notified flag must survive a real ORM round-trip. Mutating a
+        JSON column's dict in place is invisible to SQLAlchemy without
+        flag_modified — the recovery-notify site forgot it, the flag was
+        never written, and every later boot pass re-notified the same crash
+        ("Background update could not finish" delivered twice; found in the
+        F11 crash-window evidence 2026-09-28). The SimpleNamespace test
+        above cannot catch this: it hand-sets the flag instead of reading
+        back what the function persisted."""
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        from core.database import Base
+        from core.models import (
+            AgentExecution, AsyncContinuationClaim, ChatMessage,
+        )
+
+        engine = create_engine("sqlite:///:memory:")
+        # ChatMessage is part of what recovery PERSISTS (the durable terminal
+        # chat message). Omitting it from this subset made the recovery path
+        # fail with "no such table: chat_messages" (2026-09-28).
+        Base.metadata.create_all(bind=engine, tables=[
+            AgentExecution.__table__, AsyncContinuationClaim.__table__,
+            ChatMessage.__table__])
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+        # Mirror production get_db_session semantics: commit on clean exit.
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _committing_session():
+            s = Session()
+            try:
+                yield s
+                s.commit()
+            finally:
+                s.close()
+
+        def _get_db_session():
+            return _committing_session()
+
+        with Session() as s:
+            s.add(AgentExecution(
+                id="cw-flag-1", status="failed", triggered_by="continuation",
+                metadata_json={
+                    "recovery": {"crashed": True},
+                    "continuation": {"session_id": "s1", "user_id": "u1",
+                                     "canvas_id": "cv1"}}))
+            s.commit()
+
+        def _run_pass():
+            with patch("core.database.get_db_session", _get_db_session), \
+                 patch("core.notification_service."
+                       "NotificationService") as ns:
+                ns.return_value = MagicMock(
+                    send_notification=AsyncMock(return_value={}))
+                return atc.notify_recovered_continuations()
+
+        assert _run_pass()["recovered_notified"] == 1
+        # Second pass reads the PERSISTED row from the same engine: the
+        # flag must have been written, so nothing re-notifies.
+        assert _run_pass()["recovered_notified"] == 0
+        with Session() as s:
+            r = s.get(AgentExecution, "cw-flag-1")
+            assert (r.metadata_json["continuation"]["notified"]) is True
+
+    def _lease_fixture(self):
+        """Real-ORM harness shared by the delivery-lease tests: in-memory
+        engine with the continuation tables, a committing session factory
+        mirroring production get_db_session, and one crashed-unnotified
+        continuation record whose fork-time canvas snapshot hash is known."""
+        from contextlib import contextmanager
+
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        from core.database import Base
+        from core.models import (
+            AgentExecution, AsyncContinuationClaim, AsyncDeliveryLease,
+            Canvas, ChatMessage,
+        )
+
+        engine = create_engine("sqlite:///:memory:")
+        # ChatMessage too: recovery persists the durable terminal message.
+        Base.metadata.create_all(bind=engine, tables=[
+            AgentExecution.__table__, AsyncContinuationClaim.__table__,
+            AsyncDeliveryLease.__table__, Canvas.__table__,
+            ChatMessage.__table__])
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+        @contextmanager
+        def _committing():
+            s = Session()
+            try:
+                yield s
+                s.commit()
+            finally:
+                s.close()
+
+        def _get_db_session():
+            return _committing()
+
+        with Session() as s:
+            # tenant_id is NOT NULL on canvases. Omitting it made every
+            # recovery-pass test that seeds a canvas fail with
+            # "NOT NULL constraint failed: canvases.tenant_id" -- and only on
+            # runs that actually reached the insert, so it presented as an
+            # intermittent failure in the missing-terminal recovery suite
+            # (4 failures, non-deterministically, 2026-09-28).
+            s.add(Canvas(id="cv-l", tenant_id="default",
+                         workspace_id="default", created_by="u1",
+                         name="lease fixture", canvas_type="email",
+                         status="active", content=json.dumps(
+                {"body": "v1"})))
+            s.add(AgentExecution(
+                id="dl-1", status="failed", triggered_by="continuation",
+                metadata_json={
+                    "recovery": {"crashed": True},
+                    "continuation": {
+                        "session_id": "s-l", "user_id": "u1",
+                        "canvas_id": "cv-l",
+                        "snapshot_content_hash": atc._content_hash(
+                            {"content": {"body": "v1"}})}}))
+            s.commit()
+        return Session, _get_db_session
+
+    def _lease_pass(self, Session, get_db, **env):
+        os.environ["ATOM_DELIVERY_LEASE_TTL_SECONDS"] = str(
+            env.get("ttl", 600))
+        for k, v in env.items():
+            if k.startswith("disable"):
+                continue
+        if env.get("disabled"):
+            os.environ["ATOM_DELIVERY_LEASE_DISABLED"] = "1"
+        else:
+            os.environ.pop("ATOM_DELIVERY_LEASE_DISABLED", None)
+        try:
+            with patch("core.database.get_db_session", get_db), \
+                 patch("core.notification_service."
+                       "NotificationService") as ns:
+                ns.return_value = MagicMock(
+                    send_notification=AsyncMock(return_value={}))
+                return atc.notify_recovered_continuations()
+        finally:
+            os.environ.pop("ATOM_DELIVERY_LEASE_TTL_SECONDS", None)
+            os.environ.pop("ATOM_DELIVERY_LEASE_DISABLED", None)
+
+    def test_lease_blocks_concurrent_delivery_then_completion(self):
+        """A holds the lease mid-delivery (unexpired): B's pass must SKIP.
+        After A completes, any pass must refuse (no duplicate)."""
+        Session, get_db = self._lease_fixture()
+
+        from core.models import AsyncDeliveryLease
+        with Session() as s:
+            # A claims terminal delivery and "pauses" mid-delivery: the
+            # lease is held by a live owner and is unexpired.
+            s.add(AsyncDeliveryLease(
+                continuation_id="dl-1", owner="A-paused",
+                completed=False))  # leased_at defaults to now
+            s.commit()
+
+        # B's recovery pass: unexpired foreign lease -> skip, no delivery.
+        out_b = self._lease_pass(Session, get_db)
+        assert out_b.get("delivery_skipped", 0) == 1
+        assert out_b["recovered_notified"] == 0
+
+        # A RESUMES (same owner as the lease) and delivers exactly once;
+        # completion marks the lease so no later pass can duplicate.
+        with Session() as s:
+            lease = s.get(AsyncDeliveryLease, "dl-1")
+            lease.owner = atc._delivery_owner()
+            s.commit()
+        out_a = self._lease_pass(Session, get_db)
+        assert out_a["recovered_notified"] == 1
+        with Session() as s:
+            lease = s.get(AsyncDeliveryLease, "dl-1")
+            assert lease.completed is True
+        # Any later pass (A or B) must not duplicate — including A's own
+        # had it been the one resuming after B completed.
+        assert self._lease_pass(Session, get_db)["recovered_notified"] == 0
+
+    def test_expired_lease_taken_over_and_delivered(self):
+        """A claims and dies mid-delivery; the lease expires; a later pass
+        TAKES OVER and delivers — including when an earlier pass ran before
+        expiry (that pass must skip, not stick)."""
+        Session, get_db = self._lease_fixture()
+        from datetime import datetime, timedelta, timezone as tz
+
+        from core.models import AsyncDeliveryLease
+        with Session() as s:
+            s.add(AsyncDeliveryLease(
+                continuation_id="dl-1", owner="A-dead", completed=False,
+                leased_at=datetime.now(tz.utc)))  # unexpired
+            s.commit()
+
+        # Pass while the lease is fresh: skipped (not ours).
+        assert self._lease_pass(Session, get_db, ttl=60)[
+            "recovered_notified"] == 0
+
+        # A never finishes; the lease expires; the NEXT pass takes over.
+        with Session() as s:
+            lease = s.get(AsyncDeliveryLease, "dl-1")
+            lease.leased_at = datetime.now(tz.utc) - timedelta(seconds=120)
+            s.commit()
+        out = self._lease_pass(Session, get_db, ttl=60)
+        assert out["recovered_notified"] == 1
+        # The takeover delivered exactly once; a further pass is a no-op.
+        assert self._lease_pass(Session, get_db, ttl=60)[
+            "recovered_notified"] == 0
+
+    def test_negative_control_disabled_lease_duplicates(self):
+        """With the lease DISABLED, the concurrent-delivery race is
+        observable: B delivers even though A holds an unexpired claim —
+        this is the failure the lease exists to prevent, and proves the
+        takeover test can detect it."""
+        Session, get_db = self._lease_fixture()
+        from core.models import AsyncDeliveryLease
+        with Session() as s:
+            s.add(AsyncDeliveryLease(
+                continuation_id="dl-1", owner="A-paused", completed=False))
+            s.commit()
+
+        out_b = self._lease_pass(Session, get_db, disabled=True)
+        assert out_b["recovered_notified"] == 1  # duplicated despite A
+        # And A resuming afterwards ALSO delivers (no arbitration at all):
+        os.environ["ATOM_DELIVERY_LEASE_DISABLED"] = "1"
+        try:
+            with patch("core.database.get_db_session", get_db), \
+                 patch("core.notification_service."
+                       "NotificationService") as ns:
+                ns.return_value = MagicMock(
+                    send_notification=AsyncMock(return_value={}))
+                out_a = atc.notify_recovered_continuations()
+        finally:
+            os.environ.pop("ATOM_DELIVERY_LEASE_DISABLED", None)
+        # A's delivery is refused only by the notified flag here — which is
+        # check-then-act: had A and B raced (both pre-flag), both would
+        # deliver. The lease closes that window (previous test).
+
+    def test_recovery_chatmessage_and_effect_aware_wording(self):
+        """Chat reload must show a terminal outcome (a separate notification
+        does not unstick the conversation), and when the mutation landed
+        before the crash the wording must NOT imply nothing changed."""
+        Session, get_db = self._lease_fixture()
+        from datetime import datetime, timedelta, timezone as tz
+
+        from core.models import AgentExecution as _AE, Canvas as _Canvas
+        # The fixture's canvas content is still at the fork-time snapshot,
+        # so the default effect status is "none" -> "could not finish".
+        self._lease_pass(Session, get_db)
+        with Session() as s:
+            from core.models import ChatMessage
+            msgs = s.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "s-l").all()
+            assert len(msgs) == 1
+            assert "could not finish" in msgs[0].content or                 "restarted" in msgs[0].content
+            meta = json.loads(msgs[0].metadata_json)["continuation"]
+            assert meta["recovery_delivery"] is True
+            assert meta["effect_on_canvas"] == "none"
+
+        # Now let the canvas CHANGE after the fork snapshot: recovery must
+        # say the effect landed, not "could not finish".
+        with Session() as s:
+            r = s.get(_AE, "dl-1")
+            r.metadata_json = {**r.metadata_json,
+                               "recovery": {"crashed": True}}
+            c = dict(r.metadata_json.get("continuation") or {})
+            c["notified"] = False
+            r.metadata_json["continuation"] = c
+            cv = s.get(_Canvas, "cv-l")
+            cv.content = json.dumps({"body": "v2-changed"})
+            # Reset the terminal-delivery lease: the FIRST pass completed it,
+            # and a completed lease makes the product correctly refuse a second
+            # delivery for the same continuation. That refusal is the
+            # anti-duplicate guarantee F09 depends on, so the second phase has
+            # to model a FRESH interrupted delivery rather than reuse the spent
+            # one -- otherwise it asserts against the first phase's message.
+            from core.models import AsyncDeliveryLease as _Lease
+            lease = s.get(_Lease, "dl-1")
+            if lease is not None:
+                # Expired foreign lease -> the pass TAKES OVER and delivers
+                # (an unexpired foreign lease would correctly skip).
+                lease.completed = False
+                lease.owner = "A-dead"
+                lease.leased_at = datetime.now(tz.utc) - timedelta(
+                    seconds=9999)
+            s.commit()
+        with patch("core.database.get_db_session", get_db), \
+             patch("core.notification_service."
+                   "NotificationService") as ns:
+            ns.return_value = MagicMock(
+                send_notification=AsyncMock(return_value={}))
+            atc.notify_recovered_continuations()
+        with Session() as s:
+            from core.models import ChatMessage
+            msgs = s.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "s-l").order_by(
+                ChatMessage.created_at).all()
+            last = msgs[-1].content
+            assert "applied before the interruption" in last
+
 
 class _QueryDb:
     def __init__(self, rows):
         self._rows = rows
+        self.added = []
+        # The terminal-delivery fence is a conditional UPDATE whose rowcount
+        # decides the winner, so a stub that only answers `query` cannot stand in
+        # for the session any more. This reports the fence as PASSED, which is
+        # the case these recovery tests are about (a recovered row delivering).
+        self.fence_rowcount = 1
 
     def query(self, *a):
         return self
@@ -424,6 +744,21 @@ class _QueryDb:
 
     def all(self):
         return list(self._rows)
+
+    def first(self):
+        return self._rows[0] if self._rows else None
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    def execute(self, *a, **kw):
+        return SimpleNamespace(rowcount=self.fence_rowcount)
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
 
     def first(self):
         return self._rows[0] if self._rows else None
@@ -863,9 +1198,11 @@ class TestRestartVisibility:
         session = {"id": "s-h", "history": []}
         row = SimpleNamespace(
             role="assistant",
-            content="[background continuation — applied of: \"rebuild\"]\n"
-                    "Canvas updated.",
-            metadata_json='{"continuation": {"outcome": "applied"}}',
+            # D5: the user-facing text is a sentence, not internal syntax. The
+            # machine-readable outcome lives in metadata, which is what a client
+            # should read -- so this row is what a restart now hydrates from.
+            content="Background update applied. Canvas updated.",
+            metadata_json='{"continuation": {"outcome": "awaiting_approval"}}',
             created_at="2026-09-22T12:00:00")
         db = MagicMock()
         q = MagicMock()
@@ -876,7 +1213,13 @@ class TestRestartVisibility:
         assert len(session["history"]) == 1
         turn = session["history"][0]
         assert turn["error"] is False
-        assert "applied" in turn["response"]["message"]
+        # The prose says what happened, in words ...
+        assert "Background update" in turn["response"]["message"]
+        assert "[background continuation" not in turn["response"]["message"]
+        # ... and the internal outcome token is NOT welded into it. It used to
+        # be: the assertion that pinned "applied" into the visible text was
+        # pinning the defect D5 asks to remove. The outcome is metadata.
+        assert "awaiting_approval" not in turn["response"]["message"]
 
 
 class TestRealDatabaseSuccessPath:

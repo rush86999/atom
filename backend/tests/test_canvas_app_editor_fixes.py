@@ -181,20 +181,62 @@ def test_string_whole_replace_and_content_wrapper_accept_unwrapped_text():
     )
 
 
+class _persisting_store:
+    """A canvas store that ACTUALLY persists, so verification can succeed.
+
+    `apply_canvas_edit` reads the canvas back and refuses to report success
+    unless the read-back contains what it wrote, bound to an audit id the store
+    recorded. A bare `{"success": True}` is not a successful edit any more — it
+    is the tool's own claim about its own write — so a test that asserts a
+    successful apply has to give the fake the two things a real store gives it:
+    what it wrote, and the id of the row it wrote.
+    """
+
+    def __init__(self, canvas_id: str, canvas_type: str = "email") -> None:
+        self.canvas_id = canvas_id
+        self.canvas_type = canvas_type
+        self.content: object = None
+        self.writes = 0
+
+    def patches(self):
+        store = self
+
+        async def _update(user_id, canvas_id, content, canvas_type=None,
+                          title=None, **kwargs):
+            store.writes += 1
+            store.content = content
+            return {"success": True, "audit_id": f"audit-{store.writes}",
+                    "write_outcome": "committed"}
+
+        async def _read(user_id, canvas_id, **kwargs):
+            if store.content is None:
+                return {"success": False, "error": "not found"}
+            return {"success": True, "canvas_id": store.canvas_id,
+                    "canvas_type": store.canvas_type, "content": store.content}
+
+        return (patch("tools.canvas_crud_tool.update_canvas_content",
+                      new=AsyncMock(side_effect=_update)),
+                patch("tools.canvas_crud_tool.read_canvas",
+                      new=AsyncMock(side_effect=_read)))
+
+
 @pytest.mark.asyncio
 async def test_apply_replace_merge_via_crud_layer():
-    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
-            return_value={"success": True})) as upd:
+    canvas = _email_canvas()
+    store = _persisting_store(str(canvas.get("canvas_id") or "c-1"))
+    with store.patches()[0] as upd, store.patches()[1]:
         plan = CanvasEditPlan(
             wants_edit=True, edit_mode="replace",
             updated_content_json=json.dumps({"to": "jschulz@blumetric.ca"}),
             reply="filled To",
         )
-        result = await apply_canvas_edit(plan, "user-1", _email_canvas())
+        result = await apply_canvas_edit(plan, "user-1", canvas)
     assert result and result["success"]
+    assert result["postcondition_verified"] is True
     written = upd.call_args.args[2]
     assert written["to"] == "jschulz@blumetric.ca"
     assert written["body"] == LIVE_INCIDENT_CONTENT["body"]  # merged, not replaced
+
 
 
 @pytest.mark.asyncio
