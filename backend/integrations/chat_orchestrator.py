@@ -3115,6 +3115,127 @@ async def _resolve_anaphoric_file_mention(
     return ""
 
 
+#: How long a FAILED background edit stays retryable by a bare "try
+#: again" (seconds; env-overridable).
+_FAILED_EDIT_RETRY_TTL_SECONDS = float(
+    os.getenv("ATOM_FAILED_EDIT_RETRY_TTL_SECONDS", "1800") or 1800)
+
+
+def _failed_edit_retry_target(
+    session_id: Optional[str], message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    """The FAILED background edit a bare retry turn points at, or None.
+
+    Intent precedence (2026-09-29 live): "try again" after "Background
+    update failed" names the NEWEST unresolved action — the edit — not
+    the conversation's older file-read objective. Without this the retry
+    re-ran the workbook read while the user was waiting for the price
+    update. Detection is durable: the fork's terminal assistant row
+    carries a continuation record (outcome, canvas_id); the original
+    instruction is the user message that spawned it. A turn with its own
+    substantive work is never hijacked into a retry.
+    """
+    if not session_id or not (message or "").strip():
+        return None
+    t = (message or "").strip()
+    try:
+        from core.pending_file_task import (
+            _RETRY_LINEAGE_VOCABULARY,
+            _introduces_new_work,
+            is_bare_action_retry,
+            is_filename_confirmation,
+            is_rerun_request,
+        )
+
+        if not (is_rerun_request(t) or is_filename_confirmation(t)
+                or is_bare_action_retry(t)):
+            return None
+    except Exception:  # noqa: BLE001 — fail toward normal routing
+        return None
+    try:
+        import ast as _ast
+
+        from core.database import get_db_session
+        from core.models import ChatMessage as ChatMessageModel
+
+        with get_db_session() as db:
+            rows = (
+                db.query(ChatMessageModel)
+                .filter(
+                    ChatMessageModel.conversation_id == session_id,
+                    ChatMessageModel.role == "assistant",
+                )
+                .order_by(ChatMessageModel.created_at.desc(),
+                          ChatMessageModel.id.desc())
+                .limit(24)
+                .all()
+            )
+        cutoff = time.time() - _FAILED_EDIT_RETRY_TTL_SECONDS
+        for row in rows:
+            try:
+                created = row.created_at.timestamp() if (
+                    row.created_at is not None) else 0
+            except Exception:  # noqa: BLE001
+                created = 0
+            if created and created < cutoff:
+                break  # append-only scan: older rows are out of TTL
+            try:
+                meta = json.loads(row.metadata_json or "{}")
+            except Exception:
+                continue
+            cont = meta.get("continuation")
+            if not isinstance(cont, str):
+                continue
+            try:
+                record = _ast.literal_eval(cont)
+            except Exception:
+                continue
+            if not isinstance(record, dict):
+                continue
+            if str(record.get("outcome") or "") != "failed":
+                continue
+            canvas_id = str(record.get("canvas_id") or "").strip()
+            if not canvas_id:
+                continue
+            # The instruction that spawned the fork: the newest user
+            # message at or before this assistant row.
+            instruction = ""
+            with get_db_session() as db2:
+                user_row = (
+                    db2.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "user",
+                        ChatMessageModel.created_at <= row.created_at,
+                    )
+                    .order_by(ChatMessageModel.created_at.desc(),
+                              ChatMessageModel.id.desc())
+                    .first()
+                )
+                instruction = str(
+                    (user_row.content if user_row else "") or "").strip()
+            if not instruction:
+                continue
+            try:
+                # RETRY ANCHOR: bare retry verbs ("try") are the
+                # operation, never a new object — without the anchor
+                # "try again" would read as new work against the
+                # original instruction and never retry.
+                if _introduces_new_work(
+                        t, instruction,
+                        extra_anchor=_RETRY_LINEAGE_VOCABULARY):
+                    return None  # new work, not a retry of this edit
+            except Exception:  # noqa: BLE001
+                pass
+            return {"instruction": instruction, "canvas_id": canvas_id,
+                    "execution_id": str(record.get("id") or "")}
+    except Exception as exc:  # noqa: BLE001 — retry detection is best-effort
+        logger.debug("failed-edit retry detection skipped: %r", exc)
+        return None
+    return None
+
+
 def _task_lifecycle_for(tenant_id: Any,
                         workspace_id: Any) -> Optional[Any]:
     """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
@@ -4559,6 +4680,29 @@ class ChatOrchestrator:
             _canvas_ctx: Optional[Dict[str, Any]] = None
             if context:
                 _canvas_ctx = await self._resolve_canvas_ctx(context, user_id)
+            # FAILED-EDIT RETRY (2026-09-29 live): "try again" after
+            # "Background update failed" names the newest unresolved
+            # ACTION — the edit — not the conversation's older file-read
+            # objective. Resolved once, here, before the pending-file
+            # matcher can claim the turn for a read.
+            _edit_retry = None
+            try:
+                _edit_retry = _failed_edit_retry_target(
+                    session_id, message, history or [])
+            except Exception as _er_err:  # noqa: BLE001 — best-effort
+                logger.debug("edit-retry detection failed: %r", _er_err)
+            if _edit_retry is not None:
+                logger.info(
+                    "[edit-retry] bare retry re-dispatches the failed "
+                    "background edit (canvas=%s, prior exec=%s)",
+                    _edit_retry.get("canvas_id"),
+                    _edit_retry.get("execution_id"))
+                if _canvas_ctx is None:
+                    _retry_ctx = dict(context or {})
+                    _retry_ctx["canvas_id"] = _edit_retry["canvas_id"]
+                    _retry_ctx.pop("canvas", None)
+                    _canvas_ctx = await self._resolve_canvas_ctx(
+                        _retry_ctx, user_id)
             # Workspace scope for the pre-plan provenance probe (which ingested
             # stores hold the token the user quoted).
             _ctx_workspace_id = (context or {}).get("workspace_id")
@@ -4598,7 +4742,9 @@ class ChatOrchestrator:
                 )
 
                 _stored_task = session.get(FILE_TASK_SESSION_KEY)
-                if not isinstance(_stored_task, dict):
+                if _edit_retry is not None:
+                    _stored_task = None  # the edit retry owns this turn
+                if _edit_retry is None and not isinstance(_stored_task, dict):
                     # RESTART RECOVERY (2026-09-23 review, gap 5): the
                     # persisted-session projection drops private keys, so
                     # after a restart the durable carrier is the assistant
@@ -4613,8 +4759,8 @@ class ChatOrchestrator:
                     session.setdefault(FILE_TASK_SESSION_KEY, _stored_task)
                 _pending_file_task = matching_pending_task(
                     _stored_task, message, history or [])
-                if _pending_file_task is None and is_filename_confirmation(
-                        message):
+                if (_pending_file_task is None and _edit_retry is None
+                        and is_filename_confirmation(message)):
                     # LEGACY / EXPIRED STATE RECOVERY (2026-09-24,
                     # task-continuity regression): a conversation that
                     # predates the pending-task store — or whose task
@@ -6126,12 +6272,19 @@ class ChatOrchestrator:
             _canvas_preclassified_intent: Optional[Dict[str, Any]] = None
             _canvas_action_bypassed = False
             if _canvas_ctx and not _pending_file_task:
-                _canvas_preclassified_intent = self._fallback_intent_analysis(message)
-                _canvas_action_bypassed = (
-                    not _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
-                    and _canvas_non_edit_intent(
-                        _canvas_preclassified_intent.get("primary_intent"))
-                )
+                if _edit_retry is not None:
+                    # A bare retry must reach the edit lane (the original
+                    # instruction is edit-shaped; "try again" is not, and
+                    # the fallback intent would bypass on that alone).
+                    _canvas_preclassified_intent = None
+                    _canvas_action_bypassed = False
+                else:
+                    _canvas_preclassified_intent = self._fallback_intent_analysis(message)
+                    _canvas_action_bypassed = (
+                        not _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
+                        and _canvas_non_edit_intent(
+                            _canvas_preclassified_intent.get("primary_intent"))
+                    )
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -6442,17 +6595,23 @@ class ChatOrchestrator:
                     # BEFORE the mutation, so an intention that cannot be
                     # persisted never reaches the canvas. A denied
                     # reservation skips the leg entirely.
+                    # FAILED-EDIT RETRY: the edit lane plans the ORIGINAL
+                    # instruction — a bare "try again" carries no edit
+                    # vocabulary and the classifier could only decline it.
+                    _edit_message = (
+                        _edit_retry["instruction"]
+                        if _edit_retry is not None else message)
                     _edit_task_reserved = _begin_task_edit(
                         getattr(self, "tenant_id", None),
                         (context or {}).get("workspace_id"),
-                        session, session_id, message, _execution_id,
+                        session, session_id, _edit_message, _execution_id,
                         canvas_ctx=_canvas_ctx)
                     # Only a RESERVED decision may mutate. "denied" and
                     # "unavailable" both block the leg, for different
                     # reasons, and neither may be downgraded to a
                     # fall-through that another route would then perform.
                     _edit_leg = self._try_canvas_edit( \
-                        message, history, _canvas_ctx, user_id, session_id, \
+                        _edit_message, history, _canvas_ctx, user_id, session_id, \
                         _execution_id, (context or {}).get("agent_id"), \
                         provenance=(context or {}).get("canvas_provenance"), \
                         shared_tool_state=_shared_tool, \

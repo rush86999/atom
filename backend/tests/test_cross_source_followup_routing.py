@@ -881,3 +881,118 @@ class TestPossessiveSourceRefinement:
                 [f"check Maya's {tail} in the workbook"], None)
             assert not any("maya" in str(v).lower()
                            for vs in criteria.values() for v in vs), tail
+
+
+# ---------------------------------------------------------------------------
+# 8. Intent-based retry of a FAILED background edit (2026-09-29 live):
+#    "try again" after "Background update failed" must re-dispatch the
+#    EDIT (the newest unresolved action), not fall back to the older
+#    workbook read. Detection is durable: the failed fork's continuation
+#    record carries canvas_id + outcome; the original instruction is the
+#    user message that spawned it.
+# ---------------------------------------------------------------------------
+
+class TestFailedEditRetryIntent:
+    def _fake_failed_row(self, monkeypatch, instruction, canvas_id="c-orig"):
+        """Stub the durable scan: one failed continuation row + the user
+        message that spawned it."""
+        import integrations.chat_orchestrator as chat_mod
+
+        def fake_target(session_id, message, history=None):
+            from core.pending_file_task import (
+                _RETRY_LINEAGE_VOCABULARY,
+                _introduces_new_work,
+                is_bare_action_retry,
+                is_filename_confirmation,
+                is_rerun_request,
+            )
+
+            t = (message or "").strip()
+            if not (is_rerun_request(t) or is_filename_confirmation(t)
+                    or is_bare_action_retry(t)):
+                return None
+            if _introduces_new_work(
+                    t, instruction,
+                    extra_anchor=_RETRY_LINEAGE_VOCABULARY):
+                return None
+            return {"instruction": instruction, "canvas_id": canvas_id,
+                    "execution_id": "exec-1"}
+
+        monkeypatch.setattr(chat_mod, "_failed_edit_retry_target",
+                            fake_target)
+
+    def test_bare_retry_targets_the_failed_edit(self, monkeypatch):
+        import asyncio
+
+        orch = _orch()
+        self._fake_failed_row(
+            monkeypatch,
+            "as you found the latest price for the roper 381 roll bender, "
+            "update the email price accordingly")
+        for msg in ("try again", "try it", "go ahead, try again"):
+            target = chat._failed_edit_retry_target("sess-1", msg, [])
+            assert target is not None, msg
+            assert "update the email price" in target["instruction"]
+            assert target["canvas_id"] == "c-orig"
+
+    def test_new_substantive_turn_does_not_resume_the_edit(self, monkeypatch):
+        import asyncio
+
+        orch = _orch()
+        self._fake_failed_row(
+            monkeypatch, "update the email price accordingly")
+        for msg in ("find the prices of these 8 machines in Consolidated "
+                    "Price List 2019.xlsx: No. 381, U-22",
+                    "what did the supplier say about lead times?"):
+            assert chat._failed_edit_retry_target("sess-1", msg, []) is None, (
+                f"{msg!r} is new work, not a retry of the edit")
+
+    @pytest.mark.asyncio
+    async def test_retry_turn_reaches_the_edit_lane_with_the_original(
+            self, monkeypatch):
+        """Orchestrator-level: 'try again' on a failed-edit session plans
+        the ORIGINAL instruction against the recorded canvas — the read
+        lane must not own the turn."""
+        orch = _orch()
+        instruction = ("as you found the latest price for the roper 381 "
+                       "roll bender, update the email price accordingly")
+        canvas = {"canvas_id": "c-orig", "canvas_type": "document",
+                  "content": {"content": "email body"}}
+        session = {"id": "s-edit-retry", "history": [
+            {"message": instruction, "response": {"message": "ok"}}]}
+        edit_result = {"success": True, "message": "applied",
+                       "data": {"canvas_edit": {"updated": True}}}
+        with (
+            patch.object(orch, "_get_or_create_session",
+                         return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=canvas)),
+            patch.object(chat, "_failed_edit_retry_target",
+                         return_value={"instruction": instruction,
+                                       "canvas_id": "c-orig",
+                                       "execution_id": "exec-1"}),
+            patch.object(chat, "_begin_task_edit",
+                         return_value={"status": "legacy"}),
+            patch.object(chat, "_canvas_edit_shaped",
+                         return_value=True),
+            patch.object(orch, "_start_chat_execution",
+                         return_value="e-er"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch("core.chat_mini_app_authoring.try_handle",
+                  new=AsyncMock(return_value=None)),
+            patch.object(orch, "_try_canvas_edit", new=AsyncMock(
+                return_value=edit_result)) as edit_mock,
+            patch.object(orch, "_direct_confirmed_file_read",
+                         new=AsyncMock(side_effect=AssertionError(
+                             "the read lane must not own the retry"))),
+        ):
+            result = await orch.process_chat_message(
+                "u1", "try again", "s-edit-retry", context={})
+        assert result["success"] is True
+        planned = edit_mock.await_args.args[0]
+        assert planned == instruction, (
+            "the edit lane must plan the ORIGINAL instruction, not the "
+            "bare retry")

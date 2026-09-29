@@ -80,6 +80,24 @@ _OUTBOUND_ACTION_RE = re.compile(
     r"\b(?:send|email|forward|upload|attach)\b",
     re.IGNORECASE,
 )
+# A BARE ACTION RETRY — "try it", "run it", "do it again": pronoun object,
+# no subject of its own. Deliberately narrow (<=3 tokens) so a substantive
+# turn can never match; consumed by the failed-edit retry detector, which
+# only ever re-dispatches the conversation's own most recent failed edit.
+_BARE_ACTION_RETRY_RE = re.compile(
+    r"^\s*(?:try|run|do|go|execute)\s*(?:(?:it|that|this)\b|again\b|"
+    r"it\s+again\b)?\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_bare_action_retry(message: str) -> bool:
+    """"try it" / "run it again" / "do it" — a bare imperative whose
+    object is the conversation's most recent action, never new work."""
+    t = (message or "").strip()
+    return bool(t) and bool(_BARE_ACTION_RETRY_RE.match(t))
+
+
 _CONFIRMATION_WORD_RE = re.compile(
     r"\b(?:correct|right|exact|exactly|confirmed|yes|yeah|one)\b",
     re.IGNORECASE,
