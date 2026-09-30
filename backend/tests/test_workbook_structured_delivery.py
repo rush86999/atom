@@ -1965,3 +1965,127 @@ class TestClosurePhrasing:
             "conflict", "")
         assert _readable_outcome_text("failed", "") == \
             "I couldn't apply your update."
+
+
+# Domain independence (2026-09-30 generalization): the conversation seams
+# must behave identically for a non-pricing domain. A preference may
+# RANK, never ERASE — the default pricing-shaped request vocabulary must
+# not blank a recipes/stock/lead-time workbook. Fixtures follow the house
+# style: synthetic, domain-independent (no real product vocabulary).
+
+class TestDomainIndependence:
+    @staticmethod
+    def _recipes_outcomes():
+        return {"sourdough": {"target": "sourdough", "status": "found",
+                              "evidence": [
+                                  _ev("Breads", 14, "A14",
+                                      [_v("D14", "78%", "HYDRATION"),
+                                       _v("E14", "2 lb", "LOAF WEIGHT")])]}}
+
+    def test_pricing_default_does_not_blank_a_non_pricing_domain(self):
+        """requested_fields defaults to ['price']; a hydration row must
+        still answer with its own values, not 'no price column'."""
+        targets = ap.build_targets_from_scan(
+            ["sourdough"], self._recipes_outcomes(), {})
+        out = ap.present(requested_items=["sourdough"],
+                         requested_fields=["price"],
+                         source={"file_name": "recipe log.xlsx"},
+                         targets=targets)["answer"]
+        assert "78% 'HYDRATION'" in out, out
+        assert "no column matching" not in out
+
+    def test_absent_values_still_say_which_fields_were_sought(self):
+        outcomes = {"sourdough": {"target": "sourdough", "status": "found",
+                                  "evidence": [_ev("Breads", 14, "A14", [])]}}
+        targets = ap.build_targets_from_scan(
+            ["sourdough"], outcomes, {})
+        out = ap.present(requested_items=["sourdough"],
+                         requested_fields=["price"],
+                         source={"file_name": "recipe log.xlsx"},
+                         targets=targets)["answer"]
+        assert "no column matching price" in out, out
+
+    def test_probe_record_path_surfaces_non_pricing_columns(self):
+        """The content-probe record path (per_item) picks value columns by
+        a pricing-family preference; when the family matches none, the
+        row's own leading columns flow (stock counts, hydration)."""
+        per_item = {
+            "sourdough": {
+                "entity_name": "Breads",
+                "columns": ["ITEM", "HYDRATION", "STOCK"],
+                "column_letters": {"ITEM": "A", "HYDRATION": "D",
+                                   "STOCK": "F"},
+                "rows": [{"__sheet_row": 14, "ITEM": "sourdough",
+                          "HYDRATION": "78%", "STOCK": 12}],
+                "matched_cells": [{"cell": "A14", "value": "sourdough"}],
+            },
+        }
+        targets = ap.build_targets_from_scan(["sourdough"], {}, per_item)
+        out = ap.present(requested_items=["sourdough"],
+                         requested_fields=["price"],
+                         source={"file_name": "recipe log.xlsx"},
+                         targets=targets)["answer"]
+        assert "78% 'HYDRATION'" in out, out
+        assert "12" in out  # STOCK flows too
+
+    def test_field_request_extraction_spans_domains(self):
+        from core.workbook_read_artifact import extract_field_requests
+
+        got = extract_field_requests(
+            ["how many do we have in stock for the sourdough?"])
+        assert "quantity" in got, got
+        got2 = extract_field_requests(
+            ["what is the list price for the No. 381"])
+        assert "price" in got2, got2
+
+    def test_binding_receipt_works_in_non_pricing_domain(self, tmp_path):
+        """The 'row you confirmed' receipt is structural: any domain's
+        user-asserted, read-verified binding collapses the ambiguity."""
+        import pandas as pd
+
+        from core.workbook_read_artifact import inspect_dataset_entries
+
+        path = tmp_path / "recipes.parquet"
+        pd.DataFrame({
+            "__sheet_row": [3, 14, 40],
+            "ITEM": ["rye", "sourdough", "focaccia"],
+            "HYDRATION": ["70%", "78%", "65%"],
+        }).to_parquet(path)
+        entry = {"entity_name": "Breads", "parquet_path": str(path),
+                 "row_count": 3, "coverage": {"known": True,
+                                              "truncated": False}}
+        binding = {"item": "sourdough", "sheet": "Breads", "row": 14,
+                   "content_hash": "rev-r", "confirmation": "user_supplied"}
+        art = inspect_dataset_entries(
+            [entry], "recipe log.xlsx",
+            query="hydration for the sourdough loaf", context_texts=[],
+            targets=["sourdough"],
+            disambiguation={"resolved_bindings": [binding]},
+            content_hash="rev-r")
+        outcome = art["coverage"]["outcomes"][0]
+        assert outcome["status"] == "found"
+        assert outcome["bound_by"] == "user_assertion", outcome
+        targets = ap.build_targets_from_scan(
+            ["sourdough"], {outcome["target"]: outcome}, {})
+        out = ap.present(requested_items=["sourdough"],
+                         requested_fields=["price"],
+                         source={"file_name": "recipe log.xlsx"},
+                         targets=targets)["answer"]
+        assert "78% 'HYDRATION'" in out
+        assert "the row you confirmed" in out, out
+
+    def test_sheet_scope_receipt_is_name_agnostic(self):
+        """The standing-scope receipt renders for ANY sheet name — the
+        mechanism resolves against whatever the workbook indexes."""
+        rec = ap.build_structured_record(
+            source_identity={"file_name": "recipe log.xlsx"},
+            evidence_revision="r", attempt_id="a",
+            evidence_action="new_read",
+            requested_items=["sourdough"], requested_fields=["price"],
+            targets=ap.build_targets_from_scan(
+                ["sourdough"], self._recipes_outcomes(), {}),
+            coverage={"indexed_sheets": 1},
+            requested_sheets=["Breads"],
+            requested_sheets_sources={"Breads": "standing"})
+        out = ap.present_from_record(rec)["answer"]
+        assert "Looking in: Breads — per your standing preference." in out

@@ -287,6 +287,18 @@ def _select_value_columns(
             item for item in selected
             if _VALUE_HEADER_RE.search(str(item.get("label") or ""))
         ]
+    if not selected:
+        # A PREFERENCE RANKS, IT NEVER ERASES (2026-09-30 domain
+        # generalization): nothing matched the requested fields, the
+        # ask's raw terms, or the value-header family — either the
+        # domain is not pricing-shaped or the ask named no field. The
+        # sheet's own leading columns still carry the row's content
+        # (hydration, stock, lead time); "no selection" here previously
+        # produced evidence with zero values, which rendered as "no
+        # column matching price" on a row that had exactly what was
+        # asked about. Bounded to the first few columns; bases stay
+        # labeled so the answer always names what it is showing.
+        selected = list(descriptors)[:4]
     selected_positions = {id(item) for item in selected}
     selected = [item for item in descriptors if id(item) in selected_positions]
     ambiguous_fields: List[str] = []

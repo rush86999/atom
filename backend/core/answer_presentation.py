@@ -714,7 +714,18 @@ def _select_values(values: List[Dict[str, Any]],
                    field: Optional[str]) -> List[Dict[str, Any]]:
     """Apply requested fields: an explicit field preference wins; else the
     requested-field families filter. Never silently choose: filtering only
-    narrows to what was asked for."""
+    narrows to what was asked for.
+
+    A PREFERENCE RANKS, IT NEVER ERASES (2026-09-30 generalization): the
+    default request vocabulary is pricing-shaped ("price"), so a
+    non-pricing domain (hydration %, stock counts, lead times) whose
+    columns match none of the requested families filtered to NOTHING —
+    a recipes workbook rendered "no price column" for a row that had
+    the exact value asked about. When the families match no value but
+    answerable values exist, the unfiltered values flow (the scan's own
+    ranking already put the most relevant columns first); the preference
+    only reorders domains it recognizes.
+    """
     terms: List[List[str]] = []
     if field:
         terms = _field_match_terms(field)
@@ -723,7 +734,12 @@ def _select_values(values: List[Dict[str, Any]],
             terms.extend(_field_match_terms(req))
     if not terms:
         return list(values)
-    return [v for v in values if _value_matches(v, terms)]
+    selected = [v for v in values if _value_matches(v, terms)]
+    if selected:
+        return selected
+    if any(_value_answers_request(v) for v in values):
+        return list(values)
+    return selected
 
 
 def _identity_cells(cand: Dict[str, Any]) -> List[str]:
@@ -908,8 +924,11 @@ def _render_target(t: Dict[str, Any], item: str, *,
     idnote = f", identity {', '.join(idcells)}" if idcells else ""
     fstatus = (t.get("field") or {}).get("status")
     if fstatus == "absent" or not pooled:
+        _fields_named = ", ".join(
+            f for f in (requested_fields or []) if f) or "the requested field"
         return (f"- **{item}**{alias_note} — found at {_human_ref(ref)}"
-                f"{idnote}, but no price column on that row{scope_suffix}")
+                f"{idnote}, but no column matching {_fields_named} on that "
+                f"row{scope_suffix}")
     if field and not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
         return (f"- **{item}**{alias_note} — found at {_human_ref(ref)}{idnote}, "
@@ -1373,11 +1392,22 @@ def build_targets_from_scan(
                                 "role": "matched_target",
                             })
                             grp["identity"]["status"] = IDENTITY_BOUND
-                    for column in columns:
-                        if not re.search(
-                                r"price|cost|amount|rate|value|list|total|dealer",
-                                str(column), re.IGNORECASE):
-                            continue
+                    # DOMAIN-GENERAL VALUE PICK (2026-09-30): the
+                    # pricing-family preference orders which columns
+                    # surface first, and when NO column matches the
+                    # family the row's own leading columns flow instead —
+                    # a preference ranks, it never erases (a stock-count
+                    # or hydration sheet is not "no value").
+                    _family_cols = [
+                        column for column in columns
+                        if re.search(
+                            r"price|cost|amount|rate|value|list|total|dealer",
+                            str(column), re.IGNORECASE)]
+                    if not _family_cols:
+                        _family_cols = [
+                            column for column in columns
+                            if column not in ("__sheet_row", "__row__")][:4]
+                    for column in _family_cols:
                         letter = letters.get(column)
                         if not letter:
                             continue

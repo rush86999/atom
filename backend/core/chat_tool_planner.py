@@ -6794,6 +6794,7 @@ async def _datasets_named_file_block(
                 if row.get(column) is not None
             ]
             refs = []
+            family_hit = False
             for column in columns:
                 value = row.get(column)
                 if value is None:
@@ -6802,9 +6803,24 @@ async def _datasets_named_file_block(
                     r"price|cost|amount|rate|value|list|total|dealer",
                     str(column), re.IGNORECASE,
                 ):
+                    family_hit = True
                     letter = letters.get(column)
                     if letter:
                         refs.append(f"{letter}{row_number}={value}")
+            if not family_hit:
+                # DOMAIN-GENERAL: no pricing-family column on this row —
+                # surface the row's own leading cells rather than nothing
+                # (a preference ranks, it never erases).
+                for column in columns:
+                    if column in ("__sheet_row", "__row__") or len(refs) >= 3:
+                        continue
+                    value = row.get(column)
+                    if value is None:
+                        continue
+                    letter = letters.get(column)
+                    refs.append(
+                        f"{letter}{row_number}={value}" if letter
+                        else f"{column}={value}")
             sheet = record.get("entity_name") or "?"
             out.append(
                 f"{sheet} R{row_number}"
