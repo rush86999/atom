@@ -5612,6 +5612,16 @@ class ChatOrchestrator:
                         _ask_result.get("structured_result")
                         if isinstance(_ask_result, dict) else None,
                         current_message=message)
+                    try:
+                        from core.answer_presentation import (
+                            workbook_result_card as _wrc,
+                        )
+
+                        _ask_card = _wrc(
+                            _ask_structured if isinstance(
+                                _ask_structured, dict) else None)
+                    except Exception:
+                        _ask_card = None
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -5620,6 +5630,7 @@ class ChatOrchestrator:
                         "intent": "search",
                         "confidence": 0.9,
                         "data": {
+                            "workbook_result": _ask_card,
                             "deterministic_delivery": True,
                             "file_identity": _ask_identity,
                             "coverage_complete": _ask_complete,
@@ -15809,6 +15820,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 # delivered) — restart-safe delivery retry
                                 # without re-reading.
                                 _msg_meta["pending_file_result"] = _pfr_row
+                                # WORKBOOK RESULT CARD (presentation pass):
+                                # compact UI payload from the same
+                                # artifact; markdown stays authoritative.
+                                try:
+                                    from core.answer_presentation import (
+                                        workbook_result_card,
+                                    )
+
+                                    _card = workbook_result_card(
+                                        _pfr_row.get("structured_result"))
+                                    if _card:
+                                        _msg_meta["workbook_result"] = _card
+                                except Exception:
+                                    pass
                         except Exception:
                             pass
                         _resolved_identity = session.get(
