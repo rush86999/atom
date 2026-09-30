@@ -764,3 +764,29 @@ def test_workbook_result_card_payload_shapes():
     assert absent["status"] == "absent" and "value" not in absent
     # absent artifacts -> no card (nothing to present)
     assert workbook_result_card({"source_identity": {}}) is None
+
+
+def test_learn_to_directive_is_a_teaching_cue_not_an_edit():
+    """Live 2026-09-30 02:28: 'repeat the search and learn to include
+    tennsmith sheet for roper whitney searches' — the deterministic
+    edit-shape regex matched 'include' inside the TEACHING phrase, the
+    edit lane forked a doomed background edit, and the agent (which
+    would have read it as a lesson) was never consulted (25/25 routes
+    skipped pre-dispatch). Learning directives belong to the AGENT's
+    learning channel: a teaching cue suggestion, never an edit."""
+    from core.chat_teaching import detect_teaching_cue
+    from integrations.chat_orchestrator import _canvas_edit_shaped
+
+    msg = ("repeat the search and learn to include tennsmith sheet for "
+           "roper whitney searches")
+    canvas = {"canvas_id": "c-1", "canvas_type": "document"}
+    # the lesson channel recognizes the directive (mid-message form)
+    assert detect_teaching_cue(msg) or detect_teaching_cue(
+        "learn to include tennsmith sheet for roper whitney searches"), (
+        "the 'learn to …' directive must be capturable as a lesson")
+    # and it is NOT an edit instruction
+    assert _canvas_edit_shaped(msg, {"canvas": canvas}) is False
+    # an explicit edit instruction still is
+    assert _canvas_edit_shaped(
+        "include the Tennsmith price row in the email draft",
+        {"canvas": canvas}) is True

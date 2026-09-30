@@ -57,6 +57,8 @@ _TEACHING_CUE_RE = re.compile(
     r"^(?:please[ \t]+)?(?:"
     r"always\b|"
     r"never\b|"
+    r"learn(?:ing)?[ \t]+to\b|"
+    r"teach(?:ing)?[ \t]+you[ \t]+to\b"
     r"from now on\b|"
     r"going forward\b|"
     r"remember(?:[ \t]+that)?\b|"
@@ -84,7 +86,9 @@ _LEAD_IN_RE = re.compile(
     r"^(?:please[ \t]+)?(?:"
     r"remember(?:[ \t]+that)?|"
     r"keep in mind(?:[ \t]+that)?|"
-    r"note(?:[ \t]+that)?"
+    r"note(?:[ \t]+that)?|"
+    r"learn(?:ing)?[ \t]+to|"
+    r"teach(?:ing)?[ \t]+you[ \t]+to"
     r")[ \t]*[,:]?[ \t]*",
     re.IGNORECASE,
 )
@@ -138,6 +142,18 @@ _MID_TEACH_RE = re.compile(
 )
 
 
+# A LEARNING DIRECTIVE anywhere it can start a clause: "learn to …",
+# "and learn to …", "teach you to …" (2026-09-30 live: 'repeat the
+# search and learn to include tennsmith sheet…'). These verb phrases are
+# unambiguous, so they may follow a coordinating 'and'; the generic
+# cues (always/never/…) keep the sentence-boundary rule.
+_MID_LEARN_RE = re.compile(
+    r"(?:^|(?<=[.!?;]\s)|\band\s+|\n)\s*"
+    r"(?:please\s+)?(?:learn(?:ing)?\s+to|teach(?:ing)?\s+you\s+to)\b",
+    re.IGNORECASE,
+)
+
+
 def detect_mid_message_cue(message: Any) -> Optional[str]:
     """The directive clause when teaching appears MID-message.
 
@@ -149,6 +165,20 @@ def detect_mid_message_cue(message: Any) -> Optional[str]:
     if not text:
         return None
     # A directive that is itself a question ("should I always…?") is not teaching.
+    # LEARNING DIRECTIVES first (own clause boundary, see _MID_LEARN_RE):
+    # extract from the directive to the sentence end, same shape as the
+    # generic pass below.
+    for match in _MID_LEARN_RE.finditer(text):
+        start = match.start()
+        tail = len(text)
+        for stop in (".", "!", "?"):
+            idx = text.find(stop, start)
+            if idx != -1:
+                tail = min(tail, idx + 1)
+        lesson = text[match.end():tail].strip(" \t,:;-")
+        lesson = " ".join(lesson.split())
+        if _MIN_LESSON_CHARS <= len(lesson) <= _MAX_LESSON_CHARS:
+            return lesson
     for match in _MID_TEACH_RE.finditer(text):
         start = match.start("cue")
         # "never mind" / "always the case" are conversational idiom, not

@@ -1785,6 +1785,22 @@ def _canvas_edit_shaped(
     canvas gate matters most: the same verbs in a plain chat (no panel) are
     ordinary turns."""
     text = message or ""
+    # A TEACHING DIRECTIVE IS NOT AN EDIT (2026-09-30 02:28 live): "learn
+    # to include tennsmith sheet for roper whitney searches" matched the
+    # edit verb 'include' and forked a doomed background edit while the
+    # agent — which owns learning — was never consulted. Learning
+    # directives route to the teaching channel (one-click lesson); the
+    # deterministic edit gate must not act on them.
+    try:
+        from core.chat_teaching import (
+            detect_mid_message_cue,
+            detect_teaching_cue,
+        )
+
+        if detect_teaching_cue(text) or detect_mid_message_cue(text):
+            return False
+    except Exception:  # noqa: BLE001 — classification only
+        pass
     if (
         _CANVAS_ADVISORY_OBJECTIVE_RE.search(text)
         and not _CANVAS_EXPLICIT_EDIT_RE.search(text)
@@ -6839,15 +6855,27 @@ class ChatOrchestrator:
                                 # leg pre-started one).
                                 _edit_leg_timed_out = True
                                 # ASYNC TIER FORK (2026-09-22, research per
-                                # AGENTS.md §3): an edit-shaped turn whose
-                                # edit starved at the interactive bound does
-                                # NOT end as a squeezed chat answer — the
-                                # edit continues in the background under its
-                                # own budget and the user is notified when
-                                # it lands (Nielsen's 10s attention limit;
-                                # async agent workflows decouple submission
-                                # from execution).
-                                if _canvas_edit_shaped(message, context):
+                                # AGENTS.md §3): an edit turn whose edit
+                                # starved at the interactive bound continues
+                                # in the background under its own budget and
+                                # the user is notified when it lands
+                                # (Nielsen's 10s attention limit; async
+                                # agent workflows decouple submission from
+                                # execution).
+                                # MUTATION AUTHORITY (2026-09-30 directive):
+                                # an edit-shape HINT may nominate, never
+                                # authorize. The fork may start only from a
+                                # USER-GROUNDED edit decision: a bare retry
+                                # re-dispatching a previously authorized
+                                # edit instruction (_edit_retry carries the
+                                # original wording). Hint-only matches fork
+                                # nothing — the turn reports the limitation
+                                # instead (reasoning unavailable ≠ license
+                                # to edit; live 02:28: 'learn to include
+                                # …' matched 'include' and forked a doomed
+                                # edit while every reasoning route was
+                                # skipped pre-dispatch).
+                                if _edit_retry is not None:
                                     try:
                                         from core.async_turn_continuation import (
                                             fork_canvas_edit_continuation,
@@ -6965,14 +6993,17 @@ class ChatOrchestrator:
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _action_response = None
                         # ASYNC TIER FORK ON PLANNER-UNAVAILABILITY
-                        # (2026-09-22): a transient edit-planner failure is
-                        # exactly what the background retry exists for — it
-                        # re-runs with a relaxed inner timeout and a fresh
-                        # cascade. One-in-flight claim per session caps the
-                        # churn on persistent outages; the reply stays
-                        # honest (planner-unavailable note + background
-                        # note).
-                        if _canvas_edit_shaped(message, {"canvas": _canvas_ctx}):
+                        # (2026-09-22; authority revised 2026-09-30): the
+                        # background retry may start only from a
+                        # USER-GROUNDED edit decision — a bare retry of a
+                        # previously authorized edit instruction. An
+                        # edit-shape HINT alone never forks: when reasoning
+                        # is unavailable the deterministic layer reports
+                        # the limitation and changes nothing (directive:
+                        # 'do not turn a keyword match into permission to
+                        # edit'; live 02:28 the hint matched a teaching
+                        # phrase's 'include').
+                        if _edit_retry is not None:
                             try:
                                 from core.async_turn_continuation import (
                                     fork_canvas_edit_continuation,
@@ -6980,7 +7011,7 @@ class ChatOrchestrator:
 
                                 _cont_id2 = fork_canvas_edit_continuation(
                                     self,
-                                    message=message,
+                                    message=_edit_retry["instruction"],
                                     history=history,
                                     canvas=_canvas_ctx or {},
                                     user_id=user_id,

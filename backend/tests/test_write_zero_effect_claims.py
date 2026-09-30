@@ -434,16 +434,20 @@ async def _planner_unavailable_turn(message, session_id, reply_text):
 
 
 @pytest.mark.asyncio
-async def test_an_edit_shaped_planner_failure_never_denies_a_change():
-    """The background worker is still going to try this edit, so the reply
-    cannot say nothing was changed."""
+async def test_an_edit_shaped_planner_failure_reports_the_limitation():
+    """SUPERSEDED CONTRACT (2026-09-30 directive): an edit-shape HINT may
+    nominate, never authorize. When the edit planner cannot run, the turn
+    reports the limitation honestly and forks NOTHING — 'do not turn a
+    keyword match into permission to edit'. (The pre-2026-09-30 contract
+    forked a background retry on the hint alone; live 02:28 that forked a
+    doomed edit for a teaching phrase whose 'include' matched the edit
+    vocabulary while every reasoning route was skipped pre-dispatch.)"""
     result, forks = await _planner_unavailable_turn(
         "rebuild the draft with the quotes", "sess-zero-a",
         {"content": "ok", "model": "m", "provider": "p"})
-    assert len(forks) == 1, "an edit-shaped planner failure must fork the retry"
-    said = (result.get("message") or "").lower()
-    assert "nothing was changed" not in said, result.get("message")
-    assert "background" in said, result.get("message")
+    assert forks == [], "a hint-only match must not start an edit continuation"
+    said = (result.get("message") or "")
+    assert "nothing was changed" in said.lower(), said
 
 
 @pytest.mark.asyncio
@@ -457,3 +461,67 @@ async def test_a_non_edit_turn_may_say_nothing_was_changed_because_nothing_start
         "if a background edit were in flight, this reply could not deny a "
         "change")
     assert "Nothing was changed" in (result.get("message") or ""), result
+
+
+@pytest.mark.asyncio
+async def test_teaching_phrase_with_planner_down_mutates_nothing():
+    """Directive test 5 (2026-09-30): the EXACT live sentence, providers
+    unavailable, a canvas attached. Expected: zero edit continuations,
+    honest incomplete status, and zero canvas writes (asserted at the
+    write boundary — the canvas crud update is never invoked)."""
+    from unittest.mock import AsyncMock as AM
+
+    from core.chat_teaching import detect_mid_message_cue
+    import integrations.chat_orchestrator as chat_mod
+
+    msg = ("repeat the search and learn to include tennsmith sheet for "
+           "roper whitney searches")
+    # the learning half is recognized by the lesson channel
+    assert detect_mid_message_cue(msg)
+
+    orch = chat_mod.ChatOrchestrator()
+    orch.ai_engines = {}
+    canvas = {"canvas_id": "cv-learn", "canvas_type": "email",
+              "content": {"body": "unchanged"}}
+    forks: list = []
+    async def planner_down(*a, **k):
+        st = k.get("shared_tool_state")
+        if st is not None:
+            st["canvas_planning_unavailable"] = True
+        return None
+    with (
+        patch.object(orch, "_get_or_create_session",
+                     return_value={"id": "sess-learn", "history": []}),
+        patch.object(orch, "_resolve_canvas_ctx",
+                     new=AM(return_value=canvas)),
+        patch.object(orch, "_start_chat_execution", return_value="e-learn"),
+        patch.object(orch, "_record_chat_step", new=AM()),
+        patch.object(orch, "_emit_agent_status", new=AM()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_update_session"),
+        patch.object(chat_mod, "_begin_task_edit",
+                     return_value={"status": "reserved", "run_id": "r",
+                                   "operation_id": "o", "reason": None}),
+        patch.object(orch, "_try_canvas_edit", side_effect=planner_down),
+        patch.object(orch, "_try_canvas_action", new=AM()),
+        patch.object(orch, "_get_qwen_response",
+                     new=AM(return_value={"content": "ok", "model": "m",
+                                          "provider": "p"})),
+        patch("core.chat_tool_planner.plan_tool_use",
+              new=AM(return_value=None)),
+        patch("core.chat_tool_planner._provenance_menu",
+              new=AM(return_value="")),
+        patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+              side_effect=lambda *a, **k: forks.append(k) or "cont-x"),
+        patch("tools.canvas_crud_tool.update_canvas_content",
+              new=AM()) as crud_up,
+    ):
+        result = await orch.process_chat_message(
+            "u1", msg, "sess-learn", context={"canvas_id": "cv-learn"})
+    assert forks == [], "zero edit continuations"
+    crud_up.assert_not_called()
+    data = (result.get("data") or {}).get("canvas_edit") or {}
+    assert data.get("updated") is False
+    assert data.get("plan_unavailable") is True, (
+        "the honest limitation: an edit was nominated, the reasoning step "
+        "could not run, and the reply reports exactly that")
