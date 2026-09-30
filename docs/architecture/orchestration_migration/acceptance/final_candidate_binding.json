@@ -1,0 +1,9 @@
+{
+ "world": "final_promotion",
+ "export_binding": {
+  "code_snapshot_sha256": "56801e7be6731be845490e6cfb5117c4cda2efd9d35b04e89e7891aaf3abaa4b",
+  "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+  "created": "2026-09-28T21:53:34-0400"
+ },
+ "sheet_dataset_files": 46
+}

@@ -563,6 +563,77 @@ async def lifespan(app: FastAPI):
     # startup to raise NameError (silently swallowed by except).
     qstash_init_skip = True
     startup_session_key = None
+
+    # 5. Crash Recovery — reconcile executions orphaned in RUNNING by a
+    # process crash. Previously this slot imported core.startup_tasks
+    # (run_startup_maintenance), a module that did not exist, so the
+    # import failed and was silently swallowed — leaving ghost RUNNING
+    # rows forever. Now we run a real, idempotent recovery sweep.
+    #
+    # IT IS NOT INSIDE THE SCHEDULER GATE, and that is the point. This sweep
+    # used to sit under `if ENABLE_SCHEDULER ... and not is_test_mode`, which
+    # made crash recovery a privilege of deployments that happen to run
+    # schedulers. Measured on a real SIGKILL (lane3/crash_recovery_probe.py,
+    # 2026-09-27): with the gate closed the sweep never ran, no log line was
+    # emitted at all, and the interrupted execution stayed `running` in the
+    # durable store forever — the exact ghost-run problem this function exists
+    # to solve, reproduced by the feature flag that was supposed to be
+    # unrelated. Reconciling durable state is not a background service: it is
+    # an integrity pass, it is idempotent, it is one indexed query, and it must
+    # run at EVERY boot — including API-only processes, test runs and CI.
+    try:
+        from core.execution_recovery import reconcile_orphaned_executions
+
+        recovery = reconcile_orphaned_executions()
+        if recovery.get("workflow_recovered") or recovery.get("agent_recovered"):
+            logger.info(
+                "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s)",
+                {
+                    "wf": recovery.get("workflow_recovered", 0),
+                    "ag": recovery.get("agent_recovered", 0),
+                },
+            )
+    except Exception as e:
+        logger.error(f"Failed to run execution recovery sweep: {e}")
+
+    # 5b. Continuation recovery — background turn-continuations orphaned
+    # by the restart were marked failed by the sweep above; their users
+    # get the honest failure notification now (idempotent via the
+    # notified flag on the durable row). Outside the scheduler gate for the
+    # same reason as 5: the users who lost a background turn are owed that
+    # notification whether or not this process runs a scheduler.
+    try:
+        from core.async_turn_continuation import (
+            notify_recovered_continuations,
+        )
+
+        cont_rec = notify_recovered_continuations()
+        if cont_rec.get("recovered_notified"):
+            logger.info(
+                "Continuation recovery: %(n)d user(s) notified",
+                {"n": cont_rec["recovered_notified"]},
+            )
+        # 5c. STRANDED TERMINAL DELIVERIES, recurring. A continuation can
+        # claim its terminal delivery and die before persisting the message,
+        # leaving a row that says the turn finished and a history that says
+        # nothing about it. The one-shot pass above cannot fix that: a lease
+        # that has not expired yet is deferred, and nothing would come back for
+        # it. So this is a recurring task, started here -- outside the scheduler
+        # gate below, for the same reason as 5b: a user whose background turn
+        # lost its outcome is owed it whether or not this process runs a
+        # scheduler. It writes only the missing terminal MESSAGE; it never
+        # replays the canvas mutation.
+        from core.async_turn_continuation import (
+            start_terminal_delivery_recovery,
+        )
+
+        if start_terminal_delivery_recovery():
+            logger.info(
+                "Terminal-delivery recovery task started (outside the "
+                "scheduler gate)")
+    except Exception as e:
+        logger.error(f"Failed to run continuation recovery pass: {e}")
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False
@@ -627,44 +698,6 @@ async def lifespan(app: FastAPI):
                 interval_seconds=_poll_interval)
         except Exception as fw_err:
             logger.warning(f"fact watch poller failed to start: {fw_err}")
-
-        # 5. Crash Recovery — reconcile executions orphaned in RUNNING by a
-        # process crash. Previously this slot imported core.startup_tasks
-        # (run_startup_maintenance), a module that did not exist, so the
-        # import failed and was silently swallowed — leaving ghost RUNNING
-        # rows forever. Now we run a real, idempotent recovery sweep.
-        try:
-            from core.execution_recovery import reconcile_orphaned_executions
-
-            recovery = reconcile_orphaned_executions()
-            if recovery.get("workflow_recovered") or recovery.get("agent_recovered"):
-                logger.info(
-                    "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s)",
-                    {
-                        "wf": recovery.get("workflow_recovered", 0),
-                        "ag": recovery.get("agent_recovered", 0),
-                    },
-                )
-        except Exception as e:
-            logger.error(f"Failed to run execution recovery sweep: {e}")
-
-        # 5b. Continuation recovery — background turn-continuations orphaned
-        # by the restart were marked failed by the sweep above; their users
-        # get the honest failure notification now (idempotent via the
-        # notified flag on the durable row).
-        try:
-            from core.async_turn_continuation import (
-                notify_recovered_continuations,
-            )
-
-            cont_rec = notify_recovered_continuations()
-            if cont_rec.get("recovered_notified"):
-                logger.info(
-                    "Continuation recovery: %(n)d user(s) notified",
-                    {"n": cont_rec["recovered_notified"]},
-                )
-        except Exception as e:
-            logger.error(f"Failed to run continuation recovery pass: {e}")
 
         # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
         # Auto-sync is on by default (integrations should stay fresh without a
@@ -1149,6 +1182,17 @@ async def lifespan(app: FastAPI):
     yield
 
     # --- SHUTDOWN ---
+    # Stop the recurring terminal-delivery recovery task before the process
+    # goes away, so it is cancelled and awaited rather than abandoned.
+    try:
+        from core.async_turn_continuation import (
+            stop_terminal_delivery_recovery,
+        )
+
+        await stop_terminal_delivery_recovery()
+    except Exception as e:
+        logger.error(f"terminal-delivery recovery shutdown: {e}")
+
     logger.info("Shutting down ATOM Platform...")
 
     # Stop Webhook Processing Worker

@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 IN_PROGRESS = "in_progress"
 COMPLETED = "completed"
+#: Terminal, and NOT a success. Set by the boot crash-recovery sweep on the keyed
+#: record of an execution it just marked failed. The turn did not complete, and
+#: the sweep cannot know whether a side effect landed before the crash, so this
+#: state must never be served as a replay and must never re-execute -- it exists
+#: so that "already in progress" stops being the answer forever. See
+#: `core.execution_recovery._release_crashed_chat_requests`.
+CRASHED = "crashed"
 
 
 def payload_hash(*, message: str, session_id: Optional[str],
@@ -49,7 +56,7 @@ def check(db, *, tenant_id: str, user_id: str, session_id: Optional[str],
           request_id: str, digest: str, payload_text: str
           ) -> Tuple[str, Any]:
     """Reserve or resolve a keyed request. Returns (action, record) with
-    action in {"execute", "replay", "conflict", "in_progress"}."""
+    action in {"execute", "replay", "conflict", "in_progress", "crashed"}."""
     from sqlalchemy.exc import IntegrityError
 
     from core.models import ChatRequestRecord
@@ -69,6 +76,13 @@ def check(db, *, tenant_id: str, user_id: str, session_id: Optional[str],
             if (existing.payload_sha256 or "") == digest:
                 return "replay", existing
             return "conflict", existing
+        if existing.state == CRASHED:
+            # Checked before in_progress, and deliberately NOT collapsed into
+            # conflict: the payload may be byte-identical, and "this key is
+            # spent because that attempt crashed" is a different fact from "this
+            # key was used for a different payload". Either way the key is dead,
+            # and the caller must mint a new request id.
+            return "crashed", existing
         return "in_progress", existing
     record = ChatRequestRecord(
         tenant_id=tenant_id, user_id=user_id,
@@ -101,6 +115,8 @@ def check(db, *, tenant_id: str, user_id: str, session_id: Optional[str],
             if (winner.payload_sha256 or "") == digest:
                 return "replay", winner
             return "conflict", winner
+        if winner.state == CRASHED:
+            return "crashed", winner
         return "in_progress", winner
     except Exception as exc:
         try:

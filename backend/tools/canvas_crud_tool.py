@@ -30,6 +30,14 @@ logger = logging.getLogger(__name__)
 # gallery (see list_canvases).
 _EVENT_ONLY_ACTIONS = ("submit",)
 
+#: ``write_outcome`` — did the call CHANGE the canvas? See
+#: `update_canvas_content`'s docstring for why a `success: False` is not
+#: evidence of a zero effect, and why only ``WRITE_NOT_ATTEMPTED`` may be
+#: reported to a user as "nothing was changed".
+WRITE_NOT_ATTEMPTED = "not_attempted"
+WRITE_COMMITTED = "committed"
+WRITE_UNKNOWN = "unknown"
+
 
 def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
     """Return True if ``canvas_id`` exists and belongs to ``user_id``.
@@ -326,6 +334,25 @@ async def update_canvas_content(
     Works for ALL canvas types (sheets, email, docs, coding, terminal, etc.)
     — generalizes the docs-only update pattern.
 
+    ``write_outcome`` — DID THIS CALL CHANGE ANYTHING?
+    Every return carries it, because a `success: False` here is NOT evidence
+    that the canvas is untouched, and callers turn exactly that into user-facing
+    text ("the store refused, nothing was changed"). The append happens inside a
+    context manager that commits on clean exit, and everything after the commit
+    (refresh, the exit commit, the broadcast) can still raise — and an exception
+    there is reported as a refusal while the row is already durable. So the store
+    states which of three things happened:
+
+      ``not_attempted``  refused before the append (IDOR, missing canvas,
+                         deleted canvas, revision conflict). VERIFIED zero effect.
+      ``committed``      the append is durable. VERIFIED.
+      ``unknown``        the append was attempted and the outcome cannot be
+                         established from here — a commit that raised (a lost
+                         connection after the server committed is the classic
+                         case) or a post-commit failure.
+
+    Only ``not_attempted`` may be reported to a user as "nothing was changed".
+
     Args:
         user_id: User requesting the action
         canvas_id: The canvas ID to update
@@ -334,7 +361,7 @@ async def update_canvas_content(
         title: Optional new title
         manual_retype: True when a HUMAN switched the canvas type in the UI
             (the escape hatch for a wrong classifier guess). Pins the choice
-            on the audit row (``details.type_pinned``) and skips email
+            into the audit row (``details.type_pinned``) and skips email
             coercion so the manual type survives every later read/save.
         operation_id: Optional stable id for the LOGICAL operation this
             write belongs to (e.g. a background turn continuation). Stamped
@@ -345,14 +372,17 @@ async def update_canvas_content(
         expected_prior_audit_id: Optional optimistic-concurrency token —
             the audit row id the caller planned against. Checked against
             the LATEST audit row inside this same DB session, immediately
-            before the append: a mismatch means the canvas moved during
-            the caller's planning/retry window and the write is REFUSED
+            before the append: a mismatch means the canvas moved during the
+            caller's planning/retry window and the write is REFUSED
             with a conflict marker instead of overwriting concurrent
             edits.
         pending_review: Optional review state for an agent proposal. Pending
             content remains readable from the audit trail but is not mirrored
             into the accepted ``canvases.content`` snapshot.
     """
+    #: See the docstring. Advanced on the way to the commit and after it, so the
+    #: except branch can distinguish "never tried" from "tried, outcome unknown".
+    write_outcome = WRITE_NOT_ATTEMPTED
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
@@ -361,7 +391,8 @@ async def update_canvas_content(
         with get_db_session() as db:
             # IDOR guard: only the owner may update this canvas.
             if not _verify_canvas_owner(db, canvas_id, user_id):
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
 
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
@@ -371,10 +402,12 @@ async def update_canvas_content(
             ).first()
 
             if not latest:
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
 
             if latest.action_type == "delete":
-                return {"success": False, "error": "Cannot update a deleted canvas"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": "Cannot update a deleted canvas"}
 
             review_status = "pending_review" if pending_review else "accepted"
             if operation_id:
@@ -394,12 +427,34 @@ async def update_canvas_content(
                     return {
                         "success": True,
                         "already_applied": True,
+                        # This operation's content IS on the canvas — it landed
+                        # on an earlier call. Not a new write, but not zero
+                        # effect either, and a caller must not report it as
+                        # "nothing changed".
+                        "write_outcome": WRITE_COMMITTED,
                         "canvas_id": canvas_id,
                         "canvas_type": existing.canvas_type,
                         "audit_id": existing.id,
                         "review_status": existing_status,
                         "message": "Canvas update already applied",
                     }
+
+            # ATOMIC REVISION DOOR (2026-09-22): the caller planned against a
+            # specific revision; if anything has appended since, refuse — a
+            # background write over a concurrently-edited canvas is never
+            # acceptable. Same DB session as the append below, so the
+            # check-then-write window is the transaction itself.
+            if expected_prior_audit_id and latest.id != expected_prior_audit_id:
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "error": (
+                        "canvas changed since the edit was planned "
+                        f"(expected audit {expected_prior_audit_id[:12]}…, "
+                        f"latest {str(latest.id)[:12]}…) — write refused"),
+                }
+
 
             # ATOMIC REVISION DOOR (2026-09-22): the caller planned against a
             # specific revision; if anything has appended since, refuse — a
@@ -497,7 +552,11 @@ async def update_canvas_content(
                     db, canvas_id, content, canvas_type,
                     details.get("title"), user_id,
                 )
+            # From here the row is going to the database: past this point a
+            # failure is NOT proof that nothing changed.
+            write_outcome = WRITE_UNKNOWN
             db.commit()
+            write_outcome = WRITE_COMMITTED
             db.refresh(new_audit)
 
         # Broadcast the update via WebSocket.
@@ -506,6 +565,7 @@ async def update_canvas_content(
         logger.info(f"Updated canvas {canvas_id} ({canvas_type})")
         return {
             "success": True,
+            "write_outcome": write_outcome,
             "canvas_id": canvas_id,
             "canvas_type": canvas_type,
             "audit_id": str(new_audit.id),
@@ -515,7 +575,7 @@ async def update_canvas_content(
         }
     except Exception as e:
         logger.error(f"Canvas update failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "write_outcome": write_outcome}
 
 
 async def _broadcast_canvas_update(
@@ -675,7 +735,12 @@ async def restore_canvas_version(
     Type resolution: the restored version's own canvas_type is authoritative
     for its content, EXCEPT when the canvas carries a human type pin
     (`type_pinned`) — the supervisor's manual choice outranks history.
+
+    Carries the same ``write_outcome`` contract as `update_canvas_content`:
+    a refusal is only a verified zero effect when the store says the append was
+    never attempted.
     """
+    write_outcome = WRITE_NOT_ATTEMPTED
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
@@ -684,7 +749,8 @@ async def restore_canvas_version(
         with get_db_session() as db:
             # IDOR guard: only the owner may restore this canvas.
             if not _verify_canvas_owner(db, canvas_id, user_id):
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
 
             target = (
                 db.query(CanvasAudit)
@@ -692,14 +758,17 @@ async def restore_canvas_version(
                 .first()
             )
             if not target:
-                return {"success": False, "error": "Version not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": "Version not found"}
             if target.action_type == "delete":
-                return {"success": False, "error": "Cannot restore a deletion marker"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": "Cannot restore a deletion marker"}
 
             target_details = target.details_json or {}
             content = target_details.get("content", target_details.get("data"))
             if content is None:
-                return {"success": False, "error": "Version carries no restorable content"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": "Version carries no restorable content"}
 
             latest = (
                 db.query(CanvasAudit)
@@ -708,9 +777,11 @@ async def restore_canvas_version(
                 .first()
             )
             if not latest:
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
             if latest.action_type == "delete":
-                return {"success": False, "error": "Cannot update a deleted canvas"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": "Cannot update a deleted canvas"}
 
             latest_details = dict(latest.details_json or {})
 
@@ -719,6 +790,9 @@ async def restore_canvas_version(
             if latest_body is not None and content == latest_body:
                 return {
                     "success": True,
+                    # Nothing appended, and nothing to append: VERIFIED zero
+                    # effect for this restore.
+                    "write_outcome": write_outcome,
                     "canvas_id": canvas_id,
                     "no_change": True,
                     "restored_from": audit_id,
@@ -774,7 +848,11 @@ async def restore_canvas_version(
                 db, canvas_id, content, canvas_type,
                 new_details.get("title"), user_id,
             )
+            # The append is going to the database: past this point a failure is
+            # not proof that nothing changed.
+            write_outcome = WRITE_UNKNOWN
             db.commit()
+            write_outcome = WRITE_COMMITTED
             db.refresh(new_audit)
 
         await _broadcast_canvas_update(
@@ -787,6 +865,7 @@ async def restore_canvas_version(
         )
         return {
             "success": True,
+            "write_outcome": write_outcome,
             "canvas_id": canvas_id,
             "canvas_type": canvas_type,
             "audit_id": str(new_audit.id),
@@ -796,7 +875,7 @@ async def restore_canvas_version(
         }
     except Exception as e:
         logger.error(f"Canvas restore failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "write_outcome": write_outcome}
 
 
 async def delete_canvas(

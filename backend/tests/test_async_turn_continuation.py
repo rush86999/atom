@@ -23,8 +23,10 @@ These pins cover the six contract points:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("TESTING", "1")
@@ -346,7 +348,13 @@ class TestEffectsAndContextContinuity:
             await atc._apply_effects(cont)
         row = added[0]
         assert row.role == "assistant"
-        assert "awaiting_approval" in row.content
+        # D5: the visible text is a sentence. The internal outcome token used to
+        # be asserted here, which is the defect: it welded `[background
+        # continuation — awaiting_approval of: "..."]` into what the user reads.
+        # The token is metadata, and the next two lines assert it there.
+        assert "Background update needs your approval" in row.content
+        assert "[background continuation" not in row.content
+        assert "awaiting_approval" not in row.content
         import json as _json
         meta = _json.loads(row.metadata_json)
         assert meta["continuation"]["outcome"] == "awaiting_approval"
@@ -382,39 +390,281 @@ class TestEffectsAndContextContinuity:
 
 
 class TestRecoveryPass:
-    def test_crashed_unnotified_rows_get_notified_once(self):
-        row = SimpleNamespace(
-            id="c-x",
-            metadata_json={
-                "recovery": {"crashed": True},
-                "continuation": {
-                    "session_id": "s1", "user_id": "u1",
-                    "canvas_id": "cv1"},
-            },
-        )
-        with patch("core.database.get_db_session",
-                   _fake_db(_QueryDb([row]))), \
-             patch(
-                 "core.notification_service.NotificationService") as ns:
-            ns.return_value = MagicMock(
-                send_notification=AsyncMock(return_value={}))
-            out = atc.notify_recovered_continuations()
-        assert out["recovered_notified"] == 1
-        # The notified flag is persisted → the second pass is a no-op.
-        row.metadata_json["continuation"]["notified"] = True
-        with patch("core.database.get_db_session",
-                   _fake_db(_QueryDb([row]))), \
-             patch(
-                 "core.notification_service.NotificationService") as ns:
-            ns.return_value = MagicMock(
-                send_notification=AsyncMock(return_value={}))
-            out2 = atc.notify_recovered_continuations()
-        assert out2["recovered_notified"] == 0
+    """Contract tests for the RECONCILED terminal-delivery path.
 
+    One authoritative mechanism (2026-09-28 reconciliation): the fenced
+    conditional-UPDATE claim inside _apply_effects (token + lease on the
+    durable record) arbitrates BOTH normal completion and recovery; the
+    recurring scan recover_missing_terminal_deliveries owns candidate
+    selection, operation-linked effect attribution, and honest wording. The
+    earlier AsyncDeliveryLease table was a second, overlapping claim and was
+    removed — two claims can disagree or suppress each other.
+    """
+
+    def _fixture(self):
+        """In-memory engine with the continuation tables, a committing
+        session factory mirroring production get_db_session, a canvas at a
+        known content, and one crashed continuation record bound to it."""
+        from contextlib import contextmanager
+
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        from core.database import Base
+        from core.models import (
+            AgentExecution, AsyncContinuationClaim, Canvas, CanvasAudit,
+            ChatMessage,
+        )
+
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(bind=engine, tables=[
+            AgentExecution.__table__, AsyncContinuationClaim.__table__,
+            Canvas.__table__, CanvasAudit.__table__,
+            ChatMessage.__table__])
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+        @contextmanager
+        def _committing():
+            s = Session()
+            try:
+                yield s
+                s.commit()
+            finally:
+                s.close()
+
+        def _get_db_session():
+            return _committing()
+
+        snapshot = atc._content_hash({"content": {"body": "v1"}})
+        with Session() as s:
+            s.add(Canvas(id="cv-l", tenant_id="default",
+                         workspace_id="default", created_by="u1",
+                         name="recovery fixture", canvas_type="email",
+                         status="active", content=json.dumps(
+                             {"body": "v1"})))
+            s.add(AgentExecution(
+                id="dl-1", status="failed", triggered_by="continuation",
+                metadata_json={
+                    "recovery": {"crashed": True},
+                    "origin_operation_id": "op-dl-1",
+                    "continuation": {
+                        "session_id": "s-l", "user_id": "u1",
+                        "canvas_id": "cv-l",
+                        "message": "beta: update the payment terms",
+                        "snapshot_content_hash": snapshot,
+                        "origin_operation_id": "op-dl-1"}}))
+            s.commit()
+        return Session, _get_db_session, snapshot
+
+    def _pass(self, get_db, **env):
+        """One recovery scan against the fixture, notifications patched."""
+        saved = {k: os.environ.get(k) for k in
+                 ("ATOM_TERMINAL_DELIVERY_LEASE_SECONDS",
+                  "ATOM_DELIVERY_LEASE_DISABLED",
+                  "ATOM_TERMINAL_RECOVERY_INTERVAL_SECONDS")}
+        os.environ["ATOM_TERMINAL_DELIVERY_LEASE_SECONDS"] = str(
+            env.get("lease", 300))
+        if env.get("disabled"):
+            os.environ["ATOM_DELIVERY_LEASE_DISABLED"] = "1"
+        try:
+            with patch("core.database.get_db_session", get_db), \
+                 patch("core.notification_service."
+                       "NotificationService") as ns:
+                ns.return_value = MagicMock(
+                    send_notification=AsyncMock(return_value={}))
+                return asyncio.run(
+                    atc.recover_missing_terminal_deliveries())
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def _cont(self, cid="dl-1", session="s-l"):
+        return atc.AsyncTurnContinuation(
+            continuation_id=cid, user_id="u1", session_id=session,
+            message="beta: update the payment terms",
+            canvas={"canvas_id": "cv-l"}, execution_id="exec-dl-1",
+            agent_id=None, history_snapshot=[])
+
+    def test_claim_arbitrates_and_stale_claims_are_reclaimed(self):
+        """The fence: exactly one winner; an in-flight claim refuses a
+        second claimant until its lease expires; a STALE claim (claimed,
+        nothing delivered) is released and re-claimed so the outcome is
+        never suppressed by an interrupted recovery."""
+        Session, get_db, _ = self._fixture()
+        from core.models import AgentExecution
+        cont = self._cont()
+        with patch("core.database.get_db_session", get_db):
+            claimed1, reason1, tok1 = atc._claim_terminal_delivery(cont)
+            assert claimed1, reason1
+            # Second claimant within the lease: refused as in-flight.
+            claimed2, reason2, _ = atc._claim_terminal_delivery(
+                self._cont())
+            assert not claimed2
+            assert "in flight" in reason2
+            # Holder still owns it at persistence time.
+            assert atc._still_holds_claim(cont, tok1) is True
+
+            # The lease expires with NOTHING delivered behind the claim:
+            # stale, released, re-claimed by the next pass.
+            with Session() as s:
+                r = s.get(AgentExecution, "dl-1")
+                meta = dict(r.metadata_json or {})
+                meta["continuation"]["terminal_delivered_at"] = (
+                    time.time() - 9999)
+                r.metadata_json = meta
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(r, "metadata_json")
+                s.commit()
+            claimed3, reason3, tok3 = atc._claim_terminal_delivery(cont)
+            assert claimed3, reason3
+            assert tok3 != tok1
+            # The ORIGINAL holder resumes: fenced out, cannot persist.
+            assert atc._still_holds_claim(cont, tok1) is False
+            assert atc._still_holds_claim(cont, tok3) is True
+
+    def test_scan_delivers_once_and_attributes_effect(self):
+        """The authoritative scan: crashed continuation with a LANDED,
+        operation-linked mutation -> delivered once with honest wording,
+        a durable chat message bound to the continuation, and no delivery
+        on the next pass."""
+        Session, get_db, _ = self._fixture()
+        from core.models import CanvasAudit
+        # Operation-linked evidence: the audit row carrying THIS
+        # continuation's origin operation id.
+        with Session() as s:
+            from core.models import CanvasAudit
+            s.add(CanvasAudit(
+                canvas_id="cv-l", tenant_id="default", action_type="update",
+                canvas_type="email", user_id="u1",
+                details_json={"operation_id": "op-dl-1",
+                              "content": {"body": "v2"}}))
+            s.commit()
+
+        out = self._pass(get_db)
+        assert out["delivered"] == 1
+        with Session() as s:
+            from core.models import ChatMessage
+            msgs = s.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "s-l").all()
+            assert len(msgs) == 1
+            assert "already applied" in msgs[0].content.lower()
+            meta = json.loads(msgs[0].metadata_json)["continuation"]
+            assert meta["id"] == "dl-1"
+            assert meta["effect_on_canvas"] == "landed"
+        # Second scan: already delivered -> nothing.
+        assert self._pass(get_db)["delivered"] == 0
+
+    def test_scan_reports_uncertainty_when_attribution_unavailable(self):
+        """A changed canvas WITHOUT an operation-linked row must not be
+        claimed as this edit's success: the wording reports uncertainty."""
+        Session, get_db, _ = self._fixture()
+        from core.models import Canvas
+        # No audit row for op-dl-1; the canvas changed (as another turn
+        # would change it).
+        with Session() as s:
+            cv = s.get(Canvas, "cv-l")
+            cv.content = json.dumps({"body": "v2-changed-by-someone"})
+            s.commit()
+
+        self._pass(get_db)
+        with Session() as s:
+            from core.models import ChatMessage
+            msgs = s.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "s-l").all()
+            assert len(msgs) == 1
+            assert "cannot attribute" in msgs[0].content
+            assert "applied" not in msgs[0].content.lower()
+
+    def test_in_flight_claim_defers_then_auto_retries(self):
+        """A pass meeting an UNEXPIRED in-flight claim defers (never
+        sticks); a pass after expiry delivers. This is the scan contract
+        the running server's recurring task relies on."""
+        Session, get_db, _ = self._fixture()
+        from core.models import AgentExecution
+        # Seed a fresh in-flight claim by another holder.
+        with Session() as s:
+            r = s.get(AgentExecution, "dl-1")
+            meta = dict(r.metadata_json or {})
+            c = dict(meta.get("continuation") or {})
+            c["terminal_delivered"] = True
+            c["terminal_delivered_at"] = time.time()
+            c["terminal_delivery_token"] = "deadA"
+            meta["continuation"] = c
+            r.metadata_json = meta
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(r, "metadata_json")
+            s.commit()
+
+        out = self._pass(get_db, lease=60)
+        assert out["deferred_in_flight"] == 1
+        assert out["delivered"] == 0
+
+        # Holder died; the lease expires; the next pass delivers.
+        with Session() as s:
+            r = s.get(AgentExecution, "dl-1")
+            meta = dict(r.metadata_json or {})
+            meta["continuation"]["terminal_delivered_at"] = time.time() - 120
+            r.metadata_json = meta
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(r, "metadata_json")
+            s.commit()
+        out2 = self._pass(get_db, lease=60)
+        assert out2["delivered"] == 1
+
+    def test_disabled_lease_widens_the_reclaim_window(self):
+        """Negative control: with the lease seconds zeroed
+        (ATOM_DELIVERY_LEASE_DISABLED), an IN-FLIGHT claim is immediately
+        reclaimable — the bypassable window the fence's non-disableable
+        conditional update still arbitrates. This shows what the switch
+        weakens; it does not replace the two-process stale-holder test."""
+        Session, get_db, _ = self._fixture()
+        from core.models import AgentExecution
+        with Session() as s:
+            r = s.get(AgentExecution, "dl-1")
+            meta = dict(r.metadata_json or {})
+            c = dict(meta.get("continuation") or {})
+            c["terminal_delivered"] = True
+            c["terminal_delivered_at"] = time.time()  # fresh, in flight
+            meta["continuation"] = c
+            r.metadata_json = meta
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(r, "metadata_json")
+            s.commit()
+
+        out = self._pass(get_db, lease=60, disabled=True)
+        # With the lease zeroed the scan does NOT defer: the in-flight
+        # claim is reclaimed immediately.
+        assert out["deferred_in_flight"] == 0
+        assert out["delivered"] == 1
+
+    def test_notified_flag_persists_through_real_orm(self):
+        """Marking a continuation notified must survive a real ORM
+        round-trip (mutating a JSON column's dict in place is invisible to
+        SQLAlchemy without flag_modified — this site shipped broken)."""
+        Session, get_db, _ = self._fixture()
+        from core.models import AgentExecution
+        with patch("core.database.get_db_session", get_db), \
+             patch("core.notification_service."
+                   "NotificationService") as ns:
+            ns.return_value = MagicMock(
+                send_notification=AsyncMock(return_value={}))
+            assert atc._mark_continuation_notified("dl-1") is True
+        with Session() as s:
+            r = s.get(AgentExecution, "dl-1")
+            assert (r.metadata_json["continuation"]["notified"]) is True
 
 class _QueryDb:
     def __init__(self, rows):
         self._rows = rows
+        self.added = []
+        # The terminal-delivery fence is a conditional UPDATE whose rowcount
+        # decides the winner, so a stub that only answers `query` cannot stand in
+        # for the session any more. This reports the fence as PASSED, which is
+        # the case these recovery tests are about (a recovered row delivering).
+        self.fence_rowcount = 1
 
     def query(self, *a):
         return self
@@ -424,6 +674,21 @@ class _QueryDb:
 
     def all(self):
         return list(self._rows)
+
+    def first(self):
+        return self._rows[0] if self._rows else None
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    def execute(self, *a, **kw):
+        return SimpleNamespace(rowcount=self.fence_rowcount)
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
 
     def first(self):
         return self._rows[0] if self._rows else None
@@ -863,9 +1128,11 @@ class TestRestartVisibility:
         session = {"id": "s-h", "history": []}
         row = SimpleNamespace(
             role="assistant",
-            content="[background continuation — applied of: \"rebuild\"]\n"
-                    "Canvas updated.",
-            metadata_json='{"continuation": {"outcome": "applied"}}',
+            # D5: the user-facing text is a sentence, not internal syntax. The
+            # machine-readable outcome lives in metadata, which is what a client
+            # should read -- so this row is what a restart now hydrates from.
+            content="Background update applied. Canvas updated.",
+            metadata_json='{"continuation": {"outcome": "awaiting_approval"}}',
             created_at="2026-09-22T12:00:00")
         db = MagicMock()
         q = MagicMock()
@@ -876,7 +1143,13 @@ class TestRestartVisibility:
         assert len(session["history"]) == 1
         turn = session["history"][0]
         assert turn["error"] is False
-        assert "applied" in turn["response"]["message"]
+        # The prose says what happened, in words ...
+        assert "Background update" in turn["response"]["message"]
+        assert "[background continuation" not in turn["response"]["message"]
+        # ... and the internal outcome token is NOT welded into it. It used to
+        # be: the assertion that pinned "applied" into the visible text was
+        # pinning the defect D5 asks to remove. The outcome is metadata.
+        assert "awaiting_approval" not in turn["response"]["message"]
 
 
 class TestRealDatabaseSuccessPath:

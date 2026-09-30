@@ -521,9 +521,11 @@ class AgentIntegrationGateway:
         location_id = params.get("location_id")
         tracking_number = params.get("tracking_number")
         tracking_company = params.get("tracking_company")
-        
-        if not all([access_token, shop, order_id, location_id]):
-            return {"status": "error", "message": "access_token, shop, order_id, and location_id are required"}
+
+        # location_id is an optional location filter: Shopify derives the
+        # fulfillment location from the order's fulfillment orders.
+        if not all([access_token, shop, order_id]):
+            return {"status": "error", "message": "access_token, shop, and order_id are required"}
         
         shopify = self.services["shopify"]
         

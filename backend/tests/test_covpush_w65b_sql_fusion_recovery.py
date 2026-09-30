@@ -35,7 +35,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, update
 from sqlalchemy.orm import configure_mappers, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -70,6 +70,7 @@ from core.resource_reasoning import ResourceReasoningEngine
 from core.schema_aware_sql_generator import SchemaAwareSQLGenerator
 
 import core.execution_recovery as er_mod
+from core.execution_ownership import HOSTNAME
 import core.resource_reasoning as rr_mod
 
 
@@ -1023,7 +1024,44 @@ def _make_workflow_exec(db, status=WorkflowExecutionStatus.RUNNING.value, contex
     return row
 
 
-def _make_agent_exec(db, status=ExecutionStatus.RUNNING.value, metadata_json=None):
+def _dead_pid() -> int:
+    """A pid that is not running. Spawn-then-wait is the only portable way."""
+    import subprocess
+    import sys as _sys
+    proc = subprocess.Popen([_sys.executable, "-c", "pass"])
+    proc.wait()
+    return proc.pid
+
+
+def _live_pid() -> int:
+    import subprocess
+    import sys as _sys
+    proc = subprocess.Popen([_sys.executable, "-c", "import time; time.sleep(30)"])
+    _LIVE_PROCESSES.append(proc)
+    return proc.pid
+
+
+_LIVE_PROCESSES = []
+
+
+def _make_agent_exec(db, status=ExecutionStatus.RUNNING.value, metadata_json=None,
+                    owner="dead"):
+    """A running agent execution that looks ORPHANED, which is what these tests
+    are about.
+
+    `owner="dead"` attaches a pid that is verifiably not running, which is the
+    only thing the sweep will now reconcile on. It cannot simply be left to the
+    ORM: the insert listener stamps every new row with the *creating* process,
+    and in a test that process is alive -- which is precisely the case the sweep
+    must leave alone. Writing the row through the ORM therefore stopped
+    producing an orphan, and these tests began failing for the right reason: they
+    were asserting recovery of a row the product considers unaccounted-for.
+
+    `owner=None` leaves the metadata exactly as given, for the cases that are
+    about metadata SHAPES (None, a bare string, a scalar). Those rows have no
+    owner, so they are UNKNOWN, and unknown is not reconciled -- the shape cases
+    now assert tolerance and reporting instead of recovery.
+    """
     row = AgentExecution(
         id=str(uuid.uuid4()),
         agent_id="atom_main",
@@ -1034,8 +1072,47 @@ def _make_agent_exec(db, status=ExecutionStatus.RUNNING.value, metadata_json=Non
     )
     db.add(row)
     db.commit()
+    if owner == "dead":
+        stamped = dict(row.metadata_json) if isinstance(row.metadata_json, dict) else {}
+        stamped["owner"] = {"pid": _dead_pid(), "token": "crashed-worker",
+                            "host": HOSTNAME}
+        # A Core UPDATE, not an attribute assignment: reassigning a JSON column on
+        # an instance that has been read back does not reliably register a change
+        # (the same trap `core/async_turn_continuation` documents), and the row
+        # silently kept the live owner -- so the test was asserting recovery of a
+        # row the product correctly refused to touch.
+        db.execute(
+            update(AgentExecution)
+            .where(AgentExecution.id == row.id)
+            .values(metadata_json=stamped))
+        db.commit()
     db.refresh(row)
     return row
+
+
+class TestExecutionRecoveryOwnership:
+    """The sweep must not touch a row a live process owns.
+
+    Separate from the recovery tests because the two directions are opposite
+    and a suite that only tests one of them passes vacuously: "reconcile
+    everything" satisfies every orphan test and corrupts live work, while
+    "skip everything" satisfies this one and keeps every ghost forever.
+    """
+
+    def test_live_owner_is_left_running(self, db_factory, monkeypatch):
+        factory = db_factory
+        db = factory()
+        monkeypatch.setattr(er_mod, "SessionLocal", factory)
+        live = _make_agent_exec(db, owner=None, metadata_json={"owner": {
+            "pid": _live_pid(), "token": "other", "host": HOSTNAME}})
+        orphan = _make_agent_exec(db, metadata_json={"session_id": "s"})
+        result = reconcile_orphaned_executions()
+        db.refresh(live)
+        db.refresh(orphan)
+        assert live.status == ExecutionStatus.RUNNING.value
+        assert orphan.status == ExecutionStatus.FAILED.value
+        assert result["agent_recovered"] == 1
+        assert result["agent_untouched_live"] == 1
 
 
 class TestExecutionRecoveryWorkflow:
@@ -1099,7 +1176,7 @@ class TestExecutionRecoveryAgent:
         factory = db_factory
         db = factory()
         monkeypatch.setattr(er_mod, "SessionLocal", factory)
-        orphan = _make_agent_exec(db, metadata_json=None)
+        orphan = _make_agent_exec(db, metadata_json={"session_id": "s"})
         result = reconcile_orphaned_executions()
         assert result["agent_recovered"] == 1
         db.refresh(orphan)
@@ -1156,9 +1233,15 @@ class TestExecutionRecoveryReconcile:
         monkeypatch.setattr(er_mod, "RECOVERY_ENABLED", True)
         _make_workflow_exec(db)
         _make_workflow_exec(db)
-        _make_agent_exec(db)
+        _make_agent_exec(db, metadata_json={"session_id": "s"})
         result = reconcile_orphaned_executions()
-        assert result == {"workflow_recovered": 2, "agent_recovered": 1, "enabled": True}
+        assert result["workflow_recovered"] == 2
+        assert result["agent_recovered"] == 1
+        assert result["enabled"] is True
+        # the contract grew: what was left alone, and what it released
+        assert result["agent_untouched_live"] == 0
+        assert result["agent_unknown_owner"] == 0
+        assert result["chat_requests_released"] == 0
 
     def test_idempotent_second_run(self, db_factory, monkeypatch):
         factory = db_factory
@@ -1166,7 +1249,7 @@ class TestExecutionRecoveryReconcile:
         monkeypatch.setattr(er_mod, "SessionLocal", factory)
         monkeypatch.setattr(er_mod, "RECOVERY_ENABLED", True)
         _make_workflow_exec(db)
-        _make_agent_exec(db)
+        _make_agent_exec(db, metadata_json={"session_id": "s"})
         assert reconcile_orphaned_executions()["workflow_recovered"] == 1
         second = reconcile_orphaned_executions()
         assert second["workflow_recovered"] == 0
@@ -1179,7 +1262,9 @@ class TestExecutionRecoveryReconcile:
         monkeypatch.setattr(er_mod, "SessionLocal", factory)
         monkeypatch.setattr(er_mod, "RECOVERY_ENABLED", True)
         result = reconcile_orphaned_executions()
-        assert result == {"workflow_recovered": 0, "agent_recovered": 0, "enabled": True}
+        assert result["workflow_recovered"] == 0
+        assert result["agent_recovered"] == 0
+        assert result["enabled"] is True
 
     def test_disabled_flag_is_noop(self, db_factory, monkeypatch):
         factory = db_factory
@@ -1188,7 +1273,9 @@ class TestExecutionRecoveryReconcile:
         monkeypatch.setattr(er_mod, "RECOVERY_ENABLED", False)
         orphan = _make_workflow_exec(db)
         result = reconcile_orphaned_executions()
-        assert result == {"workflow_recovered": 0, "agent_recovered": 0, "enabled": False}
+        assert result["workflow_recovered"] == 0
+        assert result["agent_recovered"] == 0
+        assert result["enabled"] is False
         db.refresh(orphan)
         assert orphan.status == WorkflowExecutionStatus.RUNNING.value
 
@@ -1201,7 +1288,8 @@ class TestExecutionRecoveryReconcile:
             er_mod, "_recover_workflow_executions",
             MagicMock(side_effect=RuntimeError("sweep boom")),
         )
-        monkeypatch.setattr(er_mod, "_recover_agent_executions", MagicMock(return_value=0))
+        monkeypatch.setattr(er_mod, "_recover_agent_executions",
+                            MagicMock(return_value=(0, 0, [], [], [])))
         result = reconcile_orphaned_executions()
         assert result["enabled"] is True
         assert result["workflow_recovered"] == 0
@@ -1228,7 +1316,12 @@ class TestExecutionRecoveryHelpers:
 
     def test_recover_agent_helper_direct_call(self, db_factory):
         db = db_factory()
-        orphan = _make_agent_exec(db)
-        assert _recover_agent_executions(db) == 1
+        orphan = _make_agent_exec(db, metadata_json={"session_id": "s"})
+        # (recovered, untouched, untouched_detail, unknown, recovered_ids)
+        recovered, untouched, _detail, unknown, ids = _recover_agent_executions(db)
+        assert recovered == 1
+        assert untouched == 0
+        assert unknown == []
+        assert ids == [orphan.id]
         assert orphan.status == ExecutionStatus.FAILED.value
         assert orphan.error_message == _CRASH_ERROR_MESSAGE

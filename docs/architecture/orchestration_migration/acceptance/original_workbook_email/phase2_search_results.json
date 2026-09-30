@@ -1,0 +1,44 @@
+{
+ "session_id": "05188adb-fc2f-466a-9da6-7e68c319ca62",
+ "canvas_id": "fc99d46f-7a6b-4b75-b4ed-750cc8bfed2b",
+ "turn1": {
+  "user_message": "find the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16",
+  "execution_id": "accb84fb-c801-4bf2-b685-30badd511d62",
+  "assistant_message_id": "85d411bd",
+  "attempt_id": "attempt-47768045-e4bd-4561-b31b-9f3313294925",
+  "evidence_revision": "workbook-sheet-datasets-ff2597d26fc6:2026-09-25T00:00:00"
+ },
+ "turn2_followup": "try the search again and give me a clean response",
+ "turn2": {
+  "execution_id": "1e51f44b-8cb2-44a6-8236-13e1777498bf",
+  "assistant_message_id": "e4ac6aab",
+  "attempt_id": "attempt-1da901d6-549c-4b65-b6b8-1c70057e0c4d",
+  "evidence_revision": "workbook-sheet-datasets-ff2597d26fc6:2026-09-25T00:00:00"
+ },
+ "O04_checks": {
+  "exact_order_8_items": true,
+  "values_match_independent_checklist": {
+   "U-22": 1777,
+   "TK Manual Flanger": 1609,
+   "SLE24-16": 8880,
+   "TK 1624": 8040,
+   "GSL48-16": 14166
+  },
+  "honest_ambiguity": [
+   "No. 381 (rows blank, confirmation asked)",
+   "No. 622 (incl. 2,421 machine row + 670 roll pkg, confirmation asked)",
+   "TK Multi Wheel Gang Slitter (matched via alias, confirmation asked)"
+  ],
+  "no_diagnostic_dump": true,
+  "one_coverage_note": true
+ },
+ "O05_checks": {
+  "new_retrieval_attempt_proven": "attempt ids differ across turns",
+  "evidence_revision_unchanged": "permitted (same saved copy)",
+  "clean_presentation": true
+ },
+ "divergences_from_independent_checklist": [
+  "app did not surface tennsmith!A338 '381' (CAT 167 072 381, PRICE=3254) \u2014 its scan matched only roperwhitney rows R88/89/90",
+  "app cited 'copy saved 2026-09-25T00:00:00' (world fixture ingest) vs incident capture's 2026-09-07T23:06:19"
+ ]
+}

@@ -1,0 +1,71 @@
+{
+ "O06_completion": {
+  "date": "2026-09-29T13:2x",
+  "candidate": {
+   "commit": "d84a42552846 (routing fix d84a42552 on 79b2a4103)",
+   "export": "06aebbb48b39...",
+   "world": "wb_email_fix_0929",
+   "run": "run-1fb848be7ca0",
+   "ports": "backend :8172 / frontend :3172",
+   "canvas": "0d11135c-385c-4d9a-ac16-658319370973 (clone via product API, baseline 2 audit rows)"
+  },
+  "configuration": {
+   "ATOM_ASYNC_EDIT_PLAN_MODEL": "deepseek/deepseek-v4-pro",
+   "ATOM_ASYNC_EDIT_PLAN_TIMEOUT": "420",
+   "ATOM_ASYNC_CONTINUATION_BUDGET": "900",
+   "note": "timeout knobs required a whitelist forwarding addition in preview_stack.py (harness launcher, uncommitted) \u2014 the pinned planner exceeded the 150s default on the 8-row rewrite"
+  },
+  "routing_fix_proven": {
+   "log": "[pending-file-task] yielding to the canvas-edit lane (session with ACTIVE workbook objective)",
+   "before": "identical edit turns were consumed by the objective (one replanned the old ask, one false-absence re-read)",
+   "after": "edit turn reached the canvas-edit planner"
+  },
+  "edit_flow": [
+   {
+    "turn": "8-row complete-set edit",
+    "outcome": "forked; applied after timeouts raised",
+    "audit_delta": "+1 (exactly one update row)",
+    "terminal": "Background update applied. Updated the quote table to 8 rows..."
+   },
+   {
+    "turn": "note-completion edit (first patch truncated the note mid-sentence)",
+    "outcome": "applied",
+    "audit_delta": "+1",
+    "note": "truncation mechanism recorded, not chased"
+   }
+  ],
+  "durable_draft": {
+   "rows": "8 in the user's original order",
+   "prices": [
+    "No.381 $2,902.00 (vendor-quote, preserved)",
+    "U-22 $1,777.00",
+    "No.622 $2,421.00",
+    "TK Manual Flanger $1,609.00",
+    "SLE24-16 $8,880.00",
+    "TK 1624 $8,040.00",
+    "TK Multi Wheel Gang Slitter $12,838.00",
+    "GSL48-16 $14,166.00"
+   ],
+   "footer": "Unit Price: CAD / FOB: Woodstock / Payment Terms: TBD preserved",
+   "added_note": "workbook PRICE/List Price currency unlabeled \u2014 confirm CAD; 381 from vendor quote",
+   "preserved": "recipient, subject, greeting, closing note"
+  },
+  "direction_B_no_mutation": {
+   "turn": "try the search again and give me a clean response (AFTER the edits)",
+   "audit_stayed": 4,
+   "canvas_untouched": true,
+   "reply": "honest \u2014 results could not be matched, withheld rather than guessed"
+  },
+  "reload": {
+   "editor_renders_8_rows": true,
+   "history_terminal_present": true,
+   "screenshot": "final_draft_reloaded.png"
+  },
+  "not_sent": true,
+  "observations": [
+   "unpinned default (glm-5.3-flash) declines clear edits \u2014 known, disclosed; editing requires the pin",
+   "single-row partial edits are refused by the planner's own complete-source-backed-set policy (honest, by prompt design)",
+   "second 'search again' honestly withheld (matching failure) \u2014 recorded, no false data"
+  ]
+ }
+}

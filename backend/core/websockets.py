@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Set
 from fastapi import WebSocket
 
 from core.auth import get_current_user_ws
+from core import log_redaction
 from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
@@ -148,15 +149,30 @@ class ConnectionManager:
         if channel in self.active_connections:
             # Create a copy to avoid modification during iteration
             connections = self.active_connections[channel][:]
-            logger.info(f"[WS-DEBUG] Broadcasting to '{channel}' ({len(connections)} clients): {str(message)[:200]}...")
+            # Frame TYPE and shape, never the frame. `str(message)[:200]`
+            # reproduced the leading slice of whatever the frame carried, and
+            # agent_step_update frames carry model reasoning and canvas
+            # previews, so this line was a routine content leak rather than a
+            # truncated one.
+            logger.info(
+                "[WS-DEBUG] Broadcasting to '%s' (%d clients): %s",
+                channel, len(connections),
+                log_redaction.describe(message, f"type={message.get('type')!r}"))
             for connection in connections:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
                     logger.error(f"Error broadcasting to {channel}: {e}")
         else:
-             logger.warning(f"[WS-DEBUG] Attempted broadcast to EMPTY channel: '{channel}'. Msg: {str(message)[:50]}...")
-                    # Cleanup dead connection?
+            # An empty channel is a real diagnostic (it is how a
+            # "successful" edit turned out to have had no client to receive
+            # it), so it stays a warning. The message TYPE is kept because it
+            # is what identifies the frame; its body is not.
+            log_redaction.capture(message, f"ws_empty_channel channel={channel}")
+            logger.warning(
+                "[WS-DEBUG] Attempted broadcast to EMPTY channel: '%s'. type=%r",
+                channel, message.get("type"))
+            # Cleanup dead connection?
                     
     async def broadcast_event(self, channel: str, event_type: str, data: Any):
         """Standardized event broadcasting"""

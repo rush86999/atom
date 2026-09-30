@@ -1,0 +1,15 @@
+{
+ "stage": "continuation_after_effect",
+ "pid": 77945,
+ "arrived_at": "2026-09-28T22:41:00.352704+00:00",
+ "wall_clock": 1790635260.352711,
+ "context": {
+  "surface": "async_turn_continuation",
+  "continuation_id": "892ae8a7-ce05-4337-8dd6-64d515703724",
+  "session_id": "fl-crashwin-abfdb93b",
+  "canvas_id": "bf04d3c9-2260-4642-9319-e5ef122d6aa4",
+  "origin_operation_id": "6a34d975-8306-411a-903f-9af259fec0b8",
+  "outcome": "applied",
+  "audit_id": "85cf669e-a9de-4b44-bd34-5439348ddde8"
+ }
+}

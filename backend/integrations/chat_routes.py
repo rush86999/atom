@@ -18,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from integrations.chat_orchestrator import ChatOrchestrator
 from core.auth import get_current_user
+from core import log_redaction
 from core.llm.routing_overrides import parse_routing_overrides
 from core.models import User, UserRole
 from core.security.rbac import require_role
@@ -1712,7 +1713,18 @@ async def send_chat_message(
         active_user_id = str(current_user.id) if current_user else (request.user_id or "demo-user")
         request.user_id = active_user_id
 
-        logger.info(f"Processing chat message from user {active_user_id}: {request.message}")
+        # Identity plus a value-free description. This line used to log
+        # `{request.message}` in full, so every routine turn wrote the user's
+        # own words into the log; the candidate_fix1 preview_backend.log
+        # carries a message body verbatim. Length + fingerprint answer the
+        # diagnostic questions ("did a turn arrive?", "same body twice?")
+        # without storing the body.
+        log_redaction.capture(
+            {"message": request.message, "context": getattr(request, "context", None)},
+            f"chat_message user={active_user_id}")
+        logger.info(
+            "Processing chat message from user %s: %s",
+            active_user_id, log_redaction.describe(request.message))
 
         # Handle "new" session ID from frontend - treat as fresh session
         session_id = request.session_id
@@ -1780,6 +1792,21 @@ async def send_chat_message(
                     timestamp=datetime.utcnow().isoformat(),
                     error_code="request_in_progress",
                 )
+            if _action == "crashed":
+                # The boot sweep found this turn's execution failed after a
+                # restart, so "already in progress" would be a lie with no end.
+                # Answer with what is actually known: that attempt did not
+                # complete, this id is spent, and a new id is how to try again.
+                # NOT a replay (the turn never finished) and NOT a re-execution
+                # (a side effect may have landed before the crash).
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": "request_crashed",
+                            "request_id": str(_req_id),
+                            "detail": "the process restarted while this turn was "
+                                      "in flight; it did not complete. Send a "
+                                      "NEW request ID to try again -- this ID "
+                                      "will not replay and will not re-run."})
             if _action == "conflict":
                 raise HTTPException(
                     status_code=409,
@@ -1805,7 +1832,19 @@ async def send_chat_message(
         # this session so training episodes capture the agent's canvas work.
         from core.chat_session_context import set_chat_context, reset_chat_context
 
-        logger.info(f"[CHATCTX] request.agent_id={getattr(request, 'agent_id', None)!r} context={request.context!r}")
+        # `request.context` carries `canvas_content` -- the whole canvas body --
+        # so its repr was the single largest content leak in the chat path, and
+        # the reason a canvas body appears verbatim in preview_backend.log.
+        # The shape keeps every diagnostic signal (which keys are present,
+        # whether a canvas is bound, how long its body is) and drops the values.
+        log_redaction.capture(
+            {"agent_id": getattr(request, "agent_id", None),
+             "context": getattr(request, "context", None)},
+            f"chat_context user={active_user_id}")
+        logger.info(
+            "[CHATCTX] request.agent_id=%r context=%s",
+            getattr(request, "agent_id", None),
+            log_redaction.describe(getattr(request, "context", None), "shape"))
 
         # Canvas co-editor identity: a canvas SHOULD be worked by an agent
         # (the AI-employee model), not the anonymous platform assistant. When
@@ -1832,6 +1871,14 @@ async def send_chat_message(
             "agent_id": getattr(request, "agent_id", None)
             or ((request.context or {}).get("agent_id")),
         }
+        # The keyed id travels INTO the turn so the execution row can record it.
+        # `ChatRequestRecord.execution_id` is only written at finalization, so a
+        # turn that crashes in flight leaves a key with no link to anything --
+        # and "which key belongs to this crash" becomes unanswerable. Recorded on
+        # the execution at claim time, it is an exact join (see
+        # core.execution_recovery._release_crashed_chat_requests).
+        if _req_id:
+            context_with_agent["request_id"] = str(_req_id)
         # Canvas turns: hydrate the ORIGIN conversation (the thread the
         # canvas was created from) so provenance questions ("why was the
         # draft written this way?") are answerable from the panel — the

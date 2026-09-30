@@ -7170,8 +7170,27 @@ class BYOKHandler:
                     # provider was effectively out — live 2026-09-17). Both
                     # clear on success / credential change / cooldown
                     # expiry: a pause, never a decommission.
-                    if "401" in err_str or "autherror" in err_str.lower() \
-                            or "invalid api key" in err_str.lower():
+                    #
+                    # Credential status comes from STRUCTURED information
+                    # first (the exception chain's status_code / response
+                    # status via model_route_registry._status_of); the text
+                    # fallback only matches status-BEARING wording
+                    # ("error code: 401"), never a bare number — a
+                    # standalone "401" inside arbitrary completion text is
+                    # not an HTTP authentication failure (acceptance rig
+                    # 2026-09-28: echoed completion reprs benched a healthy
+                    # provider for 600s on this scan).
+                    try:
+                        from core.llm.model_route_registry import (
+                            _status_of as _exc_status_of,
+                        )
+
+                        _auth_status = _exc_status_of(attempt_err)
+                    except Exception:  # noqa: BLE001 — memo must not raise
+                        _auth_status = None
+                    if (_auth_status in (401, 403)
+                            or "autherror" in err_str.lower()
+                            or "invalid api key" in err_str.lower()):
                         _pair = f"{provider_id}/{model}"
                         if _pair not in _AUTH_FAILED:
                             _AUTH_FAILED.add(_pair)

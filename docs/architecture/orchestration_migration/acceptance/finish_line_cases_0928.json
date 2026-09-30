@@ -1,0 +1,421 @@
+{
+ "generated_at": "2026-09-28T17:40:15-0400",
+ "world": "write_combined",
+ "port": 8026,
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-04802aaf96ea",
+ "export_binding": {
+  "code_snapshot_sha256": "423f5189ae518decb242afe2147d175d4d6be60e600bbbf29d77d04056e43e06",
+  "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+  "runtime_identity": "see server.log (1a953b58934d-dirty.<hash>)",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ],
+  "provider": "local shim (provider responses only)"
+ },
+ "results": [
+  {
+   "case": "F12_read_preview_baseline",
+   "status": "PASS",
+   "checks": {
+    "canonical_read_success": true,
+    "body_has_15_days": true,
+    "anchors_present": true,
+    "subject_intact": true,
+    "no_update_rows_yet": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F03_controlled_edit",
+   "status": "PASS",
+   "checks": {
+    "turn_status_200": true,
+    "reply_readable": true,
+    "mutation_landed": true,
+    "body_now_30_days": true,
+    "old_text_gone": true,
+    "subject_unchanged": true,
+    "exactly_one_write": true,
+    "reload_read_agrees": true
+   },
+   "notes": [],
+   "details": {
+    "request_id": "fl-base-59b4ef00",
+    "reply_head": "Updated the quote validity to 30 days."
+   }
+  },
+  {
+   "case": "F10_keyed_replay",
+   "status": "PASS",
+   "checks": {
+    "replay_status_200": true,
+    "same_execution_id": true,
+    "no_new_write": true,
+    "message_identical": true
+   },
+   "notes": [],
+   "details": {
+    "replay_status": 200
+   }
+  },
+  {
+   "case": "F10_keyed_conflict",
+   "status": "PASS",
+   "checks": {
+    "conflict_rejected_409": true,
+    "no_new_write_after_conflict": true
+   },
+   "notes": [],
+   "details": {
+    "conflict_status": 409
+   }
+  },
+  {
+   "case": "F07_no_apply_clarification",
+   "status": "PASS",
+   "checks": {
+    "turn_completed_200": true,
+    "no_new_write": true,
+    "canvas_unchanged": true,
+    "outcome_recorded": true
+   },
+   "notes": [],
+   "details": {
+    "reply_head": "I didn't apply that canvas change, so nothing was changed. The change was clear; the canvas editor declined it, which usually means it could not match your word",
+    "history": [
+     "I didn't apply that canvas change, so nothing was changed. The change was clear; the canvas editor d"
+    ]
+   }
+  },
+  {
+   "case": "F07_second_edit",
+   "status": "PASS",
+   "checks": {
+    "turn_completed_200": true,
+    "mutation_landed": true,
+    "subject_changed": true,
+    "body_unchanged": true,
+    "exactly_one_write": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F04_background_fork_success",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "fork_record_exists": true,
+    "fork_session_bound": true,
+    "mutation_landed": true,
+    "terminal_outcome_in_history": true,
+    "exactly_one_write": true
+   },
+   "notes": [],
+   "details": {
+    "forks": [
+     {
+      "continuation_id": "127ef1d9-1a93-4846-8667-ebfc7c0a67ff",
+      "status": "completed",
+      "meta": "{\"session_id\": \"fl-bg-1553f533\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"67112621-0fc0-43a3-9961-af2d1f4c7947\", \"origin_operation_id\": \"e8cd9791-a7ac-4518-8278-78b3d3a9ce95\", \"continuation\": {\"session_id\": \"fl-bg-1553f533\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"eps: change the greeting for the background case\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d2543"
+     }
+    ],
+    "writes": 3
+   }
+  },
+  {
+   "case": "F08_connected_completion",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "mutation_landed": true,
+    "chat_continuation_event_received": true,
+    "event_carries_outcome_status": true,
+    "history_has_terminal_assistant_text": true
+   },
+   "notes": [],
+   "details": {
+    "cont_events": [
+     {
+      "continuation_id": "127ef1d9-1a93-4846-8667-ebfc7c0a67ff",
+      "originating_execution_id": "67112621-0fc0-43a3-9961-af2d1f4c7947",
+      "session_id": "fl-bg-1553f533",
+      "canvas_id": "18d49160-3176-4b3d-8ebb-2b385ca421df",
+      "status": "applied",
+      "summary": "Updated the greeting."
+     }
+    ],
+    "ws_event_kinds": [
+     "agent_status_change",
+     "agent_status_change",
+     "agent_step_update",
+     "canvas:update",
+     "agent_step_update",
+     "chat_continuation"
+    ]
+   }
+  },
+  {
+   "case": "F05_background_execution_failure",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "fork_record_exists": true,
+    "fork_reached_terminal_state": true,
+    "no_mutation": true,
+    "truthful_failure_outcome_in_history": true,
+    "no_false_success_claim": true,
+    "chat_continuation_event_or_terminal_record": true
+   },
+   "notes": [],
+   "details": {
+    "history": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update failed. The background edit did not apply after 3 attempts. I could not confirm that the can"
+    ],
+    "forks": [
+     {
+      "continuation_id": "2f216789-fc47-4801-9404-604530d6584e",
+      "status": "failed",
+      "meta": "{\"session_id\": \"fl-fail-e581b5cc\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"3f29401b-091f-4d36-9ec9-5e70af37db4b\", \"origin_operation_id\": \"812d635b-9d06-4e7b-9b7b-030843162945\", \"continuation\": {\"session_id\": \"fl-fail-e581b5cc\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"iota: replace the missing sentence\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40\","
+     }
+    ],
+    "cont_events": [
+     {
+      "continuation_id": "2f216789-fc47-4801-9404-604530d6584e",
+      "originating_execution_id": "3f29401b-091f-4d36-9ec9-5e70af37db4b",
+      "session_id": "fl-fail-e581b5cc",
+      "canvas_id": "18d49160-3176-4b3d-8ebb-2b385ca421df",
+      "status": "failed",
+      "summary": "The background edit did not apply after 3 attempts. I could not confirm that the canvas is unchanged. Check it before relying on it."
+     }
+    ],
+    "writes": 3
+   }
+  },
+  {
+   "case": "F09_overlap_distinct_identities",
+   "status": "PASS",
+   "checks": {
+    "both_turns_completed": true,
+    "distinct_execution_ids": true,
+    "at_least_one_effect_landed": true,
+    "no_more_than_one_write_each": true,
+    "closing_at_most_once": true,
+    "terms_at_most_once": true,
+    "no_mixed_or_corrupted_content": true
+   },
+   "notes": [],
+   "details": {
+    "statuses": [
+     200,
+     200
+    ],
+    "writes": 4,
+    "forks": [
+     {
+      "continuation_id": "aba055f0-dd61-4fca-8f23-8effa4eee13b",
+      "status": "completed",
+      "meta": "{\"session_id\": \"fl-overlap-be906fa5\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"fd2daba9-b251-41c4-ba7d-4459e3c27662\", \"origin_operation_id\": \"b59510d3-4cda-4bda-8e44-6ced3cb9c59e\", \"continuation\": {\"session_id\": \"fl-overlap-be906fa5\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"beta: update the payment terms\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40"
+     }
+    ]
+   }
+  },
+  {
+   "case": "F09_sibling_terminal_outcome",
+   "status": "PASS",
+   "checks": {
+    "every_fork_has_terminal_outcome": true,
+    "no_fork_left_running": true,
+    "honest_terminal_wording_present": true,
+    "live_chat_continuation_events_for_forks": true
+   },
+   "notes": [],
+   "details": {
+    "cont_event_count": 1,
+    "cont_statuses": [
+     "applied"
+    ],
+    "applied_count": 1,
+    "superseded_present": false,
+    "failure_present": false,
+    "forks": [
+     {
+      "continuation_id": "aba055f0-dd61-4fca-8f23-8effa4eee13b",
+      "status": "completed",
+      "meta": "{\"session_id\": \"fl-overlap-be906fa5\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"fd2daba9-b251-41c4-ba7d-4459e3c27662\", \"origin_operation_id\": \"b59510d3-4cda-4bda-8e44-6ced3cb9c59e\", \"continuation\": {\"session_id\": \"fl-overlap-be906fa5\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"beta: update the payment terms\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40"
+     }
+    ],
+    "history_tail": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ]
+   }
+  },
+  {
+   "case": "F09_reload_preserves_outcomes",
+   "status": "PASS",
+   "checks": {
+    "history_stable_on_reload": true,
+    "outcomes_present_after_reload": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F09_duplicate_keyed_request",
+   "status": "PASS",
+   "checks": {
+    "both_requests_answered": true,
+    "not_two_executions": true,
+    "at_most_one_write": true
+   },
+   "notes": [],
+   "details": {
+    "statuses": [
+     200,
+     202
+    ]
+   }
+  },
+  {
+   "case": "F08_disconnected_recovery",
+   "status": "PASS",
+   "checks": {
+    "socket_abandoned_mid_turn": true,
+    "fork_record_exists": true,
+    "mutation_landed_after_disconnect": true,
+    "terms_now_net_60": true,
+    "terminal_outcome_persisted": true,
+    "empty_channel_broadcast_attempt_evidenced": true
+   },
+   "notes": [],
+   "details": {
+    "history": [
+     "Background update applied. Updated the payment terms again.",
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "empty_channel_lines": [
+     "WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'",
+     "WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'",
+     "WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'"
+    ]
+   }
+  },
+  {
+   "case": "F12_read_workflows",
+   "status": "PASS",
+   "checks": {
+    "chat_read_previews_canvas": true,
+    "lookup_returns_value": true,
+    "replacement_reply_quotes_change": true,
+    "replacement_landed_once": true,
+    "formatting_readback_agrees": true,
+    "re_search_finds_line": true,
+    "reload_read_agrees": true
+   },
+   "notes": [],
+   "details": {
+    "chat_read_reply": "Reading the canvas: the delivery section says \"Delivery: 2 weeks.\"",
+    "lookup_reply": "Looking up the canvas: the warranty period is \"Warranty: 12 months.\"",
+    "reformat_reply": "Reformatted the warranty wording to: Warranty: twelve months.",
+    "re_search_reply": "Re-search of the canvas found the delivery line: \"Delivery: 2 weeks.\""
+   }
+  },
+  {
+   "case": "F11_effect_before_kill",
+   "status": "FAIL",
+   "checks": {
+    "required_branch_reached": false,
+    "pre_kill_mutation_present": true,
+    "pre_kill_no_terminal_outcome_recorded": false,
+    "no_second_write_on_recovery": true,
+    "recovery_record_not_running": true,
+    "no_duplicate_terminal_outcomes": true
+   },
+   "notes": [],
+   "details": {
+    "pre_kill_history": [
+     "Background update applied. Updated the validity to 45 days.",
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "post_history": [
+     "Background update applied. Updated the validity to 45 days.",
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet."
+    ],
+    "forks": [
+     {
+      "continuation_id": "7b4c83f2-a8ee-432e-a409-b7ec7650e322",
+      "status": "completed",
+      "meta": "{\"session_id\": \"fl-ebk-d40d60b0\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"b2781aea-717b-4822-a84f-c2161499ff20\", \"origin_operation_id\": \"640dea94-64b0-44e1-9ea3-dcbdc3166d3c\", \"continuation\": {\"session_id\": \"fl-ebk-d40d60b0\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"gamma: change the validity\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40\", \"snapshot"
+     }
+    ],
+    "branch": "effect_landed"
+   }
+  },
+  {
+   "case": "F11_no_duplicate_terminal_on_second_restart",
+   "status": "PASS",
+   "checks": {
+    "history_identical_after_second_restart": true,
+    "no_new_writes_after_second_restart": true,
+    "notified_flag_set_once": true
+   },
+   "notes": [],
+   "details": {
+    "hist_len_1": 2,
+    "hist_len_2": 2,
+    "forks": [
+     {
+      "continuation_id": "7b4c83f2-a8ee-432e-a409-b7ec7650e322",
+      "status": "completed",
+      "meta": "{\"session_id\": \"fl-ebk-d40d60b0\", \"surface\": \"async_turn_continuation\", \"originating_execution_id\": \"b2781aea-717b-4822-a84f-c2161499ff20\", \"origin_operation_id\": \"640dea94-64b0-44e1-9ea3-dcbdc3166d3c\", \"continuation\": {\"session_id\": \"fl-ebk-d40d60b0\", \"canvas_id\": \"18d49160-3176-4b3d-8ebb-2b385ca421df\", \"user_id\": \"3e11cc76-6c1e-4c0e-9ade-b0caa6139e58\", \"message\": \"gamma: change the validity\", \"snapshot_content_hash\": \"702ac13fdab59ce604141c6ea96731e38e72b464457d9d59630d254330284b40\", \"snapshot"
+     }
+    ]
+   }
+  },
+  {
+   "case": "F11_keyed_honesty_after_kill",
+   "status": "PASS",
+   "checks": {
+    "keyed_retry_answered": true,
+    "no_extra_write": true
+   },
+   "notes": [],
+   "details": {
+    "status": 200
+   }
+  },
+  {
+   "case": "F11_new_id_same_change_dedup",
+   "status": "PASS",
+   "checks": {
+    "turn_answered": true,
+    "no_repeat_effect": true
+   },
+   "notes": [],
+   "details": {}
+  },
+  {
+   "case": "F10_restart_pin[killed_before_effect]",
+   "status": "PASS",
+   "checks": {
+    "keyed_retry_answered": true,
+    "no_write_from_retry": true,
+    "subject_unchanged": true,
+    "pin_released_or_replayed_honestly": true
+   },
+   "notes": [],
+   "details": {
+    "status": 409,
+    "reply_head": "",
+    "subject": "Machinery quote - revised - revised",
+    "early_ack": false,
+    "writes": 8
+   }
+  }
+ ]
+}

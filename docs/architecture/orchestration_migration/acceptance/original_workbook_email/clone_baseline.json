@@ -1,0 +1,20 @@
+{
+ "cloned_canvas_id": "fc99d46f-7a6b-4b75-b4ed-750cc8bfed2b",
+ "source_canvas_id": "0e4defa5-a0f3-4e56-b8a7-976c0a93d4fb",
+ "source_fixture": "canvas_incident_quote.json",
+ "body_sha256": "ef5c6567089d6e45c255eba04d62fa84032a57f7ee4be02b890a25b3cfa481a4",
+ "baseline_audit_rows": 2,
+ "audit": [
+  [
+   "create",
+   "2026-09-29 12:09:42.231498"
+  ],
+  [
+   "update",
+   "2026-09-29 12:09:42.245824"
+  ]
+ ],
+ "title": "Quote \u2013 Roper Whitney Roll Bender, Linmac Bead Roller, Manual Flanger & Slitter (isolated clone 2026-09-29)",
+ "recipient_preserved": "Steve Macisaac <amacisaac@alumasafway.com>",
+ "preview": "cand_79b2a4103_preview :8072/:3160"
+}

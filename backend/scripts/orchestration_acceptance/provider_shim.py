@@ -17,9 +17,37 @@ from pathlib import Path
 from typing import Dict, List
 
 
-def load_script(path: Path) -> Dict[str, str]:
+def load_script(path: Path) -> Dict[Any, Any]:
+    """Index the authored responses for selection.
+
+    Keyed by the declared ``tool`` when present, otherwise by the ``match``
+    substring, so tool-scoped entries are reachable at all.
+
+    A tool-scoped entry has no ``match`` key by design, and the previous
+    comprehension required one: it raised KeyError on the first such entry, and
+    because the script is loaded inside a broad try the whole load silently
+    fell back -- the two authored CanvasEditPlan responses never entered the
+    script, and every edit-planner request was served a ToolPlan decline from a
+    catch-all substring instead. Measured on F03 (2026-09-28): 0 of 16
+    CanvasEditPlan requests were served the authored plan.
+    """
     doc = json.loads(path.read_text())
-    return {entry["match"].lower(): entry["response"] for entry in doc["responses"]}
+    out: Dict[Any, Any] = {}
+    for entry in doc["responses"]:
+        resp = entry.get("response")
+        tool = resp.get("tool") if isinstance(resp, dict) else None
+        match = entry.get("match")
+        if tool and match is not None:
+            # Several responses can answer the SAME tool (a script may author one
+            # plan per scenario), so a bare tool key silently overwrites all but
+            # the last. Key those by (tool, match) and prefer the (tool, match)
+            # hit whenever the request's prompt carries the discriminator.
+            out[(tool, str(match).lower())] = resp
+        elif tool:
+            out[tool] = resp
+        elif match is not None:
+            out[str(match).lower()] = resp
+    return out
 
 
 class ShimState:
@@ -58,12 +86,59 @@ class Handler(BaseHTTPRequestHandler):
         last_user = next((m.get("content", "") for m in reversed(messages)
                           if m.get("role") == "user"), "")
         blob = " ".join(str(m.get("content", "")) for m in messages).lower()
-        entry = next(((key, resp) for key, resp in STATE.script.items()
-                      if (isinstance(key, str) and key in blob)
-                      or (isinstance(key, tuple) and all(k in blob for k in key))), None)
         tool_specs = body.get("tools") or []
         _tool_names = [t.get("function", {}).get("name") for t in tool_specs
                        if isinstance(t, dict)]
+        # SELECTION ORDER: tool name first, prompt substring only as a fallback.
+        #
+        # A substring key is ambiguous by construction: the reply leg's prompt
+        # also contains the edit planner's wording, so a substring key can be
+        # consumed by the wrong call and the injection silently never reaches the
+        # planner. An entry may therefore declare `"tool": "CanvasEditPlan"`, and
+        # those entries are considered BEFORE any substring entry, so selection is
+        # unambiguous whenever the script says which tool it is answering. The
+        # capture records `selected_by` so "was the intended injection consumed,
+        # and by what rule" is an observation rather than an inference.
+        # Prefer a (tool, match) entry whose discriminator is in the prompt: a
+        # script may author several responses for one tool, and a bare tool key
+        # would serve whichever happened to be last. On F03 (2026-09-28) both
+        # authored CanvasEditPlan plans collapsed to one key, so every
+        # edit-planner request was served the OVLAP-B plan whose `find` text is
+        # not in the canvas -- the product then correctly reported
+        # "1/1 patch op(s) failed to match" and the case read as an effect-layer
+        # failure when it was a selection failure.
+        _by_tool_exact = [(k, r) for k, r in STATE.script.items()
+                          if isinstance(k, tuple) and r.get("tool") in _tool_names
+                          and k[1] in blob]
+        # Only BARE tool keys are a fallback. Filtering on the response's tool
+        # would also pull in the (tool, match) entries above, so a request with
+        # no discriminator would still get an arbitrary one of the per-scenario
+        # plans -- reintroducing the collision this whole split exists to avoid.
+        _by_tool = [(k, r) for k, r in STATE.script.items()
+                    if isinstance(k, str) and isinstance(r, dict)
+                    and r.get("tool") == k and k in _tool_names]
+        _by_text = [(k, r) for k, r in STATE.script.items()
+                    if (isinstance(k, str) and k in blob)
+                    or (isinstance(k, tuple) and all(x in blob for x in k))]
+        entry = next(iter(_by_tool_exact), None)
+        _selected_by = "tool+match" if entry is not None else "tool"
+        if entry is None:
+            entry = next(iter(_by_tool), None)
+        if entry is None:
+            entry = next(iter(_by_text), None)
+            _selected_by = "substring" if entry is not None else None
+        # TOOL_CALL ENTRIES REQUIRE A TOOL-ADVERTISING REQUEST (2026-09-28):
+        # a tool_call entry served to a non-tool leg (reply/readback/answer)
+        # yields message.content=None -> empty completion -> the byok handler
+        # benches the (only) model for empty output and every later forked
+        # leg dead-ends. Restrict tool_call-shaped entries to tool_mode
+        # requests; non-tool legs fall through to the script's default text.
+        if entry is not None and isinstance(entry[1], dict) \
+                and ("tool_call" in entry[1]
+                     or "tool_call" in (entry[1].get("response") or {})) \
+                and not (tool_specs or body.get("tool_choice")):
+            entry = None
+            _selected_by = None
         # STALL GATE (2026-09-27). The stall is armed for ONE exact structured
         # call -- the edit planner's -- identified by the tool the request
         # ADVERTISES, never by prompt text. Matching on prompt text was wrong:
@@ -95,6 +170,8 @@ class Handler(BaseHTTPRequestHandler):
                     "last_user": str(last_user)[:800],
                     "matched": bool(entry),
                     "matched_key": (entry[0] if entry else None),
+                    "selected_by": _selected_by,
+                    "tool_scoped_entries": [k for k, _r in _by_tool],
                     "tool_gate_wanted": _want_tool,
                     "tool_gate_ok": bool(_gate_ok),
                     "served_head": (json.dumps(entry[1])[:200] if entry and not isinstance(entry[1], str)
@@ -138,8 +215,23 @@ class Handler(BaseHTTPRequestHandler):
                 "shim: no scripted response matched this request",
                 "type": "invalid_request_error"}}).encode())
             return
-        content = entry[1] if entry and isinstance(entry[1], str) else (
-            entry[1].get("response") if entry and isinstance(entry[1], dict) else STATE.default)
+        if entry is None:
+            content = STATE.default
+        elif isinstance(entry[1], str):
+            content = entry[1]
+        else:
+            # entry[1] IS the envelope (e.g. {"tool_call": {...}}). This used to
+            # unwrap a "response" key that does not exist at this level, so it
+            # evaluated to None and every structured call was answered with an
+            # EMPTY completion: content=None, tool_calls=None, completion_tokens=1.
+            # The capture file still recorded the correctly-selected entry, so the
+            # run looked like the plan was served while the product received
+            # nothing -- which reads as "the edit was planned but never applied"
+            # and points at the effect layer instead of the shim. Accept the
+            # wrapper shape too, for scripts that nest under "response".
+            inner = entry[1]
+            nested = inner.get("response") if isinstance(inner, dict) else None
+            content = nested if isinstance(nested, (str, dict)) else inner
         nonce = f"shim-{int(time.time()*1000)}-{len(STATE.log)}"
         # A tool_call script entry is a DICT, not a string: it is the envelope
         # that becomes message.tool_calls below. Substituting {NONCE} (and
@@ -190,6 +282,19 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(payload).encode())
 
     def do_GET(self):
+        if self.path.startswith("/api/tags"):
+            # Ollama-runtime probe (2026-09-28): when the harness points
+            # OLLAMA_BASE_URL at this shim, the byok handler probes
+            # /api/tags to decide the local-runtime lane is up. Answer with
+            # the model the shim claims to serve so the pool gets a second
+            # dispatchable route for forked/concurrent planner legs.
+            body = json.dumps({"models": [{"name": "llama3:8b"}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.startswith("/arm-stalls"):
             # Arm the stall for ONE named leg and ONE exact tool. Query form:
             #   /arm-stalls?seconds=40&first_n=1&tool=CanvasEditPlan[&disarm=1]
@@ -264,12 +369,28 @@ if __name__ == "__main__":
     ap.add_argument("--capture", default="")
     args = ap.parse_args()
     doc = json.loads(Path(args.script).read_text())
-    STATE.script = {}
-    for e in doc["responses"]:
-        key = e["all"] if e.get("all") else e["match"]
-        STATE.script[tuple(k.lower() for k in key) if isinstance(key, list) else key.lower()] = e["response"]
+    # Use the shared loader. This block used to re-implement indexing with a
+    # hard `e["match"]` requirement, which meant the `__main__` path -- the only
+    # path that actually runs -- DROPPED every tool-scoped entry (they have no
+    # `match` key) and indexed only substrings. So the authored CanvasEditPlan
+    # responses were unreachable in practice even after load_script() was fixed,
+    # and edit-planner requests fell through to a catch-all ToolPlan decline.
+    # Measured on F03 (2026-09-28): 24 tool-selected vs 12 substring-declines
+    # from an otherwise identical request shape.
+    STATE.script = load_script(Path(args.script))
     STATE.default = doc.get("default", "")
     STATE.fail_unmatched = bool(doc.get("fail_unmatched"))
     STATE.capture_path = args.capture
-    print(f"[shim] serving {len(STATE.script)} scripted responses on :{args.port}")
+    if STATE.capture_path:
+        # Truncate once per shim process so the capture is THIS run's evidence.
+        # The handler appends, and nothing ever truncated, so a reused world
+        # accumulated every prior run's requests in one file. Per-run evidence
+        # then read as cumulative: on F03 (2026-09-28) request totals grew
+        # 21 -> 36 -> 72 -> 92 across runs while a stale 12-request group from
+        # an earlier build looked like a live defect. Append stays for the
+        # handler; only process start truncates.
+        with open(STATE.capture_path, "w"):
+            pass
+    print(f"[shim] serving {len(STATE.script)} scripted responses on :{args.port} "
+          f"(tool-scoped: {sorted(k for k in STATE.script if not isinstance(k, str))})")
     ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()

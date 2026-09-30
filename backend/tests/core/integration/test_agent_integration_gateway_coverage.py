@@ -816,13 +816,12 @@ class TestAgentIntegrationGatewayCoverage:
 
         result = await gateway._handle_shopify_fulfillment({
             "access_token": "token",
-            "shop": "test.myshopify.com",
-            "order_id": "123"
-            # Missing location_id
+            "shop": "test.myshopify.com"
+            # Missing order_id; location_id is an optional location filter
         })
 
         assert result["status"] == "error"
-        assert "access_token, shop, order_id, and location_id are required" in result["message"]
+        assert "access_token, shop, and order_id are required" in result["message"]
 
     @pytest.mark.asyncio
     async def test_shopify_analytics_missing_token(self):
