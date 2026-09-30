@@ -76,6 +76,14 @@ _PAIR_RE = re.compile(
 #: How many candidates an ambiguous item shows before the confirmation ask.
 AMBIGUOUS_CANDIDATE_WINDOW = 3
 
+#: Above this many candidates, listing rows stops helping — the ask
+#: becomes "name the sheet / the exact code" instead of a coordinate
+#: dump the reader must eyeball (live 2026-10-01: 'U-22' matched 28 rows
+#: across 7 sheets and the answer printed three of them). Below it, the
+#: 3-row window + per-sheet tail stays — 8-10 candidates with counts is
+#: still readable and the tails carry real information.
+AMBIGUOUS_MANY_CANDIDATES = 12
+
 #: A sheet-scope browse lists rows; the record holds at most the browse's
 #: per-sheet cap, so the listing renders every stored row up to this cap
 #: and states the surplus rather than applying a silent window.
@@ -584,6 +592,39 @@ def present(*, requested_items: List[str], requested_fields: List[str],
                           if origin == "standing" else ""))
         if scope_bits:
             lines.append(f"Looking in: {', '.join(scope_bits)}.")
+        # SUMMARY LEAD (2026-10-01 UX): a multi-item answer opens with
+        # what happened overall — how many have values, how many need
+        # the reader's pick, how many missed — before the per-item
+        # lines. One sentence instead of making the reader tally a
+        # coordinate dump.
+        if len(requested_items) > 1:
+            _found = _need_pick = _missed = 0
+            for _it in requested_items:
+                _t = _find_target(targets, _it)
+                if _t is None:
+                    _missed += 1
+                    continue
+                _st = ((_t.get("identity") or {}).get("status"))
+                _cands = ((_t.get("identity") or {})
+                          .get("candidates") or [])
+                _pooled = ((_t.get("field") or {}).get("values") or [])
+                if _st == "none" or (
+                        _st == "multiple" and not _cands):
+                    _missed += 1
+                elif _st == "multiple":
+                    if len(_cands) > AMBIGUOUS_MANY_CANDIDATES:
+                        _need_pick += 1
+                    else:
+                        _need_pick += 1
+                elif _pooled or _cands:
+                    _found += 1
+                else:
+                    _missed += 1
+            lines.append(
+                f"Checked {len(requested_items)} items — "
+                f"{_found} with values, {_need_pick} need your pick"
+                + (f", {_missed} no match" if _missed else "")
+                + ".")
         lines.append("")
         for item in requested_items:
             t = _find_target(targets, item)
@@ -909,6 +950,22 @@ def _render_target(t: Dict[str, Any], item: str, *,
         # read as locations ("Tennsmith sheet, row 338 (…)"), and the
         # confirmation ask is a question a person would ask — not audit
         # boilerplate ("which one is yours needs your confirmation").
+        # TOO MANY TO EYEBALL (2026-10-01): past AMBIGUOUS_MANY_CANDIDATES
+        # a three-row sample reads as exhaustive and the coordinates are
+        # noise — the ask becomes naming the sheet or the exact code,
+        # with the per-sheet counts so the reader knows where to look.
+        if len(candidates) > AMBIGUOUS_MANY_CANDIDATES:
+            _per_sheet_all: Dict[str, int] = {}
+            for c in candidates:
+                _sheet = str((c.get("ref") or "").split("!", 1)[0]
+                             or "").strip() or "an unnamed sheet"
+                _per_sheet_all[_sheet] = (
+                    _per_sheet_all.get(_sheet, 0) + 1)
+            _sheets_bits = ", ".join(
+                f"{_sh} {_n}" for _sh, _n in _per_sheet_all.items())
+            return (f"- **{item}**{alias_note} — {len(candidates)} "
+                    f"possible rows ({_sheets_bits}){scope_suffix} — "
+                    f"which sheet or exact code do you mean?")
         line = (f"- **{item}**{alias_note} — {len(candidates)} possible "
                 f"rows: {' or '.join(parts)}{tail}{scope_suffix} — "
                 f"which one do you mean?")

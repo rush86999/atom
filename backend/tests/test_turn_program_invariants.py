@@ -29,6 +29,18 @@ os.environ.setdefault("TESTING", "1")
 
 import pytest
 
+from core import answer_presentation as ap  # noqa: E402
+
+
+def _ev(sheet, row, cell, values):
+    return {"sheet": sheet, "row": row, "cell": cell, "values": values}
+
+
+def _v(col, display, basis):
+    return {"col": col, "display": display, "basis": basis,
+            "kind": "text"}
+
+
 T8 = ["No. 381", "U-22", "No. 622", "TK Manual Flanger", "SLE24-16",
       "TK 1624", "TK Multi Wheel Gang Slitter", "GSL48-16"]
 FILE = "Consolidated Price List 2019.xlsx"
@@ -380,3 +392,80 @@ class TestDomainIndependence:
                 or "Brennan" in i or "Fees" in i or "monthly" in i.lower()]
         assert not junk, junk
         assert all(len(i) <= 18 for i in items), items
+
+
+# Precision + UX (2026-10-01 owner findings on the canvas scan): spec
+# fragments are not items; short bare numbers match on word boundaries;
+# multi-item answers lead with a summary; too-many-match items ask for
+# guidance instead of dumping coordinates.
+
+class TestSearchPrecisionAndUx:
+    def test_canvas_spec_fragments_are_not_items(self):
+        """'36' in 'Roper Whitney 36" No. 381' is a spec; 'No.'-prefixed
+        codes, alphanumeric codes, and 4+ digit numerics are items."""
+        from core.target_set_resolution import extract_items_from_text
+
+        body = ('<table><tr><td>Roper Whitney 36" No. 381 Roll Bender'
+                '</td></tr><tr><td>Linmac U-22 Bead Roller</td></tr>'
+                '<tr><td>No. 622 Hand Notcher</td></tr>'
+                '<tr><td>TK 1624 Slitter</td></tr>'
+                '<tr><td>SLE24-16 Shear</td></tr>'
+                '<tr><td>GSL48-16 Gang Slitter</td></tr></table>')
+        items = extract_items_from_text(body)
+        assert "36" not in items, items
+        assert "381" in items and "622" in items, items
+        assert {"U-22", "SLE24-16", "1624", "GSL48-16"} <= set(items)
+
+    def test_short_digit_tokens_match_on_word_boundaries(self):
+        from core.sheet_dataset_service import _pandas_probe_entry
+        import pandas as pd
+        import pathlib
+        import tempfile
+
+        tmp = pathlib.Path(tempfile.mkdtemp()) / "wb.parquet"
+        pd.DataFrame({"MODEL": ["SLE24-16", "WG-36"],
+                      "PRICE": ["3699", "36"]}).to_parquet(tmp)
+        entry = {"parquet_path": str(tmp),
+                 "columns": ["MODEL", "PRICE"]}
+        hits, df = _pandas_probe_entry(entry, "36")
+        assert hits == 1 and df.iloc[0]["MODEL"] == "WG-36"
+
+    @staticmethod
+    def _many_match_outcome():
+        return {"M-1": {"target": "M-1", "status": "ambiguous",
+                        "evidence": [
+                            _ev(f"Sheet{i}", 100 + i, f"A{100+i}",
+                                [_v(f"E{100+i}", str(500 + i), "PRICE")])
+                            for i in range(13)]}}
+
+    def test_many_match_item_asks_for_sheet_not_coordinates(self):
+        targets = ap.build_targets_from_scan(
+            ["M-1"], self._many_match_outcome(), {})
+        out = ap.present(requested_items=["M-1"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert "13 possible rows (Sheet0 1, Sheet1 1" in out, out
+        assert "which sheet or exact code do you mean" in out, out
+
+    def test_multi_item_answer_leads_with_a_summary(self):
+        outcomes = {
+            "A-1": {"target": "A-1", "status": "found",
+                    "evidence": [_ev("S", 1, "A1",
+                                     [_v("B1", "10", "PRICE")])]},
+            "B-2": {"target": "B-2", "status": "ambiguous",
+                    "evidence": [_ev("S", 2, "A2",
+                                     [_v("B2", "20", "PRICE")]),
+                                 _ev("T", 3, "A3",
+                                     [_v("B3", "30", "PRICE")])]},
+            "C-3": {"target": "C-3", "status": "absent",
+                    "evidence": []},
+        }
+        targets = ap.build_targets_from_scan(
+            ["A-1", "B-2", "C-3"], outcomes, {})
+        out = ap.present(requested_items=["A-1", "B-2", "C-3"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert ("Checked 3 items — 1 with values, 1 need your pick, "
+                "1 no match.") in out, out

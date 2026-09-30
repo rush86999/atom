@@ -118,14 +118,39 @@ def extract_items_from_text(text: str) -> List[str]:
                .replace("&mdash;", "-").replace("&rsquo;", "'"))
     cleaned = re.sub(r"u20[0-9a-fA-F]{2}", "-", cleaned)
     raw_items = extract_targets(cleaned, [], [])
+
+    # IDENTITY-SHAPE RULES (2026-10-01 live finding on the quote
+    # canvas): '36' in 'Roper Whitney 36" No. 381' is a SPECIFICATION,
+    # not an item — the read then probed a bare '36' and matched every
+    # sheet containing 36 anywhere. Domain-neutral signals:
+    #   1. IDENTIFIER-PREFIXED tokens are items regardless of shape
+    #      (No. 381, SKU 12, Model 7 — cross-domain conventions).
+    #   2. ALPHANUMERIC-MIXED tokens are items (U-22, SLE24-16, R-102).
+    #   3. Bare numerics are items only when >= 4 digits (real numeric
+    #      SKUs) — short bare numbers are dimensions/quantities/row
+    #      indices unless rule 1 claimed them.
+    # (Unit-marked specs are already gone: '36"' style tokens do not
+    # survive markup cleanup as bare item candidates.)
+    identifier_prefix = re.compile(
+        r"(?:\bno\.?|\bmodel\b|\bsku\b|\bpart(?:\s+no)?|"
+        r"\bitem\b|\bcode\b|\bm/n\b|\bp/n\b|\bref\.?)\s*$",
+        re.IGNORECASE)
     out: List[str] = []
     seen = set()
     for item in raw_items:
         token = str(item).strip()
-        # item codes are short: one token, or a code with internal
-        # punctuation/digits ('No. 381'). Long prose fragments are out.
         if len(token) > 18 or (
                 " " in token and not re.search(r"\d", token)):
+            continue
+        m = re.search(r"\d+", token)
+        if not m:
+            continue  # item codes carry a digit
+        core = m.group(0)
+        pos = cleaned.find(token)
+        window = cleaned[max(0, pos - 12):pos] if pos >= 0 else ""
+        prefixed = bool(identifier_prefix.search(window))
+        mixed_alnum = bool(re.search(r"[A-Za-z]", token))
+        if (not mixed_alnum and len(core) < 4 and not prefixed):
             continue
         key = token.lower()
         if key and key not in seen:
@@ -190,24 +215,15 @@ def resolve_target_set(
 
     canvas_n, prior_n = _norm(canvas), _norm(prior)
 
-    # AMBIGUITY between candidate bases: when both exist, differ, and
-    # neither contains the other, the words cannot pick one — ask.
-    if len(canvas_n) >= 2 and len(prior_n) >= 2:
-        cset, pset = set(canvas_n), set(prior_n)
-        if cset != pset and not cset <= pset and not pset <= cset:
-            return {
-                "kind": "clarify",
-                "question": (
-                    "Do you mean the other items in your draft, or the "
-                    "other items from the earlier lookup?"),
-                "candidate_sets": {
-                    "draft": list(canvas), "prior_objective": list(prior)},
-            }
-        # one contains the other: the larger set is the base (the draft
-        # typically enumerates what the objective looked up).
-        base, origin = ((canvas, "canvas") if len(canvas_n) >= len(prior_n)
-                        else (prior, "prior_objective"))
-    elif len(canvas_n) >= 2:
+    # BASE PRECEDENCE (2026-10-01 live finding): the CANVAS — the live
+    # document the user is looking at — is the authoritative base when
+    # it carries a real item list; the prior objective is HISTORY (and
+    # can be stale: a superseded extraction-era set once outranked the
+    # fresh draft purely by being larger, re-importing its junk). The
+    # objective is the fallback when no canvas list exists. Disjoint
+    # sets do not clarify here: with the draft open, 'the other
+    # machinery' means the draft's.
+    if len(canvas_n) >= 2:
         base, origin = canvas, "canvas"
     elif len(prior_n) >= 2:
         base, origin = prior, "prior_objective"

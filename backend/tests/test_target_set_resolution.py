@@ -74,15 +74,21 @@ class TestTargetSetResolution:
         assert got["kind"] == "clarify", got
         assert "Which items" in got["question"]
 
-    def test_conflicting_candidate_bases_clarify(self):
+    def test_canvas_outranks_a_stale_prior_objective(self):
+        """2026-10-01 live finding: a stale ledger objective (written by
+        an earlier, noisier extraction) must NOT outrank the live draft
+        — 'larger set wins' re-imported the old junk ('36', '22').
+        With a draft list present, the draft IS the base, even when the
+        prior objective is larger or disjoint."""
         from core.target_set_resolution import resolve_target_set
 
         got = resolve_target_set(
             "check the other machinery",
             canvas_items=["A-1", "A-2", "A-3"],
             prior_items=["B-1", "B-2", "B-9"])
-        assert got["kind"] == "clarify", got
-        assert set(got["candidate_sets"]) == {"draft", "prior_objective"}
+        assert got["kind"] == "resolved", got
+        assert got["origin"] == "canvas"
+        assert got["items"] == ["A-1", "A-2", "A-3"]
 
     def test_superset_base_wins_without_asking(self):
         from core.target_set_resolution import resolve_target_set
