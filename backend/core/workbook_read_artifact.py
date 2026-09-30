@@ -866,6 +866,105 @@ _POSSESSIVE_LABELLED_RE = re.compile(
 )
 
 
+# A user ASSERTION of a concrete workbook location: "no. 381 is on
+# Tennsmith sheet under row 338", "row 90 of the pricing sheet". Generic
+# across sheets/domains; captures (sheet, row) only.
+_ROW_ASSERTION_RE = re.compile(
+    r"\b(?:on|in|at)\s+(?:the\s+)?"
+    r"([A-Za-z][A-Za-z0-9 .&'/-]{1,40}?)\s+sheet\b"
+    r"[^\n]{0,140}?\brow\s+(\d{1,6})\b",
+    re.IGNORECASE,
+)
+
+
+def _canonical_item(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
+
+
+def capture_resolved_bindings(
+    history_user_texts: Sequence[str],
+    structured_result: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """User-asserted + read-verified row bindings, for the task's
+    disambiguation container.
+
+    A binding is captured ONLY when BOTH halves exist: the user's own
+    text asserts a concrete location (sheet + row) for an item, and this
+    read's artifact verifies a bound candidate at exactly that
+    sheet!row for that item. A price match alone is never a binding
+    (the user must have authored the location). The binding carries the
+    workbook revision (content_hash) so a changed workbook expires it,
+    the identity cells that anchored the row, and the value basis — so
+    later reads, formatting turns and draft edits all cite the same
+    provenance instead of re-litigating ambiguity.
+    """
+    result = structured_result or {}
+    source_hash = str(
+        (result.get("source_identity") or {}).get("content_hash") or "")
+    if not source_hash:
+        return []
+    assertions: List[tuple] = []
+    for text in history_user_texts or []:
+        for m in _ROW_ASSERTION_RE.finditer(str(text or "")):
+            sheet = m.group(1).strip(" .,;-")
+            if sheet:
+                assertions.append((sheet, int(m.group(2)), str(text)))
+    if not assertions:
+        return []
+    out: List[Dict[str, Any]] = []
+    seen: set = set()
+    for target in result.get("targets") or []:
+        item = str((target or {}).get("item") or "").strip()
+        if not item:
+            continue
+        item_key = _canonical_item(item)
+        for cand in ((target.get("identity") or {}).get("candidates")
+                     or []):
+            ref = str((cand or {}).get("ref") or "")
+            if "!" not in ref or not ref.upper().startswith("R", ref.find("!") + 1):
+                continue
+            cand_sheet, row_part = ref.split("!", 1)
+            if not row_part.upper().lstrip("R").isdigit():
+                continue
+            row = int(row_part.upper().lstrip("R"))
+            for sheet, arow, atext in assertions:
+                if row != arow:
+                    continue
+                if _canonical_item(cand_sheet) != _canonical_item(sheet):
+                    continue
+                if item_key not in _canonical_item(atext):
+                    continue  # the assertion must name THIS item
+                refs = [r for r in (
+                    (cand.get("identity") or {}).get("references") or [])
+                    if (r or {}).get("cell")]
+                if not refs:
+                    continue  # unbound candidate is not a verified row
+                first_value = next(
+                    (v for v in (cand.get("values") or [])
+                     if str(v.get("display") or "").strip().lower()
+                     not in ("", "blank", "unavailable")),
+                    None)
+                basis = ""
+                if first_value:
+                    basis = (f"{first_value.get('col')} '"
+                             f"{first_value.get('basis')}'")
+                key = (item_key, _canonical_item(sheet), row)
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append({
+                    "item": item,
+                    "sheet": str(cand_sheet).strip(),
+                    "row": row,
+                    "identity_cells": [r.get("cell") for r in refs[:3]],
+                    "value_basis": basis,
+                    "value": (first_value or {}).get("display") or "",
+                    "content_hash": source_hash,
+                    "confirmation": "user_supplied+verified_read",
+                })
+    return out[:16]
+
+
 def _possessor_phrase(group: str) -> Optional[str]:
     """Normalize a possessive match's holder to the entity phrase.
 
@@ -1613,6 +1712,23 @@ def inspect_workbook_bytes(
         })
 
     outcomes: List[Dict[str, Any]] = []
+    # RESOLVED-ROW BINDINGS (2026-09-29 completion pass): a user-asserted,
+    # read-verified binding on the task's disambiguation pins this item to
+    # its sheet!row — but ONLY at the same workbook revision
+    # (content_hash). A changed workbook expires the binding (the row
+    # number alone is not a durable identity); a binding whose row is
+    # absent from this revision's evidence is ignored (fall through to
+    # normal ambiguity — never a fabricated pin).
+    _bindings_by_item: Dict[str, Dict[str, Any]] = {}
+    try:
+        for b in (disambiguation or {}).get("resolved_bindings") or []:
+            if (isinstance(b, dict) and b.get("content_hash") == content_hash
+                    and b.get("item") and b.get("sheet") is not None
+                    and b.get("row") is not None):
+                _bindings_by_item[_canonical_item(str(b["item"]))] = b
+    except Exception:  # noqa: BLE001 — bindings are an optimization
+        _bindings_by_item = {}
+
     for target in requested:
         found = evidence[target]
         # Direct (exact-target) hits outrank alias hits; an alias lane is
@@ -1621,6 +1737,16 @@ def inspect_workbook_bytes(
         alias_hits = [e for e in found if e.get("matched_alias")]
         found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
+        _binding = _bindings_by_item.get(_canonical_item(target))
+        if _binding is not None and designations:
+            _pinned = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and e.get("row") == _binding["row"]
+            ]
+            if _pinned:
+                designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
             constrained = [
@@ -2172,6 +2298,17 @@ def inspect_dataset_entries(
     absence_claimable = not read_failed_legs
 
     outcomes = []
+    _bindings_by_item: Dict[str, Dict[str, Any]] = {}
+    try:
+        for _b in (disambiguation or {}).get("resolved_bindings") or []:
+            if (isinstance(_b, dict)
+                    and _b.get("content_hash") == content_hash
+                    and _b.get("item") and _b.get("sheet") is not None
+                    and _b.get("row") is not None):
+                _bindings_by_item[_canonical_item(str(_b["item"]))] = _b
+    except Exception:  # noqa: BLE001 — bindings are an optimization
+        _bindings_by_item = {}
+
     for target in requested:
         found = evidence[target]
         # Direct (exact-target) hits outrank alias hits; an alias lane is
@@ -2180,6 +2317,16 @@ def inspect_dataset_entries(
         alias_hits = [e for e in found if e.get("matched_alias")]
         found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
+        _binding = _bindings_by_item.get(_canonical_item(target))
+        if _binding is not None and designations:
+            _pinned = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and e.get("row") == _binding["row"]
+            ]
+            if _pinned:
+                designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
         if designations and any(criteria.values()):
             constrained = [

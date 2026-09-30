@@ -1045,3 +1045,42 @@ class TestFailedEditRetryIntent:
         assert planned == instruction, (
             "the edit lane must plan the ORIGINAL instruction, not the "
             "bare retry")
+
+    def test_successful_outcomes_are_not_retry_targets(self, monkeypatch):
+        """No duplicate mutations: once the edit APPLIED (or awaits the
+        user's approval), a bare "try again" must NOT re-dispatch it —
+        only un-landed outcomes (failed, conflict) are retryable."""
+        import integrations.chat_orchestrator as chat_mod
+        from unittest.mock import patch
+        import datetime as _dt
+
+        for outcome in ("applied", "already_applied", "awaiting_approval"):
+            class _FakeRow:
+                created_at = _dt.datetime.now()
+                metadata_json = json.dumps({"continuation": str({
+                    "id": "cont-ok", "outcome": outcome,
+                    "canvas_id": "c-orig"})})
+
+            class _FakeQuery:
+                def __init__(self, *a, **k): pass
+                def filter(self, *a, **k): return self
+                def order_by(self, *a, **k): return self
+                def limit(self, *a, **k): return self
+                def all(self): return [_FakeRow()]
+                def first(self):
+                    return type("R", (), {
+                        "content": "update the email price accordingly",
+                        "created_at": _FakeRow.created_at})()
+
+            class _FakeSession:
+                def __enter__(self): return self
+                def __exit__(self, *a): return False
+                def query(self, *a, **k): return _FakeQuery()
+
+            import core.database as db_mod
+
+            with patch.object(db_mod, "get_db_session",
+                              return_value=_FakeSession()):
+                out = chat_mod._failed_edit_retry_target(
+                    "sess-1", "try again", [])
+            assert out is None, (outcome, out)

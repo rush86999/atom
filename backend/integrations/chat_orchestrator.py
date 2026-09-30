@@ -3241,6 +3241,64 @@ def _failed_edit_retry_target(
     return None
 
 
+def _capture_resolved_row_bindings(
+    session: Optional[Dict[str, Any]],
+    history: Optional[List[Dict[str, Any]]],
+    structured_result: Optional[Dict[str, Any]],
+) -> None:
+    """Persist user-asserted + read-verified row bindings on the task.
+
+    Completion pass (2026-09-29): when the user's own text asserted a
+    concrete location ("… is on Tennsmith sheet under row 338 …") and
+    this read's artifact verified a bound candidate exactly there, the
+    binding rides the task's ``disambiguation.resolved_bindings`` — the
+    existing container that already survives merges, confirmations, the
+    supersession stash and restart metadata. Later reads at the same
+    workbook revision pin to the row (value basis cited); a changed
+    revision expires it. Fault-isolated: capture failures never touch
+    the turn.
+    """
+    try:
+        if not isinstance(structured_result, dict):
+            return
+        from core.pending_file_task import FILE_TASK_SESSION_KEY
+        from core.workbook_read_artifact import capture_resolved_bindings
+
+        texts = [
+            str((e or {}).get("message") or "").strip()
+            for e in (history or [])[-8:]
+            if isinstance(e, dict) and (e or {}).get("message")
+        ]
+        bindings = capture_resolved_bindings(texts, structured_result)
+        if not bindings:
+            return
+        task = session.get(FILE_TASK_SESSION_KEY) if isinstance(
+            session, dict) else None
+        if not isinstance(task, dict):
+            return
+        dis = task.get("disambiguation")
+        if not isinstance(dis, dict):
+            dis = {}
+            task["disambiguation"] = dis
+        existing = {
+            (str(b.get("item") or "").lower(), str(b.get("sheet") or "").lower(),
+             b.get("row"))
+            for b in (dis.get("resolved_bindings") or []) if isinstance(b, dict)
+        }
+        merged = list(dis.get("resolved_bindings") or [])
+        for b in bindings:
+            key = (str(b.get("item") or "").lower(),
+                   str(b.get("sheet") or "").lower(), b.get("row"))
+            if key not in existing:
+                merged.append(b)
+        dis["resolved_bindings"] = merged[:32]
+        logger.info(
+            "[resolved-bindings] captured %d user-asserted verified row "
+            "binding(s) onto the file task", len(bindings))
+    except Exception as exc:  # noqa: BLE001 — capture never blocks a turn
+        logger.debug("resolved-binding capture skipped: %r", exc)
+
+
 def _task_lifecycle_for(tenant_id: Any,
                         workspace_id: Any) -> Optional[Any]:
     """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
@@ -5531,6 +5589,12 @@ class ChatOrchestrator:
                         _ask_mention,
                         (context or {}).get("disambiguation"),
                     )
+                    # USER-ASSERTED ROW BINDINGS: the user's own location
+                    # assertion + this verified read -> durable binding.
+                    _capture_resolved_row_bindings(
+                        session, history or [],
+                        _ask_result.get("structured_result")
+                        if isinstance(_ask_result, dict) else None)
                     if _ask_complete:
                         # Mirrors the resume lane: the read finished, then the
                         # answer reached the user. The resolved resource is
@@ -6155,6 +6219,13 @@ class ChatOrchestrator:
                                 message,
                                 _pending_file_task.get("mention") or "",
                             )
+                        # USER-ASSERTED ROW BINDINGS (completion pass): the
+                        # same capture as the ask lane — history assertions
+                        # verified by this read persist on the task.
+                        _capture_resolved_row_bindings(
+                            session, history or [],
+                            _direct_result.get("structured_result")
+                            if isinstance(_direct_result, dict) else None)
                     except Exception:
                         pass
                     _direct_response = {

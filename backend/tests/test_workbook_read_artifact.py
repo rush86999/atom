@@ -822,3 +822,104 @@ def test_possessive_source_reference_is_not_an_organization_constraint():
         for values in criteria.values()
         for v in values
     ), criteria
+
+
+# ---------------------------------------------------------------------------
+# RESOLVED-ROW BINDINGS (2026-09-29 completion pass): the user supplied the
+# row ("no. 381 is on Tennsmith sheet under row 338 … $3,254.00"), the read
+# verified it — that binding must persist on the task's disambiguation and
+# drive every later read of the same item at the same workbook revision,
+# instead of re-surfacing ten ambiguous candidates.
+# ---------------------------------------------------------------------------
+
+ASSERTION = ("roper whitney and tennsmith mix the names. no. 381 is on "
+             "Tennsmith sheet of the workbook under row 338. here's the "
+             "data: 381 167072381 Roll Bending Machine, $3,254.00 . find "
+             "this in the workbook")
+
+ARTIFACT_381 = {
+    "source_identity": {"content_hash": "ff2597d26fc6"},
+    "targets": [{
+        "item": "No. 381",
+        "identity": {"status": "multiple", "candidates": [
+            {"ref": "Tennsmith!R338",
+             "identity": {"status": "bound", "references": [
+                 {"sheet": "Tennsmith", "cell": "A338", "row": 338,
+                  "value": "381", "role": "matched_target"}]},
+             "values": [{"col": "E338", "basis": "PRICE", "kind": "number",
+                         "display": "3,254"},
+                        {"col": "M338", "basis": "U.S. LIST",
+                         "kind": "number", "display": "1,845"}]},
+            {"ref": "RoperWhitney!R88",
+             "identity": {"status": "bound", "references": [
+                 {"sheet": "RoperWhitney", "cell": "A88", "row": 88,
+                  "value": "381", "role": "matched_target"}]},
+             "values": [{"col": "E88", "basis": "PRICE", "kind": "blank",
+                         "display": "blank"}]},
+        ]},
+    }],
+}
+
+
+def test_capture_resolved_binding_from_assertion_plus_verified_read():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    bindings = capture_resolved_bindings([ASSERTION], ARTIFACT_381)
+    assert len(bindings) == 1
+    b = bindings[0]
+    assert b["item"] == "No. 381"
+    assert b["sheet"] == "Tennsmith" and b["row"] == 338
+    assert b["identity_cells"] == ["A338"]
+    assert "E338" in b["value_basis"] and "PRICE" in b["value_basis"]
+    assert b["value"] == "3,254"
+    assert b["content_hash"] == "ff2597d26fc6"
+    assert b["confirmation"] == "user_supplied+verified_read"
+
+
+def test_capture_requires_both_assertion_and_verified_candidate():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    # no user assertion -> nothing
+    assert capture_resolved_bindings(["find prices"], ARTIFACT_381) == []
+    # assertion names a row the read did NOT verify at that sheet/row
+    other = ("no. 381 is on Missing sheet under row 999, find it")
+    assert capture_resolved_bindings([other], ARTIFACT_381) == []
+
+
+def test_binding_pins_the_read_at_matching_revision(tmp_path):
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [88, 338],
+        "MODEL": ["381", "381"],
+        "PRICE": ["", "3254"],
+    }).to_parquet(path)
+    entry = {"entity_name": "RoperWhitney", "parquet_path": str(path),
+             "row_count": 1, "coverage": {"known": True, "truncated": False}}
+    entry2 = {"entity_name": "Tennsmith", "parquet_path": str(path),
+              "row_count": 1, "coverage": {"known": True, "truncated": False}}
+    binding = {"item": "381", "sheet": "Tennsmith", "row": 338,
+               "identity_cells": ["A338"], "value_basis": "E338 'PRICE'",
+               "content_hash": "rev1", "confirmation": "user_supplied"}
+    dis = {"resolved_bindings": [binding]}
+    ask = "find the price for 381 in the workbook"
+    art = inspect_dataset_entries(
+        [entry, entry2], "wb.xlsx", query=ask, context_texts=[ask],
+        targets=["381"], disambiguation=dis,
+        content_hash="rev1")
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found", outcome
+    assert outcome["evidence"][0]["sheet"] == "Tennsmith"
+    assert outcome["evidence"][0]["row"] == 338
+
+    # revision changed -> binding expired, normal ambiguity returns
+    art2 = inspect_dataset_entries(
+        [entry, entry2], "wb.xlsx", query=ask, context_texts=[ask],
+        targets=["381"], disambiguation=dis,
+        content_hash="rev2")
+    assert art2["coverage"]["outcomes"][0]["status"] in (
+        "ambiguous", "found"), art2["coverage"]["outcomes"][0]
+    assert art2["coverage"]["outcomes"][0]["status"] == "ambiguous"
