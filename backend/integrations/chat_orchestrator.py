@@ -3245,6 +3245,7 @@ def _capture_resolved_row_bindings(
     session: Optional[Dict[str, Any]],
     history: Optional[List[Dict[str, Any]]],
     structured_result: Optional[Dict[str, Any]],
+    current_message: str = "",
 ) -> None:
     """Persist user-asserted + read-verified row bindings on the task.
 
@@ -3269,6 +3270,11 @@ def _capture_resolved_row_bindings(
             for e in (history or [])[-8:]
             if isinstance(e, dict) and (e or {}).get("message")
         ]
+        # The assertion usually IS the current message ("… is on X sheet
+        # under row N … find this in the workbook") — history alone never
+        # contains it.
+        if (current_message or "").strip():
+            texts.insert(0, current_message.strip())
         bindings = capture_resolved_bindings(texts, structured_result)
         if not bindings:
             return
@@ -5589,12 +5595,6 @@ class ChatOrchestrator:
                         _ask_mention,
                         (context or {}).get("disambiguation"),
                     )
-                    # USER-ASSERTED ROW BINDINGS: the user's own location
-                    # assertion + this verified read -> durable binding.
-                    _capture_resolved_row_bindings(
-                        session, history or [],
-                        _ask_result.get("structured_result")
-                        if isinstance(_ask_result, dict) else None)
                     if _ask_complete:
                         # Mirrors the resume lane: the read finished, then the
                         # answer reached the user. The resolved resource is
@@ -5603,6 +5603,15 @@ class ChatOrchestrator:
                         _ask_stored = mark_task_delivered(
                             mark_task_retrieved(_ask_stored, _ask_identity))
                     session[FILE_TASK_SESSION_KEY] = _ask_stored
+                    # USER-ASSERTED ROW BINDINGS: AFTER the task is stored
+                    # (an earlier placement let the assignment overwrite
+                    # the capture); the current message carries the
+                    # assertion.
+                    _capture_resolved_row_bindings(
+                        session, history or [],
+                        _ask_result.get("structured_result")
+                        if isinstance(_ask_result, dict) else None,
+                        current_message=message)
                     _ask_response = {
                         "success": True,
                         "message": _ask_content,
@@ -6225,7 +6234,8 @@ class ChatOrchestrator:
                         _capture_resolved_row_bindings(
                             session, history or [],
                             _direct_result.get("structured_result")
-                            if isinstance(_direct_result, dict) else None)
+                            if isinstance(_direct_result, dict) else None,
+                            current_message=message)
                     except Exception:
                         pass
                     _direct_response = {
