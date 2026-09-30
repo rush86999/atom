@@ -6012,7 +6012,7 @@ class ChatOrchestrator:
                             "refresh_failed", "unverified"):
                         _unable_lead = (
                             "I couldn't verify against the latest "
-                            "source, so I can't tell whether any price "
+                            "source, so I can't tell whether anything "
                             "needs updating — no comparison was "
                             "possible. What the saved copy shows follows "
                             "for reference:")
@@ -6921,7 +6921,7 @@ class ChatOrchestrator:
                                 _direct_content = (
                                     "Verified against the latest source — "
                                     "its content is unchanged, so no "
-                                    "pricing updates are needed:\n\n"
+                                    "updates are needed:\n\n"
                                     + _direct_content)
                             elif _freshness.get("status") == "refreshed":
                                 try:
@@ -6963,8 +6963,8 @@ class ChatOrchestrator:
                                     "refresh_failed", "unverified"):
                                 _direct_content = (
                                     "I couldn't verify against the latest "
-                                    "source, so I can't tell whether any "
-                                    "pricing needs updating — no "
+                                    "source, so I can't tell whether "
+                                    "anything needs updating — no "
                                     "comparison was possible.\n\n"
                                     + _direct_content)
                     except Exception:  # noqa: BLE001 — framing optional

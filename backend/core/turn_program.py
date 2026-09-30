@@ -47,8 +47,10 @@ TURN_PROGRAM_SCHEMA = "turn-program-1"
 #: records the intent so the answer must carry a comparison outcome or
 #: an explicit unable-to-verify.
 _COMPARE_RE = re.compile(
-    r"\b(?:verify|check|compare|validate|confirm)\b[^.?!]{0,60}"
-    r"\b(?:updat|chang|latest|current|new|differ|match)\w*", re.IGNORECASE)
+    r"\b(?:verify|check|compare|validate|confirm|"
+    r"see\s+(?:if|whether))\b[^.?!]{0,60}"
+    r"\b(?:updat|chang|latest|current|new|differ|match)\w*",
+    re.IGNORECASE)
 
 
 def _clean(items: Optional[Sequence[Any]]) -> List[str]:

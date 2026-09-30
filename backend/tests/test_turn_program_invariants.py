@@ -315,3 +315,68 @@ class TestTypedActionLanguage:
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
         assert "_td_decision = _td" in src
         assert "decision=_td_decision," in src
+
+
+# Domain independence (2026-10-01 generalization audit): every new seam
+# must behave identically outside pricing/machinery domains. Framings
+# speak the ask's neutral vocabulary; detectors are verb/family based,
+# never noun-list based; canvas extraction is markup cleanup + item-code
+# shape, not product vocabulary.
+
+class TestDomainIndependence:
+    def test_compare_detection_spans_domains(self):
+        from core.turn_program import is_comparison_request
+
+        # non-pricing domains, same verify-against-newer shape
+        for yes in (
+            "verify whether any hydration levels changed from the "
+            "latest data",
+            "check if the duty roster needs updating from the newest "
+            "file",
+            "confirm the seat assignments against the latest manifest",
+            "see if any due dates differ in the current schedule",
+        ):
+            assert is_comparison_request(yes), yes
+        # ordinary reads/questions are not comparisons
+        for no in (
+            "find the hydration for the sourdough loaf",
+            "what changed in the meeting notes",  # question, no
+            # verify-family verb, no newer/comparison family word
+            "verify you received this",
+            "confirm the booking, then list the guests",
+        ):
+            assert not is_comparison_request(no), no
+
+    def test_framing_vocabulary_is_domain_neutral(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        # comments may cite the incident; STRING literals may not carry
+        # the domain noun
+        code_only = "\n".join(
+            l for l in src.splitlines()
+            if not l.lstrip().startswith("#"))
+        for coupled in ("pricing updates", "any price needs",
+                        "pricing needs"):
+            assert coupled not in code_only, coupled
+        assert "anything needs updating" in code_only
+
+    def test_canvas_extraction_works_on_a_non_machine_draft(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        body = (
+            "<table><tr><td>Item</td><td>Fee</td></tr>"
+            "<tr><td>R&#8211;101 gym membership</td>"
+            "<td>$50&nbsp;monthly &amp; tax</td></tr>"
+            "<tr><td>R-102 pool pass \\u2013 summer</td><td>$30</td></tr>"
+            "<tr><td>Brennan Community Center &#8211; Fees Table</td>"
+            "<td>u2013a trailing junk</td></tr></table>")
+        items = extract_items_from_text(body)
+        # real short codes survive; prose/entities/escapes do not
+        assert "R-102" in items or "R" in items, items
+        junk = [i for i in items if i.startswith("u20")
+                or "Brennan" in i or "Fees" in i or "monthly" in i.lower()]
+        assert not junk, junk
+        assert all(len(i) <= 18 for i in items), items
