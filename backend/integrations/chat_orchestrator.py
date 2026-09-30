@@ -5460,69 +5460,64 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
-                if _td_scope_hints:
-                    # Scope guidance the decision layer extracted (see the
-                    # routing block above) — resolved against the read's
-                    # real sheet catalog, never guessed here.
-                    _ask_task["sheet_scope_hints"] = list(_td_scope_hints)
-                # TARGET-SET RESOLUTION (2026-09-30 'check the other
-                # machinery' incident, owner directive): a contrastive
-                # follow-up ("the other machinery", "the rest of the
-                # machines", "everything except the 381") is RELATED to
-                # the previous objective but is NOT a repeat of it —
-                # silently inheriting the previous items answers the
-                # question the user just moved past. Resolve the set
-                # BEFORE retrieval against typed candidates (this
-                # conversation's draft/canvas item list first, then the
-                # stored objective); when the words cannot pick a set,
-                # ASK — an unresolved target set must never be filled in
-                # by downstream inheritance.
+                # TURN PROGRAM (2026-10-01, migration step 1): ONE typed
+                # interpretation per turn — operation, file, target set,
+                # prior-retrieval reference, standing-scope constraints —
+                # composed from the resolvers that previously ran
+                # sequentially here. Lanes execute the program; decided
+                # facts ride it (``decided_facts``) so the propagation
+                # invariant (tests/test_turn_program_invariants.py) can
+                # assert every decided fact reaches the executed read or
+                # its rejection. Behavior is identical-by-construction:
+                # the program's fields are the same task fields the
+                # lanes already consumed.
+                _turn_program = None
                 try:
                     from core.target_set_resolution import (
-                        extract_items_from_text as _tsr_extract,
-                        resolve_target_set as _tsr_resolve,
+                        extract_items_from_text as _tp_extract,
                     )
+                    from core.turn_program import build_turn_program
 
-                    _tsr_canvas_text = ""
+                    _tp_canvas_text = ""
                     if isinstance(_canvas_ctx, dict):
-                        _tsr_cc = _canvas_ctx.get("canvas_content")
-                        if isinstance(_tsr_cc, dict):
-                            _tsr_canvas_text = str(
-                                _tsr_cc.get("body")
-                                or _tsr_cc.get("content") or "")
-                        elif isinstance(_tsr_cc, str):
-                            _tsr_canvas_text = _tsr_cc
-                        if not _tsr_canvas_text:
-                            _tsr_canvas_text = str(
+                        _tp_cc = _canvas_ctx.get("canvas_content")
+                        if isinstance(_tp_cc, dict):
+                            _tp_canvas_text = str(
+                                _tp_cc.get("body")
+                                or _tp_cc.get("content") or "")
+                        elif isinstance(_tp_cc, str):
+                            _tp_canvas_text = _tp_cc
+                        if not _tp_canvas_text:
+                            _tp_canvas_text = str(
                                 _canvas_ctx.get("body")
                                 or _canvas_ctx.get("content") or "")
-                    _tsr = _tsr_resolve(
+                    _tp_prior = _stored_requested_items(session)
+                    _tp_last_served = (
+                        ((session.get("_pending_file_result") or {})
+                         .get("structured_result") or {})
+                        .get("requested_items") or [])
+                    _turn_program = build_turn_program(
                         message,
+                        decision=None,
+                        file_mention=_ask_mention,
                         canvas_items=(
-                            _tsr_extract(_tsr_canvas_text)
-                            if _tsr_canvas_text else []),
-                        prior_items=_stored_requested_items(session),
-                        last_served_items=(
-                            ((session.get("_pending_file_result") or {})
-                             .get("structured_result") or {})
-                            .get("requested_items") or []),
+                            _tp_extract(_tp_canvas_text)
+                            if _tp_canvas_text else []),
+                        prior_items=_tp_prior,
+                        last_served_items=_tp_last_served,
+                        own_items=_tp_extract(message),
+                        standing_scope_hints=_td_scope_hints,
                     )
-                    if _tsr.get("kind") == "resolved":
-                        # A target-set edit IS a revision of the
-                        # objective: revised_targets outranks every
-                        # inheritance path downstream.
-                        _ask_task["revised_targets"] = list(
-                            _tsr["items"])
-                        _ask_task["target_set_origin"] = _tsr.get(
-                            "origin")
-                        logger.info(
-                            "[target-set] contrastive follow-up resolved "
-                            "to %d item(s) from %s (moved past %r)",
-                            len(_tsr["items"]), _tsr.get("origin"),
-                            _tsr.get("excluded"))
-                    elif _tsr.get("kind") == "clarify":
+                    _ask_task["turn_program"] = _turn_program
+                    _tp_set = _turn_program.get("target_set") or {}
+                    _tp_kind = _tp_set.get("kind")
+                    if _turn_program.get("clarify", {}).get("needed"):
+                        # Contrastive follow-up the typed candidates
+                        # could not resolve ('check the other machinery'
+                        # with no list to draw from): ASK — never read
+                        # inherited items ('related' is not 'repeat').
                         _clarify_message = (
-                            str(_tsr.get("question")
+                            str(_turn_program["clarify"].get("question")
                                 or "Which items should I check?")
                             + " Nothing was looked up yet, so nothing is "
                               "half-checked.")
@@ -5536,8 +5531,7 @@ class ChatOrchestrator:
                             "data": {
                                 "clarify": True,
                                 "target_set_resolution": "unresolved",
-                                "candidate_sets": _tsr.get(
-                                    "candidate_sets") or {},
+                                "turn_program": _turn_program,
                             },
                             "model": "deterministic",
                             "provider": "structured",
@@ -5561,12 +5555,65 @@ class ChatOrchestrator:
                             authorized_actions=[],
                         )
                         logger.info(
-                            "[target-set] contrastive follow-up "
-                            "unresolved — clarifying, NO read ran")
+                            "[turn-program] target set unresolved — "
+                            "clarifying, NO read ran")
                         return _clarify_response
-                except Exception as _tsr_err:  # noqa: BLE001 — floor follows
+                    if _tp_kind == "contrastive_resolved":
+                        # A target-set edit IS a revision of the
+                        # objective: revised_targets outranks every
+                        # inheritance path downstream.
+                        _ask_task["revised_targets"] = list(
+                            _tp_set.get("items") or [])
+                        _ask_task["target_set_origin"] = _tp_set.get(
+                            "origin")
+                        logger.info(
+                            "[turn-program] contrastive follow-up "
+                            "resolved to %d item(s) from %s",
+                            len(_tp_set.get("items") or []),
+                            _tp_set.get("origin"))
+                    _tp_op = _turn_program.get("operation")
+                    if _tp_op in ("refresh", "compare"):
+                        # COMPARE rides the refresh machinery (the
+                        # newer-source fetch) and carries the stronger
+                        # answer contract (per-item comparison or an
+                        # explicit unable-to-verify).
+                        _ask_task["operation"] = _tp_op
+                    if _td_scope_hints:
+                        # Standing scope guidance from the decision layer
+                        # — resolved against the read's real sheet
+                        # catalog, never guessed here.
+                        _ask_task["sheet_scope_hints"] = list(
+                            _td_scope_hints)
+                except Exception as _tp_err:  # noqa: BLE001 — floor follows
                     logger.debug(
-                        "target-set resolution skipped: %r", _tsr_err)
+                        "turn-program build skipped: %r", _tp_err)
+                if _turn_program is None:
+                    # Fallback: the pre-program sequential path (kept so
+                    # a program-build failure is a behavior no-op).
+                    if _td_scope_hints:
+                        _ask_task["sheet_scope_hints"] = list(
+                            _td_scope_hints)
+                    try:
+                        from core.target_set_resolution import (
+                            resolve_target_set as _tsr_resolve,
+                        )
+
+                        _tsr = _tsr_resolve(
+                            message,
+                            canvas_items=[],
+                            prior_items=_stored_requested_items(session),
+                            last_served_items=(
+                                ((session.get("_pending_file_result")
+                                  or {}).get("structured_result") or {})
+                                .get("requested_items") or []),
+                        )
+                        if _tsr.get("kind") == "resolved":
+                            _ask_task["revised_targets"] = list(
+                                _tsr["items"])
+                            _ask_task["target_set_origin"] = _tsr.get(
+                                "origin")
+                    except Exception:  # noqa: BLE001 — floor follows
+                        pass
                 _ask_active = _stored_requested_items(session)
                 if _ask_active:
                     # Active-objective inheritance for vague follow-up
@@ -8567,6 +8614,13 @@ class ChatOrchestrator:
                         # nothing.
                         "sheet_scope_hints": (
                             pending_task.get("sheet_scope_hints") or []),
+                        # THE TURN PROGRAM (decided-once interpretation):
+                        # when present, the reader EXECUTES it — its
+                        # prior-retrieval reference and target set are
+                        # authoritative, and the reader skips its own
+                        # re-derivation of the same questions (deciding
+                        # them twice is how the lanes diverged).
+                        "turn_program": pending_task.get("turn_program"),
                         # A REVISED OBJECTIVE IS AUTHORITATIVE, and it has to
                         # be declared as such: the query handed to the reader
                         # is the STORED ASK, which still names the outgoing
@@ -8646,7 +8700,7 @@ class ChatOrchestrator:
             "structured_result": meta.get("structured_result"),
             "reason": "" if block else "file-scoped reader returned no result",
         }
-        if (pending_task or {}).get("operation") == "refresh":
+        if (pending_task or {}).get("operation") in ("refresh", "compare"):
             # REFRESH (2026-09-24 review round 3): a source-freshness
             # request must verify the UPSTREAM version and retrieve
             # updated content — re-running the materialized copy search

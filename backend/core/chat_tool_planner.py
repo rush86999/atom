@@ -6329,8 +6329,27 @@ async def _datasets_named_file_block(
         str(v).strip() for v in
         ((context or {}).get("requested_targets") or [])
         if str(v).strip()]
+    # THE TURN PROGRAM IS AUTHORITATIVE (2026-10-01, migration step 1):
+    # when the caller decided the interpretation ONCE (turn-program-1 on
+    # the context), the reader EXECUTES it — reference and target set
+    # come from the program, and this gate skips its own re-derivation
+    # (deciding the same question twice, slightly differently per lane,
+    # is how the lanes diverged). Absent a program (other callers), the
+    # reader's own computation stands unchanged.
+    _turn_program = (context or {}).get("turn_program")
+    _program_present = (
+        isinstance(_turn_program, dict)
+        and _turn_program.get("schema") == "turn-program-1")
     _own_item_tokens: List[str] = []
-    if _scope_sheets:
+    if _program_present:
+        _tp_ref = _turn_program.get("reference") or {}
+        _tp_set = _turn_program.get("target_set") or {}
+        _retrieval_reference = bool(_tp_ref.get("prior_retrieval"))
+        if _tp_set.get("kind") == "explicit":
+            _own_item_tokens = [
+                str(v).strip() for v in (_tp_set.get("items") or [])
+                if str(v).strip()]
+    elif _scope_sheets:
         try:
             # TURN-ONLY items: what THIS message asks for in its own
             # words — not inherited targets, not history-mined mentions
