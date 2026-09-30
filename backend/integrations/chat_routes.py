@@ -743,6 +743,29 @@ async def get_chat_history(
                     # the card renders identically after refresh/restart.
                     if row.role == "assistant" and _meta.get("workbook_result"):
                         _entry["workbook_result"] = _meta["workbook_result"]
+                    elif (row.role == "assistant"
+                          and isinstance(
+                              (_meta.get("pending_file_result") or {})
+                              .get("structured_result"), dict)):
+                        # CARD SURVIVES RELOAD (2026-09-30): older rows
+                        # persisted the structured record without the
+                        # derived card payload — rebuild it from the
+                        # record so a refresh renders the card instead of
+                        # dumping the raw markdown. The builder returns
+                        # None for anything without a file identity, so
+                        # non-workbook rows stay untouched.
+                        try:
+                            from core.answer_presentation import (
+                                workbook_result_card,
+                            )
+
+                            _card = workbook_result_card(
+                                (_meta.get("pending_file_result") or {})
+                                .get("structured_result"))
+                            if _card:
+                                _entry["workbook_result"] = _card
+                        except Exception:  # noqa: BLE001 — display-only
+                            pass
                     if _meta.get("execution_id"):
                         _entry["execution_id"] = _meta["execution_id"]
                     history.append(_entry)

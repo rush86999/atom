@@ -2609,6 +2609,16 @@ def inspect_dataset_entries(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
         }
+        if (status == "found" and _binding is not None and designations
+                and str(designations[0].get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and designations[0].get("row") == _binding["row"]):
+            # BOUND BY THE USER'S OWN EARLIER ASSERTION: this row is not a
+            # guess — the reader told us "row 338 on the Tennsmith sheet"
+            # in an earlier turn and this read verified a bound candidate
+            # exactly there. Carried so the ANSWER can say so ("the row
+            # you confirmed") instead of re-opening a settled question.
+            outcome["bound_by"] = "user_assertion"
         if status == TARGET_UNAVAILABLE:
             outcome["error_category"] = _dominant_read_category(unreadable_categories)
             outcome["absence_claimable"] = False

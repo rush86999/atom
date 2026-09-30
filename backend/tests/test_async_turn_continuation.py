@@ -352,7 +352,7 @@ class TestEffectsAndContextContinuity:
         # be asserted here, which is the defect: it welded `[background
         # continuation — awaiting_approval of: "..."]` into what the user reads.
         # The token is metadata, and the next two lines assert it there.
-        assert "Background update needs your approval" in row.content
+        assert "waiting for your approval" in row.content
         assert "[background continuation" not in row.content
         assert "awaiting_approval" not in row.content
         import json as _json
@@ -1386,7 +1386,7 @@ class TestBackoffRetry:
             outcome, summary = await atc.run_canvas_edit_continuation(
                 orch, cont)
         assert outcome == "failed"
-        assert "after 2 attempts" in summary
+        assert "after 2 tries" in summary
         assert orch._try_canvas_edit.await_count == 2
 
     async def test_revision_conflict_between_attempts_holds_back(
@@ -1615,7 +1615,7 @@ class TestEvidenceIsolation:
             outcome, summary = await atc.run_canvas_edit_continuation(
                 orch, cont)
         assert outcome == "failed"
-        assert "did not confirm" in summary or "did not apply" in summary
+        assert "couldn't apply that edit" in summary
 
     async def test_completion_requires_audit_and_ui_readback(self):
         orch = MagicMock()

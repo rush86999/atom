@@ -1186,8 +1186,9 @@ def _zero_effect_sentence(cont: AsyncTurnContinuation) -> Tuple[str, Dict[str, A
     verified, evidence = _verified_zero_effect(cont)
     if verified:
         return "Nothing was changed on the canvas.", evidence
-    return ("I could not confirm that the canvas is unchanged. Check it before "
-            "relying on it."), {**evidence, "sentence": "uncertain"}
+    return ("I couldn't confirm the canvas is exactly as it was — give it "
+            "a quick look before relying on it."), {
+                **evidence, "sentence": "uncertain"}
 
 
 def _readable_outcome_text(outcome: str, summary: str) -> str:
@@ -1205,14 +1206,26 @@ def _readable_outcome_text(outcome: str, summary: str) -> str:
     The first line is the outcome in plain words; the rest is whatever the turn
     actually reported, unchanged, so nothing is summarised away.
     """
+    # CONVERSATIONAL CLOSURE (2026-09-30, research-grounded — long-running
+    # chat work closes the loop in user terms: state what happened, and
+    # where the user must act, say the next step; the machine tokens
+    # (outcome ids, attempts, stages) stay in metadata). Each lead states
+    # the OUTCOME against the user's original ask, not the job's
+    # lifecycle: "your update", not "background update".
     lead = {
-        OUTCOME_APPLIED: "Background update applied.",
-        OUTCOME_ALREADY_APPLIED: "Background update was already applied.",
-        OUTCOME_AWAITING_APPROVAL: "Background update needs your approval.",
-        OUTCOME_CONFLICT: "Background update was not applied: it conflicted.",
-        OUTCOME_FAILED: "Background update failed.",
-        OUTCOME_CANCELLED: "Background update was cancelled.",
-    }.get(outcome, "Background update finished.")
+        OUTCOME_APPLIED: "Done — your update is applied.",
+        OUTCOME_ALREADY_APPLIED: (
+            "That update was already applied — nothing new to change."),
+        OUTCOME_AWAITING_APPROVAL: (
+            "Your update is saved as a proposal and waiting for your "
+            "approval."),
+        OUTCOME_CONFLICT: (
+            "I couldn't apply your update — the canvas changed while I "
+            "was editing. Ask me again and I'll apply it to the current "
+            "version."),
+        OUTCOME_FAILED: "I couldn't apply your update.",
+        OUTCOME_CANCELLED: "I cancelled that update.",
+    }.get(outcome, "Your background update finished.")
     text = (summary or "").strip()
     return f"{lead} {text}".strip() if text else lead
 
@@ -2124,9 +2137,10 @@ async def run_canvas_edit_continuation(
     # of the prose.
     cont.error = (f"{last_note}; stage={cont.failure_stage}")[:500]
     _zero, _zero_ev = _zero_effect_sentence(cont)
+    _tries = ("1 try" if _ASYNC_CONTINUATION_ATTEMPTS == 1
+              else f"{_ASYNC_CONTINUATION_ATTEMPTS} tries")
     return OUTCOME_FAILED, (
-        f"The background edit did not apply after "
-        f"{_ASYNC_CONTINUATION_ATTEMPTS} attempts. "
+        f"I couldn't apply that edit after {_tries}. "
         f"{_zero}")
 
 

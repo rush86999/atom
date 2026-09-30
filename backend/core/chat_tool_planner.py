@@ -5724,6 +5724,7 @@ def _build_workbook_structured_record(
     attempt_id: str,
     order_hint: Optional[str] = None,
     requested_sheets: Optional[List[str]] = None,
+    scope_sources: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Artifact-native record for one scan attempt (one attempt id even
     when the evidence revision is unchanged). Pure build — no retrieval,
@@ -5764,6 +5765,7 @@ def _build_workbook_structured_record(
         requested_items=resolved,
         requested_fields=list(field_requests or ["price"]),
         requested_sheets=list(requested_sheets or []),
+        requested_sheets_sources=dict(scope_sources or {}),
         targets=targets,
         coverage=dict(coverage_limits or {}),
     )
@@ -6011,6 +6013,16 @@ def _stamp_named_file_meta(
         pass
 
 
+#: Retrieval-work nouns that make a follow-up a REFERENCE to this
+#: conversation's prior searches rather than a fresh request for sheet
+#: contents ("show me the tennsmith sheet searches" = re-run my searches
+#: scoped there, not list the sheet). Consulted by the sheet-scope browse
+#: gate so a reference-shaped turn prefers the scoped re-run.
+_RETRIEVAL_REFERENCE_RE = re.compile(
+    r"\b(?:search(?:es|ing)?|result(?:s)?|lookup(?:s)?|match(?:es|ed)?|"
+    r"finding(?:s)?|hit(?:s)?)\b", re.IGNORECASE)
+
+
 async def _datasets_named_file_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
     plan: Any = None,
@@ -6215,10 +6227,37 @@ async def _datasets_named_file_block(
     # `answer_presentation.resolve_requested_sheets` for why this is a
     # ranking seam and not another `_disambiguation_criteria` door).
     _scope_sheets: List[str] = []
+    _scope_sources: Dict[str, str] = {}
     try:
         from core.answer_presentation import resolve_requested_sheets
 
         _scope_sheets = resolve_requested_sheets(lookup_text, sheet_names)
+        _scope_sources = {s: "message" for s in _scope_sheets}
+        # STANDING-SCOPE HINTS (2026-09-30): sheet guidance the turn
+        # DECISION extracted ("include tennsmith sheet for roper whitney
+        # searches") rides the context in the user's own words. Resolved
+        # against THIS file's indexed sheets exactly like a message
+        # mention — a phrase naming no real sheet is ignored, never a
+        # fabricated filter. Provenance is kept so the answer can say the
+        # scope came from the user's standing preference, not guesswork.
+        _hint_phrases = " ".join(
+            str(h or "").strip()
+            for h in ((context or {}).get("sheet_scope_hints") or [])
+            if str(h or "").strip())
+        if _hint_phrases:
+            # The decision layer extracts the clause VERBATIM ("tennsmith
+            # sheet" — often without the determiner the sheet-reference
+            # grammar expects), so each hint is tried as-is AND with a
+            # determiner. Resolution still requires a real catalog match;
+            # a phrase naming no indexed sheet is ignored.
+            _hint_probe = " ".join(
+                f"the {str(h or '').strip()} "
+                for h in ((context or {}).get("sheet_scope_hints") or [])
+                if str(h or "").strip()) + _hint_phrases
+            for _hs in resolve_requested_sheets(_hint_probe, sheet_names):
+                if _hs not in _scope_sheets:
+                    _scope_sheets.append(_hs)
+                    _scope_sources[_hs] = "standing"
     except Exception as _scope_err:  # noqa: BLE001 — scope is optional
         logger.debug("workbook sheet scope unresolved: %r", _scope_err)
     ingested_values = sorted(
@@ -6252,7 +6291,23 @@ async def _datasets_named_file_block(
     # collapse to a footer-only answer. When the resolved sheet scope
     # names exactly the sheets to browse, list their rows (capped) as
     # the read.
-    if not item_tokens and _scope_sheets:
+    # RETRIEVAL-REFERENCE CARVE-OUT (2026-09-30): "show me the tennsmith
+    # sheet SEARCHES" refers to THIS CONVERSATION's prior retrieval work,
+    # not to the sheet's contents — the noun ("searches/results/lookups/
+    # matches") is an anaphor for the stored objective. When such a noun
+    # is present, the turn is a scoped RE-RUN of the active items (they
+    # arrive as context requested_targets; if absent the re-run degrades
+    # to the listing below, which is still a better answer than a
+    # footer), never a row listing. A phrase with no retrieval noun
+    # ("show me the tennsmith sheet") is the genuine listing request.
+    _retrieval_reference = bool(_RETRIEVAL_REFERENCE_RE.search(
+        " ".join(v for v in (query, msg_text) if v)))
+    _context_targets = [
+        str(v).strip() for v in
+        ((context or {}).get("requested_targets") or [])
+        if str(v).strip()]
+    if (not item_tokens and _scope_sheets
+            and not (_retrieval_reference and _context_targets)):
         # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
         # searches' follow-up): the user asked to SEE a sheet with no
         # item codes. inspect_dataset_entries needs item targets and
@@ -6655,10 +6710,11 @@ async def _datasets_named_file_block(
                 # the swap that was asked for. When the turn revised the
                 # objective, `item_tokens` already IS the requested order, so
                 # the hint is dropped rather than allowed to override it.
-                order_hint=None if revised_targets else " ".join(
-                    value for value in (query, msg_text) if value),
-                requested_sheets=_scope_sheets,
-            ),
+        order_hint=None if revised_targets else " ".join(
+            value for value in (query, msg_text) if value),
+        requested_sheets=_scope_sheets,
+        scope_sources=_scope_sources,
+    ),
         )
     except Exception as _sr_err:  # noqa: BLE001 — structured record optional
         logger.debug("workbook structured record skipped: %r", _sr_err)

@@ -3026,7 +3026,10 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
     the session, in precedence order.
 
     1. the stored pending-file task's ``requested_targets``;
-    2. the latest structured file result's ``requested_items``.
+    2. the SUPERSESSION STASH's ``requested_targets`` — a follow-up that
+       refers to prior retrieval work ("show me my searches") inherits the
+       objective it refers to (see body comment);
+    3. the latest structured file result's ``requested_items``.
 
     THE TASK FIRST, and that order is the point. The two carriers are not
     written at the same moment: ``requested_targets`` is stamped on the task
@@ -3045,6 +3048,24 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
         task = (session or {}).get("_pending_file_task") or {}
         targets = task.get("requested_targets") or []
         resolved = [str(v).strip() for v in targets if str(v).strip()]
+        if resolved:
+            return resolved
+    except Exception:
+        pass
+    try:
+        # SUPERSESSION STASH (2026-09-30 'show me the tennsmith sheet
+        # searches'): superseding a task replaces the OBJECTIVE text but
+        # the stash still carries the ordered targets the user spent turns
+        # building. Without this fallback, a reference-shaped follow-up
+        # ("show me my searches", "check those results again") — which
+        # carries no item codes of its own — inherited NOTHING, the read
+        # ran with zero targets, and the turn degraded to a sheet listing
+        # or a bare footer. The stash targets are the objective being
+        # referred to; resolving the reference means inheriting them.
+        stashed = ((session or {}).get(
+            "_superseded_file_task_context") or {}).get(
+            "requested_targets") or []
+        resolved = [str(v).strip() for v in stashed if str(v).strip()]
         if resolved:
             return resolved
     except Exception:
@@ -5347,46 +5368,65 @@ class ChatOrchestrator:
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
                 if not _ask_mention:
-                    # TURN-DECISION ROUTING (2026-09-30 full activation,
-                    # ATOM_TURN_DECISION_ROUTING): the structured
-                    # decision is the AUTHORITY for whether this turn
-                    # requests research — when it carries a granted
-                    # research action with a file reference, the ask
-                    # lane runs on that reference even when every
-                    # lexical resolver below missed it (odd wording the
-                    # noun lists cannot anticipate). Fail-open: flag off
-                    # or any error restores the resolver-only behavior.
-                    if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
-                        try:
-                            from core.turn_decision import (
-                                build_turn_decision,
-                            )
+                    pass  # mention resolution continues below
+                # TURN-DECISION ROUTING (2026-09-30 full activation,
+                # ATOM_TURN_DECISION_ROUTING): the structured decision is
+                # the AUTHORITY for whether this turn requests research —
+                # when it carries a granted research action with a file
+                # reference, the ask lane runs on that reference even when
+                # every lexical resolver below missed it (odd wording the
+                # noun lists cannot anticipate). Runs whether or not the
+                # lexical mention resolved: the decision's SHEET-SCOPE
+                # CONSTRAINTS ride the read either way. Fail-open: flag
+                # off or any error restores the resolver-only behavior.
+                _td_scope_hints: List[str] = []
+                if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
+                    try:
+                        from core.turn_decision import (
+                            build_turn_decision,
+                        )
 
-                            _td = build_turn_decision(
-                                message, session, history or [],
-                                context or {}, session_id=session_id)
-                            _td_sources = ((_td.get("references")
-                                            or {}).get("sources")) or []
-                            for _a in _td.get("requested_actions") or []:
-                                if (_a.get("kind") == "research"
-                                        and _a.get("authorization")
-                                        == "granted"
-                                        and not (_a.get(
-                                            "additional_sources")
-                                            or _td_sources)):
-                                    _ref = (_a.get("target") or {})
-                                    if _ref.get("kind") == "spreadsheet" \
-                                            and _ref.get("name"):
-                                        _ask_mention = _ref["name"]
-                                        logger.info(
-                                            "[turn-decision] research "
-                                            "action routed the ask lane "
-                                            "(file=%r)", _ask_mention)
-                                    break
-                        except Exception as _tdr_err:  # noqa: BLE001
-                            logger.debug(
-                                "turn-decision routing skipped: %r",
-                                _tdr_err)
+                        _td = build_turn_decision(
+                            message, session, history or [],
+                            context or {}, session_id=session_id)
+                        _td_sources = ((_td.get("references")
+                                        or {}).get("sources")) or []
+                        for _a in _td.get("requested_actions") or []:
+                            if (_a.get("kind") == "research"
+                                    and _a.get("authorization")
+                                    == "granted"
+                                    and not (_a.get(
+                                        "additional_sources")
+                                        or _td_sources)):
+                                _ref = (_a.get("target") or {})
+                                if (not _ask_mention
+                                        and _ref.get("kind") == "spreadsheet"
+                                        and _ref.get("name")):
+                                    _ask_mention = _ref["name"]
+                                    logger.info(
+                                        "[turn-decision] research "
+                                        "action routed the ask lane "
+                                        "(file=%r)", _ask_mention)
+                            # SHEET-SCOPE CONSTRAINTS RIDE THE READ
+                            # (2026-09-30): the decision layer extracts
+                            # the user's scope guidance ("include
+                            # tennsmith sheet for roper whitney
+                            # searches") as typed constraints — that
+                            # extraction existed but was dropped at this
+                            # seam, so the read ran unscoped and the
+                            # taught preference never applied. Hints are
+                            # the user's own words; the READ resolves
+                            # them against the file's real sheet catalog
+                            # (a phrase naming no indexed sheet scopes
+                            # nothing — never a guessed filter).
+                            for _c in (_a.get("constraints") or []):
+                                _c = str(_c or "").strip()
+                                if _c and _c not in _td_scope_hints:
+                                    _td_scope_hints.append(_c)
+                    except Exception as _tdr_err:  # noqa: BLE001
+                        logger.debug(
+                            "turn-decision routing skipped: %r",
+                            _tdr_err)
                 if not _ask_mention:
                     # ANAPHORIC FILE REFERENCE (2026-09-29 row-338
                     # incident): "find this in the workbook" names no
@@ -5420,6 +5460,11 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
+                if _td_scope_hints:
+                    # Scope guidance the decision layer extracted (see the
+                    # routing block above) — resolved against the read's
+                    # real sheet catalog, never guessed here.
+                    _ask_task["sheet_scope_hints"] = list(_td_scope_hints)
                 _ask_active = _stored_requested_items(session)
                 if _ask_active:
                     # Active-objective inheritance for vague follow-up
@@ -5617,6 +5662,53 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
+                    # RETRY DELTA (2026-09-30): a re-run against the SAME
+                    # file revision answering the SAME items found what
+                    # the last search found — saying so in one line is the
+                    # difference between a conversation that progresses
+                    # and one that re-prints itself verbatim on "try
+                    # again". The full results still ride below (and in
+                    # the card); the lead states what changed: nothing in
+                    # the copy, only (when true) the scope.
+                    try:
+                        _prev_rec = ((session.get("_pending_file_result")
+                                      or {}).get("structured_result") or {})
+                        _new_rec = _ask_structured if isinstance(
+                            _ask_structured, dict) else {}
+                        if (_prev_rec.get("evidence_revision")
+                                and _new_rec.get("evidence_revision")
+                                == _prev_rec.get("evidence_revision")
+                                and (_new_rec.get("requested_items")
+                                     or []) == (
+                                     _prev_rec.get("requested_items")
+                                     or [])
+                                and _new_rec.get("evidence_action")
+                                == "new_read"):
+                            _new_scope = set(
+                                _new_rec.get("requested_sheets") or [])
+                            _old_scope = set(
+                                _prev_rec.get("requested_sheets") or [])
+                            _delta_bits = []
+                            if _new_scope - _old_scope:
+                                _delta_bits.append(
+                                    "this time scoped to "
+                                    + ", ".join(sorted(_new_scope)))
+                            if _new_scope != _old_scope and (
+                                    _old_scope - _new_scope):
+                                _delta_bits.append(
+                                    "previously scoped to "
+                                    + ", ".join(sorted(_old_scope)))
+                            _delta_lead = (
+                                "Same results as my last search — the "
+                                "saved copy hasn't changed"
+                                + (" (" + "; ".join(_delta_bits) + ")"
+                                   if _delta_bits else "")
+                                + ". ")
+                            _ask_content = _delta_lead + _ask_content
+                            _ask_core = _delta_lead + _ask_core
+                    except Exception as _delta_err:  # noqa: BLE001
+                        logger.debug(
+                            "retry-delta lead skipped: %r", _delta_err)
                     if _ask_freshness.get("note"):
                         _ask_content = (
                             _ask_content + str(_ask_freshness["note"]))
@@ -7278,9 +7370,16 @@ class ChatOrchestrator:
                         "canvas_edit_no_apply_reason"
                     ) or "planner_unavailable"
                     if _background_started:
+                        # INTERIM STATUS (2026-09-30, research-grounded —
+                        # long-running chat work states WHAT is running
+                        # and promises the closure, per the Goal-mode
+                        # progress-row pattern): names the work, promises
+                        # the confirmation, and asserts no change yet (a
+                        # non-claim, so the success-claim gate holds).
                         _no_apply_message = (
-                            "The canvas edit is still running in the background, "
-                            "but nothing is confirmed changed yet."
+                            "I'm still applying that edit in the "
+                            "background — I'll confirm here the moment "
+                            "it lands. Nothing has changed yet."
                         )
                     elif _no_apply_reason == "planner_declined":
                         # Do NOT tell the user to clarify. The planner read the
@@ -8273,6 +8372,13 @@ class ChatOrchestrator:
                         "disambiguation": pending_task.get("disambiguation"),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # Sheet-scope guidance from the turn decision (the
+                        # user's standing/taught preference in their own
+                        # words) — the read resolves these against the
+                        # file's indexed sheet names; no match scopes
+                        # nothing.
+                        "sheet_scope_hints": (
+                            pending_task.get("sheet_scope_hints") or []),
                         # A REVISED OBJECTIVE IS AUTHORITATIVE, and it has to
                         # be declared as such: the query handed to the reader
                         # is the STORED ASK, which still names the outgoing
@@ -8760,8 +8866,9 @@ class ChatOrchestrator:
             )
         elif background_forked:
             replacement = (
-                "*(The canvas edit is still running in the background — "
-                "nothing is confirmed changed yet.)*"
+                "*(I'm still applying that edit in the background — "
+                "I'll confirm here the moment it lands; nothing has "
+                "changed yet.)*"
             )
         elif claim_found:
             replacement = (

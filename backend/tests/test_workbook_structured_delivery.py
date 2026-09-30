@@ -1619,7 +1619,7 @@ class TestSurplusIsReportedPerSheet:
 
     def test_the_named_sheets_rows_are_printed_with_their_values(self):
         answer = self._answer(requested_sheets=["BetaParts"])
-        assert "BetaParts!R300" in answer
+        assert "BetaParts sheet, row 300" in answer
         assert "E300 'PRICE' 400" in answer, answer
 
     def test_counts_sum_to_the_reported_surplus(self):
@@ -1665,7 +1665,7 @@ class TestEmptyScopeIsNeverSilentlyBroadened:
 
     def test_an_empty_scope_is_named(self):
         answer = self._answer(_two_sheet_outcomes(), ["GammaParts"])
-        assert "no matching row on the 'GammaParts' sheet" in answer, answer
+        assert "nothing on the 'GammaParts' sheet" in answer, answer
 
     def test_the_clause_says_the_rows_shown_are_from_elsewhere(self):
         answer = self._answer(_two_sheet_outcomes(), ["GammaParts"])
@@ -1682,15 +1682,15 @@ class TestEmptyScopeIsNeverSilentlyBroadened:
     def test_an_empty_scope_with_no_candidates_at_all(self):
         empty = {"M-1": {"target": "M-1", "status": "none", "evidence": []}}
         answer = self._answer(empty, ["BetaParts"])
-        assert "no matching row in the indexed content searched" in answer
-        assert "no matching row on the 'BetaParts' sheet" in answer, answer
+        assert "no match in this copy" in answer
+        assert "nothing on the 'BetaParts' sheet" in answer, answer
 
     def test_a_single_match_elsewhere_still_states_the_missed_sheet(self):
         # One candidate on the wrong sheet is as much a substitution as ten.
         outcomes = {"M-1": {"target": "M-1", "status": "found", "evidence": [
             _ev("AlphaWorks", 200, "A200", [_v("E200", "7", "PRICE")])]}}
         answer = self._answer(outcomes, ["BetaParts"])
-        assert "no matching row on the 'BetaParts' sheet" in answer, answer
+        assert "nothing on the 'BetaParts' sheet" in answer, answer
         assert "the row shown is on another sheet" in answer, answer
 
     def test_the_clause_never_appears_after_a_read_failure(self):
@@ -1705,8 +1705,8 @@ class TestEmptyScopeIsNeverSilentlyBroadened:
             requested_items=["M-1"], requested_fields=["price"],
             source={"file_name": "wb.xlsx"}, targets=targets,
             requested_sheets=["BetaParts"])["answer"]
-        assert "could not be read" in answer, answer
-        assert "no matching row on" not in answer, answer
+        assert "couldn't read the source" in answer, answer
+        assert "nothing on the" not in answer, answer
 
     def test_the_clause_survives_a_rerender_from_the_record(self):
         # The record is the durable artifact; a retry or reload must
@@ -1721,7 +1721,7 @@ class TestEmptyScopeIsNeverSilentlyBroadened:
                 requested_sheets=["GammaParts"]),
             coverage={}, requested_sheets=["GammaParts"])
         rendered = ap.present_from_record(record)["answer"]
-        assert "no matching row on the 'GammaParts' sheet" in rendered, rendered
+        assert "nothing on the 'GammaParts' sheet" in rendered, rendered
 
     def test_an_older_record_without_the_key_renders_as_before(self):
         record = ap.build_structured_record(
@@ -1857,5 +1857,111 @@ class TestSheetBrowseRecord:
 
     def test_coverage_footer_keeps_the_workbook_numbers(self):
         out = ap.present_from_record(self._build())["answer"]
-        assert "indexed sheets=5" in out
-        assert "scanned entries=5" in out
+        assert "searched all 5 sheets of this copy" in out
+
+
+# Conversational rendering contract (2026-09-30) — research-grounded UX:
+# answer-first with layered detail; user vocabulary in the bubble; the
+# scope receipt, binding receipt, and retry delta state their provenance.
+
+class TestConversationalRendering:
+    def _found_record(self, **over):
+        outcomes = {"M-1": {"target": "M-1", "status": "found",
+                            "evidence": [_ev("LINMAC", 26, "A26",
+                                             [_v("C26", "1777",
+                                                 "List Price")])]}}
+        targets = ap.build_targets_from_scan(["M-1"], outcomes, {})
+        rec = ap.build_structured_record(
+            source_identity={"file_name": "w.xlsx",
+                             "ingested_at": "2026-09-07T23:06:19"},
+            evidence_revision="r-1", attempt_id="a-1",
+            evidence_action="new_read", requested_items=["M-1"],
+            requested_fields=["price"], targets=targets,
+            coverage={"indexed_sheets": 2, "scanned_entries": 2})
+        rec.update(over)
+        return rec
+
+    def test_answer_is_written_for_the_reader(self):
+        out = ap.present_from_record(self._found_record())["answer"]
+        # value first, human locator, human date
+        assert "M-1** — 1,777 'List Price' (LINMAC sheet, row 26, cell C26, matched at A26" in out
+        assert "(saved 2026-09-07)" in out
+        # audit vocabulary is gone from the bubble
+        assert "indexed content searched" not in out
+        assert "identity A26" not in out
+        assert "absence claim" not in out
+
+    def test_ambiguous_item_asks_like_a_person(self):
+        outcomes = {"M-1": {"target": "M-1", "status": "ambiguous",
+                            "evidence": [
+                                _ev("Tennsmith", 338, "A338",
+                                    [_v("E338", "3254", "PRICE")]),
+                                _ev("Tennsmith", 340, "D340",
+                                    [_v("E340", "906", "PRICE")])]}}
+        targets = ap.build_targets_from_scan(["M-1"], outcomes, {})
+        out = ap.present(requested_items=["M-1"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert "2 possible rows" in out
+        assert "Tennsmith sheet, row 338" in out
+        assert "which one do you mean?" in out
+        assert "which one is yours" not in out
+
+    def test_standing_scope_receipt_names_the_preference(self):
+        rec = self._found_record(
+            requested_sheets=["Tennsmith"],
+            requested_sheets_sources={"Tennsmith": "standing"})
+        out = ap.present_from_record(rec)["answer"]
+        assert ("Looking in: Tennsmith — per your standing preference."
+                in out), out
+
+    def test_message_scope_receipt_has_no_preference_note(self):
+        rec = self._found_record(
+            requested_sheets=["Tennsmith"],
+            requested_sheets_sources={"Tennsmith": "message"})
+        out = ap.present_from_record(rec)["answer"]
+        assert "Looking in: Tennsmith." in out
+        assert "standing preference" not in out
+
+    def test_user_bound_row_says_so_instead_of_re_asking(self):
+        outcomes = {"M-1": {"target": "M-1", "status": "found",
+                            "bound_by": "user_assertion",
+                            "evidence": [_ev("Tennsmith", 338, "A338",
+                                             [_v("E338", "3254",
+                                                 "PRICE")])]}}
+        targets = ap.build_targets_from_scan(["M-1"], outcomes, {})
+        out = ap.present(requested_items=["M-1"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert "the row you confirmed" in out, out
+        assert "which one do you mean" not in out
+
+    def test_absence_is_plain_and_bounded_to_the_copy(self):
+        outcomes = {"M-1": {"target": "M-1", "status": "absent",
+                            "evidence": []}}
+        targets = ap.build_targets_from_scan(["M-1"], outcomes, {})
+        out = ap.present(requested_items=["M-1"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx",
+                                 "coverage": {"indexed_sheets": 2}},
+                         targets=targets)["answer"]
+        assert "M-1** — no match in this copy" in out
+        assert "about this copy, not the live file" in out
+
+
+class TestClosurePhrasing:
+    """Background-edit outcomes close the loop in user terms."""
+
+    def test_outcome_leads_reference_the_users_update(self):
+        from core.async_turn_continuation import _readable_outcome_text
+
+        assert _readable_outcome_text("applied", "") == \
+            "Done — your update is applied."
+        assert "saved as a proposal" in _readable_outcome_text(
+            "awaiting_approval", "")
+        assert "changed while I was editing" in _readable_outcome_text(
+            "conflict", "")
+        assert _readable_outcome_text("failed", "") == \
+            "I couldn't apply your update."

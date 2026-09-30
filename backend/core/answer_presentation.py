@@ -374,8 +374,7 @@ def _scoped_sheet_note(
         if len(candidates) == 1 else
         f"the {len(candidates)} rows shown are on other sheets"
     )
-    return (f"no matching row on the {sheets} "
-            f"{'sheet' if one else 'sheets'} of this workbook; "
+    return (f"nothing on the {sheets} {'sheet' if one else 'sheets'} — "
             f"{elsewhere}")
 
 
@@ -523,7 +522,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
             source: Dict[str, Any], targets: List[Dict[str, Any]],
             evidence_revision: str = "", style: str = "default",
             field: Optional[str] = None,
-            requested_sheets: Optional[Sequence[str]] = None
+            requested_sheets: Optional[Sequence[str]] = None,
+            requested_sheets_sources: Optional[Dict[str, str]] = None,
             ) -> Dict[str, Any]:
     """The pure renderer: structured contract in, readable answer out.
     No retrieval, no database writes, no evidence mutation. ``style`` is
@@ -535,18 +535,31 @@ def present(*, requested_items: List[str], requested_fields: List[str],
     the same answer. It only ever ADDS a clause — a named sheet that holds no
     matching row is stated as such — so presenting a record without it
     (older records, the compat path) renders exactly as before.
+
+    CONVERSATIONAL RENDERING (2026-09-30, research-grounded: answer-first
+    with layered detail — NN/g chatbot guidance, Botpress 2026 expert
+    consensus, the Perplexity answer+citations pattern): the answer a user
+    reads leads with the value and its location in their words ("$3,254 —
+    Tennsmith sheet, row 338"); cell coordinates and alternate bases stay
+    available as trailing detail and in the structured card's evidence
+    expander, but the sentence is written for the reader, not the
+    verifier. Honesty semantics are unchanged: saved-copy provenance,
+    coverage numbers, and the no-absence-claim rule all survive, in
+    plain words instead of audit vocabulary.
     """
     lines: List[str] = []
     name = source.get("file_name") or "the workbook"
-    saved = source.get("saved_copy_date")
+    saved = _human_date(source.get("saved_copy_date"))
     live_vs_saved = source.get("live_vs_saved") or "saved copy"
     source_failure = _source_read_failure(source)
-    opening = f"Results from the {live_vs_saved} of {name}"
-    if saved:
-        opening += f" (copy saved {saved})"
-    lines.append(opening + ":")
-    lines.append("")
     if style == "table":
+        # The table style is the machine-facing compact form; it keeps the
+        # established column contract (parse_item_table reads it).
+        opening = f"Results from the {live_vs_saved} of {name}"
+        if saved:
+            opening += f" (copy saved {saved})"
+        lines.append(opening + ":")
+        lines.append("")
         lines.append("| item | result |")
         lines.append("|---|---|")
         for item in requested_items:
@@ -557,11 +570,26 @@ def present(*, requested_items: List[str], requested_fields: List[str],
                 continue
             lines.append(f"| {item} | {_concise_result(t)} |")
     else:
+        # Answer-first opening: what was searched, in one human line.
+        opening = f"From the {live_vs_saved} of {name}"
+        if saved:
+            opening += f" (saved {saved})"
+        lines.append(opening + ":")
+        # Scope receipt: the search was narrowed, and the user can see why.
+        scope_bits = []
+        for s in (requested_sheets or []):
+            origin = (requested_sheets_sources or {}).get(str(s))
+            scope_bits.append(
+                f"{s}" + (" — per your standing preference"
+                          if origin == "standing" else ""))
+        if scope_bits:
+            lines.append(f"Looking in: {', '.join(scope_bits)}.")
+        lines.append("")
         for item in requested_items:
             t = _find_target(targets, item)
             if t is None:
                 lines.append(
-                    f"- **{item}** - {_unresolved_clause(source_failure)}")
+                    f"- **{item}** — {_unresolved_clause(source_failure)}")
                 continue
             lines.append(_render_target(
                 t, item, style=style, field=field,
@@ -580,20 +608,34 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         if coverage_raw.get("catalog_truncated"):
             parts.append("catalog truncated")
         coverage = "; ".join(parts) if parts else "partial"
+        indexed = coverage_raw.get("indexed_sheets")
     else:
         coverage = str(coverage_raw)
+        indexed = None
     lines.append("")
     if source_failure:
         # The retrieval failed. Say so once, in its own line, and retract the
         # absence reading of everything above it.
         lines.append(
-            f"RETRIEVAL FAILED: {source_failure}. Nothing above is a "
-            f"statement that the items are absent from {name} — the search "
-            f"could not read the source, so no result is reported for it.")
-    note = (f"Source: {name} - {live_vs_saved}"
-            + (f", copy saved {saved}" if saved else "")
-            + f". Coverage: {coverage}. Unlisted sheets or newer versions may "
-              f"contain more; this is not an absence claim about the live workbook.")
+            f"I couldn't read the source ({source_failure}), so nothing "
+            f"above is a statement that the items are absent from {name} — "
+            f"no result is reported for a source that could not be read.")
+    if style == "table":
+        note = (f"Source: {name} - {live_vs_saved}"
+                + (f", copy saved {saved}" if saved else "")
+                + f". Coverage: {coverage}. Unlisted sheets or newer versions "
+                  f"may contain more; this is not an absence claim about the "
+                  f"live workbook.")
+    else:
+        # Human footer: same three facts (which copy, how much was
+        # searched, no claim about the live file) without audit wording.
+        where = (f"searched all {indexed} sheets of this copy"
+                 if isinstance(indexed, int) and not source_failure
+                 else f"coverage: {coverage}")
+        note = (f"From the {live_vs_saved} of {name}"
+                + (f" (saved {saved})" if saved else "")
+                + f" — {where}. A newer version of the file may differ; "
+                  f"no-match lines are about this copy, not the live file.")
     lines.append(note)
     return {"answer": "\n".join(lines),
             "presentation_version": PRESENTATION_VERSION,
@@ -609,12 +651,22 @@ def _unresolved_clause(source_failure: Optional[str]) -> str:
     the failure; otherwise it keeps the long-standing honest wording.
     """
     if source_failure:
-        return f"source could not be read ({source_failure})"
-    return "no result in the indexed copy searched"
+        return f"I couldn't read the source ({source_failure})"
+    return "no result in this copy"
 
 
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(s).lower()).strip()
+
+
+def _human_date(value: Any) -> Optional[str]:
+    """`2026-09-07T23:06:19` → `2026-09-07` — a saved-copy date a human
+    reads as a date, not a timestamp. Unparseable values pass through."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.match(r"^(\d{4}-\d{2}-\d{2})", text)
+    return match.group(1) if match else text
 
 
 def _find_target(targets: List[Dict[str, Any]], item: str) -> Optional[Dict[str, Any]]:
@@ -713,6 +765,19 @@ def _value_clause(v: Dict[str, Any]) -> str:
     return f"{cell} '{basis}' {display}".strip()
 
 
+def _human_ref(ref: Any) -> str:
+    """'Tennsmith!R338' -> 'Tennsmith sheet, row 338' — a locator written
+    as the reader says it. The raw ref stays in the structured record and
+    the card's evidence expander for verification."""
+    text = str(ref or "").strip()
+    if "!" in text:
+        sheet, _, row = text.partition("!")
+        row = row.lstrip("Rr")
+        if row.isdigit():
+            return f"{sheet} sheet, row {row}"
+    return text
+
+
 def _render_target(t: Dict[str, Any], item: str, *,
                    style: str = "default",
                    field: Optional[str] = None,
@@ -737,9 +802,9 @@ def _render_target(t: Dict[str, Any], item: str, *,
         # open", and only the retrieval verdict separates them. The absence
         # sentence is a factual claim about the source's contents; it may not
         # be printed for a source that was never successfully read.
-        return (f"- **{item}**{alias_note} - the source could not be read "
-                f"({failure}); no result is reported for this item, which is "
-                f"NOT a statement that it is absent from the workbook")
+        return (f"- **{item}**{alias_note} — I couldn't read the source "
+                f"({failure}), so no result for this one; it may still be "
+                f"in the workbook")
     if t.get("presentation") == "listing":
         # SHEET-SCOPE BROWSE (2026-09-30): a read whose "items" are whole
         # sheets lists their rows. The captured cells render verbatim —
@@ -775,25 +840,23 @@ def _render_target(t: Dict[str, Any], item: str, *,
         return (f"- **{item}**{alias_note} - {head} on this sheet: "
                 f"{'; '.join(parts)}{tail}")
     if status == "none":
+        # The footer already bounds the claim to this copy ("no-match
+        # lines are about this copy, not the live file"), so the item
+        # line can say it plainly.
         if scope_note:
-            return (f"- **{item}**{alias_note} - no matching row in the "
-                    f"indexed content searched; {scope_note}")
-        return f"- **{item}**{alias_note} - no matching row in the indexed content searched"
+            return (f"- **{item}**{alias_note} — no match in this copy; "
+                    f"{scope_note}")
+        return f"- **{item}**{alias_note} — no match in this copy"
     pooled = (t.get("field") or {}).get("values") or []
     selected = _select_values(pooled, requested_fields, field)
     if status == "multiple":
         parts = []
         for c in candidates[:AMBIGUOUS_CANDIDATE_WINDOW]:
             cvals = _select_values(c.get("values") or [], requested_fields, field)
-            # Name the identity cell alongside the row locator, so an
-            # ambiguous row is still identified down to a cell.
-            idcells = _identity_cells(c)
-            idnote = f", identity {', '.join(idcells)}" if idcells else ""
-            if cvals:
-                shown = "; ".join(_value_clause(v) for v in cvals[:3])
-                parts.append(f"{c.get('ref', '?')}{idnote} ({shown})")
-            else:
-                parts.append(f"{c.get('ref', '?')}{idnote}")
+            shown = "; ".join(_value_clause(v) for v in cvals[:2])
+            parts.append(
+                f"{_human_ref(c.get('ref', '?'))}"
+                + (f" ({shown})" if shown else ""))
         # CANDIDATE-CAP FAIRNESS (2026-09-29): only the first three
         # candidates render; if more rows matched — possibly on OTHER
         # sheets the user explicitly cares about — say so, with the
@@ -826,9 +889,13 @@ def _render_target(t: Dict[str, Any], item: str, *,
             breakdown = ", ".join(
                 f"{sheet} {count}" for sheet, count in per_sheet.items())
             tail = f"; +{len(extra)} more match(es) ({breakdown})"
-        line = (f"- **{item}**{alias_note} - several rows match "
-                f"({'; '.join(parts)}{tail}){scope_suffix}; "
-                f"which one is yours needs your confirmation")
+        # CONVERSATIONAL ASK (2026-09-30): the count leads, the candidates
+        # read as locations ("Tennsmith sheet, row 338 (…)"), and the
+        # confirmation ask is a question a person would ask — not audit
+        # boilerplate ("which one is yours needs your confirmation").
+        line = (f"- **{item}**{alias_note} — {len(candidates)} possible "
+                f"rows: {' or '.join(parts)}{tail}{scope_suffix} — "
+                f"which one do you mean?")
         return line
     cand = candidates[0] if candidates else {}
     ref = cand.get("ref", "")
@@ -841,24 +908,25 @@ def _render_target(t: Dict[str, Any], item: str, *,
     idnote = f", identity {', '.join(idcells)}" if idcells else ""
     fstatus = (t.get("field") or {}).get("status")
     if fstatus == "absent" or not pooled:
-        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}, but no "
-                f"price column was identified{scope_suffix}")
+        return (f"- **{item}**{alias_note} — found at {_human_ref(ref)}"
+                f"{idnote}, but no price column on that row{scope_suffix}")
     if field and not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
-        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}; "
-                f"requested '{field}' is not among the available bases "
-                f"({', '.join(bases)}). Which basis should answer?")
+        return (f"- **{item}**{alias_note} — found at {_human_ref(ref)}{idnote}, "
+                f"but '{field}' is not among this row's columns "
+                f"({', '.join(bases)}) — which should I use?")
     if not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
-        return (f"- **{item}**{alias_note} - matched at {ref}{idnote}; "
-                f"none of the requested fields match the available bases "
-                f"({', '.join(bases)}). Which basis should answer?")
+        return (f"- **{item}**{alias_note} — found at {_human_ref(ref)}{idnote}, "
+                f"but none of the requested fields match this row's columns "
+                f"({', '.join(bases)}) — which should I use?")
     primary = selected[0]
     if style == "compact":
-        return (f"- **{item}**{alias_note} - {primary.get('display', '?')} "
-                f"({ref}{idnote}, '{primary.get('basis', '')}'){scope_suffix}")
-    seg = (f"{primary.get('display', '?')} ({ref}{idnote}, column "
-           f"{primary.get('col', '')} '{primary.get('basis', '')}'")
+        return (f"- **{item}**{alias_note} — {primary.get('display', '?')} "
+                f"('{primary.get('basis', '')}', {_human_ref(ref)}){scope_suffix}")
+    seg = (f"{primary.get('display', '?')} '{primary.get('basis', '')}' "
+           f"({_human_ref(ref)}, cell {primary.get('col', '')}"
+           + (f", matched at {', '.join(idcells)}" if idcells else ""))
     # Keep distinct (col, basis) even when displays are equal: same value
     # in two bases (e.g. List Price vs List Price_2, or PRICE blank vs
     # U.S. LIST blank) is still two labeled facts, not one. Dedup only
@@ -874,9 +942,10 @@ def _render_target(t: Dict[str, Any], item: str, *,
             alts.append(v)
     if alts:
         seg += "; also " + ", ".join(
-            f"{v['col']} '{v['basis']}' {v['display']}" for v in alts)
+            f"{v['display']} '{v['basis']}' ({v['col']})" for v in alts)
     seg += ")"
-    return f"- **{item}**{alias_note} - {seg}{scope_suffix}"
+    bound_note = " — the row you confirmed" if t.get("bound") else ""
+    return f"- **{item}**{alias_note} — {seg}{scope_suffix}{bound_note}"
 
 
 # ---------------------------------------------------------------------------
@@ -1018,6 +1087,14 @@ def present_from_rendered_text(reply: str, *, ask: str, source: Dict[str, Any],
         exact = next((h for h in hits if _norm(h.get("item", "")) == _norm(item)), None)
         best_label = (exact or hits[0]).get("item", "")
         alias_note = [] if _norm(best_label) == _norm(item) else [best_label]
+        # Bound by the user's own earlier assertion? The scan pinned the
+        # row (user_assertion binding verified at this revision) — carried
+        # so the answer can say "the row you confirmed" instead of
+        # re-opening a settled question.
+        bound = any(
+            str(((artifact_outcomes or {}).get(raw) or {}).get("bound_by")
+                or "") == "user_assertion"
+            for raw in owned)
         matched.append({
             "item": item,
             "aliases": alias_note,
@@ -1028,6 +1105,7 @@ def present_from_rendered_text(reply: str, *, ask: str, source: Dict[str, Any],
             "field": {"status": ("competing" if len(bases) > 1
                                  else "single" if v_all else "absent"),
                       "values": v_all},
+            **({"bound": True} if bound else {}),
         })
     return present(requested_items=items, requested_fields=["price"],
                    source=source, targets=matched,
@@ -1354,6 +1432,13 @@ def build_targets_from_scan(
                                  else "single" if values else "absent"),
                       "values": values},
             "retrieval": retrieval,
+            # Bound by the user's own earlier assertion (the scan pinned
+            # the row at this revision): the answer says "the row you
+            # confirmed" instead of re-opening a settled question.
+            **({"bound": True} if any(
+                str(((artifact_outcomes or {}).get(raw) or {}).get(
+                    "bound_by") or "") == "user_assertion"
+                for raw in owned) else {}),
         })
     return targets
 
@@ -1459,6 +1544,19 @@ def workbook_result_card(
             status = str(ident.get("status") or "none")
             entry: Dict[str, Any] = {"item": item}
             cands = ident.get("candidates") or []
+            if t.get("presentation") == "listing":
+                # A sheet-scope browse: the "item" is a whole sheet and
+                # its candidates are listed rows, not competing answers —
+                # the ambiguous badge ("needs your pick") would misread a
+                # listing as an unresolved question.
+                entry["status"] = "found"
+                entry["value"] = None
+                entry["basis"] = (
+                    f"{len(cands)} rows listed"
+                    + (f" of {t.get('listing_total_rows')}"
+                       if t.get("listing_total_rows") else ""))
+                items.append(entry)
+                continue
             if status == "multiple" and cands:
                 entry["status"] = "ambiguous"
                 entry["candidates"] = []
@@ -1532,6 +1630,7 @@ def build_structured_record(*, source_identity: Dict[str, Any],
                             targets: List[Dict[str, Any]],
                             coverage: Any,
                             requested_sheets: Optional[Sequence[str]] = None,
+                            requested_sheets_sources: Optional[Dict[str, str]] = None,
                             retrieved_at: Optional[float] = None) -> Dict[str, Any]:
     """The versioned structured artifact to persist beside (not instead of)
     the rendered text. evidence_action is EVIDENCE-BASED: the caller stamps
@@ -1557,6 +1656,8 @@ def build_structured_record(*, source_identity: Dict[str, Any],
         "requested_items": list(requested_items),
         "requested_fields": list(requested_fields),
         "requested_sheets": [str(s) for s in (requested_sheets or [])],
+        "requested_sheets_sources": {
+            str(k): str(v) for k, v in (requested_sheets_sources or {}).items()},
         "targets": targets,
         "coverage": coverage,
     }
@@ -1971,7 +2072,8 @@ def present_from_record(record: Dict[str, Any],
         targets=record.get("targets") or [],
         evidence_revision=str(record.get("evidence_revision") or ""),
         style=resolved_style, field=resolved_field,
-        requested_sheets=record.get("requested_sheets") or None)
+        requested_sheets=record.get("requested_sheets") or None,
+        requested_sheets_sources=record.get("requested_sheets_sources") or None)
     result["attempt_id"] = record.get("attempt_id")
     result["evidence_action"] = record.get("evidence_action")
     result["presentation_intent"] = presentation_intent or record.get("presentation_intent")
