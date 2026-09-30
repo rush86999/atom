@@ -1102,3 +1102,34 @@ def test_unknown_sheet_mention_is_ignored_not_filtering_everything():
     o = art["coverage"]["outcomes"][0]
     assert o["status"] in ("unavailable", "incomplete"), o
     assert not o.get("evidence"), o
+
+
+def test_history_noise_never_eliminates_candidates(tmp_path):
+    """2026-10-01 live-e2e finding on real data: criteria MINED from
+    history text ("note 3: filler turn for window testing" → a bogus
+    'note' criterion) once wiped every designation — an item that
+    matched 10 rows rendered 'no match in this copy' after a few
+    off-topic turns. History-mined criteria may rank; only the current
+    ask's own criteria (or explicit disambiguation) may eliminate."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338, 340],
+        "MODEL": ["381", "381X"],
+        "PRICE": ["3254", "906"],
+    }).to_parquet(path)
+    entry = {"entity_name": "Tennsmith", "parquet_path": str(path),
+             "row_count": 2, "coverage": {"known": True,
+                                          "truncated": False}}
+    noisy_history = [f"note {i}: filler turn for window testing"
+                     for i in range(1, 7)]
+    art = inspect_dataset_entries(
+        [entry], "w.xlsx", query="find the price for No. 381",
+        context_texts=noisy_history, targets=["381"])
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous"), outcome
+    assert (outcome.get("evidence") or []), (
+        "history-mined criteria must not eliminate the matched rows")

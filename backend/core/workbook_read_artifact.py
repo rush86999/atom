@@ -1818,11 +1818,29 @@ def inspect_workbook_bytes(
             if _pinned:
                 designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
+        # ELIMINATION vs RANKING (2026-10-01 live-e2e finding): criteria
+        # mined from HISTORY text ("note 3: filler turn…") once wiped
+        # EVERY designation — an item that matched 10 rows rendered 'no
+        # match in this copy' after a few off-topic turns. Text-mined
+        # criteria from history may RANK (corroboration below), but only
+        # criteria from THIS ask's own words — or explicit disambiguation
+        # containers — may eliminate; a query-only pass that matches
+        # nothing is treated as mining noise and keeps the designations.
         if designations and any(criteria.values()):
             constrained = [
                 item for item in designations
                 if _matches_disambiguation(item, criteria)
             ]
+            if not constrained:
+                _query_criteria = _disambiguation_criteria(
+                    query, [], disambiguation)
+                if any(_query_criteria.values()):
+                    constrained = [
+                        item for item in designations
+                        if _matches_disambiguation(item, _query_criteria)
+                    ]
+                else:
+                    constrained = list(designations)
             if constrained:
                 designations = constrained
             else:
@@ -2415,11 +2433,29 @@ def inspect_dataset_entries(
                 if str(e.get("sheet") or "").strip() in _sheet_scope]
             if _scoped:
                 designations = _scoped
+        # ELIMINATION vs RANKING (2026-10-01 live-e2e finding): criteria
+        # mined from HISTORY text ("note 3: filler turn…") once wiped
+        # EVERY designation — an item that matched 10 rows rendered 'no
+        # match in this copy' after a few off-topic turns. Text-mined
+        # criteria from history may RANK (corroboration below), but only
+        # criteria from THIS ask's own words — or explicit disambiguation
+        # containers — may eliminate; a query-only pass that matches
+        # nothing is treated as mining noise and keeps the designations.
         if designations and any(criteria.values()):
             constrained = [
                 item for item in designations
                 if _matches_disambiguation(item, criteria)
             ]
+            if not constrained:
+                _query_criteria = _disambiguation_criteria(
+                    query, [], disambiguation)
+                if any(_query_criteria.values()):
+                    constrained = [
+                        item for item in designations
+                        if _matches_disambiguation(item, _query_criteria)
+                    ]
+                else:
+                    constrained = list(designations)
             if constrained:
                 designations = constrained
             else:

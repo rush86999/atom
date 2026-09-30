@@ -4701,6 +4701,32 @@ class ChatOrchestrator:
                 from x-atom-* headers). May contain ``model``, ``tier``,
                 ``intent`` keys. Threaded through to the LLM call.
         """
+
+        # STANDING-PREFERENCE CAPTURE — THE UNIVERSAL SEAM (2026-10-01
+        # live-e2e finding): a taught preference ("always include the
+        # tennsmith sheet for roper whitney searches") must become a durable
+        # ledger fact on the turn that teaches it, whichever lane serves
+        # that turn — the teaching acknowledgment lane builds no turn
+        # decision, so decision-layer capture missed it and the lesson only
+        # applied while the teach turn sat inside the history window (then
+        # silently decayed). Every user message crosses HERE first.
+        try:
+            if session_id and re.search(
+                r"\b(?:always|whenever|each time|from now on|"
+                r"learn(?:ing)? to|going forward)\b",
+                message or "", re.IGNORECASE,
+            ):
+                from core import dialogue_state as _ds_cap
+                from core.turn_decision import _scope_constraints
+
+                for _pref in (_scope_constraints(message or "") or [])[:3]:
+                    _ds_cap.append_event(
+                        _ds_cap.PREFERENCE_SET, session_id,
+                        {"phrase": str(_pref), "standing": True,
+                         "taught_in": (message or "")[:200]})
+        except Exception:  # noqa: BLE001 — capture never breaks a turn
+            pass
+
         # INTERACTIVE CONTEXT (RCA 2026-09-22): every provider call on
         # this request's call stack — planner, canvas editor, reply
         # generation, cascades — is user-facing. The rate-budget reserve
@@ -5615,24 +5641,10 @@ class ChatOrchestrator:
                                  "origin": _tp_set0.get("origin")},
                                 workspace_id=(context or {}).get(
                                     "workspace_id"))
-                        _STANDING_RE = re.compile(
-                            r"\b(?:always|whenever|each time|from now on|"
-                            r"learn(?:ing)? to|going forward)\b",
-                            re.IGNORECASE)
-                        if _STANDING_RE.search(message or ""):
-                            for _pref in (_turn_scope_hints or []):
-                                _ds.append_event(
-                                    _ds.PREFERENCE_SET, session_id,
-                                    {"phrase": str(_pref),
-                                     "standing": True,
-                                     "taught_in": (message or "")[:200]},
-                                    workspace_id=(context or {}).get(
-                                        "workspace_id"))
-                            if _turn_scope_hints:
-                                logger.info(
-                                    "[dialogue-state] standing "
-                                    "preference captured: %r",
-                                    _turn_scope_hints)
+                        # (standing-preference capture moved to the
+                        # DECISION layer — build_turn_decision — so the
+                        # teaching lane captures too; see 2026-10-01
+                        # live-e2e finding in core/turn_decision.py)
                     except Exception as _ds_w_err:  # noqa: BLE001
                         logger.debug(
                             "dialogue-state writes skipped: %r", _ds_w_err)

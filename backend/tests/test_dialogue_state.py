@@ -183,16 +183,24 @@ class TestDurableFactsIntegration:
         assert "or _stored_requested_items(session)" in src
         assert "active_preference_phrases(" in src
 
-    def test_preference_capture_writes_this_turns_hints_only(self):
-        """The merge must not echo ledger prefs back as new events —
-        capture reads the pre-merge, turn-local hint list."""
+    def test_preference_capture_is_the_universal_seam(self):
+        """Capture must fire on EVERY lane (the teach turn routes to the
+        teaching acknowledgment lane, which builds no turn decision —
+        decision-layer capture missed it live). The single capture point
+        is the TOP of process_chat_message, which every user message
+        crosses before any lane split."""
         import inspect
 
         import integrations.chat_orchestrator as orch
 
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
-        assert "_turn_scope_hints = list(_td_scope_hints)" in src
-        assert "for _pref in (_turn_scope_hints or []):" in src
+        assert "PREFERENCE_SET" in src
+        assert "always|whenever|each time|from now on" in src
+        assert "_scope_constraints(message" in src
+        import core.turn_decision as td
+
+        td_src = inspect.getsource(td.build_turn_decision)
+        assert "PREFERENCE_SET" not in td_src
 
 
 # Step-2 completion: bindings + file identity as durable facts (2026-10-01)
