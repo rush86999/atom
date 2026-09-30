@@ -326,3 +326,36 @@ async def refers_to_resolved_file(
     )
     return await binary(
         "anaphoric_file_reference", question, file_name, llm_service)
+
+
+async def refers_to_prior_retrieval(
+    message: str,
+    llm_service: Any = None,
+) -> Optional[bool]:
+    """OBJECTIVE anaphora: does this message refer to lookup RESULTS from
+    EARLIER in the conversation (asking to show, re-run, check or refine
+    them), rather than asking for the file's/sheet's contents as such?
+
+    The deterministic floor is the retrieval-noun list in
+    ``chat_tool_planner`` ("searches", "results", "lookups", …); this
+    judges the residue ("pull up what you found before", "go again on
+    those") so behavior does not depend on a noun list staying current.
+    None keeps the floor's decision.
+
+    Backend note (repo research, 2026-09-29/30): this question KIND is
+    the one the local-decision readouts passed on the labeled gate set
+    (JevK5-9B 4/4 with margins; Qwen3.5-4B 4/4) — if an expansion
+    trigger fires, a local backend slots in behind this interface
+    without touching callers.
+    """
+    question = (
+        "Earlier in this conversation, a lookup was run and results were "
+        "shown. Does the following message refer to THOSE EARLIER "
+        "RESULTS — asking to show them again, re-run the search, check "
+        "them, or narrow them — rather than asking to list a file's or "
+        "sheet's contents in general?\n\nMessage: %s\n\nAnswer YES only "
+        "if the message clearly refers to the earlier lookup results." % (
+            (message or "")[:1500])
+    )
+    return await binary(
+        "anaphoric_prior_retrieval", question, "turn", llm_service)

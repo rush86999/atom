@@ -5471,6 +5471,16 @@ class ChatOrchestrator:
                     # asks; the producer still prefers the turn's own
                     # explicit items and never unions history.
                     _ask_task["requested_targets"] = _ask_active
+                    # RECOGNITION SEAM (2026-09-30): these items are
+                    # INHERITED, not asked for in this turn's own words —
+                    # the reader uses the flag to tell "re-run what I
+                    # asked before" (a reference) from "show me the
+                    # sheet" (a listing) when the turn itself carries no
+                    # item codes. One explicit decision at one gate
+                    # (chat_tool_planner's browse gate), instead of the
+                    # route silently depending on which carriers happen
+                    # to be populated.
+                    _ask_task["inherited_targets"] = True
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -8372,6 +8382,12 @@ class ChatOrchestrator:
                         "disambiguation": pending_task.get("disambiguation"),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # Whether the targets were inherited from the
+                        # conversation's objective (vs revised/own) —
+                        # consumed by the reader's reference-recognition
+                        # gate.
+                        "inherited_targets": bool(
+                            pending_task.get("inherited_targets")),
                         # Sheet-scope guidance from the turn decision (the
                         # user's standing/taught preference in their own
                         # words) — the read resolves these against the

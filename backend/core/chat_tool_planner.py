@@ -6285,29 +6285,71 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
-    # SHEET-SCOPE BROWSE (2026-09-30, 'show me the tennsmith sheet
-    # searches'): a message that names a SHEET and no item codes is a
-    # listing request for that sheet — empty item targets must not
-    # collapse to a footer-only answer. When the resolved sheet scope
-    # names exactly the sheets to browse, list their rows (capped) as
-    # the read.
-    # RETRIEVAL-REFERENCE CARVE-OUT (2026-09-30): "show me the tennsmith
-    # sheet SEARCHES" refers to THIS CONVERSATION's prior retrieval work,
-    # not to the sheet's contents — the noun ("searches/results/lookups/
-    # matches") is an anaphor for the stored objective. When such a noun
-    # is present, the turn is a scoped RE-RUN of the active items (they
-    # arrive as context requested_targets; if absent the re-run degrades
-    # to the listing below, which is still a better answer than a
-    # footer), never a row listing. A phrase with no retrieval noun
-    # ("show me the tennsmith sheet") is the genuine listing request.
+    # REFERENCE-RECOGNITION GATE (2026-09-30) — ONE decision point for
+    # "does this turn refer to the conversation's prior retrieval work,
+    # or does it ask for something of its own?". Research-grounded:
+    # conversation→standalone condensation before retrieval is the
+    # established lineage (InfoCQR, CONQRR, ConvSearch-R1; Apple's joint
+    # ellipsis+anaphora work), and the repo's own labeled gate set
+    # measured this question kind as the one local readouts pass
+    # (JevK5-9B 4/4, Qwen3.5-4B 4/4 — see RESEARCH_ollaya_jev.md). The
+    # recognition runs floor-first (deterministic retrieval-noun regex,
+    # free and auditable) with the cheap-NLU residue behind the same
+    # interface as every other refinement verdict — fail-closed to the
+    # floor when disabled, cached, breaker-open or errored.
+    #
+    # ROUTING TABLE for a turn that names a sheet and carries NO item
+    # codes of its own (own-items present → normal scoped read, as
+    # before):
+    #   reference recognized (floor regex or NLU residue)
+    #     → scoped RE-RUN of the active objective's items
+    #   no reference → the plain reading: a LISTING of the named sheet
+    #     (inherited targets do NOT silently redirect it — routing must
+    #     not depend on which carriers happen to be populated).
     _retrieval_reference = bool(_RETRIEVAL_REFERENCE_RE.search(
         " ".join(v for v in (query, msg_text) if v)))
     _context_targets = [
         str(v).strip() for v in
         ((context or {}).get("requested_targets") or [])
         if str(v).strip()]
-    if (not item_tokens and _scope_sheets
-            and not (_retrieval_reference and _context_targets)):
+    _own_item_tokens: List[str] = []
+    if _scope_sheets:
+        try:
+            # TURN-ONLY items: what THIS message asks for in its own
+            # words — not inherited targets, not history-mined mentions
+            # (an earlier turn's "381" must not masquerade as this
+            # turn's ask and silently turn a listing into a scan).
+            from core.workbook_read_artifact import extract_targets
+
+            _own_item_tokens = extract_targets(
+                query, [msg_text] if msg_text else [], [])
+        except Exception:  # noqa: BLE001 — own-item probe is advisory
+            _own_item_tokens = []
+        if (not _retrieval_reference and not _own_item_tokens
+                and (item_tokens or _context_targets)):
+            # Floor silent, nothing of the turn's own, and an objective
+            # EXISTS that the words could be referring to — this is
+            # exactly the residue ("pull up what you found on the
+            # tennsmith sheet") the noun list cannot anticipate. The
+            # verdict decides re-run vs listing; None keeps the floor
+            # (no noun → the plain listing reading).
+            try:
+                from core.llm.cheap_nlu import refers_to_prior_retrieval
+
+                _ref_verdict = await refers_to_prior_retrieval(
+                    " ".join(v for v in (query, msg_text) if v))
+                _retrieval_reference = _ref_verdict is True
+            except Exception as _ref_err:  # noqa: BLE001 — floor follows
+                logger.debug(
+                    "prior-retrieval residue judgment skipped: %r", _ref_err)
+    # Reference recognized but NOTHING to re-run (no stored objective)?
+    # The listing is the graceful degradation — a named sheet served
+    # beats an empty scan.
+    _browse_intent = bool(
+        _scope_sheets
+        and not _own_item_tokens
+        and (not _retrieval_reference or not item_tokens))
+    if _browse_intent:
         # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
         # searches' follow-up): the user asked to SEE a sheet with no
         # item codes. inspect_dataset_entries needs item targets and

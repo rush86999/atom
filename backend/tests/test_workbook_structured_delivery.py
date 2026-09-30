@@ -2089,3 +2089,58 @@ class TestDomainIndependence:
             requested_sheets_sources={"Breads": "standing"})
         out = ap.present_from_record(rec)["answer"]
         assert "Looking in: Breads — per your standing preference." in out
+
+
+# Objective-anaphora recognition (2026-09-30): floor-first (retrieval-noun
+# regex) with a cheap-NLU residue behind the same interface as every other
+# refinement verdict — fail-closed to the plain reading. Research-grounded:
+# conversation→standalone condensation (InfoCQR/CONQRR/ConvSearch-R1) + the
+# repo's measured readout gate (JevK5-9B 4/4, Qwen3.5-4B 4/4 on the
+# anaphoric kind — RESEARCH_ollaya_jev.md).
+
+class TestObjectiveAnaphoraRecognition:
+    def test_floor_regex_catches_the_noun_family(self):
+        import core.chat_tool_planner as planner
+
+        for yes in ("show me the tennsmith sheet searches",
+                    "check those results again on the roper sheet",
+                    "re-run the lookup for my parts",
+                    "the matches you found on the alpha sheet"):
+            assert planner._RETRIEVAL_REFERENCE_RE.search(yes), yes
+        for no in ("show me the tennsmith sheet",
+                   "list the roper sheet",
+                   "what is on the alpha tab"):
+            assert not planner._RETRIEVAL_REFERENCE_RE.search(no), no
+
+    @pytest.mark.asyncio
+    async def test_residue_verdict_is_binary_and_fail_closed(self):
+        import core.llm.cheap_nlu as cheap
+
+        # switch off (TESTING) -> None without any LLM demand
+        assert await cheap.refers_to_prior_retrieval(
+            "pull up what you found before") is None
+
+        for verdict in (True, False, None):
+            async def fake_binary(kind, question, subject,
+                                  llm_service=None, _v=verdict):
+                assert kind == "anaphoric_prior_retrieval"
+                # the question carries the message and stays
+                # domain/person-neutral
+                assert "pull up what you found" in question
+                return _v
+            with patch.object(cheap, "binary", fake_binary):
+                got = await cheap.refers_to_prior_retrieval(
+                    "pull up what you found before")
+            assert got is verdict
+
+    def test_inherited_targets_flag_rides_the_task(self):
+        """The orchestrator marks inherited targets so the reader's gate
+        can tell 're-run what I asked before' from a listing; the flag
+        is informational (the gate decides on recognized reference, not
+        on carrier shape)."""
+        import pathlib
+
+        src = pathlib.Path(
+            __import__("integrations.chat_orchestrator", fromlist=["x"])
+            .__file__).read_text()
+        assert '"inherited_targets": bool(' in src
