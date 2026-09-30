@@ -4284,6 +4284,25 @@ class BYOKHandler:
                             "interactive": True,
                         })
                         continue
+                    # KNOWN-UNSERVED ROUTES ARE NOT SURVIVORS (2026-09-30,
+                    # frozen trace structured-f2b2a1aa1bc2): the catalog
+                    # veto used to fire only in the cascade loop, AFTER
+                    # ranking — so doomed routes (10 catalog-stale + 15
+                    # unservable) got rate-headroom here, pass 0's survivor
+                    # pool never emptied, and the latency-relaxation pass
+                    # never ran while the ONLY dispatchable routes sat
+                    # latency-capped (dispatched: false, 25 examined). A
+                    # route discovery positively excludes is a doomed 400
+                    # for every path; it must not count as a survivor in
+                    # EITHER pass.
+                    if self._ranked_model_is_known_unserved(
+                            provider_id, model):
+                        ranking_skips.append({
+                            "route": f"{provider_id}/{model_id}",
+                            "reason": "catalog_not_in_provider",
+                            "stage": "ranking",
+                        })
+                        continue
                     model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
                     if model_headroom <= _reserve:
                         logger.info(

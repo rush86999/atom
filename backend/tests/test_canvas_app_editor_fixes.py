@@ -790,3 +790,5 @@ def test_learn_to_directive_is_a_teaching_cue_not_an_edit():
     assert _canvas_edit_shaped(
         "include the Tennsmith price row in the email draft",
         {"canvas": canvas}) is True
+
+
