@@ -16,6 +16,7 @@ from core.turn_decision import (
     AUTH_GRANTED,
     AUTH_NEEDS_CONFIRMATION,
     AUTH_NEEDS_GRANT,
+    _user_grounded_edit_instruction,
     build_turn_decision,
 )
 
@@ -100,23 +101,41 @@ def test_transition_retry_after_failure():
 
 
 def test_transition_accepted_proposal_edit():
-    """An explicit edit instruction is granted; a mere nomination is
-    not."""
+    """An explicit edit instruction is GRANTED on its own evidence; a mere
+    nomination is not. (This test previously asserted the verdict was one
+    of two values, which cannot fail — the incident replay showed 0 of 11
+    explicit edits in the real transcript were grantable.)"""
     d = build_turn_decision(
         EDIT, SESSION, session_id="s-dec", context={"canvas_id": "c-1"})
-    edit = next(a for a in d["requested_actions"]
-                if a["kind"] == "canvas_edit")
-    # no prior failed edit recorded -> this turn's own instruction is
-    # the grant evidence once it names the edit explicitly
-    assert edit["authorization"] in (AUTH_GRANTED, AUTH_NEEDS_GRANT)
+    edit = next(a for a in d["requested_actions"] if a["kind"] == "canvas_edit")
+    assert edit["authorization"] == AUTH_GRANTED, edit
+    assert edit["user_grounded_instruction"], (
+        "a granted edit must carry the user's own instruction, not a "
+        "shape hint: authorization from a hint is the 'research became an "
+        "edit' inversion")
     # a bare nomination without an explicit edit request stays ungated
     d2 = build_turn_decision(
         "the draft should mention the tennsmith sheet",
         SESSION, session_id="s-dec", context={"canvas_id": "c-1"})
-    if "canvas_edit" in _kinds(d2):
-        edit2 = next(a for a in d2["requested_actions"]
-                     if a["kind"] == "canvas_edit")
-        assert edit2["authorization"] == AUTH_NEEDS_GRANT
+    edit2 = next((a for a in d2["requested_actions"]
+                  if a["kind"] == "canvas_edit"), None)
+    if edit2 is not None:
+        assert edit2["authorization"] == AUTH_NEEDS_GRANT, edit2
+
+
+def test_learned_clause_never_grounds_an_edit():
+    """"learn to INCLUDE the tennsmith sheet" is a request to remember a
+    search rule, not to change a canvas. This is the general form of the
+    teaching veto that was hard-coded into the shared edit gate on
+    2026-09-30."""
+    assert _user_grounded_edit_instruction(
+        "repeat the search and learn to include tennsmith sheet for roper "
+        "whitney searches") == ""
+    assert _user_grounded_edit_instruction(
+        "make sure to update the price in the table") == ""
+    assert _user_grounded_edit_instruction(
+        "rebuild the draft now with all eight machines") != ""
+    assert _user_grounded_edit_instruction("tell me if the price changed") == ""
 
 
 def test_transition_formatting():

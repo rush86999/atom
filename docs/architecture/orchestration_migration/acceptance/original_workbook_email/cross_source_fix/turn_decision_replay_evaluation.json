@@ -1,0 +1,614 @@
+{
+  "session": "replay-retry2-20260923",
+  "metrics": {
+    "turns": 49,
+    "scored": 49,
+    "correct": 45,
+    "omitted": 4,
+    "unintended_edit": 0,
+    "mismatches": [
+      {
+        "at": "2026-09-29 17:43",
+        "msg": "try it",
+        "decision": [
+          "conversation"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [
+          "research"
+        ],
+        "unintended_edit": false
+      },
+      {
+        "at": "2026-09-29 21:39",
+        "msg": "try again",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [
+          "canvas_edit"
+        ],
+        "unintended_edit": false
+      },
+      {
+        "at": "2026-09-29 22:04",
+        "msg": "try again",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [
+          "canvas_edit"
+        ],
+        "unintended_edit": false
+      },
+      {
+        "at": "2026-09-29 23:34",
+        "msg": "try again",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [
+          "canvas_edit"
+        ],
+        "unintended_edit": false
+      }
+    ]
+  },
+  "table": [
+    {
+      "at": "2026-09-23 03:10",
+      "msg": "try again this task, consider chandrakant's email contents t",
+      "decision": [
+        "research",
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 03:17",
+      "msg": "rebuild the draft now with all eight machines \u2014 rows 1-4 kee",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 03:20",
+      "msg": "rebuild the draft now with all eight machines \u2014 rows 1-4 kee",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 03:26",
+      "msg": "rebuild the draft now with all eight machines \u2014 rows 1-4 kee",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 15:21",
+      "msg": "update with actual prices in the email. if unable, say so an",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 15:23",
+      "msg": "update the canvas",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 15:56",
+      "msg": "update the canvas with actual prices in the email. if unable",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 16:07",
+      "msg": "apply that priced draft to the canvas now - replace the TBD ",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 16:10",
+      "msg": "apply the priced table to the canvas now, using the figures ",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 16:16",
+      "msg": "apply the priced table to the canvas now, using the figures ",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 16:18",
+      "msg": "apply the priced table to the canvas now, using the figures ",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 16:21",
+      "msg": "rebuild the draft with all eight machines and the actual pri",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-23 23:45",
+      "msg": "find all these prices from price list 2019 and let me know w",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-23 23:49",
+      "msg": "Consolidated Price List 2019.xlsx is correct",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-24 21:10",
+      "msg": "try excel file search again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-24 21:12",
+      "msg": "go ahead",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-24 21:54",
+      "msg": "try excel file search again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-24 21:54",
+      "msg": "go ahead",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 10:22",
+      "msg": "try search again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 10:29",
+      "msg": "try search again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 10:36",
+      "msg": "try search again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:24",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:26",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:31",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:33",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:51",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:56",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 12:58",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 13:10",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 13:26",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 13:38",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 16:31",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 16:44",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-25 16:56",
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-26 10:36",
+      "msg": "try the search again and give me a clean response",
+      "decision": [
+        "research",
+        "presentation"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research",
+        "presentation"
+      ]
+    },
+    {
+      "at": "2026-09-29 15:02",
+      "msg": "try the search again and give me a clean response",
+      "decision": [
+        "research",
+        "presentation"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research",
+        "presentation"
+      ]
+    },
+    {
+      "at": "2026-09-29 15:05",
+      "msg": "check Chandrakant's email and or description in workbook to ",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-29 17:31",
+      "msg": "try my request again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-29 17:41",
+      "msg": "roper whitney and tennsmith are 2 brands under 1 ownership a",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-29 17:43",
+      "msg": "try it",
+      "decision": [
+        "conversation"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-29 21:03",
+      "msg": "try it again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research"
+      ]
+    },
+    {
+      "at": "2026-09-29 21:06",
+      "msg": "as you found the latest price for the roper 381 roll bender,",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 21:39",
+      "msg": "try again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 22:04",
+      "msg": "try again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 22:04",
+      "msg": "as you found the latest price for the roper 381 roll bender,",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 23:34",
+      "msg": "try again",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 23:34",
+      "msg": "as you found the latest price for the roper 381 roll bender,",
+      "decision": [
+        "canvas_edit"
+      ],
+      "actual": "planning",
+      "expected": [
+        "canvas_edit"
+      ]
+    },
+    {
+      "at": "2026-09-29 23:39",
+      "msg": "last search didn't reveal tennsmith sheet results that i men",
+      "decision": [
+        "research"
+      ],
+      "actual": "planning",
+      "expected": []
+    },
+    {
+      "at": "2026-09-30 02:28",
+      "msg": "repeat the search and learn to include tennsmith sheet for r",
+      "decision": [
+        "research",
+        "learning"
+      ],
+      "actual": "planning",
+      "expected": [
+        "research",
+        "learning"
+      ]
+    }
+  ]
+}
