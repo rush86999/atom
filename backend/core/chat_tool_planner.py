@@ -5711,9 +5711,9 @@ def _set_structured_result(plan: Any, record: Dict[str, Any]) -> None:
         meta["storage_read"] = storage
     storage["structured_result"] = record
 
-
 def _build_workbook_structured_record(
-    *, item_tokens: List[str],
+    *,
+    item_tokens: List[str],
     artifact_outcomes: Dict[str, Any],
     per_item: Dict[str, Any],
     field_requests: List[str],
@@ -5723,6 +5723,7 @@ def _build_workbook_structured_record(
     evidence_action: str,
     attempt_id: str,
     order_hint: Optional[str] = None,
+    requested_sheets: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Artifact-native record for one scan attempt (one attempt id even
     when the evidence revision is unchanged). Pure build — no retrieval,
@@ -5742,7 +5743,9 @@ def _build_workbook_structured_record(
         f"{prov.get('ingested_at') or '?'}"
     )
     targets = build_targets_from_scan(
-        resolved, artifact_outcomes or {}, per_item or {})
+        resolved, artifact_outcomes or {}, per_item or {},
+        requested_fields=field_requests or None,
+        requested_sheets=requested_sheets or None)
     return build_structured_record(
         source_identity={
             "file_name": file_name,
@@ -5760,6 +5763,7 @@ def _build_workbook_structured_record(
         evidence_action=evidence_action,
         requested_items=resolved,
         requested_fields=list(field_requests or ["price"]),
+        requested_sheets=list(requested_sheets or []),
         targets=targets,
         coverage=dict(coverage_limits or {}),
     )
@@ -6091,6 +6095,20 @@ async def _datasets_named_file_block(
         for entry in file_entries
         if str(entry.get("entity_name") or "").strip()
     })
+    # SHEET SCOPE THE READER ASSERTED (2026-09-30). Resolved against the
+    # sheets THIS file actually indexes, so a phrase naming no real sheet
+    # scopes nothing and the answer is unchanged. It reorders candidates so
+    # the named sheet's rows reach the visible window; it never filters, so
+    # no candidate can be eliminated by it (see
+    # `answer_presentation.resolve_requested_sheets` for why this is a
+    # ranking seam and not another `_disambiguation_criteria` door).
+    _scope_sheets: List[str] = []
+    try:
+        from core.answer_presentation import resolve_requested_sheets
+
+        _scope_sheets = resolve_requested_sheets(lookup_text, sheet_names)
+    except Exception as _scope_err:  # noqa: BLE001 — scope is optional
+        logger.debug("workbook sheet scope unresolved: %r", _scope_err)
     ingested_values = sorted(
         str(entry.get("ingested_at") or "") for entry in file_entries
         if entry.get("ingested_at")
@@ -6116,6 +6134,87 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # SHEET-SCOPE BROWSE (2026-09-30, 'show me the tennsmith sheet
+    # searches'): a message that names a SHEET and no item codes is a
+    # listing request for that sheet — empty item targets must not
+    # collapse to a footer-only answer. When the resolved sheet scope
+    # names exactly the sheets to browse, list their rows (capped) as
+    # the read.
+    if not item_tokens and _scope_sheets:
+        try:
+            from core.workbook_read_artifact import (
+                inspect_dataset_entries as _insp,
+                render_workbook_artifact as _render_art,
+            )
+
+            _scoped_entries = [
+                e for e in file_entries
+                if str(e.get("entity_name") or "").strip() in {
+                    s2.strip() for s2 in _scope_sheets}
+            ]
+            if _scoped_entries:
+                _wb = await asyncio.to_thread(
+                    _insp, _scoped_entries, names[key],
+                    query=query, context_texts=[], targets=[],
+                    attributes=[], requested_fields=[],
+                    provider=prov["source"],
+                    resource_id=prov["resource_id"],
+                    source_metadata=e0.get("source_metadata") or {},
+                    content_hash=prov["content_hash"],
+                    content_hash_algorithm="sha1",
+                    ingested_at=prov["ingested_at"],
+                )
+                _meta = getattr(plan, "_result_meta", None)
+                if _meta is None:
+                    _meta = {}
+                    plan._result_meta = _meta
+                _sr = _meta.setdefault("storage_read", {})
+                _sr.update({
+                    "file_name": names[key],
+                    "identity_verified": True,
+                    "completed": True,
+                    "coverage_complete": True,
+                    "structured_result": _wb,
+                    "rendered_answer": _render_art(_wb),
+                    "sheet_scope": _scope_sheets,
+                    "evidence_kind": "materialized_copy",
+                })
+                _e0 = file_entries[0]
+                _prov = {
+                    "source": prov["source"],
+                    "resource_id": prov["resource_id"],
+                    "content_hash": prov["content_hash"],
+                    "ingested_at": prov["ingested_at"],
+                    "source_modified_at": prov["source_modified_at"],
+                }
+                _rows_out = []
+                for e in _scoped_entries:
+                    import pandas as _pd
+
+                    _df = await asyncio.to_thread(pd.read_parquet,
+                                                  e.get("parquet_path"))
+                    _rowcol = ("__sheet_row" if "__sheet_row" in
+                               _df.columns else None)
+                    for _, _row in _df.head(12).iterrows():
+                        _cells = [
+                            f"{c}={_row[c]}" for c in _df.columns
+                            if c != _rowcol and str(_row[c]) not in
+                            ("", "nan", "None")
+                        ][:4]
+                        _rows_out.append(
+                            f"  {e.get('entity_name')}!R{int(_row[_rowcol]) if _rowcol else '?'}"
+                            f" — " + ", ".join(_cells))
+                _block_text = (
+                    "LIVE TOOL RESULTS (datasets.named-file, file='"
+                    + names[key]
+                    + "') — the request asked to see a SHEET; its rows "
+                    + "(up to 12 per sheet) follow:\n"
+                    + "\n".join(_rows_out)
+                    + "\n\n Present these rows as the sheet's content; "
+                    + "they are the materialized copy, not the live file.")
+                return _with_grounding(_block_text)
+        except Exception as _browse_err:  # noqa: BLE001 — browse is optional
+            logger.debug("sheet-scope browse failed: %r", _browse_err)
     # Did this turn REVISE the objective? When it did, `item_tokens` is the
     # revised set and therefore the requested ORDER, and the asking turn's
     # text must not re-sort it (see the `order_hint` argument below).
@@ -6408,6 +6507,7 @@ async def _datasets_named_file_block(
                 # the hint is dropped rather than allowed to override it.
                 order_hint=None if revised_targets else " ".join(
                     value for value in (query, msg_text) if value),
+                requested_sheets=_scope_sheets,
             ),
         )
     except Exception as _sr_err:  # noqa: BLE001 — structured record optional
@@ -6434,8 +6534,9 @@ async def _datasets_named_file_block(
                          item: ("matched" if rec else "miss")
                          for item, rec in list(per_item.items())[:20]
                      },
-                     "matched_sheets": list(sheet_names or [])[:8],
-                     "probe_failed": bool(probe_failed),
+                      "matched_sheets": list(sheet_names or [])[:8],
+                      "requested_sheets": list(_scope_sheets or []),
+                      "probe_failed": bool(probe_failed),
                  },
                  **_scan_ctx)
     coverage_note = (
