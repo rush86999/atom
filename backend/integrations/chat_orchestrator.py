@@ -8734,18 +8734,41 @@ class ChatOrchestrator:
             )
 
             uis = UniversalIntegrationService()
+            # CALLER-PINNED IDENTITY (2026-09-30): the refresh addresses
+            # the conversation's OWN resolved resource — file_id plus
+            # its known name and verified flag, so the read action never
+            # re-derives the target by name (the 2026-09-30 incident:
+            # the refresh was refused as an 'unverified candidate' on
+            # its own resource id and reported a bogus 'read failed').
             fetch = await asyncio.wait_for(
                 uis.execute(
                     service, "read",
-                    {"file_id": resource_id, "query":
-                     str(pending_task.get("original_message") or "")[:200]},
+                    {"file_id": resource_id,
+                     "file_name": (pending_task.get("resolved_file")
+                                   or {}).get("file_name"),
+                     "identity_verified": True,
+                     "query": str(
+                         pending_task.get("original_message")
+                         or "")[:200]},
                     {"user_id": user_id or "",
                      "workspace_id": workspace_id},
                 ),
                 timeout=fetch_timeout,
             )
-            fetch_ok = isinstance(fetch, dict) and fetch.get("status") == \
-                "success"
+            # TRUTHFUL FETCH VERDICT (2026-09-30): the storage read
+            # returns status "success" for refusals too (found=False,
+            # served=False, reason inside data.message) — treating the
+            # top-level status as the fetch outcome is how a refused
+            # lookup became a nameless "read failed". Served content is
+            # the only success; the refusal's own message is the error.
+            fetch_data = (fetch or {}).get("data") if isinstance(
+                fetch, dict) else None
+            fetch_ok = (
+                isinstance(fetch, dict)
+                and fetch.get("status") == "success"
+                and bool(
+                    (fetch_data or {}).get("found")
+                    or (fetch_data or {}).get("served")))
         except Exception as exc:
             fetch_ok = False
             fetch = None
@@ -8753,9 +8776,14 @@ class ChatOrchestrator:
         else:
             fetch_error = ""
             if not fetch_ok:
+                _fd = (fetch or {}).get("data") or {}
                 fetch_error = str(
                     (fetch or {}).get("message")
-                    or (fetch or {}).get("error") or "read failed")[:160]
+                    or (fetch_data or {}).get("message")
+                    or _fd.get("message")
+                    or (fetch or {}).get("error")
+                    or _fd.get("error")
+                    or "read failed")[:160]
         if not fetch_ok:
             return _verdict(
                 "refresh_failed",
