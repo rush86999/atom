@@ -3088,6 +3088,53 @@ async def _resolve_anaphoric_file_mention(
     t = (message or "").strip()
     if not t or "?" in t:
         return ""
+    # CROSS-SOURCE REQUESTS NEVER RESOLVE HERE (2026-09-29 incident +
+    # 2026-09-30 regression): "check <person>'s email and the workbook
+    # descriptions" names a communication source AND a workbook — its
+    # job is supersession + normal planning, never a deterministic
+    # workbook read. This guard must precede BOTH the inheritance and
+    # the generic-ref floor ("in workbook" alone would otherwise
+    # resolve it).
+    if re.search(
+        r"\b(?:e-?mails?|mails?|inbox|threads?|dms?|chats?|"
+        r"messages?|texts?|calendar|tickets?)\b", t, re.IGNORECASE):
+        return ""
+    resolved_name = ""
+    # RERUN-INHERITANCE (2026-09-30 gap fix): a rerun-shaped message
+    # ("repeat the search … include tennsmith sheet for roper whitney
+    # searches") that EXTENDS the stored objective pops it into the
+    # stash — the search-scope guidance is new work on the SAME file,
+    # not a new file task. With no file mention of its own, the message
+    # fell to narration. A rerun naming file vocabulary with a
+    # communication-source object excluded inherits the stash's
+    # spreadsheet identity: the read re-runs deterministically, scoped
+    # by the new constraint.
+    try:
+        from core.pending_file_task import is_rerun_request
+
+        if (
+            resolved_name == ""
+            and is_rerun_request(t)
+            and re.search(r"\b(?:workbooks?|spreadsheets?|excel|sheets?|"
+                          r"files?|filename|price\s+lists?)\b", t,
+                          re.IGNORECASE)
+        ):
+            for carrier in ((session or {}).get("_pending_file_task"),
+                            (session or {}).get(
+                                "_superseded_file_task_context")):
+                ident = (carrier or {}).get("resolved_file") if isinstance(
+                    carrier, dict) else None
+                nm = str((ident or {}).get("file_name") or "").strip()
+                if nm:
+                    from core.agent_file_context import (
+                        SPREADSHEET_EXTENSIONS,
+                    )
+
+                    if nm.rsplit(".", 1)[-1].lower() in (
+                            SPREADSHEET_EXTENSIONS):
+                        return nm.lower()
+    except Exception:  # noqa: BLE001 — inheritance is best-effort
+        pass
     try:
         from core.pending_file_task import is_filename_confirmation
 
@@ -3095,22 +3142,24 @@ async def _resolve_anaphoric_file_mention(
             return ""
     except Exception:  # noqa: BLE001 — fail toward normal planning
         return ""
-    resolved_name = ""
-    for carrier in ((session or {}).get("_pending_file_task"),
-                    (session or {}).get("_superseded_file_task_context")):
-        identity = (carrier or {}).get("resolved_file") if isinstance(
-            carrier, dict) else None
-        name = str((identity or {}).get("file_name") or "").strip()
-        if not name:
-            continue
-        try:
-            from core.agent_file_context import SPREADSHEET_EXTENSIONS
+    if resolved_name == "":
+        for carrier in ((session or {}).get("_pending_file_task"),
+                        (session or {}).get(
+                            "_superseded_file_task_context")):
+            identity = (carrier or {}).get("resolved_file") if isinstance(
+                carrier, dict) else None
+            name = str((identity or {}).get("file_name") or "").strip()
+            if not name:
+                continue
+            try:
+                from core.agent_file_context import SPREADSHEET_EXTENSIONS
 
-            if name.rsplit(".", 1)[-1].lower() in SPREADSHEET_EXTENSIONS:
-                resolved_name = name
+                if name.rsplit(".", 1)[-1].lower() in (
+                        SPREADSHEET_EXTENSIONS):
+                    resolved_name = name
+                    break
+            except Exception:  # noqa: BLE001 — belt-only
                 break
-        except Exception:  # noqa: BLE001 — belt-only
-            break
     if not resolved_name:
         return ""
     # Deterministic floor: generic file nouns resolve outright.

@@ -1084,3 +1084,61 @@ class TestFailedEditRetryIntent:
                 out = chat_mod._failed_edit_retry_target(
                     "sess-1", "try again", [])
             assert out is None, (outcome, out)
+
+
+# ---------------------------------------------------------------------------
+# 9. RERUN-INHERITANCE (2026-09-30 gap fix): "repeat the search and
+#    learn to include tennsmith sheet for roper whitney searches" — the
+#    sentence is rerun-shaped, EXTENDS the stored objective (supersession
+#    pops the task), and names no spreadsheet file, so it fell to
+#    narration. The research lane must inherit the superseded objective's
+#    file identity: a rerun-shaped message naming file vocabulary, with
+#    no file mention of its own and no communication-source object,
+#    resolves to the stash's spreadsheet identity.
+# ---------------------------------------------------------------------------
+
+class TestRerunInheritance:
+    def test_exact_gap_sentence_resolves_to_stashed_identity(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "repeat the search and learn to include tennsmith sheet for "
+            "roper whitney searches", _session_with_stash()))
+        assert resolved == STORED_MENTION, resolved
+
+    def test_rerun_without_file_vocabulary_does_not_inherit(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        for msg in ("check the email thread again",
+                    "try the inbox search once more"):
+            resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+                msg, _session_with_stash()))
+            assert resolved == "", msg
+
+    def test_message_with_own_mention_not_overridden(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        # the anaphoric floor declines (no generic ref); own file
+        # mentions are handled by the mention detector upstream, and the
+        # inheritance must not fire when the message names a DIFFERENT
+        # file outright
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "repeat the search in vendor_catalog.xlsx", _session_with_stash()))
+        assert resolved == "", (
+            "an explicit different-file mention is the mention detector's "
+            "call, not inheritance")
+
+    def test_no_stash_no_inheritance(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "repeat the search in the workbook", {"history": []}))
+        assert resolved == ""
