@@ -15753,6 +15753,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"ChatSession row backfill skipped for {session_id}: {e}")
 
     def _update_session(self, session: Dict, message: str, response, intent: Dict):
+        # TURN-DECISION SHADOW (2026-09-30 consolidation, directive
+        # step 2): one structured decision per turn, composed from the
+        # same gates that routed it — recorded for evaluation; NOTHING
+        # routes by it yet. Computed BEFORE serialization so the durable
+        # row carries it.
+        _shadow_decision = None
+        try:
+            from core.turn_decision import build_turn_decision
+
+            _shadow_decision = build_turn_decision(
+                message, session,
+                (session.get("history") or [])[-8:],
+                {"canvas_id": (response or {}).get("data", {}).get(
+                    "canvas_edit", {}).get("canvas_id")} if isinstance(
+                    response, dict) else {},
+                session_id=str(session.get("id") or ""),
+                reasoning_available=None)
+        except Exception as _td_err:  # noqa: BLE001 — shadow only
+            logger.debug("turn-decision shadow skipped: %r", _td_err)
+        if _shadow_decision is not None:
+            session["_last_turn_decision"] = _shadow_decision
         # Error-turn detection: a reply that is a known failure artifact (no
         # provider, cancelled, budget-halted, protocol residue) must never
         # enter the model's context later — in a long session they stack into
@@ -15949,6 +15970,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _msg_meta["_pending_file_task"] = session.get(
                                 "_pending_file_task"
                             )
+                            if _shadow_decision is not None:
+                                _msg_meta["turn_decision"] = (
+                                    _shadow_decision)
                             db.add(ChatMessageModel(
                                 id=_asst_msg_id,
                                 conversation_id=session_id,
@@ -15962,24 +15986,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             pass
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
-
-        # TURN-DECISION SHADOW (2026-09-30 consolidation, directive
-        # step 2): one structured decision per turn, composed from the
-        # same gates that routed it — recorded for evaluation; NOTHING
-        # routes by it yet. Written to the in-memory session projection
-        # (durable carriage follows in step 4 when routing migrates).
-        try:
-            from core.turn_decision import build_turn_decision
-
-            _shadow_decision = build_turn_decision(
-                message, session, history or [], context or {},
-                session_id=session_id, reasoning_available=None,
-                routed_lane=_shadow_lane_of(_msg_meta, response))
-            if isinstance(_msg_meta, dict):
-                _msg_meta["turn_decision"] = _shadow_decision
-            session["_last_turn_decision"] = _shadow_decision
-        except Exception as _td_err:  # noqa: BLE001 — shadow only
-            logger.debug("turn-decision shadow skipped: %r", _td_err)
 
         try:
             if self.session_manager and session.get("id"):
