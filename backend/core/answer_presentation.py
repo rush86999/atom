@@ -401,8 +401,26 @@ def _render_target(t: Dict[str, Any], item: str, *,
                 parts.append(f"{c.get('ref', '?')}{idnote} ({shown})")
             else:
                 parts.append(f"{c.get('ref', '?')}{idnote}")
+        # CANDIDATE-CAP FAIRNESS (2026-09-29): only the first three
+        # candidates render; if more rows matched — possibly on OTHER
+        # sheets the user explicitly cares about — say so, with the
+        # sheets that hold them. Hiding surplus matches made a user who
+        # had been promised a Tennsmith-sheet row read a candidate list
+        # that looked exhaustive but was not (live: Tennsmith!R338 was in
+        # the evidence, behind three alphabetically-earlier RoperWhitney
+        # rows and the cap).
+        extra = candidates[3:]
+        tail = ""
+        if extra:
+            other_sheets: List[str] = []
+            for c in extra:
+                sheet = str((c.get("ref") or "").split("!", 1)[0] or "").strip()
+                if sheet and sheet not in other_sheets:
+                    other_sheets.append(sheet)
+            sheet_note = f" on {', '.join(other_sheets)}" if other_sheets else ""
+            tail = f"; +{len(extra)} more match(es){sheet_note}"
         line = (f"- **{item}**{alias_note} - several rows match "
-                f"({'; '.join(parts)}); "
+                f"({'; '.join(parts)}{tail}); "
                 f"which one is yours needs your confirmation")
         return line
     cand = candidates[0] if candidates else {}

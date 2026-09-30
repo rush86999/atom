@@ -678,3 +678,36 @@ def test_observed_false_success_sentence_is_caught_by_the_receipt_gate():
     assert reply_claims_canvas_change(
         "Hi Steve,\n\nThank you for your inquiry. Please find our updated "
         "quote below for the requested equipment:")
+
+
+def test_ambiguous_render_names_sheets_holding_surplus_candidates():
+    """Live 2026-09-29: No. 381 matched 10 rows; the renderer showed the
+    first three (all RoperWhitney) and the user read the list as
+    exhaustive — 'the search didn't reveal the Tennsmith sheet results'.
+    When candidates exceed the display cap, the surplus count and the
+    sheets holding them must be stated (generic; no business terms)."""
+    from core.answer_presentation import _render_target
+
+    def cand(ref):
+        return {"ref": ref, "identity": {"status": "bound",
+                                         "references": []},
+                "values": [{"col": "E", "basis": "PRICE", "display": "1"}]}
+    target = {
+        "item": "No. 381", "aliases": [],
+        "identity": {"status": "multiple",
+                     "candidates": [cand(f"RoperWhitney!R88"),
+                                    cand("RoperWhitney!R89"),
+                                    cand("RoperWhitney!R90"),
+                                    cand("Tennsmith!R338")]},
+        "field": {"status": "present",
+                  "values": [{"col": "E", "basis": "PRICE",
+                              "display": "1"}]},
+    }
+    line = _render_target(target, "No. 381")
+    assert "Tennsmith" in line, line
+    assert "+1 more match" in line, line
+    # cap not exceeded -> no surplus note
+    target["identity"]["candidates"] = target["identity"][
+        "candidates"][:2]
+    line2 = _render_target(target, "No. 381")
+    assert "more match" not in line2
