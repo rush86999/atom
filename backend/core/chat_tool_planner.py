@@ -6191,7 +6191,7 @@ async def _datasets_named_file_block(
                 for e in _scoped_entries:
                     import pandas as _pd
 
-                    _df = await asyncio.to_thread(pd.read_parquet,
+                    _df = await asyncio.to_thread(_pd.read_parquet,
                                                   e.get("parquet_path"))
                     _rowcol = ("__sheet_row" if "__sheet_row" in
                                _df.columns else None)
