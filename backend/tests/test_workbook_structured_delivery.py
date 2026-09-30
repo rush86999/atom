@@ -1350,3 +1350,512 @@ class TestMergedCellsAndVariants:
         assert len(rec["targets"][0]["identity"]["candidates"]) == 1
         cols = sorted(v["col"] for v in cand["values"])
         assert cols == ["C88", "D88"]
+
+
+class TestValueBearingCandidatePrecedence:
+    """A candidate that can ANSWER the request must not be truncated away.
+
+    Live 2026-09-29 (session replay-retry2-20260923): the same "try again"
+    read of the same workbook rendered two different answers minutes apart —
+    22:04 showed the priced row (Tennsmith!R338, PRICE 3,254), 23:34 showed
+    only three RoperWhitney rows whose price cells are blank/0 and buried the
+    priced row entirely. The candidate list is built in SCAN order and dataset
+    entries are ordered by entity_name ASC, so which rows survive the
+    presenter's `candidates[:3]` window is decided by alphabetical SHEET NAME
+    rather than by whether a row carries the requested value. Fixtures are
+    domain-independent: "Atlas"/"Borealis" stand in for the two brands.
+    """
+
+    @staticmethod
+    def _outcomes():
+        blank_row = [
+            _ev("Atlas", 88, "A88", [_v("E88", "", "PRICE"),
+                                     _v("M88", "", "LIST")]),
+            _ev("Atlas", 89, "A89", [_v("E89", "", "PRICE")]),
+            _ev("Atlas", 90, "A90", [_v("E90", "", "PRICE")]),
+            _ev("Atlas", 91, "A91", [_v("E91", "", "PRICE")]),
+        ]
+        priced_row = [
+            _ev("Borealis", 40, "A40", [_v("E40", "3254", "PRICE"),
+                                        _v("M40", "1845", "LIST")]),
+        ]
+        return {"381": {"target": "381", "status": "ambiguous",
+                        "evidence": blank_row + priced_row}}
+
+    def test_value_bearing_candidate_precedes_valueless_ones(self):
+        targets = ap.build_targets_from_scan(["381"], self._outcomes(), {})
+        cands = targets[0]["identity"]["candidates"]
+        assert cands[0]["ref"] == "Borealis!R40", (
+            "the only candidate carrying the requested value must lead; got "
+            f"{[c['ref'] for c in cands]}")
+
+    def test_value_bearing_candidate_survives_the_render_window(self):
+        targets = ap.build_targets_from_scan(["381"], self._outcomes(), {})
+        cands = targets[0]["identity"]["candidates"]
+        window = cands[:ap.AMBIGUOUS_CANDIDATE_WINDOW]
+        assert "Borealis!R40" in [c["ref"] for c in window], (
+            "a priced row must never be truncated out of view by valueless "
+            "rows that happen to sort first")
+
+    def test_no_candidate_is_dropped(self):
+        """Precedence REORDERS; it never eliminates a candidate."""
+        targets = ap.build_targets_from_scan(["381"], self._outcomes(), {})
+        refs = {c["ref"] for c in targets[0]["identity"]["candidates"]}
+        assert refs == {"Atlas!R88", "Atlas!R89", "Atlas!R90", "Atlas!R91",
+                        "Borealis!R40"}
+
+    def test_all_valueless_candidates_keep_scan_order(self):
+        """With no value-bearing candidate the order is untouched."""
+        outcomes = {"381": {"target": "381", "status": "ambiguous", "evidence": [
+            _ev("Atlas", 88, "A88", [_v("E88", "", "PRICE")]),
+            _ev("Borealis", 40, "A40", [_v("E40", "", "PRICE")]),
+            _ev("Atlas", 91, "A91", [_v("E91", "", "PRICE")]),
+        ]}}
+        targets = ap.build_targets_from_scan(["381"], outcomes, {})
+        refs = [c["ref"] for c in targets[0]["identity"]["candidates"]]
+        assert refs == ["Atlas!R88", "Borealis!R40", "Atlas!R91"]
+
+    def test_zero_is_not_a_value(self):
+        """A 0/blank price column cannot answer; it must not outrank a real
+        figure (the live RoperWhitney rows carried PRICE blank, COST 0)."""
+        outcomes = {"381": {"target": "381", "status": "ambiguous", "evidence": [
+            _ev("Atlas", 88, "A88", [_v("E88", "0", "PRICE")]),
+            _ev("Borealis", 40, "A40", [_v("E40", "3254", "PRICE")]),
+        ]}}
+        targets = ap.build_targets_from_scan(["381"], outcomes, {})
+        refs = [c["ref"] for c in targets[0]["identity"]["candidates"]]
+        assert refs[0] == "Borealis!R40"
+
+
+# ---------------------------------------------------------------------------
+# SHEET SCOPE (2026-09-30) — the reader naming a sheet is part of the request.
+#
+# Incident: "show me the tennsmith sheet searches" was answered with a
+# byte-identical copy of the previous turn's sentence. Two independent causes,
+# pinned separately below:
+#   (a) ROUTING — the follow-up named a sheet of the conversation's own
+#       spreadsheet but carried no preposition, so no file identity resolved
+#       and the turn fell to narration, which re-served the prior answer.
+#   (b) PRESENTATION — even with a correct re-read, the visible window was a
+#       positional prefix of an alphabetically-ordered candidate list, so the
+#       alphabetically-first sheet consumed every slot and the named sheet's
+#       rows were unreachable.
+#
+# Fixtures are domain-free, per this module's rule: sheet names carry no real
+# product identity and the logic keys on position and reference shape only.
+# ---------------------------------------------------------------------------
+
+_TWO_SHEET_OUTCOMES = None
+
+
+def _two_sheet_outcomes():
+    """5 rows on 'AlphaWorks' (alphabetically first) and 5 on 'BetaParts'."""
+    global _TWO_SHEET_OUTCOMES
+    if _TWO_SHEET_OUTCOMES is None:
+        evidence = []
+        for sheet, base in (("AlphaWorks", 200), ("BetaParts", 300)):
+            for offset in range(5):
+                row = base + offset
+                evidence.append(_ev(
+                    sheet, row, f"A{row}",
+                    [_v(f"E{row}", str(100 + row), "PRICE")]))
+        _TWO_SHEET_OUTCOMES = {
+            "M-1": {"target": "M-1", "status": "ambiguous",
+                    "evidence": evidence}}
+    return _TWO_SHEET_OUTCOMES
+
+
+_SHEETS = ["AlphaWorks", "BetaParts"]
+
+
+class TestResolveRequestedSheets:
+    """The scope is RESOLVED against real sheets, never extracted as a name."""
+
+    def test_names_a_sheet_the_request_references(self):
+        assert ap.resolve_requested_sheets(
+            "show me the betaparts sheet", _SHEETS) == ["BetaParts"]
+
+    def test_resolves_a_shortened_name(self):
+        # Readers abbreviate; the workbook concatenates. Containment both
+        # ways is what makes either habit resolve.
+        assert ap.resolve_requested_sheets(
+            "check the northwind sheet", ["AlphaWorks", "NorthwindParts"]
+        ) == ["NorthwindParts"]
+
+    def test_a_qualifier_below_the_floor_resolves_to_nothing(self):
+        # The floor (mirroring the sheet-anchoring rule already used to match
+        # a query token to a sheet name) is applied to the SHORTER side, so a
+        # four-letter fragment cannot scope the turn by matching one common
+        # letter of some other sheet's name.
+        assert ap._SHEET_SCOPE_MIN_CHARS == 5
+        assert ap.resolve_requested_sheets(
+            "check the beta sheet", _SHEETS) == []
+
+    def test_resolves_a_loosely_spelled_name(self):
+        assert ap.resolve_requested_sheets(
+            "check the beta parts sheet", _SHEETS) == ["BetaParts"]
+
+    def test_resolves_a_prepositional_reference(self):
+        assert ap.resolve_requested_sheets(
+            "show me what's on the AlphaWorks tab", _SHEETS) == ["AlphaWorks"]
+
+    def test_a_name_matching_no_sheet_resolves_to_nothing(self):
+        # The load-bearing negative: a wrong scope can hide a match, so a
+        # phrase that names no real sheet must scope nothing at all.
+        assert ap.resolve_requested_sheets(
+            "show me the GammaParts sheet", _SHEETS) == []
+
+    def test_an_unqualified_reference_resolves_to_nothing(self):
+        # "the sheet" names no sheet; it must not sweep in every sheet.
+        for phrase in ("show me the sheet", "list each sheet",
+                       "use the same sheet", "check the other sheet"):
+            assert ap.resolve_requested_sheets(phrase, _SHEETS) == [], phrase
+
+    def test_a_workbook_level_ask_resolves_to_no_sheet(self):
+        assert ap.resolve_requested_sheets(
+            "price for M-1 in the workbook", _SHEETS) == []
+        assert ap.resolve_requested_sheets(
+            "price for M-1 in the spreadsheet", _SHEETS) == []
+
+    def test_a_short_qualifier_does_not_match(self):
+        # Below the floor, containment would match on a single common letter
+        # and scope the turn to whatever happened to contain it.
+        assert ap.resolve_requested_sheets(
+            "the a sheet", ["Zebra"]) == []
+
+    def test_no_known_sheets_resolves_to_nothing(self):
+        assert ap.resolve_requested_sheets(
+            "show me the BetaParts sheet", []) == []
+
+    def test_two_referenced_sheets_are_both_kept_in_request_order(self):
+        # Request order, not sheet order: the reader listed the second sheet
+        # first, so that is the order the scope is recorded in.
+        assert ap.resolve_requested_sheets(
+            "compare the BetaParts sheet and the AlphaWorks sheet", _SHEETS
+        ) == ["BetaParts", "AlphaWorks"]
+
+
+class TestSheetScopeReordersTheVisibleWindow:
+    """(b) the named sheet's rows must REACH the window — by reordering."""
+
+    def _refs(self, **kw):
+        targets = ap.build_targets_from_scan(
+            ["M-1"], _two_sheet_outcomes(), {}, **kw)
+        return [c["ref"] for c in targets[0]["identity"]["candidates"]]
+
+    def test_without_a_scope_the_window_is_the_scan_order_prefix(self):
+        # Pins the pre-existing behavior so the scope's effect is attributable
+        # to the scope alone and not to a silent change of baseline.
+        refs = self._refs()
+        assert refs[:3] == ["AlphaWorks!R200", "AlphaWorks!R201",
+                            "AlphaWorks!R202"]
+
+    def test_the_requested_sheet_leads_the_window(self):
+        refs = self._refs(requested_sheets=["BetaParts"])
+        assert refs[0] == "BetaParts!R300", refs
+        window = refs[:ap.AMBIGUOUS_CANDIDATE_WINDOW]
+        assert window == ["BetaParts!R300", "BetaParts!R301",
+                          "BetaParts!R302"], window
+
+    def test_the_requested_sheet_reaches_the_window_not_just_the_list(self):
+        # The list order alone is not the fix; the point is that the row is
+        # inside the window the renderer actually prints.
+        targets = ap.build_targets_from_scan(
+            ["M-1"], _two_sheet_outcomes(), {},
+            requested_sheets=["BetaParts"])
+        refs = [c["ref"] for c in targets[0]["identity"]["candidates"]]
+        assert "BetaParts!R300" in refs[:ap.AMBIGUOUS_CANDIDATE_WINDOW]
+
+    def test_scope_reorders_and_never_eliminates(self):
+        scoped = set(self._refs(requested_sheets=["BetaParts"]))
+        unscoped = set(self._refs())
+        assert scoped == unscoped, "scope must reorder, never drop a candidate"
+
+    def test_ambiguity_survives_the_scope(self):
+        # A sheet the reader named proves nothing about which row is theirs,
+        # so the confirmation ask must remain.
+        targets = ap.build_targets_from_scan(
+            ["M-1"], _two_sheet_outcomes(), {},
+            requested_sheets=["BetaParts"])
+        assert targets[0]["identity"]["status"] == "multiple"
+
+    def test_answerability_outranks_the_scope(self):
+        # Axis order is deliberate: a row that can REPLY beats a row the
+        # reader merely asked to see. Here the scoped sheet's row is
+        # valueless and the other sheet's row carries the figure, so the
+        # figure must lead even though the scope asked for the other.
+        priced = {"M-1": {"target": "M-1", "status": "ambiguous",
+                          "evidence": [
+                              _ev("AlphaWorks", 201, "A201",
+                                  [_v("E201", "3254", "PRICE")]),
+                              _ev("BetaParts", 300, "A300",
+                                  [_v("E300", "", "PRICE")]),
+                          ]}}
+        refs = [c["ref"] for c in ap.build_targets_from_scan(
+            ["M-1"], priced, {},
+            requested_sheets=["BetaParts"])[0]["identity"]["candidates"]]
+        assert refs[0] == "AlphaWorks!R201", refs
+
+    def test_an_unresolvable_scope_changes_nothing(self):
+        assert (self._refs(requested_sheets=["NoSuchSheet"])
+                == self._refs())
+
+
+class TestSurplusIsReportedPerSheet:
+    """The tail must say WHERE the hidden rows are, and how many."""
+
+    def _answer(self, **kw):
+        targets = ap.build_targets_from_scan(
+            ["M-1"], _two_sheet_outcomes(), {}, **kw)
+        return ap.present(
+            requested_items=["M-1"], requested_fields=["price"],
+            source={"file_name": "wb.xlsx", "coverage": {
+                "indexed_sheets": 2, "scanned_entries": 2}},
+            targets=targets)["answer"]
+
+    def test_surplus_carries_a_count_per_sheet(self):
+        answer = self._answer()
+        assert "+7 more match(es) (AlphaWorks 2, BetaParts 5)" in answer, answer
+
+    def test_the_named_sheets_rows_are_printed_with_their_values(self):
+        answer = self._answer(requested_sheets=["BetaParts"])
+        assert "BetaParts!R300" in answer
+        assert "E300 'PRICE' 400" in answer, answer
+
+    def test_counts_sum_to_the_reported_surplus(self):
+        # A breakdown the reader cannot add up is worse than no breakdown.
+        import re as _re
+        answer = self._answer()
+        m = _re.search(r"\+(\d+) more match\(es\) \(([^)]*)\)", answer)
+        assert m, answer
+        total = int(m.group(1))
+        parts = [int(entry.rsplit(" ", 1)[1])
+                 for entry in m.group(2).split(", ")]
+        assert sum(parts) == total, answer
+
+    def test_no_surplus_renders_no_tail(self):
+        outcomes = {"M-1": {"target": "M-1", "status": "found",
+                            "evidence": [_ev("AlphaWorks", 200, "A200",
+                                             [_v("E200", "7", "PRICE")])]}}
+        targets = ap.build_targets_from_scan(["M-1"], outcomes, {})
+        answer = ap.present(
+            requested_items=["M-1"], requested_fields=["price"],
+            source={"file_name": "wb.xlsx"}, targets=targets)["answer"]
+        assert "more match" not in answer
+
+
+class TestEmptyScopeIsNeverSilentlyBroadened:
+    """A named sheet with no matching row must be STATED, not passed over.
+
+    The scope reorders and never filters, which is what keeps an "include
+    the Tennsmith sheet" ask from hiding the RoperWhitney rows the same
+    reader also wants. But reordering alone is not enough: if the sheet that
+    was asked for happens to hold nothing, the answer would otherwise lead
+    with rows from other sheets and never acknowledge the sheet — a silent
+    substitution the reader cannot distinguish from an answer.
+    """
+
+    def _answer(self, outcomes, sheets, **kw):
+        targets = ap.build_targets_from_scan(
+            ["M-1"], outcomes, {}, requested_sheets=sheets, **kw)
+        return ap.present(
+            requested_items=["M-1"], requested_fields=["price"],
+            source={"file_name": "wb.xlsx"},
+            targets=targets, requested_sheets=sheets)["answer"]
+
+    def test_an_empty_scope_is_named(self):
+        answer = self._answer(_two_sheet_outcomes(), ["GammaParts"])
+        assert "no matching row on the 'GammaParts' sheet" in answer, answer
+
+    def test_the_clause_says_the_rows_shown_are_from_elsewhere(self):
+        answer = self._answer(_two_sheet_outcomes(), ["GammaParts"])
+        assert "the 10 rows shown are on other sheets" in answer, answer
+
+    def test_no_clause_when_the_named_sheet_does_hold_a_row(self):
+        answer = self._answer(_two_sheet_outcomes(), ["BetaParts"])
+        assert "no matching row on" not in answer, answer
+
+    def test_no_clause_without_a_scope(self):
+        answer = self._answer(_two_sheet_outcomes(), [])
+        assert "no matching row on" not in answer, answer
+
+    def test_an_empty_scope_with_no_candidates_at_all(self):
+        empty = {"M-1": {"target": "M-1", "status": "none", "evidence": []}}
+        answer = self._answer(empty, ["BetaParts"])
+        assert "no matching row in the indexed content searched" in answer
+        assert "no matching row on the 'BetaParts' sheet" in answer, answer
+
+    def test_a_single_match_elsewhere_still_states_the_missed_sheet(self):
+        # One candidate on the wrong sheet is as much a substitution as ten.
+        outcomes = {"M-1": {"target": "M-1", "status": "found", "evidence": [
+            _ev("AlphaWorks", 200, "A200", [_v("E200", "7", "PRICE")])]}}
+        answer = self._answer(outcomes, ["BetaParts"])
+        assert "no matching row on the 'BetaParts' sheet" in answer, answer
+        assert "the row shown is on another sheet" in answer, answer
+
+    def test_the_clause_never_appears_after_a_read_failure(self):
+        # A source that could not be read supports no claim about any sheet,
+        # including the absence of a row on one.
+        outcomes = {"M-1": {"target": "M-1", "status": "unavailable",
+                            "error_category": "source_corrupt",
+                            "evidence": []}}
+        targets = ap.build_targets_from_scan(
+            ["M-1"], outcomes, {}, requested_sheets=["BetaParts"])
+        answer = ap.present(
+            requested_items=["M-1"], requested_fields=["price"],
+            source={"file_name": "wb.xlsx"}, targets=targets,
+            requested_sheets=["BetaParts"])["answer"]
+        assert "could not be read" in answer, answer
+        assert "no matching row on" not in answer, answer
+
+    def test_the_clause_survives_a_rerender_from_the_record(self):
+        # The record is the durable artifact; a retry or reload must
+        # reproduce the same words, not drop the scope.
+        record = ap.build_structured_record(
+            source_identity={"file_name": "wb.xlsx", "ingested_at": "t"},
+            evidence_revision="h:t", attempt_id="a1",
+            evidence_action="new_read", requested_items=["M-1"],
+            requested_fields=["price"],
+            targets=ap.build_targets_from_scan(
+                ["M-1"], _two_sheet_outcomes(), {},
+                requested_sheets=["GammaParts"]),
+            coverage={}, requested_sheets=["GammaParts"])
+        rendered = ap.present_from_record(record)["answer"]
+        assert "no matching row on the 'GammaParts' sheet" in rendered, rendered
+
+    def test_an_older_record_without_the_key_renders_as_before(self):
+        record = ap.build_structured_record(
+            source_identity={"file_name": "wb.xlsx", "ingested_at": "t"},
+            evidence_revision="h:t", attempt_id="a1",
+            evidence_action="new_read", requested_items=["M-1"],
+            requested_fields=["price"],
+            targets=ap.build_targets_from_scan(
+                ["M-1"], _two_sheet_outcomes(), {}),
+            coverage={})
+        record.pop("requested_sheets", None)
+        assert "no matching row on" not in ap.present_from_record(record)["answer"]
+
+
+class TestRequestedSheetsAreRecorded:
+    """The record explains the order it holds, rather than leaving it
+    inferable."""
+
+    def test_record_carries_the_scope(self):
+        record = ap.build_structured_record(
+            source_identity={"file_name": "wb.xlsx"},
+            evidence_revision="h:i", attempt_id="a1",
+            evidence_action="new_read", requested_items=["M-1"],
+            requested_fields=["price"], targets=[], coverage={},
+            requested_sheets=["BetaParts"])
+        assert record["requested_sheets"] == ["BetaParts"]
+
+    def test_record_defaults_to_no_scope(self):
+        record = ap.build_structured_record(
+            source_identity={"file_name": "wb.xlsx"},
+            evidence_revision="h:i", attempt_id="a1",
+            evidence_action="new_read", requested_items=["M-1"],
+            requested_fields=["price"], targets=[], coverage={})
+        assert record["requested_sheets"] == []
+
+
+class TestMentionsSheetReference:
+    """The routing-side half: is this turn sheet-shaped? (never: which sheet?)"""
+
+    def test_a_named_sheet_reference_is_detected(self):
+        for text in ("show me the BetaParts sheet searches",
+                     "price on the AlphaWorks tab",
+                     "what's on the beta parts worksheet"):
+            assert ap.mentions_sheet_reference(text), text
+
+    def test_a_generic_sheet_reference_is_not(self):
+        for text in ("show me the sheet", "price for M-1 in the workbook",
+                     "list each sheet", "summarize the document"):
+            assert not ap.mentions_sheet_reference(text), text
+
+
+# Sheet-scope browse record contract (2026-09-30) -----------------------------
+#
+# Owner evidence for the defect this locks down: message 65b9f7bd stored the
+# raw workbook-read ARTIFACT as ``structured_result``; the ask lane rendered
+# it with ``present_from_record`` — a record-schema consumer — and produced
+# 'Results from the saved copy of the workbook: … Coverage: partial.' with
+# zero rows. The browse must stamp a RECORD (source_identity /
+# requested_items / targets), flagged as a listing so the presenter shows
+# rows instead of candidate-disambiguation language.
+
+class TestSheetBrowseRecord:
+    """_build_sheet_browse_record emits the presenter's schema, and the
+    presenter renders a listing — file identity, rows, stated cap."""
+
+    @staticmethod
+    def _rows(sheet_rows):
+        return {
+            sheet: [{"row": rn,
+                     "cells": [("MODEL", f"M-{rn}"), ("PRICE", 100 * rn)]}
+                    for rn in sheet_rows]
+            for sheet, sheet_rows in sheet_rows.items()
+        }
+
+    def _build(self, **over):
+        import core.chat_tool_planner as planner
+
+        kwargs = dict(
+            scope_sheets=["Alpha"],
+            rows_by_sheet=self._rows({"Alpha": [2, 3, 4]}),
+            sheet_total_rows={"Alpha": 3},
+            file_name="Price List.xlsx",
+            prov={"source": "src", "resource_id": "res-1",
+                  "content_hash": "hash-1",
+                  "ingested_at": "2026-09-07T23:06:19"},
+            catalog_truncated=False,
+            indexed_sheets=5,
+            scanned_sheets=5,
+            attempt_id="browse-test-1",
+        )
+        kwargs.update(over)
+        return planner._build_sheet_browse_record(**kwargs)
+
+    def test_record_carries_record_schema_not_artifact_schema(self):
+        rec = self._build()
+        assert rec["schema_version"].startswith("structured-result")
+        # The exact keys whose absence rendered 'the workbook / partial'.
+        assert rec["source_identity"]["file_name"] == "Price List.xlsx"
+        assert rec["requested_items"] == ["Alpha"]
+        assert rec["requested_sheets"] == ["Alpha"]
+        assert rec["evidence_action"] == "new_read"
+
+    def test_target_is_a_listing(self):
+        rec = self._build()
+        t = rec["targets"][0]
+        assert t["presentation"] == "listing"
+        assert t["item"] == "Alpha"
+        assert [c["ref"] for c in t["identity"]["candidates"]] == [
+            "Alpha!R2", "Alpha!R3", "Alpha!R4"]
+
+    def test_render_shows_rows_and_file_identity(self):
+        out = ap.present_from_record(self._build())["answer"]
+        assert "Price List.xlsx" in out
+        assert "Alpha!R2" in out and "Alpha!R4" in out
+        # The degraded footer the artifact stamp produced.
+        assert "the workbook" not in out
+        assert "Coverage: partial" not in out
+        # A listing is not an ambiguity: no confirmation ask.
+        assert "which one is yours" not in out
+
+    def test_render_states_the_cap_against_the_real_row_count(self):
+        rec = self._build(
+            rows_by_sheet=self._rows({"Alpha": list(range(2, 14))}),
+            sheet_total_rows={"Alpha": 366})
+        out = ap.present_from_record(rec)["answer"]
+        assert "first 12 of 366 rows" in out
+
+    def test_empty_sheet_states_no_rows_without_claiming_absence(self):
+        rec = self._build(rows_by_sheet={"Alpha": []},
+                          sheet_total_rows={"Alpha": 0})
+        out = ap.present_from_record(rec)["answer"]
+        assert "no rows in the indexed content searched" in out
+
+    def test_coverage_footer_keeps_the_workbook_numbers(self):
+        out = ap.present_from_record(self._build())["answer"]
+        assert "indexed sheets=5" in out
+        assert "scanned entries=5" in out

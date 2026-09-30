@@ -5769,6 +5769,118 @@ def _build_workbook_structured_record(
     )
 
 
+def _build_sheet_browse_record(
+    *,
+    scope_sheets: List[str],
+    rows_by_sheet: Dict[str, List[Dict[str, Any]]],
+    sheet_total_rows: Dict[str, Optional[int]],
+    file_name: Optional[str],
+    prov: Dict[str, Any],
+    catalog_truncated: bool,
+    indexed_sheets: int,
+    scanned_sheets: int,
+    attempt_id: str,
+    browse_rows_per_sheet: int = 12,
+) -> Dict[str, Any]:
+    """Structured RECORD for a sheet-scope browse ('show me the tennsmith
+    sheet searches' — a listing request with no item codes).
+
+    The ask lane renders ``storage_read.structured_result`` with
+    ``present_from_record``, whose contract is the structured-RECORD schema
+    (``source_identity`` / ``requested_items`` / ``targets``). Stamping the
+    raw workbook-read ARTIFACT there instead rendered 'Results from the
+    saved copy of the workbook … Coverage: partial' with zero rows — the
+    schema mismatch behind the 2026-09-30 footer-only answers (owner
+    evidence: message 65b9f7bd, whose stored structured_result carries
+    artifact keys and no source_identity). This builder emits the shape the
+    presenter actually consumes: one target per requested sheet, its browsed
+    rows as candidates, flagged ``presentation: "listing"`` so the renderer
+    shows the rows instead of candidate-disambiguation language.
+
+    Pure build — no retrieval, no parquet reads, no writes.
+    """
+    from core.answer_presentation import (
+        IDENTITY_UNVERIFIED,
+        build_structured_record,
+        typed_value,
+    )
+
+    targets: List[Dict[str, Any]] = []
+    for sheet in scope_sheets:
+        rows = rows_by_sheet.get(sheet) or []
+        candidates: List[Dict[str, Any]] = []
+        pooled: List[Dict[str, Any]] = []
+        for r in rows:
+            values = []
+            for name, raw in (r.get("cells") or []):
+                tv = typed_value(raw)
+                values.append({"basis": str(name), **tv})
+            candidates.append({
+                "ref": f"{sheet}!R{r.get('row', '?')}",
+                "values": values,
+                # A browse row was not MATCHED against anything — there is
+                # no matched identity cell to bind, and inventing one would
+                # dress a listing up as evidence. Unverified is the honest
+                # status; the row locator carries the position.
+                "identity": {"status": IDENTITY_UNVERIFIED,
+                             "references": []},
+            })
+            pooled.extend(values)
+        targets.append({
+            "item": sheet,
+            "aliases": [],
+            "identity": {
+                "status": ("none" if not candidates
+                           else "single" if len(candidates) == 1
+                           else "multiple"),
+                "candidates": candidates,
+            },
+            "field": {"status": "single" if pooled else "absent",
+                      "values": pooled},
+            "presentation": "listing",
+            "listing_total_rows": sheet_total_rows.get(sheet),
+        })
+    coverage = {
+        "indexed_sheets": indexed_sheets,
+        "scanned_sheets": scanned_sheets,
+        "catalog_truncated": bool(catalog_truncated),
+        "row_display_cap": browse_rows_per_sheet,
+        "read_status": None,
+        "absence_claimable": None,
+        "unreadable_sheet_count": 0,
+        "error_category": None,
+        "artifact_available": True,
+        "artifact_complete": True,
+        "probe_failed": False,
+        "unmaterialized_sheets": [],
+    }
+    revision = (
+        f"{(prov or {}).get('content_hash') or '?'}:"
+        f"{(prov or {}).get('ingested_at') or '?'}"
+    )
+    return build_structured_record(
+        source_identity={
+            "file_name": file_name,
+            "service": "datasets",
+            "source": (prov or {}).get("source"),
+            "resource_id": (prov or {}).get("resource_id"),
+            "content_hash": (prov or {}).get("content_hash"),
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "live_vs_saved": "saved copy",
+            "evidence_kind": "materialized_copy",
+        },
+        evidence_revision=revision,
+        attempt_id=attempt_id,
+        evidence_action="new_read",
+        requested_items=[str(s) for s in scope_sheets],
+        requested_fields=[],
+        targets=targets,
+        coverage=coverage,
+        requested_sheets=[str(s) for s in scope_sheets],
+    )
+
+
 def _set_rendered_answer(plan: Any, text: str) -> None:
     if plan is None:
         return
@@ -6141,78 +6253,115 @@ async def _datasets_named_file_block(
     # names exactly the sheets to browse, list their rows (capped) as
     # the read.
     if not item_tokens and _scope_sheets:
+        # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
+        # searches' follow-up): the user asked to SEE a sheet with no
+        # item codes. inspect_dataset_entries needs item targets and
+        # yields zero outcomes for this shape, so list the scoped
+        # sheets' rows directly — deterministic, capped, honest. The
+        # rows are stamped as a structured RECORD (the schema the ask
+        # lane's presenter consumes), not the raw read artifact.
         try:
-            from core.workbook_read_artifact import (
-                inspect_dataset_entries as _insp,
-                render_workbook_artifact as _render_art,
+            import pandas as _pd
+
+            from core.answer_presentation import (
+                new_attempt_id as _naid,
+                present_from_record as _pfr,
+            )
+            from core.invocation_events import (
+                SCAN_END,
+                SCAN_START,
+                Timer as _Timer,
+                record as _rec,
             )
 
-            _scoped_entries = [
-                e for e in file_entries
-                if str(e.get("entity_name") or "").strip() in {
-                    s2.strip() for s2 in _scope_sheets}
-            ]
-            if _scoped_entries:
-                _wb = await asyncio.to_thread(
-                    _insp, _scoped_entries, names[key],
-                    query=query, context_texts=[], targets=[],
-                    attributes=[], requested_fields=[],
-                    provider=prov["source"],
-                    resource_id=prov["resource_id"],
-                    source_metadata=e0.get("source_metadata") or {},
-                    content_hash=prov["content_hash"],
-                    content_hash_algorithm="sha1",
-                    ingested_at=prov["ingested_at"],
+            _scan_id = _naid()
+            _scan_timer = _Timer()
+            _rec(SCAN_START, execution_id=(context or {}).get(
+                "execution_id"),
+                session_id=(context or {}).get("session_id"),
+                request_id=(context or {}).get("request_id"),
+                attempt_id=_scan_id)
+            _rows_by_sheet: Dict[str, List[Dict[str, Any]]] = {}
+            _sheet_totals: Dict[str, Optional[int]] = {}
+            for _e in file_entries:
+                _sheet_name = str(
+                    _e.get("entity_name") or "").strip()
+                if _sheet_name not in _scope_sheets:
+                    continue
+                try:
+                    _sheet_totals[_sheet_name] = int(_e.get("row_count"))
+                except (TypeError, ValueError):
+                    _sheet_totals[_sheet_name] = None
+                _df = await asyncio.to_thread(
+                    _pd.read_parquet, _e.get("parquet_path"))
+                _rowcol = ("__sheet_row"
+                           if "__sheet_row" in _df.columns else None)
+                _shown = 0
+                for _, _row in _df.iterrows():
+                    if _shown >= 12:
+                        break
+                    _cells = [
+                        (str(_c), _row[_c]) for _c in _df.columns
+                        if _c != _rowcol
+                        and str(_row[_c]) not in ("", "nan", "None")]
+                    if not _cells:
+                        continue
+                    _rn = (int(_row[_rowcol]) if _rowcol
+                           and str(_row[_rowcol]).isdigit()
+                           else _shown + 1)
+                    _rows_by_sheet.setdefault(_sheet_name, []).append(
+                        {"row": _rn, "cells": _cells[:4]})
+                    _shown += 1
+            if not any(_rows_by_sheet.values()):
+                logger.debug(
+                    "scoped browse: no readable rows on %s",
+                    _scope_sheets)
+            else:
+                _browse_record = _build_sheet_browse_record(
+                    scope_sheets=_scope_sheets,
+                    rows_by_sheet=_rows_by_sheet,
+                    sheet_total_rows=_sheet_totals,
+                    file_name=names[key],
+                    prov=prov,
+                    catalog_truncated=catalog_truncated,
+                    indexed_sheets=len(sheet_names),
+                    scanned_sheets=len(file_entries),
+                    attempt_id=_scan_id,
                 )
-                _meta = getattr(plan, "_result_meta", None)
-                if _meta is None:
-                    _meta = {}
-                    plan._result_meta = _meta
-                _sr = _meta.setdefault("storage_read", {})
-                _sr.update({
-                    "file_name": names[key],
-                    "identity_verified": True,
-                    "completed": True,
-                    "coverage_complete": True,
-                    "structured_result": _wb,
-                    "rendered_answer": _render_art(_wb),
-                    "sheet_scope": _scope_sheets,
-                    "evidence_kind": "materialized_copy",
-                })
-                _e0 = file_entries[0]
-                _prov = {
-                    "source": prov["source"],
-                    "resource_id": prov["resource_id"],
-                    "content_hash": prov["content_hash"],
-                    "ingested_at": prov["ingested_at"],
-                    "source_modified_at": prov["source_modified_at"],
-                }
-                _rows_out = []
-                for e in _scoped_entries:
-                    import pandas as _pd
-
-                    _df = await asyncio.to_thread(_pd.read_parquet,
-                                                  e.get("parquet_path"))
-                    _rowcol = ("__sheet_row" if "__sheet_row" in
-                               _df.columns else None)
-                    for _, _row in _df.head(12).iterrows():
-                        _cells = [
-                            f"{c}={_row[c]}" for c in _df.columns
-                            if c != _rowcol and str(_row[c]) not in
-                            ("", "nan", "None")
-                        ][:4]
-                        _rows_out.append(
-                            f"  {e.get('entity_name')}!R{int(_row[_rowcol]) if _rowcol else '?'}"
-                            f" — " + ", ".join(_cells))
-                _block_text = (
+                _stamp_named_file_meta(
+                    plan, key, names, [], prov,
+                    coverage_complete=True,
+                    coverage_limits=dict(
+                        _browse_record.get("coverage") or {}),
+                    workbook_read=None,
+                )
+                _browse_meta = getattr(plan, "_result_meta", None)
+                if isinstance(_browse_meta, dict):
+                    _browse_sr = _browse_meta.get("storage_read")
+                    if isinstance(_browse_sr, dict):
+                        _browse_sr.update({
+                            "sheet_scope": _scope_sheets,
+                            "browse": True,
+                        })
+                _set_structured_result(plan, _browse_record)
+                _set_rendered_answer(
+                    plan, str(_pfr(_browse_record).get("answer") or ""))
+                _lines = [
                     "LIVE TOOL RESULTS (datasets.named-file, file='"
-                    + names[key]
-                    + "') — the request asked to see a SHEET; its rows "
-                    + "(up to 12 per sheet) follow:\n"
-                    + "\n".join(_rows_out)
-                    + "\n\n Present these rows as the sheet's content; "
-                    + "they are the materialized copy, not the live file.")
-                return _with_grounding(_block_text)
+                    + names[key] + "') — the request asked to SEE the "
+                    "sheet(s) "
+                    + ", ".join(_scope_sheets)
+                    + "; their rows follow (up to 12 per sheet):"
+                ]
+                for _sheet, _rows in _rows_by_sheet.items():
+                    _lines.append("- sheet " + _sheet + ":")
+                    _lines.extend(
+                        "  R" + str(_r["row"]) + ": " + ", ".join(
+                            f"{_n}={_v}" for _n, _v in _r["cells"])
+                        for _r in _rows)
+                _rec(SCAN_END, attempt_id=_scan_id,
+                     duration_ms=_scan_timer.ms())
+                return _with_grounding("\n".join(_lines))
         except Exception as _browse_err:  # noqa: BLE001 — browse is optional
             logger.warning(
                 "sheet-scope browse failed: %r", _browse_err)

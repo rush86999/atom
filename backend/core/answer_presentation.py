@@ -76,10 +76,196 @@ _PAIR_RE = re.compile(
 #: How many candidates an ambiguous item shows before the confirmation ask.
 AMBIGUOUS_CANDIDATE_WINDOW = 3
 
+#: A sheet-scope browse lists rows; the record holds at most the browse's
+#: per-sheet cap, so the listing renders every stored row up to this cap
+#: and states the surplus rather than applying a silent window.
+LISTING_ROW_CAP = 12
+LISTING_VALUE_CAP = 4
+
 #: Value kinds that let a candidate ANSWER a request. A row whose value cells
 #: are blank, zero, or unavailable carries no figure — it cannot resolve the
 #: question the reader was asked, however well its identity cell matches.
 _ANSWERABLE_VALUE_KINDS = frozenset({"number", "text"})
+
+
+# ---------------------------------------------------------------------------
+# SHEET SCOPE — a sheet the READER named is part of the request.
+#
+# WHY. The visible candidate window is a fixed prefix of the candidate list,
+# and the candidate list arrives in SCAN order, which is alphabetical by sheet
+# name (`sheet_dataset_service.entries_for_file_sync` orders by
+# `entity_name.asc()`). So for an item whose matches span two sheets, the
+# alphabetically-first sheet deterministically consumed every display slot and
+# the other sheet's rows were unreachable in the answer — regardless of what
+# the reader asked for. Live 2026-09-30: "show me the tennsmith sheet
+# searches" for No. 381 returned three RoperWhitney rows plus a
+# sheet-UNION tail ("+7 more match(es) on RoperWhitney, Tennsmith"), which
+# tells the reader a sheet exists but not that five of the seven are on it,
+# so the follow-up had nothing to act on.
+#
+# The scope is a RANKING input, never a filter. Ranking already exists here
+# (`_rank_candidates`) and its established discipline is that precedence
+# REORDERS and never eliminates — ambiguity survives, the confirmation ask
+# survives, and no candidate is dropped from the record. A sheet the reader
+# named cannot prove which row is theirs any more than a brand can, so it
+# must not narrow the set.
+#
+# It is deliberately NOT routed through `_disambiguation_criteria`
+# (`core.workbook_read_artifact`): that channel is a hard FILTER, and in this
+# same incident chain a mined criterion filtered out every candidate twice
+# ("Priya's text message" → organization=Priya; "when does A. Kumar's
+# certificate expire" → the interrogative possessor). This is a separate
+# ranking seam, not a fourth door into the filter.
+# ---------------------------------------------------------------------------
+
+#: A sheet REFERENCE in the request's own words. The captured group is the
+#: qualifier, not a noun phrase that is trusted as a sheet name — see
+#: `resolve_requested_sheets`, which only ever returns names that are already
+#: present in the candidate set.
+_SHEET_REFERENCE_RE = re.compile(
+    r"\b(?:the|this|that|those|my|our|its|their)\s+"
+    r"([A-Za-z0-9][A-Za-z0-9 &'./-]{1,39}?)\s+"
+    r"(?:sheets?|tabs?|worksheets?)\b"
+    r"|\b(?:on|from|in|under|per|across)\s+"
+    r"(?:the\s+)?([A-Za-z0-9][A-Za-z0-9 &'./-]{1,39}?)\s+"
+    r"(?:sheets?|tabs?|worksheets?)\b",
+    re.IGNORECASE,
+)
+
+#: Reference words that name a sheet GENERICALLY ("the sheet", "each sheet").
+#: They carry no sheet identity, so they must not resolve to one; a reference
+#: with no qualifier is not a scope.
+_UNQUALIFIED_SHEET_REFERENCE = frozenset({
+    "", "same", "other", "another", "first", "second", "third", "last",
+    "next", "previous", "same", "that", "this", "those", "these", "one",
+    "top", "bottom", "left", "right", "new", "old", "main", "front",
+    "back", "above", "below", "whole", "entire", "single", "every",
+    "each", "any", "all", "current", "active", "relevant", "matching",
+})
+
+#: Minimum qualifier length on BOTH sides before a reference is allowed to
+#: match a sheet name. Below this, containment matching turns ordinary words
+#: into sheet scopes ("the a sheet" → every sheet whose name contains "a").
+#: Mirrors the floor already used to anchor a query token to a sheet name in
+#: `integrations.universal_integration_service._query_anchored_excerpt`.
+_SHEET_SCOPE_MIN_CHARS = 5
+
+
+def mentions_sheet_reference(text: str) -> bool:
+    """Does `text` refer to a NAMED sheet (as opposed to a workbook, or to a
+    sheet generically)?
+
+    The routing-side half of `resolve_requested_sheets`, sharing its regex and
+    its unqualified-reference list so the two halves cannot drift. It answers
+    only "is this turn sheet-shaped?", never "which sheet?" — the caller at
+    that point has a file identity but no sheet catalog, so naming a sheet
+    there could only be a guess. Which real sheet is meant is settled later,
+    by `resolve_requested_sheets` against the sheets the file actually
+    indexes.
+    """
+    for match in _SHEET_REFERENCE_RE.finditer(str(text or "")):
+        phrase = str(match.group(1) or match.group(2) or "").strip()
+        if _norm(phrase) not in _UNQUALIFIED_SHEET_REFERENCE:
+            return True
+    return False
+
+
+def _sheet_scope_key(value: Any) -> str:
+    """Comparable key for a sheet name: casefolded, punctuation and spacing
+    collapsed. A reader who types "tenn smith" and a sheet named
+    "TennSmith" are one sheet; nothing else is."""
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def resolve_sheet_phrase(phrase: str,
+                         sheet_names: Sequence[str]) -> Optional[str]:
+    """Resolve ONE already-extracted reference phrase against real sheets,
+    or None. The per-phrase half of `resolve_requested_sheets` (same
+    floors, same two-way containment, never fabricates), shared so a
+    consumer holding a phrase without the surrounding sentence — the typed
+    action program's pending ``SheetRef`` — resolves EXACTLY as the
+    resolver would have inside the sentence.
+    """
+    known: List[tuple] = []
+    seen_keys = set()
+    for name in sheet_names or []:
+        text = str(name or "").strip()
+        key = _sheet_scope_key(text)
+        if not text or not key or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        known.append((text, key))
+    if not known:
+        return None
+    pkey = _sheet_scope_key(phrase)
+    if not pkey:
+        return None
+    for text, key in known:
+        shorter, _longer = sorted((len(pkey), len(key)))
+        if shorter < _SHEET_SCOPE_MIN_CHARS:
+            continue
+        if pkey in key or key in pkey:
+            return text
+    return None
+
+
+def resolve_requested_sheets(
+    query: str,
+    sheet_names: Sequence[str],
+) -> List[str]:
+    """The sheets in `sheet_names` that `query` refers to, in request order.
+
+    RESOLUTION AGAINST KNOWN SHEETS, NOT EXTRACTION. The request's words are
+    never taken as a sheet name. Each reference is matched against the sheet
+    names that are actually present, so a phrase that names no real sheet
+    ("the Tennessee sheet", "the pricing sheet") resolves to nothing and the
+    rendering is exactly what it was before — a wrong scope can narrow a
+    user's search, so the burden of proof is on the match, never on the
+    request.
+
+    Matching is a two-way containment on the collapsed key, so a reader may
+    name a sheet partially ("Roper" for "RoperWhitney") or loosely
+    ("Tenn Smith" for "TennSmith"). Both directions are needed: the request
+    habitually shortens and the workbook habitually concatenates. The floor
+    is applied to the shorter side so a one-word reference cannot sweep in
+    every sheet whose name happens to contain that word.
+    """
+    out: List[str] = []
+    matched_keys = set()
+    for match in _SHEET_REFERENCE_RE.finditer(str(query or "")):
+        phrase = str(match.group(1) or match.group(2) or "").strip()
+        if _norm(phrase) in _UNQUALIFIED_SHEET_REFERENCE:
+            continue
+        text = resolve_sheet_phrase(phrase, sheet_names)
+        if text is None:
+            continue
+        key = _sheet_scope_key(text)
+        if key not in matched_keys:
+            matched_keys.add(key)
+            out.append(text)
+    return out
+
+
+def sheet_reference_phrases(text: str) -> List[str]:
+    """The NAMED-sheet reference phrases in `text`, in order — the
+    extraction half of `resolve_requested_sheets`.
+
+    Shares the same regex and the same unqualified-reference list as the
+    resolver, so what this returns is exactly what COULD resolve later
+    against a real catalog; it resolves nothing itself. Consumers that
+    need a typed, unresolved reference at decision time (see
+    `core.action_program` — the sheet scope enters the turn program here,
+    as a pending mention, because no sheet catalog exists at that seam)
+    get the user's own words, never a guessed sheet name.
+    """
+    phrases: List[str] = []
+    for match in _SHEET_REFERENCE_RE.finditer(str(text or "")):
+        phrase = str(match.group(1) or match.group(2) or "").strip()
+        if _norm(phrase) in _UNQUALIFIED_SHEET_REFERENCE:
+            continue
+        if phrase and phrase not in phrases:
+            phrases.append(phrase)
+    return phrases
 
 
 def typed_value(raw: Any) -> Dict[str, Any]:
@@ -150,22 +336,102 @@ def _candidate_answers_request(
     return any(_value_answers_request(value) for value in values)
 
 
+def _scoped_sheet_note(
+    candidates: List[Dict[str, Any]],
+    requested_sheets: Optional[Sequence[str]],
+) -> str:
+    """Name the requested sheets that hold no matching row — or "".
+
+    A sheet scope REORDERS; it never filters (see the SHEET SCOPE note
+    above). That is what keeps an "include the Tennsmith sheet" ask from
+    silently hiding the RoperWhitney rows the same user also wants. But
+    reordering alone is not sufficient, and this clause is why.
+
+    The failure it prevents: the reader asks for one specific sheet, that
+    sheet happens to hold nothing for this item, and the answer — being an
+    honest report of every candidate — leads with rows from OTHER sheets
+    without ever acknowledging the sheet that was asked for. The reader
+    cannot tell "here are your rows" from "your sheet had none and I did
+    not check". Stating it costs one clause and converts a silent
+    substitution into a stated fact.
+
+    Only sheets the request NAMED are eligible, and only sheets that
+    resolved against the file's own index reach here (a phrase matching no
+    indexed sheet resolves to no scope at all, upstream) — so this can
+    never claim a sheet the workbook does not have.
+    """
+    named = [str(s).strip() for s in (requested_sheets or []) if str(s).strip()]
+    if not named:
+        return ""
+    present = {_sheet_scope_key(_candidate_sheet(c)) for c in candidates}
+    missing = [s for s in named if _sheet_scope_key(s) not in present]
+    if not missing:
+        return ""
+    sheets = ", ".join(f"'{s}'" for s in missing)
+    one = len(missing) == 1
+    elsewhere = (
+        "the row shown is on another sheet"
+        if len(candidates) == 1 else
+        f"the {len(candidates)} rows shown are on other sheets"
+    )
+    return (f"no matching row on the {sheets} "
+            f"{'sheet' if one else 'sheets'} of this workbook; "
+            f"{elsewhere}")
+
+
+def _candidate_sheet(candidate: Dict[str, Any]) -> str:
+    """The sheet a candidate's row sits on, from its row locator
+    ("Tennsmith!R338"). A locator without a sheet yields "" rather than
+    guessing — a candidate the scan could not place is not attributable to
+    any sheet, and must not inherit a scope it was never shown to have."""
+    return str(candidate.get("ref") or "").partition("!")[0].strip()
+
+
 def _rank_candidates(
     candidates: List[Dict[str, Any]],
     requested_fields: Optional[Sequence[str]] = None,
+    requested_sheets: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, Any]]:
-    """Stable partition: answerable candidates first, scan order within.
+    """Stable partition: answerable candidates first, then sheet scope, then
+    scan order.
 
-    Stable by construction (one pass, no sort key), so candidates that are
-    equally answerable — or equally valueless — keep the reader's order and
-    no existing rendering changes.
+    Two precedence axes, in this order:
+
+    1. ANSWERABILITY. A candidate whose requested value is a real figure
+       leads; blank/zero/unavailable cannot answer however well its identity
+       matches.
+    2. SHEET SCOPE. Within each of those buckets, a candidate on a sheet the
+       reader named leads.
+
+    The axis order is deliberate: answerability decides what can REPLY, so it
+    outranks a positional preference. Scope then decides what the reader gets
+    to SEE among rows that can all reply.
+
+    Stable by construction (one pass per axis, no sort key), so candidates
+    that are equally answerable and equally in-scope keep the reader's order
+    and no existing rendering changes. Neither axis ELIMINATES: every input
+    candidate is still returned, so ambiguity is still reported, the
+    confirmation ask still stands, and the structured artifact still retains
+    the full set.
     """
+    scoped_keys = {_sheet_scope_key(s) for s in (requested_sheets or [])}
+    scoped_keys.discard("")
+
+    def _scope_first(bucket: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not scoped_keys:
+            return bucket
+        named = [c for c in bucket
+                 if _sheet_scope_key(_candidate_sheet(c)) in scoped_keys]
+        rest = [c for c in bucket
+                if _sheet_scope_key(_candidate_sheet(c)) not in scoped_keys]
+        return named + rest
+
     answering: List[Dict[str, Any]] = []
     silent: List[Dict[str, Any]] = []
     for candidate in candidates:
         (answering if _candidate_answers_request(candidate, requested_fields)
          else silent).append(candidate)
-    return answering + silent
+    return _scope_first(answering) + _scope_first(silent)
 
 
 def _read_failure_clause(t: Dict[str, Any]) -> Optional[str]:
@@ -256,11 +522,20 @@ def _source_read_failure(source: Dict[str, Any]) -> Optional[str]:
 def present(*, requested_items: List[str], requested_fields: List[str],
             source: Dict[str, Any], targets: List[Dict[str, Any]],
             evidence_revision: str = "", style: str = "default",
-            field: Optional[str] = None) -> Dict[str, Any]:
+            field: Optional[str] = None,
+            requested_sheets: Optional[Sequence[str]] = None
+            ) -> Dict[str, Any]:
     """The pure renderer: structured contract in, readable answer out.
     No retrieval, no database writes, no evidence mutation. ``style`` is
     one of default (full entries), compact (one line per item), or table
-    (one markdown row per item); ``field`` prefers one basis by name."""
+    (one markdown row per item); ``field`` prefers one basis by name.
+
+    ``requested_sheets`` is the sheet scope the reader asserted, carried from
+    the record so a re-render (retry, reload, presentation action) reproduces
+    the same answer. It only ever ADDS a clause — a named sheet that holds no
+    matching row is stated as such — so presenting a record without it
+    (older records, the compat path) renders exactly as before.
+    """
     lines: List[str] = []
     name = source.get("file_name") or "the workbook"
     saved = source.get("saved_copy_date")
@@ -290,7 +565,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
                 continue
             lines.append(_render_target(
                 t, item, style=style, field=field,
-                requested_fields=requested_fields))
+                requested_fields=requested_fields,
+                requested_sheets=requested_sheets))
     coverage_raw = source.get("coverage") or "unknown"
     if isinstance(coverage_raw, dict):
         parts = []
@@ -440,25 +716,69 @@ def _value_clause(v: Dict[str, Any]) -> str:
 def _render_target(t: Dict[str, Any], item: str, *,
                    style: str = "default",
                    field: Optional[str] = None,
-                   requested_fields: Optional[List[str]] = None) -> str:
+                   requested_fields: Optional[List[str]] = None,
+                   requested_sheets: Optional[Sequence[str]] = None
+                   ) -> str:
     ident = t.get("identity") or {}
     status = ident.get("status")
     alias = t.get("aliases") or []
     alias_note = f" (matched via '{alias[0]}')" if alias else ""
     requested_fields = list(requested_fields or [])
+    candidates = ident.get("candidates") or []
+    # A named sheet that holds nothing for this item is stated wherever the
+    # item is reported, not only in the ambiguous branch: a single match on
+    # another sheet, or no match at all, is exactly as much a substitution.
+    scope_note = _scoped_sheet_note(candidates, requested_sheets)
+    scope_suffix = f"; {scope_note}" if scope_note else ""
     failure = _read_failure_clause(t)
     if failure:
         # BEFORE the absence branch, deliberately: `identity.status == "none"`
         # is reached both by "searched, not there" and by "the source would not
         # open", and only the retrieval verdict separates them. The absence
-        # sentence is a factual claim about the source's contents; it may not be
-        # printed for a source that was never successfully read.
+        # sentence is a factual claim about the source's contents; it may not
+        # be printed for a source that was never successfully read.
         return (f"- **{item}**{alias_note} - the source could not be read "
                 f"({failure}); no result is reported for this item, which is "
                 f"NOT a statement that it is absent from the workbook")
+    if t.get("presentation") == "listing":
+        # SHEET-SCOPE BROWSE (2026-09-30): a read whose "items" are whole
+        # sheets lists their rows. The captured cells render verbatim —
+        # field preferences do not filter a listing, and the ambiguity
+        # language ("which one is yours") does not apply because nothing
+        # here is awaiting identification. The cap is stated, never
+        # silently applied: the record holds at most the browse's
+        # per-sheet cap, and the sheet's real row count (when known)
+        # turns a truncated listing into an honest "first N of M".
+        if not candidates:
+            return (f"- **{item}**{alias_note} - no rows in the indexed "
+                    f"content searched")
+        parts = []
+        for c in candidates[:LISTING_ROW_CAP]:
+            shown = "; ".join(
+                _value_clause(v)
+                for v in (c.get("values") or [])[:LISTING_VALUE_CAP])
+            parts.append(
+                f"{c.get('ref', '?')} ({shown})" if shown
+                else str(c.get("ref", "?")))
+        extra = candidates[LISTING_ROW_CAP:]
+        tail = (f"; +{len(extra)} more row(s) in the indexed copy"
+                if extra else "")
+        try:
+            total_n = (int(t.get("listing_total_rows"))
+                       if t.get("listing_total_rows") is not None else None)
+        except (TypeError, ValueError):
+            total_n = None
+        if total_n and total_n > len(candidates):
+            head = f"first {len(candidates)} of {total_n} rows"
+        else:
+            head = f"{len(candidates)} row(s)"
+        return (f"- **{item}**{alias_note} - {head} on this sheet: "
+                f"{'; '.join(parts)}{tail}")
     if status == "none":
+        if scope_note:
+            return (f"- **{item}**{alias_note} - no matching row in the "
+                    f"indexed content searched; {scope_note}")
         return f"- **{item}**{alias_note} - no matching row in the indexed content searched"
-    candidates = ident.get("candidates") or []
     pooled = (t.get("field") or {}).get("values") or []
     selected = _select_values(pooled, requested_fields, field)
     if status == "multiple":
@@ -482,18 +802,32 @@ def _render_target(t: Dict[str, Any], item: str, *,
         # that looked exhaustive but was not (live: Tennsmith!R338 was in
         # the evidence, behind three alphabetically-earlier RoperWhitney
         # rows and the cap).
-        extra = candidates[3:]
+        #
+        # PER-SHEET COUNTS, NOT A SHEET UNION (2026-09-30). The tail named
+        # the sheets holding the surplus ("on RoperWhitney, Tennsmith")
+        # but not how many of the hidden rows each one held, so a reader who
+        # asked to see one specific sheet could not tell whether it was
+        # worth re-asking for: the follow-up "show me the tennsmith sheet
+        # searches" was answered by the very same sentence, because the
+        # union said Tennsmith existed but not that five of the seven
+        # surplus rows were on it. A count per sheet is the difference
+        # between "there is something there" and "here is what is there".
+        extra = candidates[AMBIGUOUS_CANDIDATE_WINDOW:]
         tail = ""
         if extra:
-            other_sheets: List[str] = []
+            per_sheet: Dict[str, int] = {}
             for c in extra:
                 sheet = str((c.get("ref") or "").split("!", 1)[0] or "").strip()
-                if sheet and sheet not in other_sheets:
-                    other_sheets.append(sheet)
-            sheet_note = f" on {', '.join(other_sheets)}" if other_sheets else ""
-            tail = f"; +{len(extra)} more match(es){sheet_note}"
+                if not sheet:
+                    # An unplaceable surplus row must still be counted, or
+                    # the total the reader is given would not add up.
+                    sheet = "an unnamed sheet"
+                per_sheet[sheet] = per_sheet.get(sheet, 0) + 1
+            breakdown = ", ".join(
+                f"{sheet} {count}" for sheet, count in per_sheet.items())
+            tail = f"; +{len(extra)} more match(es) ({breakdown})"
         line = (f"- **{item}**{alias_note} - several rows match "
-                f"({'; '.join(parts)}{tail}); "
+                f"({'; '.join(parts)}{tail}){scope_suffix}; "
                 f"which one is yours needs your confirmation")
         return line
     cand = candidates[0] if candidates else {}
@@ -508,7 +842,7 @@ def _render_target(t: Dict[str, Any], item: str, *,
     fstatus = (t.get("field") or {}).get("status")
     if fstatus == "absent" or not pooled:
         return (f"- **{item}**{alias_note} - matched at {ref}{idnote}, but no "
-                f"price column was identified")
+                f"price column was identified{scope_suffix}")
     if field and not selected:
         bases = sorted({str(v.get("basis") or "") for v in pooled if v.get("basis")})
         return (f"- **{item}**{alias_note} - matched at {ref}{idnote}; "
@@ -522,7 +856,7 @@ def _render_target(t: Dict[str, Any], item: str, *,
     primary = selected[0]
     if style == "compact":
         return (f"- **{item}**{alias_note} - {primary.get('display', '?')} "
-                f"({ref}{idnote}, '{primary.get('basis', '')}')")
+                f"({ref}{idnote}, '{primary.get('basis', '')}'){scope_suffix}")
     seg = (f"{primary.get('display', '?')} ({ref}{idnote}, column "
            f"{primary.get('col', '')} '{primary.get('basis', '')}'")
     # Keep distinct (col, basis) even when displays are equal: same value
@@ -542,7 +876,7 @@ def _render_target(t: Dict[str, Any], item: str, *,
         seg += "; also " + ", ".join(
             f"{v['col']} '{v['basis']}' {v['display']}" for v in alts)
     seg += ")"
-    return f"- **{item}**{alias_note} - {seg}"
+    return f"- **{item}**{alias_note} - {seg}{scope_suffix}"
 
 
 # ---------------------------------------------------------------------------
@@ -797,11 +1131,61 @@ def resolve_requested_items(tokens: List[str],
     return resolved
 
 
+def _rank_candidates_with_receipt(
+    item: str,
+    candidate_list: List[Dict[str, Any]],
+    requested_fields: Optional[Sequence[str]],
+    requested_sheets: Optional[Sequence[str]],
+) -> tuple:
+    """Rank one item's candidates through the typed action program.
+
+    WHY A PROGRAM, when the ranking primitive is right here: the order
+    ``_rank_candidates`` produces is correct but UNEXPLAINED — a reader of
+    the record could not tell a scope-driven order from a scan accident
+    (that is the 2026-09-30 open item). Executing a ``filter_previous``
+    op over the same candidates yields the IDENTICAL order (the executor
+    calls ``_rank_candidates`` with the same arguments) plus an effect
+    receipt — resolved scope, in-scope counts, which rows the display
+    window will hide on the sheet the reader named — that travels with the
+    target into the structured record.
+
+    Fail-open to the direct ranking on any error: identical behavior, no
+    receipt. The deferred import is mutual with ``action_program`` (it
+    imports this module's primitives at call time only), so neither
+    module imports the other at load time.
+    """
+    try:
+        from core import action_program as _ap
+
+        refs = [
+            _ap.SheetRef(mention=str(s), resolved_name=str(s),
+                         status="resolved")
+            for s in (requested_sheets or []) if str(s).strip()]
+        program = _ap.ActionProgram(actions=[
+            _ap.FilterPreviousOp(action_id="scope", item=str(item or ""),
+                                 sheets=refs)])
+        record = _ap.execute_program(
+            program, sheet_names=[str(s) for s in (requested_sheets or [])],
+            candidates={str(item or ""): candidate_list},
+            requested_fields=list(requested_fields or []))
+        outcome = record.outcome_for("scope")
+        ranked = record.ranked_by_action.get("scope")
+        if outcome is None or ranked is None:
+            raise ValueError("no filter outcome")
+        receipt = {k: v for k, v in outcome.items()
+                   if k not in ("action_id", "op")}
+        return ranked, receipt
+    except Exception:  # noqa: BLE001 — fail-open to identical direct ranking
+        return _rank_candidates(candidate_list, requested_fields,
+                                requested_sheets), None
+
+
 def build_targets_from_scan(
     resolved_items: List[str],
     artifact_outcomes: Dict[str, Any],
     per_item: Optional[Dict[str, Any]] = None,
     requested_fields: Optional[Sequence[str]] = None,
+    requested_sheets: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Artifact-native targets for the presentation contract.
 
@@ -820,6 +1204,10 @@ def build_targets_from_scan(
     ``requested_fields`` scopes which candidates can ANSWER (see
     ``_candidate_answers_request``). It only orders the candidate list; when
     omitted the ranking falls back to the scan's own selected value columns.
+    ``requested_sheets`` is the sheet scope the reader asserted (see
+    ``resolve_requested_sheets``); it is a SECOND ranking axis of equal
+    benign character — it reorders, never filters, so a sheet the reader named
+    can bring its rows into view without being able to eliminate any.
     """
     per_item = per_item or {}
     raw_tokens = list((artifact_outcomes or {}).keys()) + [
@@ -922,11 +1310,13 @@ def build_targets_from_scan(
                             grp["seen"].add(vk)
                             grp["values"].append(
                                 {"col": col, "basis": str(column), **tv})
-        candidates = _rank_candidates([
-            {"ref": g["ref"], "values": list(g["values"]),
-             "identity": copy.deepcopy(
-                 g.get("identity") or _identity_block([]))}
-            for g in row_groups.values()], requested_fields)
+        candidates, scope_receipt = _rank_candidates_with_receipt(
+            item, [
+                {"ref": g["ref"], "values": list(g["values"]),
+                 "identity": copy.deepcopy(
+                     g.get("identity") or _identity_block([]))}
+                for g in row_groups.values()], requested_fields,
+            requested_sheets)
         values: List[Dict[str, Any]] = []
         for g in row_groups.values():
             values.extend(g["values"])
@@ -951,6 +1341,11 @@ def build_targets_from_scan(
             "item": item,
             "aliases": [a for a in aliases
                         if _norm(a) != _norm(item)][:3],
+            # The typed program's effect receipt for the scope: resolved
+            # sheets, in-scope counts, window truncation, and the explicit
+            # no-binding/no-edit-authorization facts. Additive — older
+            # records and scopeless reads simply carry None.
+            "scope_receipt": scope_receipt,
             "identity": {"status": ("none" if not candidates
                                     else "multiple" if len(candidates) > 1
                                     else "single"),
@@ -1136,11 +1531,19 @@ def build_structured_record(*, source_identity: Dict[str, Any],
                             requested_fields: List[str],
                             targets: List[Dict[str, Any]],
                             coverage: Any,
+                            requested_sheets: Optional[Sequence[str]] = None,
                             retrieved_at: Optional[float] = None) -> Dict[str, Any]:
     """The versioned structured artifact to persist beside (not instead of)
     the rendered text. evidence_action is EVIDENCE-BASED: the caller stamps
     what actually happened (retrieval completed / failed / reused cache) —
-    creating a record or minting an attempt id establishes nothing."""
+    creating a record or minting an attempt id establishes nothing.
+
+    ``requested_sheets`` records the sheet scope this turn asserted. The
+    candidate ORDER in ``targets`` is a consequence of it, so it is persisted
+    rather than left inferable: a reader of the record can then tell a
+    reordering the request asked for from one the scan happened to produce.
+    It is provenance, not a filter — the record keeps every candidate.
+    """
     import time as _t
     if evidence_action not in EVIDENCE_ACTIONS:
         raise ValueError(f"evidence_action must be one of {EVIDENCE_ACTIONS}")
@@ -1153,6 +1556,7 @@ def build_structured_record(*, source_identity: Dict[str, Any],
         "retrieved_at": retrieved_at if retrieved_at is not None else _t.time(),
         "requested_items": list(requested_items),
         "requested_fields": list(requested_fields),
+        "requested_sheets": [str(s) for s in (requested_sheets or [])],
         "targets": targets,
         "coverage": coverage,
     }
@@ -1566,7 +1970,8 @@ def present_from_record(record: Dict[str, Any],
                 "coverage": record.get("coverage")},
         targets=record.get("targets") or [],
         evidence_revision=str(record.get("evidence_revision") or ""),
-        style=resolved_style, field=resolved_field)
+        style=resolved_style, field=resolved_field,
+        requested_sheets=record.get("requested_sheets") or None)
     result["attempt_id"] = record.get("attempt_id")
     result["evidence_action"] = record.get("evidence_action")
     result["presentation_intent"] = presentation_intent or record.get("presentation_intent")
