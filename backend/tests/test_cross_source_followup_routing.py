@@ -527,8 +527,10 @@ RESOLVED_IDENTITY = {
 
 
 def _session_with_stash() -> dict:
+    import uuid as _uuid
+
     return {
-        "id": "s-anaphoric",
+        "id": f"s-anaphoric-{_uuid.uuid4().hex[:8]}",
         "history": list(INCIDENT_HISTORY),
         "_superseded_file_task_context": {
             "resolved_file": dict(RESOLVED_IDENTITY),
@@ -587,7 +589,7 @@ class TestAnaphoricFileReference:
                 return_value=direct)) as direct_mock,
         ):
             result = await orch.process_chat_message(
-                "u1", ROW338_MSG, "s-anaphoric", context={})
+                "u1", ROW338_MSG, session["id"], context={})
 
         direct_mock.assert_awaited_once()
         task = direct_mock.await_args.args[0]
@@ -638,7 +640,7 @@ class TestAnaphoricFileReference:
                               "model": "m", "provider": "p"})),
         ):
             await orch.process_chat_message(
-                "u1", ROW338_MSG, "s-anaphoric", context={})
+                "u1", ROW338_MSG, session["id"], context={})
         direct_mock.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -678,7 +680,7 @@ class TestAnaphoricFileReference:
                     return_value={"success": True, "content": "ok",
                                   "model": "m", "provider": "p"})),
             ):
-                await orch.process_chat_message("u1", msg, "s-anaphoric",
+                await orch.process_chat_message("u1", msg, session["id"],
                                                 context={})
 
 
@@ -1141,4 +1143,105 @@ class TestRerunInheritance:
 
         resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
             "repeat the search in the workbook", {"history": []}))
+        assert resolved == ""
+
+
+# ---------------------------------------------------------------------------
+# 10. NAMED-SHEET FOLLOW-UP (2026-09-30): the follow-up to the sentence in
+#     section 9 — "show me the tennsmith sheet searches" — was answered
+#     with a BYTE-IDENTICAL copy of the previous reply. That follow-up is
+#     not rerun-shaped ("show me" is neither a retry verb nor "again"), and
+#     it carries no preposition, so `_GENERIC_FILE_REF_RE` declined it and no
+#     file identity resolved: the turn fell to narration, which re-served
+#     the prior answer verbatim. A reader narrowing a search within the
+#     workbook is still asking the workbook, so a NAMED-SHEET REFERENCE must
+#     resolve to the conversation's own spreadsheet without requiring a
+#     preposition.
+#
+#     Scope of the fix, deliberately narrow: this seam resolves the FILE
+#     only. Which sheet is meant is settled in `core.chat_tool_planner` by
+#     `resolve_requested_sheets`, against the sheets the file actually
+#     indexes — a place where a wrong guess can be caught rather than acted
+#     on. Every existing exclusion still runs first.
+# ---------------------------------------------------------------------------
+
+class TestNamedSheetFollowUpResolves:
+    def test_the_exact_follow_up_sentence_resolves(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "show me the tennsmith sheet searches", _session_with_stash()))
+        assert resolved == STORED_MENTION, resolved
+
+    @pytest.mark.parametrize("message", [
+        "show me the tennsmith sheet",
+        "price on the Tennsmith tab",
+        "what's on the tennsmith worksheet",
+    ])
+    def test_prepositionless_named_sheet_references_resolve(self, message):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            message, _session_with_stash()))
+        assert resolved == STORED_MENTION, message
+
+    def test_a_generic_sheet_reference_still_does_not_resolve(self):
+        # "the sheet" names no sheet; resolving it would attach a workbook
+        # read to any turn that happens to say the word.
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        for msg in ("show me the sheet", "list each sheet", "clean up the tab"):
+            resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+                msg, _session_with_stash()))
+            assert resolved == "", msg
+
+    def test_a_question_is_never_resolved(self):
+        # The "?" guard precedes this seam: a question about a sheet is the
+        # asker's, not a read instruction.
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "is the tennsmith sheet the right one?", _session_with_stash()))
+        assert resolved == ""
+
+    def test_a_cross_source_turn_is_never_resolved(self):
+        # The communication-source exclusion is GLOBAL and FIRST; naming a
+        # sheet must not become a way around it.
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "check priya's email and the tennsmith sheet",
+            _session_with_stash()))
+        assert resolved == ""
+
+    def test_naming_a_sheet_does_not_invent_a_file(self):
+        # With no spreadsheet identity held, a sheet reference resolves to
+        # nothing — the seam inherits an identity, it never mints one.
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "show me the tennsmith sheet", {"history": []}))
+        assert resolved == ""
+
+    def test_a_non_spreadsheet_identity_does_not_match(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as chat_mod
+
+        session = {"history": [], "_superseded_file_task_context": {
+            "resolved_file": {"file_name": "vendor_notes.pdf"}}}
+        resolved = asyncio.run(chat_mod._resolve_anaphoric_file_mention(
+            "show me the tennsmith sheet", session))
         assert resolved == ""

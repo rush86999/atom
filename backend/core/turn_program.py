@@ -188,6 +188,36 @@ def build_turn_program(
     program["constraints"] = {"sheets": sheets, "sources": sources}
     _fact("standing_scope", sheets or None, "decision-constraints")
 
+    # ---- typed action language (consolidated 2026-10-01) ----------------
+    # The decision's ACTION PROGRAM (core.action_program, compiled by
+    # turn_decision) is the typed execution vocabulary. When present it
+    # rides the turn program verbatim — ONE language for what was
+    # decided and what executes (the reader's scope-receipt seam runs
+    # these same ops through execute_program). When the decision layer
+    # is unavailable, the scope constraint is synthesized INTO the same
+    # typed shape (FilterPreviousOp record, pending refs — resolution
+    # happens against the file's real catalog at read time, never here).
+    actions: List[Dict[str, Any]] = []
+    _dec_program = (decision or {}).get("action_program")
+    if (isinstance(_dec_program, dict)
+            and isinstance(_dec_program.get("actions"), list)):
+        actions = [dict(a) for a in _dec_program["actions"]
+                   if isinstance(a, dict)]
+    if not actions and sheets:
+        actions = [{
+            "op": "filter_previous",
+            "action_id": "scope",
+            "depends_on": [],
+            "item": "",
+            "sheets": [
+                {"mention": s, "resolved_name": None, "status": "pending"}
+                for s in sheets],
+        }]
+    program["actions"] = actions
+    if actions:
+        _fact("typed_actions", [str(a.get("op")) for a in actions],
+              "decision-program" if _dec_program else "synthesized")
+
     # ---- decided facts ----------------------------------------------------
     program["decided_facts"] = facts
     return program

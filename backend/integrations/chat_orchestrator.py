@@ -3082,6 +3082,7 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
 async def _resolve_anaphoric_file_mention(
     message: str, session: Optional[Dict[str, Any]],
     llm_service: Any = None,
+    conversation_id: Optional[str] = None,
 ) -> str:
     """Resolve "find this in the workbook" to the conversation's file.
 
@@ -3181,6 +3182,22 @@ async def _resolve_anaphoric_file_mention(
                     break
             except Exception:  # noqa: BLE001 — belt-only
                 break
+    if not resolved_name and conversation_id:
+        # LEDGER FALLBACK (2026-10-01): every carrier was superseded or
+        # lost (restart, task churn) — the conversation's resolved file
+        # identity is still a durable fact in the append-only ledger.
+        try:
+            from core import dialogue_state as _ds
+            from core.agent_file_context import SPREADSHEET_EXTENSIONS
+
+            _lf = (_ds.project_events(
+                _ds.fetch_events(conversation_id)) or {}).get("file") or {}
+            _lname = str((_lf or {}).get("file_name") or "").strip()
+            if _lname and _lname.rsplit(".", 1)[-1].lower() in (
+                    SPREADSHEET_EXTENSIONS):
+                resolved_name = _lname
+        except Exception:  # noqa: BLE001 — ledger optional
+            pass
     if not resolved_name:
         return ""
     # Deterministic floor: generic file nouns resolve outright.
@@ -3376,6 +3393,7 @@ def _capture_resolved_row_bindings(
     history: Optional[List[Dict[str, Any]]],
     structured_result: Optional[Dict[str, Any]],
     current_message: str = "",
+    conversation_id: Optional[str] = None,
 ) -> None:
     """Persist user-asserted + read-verified row bindings on the task.
 
@@ -3428,6 +3446,31 @@ def _capture_resolved_row_bindings(
             if key not in existing:
                 merged.append(b)
         dis["resolved_bindings"] = merged[:32]
+        # LEDGER (2026-10-01, step 2 completion): bindings are durable
+        # conversation facts too — appended (revision-scoped by
+        # content_hash, expiry by projection) so later turns and
+        # restarted processes resolve them even when the task carrier
+        # was superseded or lost.
+        if conversation_id:
+            try:
+                from core import dialogue_state as _ds
+
+                for b in bindings:
+                    _ds.append_event(
+                        _ds.BINDING_CAPTURED, conversation_id, {
+                            "item": b.get("item"),
+                            "sheet": b.get("sheet"),
+                            "row": b.get("row"),
+                            "value": b.get("value"),
+                            "identity_cells": b.get("identity_cells"),
+                            "content_hash": (
+                                (structured_result or {})
+                                .get("source_identity") or {}
+                            ).get("content_hash"),
+                            "asserted_in": (current_message or "")[:200],
+                        })
+            except Exception:  # noqa: BLE001 — ledger optional
+                pass
         logger.info(
             "[resolved-bindings] captured %d user-asserted verified row "
             "binding(s) onto the file task", len(bindings))
@@ -5380,6 +5423,7 @@ class ChatOrchestrator:
                 # CONSTRAINTS ride the read either way. Fail-open: flag
                 # off or any error restores the resolver-only behavior.
                 _td_scope_hints: List[str] = []
+                _td_decision: Optional[Dict[str, Any]] = None
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
@@ -5389,6 +5433,7 @@ class ChatOrchestrator:
                         _td = build_turn_decision(
                             message, session, history or [],
                             context or {}, session_id=session_id)
+                        _td_decision = _td
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
                         for _a in _td.get("requested_actions") or []:
@@ -5435,7 +5480,8 @@ class ChatOrchestrator:
                     # deterministic reader serves the targeted ask
                     # instead of generic mail/integration planning.
                     _ask_mention = await _resolve_anaphoric_file_mention(
-                        message, session, self.llm_service)
+                        message, session, self.llm_service,
+                        conversation_id=session_id)
                     if _ask_mention:
                         logger.info(
                             "[file-ask] anaphoric reference resolved: "
@@ -5502,9 +5548,16 @@ class ChatOrchestrator:
                     try:
                         from core import dialogue_state as _ds
 
+                        _ledger_items = _ds.active_objective_items(
+                            session_id)
                         _tp_prior = (
-                            _ds.active_objective_items(session_id)
+                            _ledger_items
                             or _stored_requested_items(session))
+                        logger.debug(
+                            "[dialogue-state] objective source: %s (%d "
+                            "item(s))",
+                            "ledger" if _ledger_items else "carriers",
+                            len(_tp_prior))
                         _ledger_prefs = _ds.active_preference_phrases(
                             session_id)
                         # THIS TURN'S OWN hints, kept separate from the
@@ -5526,7 +5579,7 @@ class ChatOrchestrator:
                         .get("requested_items") or [])
                     _turn_program = build_turn_program(
                         message,
-                        decision=None,
+                        decision=_td_decision,
                         file_mention=_ask_mention,
                         canvas_items=(
                             _tp_extract(_tp_canvas_text)
@@ -5735,6 +5788,43 @@ class ChatOrchestrator:
                             "disambiguation"):
                         _ask_task["disambiguation"] = _stored_ctx[
                             "disambiguation"]
+                    # LEDGER BINDINGS FALLBACK (2026-10-01): user-asserted
+                    # row bindings captured on ANY earlier turn (active at
+                    # the stored workbook revision) ride the read when the
+                    # task carrier lost them — supersession and restarts
+                    # no longer forget what the user confirmed.
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ledger_hash = (
+                            ((session.get("_pending_file_result") or {})
+                             .get("structured_result") or {})
+                            .get("source_identity") or {}
+                        ).get("content_hash")
+                        _lb = _ds.active_bindings(
+                            session_id, _ledger_hash)
+                        if _lb:
+                            _dis = _ask_task.setdefault(
+                                "disambiguation", {})
+                            if isinstance(_dis, dict):
+                                _have = {
+                                    (str(b.get("item") or "").lower(),
+                                     str(b.get("sheet") or "").lower(),
+                                     b.get("row"))
+                                    for b in (
+                                        _dis.get("resolved_bindings")
+                                        or [])}
+                                for b in _lb:
+                                    _k = (
+                                        str(b.get("item") or "").lower(),
+                                        str(b.get("sheet") or "").lower(),
+                                        b.get("row"))
+                                    if _k not in _have:
+                                        _dis.setdefault(
+                                            "resolved_bindings",
+                                            []).append(b)
+                    except Exception:  # noqa: BLE001 — ledger optional
+                        pass
                     if _stored_ctx.get("resolved_file") and not _ask_task.get(
                             "resolved_file"):
                         _ask_task["resolved_file"] = _stored_ctx[
@@ -6022,6 +6112,25 @@ class ChatOrchestrator:
                             "execution_id": _execution_id,
                         }
                         session["_resolved_file_identity"] = _ask_identity
+                        # LEDGER (2026-10-01): the conversation's resolved
+                        # file identity is a durable fact — later turns
+                        # (and restarted processes) resolve "the workbook"
+                        # from it even when every carrier was superseded.
+                        try:
+                            from core import dialogue_state as _ds
+
+                            if _ask_identity.get("file_name"):
+                                _ds.append_event(
+                                    _ds.FILE_RESOLVED, session_id, {
+                                        "file_name": _ask_identity.get(
+                                            "file_name"),
+                                        "resource_id": _ask_identity.get(
+                                            "resource_id"),
+                                        "content_hash": _ask_identity.get(
+                                            "content_hash"),
+                                    })
+                        except Exception:  # noqa: BLE001 — ledger optional
+                            pass
                     _ask_complete = bool(
                         _ask_result.get("retrieval_complete"))
                     _ask_result_row = {
@@ -6156,7 +6265,8 @@ class ChatOrchestrator:
                         session, history or [],
                         _ask_result.get("structured_result")
                         if isinstance(_ask_result, dict) else None,
-                        current_message=message)
+                        current_message=message,
+                        conversation_id=session_id)
                     try:
                         from core.answer_presentation import (
                             workbook_result_card as _wrc,
@@ -6791,7 +6901,8 @@ class ChatOrchestrator:
                             session, history or [],
                             _direct_result.get("structured_result")
                             if isinstance(_direct_result, dict) else None,
-                            current_message=message)
+                            current_message=message,
+                            conversation_id=session_id)
                     except Exception:
                         pass
                     try:

@@ -280,6 +280,14 @@ def record_program(
         },
         "reference": program.get("reference"),
         "clarify": bool((program.get("clarify") or {}).get("needed")),
+        # The typed action language, summarized (ops + their sheet
+        # mentions; full records ride the task and response metadata).
+        "actions": [
+            {"op": (a or {}).get("op"),
+             "sheets": [str((sr or {}).get("mention"))
+                        for sr in (a or {}).get("sheets") or []][:4]}
+            for a in (program.get("actions") or [])[:6]
+            if isinstance(a, dict)],
         "recorded_at": time.time(),
     }
     append_event(PROGRAM_RECORDED, conversation_id, slim,

@@ -519,12 +519,35 @@ def build_turn_decision(
             "authorization": AUTH_GRANTED,
         })
 
+    # ---- typed action program (the decision's executable shadow) --------
+    # Closes the 2026-09-30 open item: the sheet scope the user asserted
+    # (message phrasing + parsed constraints) now enters the durable
+    # decision row as TYPED, inspectable program data — pending mentions
+    # that resolve only against the file's real sheet catalog at execution
+    # time (core.action_program), never guessed here. Compilation is total
+    # and fail-open; the actions above remain authoritative regardless —
+    # the program adds executability and receipts, it does not gate.
+    action_program_record = None
+    try:
+        from core.action_program import program_from_decision
+
+        _program = program_from_decision({
+            "session_id": session_id or str(session.get("id") or ""),
+            "message": t,
+            "requested_actions": actions,
+        })
+        if _program is not None:
+            action_program_record = _program.to_record()
+    except Exception:  # noqa: BLE001 — a shadow must never fail the turn
+        action_program_record = None
+
     return {
         "schema": SCHEMA,
         "session_id": session_id or str(session.get("id") or ""),
         "created_at": time.time(),
         "message": t[:500],
         "requested_actions": actions,
+        "action_program": action_program_record,
         "references": {
             "sources": sources,
             "file": file_reference or None,

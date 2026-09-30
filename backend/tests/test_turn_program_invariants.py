@@ -246,3 +246,72 @@ class TestProgramAuthority:
         src = inspect.getsource(
             orch.ChatOrchestrator._direct_confirmed_file_read)
         assert 'in ("refresh", "compare")' in src
+
+
+# Typed action language consolidation (2026-10-01) ---------------------------
+#
+# The decision's ACTION PROGRAM (core.action_program) and the turn
+# program are ONE language: decision ops ride verbatim; absent a
+# decision program, scope constraints synthesize into the same typed
+# shape; everything round-trips the STRICT parser.
+
+class TestTypedActionLanguage:
+    @staticmethod
+    def _decision():
+        from core.action_program import program_from_decision
+
+        actions = [{"kind": "research", "reason": "direct_ask",
+                    "authorization": "granted",
+                    "target": {"kind": "spreadsheet", "name": "w.xlsx"},
+                    "constraints": ["tennsmith sheet"]}]
+        prog = program_from_decision({
+            "session_id": "s1",
+            "message": "find 381 on the tennsmith sheet",
+            "requested_actions": actions})
+        return {"action_program": prog.to_record()}
+
+    def test_decision_actions_ride_verbatim(self):
+        tp = program("find 381 on the tennsmith sheet",
+                     decision=self._decision(), file_mention="w.xlsx",
+                     own_items=["381"])
+        ops = [a.get("op") for a in tp["actions"]]
+        assert ops and all(o for o in ops)
+        assert any(o == "workbook_read" for o in ops)
+        fact = [f for f in tp["decided_facts"]
+                if f["kind"] == "typed_actions"]
+        assert fact and fact[0]["origin"] == "decision-program"
+
+    def test_scope_synthesizes_the_same_typed_shape(self):
+        tp = program("find 381", file_mention="w.xlsx", own_items=["381"],
+                     standing_scope_hints=["tennsmith sheet"])
+        assert tp["actions"] == [{
+            "op": "filter_previous", "action_id": "scope",
+            "depends_on": [], "item": "",
+            "sheets": [{"mention": "tennsmith sheet",
+                        "resolved_name": None, "status": "pending"}]}]
+        fact = [f for f in tp["decided_facts"]
+                if f["kind"] == "typed_actions"]
+        assert fact and fact[0]["origin"] == "synthesized"
+
+    def test_records_round_trip_the_strict_parser(self):
+        from core.action_program import parse_program
+
+        for tp in (program("find 381 on the tennsmith sheet",
+                           decision=self._decision(), file_mention="w.xlsx",
+                           own_items=["381"]),
+                   program("find 381", file_mention="w.xlsx",
+                           own_items=["381"],
+                           standing_scope_hints=["tennsmith sheet"])):
+            reparsed = parse_program({
+                "schema_version": "action-program-1",
+                "session_id": "s1", "actions": tp["actions"]})
+            assert reparsed.actions
+
+    def test_ask_lane_passes_the_decision(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert "_td_decision = _td" in src
+        assert "decision=_td_decision," in src

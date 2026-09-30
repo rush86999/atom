@@ -179,7 +179,7 @@ class TestDurableFactsIntegration:
         import integrations.chat_orchestrator as orch
 
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
-        assert "active_objective_items(session_id)" in src
+        assert "active_objective_items(" in src
         assert "or _stored_requested_items(session)" in src
         assert "active_preference_phrases(" in src
 
@@ -193,3 +193,64 @@ class TestDurableFactsIntegration:
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
         assert "_turn_scope_hints = list(_td_scope_hints)" in src
         assert "for _pref in (_turn_scope_hints or []):" in src
+
+
+# Step-2 completion: bindings + file identity as durable facts (2026-10-01)
+
+class TestDurableBindingAndFileFacts:
+    def test_capture_seam_writes_ledger_events(self):
+        """A user assertion verified by a read lands in BOTH the task
+        carrier and the ledger — and the ledger survives the carrier."""
+        import uuid as _uuid
+
+        from integrations.chat_orchestrator import (
+            _capture_resolved_row_bindings,
+        )
+        from core import dialogue_state as ds
+        from core.pending_file_task import FILE_TASK_SESSION_KEY
+
+        cid = f"dstest-{_uuid.uuid4().hex[:8]}"
+        session = {FILE_TASK_SESSION_KEY: {"disambiguation": {}}}
+        structured = {
+            "source_identity": {"content_hash": "rev-r"},
+            "targets": [{
+                "item": "sourdough", "aliases": [],
+                "identity": {"status": "single", "candidates": [{
+                    "ref": "Breads!R14",
+                    "identity": {"references": [
+                        {"sheet": "Breads", "cell": "A14", "row": 14,
+                         "value": "sourdough", "role": "matched_target"}]},
+                    "values": [{"col": "D14", "basis": "HYDRATION",
+                                "kind": "text", "display": "78%"}]}]},
+                "field": {},
+            }],
+        }
+        _capture_resolved_row_bindings(
+            session, [], structured,
+            current_message="the sourdough is on the breads sheet "
+                            "under row 14",
+            conversation_id=cid)
+        got = ds.active_bindings(cid, "rev-r")
+        assert got and got[0]["row"] == 14 and got[0]["sheet"] == "Breads"
+        assert got[0]["content_hash"] == "rev-r"
+        # revision expiry still applies to the LEDGER copy
+        assert ds.active_bindings(cid, "rev-other") == []
+
+    def test_file_identity_is_a_durable_fact(self):
+        from core import dialogue_state as ds
+
+        cid = f"dstest-{uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.FILE_RESOLVED, cid, {
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "resource_id": "r-1", "content_hash": "h-1"})
+        state = ds.project_events(ds.fetch_events(cid))
+        assert state["file"]["file_name"] == "Consolidated Price List 2019.xlsx"
+
+    def test_anaphora_ledger_fallback_wired(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch._resolve_anaphoric_file_mention)
+        assert "conversation_id" in src
+        assert "LEDGER FALLBACK" in src
