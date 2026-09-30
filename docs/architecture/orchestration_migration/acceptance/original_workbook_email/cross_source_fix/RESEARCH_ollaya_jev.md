@@ -137,3 +137,61 @@ then re-run the staged benchmark (/Volumes/Seagate Portable Drive/
 jevk5-9b/ — hash-verified GGUF, venv, bench script) and wire the winning
 backend per question kind behind the existing kill switches, shadowed
 before it routes anything. No production change in this decision.
+
+## Addendum 3 (2026-09-30): SemIf/OpenJev — a GENERAL 4B readout clears the same gate set
+
+Owner asked to consider https://openjev.com/ in decision routing, tested
+locally. OpenJev is now **SemIf** (github.com/TheoLeeCJ/SemIf-OpenJev, MIT)
+— the open reproduction of the Jev *interface pattern* (not the model):
+runtime-defined {state, criterion, options} decisions decided by ONE
+forward pass with softmax restricted to the declared option-letter tokens
+("direct readout"), vs an autoregressive generation baseline. Published
+browser ladder for general models: Qwen3-0.6B 0.44 / MiniCPM5-2B 0.686 /
+Qwen3.5-4B 0.813 balanced accuracy. Unlike the ollaya runtimes above, SemIf
+scores arbitrary custom criteria and runs as a plain library (torch/MLX/
+llama.cpp backends) — no extra daemon, no preset label sets.
+
+Measured on this box (arm64, MLX/Metal, mlx-community/Qwen3.5-4B-4bit
+pinned 0e7ffd5c, repo venv): the SAME 9 labeled gate cases (bench_9b.py),
+plus a new lane-routing workload: the 18 coverage-matrix turns × 5 action
+kinds as binary criteria, labeled with the shipped contract's ACTUAL
+decisions from coverage_matrix_results.json (17/18 correct corpus).
+
+| gate set (9 cases) | laya 421M | JevK5-4B | JevK5-9B | **Qwen3.5-4B SemIf** |
+|---|---|---|---|---|
+| possessive source-vs-attribute | 1/5 | 2/5 | 3/5 | **4/5** |
+| anaphoric file-reference | 2/4 | 2/4 | 4/4 | **4/4** (0.87/0.98 vs 0.13/0.13) |
+| total | 3/9 | 4/9 | 7/9 | **8/9** |
+
+The single miss is poss-4 Brennan Machinery (p=0.798 confident-wrong) —
+the documented pragmatic residue the budget LLM exists for. Generation
+baseline: identical 8/9, same miss (the two readouts agreed on EVERY row,
+99/99 — with 2-token letter answers there is no quality gap; readout's
+structural advantage is per-option probabilities with no decode loop).
+
+Lane routing (18 turns × 5 kinds): **research recall 12/12, every true
+research turn p≥0.98** — including "That filename is correct" (0.98) and
+"find this in the tracker" (0.99) — zero omitted reads; learning 18/18,
+presentation 17/18. Exact action-set match vs the contract: 11/18; ALL
+misses are over-inclusion at the policy boundary (research/edit flavor on
+presentation-without-reread, nomination-without-grant, and "remember
+that…" turns, p 0.71–0.99): the model reproduces the SEMANTICS and has no
+notion of authorization. Latency: warm 0.3–0.8 s per decision (short
+prompts ~330–780 ms; history-bearing lane prompts ~0.5–1.5 s; forward-only
+≈ total). 2.5 GB weights, no server, inputs never leave the box.
+
+Reading: the candidate that passes the recorded quality gate is no longer
+a Jev-class decision-model runtime — it is a general 4B instruct model via
+SemIf-style readout behind cheap_nlu's existing interface, per question
+kind, with the Brennan-class pragmatic residue staying on the budget LLM.
+Replacing the lane contract itself is ruled out on this evidence AND on
+principle (policy authorization must not become a model call; the
+deterministic gates are the audit surface).
+
+Standing owner decision unchanged (budget-LLM tail ships; expansion
+triggers unchanged). If a trigger fires: expand the labeled set from real
+session history first, then wire the readout behind cheap_nlu's kill
+switches, shadowed before it routes anything. Bench + inputs + raw
+outputs: /Volumes/Seagate Portable Drive/semif-qwen35-4b/atom_bench/
+(build_inputs.py, run_generation.py, score.py, out_*.jsonl; scratch clone
+was /tmp/semif-jev-test). No production change.
