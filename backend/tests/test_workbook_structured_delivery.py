@@ -2102,14 +2102,27 @@ class TestObjectiveAnaphoraRecognition:
     def test_floor_regex_catches_the_noun_family(self):
         import core.chat_tool_planner as planner
 
+        # positives: the noun family, plus the DEMONSTRATIVE-OBJECT
+        # shapes observed in this workspace's real follow-up turns
+        # (corpus-measured 2026-09-30: "please research this" was the
+        # residual genuine-reference family after the nouns).
         for yes in ("show me the tennsmith sheet searches",
                     "check those results again on the roper sheet",
                     "re-run the lookup for my parts",
-                    "the matches you found on the alpha sheet"):
+                    "the matches you found on the alpha sheet",
+                    "please research this",
+                    "check it again",
+                    "pull those up"):
             assert planner._RETRIEVAL_REFERENCE_RE.search(yes), yes
+        # negatives: fresh asks and relative-pronoun shapes — a false
+        # positive turns a listing into a re-run (the inverted defect).
         for no in ("show me the tennsmith sheet",
                    "list the roper sheet",
-                   "what is on the alpha tab"):
+                   "what is on the alpha tab",
+                   "research quantum physics",
+                   "find the row that was mentioned",
+                   "find reports",
+                   "is our $7,519 shear in stock right now?"):
             assert not planner._RETRIEVAL_REFERENCE_RE.search(no), no
 
     @pytest.mark.asyncio

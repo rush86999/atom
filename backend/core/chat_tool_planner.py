@@ -6018,9 +6018,26 @@ def _stamp_named_file_meta(
 #: contents ("show me the tennsmith sheet searches" = re-run my searches
 #: scoped there, not list the sheet). Consulted by the sheet-scope browse
 #: gate so a reference-shaped turn prefers the scoped re-run.
+#:
+#: DEMONSTRATIVE OBJECTS (2026-09-30, corpus-measured): mining this
+#: workspace's real follow-up turns (228 following a workbook answer; 73
+#: in the population where floor silence matters — no own item codes, no
+#: filename, no communication source) showed the noun family covers the
+#: common phrasings (search/results/try-again), and the residual genuine
+#: references are verb+demonstrative shapes the nouns miss: "please
+#: research this", "check it again", "pull those up". Relative-pronoun
+#: "that" is deliberately EXCLUDED — "find the row that was mentioned"
+#: is a fresh ask, not a reference, and a false positive here would
+#: turn a listing into a re-run (the exact inversion of the defect this
+#: gate exists to prevent). Precision over recall: the NLU residue
+#: catches what the floor will not.
 _RETRIEVAL_REFERENCE_RE = re.compile(
     r"\b(?:search(?:es|ing)?|result(?:s)?|lookup(?:s)?|match(?:es|ed)?|"
-    r"finding(?:s)?|hit(?:s)?)\b", re.IGNORECASE)
+    r"finding(?:s)?|hit(?:s)?)\b"
+    r"|\b(?:research|check|find|look\s?up|show|pull\s?up|try|run|repeat)\b"
+    r"[A-Za-z0-9 ,']{0,24}\b(?:this|it|them|those)\b"
+    r"|\b(?:pull|pick|bring)\s+(?:this|it|them|those)\s+up\b",
+    re.IGNORECASE)
 
 
 async def _datasets_named_file_block(
