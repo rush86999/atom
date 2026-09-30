@@ -5491,7 +5491,35 @@ class ChatOrchestrator:
                             _tp_canvas_text = str(
                                 _canvas_ctx.get("body")
                                 or _canvas_ctx.get("content") or "")
-                    _tp_prior = _stored_requested_items(session)
+                    # DIALOGUE-STATE PROJECTIONS (2026-10-01, step 2):
+                    # the active objective comes from the conversation's
+                    # append-only ledger first (it survives restarts and
+                    # supersession by construction), with the carrier
+                    # chain as fallback while the ledger fills. Standing
+                    # preferences taught in ANY earlier turn ride every
+                    # program — the durable-facts rule (a lesson taught
+                    # on turn 3 applies on turn 300, with its receipt).
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _tp_prior = (
+                            _ds.active_objective_items(session_id)
+                            or _stored_requested_items(session))
+                        _ledger_prefs = _ds.active_preference_phrases(
+                            session_id)
+                        # THIS TURN'S OWN hints, kept separate from the
+                        # merge below so preference capture never
+                        # re-writes what the ledger already holds.
+                        _turn_scope_hints = list(_td_scope_hints)
+                        if _ledger_prefs:
+                            _td_scope_hints = list(dict.fromkeys(
+                                list(_td_scope_hints) + _ledger_prefs))
+                    except Exception as _ds_err:  # noqa: BLE001 — ledger optional
+                        logger.debug(
+                            "dialogue-state projection skipped: %r",
+                            _ds_err)
+                        _tp_prior = _stored_requested_items(session)
+                        _turn_scope_hints = list(_td_scope_hints)
                     _tp_last_served = (
                         ((session.get("_pending_file_result") or {})
                          .get("structured_result") or {})
@@ -5509,6 +5537,52 @@ class ChatOrchestrator:
                         standing_scope_hints=_td_scope_hints,
                     )
                     _ask_task["turn_program"] = _turn_program
+                    # LEDGER WRITES (2026-10-01, step 2) — append-only,
+                    # fault-isolated: audit the decided program; record
+                    # the objective when THIS turn changed it (explicit
+                    # or contrastive-resolved sets — inherited means the
+                    # objective is unchanged); capture STANDING
+                    # preferences ("always include the tennsmith sheet…")
+                    # the moment they are taught, so they apply from the
+                    # projection on every later turn.
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ds.record_program(
+                            session_id, _turn_program,
+                            workspace_id=(context or {}).get("workspace_id"))
+                        _tp_set0 = _turn_program.get("target_set") or {}
+                        if (_tp_set0.get("kind") in
+                                ("explicit", "contrastive_resolved")
+                                and _tp_set0.get("items")):
+                            _ds.append_event(
+                                _ds.OBJECTIVE_SET, session_id,
+                                {"items": list(_tp_set0["items"]),
+                                 "file": _ask_mention,
+                                 "origin": _tp_set0.get("origin")},
+                                workspace_id=(context or {}).get(
+                                    "workspace_id"))
+                        _STANDING_RE = re.compile(
+                            r"\b(?:always|whenever|each time|from now on|"
+                            r"learn(?:ing)? to|going forward)\b",
+                            re.IGNORECASE)
+                        if _STANDING_RE.search(message or ""):
+                            for _pref in (_turn_scope_hints or []):
+                                _ds.append_event(
+                                    _ds.PREFERENCE_SET, session_id,
+                                    {"phrase": str(_pref),
+                                     "standing": True,
+                                     "taught_in": (message or "")[:200]},
+                                    workspace_id=(context or {}).get(
+                                        "workspace_id"))
+                            if _turn_scope_hints:
+                                logger.info(
+                                    "[dialogue-state] standing "
+                                    "preference captured: %r",
+                                    _turn_scope_hints)
+                    except Exception as _ds_w_err:  # noqa: BLE001
+                        logger.debug(
+                            "dialogue-state writes skipped: %r", _ds_w_err)
                     _tp_set = _turn_program.get("target_set") or {}
                     _tp_kind = _tp_set.get("kind")
                     if _turn_program.get("clarify", {}).get("needed"):

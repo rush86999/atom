@@ -5454,6 +5454,36 @@ class OAuthState(Base):
         return datetime.now(self.expires_at.tzinfo) < self.expires_at
 
 
+class ConversationEvent(Base):
+    """Append-only ledger of a conversation's durable dialogue state
+    (2026-10-01, migration step 2).
+
+    One row = one DECIDED fact, never mutated: objectives set and
+    superseded, standing preferences taught and retired, user-asserted
+    row bindings captured at a workbook revision, and the per-turn
+    program (audit). Carriers the lanes consume (stored objective items,
+    scope hints, bindings) become PROJECTIONS of this log — nothing is
+    popped, so superseded objectives stay retrievable by construction
+    and the precedence-chain/stash dance dissolves. Superseding appends
+    a NEW event that references ``supersedes_event_id``; rows are never
+    updated or deleted (the store API exposes no such operation).
+    """
+    __tablename__ = "conversation_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    kind = Column(String, nullable=False, index=True)
+    # objective_set | objective_superseded | preference_set |
+    # preference_retired | binding_captured | program_recorded |
+    # file_resolved
+    payload_json = Column(Text, nullable=False, default="{}", server_default="{}")
+    supersedes_event_id = Column(String, nullable=True, index=True)
+
+
 class IntegrationToken(Base):
     """
     Integration token storage for OAuth access/refresh tokens.
