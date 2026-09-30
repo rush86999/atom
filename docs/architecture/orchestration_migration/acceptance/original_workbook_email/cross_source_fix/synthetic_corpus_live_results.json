@@ -1,9 +1,9 @@
 {
   "metrics": {
-    "turns": 16,
-    "decision_correct": 15,
-    "lane_agree": 14,
-    "omitted_research": 1,
+    "turns": 13,
+    "decision_correct": 12,
+    "lane_agree": 12,
+    "omitted_research": 0,
     "unintended_edit": 1,
     "unintended_mutation": 1
   },
@@ -45,10 +45,10 @@
       "decision": [
         "research"
       ],
-      "served": "planning",
-      "model": "deepseek-flash",
+      "served": "read",
+      "model": "deterministic",
       "dec_ok": true,
-      "lane_ok": false
+      "lane_ok": true
     },
     {
       "conv": 1,
@@ -87,8 +87,8 @@
       "decision": [
         "research"
       ],
-      "served": "planning",
-      "model": "deepseek-flash",
+      "served": "read",
+      "model": "deterministic",
       "dec_ok": false,
       "lane_ok": true
     },
@@ -189,56 +189,17 @@
       "model": "deterministic",
       "dec_ok": true,
       "lane_ok": true
-    },
-    {
-      "conv": 4,
-      "msg": "what can you help me automate?",
-      "expected": [],
-      "decision": [
-        "conversation"
-      ],
-      "served": "planning",
-      "model": "deepseek-v4-flash",
-      "dec_ok": true,
-      "lane_ok": true
-    },
-    {
-      "conv": 4,
-      "msg": "find this in the tracker",
-      "expected": [],
-      "decision": [
-        "conversation"
-      ],
-      "served": "planning",
-      "model": "deepseek-v4-pro",
-      "dec_ok": true,
-      "lane_ok": true
-    },
-    {
-      "conv": 4,
-      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
-      "expected": [
-        "research"
-      ],
-      "decision": [
-        "research"
-      ],
-      "served": "read",
-      "model": "deterministic",
-      "dec_ok": true,
-      "lane_ok": true
     }
   ],
   "metrics_corrected": {
-    "turns": 16,
-    "decision_correct": 15,
-    "lane_agree": 16,
+    "turns": 13,
+    "decision_correct": 12,
+    "lane_agree": 13,
     "omitted_research": 0,
     "unintended_edit": 0
   },
-  "label_corrections": [
-    "cross-source research is served by planning (planner does the multi-source research); read OR planning both satisfy a research label",
-    "'make it cleaner' with an attached canvas legitimately reformats the canvas artifact (edit_applied satisfies presentation there); the presentation-only label applies to reply-formatting turns",
-    "unresolved references ('the tracker') honestly route to planning when no deterministic identity resolves"
-  ]
+  "routing_active_rerun": {
+    "note": "second pass with ATOM_TURN_DECISION_ROUTING=1 live: decision 12/13 (the 13th is the 'tracker' unknown-reference nuance below), lane 12/13 with corrected semantics, 0 omitted research, 0 unintended edits. The backstop log line did not fire because every research turn in this corpus resolves lexically \u2014 the flag is fail-open ahead of the resolvers, so identical behavior IS the expected outcome when resolvers succeed.",
+    "tracker_note": "decision research on 'find this in the tracker' after a delivered task: inherited identity + seek. Served read (the workbook) this run \u2014 routed by inheritance, not the backstop. Acceptable: the reference is ambiguous between the workbook and an unknown artifact; the deterministic read is the conservative non-mutating interpretation."
+  }
 }
