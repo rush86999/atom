@@ -738,6 +738,11 @@ async def get_chat_history(
                     # trace route only covers agent-tool steps, not CoT).
                     if row.role == "assistant" and _meta.get("reasoning"):
                         _entry["reasoning"] = _meta["reasoning"]
+                    # WORKBOOK RESULT CARD: the compact UI payload persisted
+                    # beside the structured result rides history reloads so
+                    # the card renders identically after refresh/restart.
+                    if row.role == "assistant" and _meta.get("workbook_result"):
+                        _entry["workbook_result"] = _meta["workbook_result"]
                     if _meta.get("execution_id"):
                         _entry["execution_id"] = _meta["execution_id"]
                     history.append(_entry)

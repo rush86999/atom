@@ -6238,6 +6238,16 @@ class ChatOrchestrator:
                             current_message=message)
                     except Exception:
                         pass
+                    try:
+                        from core.answer_presentation import (
+                            workbook_result_card as _wrc2,
+                        )
+
+                        _direct_card = _wrc2(
+                            (_direct_result.get("structured_result")
+                             if isinstance(_direct_result, dict) else None))
+                    except Exception:
+                        _direct_card = None
                     _direct_response = {
                         "success": True,
                         "message": _direct_content,
@@ -6246,6 +6256,7 @@ class ChatOrchestrator:
                         "intent": "search",
                         "confidence": 0.9,
                         "data": {
+                            "workbook_result": _direct_card,
                             "deterministic_delivery": True,
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],

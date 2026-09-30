@@ -42,7 +42,7 @@ from __future__ import annotations
 import math
 import copy
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 PRESENTATION_VERSION = "pres-v2"
 
@@ -73,6 +73,14 @@ _CITE_RE = re.compile(r"([A-Za-z][A-Za-z0-9 .&'-]*?)\s*!\s*([A-Z]{1,3}\d{1,7})")
 _PAIR_RE = re.compile(
     r"([A-Z]{1,3}\d{1,7})\s*=\s*(-?\$?[\d,]+(?:\.\d+)?|)\s*\[basis=([^\];]+)")
 
+#: How many candidates an ambiguous item shows before the confirmation ask.
+AMBIGUOUS_CANDIDATE_WINDOW = 3
+
+#: Value kinds that let a candidate ANSWER a request. A row whose value cells
+#: are blank, zero, or unavailable carries no figure — it cannot resolve the
+#: question the reader was asked, however well its identity cell matches.
+_ANSWERABLE_VALUE_KINDS = frozenset({"number", "text"})
+
 
 def typed_value(raw: Any) -> Dict[str, Any]:
     """Classify a raw cell value: zero stays zero, blank is blank,
@@ -93,6 +101,71 @@ def typed_value(raw: Any) -> Dict[str, Any]:
         return {"kind": "zero", "display": "0"}
     display = f"{num:,.2f}".rstrip("0").rstrip(".")
     return {"kind": "number", "value": num, "display": display}
+
+
+def _value_answers_request(value: Any) -> bool:
+    """Whether one value cell can answer the request (a real figure or
+    non-empty text — not blank, zero, or unavailable)."""
+    if not isinstance(value, dict):
+        return False
+    kind = str(value.get("kind") or "")
+    if kind:
+        return kind in _ANSWERABLE_VALUE_KINDS
+    # An untyped value (older records) falls back to its display text.
+    return str(value.get("display") or "").strip() not in {
+        "", "blank", "0", "unavailable", "nan", "None"}
+
+
+def _candidate_answers_request(
+    candidate: Dict[str, Any],
+    requested_fields: Optional[Sequence[str]] = None,
+) -> bool:
+    """Whether this candidate can ANSWER the request as it will be displayed.
+
+    Identity alone is not enough to be a useful candidate. When a target
+    matches several rows, only the rows whose PRIMARY value — the one the
+    renderer leads with, chosen by the same ``_select_values`` the render
+    uses — is a real figure can answer. A row whose leading value is blank
+    or zero can only be reported back as "several rows match", which is
+    exactly what the user already had and could not use. Incidental figures
+    further down the same row (a freight or exchange-rate column) do not
+    rescue it, because the renderer would print the blank one first.
+
+    Live 2026-09-29 (session ``replay-retry2-20260923``): a read of the
+    same workbook returned a DIFFERENT visible answer minutes apart —
+    22:04 led with the priced row, 23:34 led with three rows whose price
+    cells were blank/0 and truncated the priced row out of the window
+    entirely. The candidate list arrives in scan order and dataset entries
+    are ordered by entity name ascending, so the window was decided by
+    alphabetical SHEET NAME rather than by which row could answer. This
+    predicate restores the data-driven order; it never drops a candidate,
+    so ambiguity is still reported and still asks for confirmation.
+    """
+    values = list(candidate.get("values") or [])
+    selected = _select_values(values, list(requested_fields or []), None)
+    if selected:
+        return _value_answers_request(selected[0])
+    # Nothing to select from (no value columns recorded): fall back to any
+    # real figure in the row, so the ordering still reflects the data.
+    return any(_value_answers_request(value) for value in values)
+
+
+def _rank_candidates(
+    candidates: List[Dict[str, Any]],
+    requested_fields: Optional[Sequence[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Stable partition: answerable candidates first, scan order within.
+
+    Stable by construction (one pass, no sort key), so candidates that are
+    equally answerable — or equally valueless — keep the reader's order and
+    no existing rendering changes.
+    """
+    answering: List[Dict[str, Any]] = []
+    silent: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        (answering if _candidate_answers_request(candidate, requested_fields)
+         else silent).append(candidate)
+    return answering + silent
 
 
 def _read_failure_clause(t: Dict[str, Any]) -> Optional[str]:
@@ -390,7 +463,7 @@ def _render_target(t: Dict[str, Any], item: str, *,
     selected = _select_values(pooled, requested_fields, field)
     if status == "multiple":
         parts = []
-        for c in candidates[:3]:
+        for c in candidates[:AMBIGUOUS_CANDIDATE_WINDOW]:
             cvals = _select_values(c.get("values") or [], requested_fields, field)
             # Name the identity cell alongside the row locator, so an
             # ambiguous row is still identified down to a cell.
@@ -526,8 +599,8 @@ def present_from_rendered_text(reply: str, *, ask: str, source: Dict[str, Any],
                     if vk not in seen:
                         seen.add(vk)
                         grp.append(v)
-        candidates = [{"ref": rk, "values": vals}
-                      for rk, vals in row_values.items()]
+        candidates = _rank_candidates(
+            [{"ref": rk, "values": vals} for rk, vals in row_values.items()])
         values, seen_vals = [], set()
         for vals in row_values.values():
             for v in vals:
@@ -728,6 +801,7 @@ def build_targets_from_scan(
     resolved_items: List[str],
     artifact_outcomes: Dict[str, Any],
     per_item: Optional[Dict[str, Any]] = None,
+    requested_fields: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Artifact-native targets for the presentation contract.
 
@@ -742,6 +816,10 @@ def build_targets_from_scan(
     scan's per-target status is carried through as ``retrieval``. Downstream
     that is the difference between the honest absence sentence and a reported
     read failure.
+
+    ``requested_fields`` scopes which candidates can ANSWER (see
+    ``_candidate_answers_request``). It only orders the candidate list; when
+    omitted the ranking falls back to the scan's own selected value columns.
     """
     per_item = per_item or {}
     raw_tokens = list((artifact_outcomes or {}).keys()) + [
@@ -844,10 +922,11 @@ def build_targets_from_scan(
                             grp["seen"].add(vk)
                             grp["values"].append(
                                 {"col": col, "basis": str(column), **tv})
-        candidates = [{"ref": g["ref"], "values": list(g["values"]),
-                       "identity": copy.deepcopy(
-                           g.get("identity") or _identity_block([]))}
-                      for g in row_groups.values()]
+        candidates = _rank_candidates([
+            {"ref": g["ref"], "values": list(g["values"]),
+             "identity": copy.deepcopy(
+                 g.get("identity") or _identity_block([]))}
+            for g in row_groups.values()], requested_fields)
         values: List[Dict[str, Any]] = []
         for g in row_groups.values():
             values.extend(g["values"])
@@ -951,6 +1030,102 @@ def new_attempt_id() -> str:
 
 
 EVIDENCE_ACTIONS = ("new_read", "read_failed", "reused", "unverified")
+
+
+def workbook_result_card(
+    structured_result: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Compact, versioned card payload for chat UI rendering of a
+    workbook read (2026-09-30 presentation pass).
+
+    The rendered markdown stays the source of truth for text consumers
+    (copy/export/fallback); the card is a CLEAN presentation of the same
+    artifact: one row per requested item (value + basis + provenance
+    under an expander), ambiguous items carry their candidate count,
+    absent items say so without inventing anything, and the footer
+    carries the file, evidence kind and coverage. Generic across
+    domains: everything here is structural (item/value/basis/ref).
+    """
+    try:
+        sr = structured_result or {}
+        source = sr.get("source_identity") or {}
+        file_name = str(source.get("file_name") or "").strip()
+        if not file_name:
+            return None
+        kind = str(source.get("live_vs_saved") or "").strip()
+        ingested = str(source.get("ingested_at") or "")[:10]
+        source_note = " · ".join(x for x in (kind, ingested) if x)
+        items: List[Dict[str, Any]] = []
+        for t in sr.get("targets") or []:
+            item = str((t or {}).get("item") or "").strip()
+            if not item:
+                continue
+            ident = t.get("identity") or {}
+            status = str(ident.get("status") or "none")
+            entry: Dict[str, Any] = {"item": item}
+            cands = ident.get("candidates") or []
+            if status == "multiple" and cands:
+                entry["status"] = "ambiguous"
+                entry["candidates"] = []
+                for c in cands[:5]:
+                    vals = c.get("values") or []
+                    first = next(
+                        (v for v in vals if str(
+                            v.get("display") or "").strip().lower()
+                        not in ("", "blank", "unavailable")), None)
+                    cells = [
+                        str(r.get("cell"))
+                        for r in ((c.get("identity") or {})
+                                  .get("references") or [])[:2]
+                        if (r or {}).get("cell")]
+                    entry["candidates"].append({
+                        "ref": c.get("ref"),
+                        "value": (first or {}).get("display"),
+                        "basis": (first or {}).get("basis"),
+                        "identity_cells": cells,
+                    })
+                entry["more_candidates"] = max(
+                    0, len(cands) - len(entry["candidates"]))
+            elif cands:
+                c = cands[0]
+                vals = c.get("values") or []
+                first = next(
+                    (v for v in vals if str(
+                        v.get("display") or "").strip().lower()
+                    not in ("", "blank", "unavailable")), None)
+                entry["status"] = "found"
+                entry["value"] = (first or {}).get("display")
+                entry["basis"] = (first or {}).get("basis")
+                entry["ref"] = c.get("ref")
+                entry["identity_cells"] = [
+                    str(r.get("cell"))
+                    for r in ((c.get("identity") or {})
+                              .get("references") or [])[:2]
+                    if (r or {}).get("cell")]
+                entry["other_bases"] = [
+                    {"basis": v.get("basis"), "display": v.get("display")}
+                    for v in vals[1:5]
+                    if str(v.get("display") or "").strip().lower()
+                    not in ("", "blank", "unavailable")][:3]
+            else:
+                entry["status"] = "absent"
+            items.append(entry)
+        coverage = sr.get("coverage") or {}
+        coverage_bits = []
+        for key, label in (("indexed_sheets", "sheets indexed"),
+                           ("scanned_sheets", "sheets scanned"),
+                           ("catalog_rows_seen", "catalog rows")):
+            if coverage.get(key) is not None:
+                coverage_bits.append(f"{coverage[key]} {label}")
+        return {
+            "schema": "workbook-result-1",
+            "file": file_name,
+            "source_note": source_note or None,
+            "coverage": " · ".join(coverage_bits) or None,
+            "items": items[:24],
+        }
+    except Exception:  # noqa: BLE001 — the card is presentational only
+        return None
 
 
 def build_structured_record(*, source_identity: Dict[str, Any],

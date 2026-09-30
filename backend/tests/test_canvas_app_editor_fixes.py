@@ -711,3 +711,56 @@ def test_ambiguous_render_names_sheets_holding_surplus_candidates():
         "candidates"][:2]
     line2 = _render_target(target, "No. 381")
     assert "more match" not in line2
+
+
+def test_workbook_result_card_payload_shapes():
+    """The chat UI card payload: found / ambiguous / absent items,
+    provenance (ref + identity cells + other bases), source + coverage
+    footer. Generic structural fields only."""
+    from core.answer_presentation import workbook_result_card
+
+    sr = {
+        "source_identity": {
+            "file_name": "recipe log.xlsx", "live_vs_saved": "saved copy",
+            "ingested_at": "2026-09-07T23:06:19"},
+        "coverage": {"indexed_sheets": 46, "scanned_sheets": 46},
+        "targets": [
+            {"item": "Sourdough loaf", "identity": {
+                "status": "multiple",
+                "candidates": [
+                    {"ref": "Breads!R14",
+                     "identity": {"status": "bound", "references": [
+                         {"cell": "A14", "row": 14}]},
+                     "values": [{"basis": "HYDRATION", "display": "78%"},
+                                {"basis": "FLOUR", "display": "450g"}]},
+                    {"ref": "Breads!R3",
+                     "identity": {"status": "bound", "references": [
+                         {"cell": "A3", "row": 3}]},
+                     "values": [{"basis": "HYDRATION", "display": "70%"}]},
+                ]}},
+            {"item": "rye", "identity": {
+                "status": "bound",
+                "candidates": [
+                    {"ref": "Breads!R3",
+                     "identity": {"status": "bound", "references": [
+                         {"cell": "A3", "row": 3}]},
+                     "values": [{"basis": "HYDRATION", "display": "70%"},
+                                {"basis": "FLOUR", "display": "400g"}]}]}},
+            {"item": "milk bread", "identity": {"status": "none",
+                                                "candidates": []}},
+        ],
+    }
+    card = workbook_result_card(sr)
+    assert card["schema"] == "workbook-result-1"
+    assert card["file"] == "recipe log.xlsx"
+    assert "saved copy" in (card["source_note"] or "")
+    assert "46 sheets" in (card["coverage"] or "")
+    amb, found, absent = card["items"]
+    assert amb["status"] == "ambiguous"
+    assert amb["candidates"][0]["ref"] == "Breads!R14"
+    assert found["status"] == "found" and found["value"] == "70%"
+    assert found["ref"] == "Breads!R3" and found["identity_cells"] == ["A3"]
+    assert found["other_bases"] == [{"basis": "FLOUR", "display": "400g"}]
+    assert absent["status"] == "absent" and "value" not in absent
+    # absent artifacts -> no card (nothing to present)
+    assert workbook_result_card({"source_identity": {}}) is None

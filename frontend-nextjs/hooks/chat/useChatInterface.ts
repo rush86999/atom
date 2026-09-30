@@ -179,6 +179,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
                                 actions: assistantActions,
                                 reasoning: historyItem.reasoning || undefined,
+                                workbookResult: historyItem.workbook_result || undefined,
                                 ...(historyReasoningStep ? { reasoningTrace: [historyReasoningStep] } : {}),
                             });
                         } else if (assistantContent && typeof assistantContent === 'object' && assistantContent.message) {
@@ -455,6 +456,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                     model: data.model,
                     provider: data.provider,
                     memoryContext: data.memory_context || undefined,
+                    workbookResult: (data as any)?.data?.workbook_result
+                        || (data as any)?.metadata?.workbook_result
+                        || undefined,
                     reasoning: data.reasoning || undefined,
                     // Train-from-chat: the backend attaches `teaching` to the
                     // turn (a /teach confirmation, or a detected directive
