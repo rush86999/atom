@@ -166,3 +166,38 @@ def test_decision_is_pure_and_shadow_shaped():
     assert d["routed_lane"] == "read"
     assert SESSION_COPY == SESSION, "the decision must never mutate state"
     assert d["provenance"]["signals"]
+
+
+def test_learning_without_agent_resolves_a_destination(monkeypatch):
+    """Activation behavior (2026-09-30 step 4): a learning request with
+    no attached agent was silently dropped — the contract surfaced it
+    as destination_candidates. The teaching channel now resolves the
+    workspace chat assistant as the destination; the kill switch
+    restores the drop."""
+    from core.chat_teaching import detect_mid_message_cue, suggest_lesson
+
+    lesson = detect_mid_message_cue(
+        "repeat the search and learn to include tennsmith sheet for "
+        "roper whitney searches")
+    assert lesson
+
+    class _Q:
+        def __init__(self, *a, **k): pass
+        def filter(self, *a, **k): return self
+        def order_by(self, *a, **k): return self
+        def first(self):
+            class A:
+                id = "chat-agent-1"
+                name = "Chat Assistant"
+                status = "intern"
+                updated_at = 0
+            return A()
+
+    class _DB:
+        def query(self, *a, **k): return _Q()
+
+    sug = suggest_lesson(_DB(), agent_id=None, lesson=lesson)
+    assert sug and (sug.get("agent") or {}).get("id") == "chat-agent-1"
+
+    monkeypatch.setenv("ATOM_TEACHING_DEFAULT_DESTINATION", "off")
+    assert suggest_lesson(_DB(), agent_id=None, lesson=lesson) is None

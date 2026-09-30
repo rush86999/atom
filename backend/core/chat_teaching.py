@@ -651,8 +651,38 @@ def suggest_lesson(
     Never raises.
     """
     text = " ".join(str(lesson or "").split())
-    if not text or not agent_id:
+    if not text:
         return None
+    try:
+        from core.models import AgentRegistry
+    except Exception:  # noqa: BLE001 — belt-only
+        AgentRegistry = None  # type: ignore
+
+    if not agent_id:
+        # DESTINATION RESOLUTION (2026-09-30 turn-decision activation):
+        # a learning request with no attached agent was silently DROPPED
+        # (the contract's destination_candidates surfaced exactly this).
+        # Resolve a destination instead of dropping: the workspace's
+        # chat assistant is where conversational lessons belong. Kill
+        # switch: ATOM_TEACHING_DEFAULT_DESTINATION=off restores the
+        # drop. Gate is cheap (one registry read, already the next
+        # step) and fault-isolated.
+        import os as _os
+
+        if _os.getenv("ATOM_TEACHING_DEFAULT_DESTINATION", "on").lower() in (
+                "off", "0", "false"):
+            return None
+        try:
+            _chat = db.query(AgentRegistry).filter(
+                AgentRegistry.type == "personal",
+                AgentRegistry.name == "Chat Assistant",
+            ).order_by(AgentRegistry.updated_at.desc()).first()
+            if _chat is None:
+                return None
+            agent_id = str(_chat.id)
+        except Exception as e:  # noqa: BLE001 — never block the turn
+            logger.debug(f"teaching destination resolve skipped: {e}")
+            return None
     try:
         from core.models import AgentRegistry
 
