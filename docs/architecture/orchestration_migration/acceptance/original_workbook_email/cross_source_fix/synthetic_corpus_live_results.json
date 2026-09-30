@@ -1,0 +1,244 @@
+{
+  "metrics": {
+    "turns": 16,
+    "decision_correct": 15,
+    "lane_agree": 14,
+    "omitted_research": 1,
+    "unintended_edit": 1,
+    "unintended_mutation": 1
+  },
+  "rows": [
+    {
+      "conv": 1,
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "That filename is correct",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "check Chandrakant's email and or description in workbook to ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "planning",
+      "model": "deepseek-flash",
+      "dec_ok": true,
+      "lane_ok": false
+    },
+    {
+      "conv": 1,
+      "msg": "repeat the search and learn to include tennsmith sheet for r",
+      "expected": [
+        "research",
+        "learning"
+      ],
+      "decision": [
+        "research",
+        "learning"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "make it cleaner",
+      "expected": [
+        "presentation"
+      ],
+      "decision": [
+        "presentation"
+      ],
+      "served": "edit_applied",
+      "model": null,
+      "dec_ok": true,
+      "lane_ok": false
+    },
+    {
+      "conv": 1,
+      "msg": "find this in the tracker",
+      "expected": [],
+      "decision": [
+        "research"
+      ],
+      "served": "planning",
+      "model": "deepseek-flash",
+      "dec_ok": false,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "run the lookup again on that price sheet please",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "check what the workbook says about No. 622",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "search again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "update the No. 381 price in this draft to $3,254.00",
+      "expected": [
+        "canvas_edit"
+      ],
+      "decision": [
+        "canvas_edit"
+      ],
+      "served": "planning",
+      "model": null,
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "search the file again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 4,
+      "msg": "what can you help me automate?",
+      "expected": [],
+      "decision": [
+        "conversation"
+      ],
+      "served": "planning",
+      "model": "deepseek-v4-flash",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 4,
+      "msg": "find this in the tracker",
+      "expected": [],
+      "decision": [
+        "conversation"
+      ],
+      "served": "planning",
+      "model": "deepseek-v4-pro",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 4,
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    }
+  ],
+  "metrics_corrected": {
+    "turns": 16,
+    "decision_correct": 15,
+    "lane_agree": 16,
+    "omitted_research": 0,
+    "unintended_edit": 0
+  },
+  "label_corrections": [
+    "cross-source research is served by planning (planner does the multi-source research); read OR planning both satisfy a research label",
+    "'make it cleaner' with an attached canvas legitimately reformats the canvas artifact (edit_applied satisfies presentation there); the presentation-only label applies to reply-formatting turns",
+    "unresolved references ('the tracker') honestly route to planning when no deterministic identity resolves"
+  ]
+}

@@ -10,6 +10,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("TESTING", "1")
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from core.turn_decision import (
@@ -201,3 +203,97 @@ def test_learning_without_agent_resolves_a_destination(monkeypatch):
 
     monkeypatch.setenv("ATOM_TEACHING_DEFAULT_DESTINATION", "off")
     assert suggest_lesson(_DB(), agent_id=None, lesson=lesson) is None
+
+
+def test_research_backstop_routes_ask_lane(monkeypatch):
+    """Full activation: with ATOM_TURN_DECISION_ROUTING on, a granted
+    research action's file reference feeds the ask lane when every
+    lexical resolver missed the wording; off (or error) restores the
+    resolver-only behavior."""
+    import asyncio
+    import os as _os
+
+    import integrations.chat_orchestrator as chat_mod
+
+    # a wording the resolvers miss but the decision reads (task state
+    # + seek + file reference)
+    state = {"id": "s-bs", "_pending_file_task": {
+        "original_message": "find prices",
+        "mention": "consolidated price list 2019.xlsx",
+        "status": "delivered",
+        "resolved_file": {
+            "file_name": "Consolidated Price List 2019.xlsx"}}}
+
+    async def fail_resolver(message, session, llm_service=None):
+        return ""
+
+    monkeypatch.setattr(chat_mod, "_resolve_anaphoric_file_mention",
+                        fail_resolver)
+    monkeypatch.setenv("ATOM_TURN_DECISION_ROUTING", "1")
+    orch = chat_mod.ChatOrchestrator()
+    orch.ai_engines = {}
+
+    read = {"ok": True,
+            "block": "FRESH READ via decision routing",
+            "rendered_answer": "FRESH READ via decision routing",
+            "identity": {"file_id": "wd-77", "resource_id": "wd-77",
+                         "file_name": "Consolidated Price List 2019.xlsx",
+                         "identity_verified": True,
+                         "coverage_complete": True},
+            "meta": {"completed": True, "identity_verified": True,
+                     "coverage_complete": True,
+                     "workbook_read": {"coverage": {"complete": True}}},
+            "retrieval_complete": True}
+    session = dict(state)
+    with (patch.object(orch, "_get_or_create_session",
+                       return_value=session),
+          patch.object(orch, "_resolve_canvas_ctx",
+                       new=AsyncMock(return_value=None)),
+          patch.object(orch, "_start_chat_execution", return_value="e-bs"),
+          patch.object(orch, "_record_chat_step", new=AsyncMock()),
+          patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+          patch.object(orch, "_finish_chat_execution"),
+          patch.object(orch, "_update_session"),
+          patch("core.chat_mini_app_authoring.try_handle",
+                new=AsyncMock(return_value=None)),
+          patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+          patch.object(orch, "_route_to_features",
+                       new=AsyncMock(return_value={})),
+          patch.object(orch, "_get_qwen_response", new=AsyncMock(
+              side_effect=AssertionError(
+                  "the decision must route the read"))),
+          patch.object(orch, "_direct_confirmed_file_read",
+                       new=AsyncMock(return_value=read)) as rd):
+        res = asyncio.run(orch.process_chat_message(
+            "u1", "run the lookup again on that price sheet please",
+            "s-bs", context={}))
+    assert rd.await_args.args[0]["mention"] == (
+        "consolidated price list 2019.xlsx")
+    # flag OFF restores resolver-only behavior
+    monkeypatch.setenv("ATOM_TURN_DECISION_ROUTING", "0")
+    session2 = dict(state)
+    with (patch.object(orch, "_get_or_create_session",
+                       return_value=session2),
+          patch.object(orch, "_resolve_canvas_ctx",
+                       new=AsyncMock(return_value=None)),
+          patch.object(orch, "_start_chat_execution", return_value="e-bs2"),
+          patch.object(orch, "_record_chat_step", new=AsyncMock()),
+          patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+          patch.object(orch, "_finish_chat_execution"),
+          patch.object(orch, "_update_session"),
+          patch("core.chat_mini_app_authoring.try_handle",
+                new=AsyncMock(return_value=None)),
+          patch.object(orch, "_try_canvas_edit", new=AsyncMock()),
+          patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+          patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()),
+          patch.object(orch, "_route_to_features",
+                       new=AsyncMock(return_value={})),
+          patch.object(orch, "_get_qwen_response", new=AsyncMock(
+              return_value={"success": True, "content": "ok",
+                           "model": "m", "provider": "p"})),
+          patch.object(orch, "_direct_confirmed_file_read",
+                       new=AsyncMock(side_effect=AssertionError(
+                           "resolvers failed and flag off: no read")))):
+        asyncio.run(orch.process_chat_message(
+            "u1", "run the lookup again on that price sheet please",
+            "s-bs", context={}))

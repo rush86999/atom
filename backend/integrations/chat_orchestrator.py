@@ -5324,6 +5324,42 @@ class ChatOrchestrator:
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
                 if not _ask_mention:
+                    # TURN-DECISION ROUTING (2026-09-30 full activation,
+                    # ATOM_TURN_DECISION_ROUTING): the structured
+                    # decision is the AUTHORITY for whether this turn
+                    # requests research — when it carries a granted
+                    # research action with a file reference, the ask
+                    # lane runs on that reference even when every
+                    # lexical resolver below missed it (odd wording the
+                    # noun lists cannot anticipate). Fail-open: flag off
+                    # or any error restores the resolver-only behavior.
+                    if os.getenv("ATOM_TURN_DECISION_ROUTING", "").lower()                             in ("1", "on", "true"):
+                        try:
+                            from core.turn_decision import (
+                                build_turn_decision,
+                            )
+
+                            _td = build_turn_decision(
+                                message, session, history or [],
+                                context or {}, session_id=session_id)
+                            for _a in _td.get("requested_actions") or []:
+                                if (_a.get("kind") == "research"
+                                        and _a.get("authorization")
+                                        == "granted"):
+                                    _ref = (_a.get("target") or {})
+                                    if _ref.get("kind") == "spreadsheet" \
+                                            and _ref.get("name"):
+                                        _ask_mention = _ref["name"]
+                                        logger.info(
+                                            "[turn-decision] research "
+                                            "action routed the ask lane "
+                                            "(file=%r)", _ask_mention)
+                                    break
+                        except Exception as _tdr_err:  # noqa: BLE001
+                            logger.debug(
+                                "turn-decision routing skipped: %r",
+                                _tdr_err)
+                if not _ask_mention:
                     # ANAPHORIC FILE REFERENCE (2026-09-29 row-338
                     # incident): "find this in the workbook" names no
                     # extension-ful filename; resolve it against the
