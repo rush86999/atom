@@ -1027,3 +1027,78 @@ def test_binding_pins_read_in_non_business_domain(tmp_path):
     assert outcome["status"] == "found", outcome
     assert outcome["evidence"][0]["row"] == 14
     assert outcome["evidence"][0]["sheet"] == "Breads"
+
+
+def test_sheet_name_mention_scopes_the_read(tmp_path):
+    """Root cause of the 2026-09-30 'show me the tennsmith sheet'
+    defect: '381' matches rows on BOTH sheets; the user NAMED the sheet
+    ('tennsmith sheet') but the read had no sheet-scope constraint, so
+    RoperWhitney rows filled the candidate cap and the row the user
+    asked for stayed buried. An explicit '<name> sheet' mention must
+    scope the read to matching sheets — generically (any sheet name,
+    any domain)."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338, 340],
+        "MODEL NO.": ["381", "No. 381 Heavy Duty"],
+        "PRICE": ["3254", ""],
+    }).to_parquet(path)
+    entry_a = {"entity_name": "RoperWhitney ", "parquet_path": str(path),
+               "row_count": 2, "coverage": {"known": True,
+                                            "truncated": False}}
+    entry_b = {"entity_name": "Tennsmith", "parquet_path": str(path),
+               "row_count": 2, "coverage": {"known": True,
+                                            "truncated": False}}
+    msg = "show me the tennsmith sheet searches for 381"
+    artifact = inspect_dataset_entries(
+        [entry_a, entry_b], "Consolidated Price List 2019.xlsx",
+        query=msg, context_texts=[msg], targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    sheets = {e.get("sheet") for e in outcome.get("evidence") or []}
+    assert outcome["status"] == "found", outcome
+    assert sheets == {"Tennsmith"}, sheets
+
+    # without the mention, both sheets compete (ambiguous) — the scope
+    # comes from the message, not from anywhere else.
+    artifact2 = inspect_dataset_entries(
+        [entry_a, entry_b], "Consolidated Price List 2019.xlsx",
+        query="381", context_texts=[], targets=["381"],
+    )
+    o2 = artifact2["coverage"]["outcomes"][0]
+    assert o2["status"] == "ambiguous", (
+        "sanity: without the sheet mention both sheets compete")
+
+
+def test_sheet_scope_applies_with_empty_entries_gracefully():
+    """No entries + a sheet mention: the read reports the honest
+    unavailable outcome (no rows to scope), never a crash and never a
+    fabricated absence."""
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    art = inspect_dataset_entries(
+        [], "wb.xlsx", query="show me the tennsmith sheet results for 381",
+        context_texts=[], targets=["381"],
+    )
+    o = art["coverage"]["outcomes"][0]
+    assert o["status"] in ("unavailable", "incomplete"), o
+    assert o.get("absence_claimable") is not True, (
+        "an empty source set must never claim absence")
+
+def test_unknown_sheet_mention_is_ignored_not_filtering_everything():
+    """A mention of a sheet that does not exist is IGNORED (never a
+    fabricated filter): the outcome keeps the normal status and no
+    evidence, with no note claiming a constraint matched."""
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    art = inspect_dataset_entries(
+        [], "wb.xlsx", query="show me the nosuchsheet results for 381",
+        context_texts=[], targets=["381"],
+    )
+    o = art["coverage"]["outcomes"][0]
+    assert o["status"] in ("unavailable", "incomplete"), o
+    assert not o.get("evidence"), o

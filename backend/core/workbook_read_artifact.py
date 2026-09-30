@@ -987,6 +987,42 @@ def capture_resolved_bindings(
     return out[:16]
 
 
+_SHEET_MENTION_RE = re.compile(
+    r"\b(?:the\s+|on\s+the\s+|in\s+the\s+|from\s+the\s+)?"
+    r"([A-Za-z][A-Za-z0-9 .&'/-]{2,30}?)\s+sheets?\b",
+    re.IGNORECASE,
+)
+
+
+def _sheet_scope_from_text(
+    texts: Sequence[str], known_sheets: Sequence[str],
+) -> List[str]:
+    """Explicit sheet-name mentions in the user's text ("show me the
+    tennsmith sheet searches") as a SCOPE on the read.
+
+    Generic: any named sheet whose name contains (or is contained in)
+    the mentioned fragment, case-insensitive. Only fragments matching a
+    sheet in THIS workbook apply — a mention of a sheet that does not
+    exist is ignored (never a fabricated filter).
+    """
+    scope: List[str] = []
+    known = [str(k or "").strip() for k in known_sheets or [] if str(
+        k or "").strip()]
+    if not known:
+        return scope
+    for text in texts or []:
+        for m in _SHEET_MENTION_RE.finditer(str(text or "")):
+            fragment = m.group(1).strip().lower()
+            if len(fragment) < 3:
+                continue
+            for k in known:
+                kl = k.lower()
+                if fragment in kl or kl in fragment:
+                    if k not in scope:
+                        scope.append(k)
+    return scope
+
+
 def _possessor_phrase(group: str) -> Optional[str]:
     """Normalize a possessive match's holder to the entity phrase.
 
@@ -2078,6 +2114,12 @@ def inspect_dataset_entries(
     criteria = _disambiguation_criteria(
         query, context_texts, disambiguation,
         source_reference_names=source_reference_names)
+    # SHEET SCOPE (2026-09-30 'show me the tennsmith sheet' defect): an
+    # explicit sheet-name mention scopes the read to matching sheets.
+    _sheet_scope = _sheet_scope_from_text(
+        [query or "", *(context_texts or [])],
+        [str(e.get("entity_name") or e.get("sheet_name") or "")
+         for e in entries])
     alias_map = _left_drop_aliases(requested)
     # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
     # constraints may be mined from ANY text — user asks, assistant
@@ -2350,6 +2392,17 @@ def inspect_dataset_entries(
             if _pinned:
                 designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
+
+        # SHEET SCOPE (see _sheet_scope_from_text): restrict designations
+        # to sheets the user explicitly named. If none of the matched
+        # designations sit on a named sheet, keep the unscoped set —
+        # never fabricate absence from a scope that matched nothing.
+        if _sheet_scope:
+            _scoped = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip() in _sheet_scope]
+            if _scoped:
+                designations = _scoped
         if designations and any(criteria.values()):
             constrained = [
                 item for item in designations
