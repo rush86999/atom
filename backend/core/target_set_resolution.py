@@ -100,20 +100,37 @@ def extract_items_from_text(text: str) -> List[str]:
 
     Used on canvas/draft bodies (typed candidate base sets) and on the
     user's message (items the message itself names, e.g. after
-    'except'). HTML markup is stripped first (canvas bodies carry
-    tables; tag text is not an item). Deduplicates case-insensitively,
+    'except'). Canvas markup is cleaned first: HTML tags stripped,
+    common entities decoded, and the backslash-uXXXX escapes JSON embedding
+    leaves in stored bodies normalized (live 2026-10-01: a real quote
+    canvas yielded 'u20135'/'u20138' junk items from encoded en-dashes).
+    Multi-word PROSE fragments (product descriptions, company names,
+    header text) are not item codes — only single tokens and short
+    alphanumeric codes survive; the tokens that matter ('No. 381',
+    'U-22', 'GSL48-16') all do. Deduplicates case-insensitively,
     preserves order.
     """
     from core.workbook_read_artifact import extract_targets
 
     cleaned = re.sub(r"<[^>]+>", " ", str(text or ""))
+    cleaned = (cleaned.replace("&nbsp;", " ").replace("&amp;", "&")
+               .replace("&#8211;", "-").replace("&ndash;", "-")
+               .replace("&mdash;", "-").replace("&rsquo;", "'"))
+    cleaned = re.sub(r"u20[0-9a-fA-F]{2}", "-", cleaned)
+    raw_items = extract_targets(cleaned, [], [])
     out: List[str] = []
     seen = set()
-    for item in extract_targets(cleaned, [], []):
-        key = str(item).strip().lower()
+    for item in raw_items:
+        token = str(item).strip()
+        # item codes are short: one token, or a code with internal
+        # punctuation/digits ('No. 381'). Long prose fragments are out.
+        if len(token) > 18 or (
+                " " in token and not re.search(r"\d", token)):
+            continue
+        key = token.lower()
         if key and key not in seen:
             seen.add(key)
-            out.append(str(item).strip())
+            out.append(token)
     return out
 
 
