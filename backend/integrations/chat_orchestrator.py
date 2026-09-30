@@ -3306,6 +3306,27 @@ def _failed_edit_retry_target(
     return None
 
 
+def _shadow_lane_of(msg_meta: Dict[str, Any], response: Any) -> str:
+    """Best-effort lane label for the shadow turn-decision record."""
+    try:
+        data = (response or {}).get("data") if isinstance(
+            response, dict) else {}
+        data = data if isinstance(data, dict) else {}
+        ce = data.get("canvas_edit") or {}
+        if ce.get("background_started"):
+            return "canvas_edit_background"
+        if ce.get("updated") or ce.get("no_apply"):
+            return "canvas_edit"
+        wr = msg_meta.get("workbook_result") or data.get("workbook_result")
+        if wr or data.get("deterministic_delivery"):
+            return "read"
+        if (response or {}).get("model") == "deterministic":
+            return "deterministic"
+        return "planning"
+    except Exception:  # noqa: BLE001 — label only
+        return "unknown"
+
+
 def _capture_resolved_row_bindings(
     session: Optional[Dict[str, Any]],
     history: Optional[List[Dict[str, Any]]],
@@ -15914,32 +15935,51 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         _msg_meta["workbook_result"] = _card
                                 except Exception:
                                     pass
+                            _resolved_identity = session.get(
+                                "_resolved_file_identity")
+                            if not isinstance(_resolved_identity, dict):
+                                _task_identity = session.get(
+                                    "_pending_file_task")
+                                if isinstance(_task_identity, dict):
+                                    _resolved_identity = (
+                                        _task_identity.get("resolved_file"))
+                            if isinstance(_resolved_identity, dict):
+                                _msg_meta["resolved_file_identity"] = (
+                                    _resolved_identity)
+                            _msg_meta["_pending_file_task"] = session.get(
+                                "_pending_file_task"
+                            )
+                            db.add(ChatMessageModel(
+                                id=_asst_msg_id,
+                                conversation_id=session_id,
+                                tenant_id=tenant_id,
+                                role="assistant",
+                                content=resp_content,
+                                metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
+                                created_at=datetime.now(timezone.utc),
+                            ))
                         except Exception:
                             pass
-                        _resolved_identity = session.get(
-                            "_resolved_file_identity")
-                        if not isinstance(_resolved_identity, dict):
-                            _task_identity = session.get("_pending_file_task")
-                            if isinstance(_task_identity, dict):
-                                _resolved_identity = _task_identity.get(
-                                    "resolved_file")
-                        if isinstance(_resolved_identity, dict):
-                            _msg_meta["resolved_file_identity"] = (
-                                _resolved_identity)
-                        _msg_meta["_pending_file_task"] = session.get(
-                            "_pending_file_task"
-                        )
-                        db.add(ChatMessageModel(
-                            id=_asst_msg_id,
-                            conversation_id=session_id,
-                            tenant_id=tenant_id,
-                            role="assistant",
-                            content=resp_content,
-                            metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
-                            created_at=datetime.now(timezone.utc),
-                        ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
+
+        # TURN-DECISION SHADOW (2026-09-30 consolidation, directive
+        # step 2): one structured decision per turn, composed from the
+        # same gates that routed it — recorded for evaluation; NOTHING
+        # routes by it yet. Written to the in-memory session projection
+        # (durable carriage follows in step 4 when routing migrates).
+        try:
+            from core.turn_decision import build_turn_decision
+
+            _shadow_decision = build_turn_decision(
+                message, session, history or [], context or {},
+                session_id=session_id, reasoning_available=None,
+                routed_lane=_shadow_lane_of(_msg_meta, response))
+            if isinstance(_msg_meta, dict):
+                _msg_meta["turn_decision"] = _shadow_decision
+            session["_last_turn_decision"] = _shadow_decision
+        except Exception as _td_err:  # noqa: BLE001 — shadow only
+            logger.debug("turn-decision shadow skipped: %r", _td_err)
 
         try:
             if self.session_manager and session.get("id"):
