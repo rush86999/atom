@@ -2119,3 +2119,59 @@ def present_from_record(record: Dict[str, Any],
         result["attempt_id"] = presentation_action.get("references_attempt_id")
         result["evidence_revision"] = presentation_action.get("references_evidence_revision")
     return result
+
+
+def compare_item_values(
+    baseline_record: Optional[Dict[str, Any]],
+    current_record: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Per-item value comparison between two structured records.
+
+    For the comparison ask ("verify if any pricing needs updating from
+    the latest data"): a source refresh alone is NOT a comparison — the
+    answer must state, per item, whether the value changed between the
+    baseline record and the current one. Pure: builds from the records'
+    targets only; items missing from either side are stated, never
+    dropped. Returns ``{"compared": n, "items": [...]}`` where each item
+    is ``{"item", "outcome", "baseline", "current"}`` and outcome is
+    unchanged | changed | only_in_baseline | only_in_current |
+    not_compared.
+    """
+    base = baseline_record if isinstance(baseline_record, dict) else {}
+    cur = current_record if isinstance(current_record, dict) else {}
+
+    def _first_value(record: Dict[str, Any], item: str) -> Optional[str]:
+        t = _find_target(record.get("targets") or [], item)
+        if not t:
+            return None
+        for cand in (t.get("identity") or {}).get("candidates") or []:
+            for v in cand.get("values") or []:
+                if _value_answers_request(v):
+                    return (f"{v.get('display')} "
+                            f"({v.get('basis')})").strip()
+        pooled = (t.get("field") or {}).get("values") or []
+        for v in pooled:
+            if _value_answers_request(v):
+                return (f"{v.get('display')} "
+                        f"({v.get('basis')})").strip()
+        return None
+
+    base_items = list(base.get("requested_items") or [])
+    cur_items = list(cur.get("requested_items") or [])
+    ordered = base_items + [i for i in cur_items if i not in base_items]
+    out: List[Dict[str, Any]] = []
+    for item in ordered:
+        b, c = _first_value(base, item), _first_value(cur, item)
+        if b is None and c is None:
+            outcome = "not_compared"
+        elif c is None:
+            outcome = "only_in_baseline"
+        elif b is None:
+            outcome = "only_in_current"
+        elif _norm(str(b)) == _norm(str(c)):
+            outcome = "unchanged"
+        else:
+            outcome = "changed"
+        out.append({"item": item, "outcome": outcome,
+                    "baseline": b, "current": c})
+    return {"compared": len(out), "items": out}

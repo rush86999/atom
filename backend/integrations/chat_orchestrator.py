@@ -5465,6 +5465,108 @@ class ChatOrchestrator:
                     # routing block above) — resolved against the read's
                     # real sheet catalog, never guessed here.
                     _ask_task["sheet_scope_hints"] = list(_td_scope_hints)
+                # TARGET-SET RESOLUTION (2026-09-30 'check the other
+                # machinery' incident, owner directive): a contrastive
+                # follow-up ("the other machinery", "the rest of the
+                # machines", "everything except the 381") is RELATED to
+                # the previous objective but is NOT a repeat of it —
+                # silently inheriting the previous items answers the
+                # question the user just moved past. Resolve the set
+                # BEFORE retrieval against typed candidates (this
+                # conversation's draft/canvas item list first, then the
+                # stored objective); when the words cannot pick a set,
+                # ASK — an unresolved target set must never be filled in
+                # by downstream inheritance.
+                try:
+                    from core.target_set_resolution import (
+                        extract_items_from_text as _tsr_extract,
+                        resolve_target_set as _tsr_resolve,
+                    )
+
+                    _tsr_canvas_text = ""
+                    if isinstance(_canvas_ctx, dict):
+                        _tsr_cc = _canvas_ctx.get("canvas_content")
+                        if isinstance(_tsr_cc, dict):
+                            _tsr_canvas_text = str(
+                                _tsr_cc.get("body")
+                                or _tsr_cc.get("content") or "")
+                        elif isinstance(_tsr_cc, str):
+                            _tsr_canvas_text = _tsr_cc
+                        if not _tsr_canvas_text:
+                            _tsr_canvas_text = str(
+                                _canvas_ctx.get("body")
+                                or _canvas_ctx.get("content") or "")
+                    _tsr = _tsr_resolve(
+                        message,
+                        canvas_items=(
+                            _tsr_extract(_tsr_canvas_text)
+                            if _tsr_canvas_text else []),
+                        prior_items=_stored_requested_items(session),
+                        last_served_items=(
+                            ((session.get("_pending_file_result") or {})
+                             .get("structured_result") or {})
+                            .get("requested_items") or []),
+                    )
+                    if _tsr.get("kind") == "resolved":
+                        # A target-set edit IS a revision of the
+                        # objective: revised_targets outranks every
+                        # inheritance path downstream.
+                        _ask_task["revised_targets"] = list(
+                            _tsr["items"])
+                        _ask_task["target_set_origin"] = _tsr.get(
+                            "origin")
+                        logger.info(
+                            "[target-set] contrastive follow-up resolved "
+                            "to %d item(s) from %s (moved past %r)",
+                            len(_tsr["items"]), _tsr.get("origin"),
+                            _tsr.get("excluded"))
+                    elif _tsr.get("kind") == "clarify":
+                        _clarify_message = (
+                            str(_tsr.get("question")
+                                or "Which items should I check?")
+                            + " Nothing was looked up yet, so nothing is "
+                              "half-checked.")
+                        _clarify_response = {
+                            "success": True,
+                            "message": _clarify_message,
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "clarify",
+                            "confidence": 0.9,
+                            "data": {
+                                "clarify": True,
+                                "target_set_resolution": "unresolved",
+                                "candidate_sets": _tsr.get(
+                                    "candidate_sets") or {},
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": [],
+                        }
+                        self._update_session(
+                            session, message, _clarify_response,
+                            {"primary_intent": "clarify",
+                             "confidence": 0.9})
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            "success")
+                        self._finish_chat_execution(
+                            _execution_id, "success", _clarify_message,
+                            session=session, message=message,
+                            response=_clarify_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=[],
+                        )
+                        logger.info(
+                            "[target-set] contrastive follow-up "
+                            "unresolved — clarifying, NO read ran")
+                        return _clarify_response
+                except Exception as _tsr_err:  # noqa: BLE001 — floor follows
+                    logger.debug(
+                        "target-set resolution skipped: %r", _tsr_err)
                 _ask_active = _stored_requested_items(session)
                 if _ask_active:
                     # Active-objective inheritance for vague follow-up
@@ -5672,6 +5774,76 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
+                    # COMPARISON PLANNING (2026-09-30 'check the other
+                    # machinery … verify if any pricing needs updating'
+                    # directive): a verification turn is NOT an ordinary
+                    # search answer. When the newer source could not be
+                    # fetched, the question asked ("does anything need
+                    # updating") gets an explicit UNABLE-TO-VERIFY lead —
+                    # the saved-copy values ride as reference, clearly
+                    # framed. When the refresh SUCCEEDED and content
+                    # changed, the answer carries a per-item comparison
+                    # against the baseline record; when content is
+                    # verified identical, it says so per the verdict.
+                    if _ask_freshness.get("status") in (
+                            "refresh_failed", "unverified"):
+                        _unable_lead = (
+                            "I couldn't verify against the latest "
+                            "source, so I can't tell whether any price "
+                            "needs updating — no comparison was "
+                            "possible. What the saved copy shows follows "
+                            "for reference:")
+                        _ask_content = (
+                            _unable_lead + "\n\n" + _ask_content
+                            + str(_ask_freshness.get("note") or ""))
+                        _ask_core = _ask_content
+                    elif _ask_freshness.get("status") == "refreshed":
+                        try:
+                            from core.answer_presentation import (
+                                compare_item_values,
+                            )
+
+                            _baseline_rec = ((session.get(
+                                "_pending_file_result") or {})
+                                .get("structured_result") or {})
+                            _cmp = compare_item_values(
+                                _baseline_rec if isinstance(
+                                    _baseline_rec, dict) else None,
+                                _ask_structured if isinstance(
+                                    _ask_structured, dict) else None)
+                            _cmp_bits = []
+                            for _ci in (_cmp.get("items") or []):
+                                if _ci.get("outcome") == "changed":
+                                    _cmp_bits.append(
+                                        f"{_ci['item']}: "
+                                        f"{_ci.get('baseline') or '?'} → "
+                                        f"{_ci.get('current') or '?'}")
+                                elif _ci.get("outcome") == "unchanged":
+                                    _cmp_bits.append(
+                                        f"{_ci['item']} unchanged "
+                                        f"({_ci.get('current') or '?'})")
+                            _cmp_lead = (
+                                "Compared with the earlier saved copy — "
+                                + ("; ".join(_cmp_bits)
+                                   if _cmp_bits else
+                                   "no comparable values between the two "
+                                   "reads")
+                                + ".")
+                            _ask_content = (
+                                _cmp_lead + "\n\n" + _ask_content
+                                + str(_ask_freshness.get("note") or ""))
+                            _ask_core = _cmp_lead + "\n\n" + _ask_core
+                        except Exception as _cmp_err:  # noqa: BLE001
+                            logger.debug(
+                                "refresh comparison skipped: %r", _cmp_err)
+                            if _ask_freshness.get("note"):
+                                _ask_content = (
+                                    _ask_content
+                                    + str(_ask_freshness["note"]))
+                    elif _ask_freshness.get("note"):
+                        _ask_content = (
+                            _ask_content
+                            + str(_ask_freshness["note"]))
                     # RETRY DELTA (2026-09-30): a re-run against the SAME
                     # file revision answering the SAME items found what
                     # the last search found — saying so in one line is the
