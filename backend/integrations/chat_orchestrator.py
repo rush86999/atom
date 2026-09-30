@@ -3165,6 +3165,29 @@ async def _resolve_anaphoric_file_mention(
     # Deterministic floor: generic file nouns resolve outright.
     if _GENERIC_FILE_REF_RE.search(t):
         return resolved_name.lower()
+    # NAMED-SHEET REFERENCE (2026-09-30). A preposition is not required to be
+    # talking about the workbook: "show me the tennsmith sheet searches" and
+    # "price on the Tennsmith tab" name a sheet of THIS conversation's
+    # spreadsheet as directly as "in the workbook" does, and the preposition
+    # requirement made both fall through to narration — which re-served the
+    # previous answer verbatim, so asking a narrower question produced a
+    # byte-identical reply. The turn is read-shaped (questions are already
+    # excluded above by the "?" guard) and the identity it resolves to is the
+    # one this conversation already holds.
+    #
+    # The SHEET is not resolved here — this function has no sheet catalog, so
+    # any name it picked would be a guess. It only establishes that the turn
+    # is a read against this workbook; the narrowing itself is settled in
+    # `core.chat_tool_planner` by `resolve_requested_sheets`, against the
+    # sheets the file actually indexes, which is where a wrong guess can be
+    # caught instead of acted on.
+    try:
+        from core.answer_presentation import mentions_sheet_reference
+
+        if mentions_sheet_reference(t):
+            return resolved_name.lower()
+    except Exception:  # noqa: BLE001 — fail toward normal planning
+        pass
     # Cheap-NLU residue: unknown generic noun, judged semantically.
     try:
         from core.llm.cheap_nlu import (

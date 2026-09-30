@@ -6214,7 +6214,8 @@ async def _datasets_named_file_block(
                     + "they are the materialized copy, not the live file.")
                 return _with_grounding(_block_text)
         except Exception as _browse_err:  # noqa: BLE001 — browse is optional
-            logger.debug("sheet-scope browse failed: %r", _browse_err)
+            logger.warning(
+                "sheet-scope browse failed: %r", _browse_err)
     # Did this turn REVISE the objective? When it did, `item_tokens` is the
     # revised set and therefore the requested ORDER, and the asking turn's
     # text must not re-sort it (see the `order_hint` argument below).
