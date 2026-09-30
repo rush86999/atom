@@ -932,13 +932,35 @@ def capture_resolved_bindings(
                     continue
                 if _canonical_item(cand_sheet) != _canonical_item(sheet):
                     continue
-                if item_key not in _canonical_item(atext):
-                    continue  # the assertion must name THIS item
                 refs = [r for r in (
                     (cand.get("identity") or {}).get("references") or [])
                     if (r or {}).get("cell")]
                 if not refs:
                     continue  # unbound candidate is not a verified row
+                # THE ASSERTION MUST NAME THIS ITEM — token overlap, not
+                # word-order substring ("sourdough loaf" must match an
+                # assertion saying "sourdough hydration…"; exact-phrase
+                # matching failed every paraphrase). Passes when at least
+                # half the item's significant tokens appear, OR the row's
+                # own matched-value token does (the identity cell content
+                # the user was looking at). An assertion naming neither
+                # binds nothing — the conservative direction.
+                _a_tokens = {
+                    t for t in re.findall(r"[a-z0-9]+", atext.lower())
+                    if len(t) >= 2}
+                _i_tokens = {
+                    t for t in re.findall(r"[a-z0-9]+", item.lower())
+                    if len(t) >= 2} or {item_key}
+                _overlap_ok = (
+                    len(_i_tokens & _a_tokens)
+                    >= max(1, len(_i_tokens) // 2))
+                _value_ok = any(
+                    _canonical_item(str((r or {}).get("value") or ""))
+                    and _canonical_item(str(r.get("value") or ""))
+                    in _canonical_item(atext)
+                    for r in refs)
+                if not (_overlap_ok or _value_ok):
+                    continue
                 first_value = next(
                     (v for v in (cand.get("values") or [])
                      if str(v.get("display") or "").strip().lower()

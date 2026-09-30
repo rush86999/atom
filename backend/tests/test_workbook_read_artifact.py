@@ -923,3 +923,107 @@ def test_binding_pins_the_read_at_matching_revision(tmp_path):
     assert art2["coverage"]["outcomes"][0]["status"] in (
         "ambiguous", "found"), art2["coverage"]["outcomes"][0]
     assert art2["coverage"]["outcomes"][0]["status"] == "ambiguous"
+
+
+# ---------------------------------------------------------------------------
+# BINDING DOMAIN INDEPENDENCE (2026-09-30 owner audit): the capture regex
+# and pin path must work wherever a user asserts a row of a sheet —
+# cooking, training, lab work — not just the incident's machinery domain.
+# ---------------------------------------------------------------------------
+
+def _artifact(item, ref, refs, values):
+    return {
+        "source_identity": {"content_hash": "rev-x"},
+        "targets": [{
+            "item": item,
+            "identity": {"status": "multiple", "candidates": [
+                {"ref": ref,
+                 "identity": {"status": "bound",
+                              "references": refs},
+                 "values": values},
+            ]},
+        }],
+    }
+
+
+def test_binding_capture_across_non_business_domains():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    cases = [
+        ("the sourdough hydration is on Breads sheet under row 14. "
+         "here's the data: sourdough 450g", "Sourdough loaf", "Breads!R14",
+         [{"sheet": "Breads", "cell": "A14", "row": 14,
+           "value": "sourdough", "role": "matched_target"}],
+         [{"col": "E14", "basis": "HYDRATION", "display": "78%"}]),
+        # item named with different word order (token overlap path)
+        ("the 5k tempo pace is on Intervals sheet row 7, check it",
+         "5k tempo", "Intervals!R7",
+         [{"sheet": "Intervals", "cell": "A7", "row": 7,
+           "value": "5k tempo", "role": "matched_target"}],
+         [{"col": "D7", "basis": "TARGET PACE", "display": "4:05"}]),
+        # item named only via the row's identity-cell value (value path)
+        ("Sample A-3 is on Results sheet under row 22", "Sample A-3",
+         "Results!R22",
+         [{"sheet": "Results", "cell": "B22", "row": 22,
+           "value": "Sample A-3", "role": "matched_target"}],
+         [{"col": "F22", "basis": "CONC", "display": "12.4"}]),
+    ]
+    for assertion, item, ref, refs, values in cases:
+        art = _artifact(item, ref, refs, values)
+        bindings = capture_resolved_bindings([assertion], art)
+        assert len(bindings) == 1, (item, bindings)
+        b = bindings[0]
+        assert b["sheet"] == ref.split("!")[0] and b["row"] == int(
+            ref.split("!R")[1])
+        assert b["identity_cells"] == [refs[0]["cell"]]
+        assert b["content_hash"] == "rev-x"
+        assert b["value_basis"].startswith(values[0]["col"])
+
+
+def test_binding_capture_negative_shapes():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    art = _artifact("Sourdough loaf", "Breads!R14",
+                    [{"sheet": "Breads", "cell": "A14", "row": 14,
+                      "value": "sourdough", "role": "matched_target"}],
+                    [{"col": "E14", "basis": "HYDRATION", "display": "78%"}])
+    # assertion names a different sheet -> no binding
+    assert capture_resolved_bindings(
+        ["the loaf is on Bagels sheet under row 14"], art) == []
+    # assertion names a different row -> no binding
+    assert capture_resolved_bindings(
+        ["the loaf is on Breads sheet under row 99"], art) == []
+    # assertion does not name the item (neither its tokens nor the
+    # row's identity value) -> no binding — the conservative direction.
+    assert capture_resolved_bindings(
+        ["it is on Breads sheet under row 14"], art) == []
+    assert capture_resolved_bindings(
+        ["the hydration is on Breads sheet under row 14"], art) == []
+
+
+def test_binding_pins_read_in_non_business_domain(tmp_path):
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "recipes.parquet"
+    pd.DataFrame({
+        "__sheet_row": [3, 14, 40],
+        "ITEM": ["rye", "sourdough", "focaccia"],
+        "HYDRATION": ["70%", "78%", "65%"],
+    }).to_parquet(path)
+    entry = {"entity_name": "Breads", "parquet_path": str(path),
+             "row_count": 3, "coverage": {"known": True, "truncated": False}}
+    binding = {"item": "sourdough", "sheet": "Breads", "row": 14,
+               "identity_cells": ["A14"], "value_basis": "E14 'HYDRATION'",
+               "content_hash": "rev-r", "confirmation": "user_supplied"}
+    ask = "find the hydration for the sourdough loaf in the workbook"
+    art = inspect_dataset_entries(
+        [entry], "recipe log.xlsx", query=ask, context_texts=[ask],
+        targets=["sourdough"],
+        disambiguation={"resolved_bindings": [binding]},
+        content_hash="rev-r")
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found", outcome
+    assert outcome["evidence"][0]["row"] == 14
+    assert outcome["evidence"][0]["sheet"] == "Breads"
