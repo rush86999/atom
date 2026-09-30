@@ -6362,6 +6362,147 @@ class ChatOrchestrator:
                             _direct_task = _pending_file_task
                             _direct_active = _stored_requested_items(session)
                             _direct_presentation = None
+                            # TARGET-SET RESOLUTION — RESUME LANE +
+                            # SELF-HEAL (2026-10-01 live finding on the
+                            # canvas conversation): a stored task made
+                            # every follow-up ride THIS lane, which
+                            # inherited the stored items ("the other
+                            # machinery" was answered with 381 again) —
+                            # the ask lane's turn program never ran.
+                            # Same contract as the ask lane, plus the
+                            # SELF-HEAL: a resolved contrastive set
+                            # reconciles the DURABLE task carrier and
+                            # the ledger, so the conversation repairs
+                            # its own state instead of re-serving the
+                            # stale one; an unresolvable set clarifies
+                            # instead of reading.
+                            try:
+                                from core.target_set_resolution import (
+                                    extract_items_from_text as _rl_extract,
+                                    resolve_target_set as _rl_resolve,
+                                )
+                                from core.turn_program import (
+                                    is_comparison_request as _rl_is_compare,
+                                )
+
+                                _rl_canvas_text = ""
+                                if isinstance(_canvas_ctx, dict):
+                                    _rl_cc = _canvas_ctx.get("canvas_content")
+                                    if isinstance(_rl_cc, dict):
+                                        _rl_canvas_text = str(
+                                            _rl_cc.get("body")
+                                            or _rl_cc.get("content") or "")
+                                    elif isinstance(_rl_cc, str):
+                                        _rl_canvas_text = _rl_cc
+                                    if not _rl_canvas_text:
+                                        _rl_canvas_text = str(
+                                            _canvas_ctx.get("body")
+                                            or _canvas_ctx.get("content")
+                                            or "")
+                                _rl_served = (
+                                    ((session.get("_pending_file_result")
+                                      or {}).get("structured_result")
+                                     or {}).get("requested_items") or [])
+                                # (no ledger fallback for last_served:
+                                # "what we just covered" is the last
+                                # DELIVERED answer, not the objective —
+                                # conflating them excludes everything)
+                                _rl = _rl_resolve(
+                                    message,
+                                    canvas_items=(
+                                        _rl_extract(_rl_canvas_text)
+                                        if _rl_canvas_text else []),
+                                    prior_items=_direct_active,
+                                    last_served_items=_rl_served)
+                                if _rl.get("kind") == "resolved":
+                                    _rl_items = list(_rl.get("items") or [])
+                                    _direct_task = dict(
+                                        _direct_task,
+                                        revised_targets=_rl_items,
+                                        target_set_origin=_rl.get("origin"))
+                                    # SELF-HEAL (durable): reconcile the
+                                    # stored task + ledger so the corrected
+                                    # set is what later turns inherit.
+                                    try:
+                                        _pending_file_task[
+                                            "requested_targets"] = _rl_items
+                                        from core import (
+                                            dialogue_state as _rl_ds,
+                                        )
+
+                                        _rl_ds.append_event(
+                                            _rl_ds.OBJECTIVE_SET,
+                                            session_id,
+                                            {"items": _rl_items,
+                                             "file": (
+                                                 _pending_file_task.get(
+                                                     "resolved_file")
+                                                 or {}).get("file_name"),
+                                             "origin": "self_heal"},
+                                            workspace_id=(
+                                                context or {}).get(
+                                                "workspace_id"))
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    logger.info(
+                                        "[target-set][resume] contrastive "
+                                        "ask resolved to %d item(s) — "
+                                        "durable state reconciled",
+                                        len(_rl_items))
+                                elif _rl.get("kind") == "clarify":
+                                    _rl_question = str(
+                                        _rl.get("question")
+                                        or "Which items should I check?")
+                                    _rl_response = {
+                                        "success": True,
+                                        "message": (
+                                            _rl_question
+                                            + " Nothing was looked up "
+                                              "yet, so nothing is "
+                                              "half-checked."),
+                                        "session_id": session_id,
+                                        "execution_id": _execution_id,
+                                        "intent": "clarify",
+                                        "confidence": 0.9,
+                                        "data": {"clarify": True,
+                                                 "target_set_resolution":
+                                                 "unresolved"},
+                                        "model": "deterministic",
+                                        "provider": "structured",
+                                        "requires_confirmation": False,
+                                        "next_steps": [],
+                                        "suggested_actions": [],
+                                    }
+                                    self._update_session(
+                                        session, message, _rl_response,
+                                        {"primary_intent": "clarify",
+                                         "confidence": 0.9})
+                                    await self._emit_agent_status(
+                                        session_id, _trace_agent_id,
+                                        _execution_id, "success")
+                                    self._finish_chat_execution(
+                                        _execution_id, "success",
+                                        _rl_response.get("message", ""),
+                                        session=session, message=message,
+                                        response=_rl_response,
+                                        deadline=_deadline,
+                                        pending_task=session.get(
+                                            "_pending_file_task"),
+                                        authorized_actions=[])
+                                    logger.info(
+                                        "[target-set][resume] unresolved — "
+                                        "clarifying, NO read ran")
+                                    return _rl_response
+                                if _rl_is_compare(message):
+                                    # A comparison ask rides the freshness
+                                    # machinery with the comparison answer
+                                    # contract (never a bare refresh).
+                                    _direct_task = dict(
+                                        _direct_task, operation="compare")
+                            except Exception as _rl_err:  # noqa: BLE001 — floor follows
+                                logger.debug(
+                                    "resume target-set resolution "
+                                    "skipped: %r", _rl_err)
                             try:
                                 _direct_decision = (
                                     self._continuation_decision(message, session))
@@ -6762,8 +6903,72 @@ class ChatOrchestrator:
                     # source-freshness request ships its verdict with the
                     # answer — refreshed, failed, or unverified — so an
                     # old copy can never pass as current.
+                    # COMPARISON CONTRACT (2026-10-01 owner directive): a
+                    # verify/compare ask is never an ordinary search
+                    # answer — unchanged content leads with "nothing
+                    # needs updating", changed content carries the
+                    # per-item comparison, and a failed fetch leads with
+                    # unable-to-verify.
                     _freshness = _direct_result.get("freshness") or {}
                     _direct_core = _direct_content
+                    try:
+                        from core.turn_program import (
+                            is_comparison_request as _dl_is_compare,
+                        )
+
+                        if _dl_is_compare(message):
+                            if _freshness.get("status") == "current":
+                                _direct_content = (
+                                    "Verified against the latest source — "
+                                    "its content is unchanged, so no "
+                                    "pricing updates are needed:\n\n"
+                                    + _direct_content)
+                            elif _freshness.get("status") == "refreshed":
+                                try:
+                                    from core.answer_presentation import (
+                                        compare_item_values,
+                                    )
+
+                                    _dl_base = ((session.get(
+                                        "_pending_file_result") or {})
+                                        .get("structured_result") or {})
+                                    _dl_cmp = compare_item_values(
+                                        _dl_base if isinstance(
+                                            _dl_base, dict) else None,
+                                        _direct_structured if isinstance(
+                                            _direct_structured, dict)
+                                        else None)
+                                    _dl_bits = []
+                                    for _ci in (_dl_cmp.get("items") or []):
+                                        if _ci.get("outcome") == "changed":
+                                            _dl_bits.append(
+                                                f"{_ci['item']}: "
+                                                f"{_ci.get('baseline') or '?'} → "
+                                                f"{_ci.get('current') or '?'}")
+                                        elif _ci.get("outcome") == "unchanged":
+                                            _dl_bits.append(
+                                                f"{_ci['item']} unchanged "
+                                                f"({_ci.get('current') or '?'})")
+                                    _direct_content = (
+                                        "Compared with the earlier saved "
+                                        "copy — "
+                                        + ("; ".join(_dl_bits)
+                                           if _dl_bits else
+                                           "no comparable values between "
+                                           "the two reads")
+                                        + ".\n\n" + _direct_content)
+                                except Exception:  # noqa: BLE001
+                                    pass
+                            elif _freshness.get("status") in (
+                                    "refresh_failed", "unverified"):
+                                _direct_content = (
+                                    "I couldn't verify against the latest "
+                                    "source, so I can't tell whether any "
+                                    "pricing needs updating — no "
+                                    "comparison was possible.\n\n"
+                                    + _direct_content)
+                    except Exception:  # noqa: BLE001 — framing optional
+                        pass
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
@@ -8830,7 +9035,9 @@ class ChatOrchestrator:
                         # objective sets this.
                         "revised_targets": (
                             (pending_task.get("objective_edit") or {}).get(
-                                "items") or []),
+                                "items")
+                            or pending_task.get("revised_targets")
+                            or []),
                         # ANAPHORIC RESOLUTION (2026-09-29 row-338): the
                         # ask text may name the file only generically
                         # ("the workbook"); the resolved identity —

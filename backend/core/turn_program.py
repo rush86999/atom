@@ -221,3 +221,13 @@ def build_turn_program(
     # ---- decided facts ----------------------------------------------------
     program["decided_facts"] = facts
     return program
+
+
+def is_comparison_request(message: str) -> bool:
+    """Does this ask ask to VERIFY/COMPARE values against newer data?
+
+    Public seam (resume lane + ask lane share it): a source refresh
+    alone is not a comparison — the answer contract for a comparison
+    turn is a per-item outcome or an explicit unable-to-verify.
+    """
+    return bool(_COMPARE_RE.search(str(message or "")))
