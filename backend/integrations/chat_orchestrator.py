@@ -5333,7 +5333,7 @@ class ChatOrchestrator:
                     # lexical resolver below missed it (odd wording the
                     # noun lists cannot anticipate). Fail-open: flag off
                     # or any error restores the resolver-only behavior.
-                    if os.getenv("ATOM_TURN_DECISION_ROUTING", "").lower()                             in ("1", "on", "true"):
+                    if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                         try:
                             from core.turn_decision import (
                                 build_turn_decision,
@@ -5342,10 +5342,15 @@ class ChatOrchestrator:
                             _td = build_turn_decision(
                                 message, session, history or [],
                                 context or {}, session_id=session_id)
+                            _td_sources = ((_td.get("references")
+                                            or {}).get("sources")) or []
                             for _a in _td.get("requested_actions") or []:
                                 if (_a.get("kind") == "research"
                                         and _a.get("authorization")
-                                        == "granted"):
+                                        == "granted"
+                                        and not (_a.get(
+                                            "additional_sources")
+                                            or _td_sources)):
                                     _ref = (_a.get("target") or {})
                                     if _ref.get("kind") == "spreadsheet" \
                                             and _ref.get("name"):
