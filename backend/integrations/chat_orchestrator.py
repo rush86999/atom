@@ -5514,6 +5514,27 @@ class ChatOrchestrator:
                             "'the workbook' -> %r (session=%s)",
                             _ask_mention, session_id)
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
+                    # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
+                    # consistency-run T3: 'always include the tennsmith
+                    # sheet for roper whitney searches' was hijacked by
+                    # the read lane — 'searches' matched the retrieval
+                    # noun and the reply became 'I found 0 results'
+                    # while the teaching ack never fired). The canvas
+                    # edit gate already exempts teaching cues; the read
+                    # gate must too — the lesson is acknowledged and
+                    # stored by the teaching channel.
+                    try:
+                        from core.chat_teaching import (
+                            detect_mid_message_cue,
+                            detect_teaching_cue,
+                        )
+
+                        if detect_teaching_cue(
+                                message or "") or detect_mid_message_cue(
+                                message or ""):
+                            _ask_mention = ""
+                    except Exception:  # noqa: BLE001 — classification only
+                        pass
                     from core.plan_relevance import _is_substantive_request
 
                     _ask_direct = _is_substantive_request(message)

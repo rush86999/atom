@@ -6307,6 +6307,60 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # IDENTITY-SHAPE FILTER ON MESSAGE-MINED ITEMS (2026-10-01 live
+    # finding, T2 of the consistency run): an assertion like 'no. 381 is
+    # on Tennsmith sheet under row 338' mined THREE items — 381 (real,
+    # identifier-prefixed), 'Tennsmith' (the SHEET NAME), and '338' (the
+    # ROW NUMBER) — so the answer carried junk rows for the sheet and
+    # the row. Generic rules, same family as the canvas extractor:
+    #   (a) a token that IS a sheet name of THIS workbook is a scope,
+    #       not an item;
+    #   (b) a bare number that follows 'row'/'R' in the message is a
+    #       row locator, not an item;
+    #   (c) otherwise: identifier-prefixed, alnum-mixed, or >=4 digits.
+    try:
+        import re as _id_re
+
+        from core.target_set_resolution import (
+            extract_items_from_text as _id_extract,
+        )
+
+        _id_whole = " ".join(v for v in (query, msg_text) if v)
+        _id_keep = set(_id_extract(_id_whole))
+        _id_sheets = {str(x).strip().lower() for x in (sheet_names or [])}
+        _id_rownums = {
+            m.group(1).lower()
+            for m in _id_re.finditer(
+                r"\brow\s+(\d{1,6})\b", _id_whole,
+                _id_re.IGNORECASE)}
+        _id_filtered = []
+        for _id_t in item_tokens:
+            _id_low = str(_id_t).strip().lower()
+            if _id_low in _id_sheets or _id_low in _id_rownums:
+                continue
+            if str(_id_t) in _id_keep or any(
+                    str(_id_t).lower() == str(_id_k).lower()
+                    for _id_k in _id_keep):
+                _id_filtered.append(_id_t)
+                continue
+            # prefixed forms like 'No. 381' extract as '381' — the
+            # identifier prefix in the message is the keep-signal
+            if _id_re.search(
+                    r"\b(?:no\.?|model|sku|part|item|code|m/n|p/n|ref)\.?\s*"
+                    + _id_re.escape(str(_id_t))
+                    + r"\b", _id_whole, _id_re.IGNORECASE):
+                _id_filtered.append(_id_t)
+        if _id_filtered:
+            item_tokens = _id_filtered
+        elif item_tokens and not _id_keep and not _id_sheets:
+            pass  # nothing learned; keep the original set
+        elif not _id_filtered and _id_keep:
+            item_tokens = [
+                t for t in item_tokens
+                if str(t).strip().lower() in {
+                    str(k).strip().lower() for k in _id_keep}]
+    except Exception as _id_err:  # noqa: BLE001 — filter is advisory
+        logger.debug("item identity filter skipped: %r", _id_err)
     # REFERENCE-RECOGNITION GATE (2026-09-30) — ONE decision point for
     # "does this turn refer to the conversation's prior retrieval work,
     # or does it ask for something of its own?". Research-grounded:
