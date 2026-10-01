@@ -18,6 +18,7 @@ import hashlib
 import io
 import json
 import logging
+import os
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
@@ -1142,7 +1143,8 @@ def _disambiguation_criteria(
 ) -> Dict[str, List[str]]:
     criteria: Dict[str, List[str]] = {}
     explicit = explicit or {}
-    for container_key in ("attributes", "selectors", "fields", "filters", "constraints"):
+    for container_key in ("attributes", "selectors", "fields", "filters",
+                          "constraints"):
         container = explicit.get(container_key)
         if isinstance(container, dict):
             for attribute, value in container.items():
@@ -1160,10 +1162,18 @@ def _disambiguation_criteria(
                 value = selector.get("value", selector.get("values"))
                 _add_criteria_value(criteria, attribute, value)
     for attribute, value in explicit.items():
-        if attribute not in {
-            "attributes", "selectors", "fields", "filters", "constraints"
+        if attribute in {
+            "attributes", "selectors", "fields", "filters", "constraints",
+            # RESOLVED BINDINGS ARE NOT CRITERIA (2026-10-01 root cause,
+            # live-only U-22 false-miss): the bindings container is
+            # DURABLE STATE crossing turns — mining it produced a bogus
+            # 'resolved_bindings' criterion whose value (str()'d binding
+            # dicts) matched nothing, and the elimination branch then
+            # emptied every designation on any bound turn.
+            "resolved_bindings",
         }:
-            _add_criteria_value(criteria, attribute, value)
+            continue
+        _add_criteria_value(criteria, attribute, value)
 
     pattern = re.compile(
         r"(?<![\w.])([A-Za-z][A-Za-z0-9 _-]{0,40}?)\s*(?:=|:|\bis\b)\s*"
@@ -1833,7 +1843,7 @@ def inspect_workbook_bytes(
             ]
             if not constrained:
                 _query_criteria = _disambiguation_criteria(
-                    query, [], disambiguation)
+                    query, [], None)
                 if any(_query_criteria.values()):
                     constrained = [
                         item for item in designations
@@ -2280,6 +2290,9 @@ def inspect_dataset_entries(
         except Exception:
             formula_map = {}
 
+        _diag_rows = 0
+        _diag_token_cells = 0
+        _diag_on = os.getenv("ATOM_SCAN_DIAG") == "1"
         for row_index, row in frame.iterrows():
             row_number = row.get(row_column) if row_column else row_index + 1
             row_values = row.tolist()
@@ -2301,6 +2314,10 @@ def inspect_dataset_entries(
                     continue
                 cell_ref = f"{_column_letter(column_index)}{row_number}"
                 formula_states.append("cached" if cell_ref in formula_map else "literal")
+                if _diag_on:
+                    for _dt in requested:
+                        if _matches_target(_dt, text):
+                            _diag_token_cells += 1
                 _target_hits: List[tuple] = [
                     (target, None)
                     for target in requested
@@ -2364,6 +2381,10 @@ def inspect_dataset_entries(
                         "values": values,
                         "prices": values,
                     })
+        if _diag_on:
+            logging.getLogger(__name__).info(
+                "[scan-diag-sheet] %r rows=%d token-cells=%d requested=%r",
+                sheet_name, _diag_rows, _diag_token_cells, list(requested))
         sheets.append({
             "name": sheet_name,
             "max_row": int(frame.shape[0]),
@@ -2448,7 +2469,7 @@ def inspect_dataset_entries(
             ]
             if not constrained:
                 _query_criteria = _disambiguation_criteria(
-                    query, [], disambiguation)
+                    query, [], None)
                 if any(_query_criteria.values()):
                     constrained = [
                         item for item in designations

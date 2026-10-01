@@ -6924,6 +6924,35 @@ class ChatOrchestrator:
                                     )
                                     return _tl_blocked_response
                             _direct_task.pop("refresh_attempted", None)
+                            # EXECUTE THE CURRENT ASK'S WORDS (2026-10-01
+                            # root cause of the U-22 live-only false-miss):
+                            # the resume lane passed the STORED original as
+                            # the read's query/message — so item mining,
+                            # criteria, and elimination all ran against the
+                            # OLD ask's words while the ITEMS came from the
+                            # current message. T4 ('find U-22 in the
+                            # workbook') executed with T2's text as the
+                            # query: U-22's row matched nothing in T2's
+                            # mined criteria and was eliminated → 'no
+                            # match in this copy'. The stored task pins
+                            # scope/bindings; the WORDS executed are the
+                            # current turn's WHEN the turn carries its own
+                            # targets or a resolved revision. A PLAIN
+                            # retry ('search the file again') carries no
+                            # new words — it keeps the stored original, so
+                            # the stored objective's items stay the ask.
+                            try:
+                                from core.target_set_resolution import (
+                                    extract_items_from_text as _rm_extract,
+                                )
+
+                                if (_direct_task.get("revised_targets")
+                                        or _rm_extract(message)):
+                                    _direct_task = dict(
+                                        _direct_task,
+                                        original_message=message)
+                            except Exception:  # noqa: BLE001 — floor follows
+                                pass
                             _direct_result = await self._direct_confirmed_file_read(
                                 _direct_task,
                                 history,
