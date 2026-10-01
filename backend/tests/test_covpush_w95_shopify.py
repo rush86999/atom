@@ -347,6 +347,15 @@ class TestFulfillments:
         assert body["line_items_by_fulfillment_order"] == [{"fulfillment_order_id": 7}]
         assert "tracking_info" not in body
 
+    async def test_create_fulfillment_notify_customer_opt_out(self):
+        svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
+            {"id": 7, "status": "open"}]}))
+        svc.http.post = AsyncMock(return_value=_resp(201, {}))
+        await svc.create_fulfillment("tok", "shop", "o1", notify_customer=False)
+        body = svc.http.post.call_args.kwargs["json"]["fulfillment"]
+        assert body["notify_customer"] is False
+
     async def test_create_fulfillment_location_mismatch_422(self):
         svc = _svc()
         svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [

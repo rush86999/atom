@@ -655,6 +655,24 @@ class MCPService(IntegrationService):
                         "status": "string (optional, any/open/closed)"
                     }
                 },
+                {
+                    "name": "shopify_get_fulfillments",
+                    "description": "List fulfillments (shipments with tracking status) for a Shopify order. Check this before creating a fulfillment to avoid double-shipping.",
+                    "parameters": {
+                        "order_id": "string (required, Shopify order id)"
+                    }
+                },
+                {
+                    "name": "shopify_create_fulfillment",
+                    "description": "Fulfill a Shopify order: ships every remaining line item of its open fulfillment orders, optionally with tracking. Shopify derives the ship-from location from the order's fulfillment orders. Fails with 'nothing to fulfill' if the order is already fully fulfilled or cancelled.",
+                    "parameters": {
+                        "order_id": "string (required, Shopify order id)",
+                        "tracking_number": "string (optional, tracking number sent to the customer)",
+                        "tracking_company": "string (optional, carrier name e.g. 'USPS')",
+                        "location_id": "string (optional, only fulfill items assigned to this location)",
+                        "notify_customer": "boolean (optional, default true — emails the customer the tracking info)"
+                    }
+                },
                 # --- Finance & Accounting ---
                 {
                     "name": "query_financial_metrics",
@@ -1907,6 +1925,36 @@ class MCPService(IntegrationService):
                     # Summary
                     summary = [f"Order #{o['order_number']}: {o['total_price']} {o['currency']} ({o.get('financial_status')})" for o in orders]
                     return "\n".join(summary) if summary else "No orders found."
+
+                elif tool_name == "shopify_get_fulfillments":
+                    order_id = arguments.get("order_id")
+                    if not order_id:
+                        return "order_id is required."
+                    fulfillments = await service.get_fulfillments(token, shop, order_id=order_id)
+                    if not fulfillments:
+                        return f"No fulfillments found for order {order_id}."
+                    return "\n".join(
+                        f"Fulfillment {f.get('id')}: status={f.get('status')} "
+                        f"tracking={f.get('tracking_number') or 'none'}"
+                        f" ({f.get('tracking_company') or 'no carrier'})"
+                        for f in fulfillments
+                    )
+
+                elif tool_name == "shopify_create_fulfillment":
+                    order_id = arguments.get("order_id")
+                    if not order_id:
+                        return "order_id is required."
+                    fulfillment = await service.create_fulfillment(
+                        token, shop,
+                        order_id=order_id,
+                        location_id=arguments.get("location_id"),
+                        tracking_number=arguments.get("tracking_number"),
+                        tracking_company=arguments.get("tracking_company"),
+                        notify_customer=arguments.get("notify_customer", True),
+                    )
+                    return (f"Fulfillment created successfully. id={fulfillment.get('id')} "
+                            f"status={fulfillment.get('status')} "
+                            f"tracking={fulfillment.get('tracking_number') or 'none'}")
 
             elif tool_name == "reconcile_payroll":
                 from finance.automations.payroll_guardian import PayrollReconciliationWorkflow
