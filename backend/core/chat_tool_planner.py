@@ -6417,6 +6417,25 @@ async def _datasets_named_file_block(
         isinstance(_turn_program, dict)
         and _turn_program.get("schema") == "turn-program-1")
     _own_item_tokens: List[str] = []
+    # VALUE-LOOKUP Subjects (2026-10-01, recorded gap): 'find the price
+    # for the PEXTO 888 shearmaker' carries a subject the item rules
+    # correctly reject as a code ('888' bare numeric) — but the ask is a
+    # VALUE LOOKUP, not a listing. When a value is requested and no item
+    # survived, mine the subject from the ask itself so the read runs
+    # honestly (candidates or a stated miss) instead of listing a sheet
+    # the user never asked to see.
+    try:
+        from core.workbook_read_artifact import (
+            extract_field_requests as _vfr,
+            extract_targets as _vext,
+        )
+
+        _value_request = bool(_vfr(
+            [query] + ([msg_text] if msg_text else [])))
+        if _value_request and not item_tokens:
+            item_tokens = _vext(query, [msg_text] if msg_text else [], [])
+    except Exception:  # noqa: BLE001 — subject mining is advisory
+        _value_request = False
     if _program_present:
         _tp_ref = _turn_program.get("reference") or {}
         _tp_set = _turn_program.get("target_set") or {}
@@ -6460,7 +6479,8 @@ async def _datasets_named_file_block(
     _browse_intent = bool(
         _scope_sheets
         and not _own_item_tokens
-        and (not _retrieval_reference or not item_tokens))
+        and not item_tokens
+        and (not _retrieval_reference or not _context_targets))
     if _browse_intent:
         # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
         # searches' follow-up): the user asked to SEE a sheet with no
