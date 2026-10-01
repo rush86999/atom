@@ -6037,7 +6037,11 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
-                    _ask_options = None
+                    # TYPED UNCERTAINTY SIGNAL: a comparison that could
+                    # not verify is a wobble — the turn consults the
+                    # mentor (see the consult seam at the narration call).
+                    _ask_uncertain = _ask_freshness.get("status") in (
+                        "refresh_failed", "unverified")
                     # COMPARISON PLANNING (2026-09-30 'check the other
                     # machinery … verify if any pricing needs updating'
                     # directive): a verification turn is NOT an ordinary
@@ -6411,7 +6415,7 @@ class ChatOrchestrator:
                             "provider": "structured",
                             "requires_confirmation": False,
                             "next_steps": [],
-                            "suggested_actions": (_ask_options or []),
+                            "suggested_actions": [],
                         }
                         self._update_session(
                             session, message, _ask_response,
@@ -7123,7 +7127,11 @@ class ChatOrchestrator:
                     # (not-found escalation policy removed 2026-10-01 —
                     # business training, not platform code; see the ask
                     # lane note and the datasets value_trace tool)
-                    _direct_options = None
+                    # TYPED UNCERTAINTY SIGNAL: a comparison that could
+                    # not verify is a wobble — the turn consults the
+                    # mentor (see the consult seam at the narration call).
+                    _direct_uncertain = _freshness.get("status") in (
+                        "refresh_failed", "unverified")
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         _direct_identity = {
@@ -7308,7 +7316,7 @@ class ChatOrchestrator:
                         "provider": "structured",
                         "requires_confirmation": False,
                         "next_steps": [],
-                        "suggested_actions": (_direct_options or []),
+                        "suggested_actions": [],
                     }
                     self._update_session(
                         session,
@@ -8307,7 +8315,7 @@ class ChatOrchestrator:
                     _uncertain = (
                         locals().get("_ask_miss_handoff")
                         or locals().get("_direct_options")
-                        or locals().get("_ask_options"))
+                        or locals().get("_ask_uncertain"))
                     _op_agent = (context or {}).get('agent_id')
                     if _uncertain and _op_agent:
                         _consult_agent_id = self._resolve_mentor_agent(
