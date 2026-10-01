@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import WorkbookResultCard from "@/components/chat/WorkbookResultCard";
 import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { TeachingNotice, type TeachingNoticeData } from "@/components/chat/TeachingNotice";
 import { AGENT_CHAT } from "@/src/lib/testIds";
@@ -69,6 +70,10 @@ export interface ChatMessageData {
     /** The auto-retrieved memory context injected before this answer
      * (memory-transparency drawer, UI gap #5). */
     memoryContext?: string;
+    /** Structured workbook/spreadsheet read (schema workbook-result-1) —
+     * rendered as a clean results card; the markdown content stays the
+     * authoritative text. */
+    workbookResult?: any;
     /** Train-from-chat state for this turn — a `/teach` confirmation or a
      * detected directive awaiting confirmation (backend metadata.teaching). */
     teaching?: TeachingNoticeData;
@@ -197,7 +202,18 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                         {/* Assistant/system replies are markdown (headings, lists,
                             GFM tables) rendered through the shared sanitized
                             pipeline; user bubbles stay plain pre-wrapped text. */}
-                        {isUser ? message.content : <ChatMarkdown content={message.content} />}
+                        {isUser ? message.content : (
+                            <>
+                                {message.workbookResult ? (
+                                    <WorkbookResultCard
+                                        result={message.workbookResult}
+                                        rawText={message.content}
+                                    />
+                                ) : (
+                                    <ChatMarkdown content={message.content} />
+                                )}
+                            </>
+                        )}
 
                         {message.workflowData && (
                             <div className={cn(

@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import integrations.chat_orchestrator as chat
 from core.chat_canvas_editor import (
     CanvasEditPlan,
     CanvasPatchOp,
@@ -1109,6 +1110,11 @@ async def test_process_edit_no_apply_stops_before_conversation():
     with patch.object(orch, "_get_or_create_session", return_value=session), \
          patch.object(orch, "_start_chat_execution", return_value="exec-3"), \
          patch.object(orch, "_emit_agent_status", new=AsyncMock()), \
+         patch.object(chat, "_begin_task_edit",
+                      return_value={"status": "reserved",
+                                    "run_id": "run-t",
+                                    "operation_id": "op-t",
+                                    "reason": None}), \
          patch.object(orch, "_try_canvas_edit", new=AsyncMock(
              return_value=None)), \
          patch.object(orch, "_try_canvas_action", new=AsyncMock(

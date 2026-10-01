@@ -2541,7 +2541,22 @@ class UniversalIntegrationService:
                 not identity_verified
                 and service == "zoho_workdrive"
                 and callable(getattr(storage_service, "get_file_metadata", None))
+                and not params.get("file_id")
             ):
+                # CALLER-PINNED RESOURCE (2026-09-30): this gate exists
+                # for NAME resolution — a query-derived candidate that
+                # could be the wrong file must not be served on name
+                # similarity alone. When the caller passed an explicit
+                # file_id (e.g. the refresh leg addressing the
+                # conversation's OWN resolved resource), the id IS the
+                # address; metadata refresh is best-effort enrichment
+                # and its quirks (missing name field, incomplete
+                # team/folder metadata) must not refuse the fetch. Live
+                # 2026-09-30: the refresh for Consolidated Price List
+                # 2019.xlsx returned 'The file name resolved only to an
+                # unverified candidate' for its OWN resource id — the
+                # freshness verdict then reported a bogus 'read failed'
+                # instead of ever attempting the download.
                 return {"status": "success", "data": {
                     "found": False,
                     "served": False,
@@ -2615,7 +2630,9 @@ class UniversalIntegrationService:
             # --- download -------------------------------------------------
             content: Optional[bytes] = None
             if service == "zoho_workdrive":
-                content = await storage_service.download_file(user_id or token, file_id)
+                content = await storage_service.download_file(
+                    user_id or token, file_id,
+                    workspace_id=(context or {}).get("workspace_id"))
             elif service == "google_drive":
                 content = await storage_service.download_file_bytes(token, file_id)
             elif service == "onedrive":

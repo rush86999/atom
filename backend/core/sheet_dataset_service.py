@@ -1736,13 +1736,28 @@ def _duckdb_probe_entry(con, entry: Dict[str, Any], token: str, limit: int):
     cols_sql = ", ".join(
         f'CAST("{c.replace(chr(34), chr(34) * 2)}" AS VARCHAR)' for c in columns
     )
-    sql = (
-        f"SELECT * FROM read_parquet('{path}') "
-        f"WHERE concat_ws('|', {cols_sql}) ILIKE ? "
-        f"LIMIT {int(limit)}"
-    )
+    # SHORT ALL-DIGIT TOKENS MATCH ON WORD BOUNDARIES (2026-10-01 live
+    # finding): substring ILIKE made '36' match inside 'SLE24-16', price
+    # figures, and UPCs — a spec fragment flooded the candidates across
+    # every sheet. A short bare number is an identifier only as a whole
+    # cell token; alphanumeric codes keep substring semantics
+    # ('350dsav' still matches 'WG-350DSAV').
+    if token.isdigit() and len(token) <= 3:
+        sql = (
+            f"SELECT * FROM read_parquet('{path}') "
+            f"WHERE regexp_matches(concat_ws('|', {cols_sql}), ?, 'i') "
+            f"LIMIT {int(limit)}"
+        )
+        probe_param = rf"\b{re.escape(token)}\b"
+    else:
+        sql = (
+            f"SELECT * FROM read_parquet('{path}') "
+            f"WHERE concat_ws('|', {cols_sql}) ILIKE ? "
+            f"LIMIT {int(limit)}"
+        )
+        probe_param = f"%{token}%"
     try:
-        out = con.execute(sql, [f"%{token}%"]).df()
+        out = con.execute(sql, [probe_param]).df()
     except Exception:  # noqa: BLE001 — caller falls back to pandas
         return None, None
     if out.empty:
@@ -1763,7 +1778,15 @@ def _pandas_probe_entry(entry: Dict[str, Any], token: str):
     strs = df.astype(str)
     # same exclusion as the DuckDB path — see the note there
     strs = strs.drop(columns=[C for C in (SHEET_ROW_COL,) if C in strs.columns])
-    mask = strs.apply(lambda col: col.str.contains(token, case=False, regex=False, na=False))
+    # SHORT ALL-DIGIT TOKENS: word boundaries, not substring (same
+    # rule + rationale as the DuckDB leg above).
+    if token.isdigit() and len(token) <= 3:
+        pattern = rf"\b{re.escape(token)}\b"
+        mask = strs.apply(lambda col: col.str.contains(
+            pattern, case=False, regex=True, na=False))
+    else:
+        mask = strs.apply(lambda col: col.str.contains(
+            token, case=False, regex=False, na=False))
     hit = df[mask.any(axis=1)]
     if hit.empty:
         return None, None

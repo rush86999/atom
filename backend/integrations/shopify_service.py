@@ -397,7 +397,8 @@ class ShopifyService(IntegrationService):
     async def create_fulfillment(self, access_token: str, shop: str, order_id: str,
                                   location_id: Optional[str] = None,
                                   tracking_number: Optional[str] = None,
-                                  tracking_company: Optional[str] = None) -> Dict[str, Any]:
+                                  tracking_company: Optional[str] = None,
+                                  notify_customer: bool = True) -> Dict[str, Any]:
         """Create a fulfillment for an order.
 
         Shopify removed the order-scoped fulfillment writes in version 2022-07;
@@ -432,7 +433,7 @@ class ShopifyService(IntegrationService):
                 "line_items_by_fulfillment_order": [
                     {"fulfillment_order_id": fo["id"]} for fo in actionable
                 ],
-                "notify_customer": True,
+                "notify_customer": notify_customer,
             }
             tracking_info: Dict[str, Any] = {}
             if tracking_number:
@@ -718,7 +719,8 @@ class ShopifyService(IntegrationService):
                     order_id=parameters["order_id"],
                     location_id=parameters.get("location_id"),
                     tracking_number=parameters.get("tracking_number"),
-                    tracking_company=parameters.get("tracking_company")
+                    tracking_company=parameters.get("tracking_company"),
+                    notify_customer=parameters.get("notify_customer", True)
                 )
                 return {"success": True, "result": result}
             elif operation == "get_refunds":

@@ -1,0 +1,329 @@
+{
+  "S1_competing_intents_long": {
+    "scenario": "S1_competing_intents_long",
+    "metrics": {
+      "n": 8,
+      "correct": 8,
+      "omitted": 0,
+      "unintended_edit": 0
+    },
+    "rows": [
+      {
+        "msg": "find the prices of these 8 machines in Consolidated Price List 2",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "That filename is correct",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "check Chandrakant's email and or description in workbook to find",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "roper whitney and tennsmith are 2 brands under 1 ownership and t",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "as you found the latest price for the roper 381 roll bender, upd",
+        "decision": [
+          "research",
+          "canvas_edit"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": true
+      },
+      {
+        "msg": "repeat the search and learn to include tennsmith sheet for roper",
+        "decision": [
+          "research",
+          "learning"
+        ],
+        "expected": [
+          "research",
+          "learning"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "make it cleaner",
+        "decision": [
+          "presentation"
+        ],
+        "expected": [
+          "presentation"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "find this in the tracker",
+        "decision": [
+          "research"
+        ],
+        "expected": [],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      }
+    ]
+  },
+  "S2_source_vs_file": {
+    "scenario": "S2_source_vs_file",
+    "metrics": {
+      "n": 6,
+      "correct": 6,
+      "omitted": 0,
+      "unintended_edit": 0
+    },
+    "rows": [
+      {
+        "msg": "search Chandrakant's september emails for the quote",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "find the prices in the workbook",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "check his email and the workbook descriptions to confirm the row",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "check it",
+        "decision": [
+          "research"
+        ],
+        "expected": [],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "what does the supplier thread say about lead times",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "compare the workbook values against the email quotes",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      }
+    ]
+  },
+  "S3_ambiguity_battery": {
+    "scenario": "S3_ambiguity_battery",
+    "metrics": {
+      "n": 7,
+      "correct": 7,
+      "omitted": 0,
+      "unintended_edit": 0
+    },
+    "rows": [
+      {
+        "msg": "find the machine prices in Copy of Consolidated Price List 2019 ",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "find this in the tracker",
+        "decision": [
+          "conversation"
+        ],
+        "expected": [],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "what are the prices for No. 381 in the workbook?",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "go ahead",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "repeat the search and learn to include tennsmith sheet for roper",
+        "decision": [
+          "research",
+          "learning"
+        ],
+        "expected": [
+          "research",
+          "learning"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "update the email price for No. 381 to $3,254.00",
+        "decision": [
+          "canvas_edit"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": true
+      },
+      {
+        "msg": "apply it now",
+        "decision": [
+          "canvas_edit"
+        ],
+        "expected": [
+          "canvas_edit"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      }
+    ]
+  },
+  "S4_durable_restart_state": {
+    "scenario": "S4_durable_restart_state",
+    "metrics": {
+      "n": 2,
+      "correct": 2,
+      "omitted": 0,
+      "unintended_edit": 0
+    },
+    "rows": [
+      {
+        "msg": "find the prices of these 8 machines in Consolidated Price List 2",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      },
+      {
+        "msg": "Consolidated Price List 2019.xlsx is correct",
+        "decision": [
+          "research"
+        ],
+        "expected": [
+          "research"
+        ],
+        "missing": [],
+        "unintended_edit": false,
+        "edit_granted": false
+      }
+    ]
+  },
+  "TOTAL": {
+    "metrics": {
+      "n": 23,
+      "correct": 23,
+      "omitted": 0,
+      "unintended_edit": 0
+    }
+  }
+}

@@ -1713,6 +1713,27 @@ _SHOPIFY_BLOGS_LIST_SCHEMA = {
     "properties": {},
 }
 
+_SHOPIFY_FULFILLMENTS_LIST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "order_id": {"type": "string", "description": "Shopify order id"},
+    },
+    "required": ["order_id"],
+}
+
+_SHOPIFY_FULFILLMENT_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "order_id": {"type": "string", "description": "Shopify order id to fulfill"},
+        "tracking_number": {"type": "string", "description": "Tracking number sent to the customer"},
+        "tracking_company": {"type": "string", "description": "Carrier name, e.g. 'USPS'"},
+        "location_id": {"type": "string", "description": "Optional — only fulfill items assigned to this location"},
+        "notify_customer": {"type": "boolean", "default": True,
+                            "description": "Email the customer the tracking info (default true)"},
+    },
+    "required": ["order_id"],
+}
+
 
 def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
     """Resolve (access_token, shop_domain) for the workspace's connected store.
@@ -1799,6 +1820,45 @@ async def _shopify_create_article(args: Dict[str, Any], context: Dict[str, Any])
         published=args.get("published", True),
     )
     return {"success": True, "article": article}
+
+
+@register_action(
+    "shopify_get_fulfillments",
+    description="List fulfillments (shipments with tracking status) for a Shopify order. "
+                "Check before creating a fulfillment to avoid double-shipping.",
+    parameters_schema=_SHOPIFY_FULFILLMENTS_LIST_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _shopify_get_fulfillments(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    fulfillments = await ShopifyService().get_fulfillments(token, shop, order_id=args["order_id"])
+    return {"success": True, "fulfillments": fulfillments}
+
+
+@register_action(
+    "shopify_create_fulfillment",
+    description="Fulfill a Shopify order: ships every remaining line item of its open "
+                "fulfillment orders, optionally with tracking. Shopify derives the "
+                "ship-from location from the order's fulfillment orders.",
+    parameters_schema=_SHOPIFY_FULFILLMENT_CREATE_SCHEMA,
+)
+async def _shopify_create_fulfillment(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    fulfillment = await ShopifyService().create_fulfillment(
+        token, shop,
+        order_id=args["order_id"],
+        location_id=args.get("location_id"),
+        tracking_number=args.get("tracking_number"),
+        tracking_company=args.get("tracking_company"),
+        notify_customer=args.get("notify_customer", True),
+    )
+    return {"success": True, "fulfillment": fulfillment}
 
 
 

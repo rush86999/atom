@@ -1,0 +1,205 @@
+{
+  "metrics": {
+    "turns": 13,
+    "decision_correct": 12,
+    "lane_agree": 12,
+    "omitted_research": 0,
+    "unintended_edit": 1,
+    "unintended_mutation": 1
+  },
+  "rows": [
+    {
+      "conv": 1,
+      "msg": "find the prices of these 8 machines in Consolidated Price Li",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "That filename is correct",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "check Chandrakant's email and or description in workbook to ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "repeat the search and learn to include tennsmith sheet for r",
+      "expected": [
+        "research",
+        "learning"
+      ],
+      "decision": [
+        "research",
+        "learning"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 1,
+      "msg": "make it cleaner",
+      "expected": [
+        "presentation"
+      ],
+      "decision": [
+        "presentation"
+      ],
+      "served": "edit_applied",
+      "model": null,
+      "dec_ok": true,
+      "lane_ok": false
+    },
+    {
+      "conv": 1,
+      "msg": "find this in the tracker",
+      "expected": [],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": false,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "run the lookup again on that price sheet please",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "check what the workbook says about No. 622",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 2,
+      "msg": "search again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16 in ",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "update the No. 381 price in this draft to $3,254.00",
+      "expected": [
+        "canvas_edit"
+      ],
+      "decision": [
+        "canvas_edit"
+      ],
+      "served": "planning",
+      "model": null,
+      "dec_ok": true,
+      "lane_ok": true
+    },
+    {
+      "conv": 3,
+      "msg": "search the file again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "dec_ok": true,
+      "lane_ok": true
+    }
+  ],
+  "metrics_corrected": {
+    "turns": 13,
+    "decision_correct": 12,
+    "lane_agree": 13,
+    "omitted_research": 0,
+    "unintended_edit": 0
+  },
+  "routing_active_rerun": {
+    "note": "second pass with ATOM_TURN_DECISION_ROUTING=1 live: decision 12/13 (the 13th is the 'tracker' unknown-reference nuance below), lane 12/13 with corrected semantics, 0 omitted research, 0 unintended edits. The backstop log line did not fire because every research turn in this corpus resolves lexically \u2014 the flag is fail-open ahead of the resolvers, so identical behavior IS the expected outcome when resolvers succeed.",
+    "tracker_note": "decision research on 'find this in the tracker' after a delivered task: inherited identity + seek. Served read (the workbook) this run \u2014 routed by inheritance, not the backstop. Acceptable: the reference is ambiguous between the workbook and an unknown artifact; the deterministic read is the conservative non-mutating interpretation."
+  }
+}

@@ -245,7 +245,7 @@ class TestLegitimateAbsenceIsNotRegressed:
                          "new_read")
         answer = ap.present_from_record(record)["answer"]
 
-        assert "no matching row in the indexed content searched" in answer
+        assert "no match in this copy" in answer
         assert "could not be read" not in answer.lower(), answer
         # The present item still answers — the failure path must not swallow
         # readable evidence.
@@ -287,7 +287,7 @@ class TestLegitimateAbsenceIsNotRegressed:
         assert "no matching" not in answer.lower(), answer
         assert "10" in answer, answer
         # The source-level verdict is stated once, for the whole answer.
-        assert "RETRIEVAL FAILED" in answer, answer
+        assert "I couldn't read the source" in answer, answer
 
 
 class TestErrorCategoryVocabulary:

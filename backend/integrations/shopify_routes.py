@@ -534,11 +534,16 @@ async def create_fulfillment(
     shop: str = Query(..., description="Shop Domain"),
     location_id: str = Query(None, description="Optional location filter; Shopify derives the fulfillment location from the order's fulfillment orders"),
     tracking_number: str = Query(None, description="Tracking Number"),
-    tracking_company: str = Query(None, description="Tracking Company")
+    tracking_company: str = Query(None, description="Tracking Company"),
+    notify_customer: bool = Query(True, description="Whether Shopify emails the customer the tracking info")
 ):
     """Create a fulfillment for an order"""
     result = await shopify_service.create_fulfillment(
-        access_token, shop, order_id, location_id, tracking_number, tracking_company
+        access_token, shop, order_id,
+        location_id=location_id,
+        tracking_number=tracking_number,
+        tracking_company=tracking_company,
+        notify_customer=notify_customer,
     )
     return {"ok": True, "data": result}
 

@@ -1,0 +1,471 @@
+# -*- coding: utf-8 -*-
+"""Turn-program invariants (2026-10-01, migration step 1 + 4).
+
+The conversation failures of 2026-09-30 were re-derivation failures:
+the same question decided at multiple seams, slightly differently. The
+turn program decides ONCE; these tests hold the invariants that keep
+that true:
+
+I1 DETERMINISM — same inputs, identical program (byte-stable fields).
+I2 DECIDED FACTS PROPAGATE — every non-empty decision reaches the
+   executed read context (or the clarify rejection); nothing decided
+   may vanish between interpretation and execution.
+I3 CONVERSATION REPLAY — the recorded incident turns of 2026-09-30
+   produce the interpretations the owner specified, asserted on WHICH
+   items are investigated and WHAT operation runs — not merely that a
+   lane fired.
+I4 PROGRAM AUTHORITY — when a program rides the read context, the
+   reader's gate consumes it instead of re-deciding.
+"""
+from __future__ import annotations
+
+import copy
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ.setdefault("TESTING", "1")
+
+import pytest
+
+from core import answer_presentation as ap  # noqa: E402
+
+
+def _ev(sheet, row, cell, values):
+    return {"sheet": sheet, "row": row, "cell": cell, "values": values}
+
+
+def _v(col, display, basis):
+    return {"col": col, "display": display, "basis": basis,
+            "kind": "text"}
+
+
+T8 = ["No. 381", "U-22", "No. 622", "TK Manual Flanger", "SLE24-16",
+      "TK 1624", "TK Multi Wheel Gang Slitter", "GSL48-16"]
+FILE = "Consolidated Price List 2019.xlsx"
+
+
+def program(message, **kw):
+    from core.turn_program import build_turn_program
+
+    return build_turn_program(message, **kw)
+
+
+# I1 -------------------------------------------------------------------------
+class TestDeterminism:
+    def test_same_inputs_identical_program(self):
+        kw = dict(file_mention=FILE, canvas_items=T8, prior_items=T8,
+                  last_served_items=["No. 381"], own_items=[],
+                  standing_scope_hints=["tennsmith sheet"])
+        a = program("check the other machinery and verify pricing", **kw)
+        b = program("check the other machinery and verify pricing", **kw)
+        assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+    def test_carrier_order_does_not_change_interpretation(self):
+        """The interpretation must depend on the SET of prior items, not
+        their order (carrier write-order was a divergence source)."""
+        kw = dict(file_mention=FILE, prior_items=list(reversed(T8)),
+                  last_served_items=["381"], own_items=[])
+        a = program("show me the searches", **kw)
+        b = program("show me the searches",
+                    file_mention=FILE, prior_items=T8,
+                    last_served_items=["381"], own_items=[])
+        # kind/origin identical; items are the same SET (the requested
+        # ORDER is meaningful presentation authority and follows the
+        # carrier, which this invariant deliberately does not pin)
+        assert a["target_set"]["kind"] == b["target_set"]["kind"]
+        assert a["target_set"]["origin"] == b["target_set"]["origin"]
+        assert set(a["target_set"]["items"]) == set(b["target_set"]["items"])
+        assert a["reference"] == b["reference"]
+
+
+# I2 -------------------------------------------------------------------------
+class TestDecidedFactsPropagate:
+    """Every decided fact must appear in the read context the reader
+    consumes (or the clarify response that rejects the read)."""
+
+    @staticmethod
+    def _context_from_task(task):
+        """The exact context assembly _direct_confirmed_file_read
+        performs — the propagation seam under test."""
+        ctx = {
+            "requested_targets": task.get("requested_targets") or [],
+            "revised_targets": (task.get("objective_edit") or {}).get(
+                "items")
+            or task.get("revised_targets") or [],
+            "sheet_scope_hints": task.get("sheet_scope_hints") or [],
+            "turn_program": task.get("turn_program"),
+        }
+        return ctx
+
+    def _task_from_program(self, tp, session_items):
+        """The ask lane's consumption of the program, as wired."""
+        task = {"mention": tp["file"]["mention"], "operation":
+                tp["operation"] if tp["operation"] in ("refresh",
+                                                       "compare") else None}
+        ts = tp["target_set"]
+        if ts["kind"] == "contrastive_resolved":
+            task["revised_targets"] = list(ts["items"])
+        elif ts["kind"] == "inherited":
+            task["requested_targets"] = list(session_items)
+            task["inherited_targets"] = True
+        if tp["constraints"]["sheets"]:
+            task["sheet_scope_hints"] = list(tp["constraints"]["sheets"])
+        task["turn_program"] = tp
+        return task
+
+    def test_every_decided_fact_reaches_the_read_context(self):
+        tp = program("show me the tennsmith sheet searches",
+                     file_mention=FILE, prior_items=T8,
+                     last_served_items=["381"], own_items=[],
+                     standing_scope_hints=["tennsmith sheet"])
+        task = self._task_from_program(tp, T8)
+        ctx = self._context_from_task(task)
+        for fact in tp["decided_facts"]:
+            kind = fact["kind"]
+            if kind == "operation":
+                continue  # consumed by the freshness machinery, not ctx
+            if kind == "file_mention":
+                assert task["mention"] == fact["value"]
+            elif kind == "prior_retrieval_reference":
+                assert ctx["turn_program"]["reference"][
+                    "prior_retrieval"] is True
+            elif kind == "target_set":
+                items = ctx["revised_targets"] or ctx["requested_targets"]
+                assert sorted(map(str, items)) == sorted(
+                    map(str, fact["value"]))
+            elif kind == "standing_scope":
+                assert set(ctx["sheet_scope_hints"]) >= set(
+                    fact["value"])
+
+    def test_unresolved_set_rejects_the_read_entirely(self):
+        """I2's rejection half: a clarify program must produce NO read
+        context at all — nothing inherited may leak into execution."""
+        tp = program(
+            "check the other machinery and verify pricing",
+            file_mention=FILE, prior_items=["381"],
+            last_served_items=["381"], own_items=[])
+        assert tp["clarify"]["needed"] is True
+        assert tp["target_set"]["kind"] == "unresolved"
+        # the wiring contract: clarify => early return BEFORE any
+        # requested_targets are stamped on the task
+        task = {"mention": tp["file"]["mention"]}
+        ctx = self._context_from_task(task)
+        assert ctx["requested_targets"] == []
+        assert ctx["revised_targets"] == []
+
+
+# I3 -------------------------------------------------------------------------
+class TestConversationReplay:
+    """The 2026-09-30 incidents, replayed as a conversation: each turn's
+    program must encode the interpretation the owner specified."""
+
+    def test_turn1_fresh_scoped_find(self):
+        tp = program("find model 381 in tennsmith sheet",
+                     file_mention=FILE, prior_items=[], own_items=["381"])
+        assert tp["operation"] == "read"
+        assert tp["target_set"] == {
+            "kind": "explicit", "items": ["381"], "origin": "message"}
+
+    def test_turn2_reference_reruns_the_objective(self):
+        tp = program("show me the tennsmith sheet searches",
+                     file_mention=FILE, prior_items=T8,
+                     last_served_items=["381"], own_items=[])
+        assert tp["reference"]["prior_retrieval"] is True
+        assert tp["target_set"]["kind"] == "inherited"
+        assert len(tp["target_set"]["items"]) == 8
+
+    def test_turn3_other_machinery_without_a_list_clarifies(self):
+        tp = program(
+            "check the other machinery from price list and verify if "
+            "any pricing needs to be updated from latest pricing data",
+            file_mention=FILE, prior_items=["381"],
+            last_served_items=["381"], own_items=[])
+        assert tp["operation"] == "compare"
+        assert tp["clarify"]["needed"] is True
+
+    def test_turn3_with_the_draft_investigates_the_other_seven(self):
+        tp = program(
+            "check the other machinery from price list and verify if "
+            "any pricing needs to be updated from latest pricing data",
+            file_mention=FILE, canvas_items=T8, prior_items=["381"],
+            last_served_items=["381"], own_items=[])
+        assert tp["operation"] == "compare"
+        assert tp["target_set"]["kind"] == "contrastive_resolved"
+        assert "No. 381" not in tp["target_set"]["items"]
+        assert len(tp["target_set"]["items"]) == 7
+
+    def test_bare_sheet_mention_is_a_listing_not_a_rerun(self):
+        tp = program("show me the tennsmith sheet",
+                     file_mention=FILE, prior_items=T8,
+                     last_served_items=["381"], own_items=[])
+        assert tp["reference"]["prior_retrieval"] is False
+        assert tp["target_set"]["kind"] == "none"
+
+    def test_nlu_residue_overrides_the_floor(self):
+        """The residue verdict ('pull up what you found on the sheet')
+        is the program's input, recorded with its basis."""
+        tp = program("pull up what you found on the tennsmith sheet",
+                     file_mention=FILE, prior_items=T8,
+                     last_served_items=["381"], own_items=[],
+                     prior_retrieval_reference=True,
+                     reference_basis="nlu")
+        assert tp["reference"] == {
+            "prior_retrieval": True, "basis": "nlu"}
+
+
+# I4 -------------------------------------------------------------------------
+class TestProgramAuthority:
+    def test_reader_gate_consumes_the_program(self):
+        """With a program on the context, the reader's gate takes the
+        reference and target set from it and skips its own regex/NLU
+        re-derivation (single decision)."""
+        import inspect
+
+        import core.chat_tool_planner as planner
+
+        src = inspect.getsource(planner._datasets_named_file_block)
+        assert '== "turn-program-1"' in src
+        assert "_retrieval_reference = bool(_tp_ref.get" in src
+        # fallback preserved for program-less callers
+        assert "_RETRIEVAL_REFERENCE_RE.search" in src
+
+    def test_ask_lane_builds_the_program_once(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert "build_turn_program(" in src
+        assert '"turn_program"] = _turn_program' in src
+        assert "clarifying, NO read ran" in src
+
+    def test_read_context_carries_the_program(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(
+            orch.ChatOrchestrator._direct_confirmed_file_read)
+        assert '"turn_program": pending_task.get("turn_program")' in src
+
+    def test_compare_operation_rides_the_freshness_machinery(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(
+            orch.ChatOrchestrator._direct_confirmed_file_read)
+        assert 'in ("refresh", "compare")' in src
+
+
+# Typed action language consolidation (2026-10-01) ---------------------------
+#
+# The decision's ACTION PROGRAM (core.action_program) and the turn
+# program are ONE language: decision ops ride verbatim; absent a
+# decision program, scope constraints synthesize into the same typed
+# shape; everything round-trips the STRICT parser.
+
+class TestTypedActionLanguage:
+    @staticmethod
+    def _decision():
+        from core.action_program import program_from_decision
+
+        actions = [{"kind": "research", "reason": "direct_ask",
+                    "authorization": "granted",
+                    "target": {"kind": "spreadsheet", "name": "w.xlsx"},
+                    "constraints": ["tennsmith sheet"]}]
+        prog = program_from_decision({
+            "session_id": "s1",
+            "message": "find 381 on the tennsmith sheet",
+            "requested_actions": actions})
+        return {"action_program": prog.to_record()}
+
+    def test_decision_actions_ride_verbatim(self):
+        tp = program("find 381 on the tennsmith sheet",
+                     decision=self._decision(), file_mention="w.xlsx",
+                     own_items=["381"])
+        ops = [a.get("op") for a in tp["actions"]]
+        assert ops and all(o for o in ops)
+        assert any(o == "workbook_read" for o in ops)
+        fact = [f for f in tp["decided_facts"]
+                if f["kind"] == "typed_actions"]
+        assert fact and fact[0]["origin"] == "decision-program"
+
+    def test_scope_synthesizes_the_same_typed_shape(self):
+        tp = program("find 381", file_mention="w.xlsx", own_items=["381"],
+                     standing_scope_hints=["tennsmith sheet"])
+        assert tp["actions"] == [{
+            "op": "filter_previous", "action_id": "scope",
+            "depends_on": [], "item": "",
+            "sheets": [{"mention": "tennsmith sheet",
+                        "resolved_name": None, "status": "pending"}]}]
+        fact = [f for f in tp["decided_facts"]
+                if f["kind"] == "typed_actions"]
+        assert fact and fact[0]["origin"] == "synthesized"
+
+    def test_records_round_trip_the_strict_parser(self):
+        from core.action_program import parse_program
+
+        for tp in (program("find 381 on the tennsmith sheet",
+                           decision=self._decision(), file_mention="w.xlsx",
+                           own_items=["381"]),
+                   program("find 381", file_mention="w.xlsx",
+                           own_items=["381"],
+                           standing_scope_hints=["tennsmith sheet"])):
+            reparsed = parse_program({
+                "schema_version": "action-program-1",
+                "session_id": "s1", "actions": tp["actions"]})
+            assert reparsed.actions
+
+    def test_ask_lane_passes_the_decision(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert "_td_decision = _td" in src
+        assert "decision=_td_decision," in src
+
+
+# Domain independence (2026-10-01 generalization audit): every new seam
+# must behave identically outside pricing/machinery domains. Framings
+# speak the ask's neutral vocabulary; detectors are verb/family based,
+# never noun-list based; canvas extraction is markup cleanup + item-code
+# shape, not product vocabulary.
+
+class TestDomainIndependence:
+    def test_compare_detection_spans_domains(self):
+        from core.turn_program import is_comparison_request
+
+        # non-pricing domains, same verify-against-newer shape
+        for yes in (
+            "verify whether any hydration levels changed from the "
+            "latest data",
+            "check if the duty roster needs updating from the newest "
+            "file",
+            "confirm the seat assignments against the latest manifest",
+            "see if any due dates differ in the current schedule",
+        ):
+            assert is_comparison_request(yes), yes
+        # ordinary reads/questions are not comparisons
+        for no in (
+            "find the hydration for the sourdough loaf",
+            "what changed in the meeting notes",  # question, no
+            # verify-family verb, no newer/comparison family word
+            "verify you received this",
+            "confirm the booking, then list the guests",
+        ):
+            assert not is_comparison_request(no), no
+
+    def test_framing_vocabulary_is_domain_neutral(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        # comments may cite the incident; STRING literals may not carry
+        # the domain noun
+        code_only = "\n".join(
+            l for l in src.splitlines()
+            if not l.lstrip().startswith("#"))
+        for coupled in ("pricing updates", "any price needs",
+                        "pricing needs"):
+            assert coupled not in code_only, coupled
+        assert "anything needs updating" in code_only
+
+    def test_canvas_extraction_works_on_a_non_machine_draft(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        body = (
+            "<table><tr><td>Item</td><td>Fee</td></tr>"
+            "<tr><td>R&#8211;101 gym membership</td>"
+            "<td>$50&nbsp;monthly &amp; tax</td></tr>"
+            "<tr><td>R-102 pool pass \\u2013 summer</td><td>$30</td></tr>"
+            "<tr><td>Brennan Community Center &#8211; Fees Table</td>"
+            "<td>u2013a trailing junk</td></tr></table>")
+        items = extract_items_from_text(body)
+        # real short codes survive; prose/entities/escapes do not
+        assert "R-102" in items or "R" in items, items
+        junk = [i for i in items if i.startswith("u20")
+                or "Brennan" in i or "Fees" in i or "monthly" in i.lower()]
+        assert not junk, junk
+        assert all(len(i) <= 18 for i in items), items
+
+
+# Precision + UX (2026-10-01 owner findings on the canvas scan): spec
+# fragments are not items; short bare numbers match on word boundaries;
+# multi-item answers lead with a summary; too-many-match items ask for
+# guidance instead of dumping coordinates.
+
+class TestSearchPrecisionAndUx:
+    def test_canvas_spec_fragments_are_not_items(self):
+        """'36' in 'Roper Whitney 36" No. 381' is a spec; 'No.'-prefixed
+        codes, alphanumeric codes, and 4+ digit numerics are items."""
+        from core.target_set_resolution import extract_items_from_text
+
+        body = ('<table><tr><td>Roper Whitney 36" No. 381 Roll Bender'
+                '</td></tr><tr><td>Linmac U-22 Bead Roller</td></tr>'
+                '<tr><td>No. 622 Hand Notcher</td></tr>'
+                '<tr><td>TK 1624 Slitter</td></tr>'
+                '<tr><td>SLE24-16 Shear</td></tr>'
+                '<tr><td>GSL48-16 Gang Slitter</td></tr></table>')
+        items = extract_items_from_text(body)
+        assert "36" not in items, items
+        assert "381" in items and "622" in items, items
+        assert {"U-22", "SLE24-16", "1624", "GSL48-16"} <= set(items)
+
+    def test_short_digit_tokens_match_on_word_boundaries(self):
+        from core.sheet_dataset_service import _pandas_probe_entry
+        import pandas as pd
+        import pathlib
+        import tempfile
+
+        tmp = pathlib.Path(tempfile.mkdtemp()) / "wb.parquet"
+        pd.DataFrame({"MODEL": ["SLE24-16", "WG-36"],
+                      "PRICE": ["3699", "36"]}).to_parquet(tmp)
+        entry = {"parquet_path": str(tmp),
+                 "columns": ["MODEL", "PRICE"]}
+        hits, df = _pandas_probe_entry(entry, "36")
+        assert hits == 1 and df.iloc[0]["MODEL"] == "WG-36"
+
+    @staticmethod
+    def _many_match_outcome():
+        return {"M-1": {"target": "M-1", "status": "ambiguous",
+                        "evidence": [
+                            _ev(f"Sheet{i}", 100 + i, f"A{100+i}",
+                                [_v(f"E{100+i}", str(500 + i), "PRICE")])
+                            for i in range(13)]}}
+
+    def test_many_match_item_asks_for_sheet_not_coordinates(self):
+        targets = ap.build_targets_from_scan(
+            ["M-1"], self._many_match_outcome(), {})
+        out = ap.present(requested_items=["M-1"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert "13 possible rows (Sheet0 1, Sheet1 1" in out, out
+        assert "which sheet or exact code do you mean" in out, out
+
+    def test_multi_item_answer_leads_with_a_summary(self):
+        outcomes = {
+            "A-1": {"target": "A-1", "status": "found",
+                    "evidence": [_ev("S", 1, "A1",
+                                     [_v("B1", "10", "PRICE")])]},
+            "B-2": {"target": "B-2", "status": "ambiguous",
+                    "evidence": [_ev("S", 2, "A2",
+                                     [_v("B2", "20", "PRICE")]),
+                                 _ev("T", 3, "A3",
+                                     [_v("B3", "30", "PRICE")])]},
+            "C-3": {"target": "C-3", "status": "absent",
+                    "evidence": []},
+        }
+        targets = ap.build_targets_from_scan(
+            ["A-1", "B-2", "C-3"], outcomes, {})
+        out = ap.present(requested_items=["A-1", "B-2", "C-3"],
+                         requested_fields=["price"],
+                         source={"file_name": "w.xlsx"},
+                         targets=targets)["answer"]
+        assert ("Checked 3 items — 1 with values, 1 need your pick, "
+                "1 no match.") in out, out

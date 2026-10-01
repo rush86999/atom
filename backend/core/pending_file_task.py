@@ -80,6 +80,24 @@ _OUTBOUND_ACTION_RE = re.compile(
     r"\b(?:send|email|forward|upload|attach)\b",
     re.IGNORECASE,
 )
+# A BARE ACTION RETRY — "try it", "run it", "do it again": pronoun object,
+# no subject of its own. Deliberately narrow (<=3 tokens) so a substantive
+# turn can never match; consumed by the failed-edit retry detector, which
+# only ever re-dispatches the conversation's own most recent failed edit.
+_BARE_ACTION_RETRY_RE = re.compile(
+    r"^\s*(?:try|run|do|go|execute)\s*(?:(?:it|that|this)\b|again\b|"
+    r"it\s+again\b)?\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_bare_action_retry(message: str) -> bool:
+    """"try it" / "run it again" / "do it" — a bare imperative whose
+    object is the conversation's most recent action, never new work."""
+    t = (message or "").strip()
+    return bool(t) and bool(_BARE_ACTION_RETRY_RE.match(t))
+
+
 _CONFIRMATION_WORD_RE = re.compile(
     r"\b(?:correct|right|exact|exactly|confirmed|yes|yeah|one)\b",
     re.IGNORECASE,
@@ -109,6 +127,9 @@ _CONTINUATION_VOCABULARY = _CONFIRMATION_VOCABULARY | {
     "me", "my", "our", "us", "out", "so", "if", "or", "as", "than",
     "thoroughly", "carefully", "fully", "properly", "deeply", "harder",
     "once", "please", "maybe", "perhaps", "instead", "rather", "quite",
+    # articles (2026-09-29): "search again and give me a clean response"
+    # — an indefinite article never names the work either
+    "a", "an",
 }
 # Verbs that ARE the retry operation itself — a confirmation/retry-classified
 # turn may carry them without naming new work ("try the file search again").
@@ -355,14 +376,19 @@ def merge_pending_task(
     EXCEPTION (2026-09-24 review): an explicit re-retrieval request
     revives even a terminal task for a fresh read — the ORIGINAL ask and
     its source constraints are retained (a refresh is not a new
-    objective), the attempt is counted, and the revival is stamped."""
+    objective), the attempt is counted, and the revival is stamped.
+    An EXTENDING follow-up (``request_extends_objective`` — a new source,
+    changed requested information) is a new objective even when retry- or
+    confirmation-shaped: it replaces the task, never merges into the old
+    ask (2026-09-29 cross-source incident)."""
     refresh = is_retrieval_refresh_request(message)
     was_terminal = isinstance(existing, dict) and existing.get(
         "status") in ("served", "retrieved", "delivered")
     if (isinstance(existing, dict) and existing.get("original_message")
             and (existing.get("status") not in ("served", "retrieved",
                                                 "delivered") or refresh)
-            and (is_filename_confirmation(message) or refresh)):
+            and (is_filename_confirmation(message) or refresh)
+            and not request_extends_objective(message, existing)):
         merged = dict(existing)
         new_mention = (mention or "").strip().lower()
         if new_mention:
@@ -413,6 +439,23 @@ def supersedes_pending_task(pending: Optional[Any], message: str) -> bool:
     """Whether a new turn should discard a resumable file task."""
     if not isinstance(pending, dict) or not (message or "").strip():
         return False
+    text = (message or "").strip()
+    # AN EXTENDED FOLLOW-UP IS A NEW OBJECTIVE, NOT A RETRY (2026-09-29
+    # cross-source incident). "check <person>'s email and or description
+    # in workbook to find correct sheet" matches the loose retry shape
+    # (check … workbook … sheet) and is classified confirmation AND
+    # re-run — both exemptions below would keep the stored ask alive,
+    # and the resume lane would then answer the NEW request by re-running
+    # the OLD read. When the turn asks for work the stored objective does
+    # not cover, it supersedes here: the caller pops the task and
+    # preserves its context (resource pin, constraints) for the turn's
+    # own execution. Questions stay exempt (unchanged behavior).
+    if "?" not in text:
+        try:
+            if request_extends_objective(message, pending):
+                return True
+        except Exception:  # noqa: BLE001 — legacy checks still decide
+            pass
     if is_filename_confirmation(message):
         return False
     if is_retrieval_refresh_request(message):
@@ -421,7 +464,6 @@ def supersedes_pending_task(pending: Optional[Any], message: str) -> bool:
         # version of the workbook" popped the stored ask before the
         # matcher could resume it, and the turn died in narration).
         return False
-    text = (message or "").strip()
     if "?" in text:
         return False
     # AN ENTITY-SET EDIT IS LINEAGE, NOT SUPERSESSION (2026-09-27).
@@ -483,6 +525,31 @@ def _work_signature(
     return group, objects
 
 
+def _is_affirmation_only(text: str) -> bool:
+    """Affirmative confirmation vs requested correction/verification.
+
+    An APPROVAL PHRASE ("yes", "ok proceed", "sounds good") or a bare
+    confirmation word ("correct.") carrying at most ONE content word of
+    its own ("yes the September one") affirms a prior exchange. Anything
+    else — no approval wording at all ("find the correct row", "check …
+    for confirmation"), or an approval naming its own instruction ("yes
+    please search Gmail for the quotes") — is a REQUEST, not an approval.
+    Mirrors the approval-with-its-own-instruction rule in
+    ``is_filename_confirmation`` (2026-09-29 cross-source incident: the
+    confirmation-word bail in ``_introduces_new_work`` treated "correct
+    sheet" as an approval and swallowed the whole request).
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if not (_CONFIRMATION_PHRASE_RE.search(t)
+            or _BARE_CONFIRMATION_RE.match(t)):
+        return False
+    subject_words = _CONFIRMATION_VOCABULARY | _mention_words(t)
+    others = [w for w in _content_words(t) if w not in subject_words]
+    return len(others) <= 1
+
+
 def _introduces_new_work(
     turn_text: str,
     original_message: str,
@@ -499,23 +566,94 @@ def _introduces_new_work(
     changed constraint like "north region only") or a different ACTION
     group ("compare" vs "find") is a new task; verbose retries ("search
     again more thoroughly") and pronoun-led refinements ("find its
-    prices") are not. Confirmation wording is lineage. Uncertainty
+    prices") are not. AFFIRMATION wording is lineage, but only an actual
+    approval (``_is_affirmation_only``) — confirmation VOCABULARY inside
+    a seek-shaped request ("find the correct row", "check … for
+    confirmation") is requested verification, not approval. Uncertainty
     resolves to a NEW task — the normal flows own it, and nothing is
     silently continued on a guess.
     """
-    stripped = _strip_mentions(turn_text, mentions)
-    if _CONFIRMATION_WORD_RE.search(stripped):
-        return False
     new_group, new_objects = _work_signature(
         turn_text, mentions, extra_anchor)
     old_group, old_objects = _work_signature(
         original_message or "", None, extra_anchor)
     unseen = new_objects - old_objects
-    if unseen:
-        return True  # a new object/constraint: its own work
-    if new_group and old_group and new_group != old_group:
-        return True  # same objects, different operation
-    return False
+    group_changed = bool(new_group and old_group and new_group != old_group)
+    if not unseen and not group_changed:
+        return False  # nothing beyond the stored objective — lineage
+    if _is_affirmation_only(turn_text):
+        return False  # approval wording, not requested work
+    return True
+
+
+# Retrieval-OPERATION vocabulary that rides a retry/refresh turn without
+# changing the objective (2026-09-29 cross-source incident): freshness
+# words ("check the latest version") and presentation/style words
+# ("search again and give me a clean response") name HOW the same read is
+# re-run or shown, never WHAT is asked for. Anchored as fillers for the
+# CURRENT-message coverage check only (``request_extends_objective``);
+# the history-lineage scans keep their narrower retry anchor.
+_RETRIEVAL_OPERATION_VOCABULARY = {
+    # source-freshness operation words (mirror _SOURCE_REFRESH_RE)
+    "latest", "newest", "version", "versions", "updated", "update",
+    "current", "newer", "refresh", "fresh", "freshest", "changed",
+    "uptodate",
+    # presentation/style words (mirror the NLU continuation layer's
+    # _PRESENTATION_* vocabulary)
+    "clean", "cleaner", "cleanest", "cleanup", "readable", "easier",
+    "concise", "shorter", "brief", "briefer", "briefly", "simpler",
+    "simplify", "simplified", "tidy", "tidier", "neat", "neater",
+    "compact", "table", "tabular", "tabulate", "format", "formatted",
+    "formatting", "style", "present", "presentation", "response",
+    "summary", "summarize", "bullet", "bullets", "display",
+}
+
+
+def request_extends_objective(
+    message: str, task: Optional[Any],
+) -> bool:
+    """Whether a continuation-shaped turn asks for work the stored task's
+    read does NOT cover (2026-09-29 original-canvas incident).
+
+    True means completing the CURRENT message requires more than
+    re-running or re-delivering the stored read: it adds a source
+    ("check <person>'s email and the workbook descriptions"), changes the
+    requested information ("use the description to identify the correct
+    row"), or otherwise names objects the stored objective never asked
+    for. Such a turn supersedes the stored objective (context survives
+    via the caller) and belongs to normal planning — deterministic
+    delivery of the stored read is allowed only when this returns False.
+
+    False for: pure/verbose retries ("search the file again"), refresh
+    wording ("check the latest version"), compound retry+presentation
+    ("search again and give me a clean response"), approvals ("yes the
+    September one"), entity-set edits ("replace U-22 with U-38" revises
+    the SAME objective), and a missing/unusable stored task. This is the
+    single authoritative coverage decision — matching, supersession,
+    legacy recovery, merge and the NLU continuation layer all consult it
+    instead of each re-deriving a slightly different policy.
+    """
+    if not isinstance(task, dict):
+        return False
+    original = str(task.get("original_message") or "").strip()
+    if not original or not (message or "").strip():
+        return False
+    try:
+        if entity_set_edit(message) is not None:
+            return False  # a revision of THIS objective, not an extension
+    except Exception:  # noqa: BLE001 — fail toward "not extending"
+        pass
+    try:
+        from core.agent_file_context import detect_file_task_mentions
+
+        mentions = detect_file_task_mentions(message)
+    except Exception:  # noqa: BLE001 — belt-only
+        mentions = []
+    return _introduces_new_work(
+        message, original, mentions,
+        extra_anchor=_RETRY_LINEAGE_VOCABULARY
+        | _RETRIEVAL_OPERATION_VOCABULARY,
+    )
 
 
 def _same_file_identity(a: str, b: str) -> bool:
@@ -617,6 +755,21 @@ def matching_pending_task(
             pm in _canon(m) or _canon(m) in pm for m in msg_mentions
         ):
             return None
+    # COVERAGE OF THE CURRENT REQUEST (2026-09-29 cross-source incident):
+    # a continuation may resume the stored task only when re-running that
+    # read can satisfy the WHOLE current message. A follow-up that adds a
+    # source, changes the requested information, or asks to compare
+    # descriptions / resolve identities does not — the refresh branch
+    # below used to return the stored task before any new-work check,
+    # and the orchestrator then answered "check <person>'s email and the
+    # workbook descriptions" with a fresh price extraction. The stored
+    # items and pins survive as context (supersession stashes them);
+    # normal planning owns the turn.
+    try:
+        if request_extends_objective(message, pending):
+            return None
+    except Exception:  # noqa: BLE001 — resume eligibility is best-effort
+        pass
     if refresh or set_edit is not None:
         # An explicit re-retrieval, or an entity-set edit, continues THIS task
         # (the mention agreement above is the identity check) — no lineage
@@ -1249,6 +1402,14 @@ def recover_pending_task_from_history(
                 history, mention)
             if _user_targets:
                 task["requested_targets"] = _user_targets
+            # THE SAME COVERAGE RULE (2026-09-29 cross-source incident):
+            # recovery reconstructs an earlier objective for a RETRY or
+            # approval to resume. When the CURRENT instruction itself
+            # asks for work beyond that objective (cross-source
+            # disambiguation), recovery must not resurrect the old ask as
+            # the turn's contract — the normal flows own the turn.
+            if request_extends_objective(message, task):
+                return None
             return task
     except Exception as e:  # noqa: BLE001 — recovery is best-effort
         logger.debug(f"pending file task: history recovery skipped: {e}")

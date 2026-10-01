@@ -110,8 +110,16 @@ class ZohoWorkDriveService(IntegrationService):
     def is_full_sync_running(self, user_id: str) -> bool:
         return user_id in self._full_sync_running
 
-    async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Fetch access token for user using ConnectionService"""
+    async def get_access_token(
+        self, user_id: str, workspace_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Fetch access token for user using ConnectionService.
+
+        ``workspace_id`` enables WORKSPACE-SCOPED credential resolution
+        (see _integration_token_access_token): the workspace's connected
+        account serves members of that workspace — the org-connection
+        model — which is deliberately narrower than the removed
+        cross-USER global fallback."""
         try:
             # Find a zoho_workdrive or generic zoho connection
             connections = connection_service.get_connections(user_id, "zoho_workdrive")
@@ -122,7 +130,8 @@ class ZohoWorkDriveService(IntegrationService):
                 # The unified OAuth connect flow writes IntegrationToken rows,
                 # not UserConnection rows — fall back to those (see
                 # _integration_token_access_token).
-                return await self._integration_token_access_token(user_id)
+                return await self._integration_token_access_token(
+                    user_id, workspace_id=workspace_id)
 
             # Use the first active connection
             conn_id = connections[0]["id"]
@@ -135,7 +144,9 @@ class ZohoWorkDriveService(IntegrationService):
             logger.error(f"Error getting Zoho access token: {e}")
             return None
 
-    async def _integration_token_access_token(self, user_id: str) -> Optional[str]:
+    async def _integration_token_access_token(
+        self, user_id: str, workspace_id: Optional[str] = None,
+    ) -> Optional[str]:
         """Fallback token source for the unified OAuth connect flow.
 
         The v1 OAuth callback writes IntegrationToken rows (provider
@@ -163,10 +174,42 @@ class ZohoWorkDriveService(IntegrationService):
                     if token_record:
                         break
 
+                if not token_record and workspace_id:
+                    # WORKSPACE-SCOPED RESOLUTION (2026-09-30): no token for
+                    # THIS user, but the request runs inside a workspace whose
+                    # account IS connected. The workspace (tenant) is the
+                    # integration's trust domain — the org-connection model —
+                    # and this is deliberately NOT the removed cross-USER
+                    # global fallback (which served any user's token to any
+                    # requester anywhere). Every resolution is audited.
+                    # Root cause this closes (live 2026-09-30): a single
+                    # operator's box carried two user rows; chat sessions
+                    # under the row that never connected WorkDrive got
+                    # token=None -> "download failed" -> refresh_failed,
+                    # while the connected row's sessions worked.
+                    token_record = (
+                        db.query(IntegrationToken)
+                        .filter(
+                            IntegrationToken.workspace_id == workspace_id,
+                            IntegrationToken.provider.in_(
+                                ("zoho_workdrive", "zoho")),
+                            IntegrationToken.status == "active",
+                        )
+                        .order_by(IntegrationToken.expires_at.desc())
+                        .first()
+                    )
+                    if token_record:
+                        logger.info(
+                            "[token] workspace-scoped credential used: "
+                            "provider=%s workspace=%s requesting_user=%s "
+                            "owner=%s",
+                            token_record.provider, workspace_id, user_id,
+                            token_record.user_id)
+
                 if not token_record:
-                    # No cross-user fallback: any active token would serve one
-                    # user's WorkDrive to every authenticated user. No row for
-                    # THIS user means not connected.
+                    # No fallback beyond the workspace scope above: no
+                    # connection for this user or their workspace means
+                    # not connected.
                     return None
 
                 if not token_record:
@@ -749,7 +792,8 @@ class ZohoWorkDriveService(IntegrationService):
         """Return the provider record for one WorkDrive resource."""
         if not file_id:
             return None
-        token = await self.get_access_token(user_id)
+        token = await self.get_access_token(
+            user_id, workspace_id=workspace_id)
         if not token:
             return None
         try:
@@ -972,7 +1016,10 @@ class ZohoWorkDriveService(IntegrationService):
         return out
 
 
-    async def download_file(self, user_id: str, file_id: str) -> Optional[bytes]:
+    async def download_file(
+        self, user_id: str, file_id: str,
+        workspace_id: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Download file content from WorkDrive.
 
         Uses a short-lived client instead of the shared pool: Zoho's
@@ -982,7 +1029,8 @@ class ZohoWorkDriveService(IntegrationService):
         connection, redirect-following, and a hard total-time cap keep this
         from hanging the request (which previously surfaced as a proxy 500).
         """
-        token = await self.get_access_token(user_id)
+        token = await self.get_access_token(
+            user_id, workspace_id=workspace_id)
         if not token:
             return None
 

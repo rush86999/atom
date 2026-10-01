@@ -718,3 +718,418 @@ def test_employee_certification_date_and_version_fields_are_schema_driven():
     )
     software = artifact["coverage"]["outcomes"][0]["evidence"][0]
     assert [item["column"] for item in software["values"]] == ["Minimum Version"]
+
+
+def test_pasted_data_row_is_not_an_attribute_constraint(tmp_path):
+    """Row-338 incident (2026-09-29): the user pasted the row itself —
+    "here's the data: 381\\t167072381\\tRoll Bending Machine,\\t$3,254.00" —
+    and the colon miner read it as the constraint
+    ``s_the_data = "381 167072381 Roll Bending Machine"``. A constraint no
+    cell can satisfy, it filtered out EVERY row and the target that exists
+    in the materialized copy came back "absent". A pasted data payload
+    (tabs, or two or more standalone numbers) is the THING BEING LOOKED
+    UP, never an attribute constraint."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import (
+        _disambiguation_criteria,
+        inspect_dataset_entries,
+    )
+
+    message = (
+        "roper whitney and tennsmith are 2 brands under 1 ownership. "
+        "no. 381 is on the Tennsmith sheet under row 338. here's the "
+        "data: 381\t167072381\t\tRoll Bending Machine,\t $3,254.00 . "
+        "find this in the workbook")
+
+    criteria = _disambiguation_criteria(message, [message], None)
+    for attribute, values in criteria.items():
+        for value in values:
+            assert not ("\t" in value), (attribute, value)
+            assert len(re.findall(r"(?<![\w.,])\d[\d,]*(?:\.\d+)?", value)) \
+                < 2, (attribute, value)
+
+    path = tmp_path / "tennsmith.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338],
+        "MODEL NO.": ["381"],
+        "CAT. NO.": ["167072381"],
+        "DESCRIPTION": ["Roll Bending Machine,"],
+        "PRICE": ["3254"],
+    }).to_parquet(path)
+    entry = {
+        "entity_name": "Tennsmith",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry], "Consolidated Price List 2019.xlsx",
+        query=message, context_texts=[message], targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous"), (
+        "the row the user pasted must be found, not filtered to absence")
+    assert outcome["evidence"], outcome
+
+
+def test_single_number_constraint_still_applies(tmp_path):
+    """Positive control: a genuine single-value constraint ("capacity is
+    22 tons") keeps filtering — the guard only rejects pasted-data
+    shapes, never ordinary attribute constraints."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import _disambiguation_criteria
+
+    message = "capacity is 22 tons in the workbook"
+    criteria = _disambiguation_criteria(message, [message], None)
+    assert any(
+        "22" in str(value)
+        for values in criteria.values()
+        for value in values
+    ), criteria
+
+
+def test_possessive_source_reference_is_not_an_organization_constraint():
+    """Row-338 incident, seam four: the conversation's earlier turn "check
+    Priya's text message and or description in workbook…" mined
+    organization="Priya" from the possessive — a SOURCE reference (whose
+    messages to check), which then filtered every workbook row to absence
+    on the NEXT turn's read. "<name>'s <communication-source noun>" names
+    where to look, never an attribute the rows carry. Organization
+    possessives over document/company nouns are untouched."""
+    from core.workbook_read_artifact import _disambiguation_criteria
+
+    for message in (
+        "check Priya's text message and or description in workbook to "
+        "find correct sheet",
+        "check Chandrakant's email and or description in workbook",
+        "search Dana's slack thread for the churn numbers",
+    ):
+        criteria = _disambiguation_criteria(message, [message], None)
+        for attribute, values in criteria.items():
+            assert "priya" not in [v.lower() for v in values], (message, criteria)
+            assert "chandrakant" not in [v.lower() for v in values], (message, criteria)
+            assert "dana" not in [v.lower() for v in values], (message, criteria)
+
+    # Positive control: an organization possessive over a document/company
+    # noun still constrains.
+    criteria = _disambiguation_criteria(
+        "check Brennan Machinery's quote totals in the workbook",
+        ["check Brennan Machinery's quote totals in the workbook"], None)
+    assert any(
+        "brennan" in str(v).lower()
+        for values in criteria.values()
+        for v in values
+    ), criteria
+
+
+# ---------------------------------------------------------------------------
+# RESOLVED-ROW BINDINGS (2026-09-29 completion pass): the user supplied the
+# row ("no. 381 is on Tennsmith sheet under row 338 … $3,254.00"), the read
+# verified it — that binding must persist on the task's disambiguation and
+# drive every later read of the same item at the same workbook revision,
+# instead of re-surfacing ten ambiguous candidates.
+# ---------------------------------------------------------------------------
+
+ASSERTION = ("roper whitney and tennsmith mix the names. no. 381 is on "
+             "Tennsmith sheet of the workbook under row 338. here's the "
+             "data: 381 167072381 Roll Bending Machine, $3,254.00 . find "
+             "this in the workbook")
+
+ARTIFACT_381 = {
+    "source_identity": {"content_hash": "ff2597d26fc6"},
+    "targets": [{
+        "item": "No. 381",
+        "identity": {"status": "multiple", "candidates": [
+            {"ref": "Tennsmith!R338",
+             "identity": {"status": "bound", "references": [
+                 {"sheet": "Tennsmith", "cell": "A338", "row": 338,
+                  "value": "381", "role": "matched_target"}]},
+             "values": [{"col": "E338", "basis": "PRICE", "kind": "number",
+                         "display": "3,254"},
+                        {"col": "M338", "basis": "U.S. LIST",
+                         "kind": "number", "display": "1,845"}]},
+            {"ref": "RoperWhitney!R88",
+             "identity": {"status": "bound", "references": [
+                 {"sheet": "RoperWhitney", "cell": "A88", "row": 88,
+                  "value": "381", "role": "matched_target"}]},
+             "values": [{"col": "E88", "basis": "PRICE", "kind": "blank",
+                         "display": "blank"}]},
+        ]},
+    }],
+}
+
+
+def test_capture_resolved_binding_from_assertion_plus_verified_read():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    bindings = capture_resolved_bindings([ASSERTION], ARTIFACT_381)
+    assert len(bindings) == 1
+    b = bindings[0]
+    assert b["item"] == "No. 381"
+    assert b["sheet"] == "Tennsmith" and b["row"] == 338
+    assert b["identity_cells"] == ["A338"]
+    assert "E338" in b["value_basis"] and "PRICE" in b["value_basis"]
+    assert b["value"] == "3,254"
+    assert b["content_hash"] == "ff2597d26fc6"
+    assert b["confirmation"] == "user_supplied+verified_read"
+
+
+def test_capture_requires_both_assertion_and_verified_candidate():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    # no user assertion -> nothing
+    assert capture_resolved_bindings(["find prices"], ARTIFACT_381) == []
+    # assertion names a row the read did NOT verify at that sheet/row
+    other = ("no. 381 is on Missing sheet under row 999, find it")
+    assert capture_resolved_bindings([other], ARTIFACT_381) == []
+
+
+def test_binding_pins_the_read_at_matching_revision(tmp_path):
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [88, 338],
+        "MODEL": ["381", "381"],
+        "PRICE": ["", "3254"],
+    }).to_parquet(path)
+    entry = {"entity_name": "RoperWhitney", "parquet_path": str(path),
+             "row_count": 1, "coverage": {"known": True, "truncated": False}}
+    entry2 = {"entity_name": "Tennsmith", "parquet_path": str(path),
+              "row_count": 1, "coverage": {"known": True, "truncated": False}}
+    binding = {"item": "381", "sheet": "Tennsmith", "row": 338,
+               "identity_cells": ["A338"], "value_basis": "E338 'PRICE'",
+               "content_hash": "rev1", "confirmation": "user_supplied"}
+    dis = {"resolved_bindings": [binding]}
+    ask = "find the price for 381 in the workbook"
+    art = inspect_dataset_entries(
+        [entry, entry2], "wb.xlsx", query=ask, context_texts=[ask],
+        targets=["381"], disambiguation=dis,
+        content_hash="rev1")
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found", outcome
+    assert outcome["evidence"][0]["sheet"] == "Tennsmith"
+    assert outcome["evidence"][0]["row"] == 338
+
+    # revision changed -> binding expired, normal ambiguity returns
+    art2 = inspect_dataset_entries(
+        [entry, entry2], "wb.xlsx", query=ask, context_texts=[ask],
+        targets=["381"], disambiguation=dis,
+        content_hash="rev2")
+    assert art2["coverage"]["outcomes"][0]["status"] in (
+        "ambiguous", "found"), art2["coverage"]["outcomes"][0]
+    assert art2["coverage"]["outcomes"][0]["status"] == "ambiguous"
+
+
+# ---------------------------------------------------------------------------
+# BINDING DOMAIN INDEPENDENCE (2026-09-30 owner audit): the capture regex
+# and pin path must work wherever a user asserts a row of a sheet —
+# cooking, training, lab work — not just the incident's machinery domain.
+# ---------------------------------------------------------------------------
+
+def _artifact(item, ref, refs, values):
+    return {
+        "source_identity": {"content_hash": "rev-x"},
+        "targets": [{
+            "item": item,
+            "identity": {"status": "multiple", "candidates": [
+                {"ref": ref,
+                 "identity": {"status": "bound",
+                              "references": refs},
+                 "values": values},
+            ]},
+        }],
+    }
+
+
+def test_binding_capture_across_non_business_domains():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    cases = [
+        ("the sourdough hydration is on Breads sheet under row 14. "
+         "here's the data: sourdough 450g", "Sourdough loaf", "Breads!R14",
+         [{"sheet": "Breads", "cell": "A14", "row": 14,
+           "value": "sourdough", "role": "matched_target"}],
+         [{"col": "E14", "basis": "HYDRATION", "display": "78%"}]),
+        # item named with different word order (token overlap path)
+        ("the 5k tempo pace is on Intervals sheet row 7, check it",
+         "5k tempo", "Intervals!R7",
+         [{"sheet": "Intervals", "cell": "A7", "row": 7,
+           "value": "5k tempo", "role": "matched_target"}],
+         [{"col": "D7", "basis": "TARGET PACE", "display": "4:05"}]),
+        # item named only via the row's identity-cell value (value path)
+        ("Sample A-3 is on Results sheet under row 22", "Sample A-3",
+         "Results!R22",
+         [{"sheet": "Results", "cell": "B22", "row": 22,
+           "value": "Sample A-3", "role": "matched_target"}],
+         [{"col": "F22", "basis": "CONC", "display": "12.4"}]),
+    ]
+    for assertion, item, ref, refs, values in cases:
+        art = _artifact(item, ref, refs, values)
+        bindings = capture_resolved_bindings([assertion], art)
+        assert len(bindings) == 1, (item, bindings)
+        b = bindings[0]
+        assert b["sheet"] == ref.split("!")[0] and b["row"] == int(
+            ref.split("!R")[1])
+        assert b["identity_cells"] == [refs[0]["cell"]]
+        assert b["content_hash"] == "rev-x"
+        assert b["value_basis"].startswith(values[0]["col"])
+
+
+def test_binding_capture_negative_shapes():
+    from core.workbook_read_artifact import capture_resolved_bindings
+
+    art = _artifact("Sourdough loaf", "Breads!R14",
+                    [{"sheet": "Breads", "cell": "A14", "row": 14,
+                      "value": "sourdough", "role": "matched_target"}],
+                    [{"col": "E14", "basis": "HYDRATION", "display": "78%"}])
+    # assertion names a different sheet -> no binding
+    assert capture_resolved_bindings(
+        ["the loaf is on Bagels sheet under row 14"], art) == []
+    # assertion names a different row -> no binding
+    assert capture_resolved_bindings(
+        ["the loaf is on Breads sheet under row 99"], art) == []
+    # assertion does not name the item (neither its tokens nor the
+    # row's identity value) -> no binding — the conservative direction.
+    assert capture_resolved_bindings(
+        ["it is on Breads sheet under row 14"], art) == []
+    assert capture_resolved_bindings(
+        ["the hydration is on Breads sheet under row 14"], art) == []
+
+
+def test_binding_pins_read_in_non_business_domain(tmp_path):
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "recipes.parquet"
+    pd.DataFrame({
+        "__sheet_row": [3, 14, 40],
+        "ITEM": ["rye", "sourdough", "focaccia"],
+        "HYDRATION": ["70%", "78%", "65%"],
+    }).to_parquet(path)
+    entry = {"entity_name": "Breads", "parquet_path": str(path),
+             "row_count": 3, "coverage": {"known": True, "truncated": False}}
+    binding = {"item": "sourdough", "sheet": "Breads", "row": 14,
+               "identity_cells": ["A14"], "value_basis": "E14 'HYDRATION'",
+               "content_hash": "rev-r", "confirmation": "user_supplied"}
+    ask = "find the hydration for the sourdough loaf in the workbook"
+    art = inspect_dataset_entries(
+        [entry], "recipe log.xlsx", query=ask, context_texts=[ask],
+        targets=["sourdough"],
+        disambiguation={"resolved_bindings": [binding]},
+        content_hash="rev-r")
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] == "found", outcome
+    assert outcome["evidence"][0]["row"] == 14
+    assert outcome["evidence"][0]["sheet"] == "Breads"
+
+
+def test_sheet_name_mention_scopes_the_read(tmp_path):
+    """Root cause of the 2026-09-30 'show me the tennsmith sheet'
+    defect: '381' matches rows on BOTH sheets; the user NAMED the sheet
+    ('tennsmith sheet') but the read had no sheet-scope constraint, so
+    RoperWhitney rows filled the candidate cap and the row the user
+    asked for stayed buried. An explicit '<name> sheet' mention must
+    scope the read to matching sheets — generically (any sheet name,
+    any domain)."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338, 340],
+        "MODEL NO.": ["381", "No. 381 Heavy Duty"],
+        "PRICE": ["3254", ""],
+    }).to_parquet(path)
+    entry_a = {"entity_name": "RoperWhitney ", "parquet_path": str(path),
+               "row_count": 2, "coverage": {"known": True,
+                                            "truncated": False}}
+    entry_b = {"entity_name": "Tennsmith", "parquet_path": str(path),
+               "row_count": 2, "coverage": {"known": True,
+                                            "truncated": False}}
+    msg = "show me the tennsmith sheet searches for 381"
+    artifact = inspect_dataset_entries(
+        [entry_a, entry_b], "Consolidated Price List 2019.xlsx",
+        query=msg, context_texts=[msg], targets=["381"],
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    sheets = {e.get("sheet") for e in outcome.get("evidence") or []}
+    assert outcome["status"] == "found", outcome
+    assert sheets == {"Tennsmith"}, sheets
+
+    # without the mention, both sheets compete (ambiguous) — the scope
+    # comes from the message, not from anywhere else.
+    artifact2 = inspect_dataset_entries(
+        [entry_a, entry_b], "Consolidated Price List 2019.xlsx",
+        query="381", context_texts=[], targets=["381"],
+    )
+    o2 = artifact2["coverage"]["outcomes"][0]
+    assert o2["status"] == "ambiguous", (
+        "sanity: without the sheet mention both sheets compete")
+
+
+def test_sheet_scope_applies_with_empty_entries_gracefully():
+    """No entries + a sheet mention: the read reports the honest
+    unavailable outcome (no rows to scope), never a crash and never a
+    fabricated absence."""
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    art = inspect_dataset_entries(
+        [], "wb.xlsx", query="show me the tennsmith sheet results for 381",
+        context_texts=[], targets=["381"],
+    )
+    o = art["coverage"]["outcomes"][0]
+    assert o["status"] in ("unavailable", "incomplete"), o
+    assert o.get("absence_claimable") is not True, (
+        "an empty source set must never claim absence")
+
+def test_unknown_sheet_mention_is_ignored_not_filtering_everything():
+    """A mention of a sheet that does not exist is IGNORED (never a
+    fabricated filter): the outcome keeps the normal status and no
+    evidence, with no note claiming a constraint matched."""
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    art = inspect_dataset_entries(
+        [], "wb.xlsx", query="show me the nosuchsheet results for 381",
+        context_texts=[], targets=["381"],
+    )
+    o = art["coverage"]["outcomes"][0]
+    assert o["status"] in ("unavailable", "incomplete"), o
+    assert not o.get("evidence"), o
+
+
+def test_history_noise_never_eliminates_candidates(tmp_path):
+    """2026-10-01 live-e2e finding on real data: criteria MINED from
+    history text ("note 3: filler turn for window testing" → a bogus
+    'note' criterion) once wiped every designation — an item that
+    matched 10 rows rendered 'no match in this copy' after a few
+    off-topic turns. History-mined criteria may rank; only the current
+    ask's own criteria (or explicit disambiguation) may eliminate."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [338, 340],
+        "MODEL": ["381", "381X"],
+        "PRICE": ["3254", "906"],
+    }).to_parquet(path)
+    entry = {"entity_name": "Tennsmith", "parquet_path": str(path),
+             "row_count": 2, "coverage": {"known": True,
+                                          "truncated": False}}
+    noisy_history = [f"note {i}: filler turn for window testing"
+                     for i in range(1, 7)]
+    art = inspect_dataset_entries(
+        [entry], "w.xlsx", query="find the price for No. 381",
+        context_texts=noisy_history, targets=["381"])
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous"), outcome
+    assert (outcome.get("evidence") or []), (
+        "history-mined criteria must not eliminate the matched rows")

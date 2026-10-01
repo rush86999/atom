@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessageData, ReasoningStep, reasoningTextToStep } from "@/components/GlobalChat/ChatMessage";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { getCurrentUserId } from "@/lib/identity";
 import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
 import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
+import { useTurnStream } from "@/hooks/chat/useTurnStream";
 
 interface UseChatInterfaceProps {
     sessionId: string | null;
@@ -18,6 +18,40 @@ interface UseChatInterfaceProps {
     onSessionCreated?: (sessionId: string) => void;
 }
 
+/**
+ * A chat message plus the turn-ownership fields streamed frames need in order
+ * to reach the right reply.
+ *
+ * It EXTENDS ChatMessageData rather than replacing it, so
+ * components/chat/MessageList.tsx and everything else that renders
+ * `messages` keeps accepting the array unchanged — no component edit is needed
+ * to make the main chat stream.
+ */
+type TurnBoundMessage = ChatMessageData & {
+    /** The server's per-turn execution id. Frames are routed by this, so two
+     * overlapping turns never share a bubble. */
+    executionId?: string;
+    /** True while tokens for this turn are still arriving. */
+    streaming?: boolean;
+    /** The agent that produced this turn, when the frame carried one. */
+    agentId?: string;
+};
+
+/** Stable, turn-unique bubble id. Keying on the EXECUTION (not the session)
+ * is what lets two turns coexist: a session-keyed id is reused across turns,
+ * so turn N's reply overwrites turn N-1's bubble. */
+const streamBubbleId = (executionId: string) => `stream_${executionId}`;
+
+/** The legacy `streaming:*` stream, when the frame names one. The main chat's
+ * own orchestrator does NOT emit these (it emits chat_token*), but
+ * `core/agent_execution_service.py` and `core/atom_agent_endpoints.py` do, and
+ * `MessageList` renders `streamingContent` by `currentStreamId`. Kept working
+ * for those producers; never allowed to finish a turn it does not own. */
+const legacyStreamId = (msg: any): string | null => {
+    const id = msg?.id ?? msg?.data?.id;
+    return typeof id === "string" && id ? id : null;
+};
+
 export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, onSessionCreated }: UseChatInterfaceProps) => {
     const [input, setInput] = useState("");
     // Pending user-submitted images (data URLs) for the next send — routed
@@ -25,7 +59,18 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
     const [pendingImages, setPendingImages] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
-    const [messages, setMessages] = useState<ChatMessageData[]>([]);
+    // BACKGROUND-RUN INDICATOR (2026-09-29): a turn that forked a canvas
+    // edit to the background ("still running in the background") binds a
+    // pending chip to THIS run — spinner until the terminal
+    // `chat_continuation` WS event, then honest still-running wording
+    // after a stale window (never an eternal spinner, never fake
+    // completion).
+    const [backgroundRun, setBackgroundRun] = useState<{
+        continuationId?: string;
+        executionId?: string;
+        since: number;
+    } | null>(null);
+    const [messages, setMessages] = useState<TurnBoundMessage[]>([]);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
     const [sessionTitle, setSessionTitle] = useState("Current Session");
@@ -43,14 +88,19 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
     // Dedupe guard: set true when the REST path appends the assistant message,
     // so the WebSocket streaming:complete path doesn't append a duplicate.
     const _restFulfilledRef = useRef(false);
-    // Reasoning steps that arrive over WS BEFORE the REST response appends
-    // this turn's assistant message. The old handler silently DROPPED them
-    // (steps only attach to a trailing assistant message, and while the
-    // agent is generating the last message is the user's) — so the "Reasoning
-    // Process" drawer never showed anything on the main chat page.
+    // Reasoning steps that arrive over WS BEFORE this turn's bubble exists. The
+    // old handler silently DROPPED them (steps only attach to a trailing
+    // assistant message, and while the agent is generating the last message is
+    // the user's) — so the "Reasoning Process" drawer never showed anything on
+    // the main chat page.
     const _pendingStepsRef = useRef<ReasoningStep[]>([]);
 
-    const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
+    // Turn ownership (which execution this panel's POST is waiting on, which
+    // session it is showing, how many frames it declined to bind) lives in
+    // useTurnStream below — the shared mechanism every surface that POSTs to
+    // /api/chat/message uses. See hooks/chat/turnBinding.ts for why the rules
+    // are general rather than per-surface.
+
     const { toast } = useToast();
     const { uploadFile, isUploading } = useFileUpload();
 
@@ -129,6 +179,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
                                 actions: assistantActions,
                                 reasoning: historyItem.reasoning || undefined,
+                                workbookResult: historyItem.workbook_result || undefined,
                                 ...(historyReasoningStep ? { reasoningTrace: [historyReasoningStep] } : {}),
                             });
                         } else if (assistantContent && typeof assistantContent === 'object' && assistantContent.message) {
@@ -235,6 +286,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         // This turn's steps belong to THIS turn's reply — drop any stragglers
         // buffered from a turn that never resolved.
         _pendingStepsRef.current = [];
+        // New local turn: no execution is claimed yet. The first
+        // session-matching chat_token that arrives while this POST is in flight
+        // adopts the role, because the server mints the execution id before it
+        // emits a token.
+        turn.beginLocalTurn();
 
         try {
             const { apiClient } = await import('../../lib/api-client');
@@ -366,6 +422,19 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                     onSessionCreated?.(data.session_id);
                 }
 
+                // A forked background run: bind the pending indicator to
+                // this run's ids (resolved by the chat_continuation
+                // handler below).
+                const _bgCanvasEdit = (data as any)?.data?.canvas_edit
+                    || (data as any)?.metadata?.canvas_edit;
+                if (_bgCanvasEdit?.background_started) {
+                    setBackgroundRun({
+                        continuationId: _bgCanvasEdit.continuation_id || undefined,
+                        executionId: _bgCanvasEdit.execution_id || undefined,
+                        since: Date.now(),
+                    });
+                }
+
                 // Attach this turn's buffered WS steps, and fall back to the
                 // REST payload's chain-of-thought when no WS step carried it
                 // (stale socket / history-only clients still get the drawer).
@@ -387,6 +456,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                     model: data.model,
                     provider: data.provider,
                     memoryContext: data.memory_context || undefined,
+                    workbookResult: (data as any)?.data?.workbook_result
+                        || (data as any)?.metadata?.workbook_result
+                        || undefined,
                     reasoning: data.reasoning || undefined,
                     // Train-from-chat: the backend attaches `teaching` to the
                     // turn (a /teach confirmation, or a detected directive
@@ -397,6 +469,34 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                         : {}),
                     ...(reasoningTrace.length ? { reasoningTrace } : {}),
                 };
+                // CONVERGE WITH THE STREAM. If this turn already streamed a
+                // bubble, the HTTP response is the authoritative FINAL text for
+                // that same bubble — replace it in place (keeping its id, its
+                // position under the right question, its execution binding and
+                // any reasoning the stream already attached). Appending here is
+                // what produced two bubbles with the same answer.
+                const converged = turn.converge(messagesRef.current, {
+                    content: data.message,
+                    actions: agentMsg.actions,
+                    model: agentMsg.model,
+                    provider: agentMsg.provider,
+                    memoryContext: agentMsg.memoryContext,
+                    reasoning: agentMsg.reasoning,
+                    ...(agentMsg.teaching ? { teaching: agentMsg.teaching } : {}),
+                    ...(reasoningTrace.length ? { reasoningTrace } : {}),
+                });
+                if (converged) {
+                    setMessages(converged);
+                    _restFulfilledRef.current = true;
+                    if (chatTurnTouchedCanvas(data)) {
+                        void syncCanvasFromStore(
+                            data.metadata?.canvas_edit?.canvas_id
+                            || data.metadata?.canvas_action?.canvas_id
+                            || undefined,
+                        );
+                    }
+                    return true;
+                }
                 setMessages(prev => [...prev, agentMsg]);
                 // Mark this generation as REST-fulfilled so the WebSocket
                 // streaming:complete path doesn't append a duplicate.
@@ -588,6 +688,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
             // conversation doesn't flash during the async history fetch.
             setMessages([]);
             setIsProcessing(false);
+            // A background run bound to the OLD session must not leak into
+            // this one.
+            setBackgroundRun(null);
             loadSessionHistory(sessionId);
             import('../../lib/api-client').then(({ apiClient }) => {
                 apiClient.get(`/api/chat/sessions/${sessionId}?user_id=${getCurrentUserId()}`, {
@@ -643,66 +746,38 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         }
     }, [sessionId, initialAgentId, loadSessionHistory]);
 
+    // Synchronous view of the transcript. A `setMessages` updater body runs
+    // LATER, when React processes the update, so anything that has to branch on
+    // the current contents (rather than merely transform them) has to read it
+    // from here — otherwise it reads `false` for a bubble that is about to be
+    // found.
+    const messagesRef = useRef<TurnBoundMessage[]>(messages);
+    const loadSessionHistoryRef = useRef<((sid: string) => Promise<void>) | null>(null);
+    const toastRef = useRef(toast);
+    const sessionIdRef = useRef(sessionId);
+    const _pendingStepsRef2 = _pendingStepsRef;
     useEffect(() => {
-        scrollToBottom();
-    }, [messages, statusMessage, streamingContent, scrollToBottom]);
+        messagesRef.current = messages;
+        loadSessionHistoryRef.current = loadSessionHistory;
+        toastRef.current = toast;
+        sessionIdRef.current = sessionId;
+    });
 
-    useEffect(() => {
-        if (isConnected) {
-            subscribe("workspace:default");
-        }
-    }, [isConnected, subscribe]);
-
-    useEffect(() => {
-        if (!lastMessage) return;
-        const msg = lastMessage as any;
-
-        if (msg.type === "agent_step_update") {
-            // Emitters disagree on envelope: agent_routes broadcasts flat
-            // {step: {...}}, the chat orchestrator wraps in {data: {...}}.
-            // Only nested-object steps are appended; a bare number/absent
-            // step would otherwise append junk {step: 1} entries.
-            const payload = msg.data ?? msg;
-            const rawStep = payload?.step && typeof payload.step === "object" ? payload.step : null;
-            if (!rawStep) return;
-
-            // Ignore runs belonging to a different chat session
-            const evtSession = payload.session_id ?? rawStep.session_id;
-            if (evtSession && sessionId && evtSession !== sessionId) return;
-
-            const step: ReasoningStep = {
-                step: rawStep.step || 1,
-                thought: rawStep.thought,
-                action: rawStep.action,
-                observation: rawStep.observation ?? rawStep.output,
-                final_answer: rawStep.final_answer,
-            };
-
-            if (rawStep.action) {
-                setStatusMessage(`Executing ${rawStep.action.tool ?? rawStep.action}...`);
-            } else if (rawStep.thought) {
-                setStatusMessage("Thinking...");
-            }
-
-            setMessages(prev => {
-                const lastMsg = prev[prev.length - 1];
-                if (lastMsg && lastMsg.type === "assistant") {
-                    return [...prev.slice(0, -1), {
-                        ...lastMsg,
-                        reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
-                    }];
-                }
-                // Assistant message for this turn doesn't exist yet — buffer
-                // the step; it attaches when the REST reply lands.
-                _pendingStepsRef.current = [..._pendingStepsRef.current, step];
-                return prev;
-            });
-        }
-
-        // Background turn continuation landed (edit finished after the
-        // interactive turn ended): refresh history so the late assistant
-        // message + updated canvas state appear, and tell the user.
-        if (msg.type === "chat_continuation" && msg.session_id === sessionId) {
+    // THE SHARED TURN STREAM. Lossless intake (one `onMessage` registration,
+    // every frame observed, inputs mirrored into refs so no frame is handled by
+    // a stale render) plus the general binding rules from ./turnBinding.
+    const turn = useTurnStream<TurnBoundMessage>({
+        sessionId,
+        isBusy: isProcessing,
+        onSessionAdopted: (sid) => { onSessionCreated?.(sid); },
+        onContinuation: (msg) => {
+            // A background turn continuation landed (an edit finished after the
+            // interactive turn ended): refresh history so the late assistant
+            // message and updated canvas state appear, and tell the user.
+            if (msg.session_id !== sessionIdRef.current) return;
+            // Resolve the pending background-run indicator (by id when the
+            // reply carried one; the terminal event is session-scoped).
+            setBackgroundRun(null);
             const summary: string = msg.summary || "A background task finished.";
             const status: string = msg.status || "";
             const titles: Record<string, string> = {
@@ -714,56 +789,97 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 failed: "Background update could not finish",
             };
             const good = status === "applied" || status === "already_applied";
-            toast({
+            toastRef.current({
                 title: titles[status] || "Background update finished",
                 description: summary.slice(0, 160),
                 variant: good ? "default" : "warning",
             });
-            void loadSessionHistory(msg.session_id);
-        }
-
-        if (msg.type === "hitl_paused") {
-            setPendingApproval({ action_id: msg.action_id, tool: msg.tool, reason: msg.reason });
-            setStatusMessage("Waiting for approval...");
-        }
-
-        if (msg.type === "hitl_decision") {
+            void loadSessionHistoryRef.current?.(msg.session_id);
+        },
+        onLocalTurnSettled: () => {
+            setIsProcessing(false);
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+            }
+        },
+        renderStream: (action) => {
+            if (action.kind === "token") {
+                setMessages(prev => turn.applyTokenFrame(prev, action.execution, action.delta, action.agentId));
+                return;
+            }
+            setMessages(prev => turn.applyDoneFrame(prev, action.execution, action.content));
+        },
+        onReasoningStep: (rawStep, execution, agentId) => {
+            const step: ReasoningStep = {
+                step: rawStep.step || 1,
+                thought: rawStep.thought,
+                action: rawStep.action,
+                observation: rawStep.observation ?? rawStep.output,
+                final_answer: rawStep.final_answer,
+            };
+            if (rawStep.action) {
+                setStatusMessage(`Executing ${rawStep.action.tool ?? rawStep.action}...`);
+            } else if (rawStep.thought) {
+                setStatusMessage("Thinking...");
+            }
+            if (!execution) {
+                // The step named no turn, so there is nowhere unambiguous to
+                // put it. Buffer it for this panel's own HTTP reply, which is
+                // the one place it can be placed without guessing.
+                _pendingStepsRef2.current = [..._pendingStepsRef2.current, step];
+                return;
+            }
+            setMessages(prev => turn.applyStepFrame(prev, execution, step, agentId));
+        },
+        onHitl: (phase, msg) => {
+            if (phase === "paused") {
+                setPendingApproval({ action_id: msg.action_id, tool: msg.tool, reason: msg.reason });
+                setStatusMessage("Waiting for approval...");
+                return;
+            }
             setPendingApproval(null);
             setStatusMessage("Resuming execution...");
-        }
-
-        if (msg.type === "streaming:complete" && msg.id === currentStreamId) {
-            // Dedupe guard: skip if the REST path already appended the message.
+        },
+        onLegacyStreamStart: (id) => { setCurrentStreamId(id); },
+        onLegacyStreamDone: (id, content) => {
+            // Only ever called for the stream THIS panel started (the shared
+            // layer drops foreign and unidentifiable completions), so it is
+            // safe to resolve the turn here.
             if (!_restFulfilledRef.current) {
                 const wsBuffered = _pendingStepsRef.current;
                 _pendingStepsRef.current = [];
-                const agentMsg: ChatMessageData = {
-                    id: msg.id,
-                    type: "assistant",
-                    content: msg.content,
+                setMessages(prev => [...prev, {
+                    id,
+                    type: "assistant" as const,
+                    content,
                     timestamp: new Date(),
                     actions: [],
                     ...(wsBuffered.length ? { reasoningTrace: wsBuffered } : {}),
-                };
-                setMessages(prev => [...prev, agentMsg]);
+                }]);
             }
             setCurrentStreamId(null);
             setIsProcessing(false);
-            if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
-        }
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+            }
+        },
+    });
 
-        // Safety-net: if streaming:complete arrives with a mismatched id (or
-        // currentStreamId is null because streaming:start was missed), still
-        // reset isProcessing so the spinner never gets permanently stuck.
-        if (msg.type === "streaming:complete" && msg.id !== currentStreamId) {
-            setIsProcessing(false);
-            if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
-        }
+    // The socket this surface uses is the one useTurnStream opened. Taking it
+    // from there is what keeps /chat at one socket per panel.
+    const { isConnected, streamingContent, subscribe } = turn.socket;
 
-        if (msg.type === "streaming:start") {
-            setCurrentStreamId(msg.id);
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, statusMessage, streamingContent, scrollToBottom]);
+
+    useEffect(() => {
+        if (isConnected) {
+            subscribe("workspace:default");
         }
-    }, [lastMessage, currentStreamId, sessionId, loadSessionHistory, toast]);
+    }, [isConnected, subscribe]);
 
     return {
         input,
@@ -772,6 +888,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
         setPendingImages,
         isProcessing,
         statusMessage,
+        backgroundRun,
         messages,
         pendingApproval,
         sessionTitle,

@@ -1785,6 +1785,22 @@ def _canvas_edit_shaped(
     canvas gate matters most: the same verbs in a plain chat (no panel) are
     ordinary turns."""
     text = message or ""
+    # A TEACHING DIRECTIVE IS NOT AN EDIT (2026-09-30 02:28 live): "learn
+    # to include tennsmith sheet for roper whitney searches" matched the
+    # edit verb 'include' and forked a doomed background edit while the
+    # agent — which owns learning — was never consulted. Learning
+    # directives route to the teaching channel (one-click lesson); the
+    # deterministic edit gate must not act on them.
+    try:
+        from core.chat_teaching import (
+            detect_mid_message_cue,
+            detect_teaching_cue,
+        )
+
+        if detect_teaching_cue(text) or detect_mid_message_cue(text):
+            return False
+    except Exception:  # noqa: BLE001 — classification only
+        pass
     if (
         _CANVAS_ADVISORY_OBJECTIVE_RE.search(text)
         and not _CANVAS_EXPLICIT_EDIT_RE.search(text)
@@ -1926,6 +1942,22 @@ _OBJECTIVE_SYNTHESIS_RE = re.compile(
     r"should\s+(?:change|update|replace)|support(?:s|ed)?\s+chang(?:e|ing)|"
     r"prepare\s+(?:a\s+|the\s+)?(?:change|update)|what\s+does\s+this\s+mean|"
     r"what\s+do\s+these\s+mean|do\s+i\s+need\s+to\s+(?:change|update))\b",
+    re.IGNORECASE,
+)
+# An ANAPHORIC file reference: "find this in the workbook", "of the
+# spreadsheet", "in the sheet" — the file is named only by a generic noun,
+# resolvable only through the conversation's own resolved identity
+# (2026-09-29 row-338 incident: the exact Tennsmith row was in hand, the
+# materialized copy HAD it, and the turn still fell to mail search because
+# no extension-ful filename was named). GENERIC file nouns only; the
+# cheap-NLU layer judges the residue ("the tracker", "our numbers") so
+# behavior never depends on this list anticipating every domain. Action
+# verbs (delete/update/send) are deliberately absent — the read-shape gate
+# above stays the action boundary; this regex only ever RESOLVES a name.
+_GENERIC_FILE_REF_RE = re.compile(
+    r"\b(?:in|from|of|into|across|on)\s+(?:the\s+|this\s+|that\s+|our\s+)?"
+    r"(?:workbooks?|spreadsheets?|excel(?:\s+files?)?|sheets?|"
+    r"price\s+lists?|files?|documents?|docs?|reports?)\b",
     re.IGNORECASE,
 )
 
@@ -2994,7 +3026,10 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
     the session, in precedence order.
 
     1. the stored pending-file task's ``requested_targets``;
-    2. the latest structured file result's ``requested_items``.
+    2. the SUPERSESSION STASH's ``requested_targets`` — a follow-up that
+       refers to prior retrieval work ("show me my searches") inherits the
+       objective it refers to (see body comment);
+    3. the latest structured file result's ``requested_items``.
 
     THE TASK FIRST, and that order is the point. The two carriers are not
     written at the same moment: ``requested_targets`` is stamped on the task
@@ -3018,12 +3053,429 @@ def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
     except Exception:
         pass
     try:
+        # SUPERSESSION STASH (2026-09-30 'show me the tennsmith sheet
+        # searches'): superseding a task replaces the OBJECTIVE text but
+        # the stash still carries the ordered targets the user spent turns
+        # building. Without this fallback, a reference-shaped follow-up
+        # ("show me my searches", "check those results again") — which
+        # carries no item codes of its own — inherited NOTHING, the read
+        # ran with zero targets, and the turn degraded to a sheet listing
+        # or a bare footer. The stash targets are the objective being
+        # referred to; resolving the reference means inheriting them.
+        stashed = ((session or {}).get(
+            "_superseded_file_task_context") or {}).get(
+            "requested_targets") or []
+        resolved = [str(v).strip() for v in stashed if str(v).strip()]
+        if resolved:
+            return resolved
+    except Exception:
+        pass
+    try:
         stored = ((session or {}).get("_pending_file_result") or {})
         items = ((stored.get("structured_result") or {})
                  .get("requested_items") or [])
         return [str(v).strip() for v in items if str(v).strip()]
     except Exception:
         return []
+
+
+async def _resolve_anaphoric_file_mention(
+    message: str, session: Optional[Dict[str, Any]],
+    llm_service: Any = None,
+    conversation_id: Optional[str] = None,
+) -> str:
+    """Resolve "find this in the workbook" to the conversation's file.
+
+    A turn that names the file only generically ("the workbook", "the
+    sheet") can still be a file-scoped read ask — but only when THIS
+    conversation holds a RESOLVED spreadsheet identity to resolve the
+    reference to: the live stored task's or the supersession stash's
+    ``resolved_file`` (2026-09-29 row-338 incident: the user gave the
+    exact sheet, row and value; the materialized copy had the row; the
+    turn was answered from mail search because no ``.xlsx`` name was
+    typed). Guarded: questions and confirmation-shaped turns ("that
+    workbook is correct", "search the sheet again") are never resolved —
+    their own lanes own them — and a non-spreadsheet resolved identity
+    never matches workbook vocabulary.
+
+    Deterministic floor first (generic file nouns). The RESIDUE the noun
+    list cannot anticipate ("find this in the tracker", "check our
+    numbers doc") is judged by the cheap-NLU layer
+    (``core.llm.cheap_nlu.refers_to_resolved_file``): a confident YES
+    resolves, everything else (NO/uncertain/disabled/error) keeps normal
+    planning — fail-closed by construction. Returns the resolved file
+    NAME (the caller's direct reader consumes the resource pin
+    separately) or "".
+    """
+    t = (message or "").strip()
+    if not t or "?" in t:
+        return ""
+    # CROSS-SOURCE REQUESTS NEVER RESOLVE HERE (2026-09-29 incident +
+    # 2026-09-30 regression): "check <person>'s email and the workbook
+    # descriptions" names a communication source AND a workbook — its
+    # job is supersession + normal planning, never a deterministic
+    # workbook read. This guard must precede BOTH the inheritance and
+    # the generic-ref floor ("in workbook" alone would otherwise
+    # resolve it).
+    if re.search(
+        r"\b(?:e-?mails?|mails?|inbox|threads?|dms?|chats?|"
+        r"messages?|texts?|calendar|tickets?)\b", t, re.IGNORECASE):
+        return ""
+    resolved_name = ""
+    # RERUN-INHERITANCE (2026-09-30 gap fix): a rerun-shaped message
+    # ("repeat the search … include tennsmith sheet for roper whitney
+    # searches") that EXTENDS the stored objective pops it into the
+    # stash — the search-scope guidance is new work on the SAME file,
+    # not a new file task. With no file mention of its own, the message
+    # fell to narration. A rerun naming file vocabulary with a
+    # communication-source object excluded inherits the stash's
+    # spreadsheet identity: the read re-runs deterministically, scoped
+    # by the new constraint.
+    try:
+        from core.pending_file_task import is_rerun_request
+
+        if (
+            resolved_name == ""
+            and is_rerun_request(t)
+            and re.search(r"\b(?:workbooks?|spreadsheets?|excel|sheets?|"
+                          r"files?|filename|price\s+lists?)\b", t,
+                          re.IGNORECASE)
+        ):
+            for carrier in ((session or {}).get("_pending_file_task"),
+                            (session or {}).get(
+                                "_superseded_file_task_context")):
+                ident = (carrier or {}).get("resolved_file") if isinstance(
+                    carrier, dict) else None
+                nm = str((ident or {}).get("file_name") or "").strip()
+                if nm:
+                    from core.agent_file_context import (
+                        SPREADSHEET_EXTENSIONS,
+                    )
+
+                    if nm.rsplit(".", 1)[-1].lower() in (
+                            SPREADSHEET_EXTENSIONS):
+                        return nm.lower()
+    except Exception:  # noqa: BLE001 — inheritance is best-effort
+        pass
+    try:
+        from core.pending_file_task import is_filename_confirmation
+
+        if is_filename_confirmation(t):
+            return ""
+    except Exception:  # noqa: BLE001 — fail toward normal planning
+        return ""
+    if resolved_name == "":
+        for carrier in ((session or {}).get("_pending_file_task"),
+                        (session or {}).get(
+                            "_superseded_file_task_context")):
+            identity = (carrier or {}).get("resolved_file") if isinstance(
+                carrier, dict) else None
+            name = str((identity or {}).get("file_name") or "").strip()
+            if not name:
+                continue
+            try:
+                from core.agent_file_context import SPREADSHEET_EXTENSIONS
+
+                if name.rsplit(".", 1)[-1].lower() in (
+                        SPREADSHEET_EXTENSIONS):
+                    resolved_name = name
+                    break
+            except Exception:  # noqa: BLE001 — belt-only
+                break
+    if not resolved_name and conversation_id:
+        # LEDGER FALLBACK (2026-10-01): every carrier was superseded or
+        # lost (restart, task churn) — the conversation's resolved file
+        # identity is still a durable fact in the append-only ledger.
+        try:
+            from core import dialogue_state as _ds
+            from core.agent_file_context import SPREADSHEET_EXTENSIONS
+
+            _lf = (_ds.project_events(
+                _ds.fetch_events(conversation_id)) or {}).get("file") or {}
+            _lname = str((_lf or {}).get("file_name") or "").strip()
+            if _lname and _lname.rsplit(".", 1)[-1].lower() in (
+                    SPREADSHEET_EXTENSIONS):
+                resolved_name = _lname
+        except Exception:  # noqa: BLE001 — ledger optional
+            pass
+    if not resolved_name:
+        return ""
+    # Deterministic floor: generic file nouns resolve outright.
+    if _GENERIC_FILE_REF_RE.search(t):
+        return resolved_name.lower()
+    # NAMED-SHEET REFERENCE (2026-09-30). A preposition is not required to be
+    # talking about the workbook: "show me the tennsmith sheet searches" and
+    # "price on the Tennsmith tab" name a sheet of THIS conversation's
+    # spreadsheet as directly as "in the workbook" does, and the preposition
+    # requirement made both fall through to narration — which re-served the
+    # previous answer verbatim, so asking a narrower question produced a
+    # byte-identical reply. The turn is read-shaped (questions are already
+    # excluded above by the "?" guard) and the identity it resolves to is the
+    # one this conversation already holds.
+    #
+    # The SHEET is not resolved here — this function has no sheet catalog, so
+    # any name it picked would be a guess. It only establishes that the turn
+    # is a read against this workbook; the narrowing itself is settled in
+    # `core.chat_tool_planner` by `resolve_requested_sheets`, against the
+    # sheets the file actually indexes, which is where a wrong guess can be
+    # caught instead of acted on.
+    try:
+        from core.answer_presentation import mentions_sheet_reference
+
+        if mentions_sheet_reference(t):
+            return resolved_name.lower()
+    except Exception:  # noqa: BLE001 — fail toward normal planning
+        pass
+    # Cheap-NLU residue: unknown generic noun, judged semantically.
+    try:
+        from core.llm.cheap_nlu import (
+            refers_to_resolved_file,
+            switch_enabled as _nlu_switch_on,
+        )
+
+        if _nlu_switch_on():
+            if await refers_to_resolved_file(t, resolved_name, llm_service):
+                return resolved_name.lower()
+    except Exception:  # noqa: BLE001 — fail-closed to normal planning
+        pass
+    return ""
+
+
+#: How long a FAILED background edit stays retryable by a bare "try
+#: again" (seconds; env-overridable).
+_FAILED_EDIT_RETRY_TTL_SECONDS = float(
+    os.getenv("ATOM_FAILED_EDIT_RETRY_TTL_SECONDS", "1800") or 1800)
+
+
+def _failed_edit_retry_target(
+    session_id: Optional[str], message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    """The FAILED background edit a bare retry turn points at, or None.
+
+    Intent precedence (2026-09-29 live): "try again" after "Background
+    update failed" names the NEWEST unresolved action — the edit — not
+    the conversation's older file-read objective. Without this the retry
+    re-ran the workbook read while the user was waiting for the price
+    update. Detection is durable: the fork's terminal assistant row
+    carries a continuation record (outcome, canvas_id); the original
+    instruction is the user message that spawned it. A turn with its own
+    substantive work is never hijacked into a retry.
+    """
+    if not session_id or not (message or "").strip():
+        return None
+    t = (message or "").strip()
+    try:
+        from core.pending_file_task import (
+            _RETRY_LINEAGE_VOCABULARY,
+            _introduces_new_work,
+            is_bare_action_retry,
+            is_filename_confirmation,
+            is_rerun_request,
+        )
+
+        if not (is_rerun_request(t) or is_filename_confirmation(t)
+                or is_bare_action_retry(t)):
+            return None
+    except Exception:  # noqa: BLE001 — fail toward normal routing
+        return None
+    try:
+        import ast as _ast
+
+        from core.database import get_db_session
+        from core.models import ChatMessage as ChatMessageModel
+
+        with get_db_session() as db:
+            rows = (
+                db.query(ChatMessageModel)
+                .filter(
+                    ChatMessageModel.conversation_id == session_id,
+                    ChatMessageModel.role == "assistant",
+                )
+                .order_by(ChatMessageModel.created_at.desc(),
+                          ChatMessageModel.id.desc())
+                .limit(24)
+                .all()
+            )
+        cutoff = time.time() - _FAILED_EDIT_RETRY_TTL_SECONDS
+        for row in rows:
+            try:
+                created = row.created_at.timestamp() if (
+                    row.created_at is not None) else 0
+            except Exception:  # noqa: BLE001
+                created = 0
+            if created and created < cutoff:
+                break  # append-only scan: older rows are out of TTL
+            try:
+                meta = json.loads(row.metadata_json or "{}")
+            except Exception:
+                continue
+            cont = meta.get("continuation")
+            if not isinstance(cont, str):
+                continue
+            try:
+                record = _ast.literal_eval(cont)
+            except Exception:
+                continue
+            if not isinstance(record, dict):
+                continue
+            # FAILED *or CONFLICT* (2026-09-29 live): a conflict means the
+            # background edit was held back because the canvas moved — the
+            # edit still has not landed, and a bare retry is exactly the
+            # re-ask the conflict message invites. Both are un-landed
+            # terminal outcomes a retry should re-dispatch.
+            if str(record.get("outcome") or "") not in ("failed", "conflict"):
+                continue
+            canvas_id = str(record.get("canvas_id") or "").strip()
+            if not canvas_id:
+                continue
+            # The instruction that spawned the fork: the newest user
+            # message at or before this assistant row.
+            instruction = ""
+            with get_db_session() as db2:
+                user_row = (
+                    db2.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "user",
+                        ChatMessageModel.created_at <= row.created_at,
+                    )
+                    .order_by(ChatMessageModel.created_at.desc(),
+                              ChatMessageModel.id.desc())
+                    .first()
+                )
+                instruction = str(
+                    (user_row.content if user_row else "") or "").strip()
+            if not instruction:
+                continue
+            try:
+                # RETRY ANCHOR: bare retry verbs ("try") are the
+                # operation, never a new object — without the anchor
+                # "try again" would read as new work against the
+                # original instruction and never retry.
+                if _introduces_new_work(
+                        t, instruction,
+                        extra_anchor=_RETRY_LINEAGE_VOCABULARY):
+                    return None  # new work, not a retry of this edit
+            except Exception:  # noqa: BLE001
+                pass
+            return {"instruction": instruction, "canvas_id": canvas_id,
+                    "execution_id": str(record.get("id") or "")}
+    except Exception as exc:  # noqa: BLE001 — retry detection is best-effort
+        logger.debug("failed-edit retry detection skipped: %r", exc)
+        return None
+    return None
+
+
+def _shadow_lane_of(msg_meta: Dict[str, Any], response: Any) -> str:
+    """Best-effort lane label for the shadow turn-decision record."""
+    try:
+        data = (response or {}).get("data") if isinstance(
+            response, dict) else {}
+        data = data if isinstance(data, dict) else {}
+        ce = data.get("canvas_edit") or {}
+        if ce.get("background_started"):
+            return "canvas_edit_background"
+        if ce.get("updated") or ce.get("no_apply"):
+            return "canvas_edit"
+        wr = msg_meta.get("workbook_result") or data.get("workbook_result")
+        if wr or data.get("deterministic_delivery"):
+            return "read"
+        if (response or {}).get("model") == "deterministic":
+            return "deterministic"
+        return "planning"
+    except Exception:  # noqa: BLE001 — label only
+        return "unknown"
+
+
+def _capture_resolved_row_bindings(
+    session: Optional[Dict[str, Any]],
+    history: Optional[List[Dict[str, Any]]],
+    structured_result: Optional[Dict[str, Any]],
+    current_message: str = "",
+    conversation_id: Optional[str] = None,
+) -> None:
+    """Persist user-asserted + read-verified row bindings on the task.
+
+    Completion pass (2026-09-29): when the user's own text asserted a
+    concrete location ("… is on Tennsmith sheet under row 338 …") and
+    this read's artifact verified a bound candidate exactly there, the
+    binding rides the task's ``disambiguation.resolved_bindings`` — the
+    existing container that already survives merges, confirmations, the
+    supersession stash and restart metadata. Later reads at the same
+    workbook revision pin to the row (value basis cited); a changed
+    revision expires it. Fault-isolated: capture failures never touch
+    the turn.
+    """
+    try:
+        if not isinstance(structured_result, dict):
+            return
+        from core.pending_file_task import FILE_TASK_SESSION_KEY
+        from core.workbook_read_artifact import capture_resolved_bindings
+
+        texts = [
+            str((e or {}).get("message") or "").strip()
+            for e in (history or [])[-8:]
+            if isinstance(e, dict) and (e or {}).get("message")
+        ]
+        # The assertion usually IS the current message ("… is on X sheet
+        # under row N … find this in the workbook") — history alone never
+        # contains it.
+        if (current_message or "").strip():
+            texts.insert(0, current_message.strip())
+        bindings = capture_resolved_bindings(texts, structured_result)
+        if not bindings:
+            return
+        task = session.get(FILE_TASK_SESSION_KEY) if isinstance(
+            session, dict) else None
+        if not isinstance(task, dict):
+            return
+        dis = task.get("disambiguation")
+        if not isinstance(dis, dict):
+            dis = {}
+            task["disambiguation"] = dis
+        existing = {
+            (str(b.get("item") or "").lower(), str(b.get("sheet") or "").lower(),
+             b.get("row"))
+            for b in (dis.get("resolved_bindings") or []) if isinstance(b, dict)
+        }
+        merged = list(dis.get("resolved_bindings") or [])
+        for b in bindings:
+            key = (str(b.get("item") or "").lower(),
+                   str(b.get("sheet") or "").lower(), b.get("row"))
+            if key not in existing:
+                merged.append(b)
+        dis["resolved_bindings"] = merged[:32]
+        # LEDGER (2026-10-01, step 2 completion): bindings are durable
+        # conversation facts too — appended (revision-scoped by
+        # content_hash, expiry by projection) so later turns and
+        # restarted processes resolve them even when the task carrier
+        # was superseded or lost.
+        if conversation_id:
+            try:
+                from core import dialogue_state as _ds
+
+                for b in bindings:
+                    _ds.append_event(
+                        _ds.BINDING_CAPTURED, conversation_id, {
+                            "item": b.get("item"),
+                            "sheet": b.get("sheet"),
+                            "row": b.get("row"),
+                            "value": b.get("value"),
+                            "identity_cells": b.get("identity_cells"),
+                            "content_hash": (
+                                (structured_result or {})
+                                .get("source_identity") or {}
+                            ).get("content_hash"),
+                            "asserted_in": (current_message or "")[:200],
+                        })
+            except Exception:  # noqa: BLE001 — ledger optional
+                pass
+        logger.info(
+            "[resolved-bindings] captured %d user-asserted verified row "
+            "binding(s) onto the file task", len(bindings))
+    except Exception as exc:  # noqa: BLE001 — capture never blocks a turn
+        logger.debug("resolved-binding capture skipped: %r", exc)
 
 
 def _task_lifecycle_for(tenant_id: Any,
@@ -3469,6 +3921,10 @@ class ChatOrchestrator:
     ) -> None:
         if continuation_id:
             shared_tool["async_continuation_forked"] = True
+            # BACKGROUND-RUN UI (2026-09-29): the reply payload carries the
+            # id so the frontend can bind a pending indicator to THIS run
+            # and resolve it on the terminal chat_continuation event.
+            shared_tool["async_continuation_id"] = continuation_id
             return
         try:
             from core.async_turn_continuation import continuation_in_flight
@@ -3479,6 +3935,7 @@ class ChatOrchestrator:
         if existing_id:
             shared_tool["async_continuation_forked"] = True
             shared_tool["async_continuation_existing"] = True
+            shared_tool["async_continuation_id"] = existing_id
             return
         shared_tool["canvas_edit_no_apply"] = True
         shared_tool["canvas_edit_no_apply_reason"] = "background_fork_unavailable"
@@ -4244,6 +4701,32 @@ class ChatOrchestrator:
                 from x-atom-* headers). May contain ``model``, ``tier``,
                 ``intent`` keys. Threaded through to the LLM call.
         """
+
+        # STANDING-PREFERENCE CAPTURE — THE UNIVERSAL SEAM (2026-10-01
+        # live-e2e finding): a taught preference ("always include the
+        # tennsmith sheet for roper whitney searches") must become a durable
+        # ledger fact on the turn that teaches it, whichever lane serves
+        # that turn — the teaching acknowledgment lane builds no turn
+        # decision, so decision-layer capture missed it and the lesson only
+        # applied while the teach turn sat inside the history window (then
+        # silently decayed). Every user message crosses HERE first.
+        try:
+            if session_id and re.search(
+                r"\b(?:always|whenever|each time|from now on|"
+                r"learn(?:ing)? to|going forward)\b",
+                message or "", re.IGNORECASE,
+            ):
+                from core import dialogue_state as _ds_cap
+                from core.turn_decision import _scope_constraints
+
+                for _pref in (_scope_constraints(message or "") or [])[:3]:
+                    _ds_cap.append_event(
+                        _ds_cap.PREFERENCE_SET, session_id,
+                        {"phrase": str(_pref), "standing": True,
+                         "taught_in": (message or "")[:200]})
+        except Exception:  # noqa: BLE001 — capture never breaks a turn
+            pass
+
         # INTERACTIVE CONTEXT (RCA 2026-09-22): every provider call on
         # this request's call stack — planner, canvas editor, reply
         # generation, cascades — is user-facing. The rate-budget reserve
@@ -4356,6 +4839,16 @@ class ChatOrchestrator:
                                 "resolved_file"),
                             "confirmed_mention": _superseded.get(
                                 "confirmed_mention"),
+                            # ORDERED TARGET IDENTITIES ride with the
+                            # stash (2026-09-29 cross-source incident): a
+                            # superseding objective (identity
+                            # disambiguation across email + workbook)
+                            # still executes against the same requested
+                            # items — the objective is replaced, never
+                            # the context needed to serve the new one.
+                            "requested_targets": (
+                                _superseded.get("requested_targets")
+                                or _stored_requested_items(session)),
                         }
             except Exception as _pft_supersede_err:
                 logger.debug(
@@ -4460,6 +4953,29 @@ class ChatOrchestrator:
             _canvas_ctx: Optional[Dict[str, Any]] = None
             if context:
                 _canvas_ctx = await self._resolve_canvas_ctx(context, user_id)
+            # FAILED-EDIT RETRY (2026-09-29 live): "try again" after
+            # "Background update failed" names the newest unresolved
+            # ACTION — the edit — not the conversation's older file-read
+            # objective. Resolved once, here, before the pending-file
+            # matcher can claim the turn for a read.
+            _edit_retry = None
+            try:
+                _edit_retry = _failed_edit_retry_target(
+                    session_id, message, history or [])
+            except Exception as _er_err:  # noqa: BLE001 — best-effort
+                logger.debug("edit-retry detection failed: %r", _er_err)
+            if _edit_retry is not None:
+                logger.info(
+                    "[edit-retry] bare retry re-dispatches the failed "
+                    "background edit (canvas=%s, prior exec=%s)",
+                    _edit_retry.get("canvas_id"),
+                    _edit_retry.get("execution_id"))
+                if _canvas_ctx is None:
+                    _retry_ctx = dict(context or {})
+                    _retry_ctx["canvas_id"] = _edit_retry["canvas_id"]
+                    _retry_ctx.pop("canvas", None)
+                    _canvas_ctx = await self._resolve_canvas_ctx(
+                        _retry_ctx, user_id)
             # Workspace scope for the pre-plan provenance probe (which ingested
             # stores hold the token the user quoted).
             _ctx_workspace_id = (context or {}).get("workspace_id")
@@ -4499,7 +5015,9 @@ class ChatOrchestrator:
                 )
 
                 _stored_task = session.get(FILE_TASK_SESSION_KEY)
-                if not isinstance(_stored_task, dict):
+                if _edit_retry is not None:
+                    _stored_task = None  # the edit retry owns this turn
+                if _edit_retry is None and not isinstance(_stored_task, dict):
                     # RESTART RECOVERY (2026-09-23 review, gap 5): the
                     # persisted-session projection drops private keys, so
                     # after a restart the durable carrier is the assistant
@@ -4514,8 +5032,8 @@ class ChatOrchestrator:
                     session.setdefault(FILE_TASK_SESSION_KEY, _stored_task)
                 _pending_file_task = matching_pending_task(
                     _stored_task, message, history or [])
-                if _pending_file_task is None and is_filename_confirmation(
-                        message):
+                if (_pending_file_task is None and _edit_retry is None
+                        and is_filename_confirmation(message)):
                     # LEGACY / EXPIRED STATE RECOVERY (2026-09-24,
                     # task-continuity regression): a conversation that
                     # predates the pending-task store — or whose task
@@ -4918,10 +5436,119 @@ class ChatOrchestrator:
 
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
+                if not _ask_mention:
+                    pass  # mention resolution continues below
+                # TURN-DECISION ROUTING (2026-09-30 full activation,
+                # ATOM_TURN_DECISION_ROUTING): the structured decision is
+                # the AUTHORITY for whether this turn requests research —
+                # when it carries a granted research action with a file
+                # reference, the ask lane runs on that reference even when
+                # every lexical resolver below missed it (odd wording the
+                # noun lists cannot anticipate). Runs whether or not the
+                # lexical mention resolved: the decision's SHEET-SCOPE
+                # CONSTRAINTS ride the read either way. Fail-open: flag
+                # off or any error restores the resolver-only behavior.
+                _td_scope_hints: List[str] = []
+                _td_decision: Optional[Dict[str, Any]] = None
+                _teaching_cue_turn = False
+                if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
+                    try:
+                        from core.turn_decision import (
+                            build_turn_decision,
+                        )
+
+                        _td = build_turn_decision(
+                            message, session, history or [],
+                            context or {}, session_id=session_id)
+                        _td_decision = _td
+                        _td_sources = ((_td.get("references")
+                                        or {}).get("sources")) or []
+                        for _a in _td.get("requested_actions") or []:
+                            if (_a.get("kind") == "research"
+                                    and _a.get("authorization")
+                                    == "granted"
+                                    and not (_a.get(
+                                        "additional_sources")
+                                        or _td_sources)):
+                                _ref = (_a.get("target") or {})
+                                if (not _ask_mention
+                                        and _ref.get("kind") == "spreadsheet"
+                                        and _ref.get("name")):
+                                    _ask_mention = _ref["name"]
+                                    logger.info(
+                                        "[turn-decision] research "
+                                        "action routed the ask lane "
+                                        "(file=%r)", _ask_mention)
+                            # SHEET-SCOPE CONSTRAINTS RIDE THE READ
+                            # (2026-09-30): the decision layer extracts
+                            # the user's scope guidance ("include
+                            # tennsmith sheet for roper whitney
+                            # searches") as typed constraints — that
+                            # extraction existed but was dropped at this
+                            # seam, so the read ran unscoped and the
+                            # taught preference never applied. Hints are
+                            # the user's own words; the READ resolves
+                            # them against the file's real sheet catalog
+                            # (a phrase naming no indexed sheet scopes
+                            # nothing — never a guessed filter).
+                            for _c in (_a.get("constraints") or []):
+                                _c = str(_c or "").strip()
+                                if _c and _c not in _td_scope_hints:
+                                    _td_scope_hints.append(_c)
+                    except Exception as _tdr_err:  # noqa: BLE001
+                        logger.debug(
+                            "turn-decision routing skipped: %r",
+                            _tdr_err)
+                if not _ask_mention and not locals().get(
+                        "_teaching_cue_turn"):
+                    # ANAPHORIC FILE REFERENCE (2026-09-29 row-338
+                    # incident): "find this in the workbook" names no
+                    # extension-ful filename; resolve it against the
+                    # conversation's own resolved identity so the
+                    # deterministic reader serves the targeted ask
+                    # instead of generic mail/integration planning.
+                    _ask_mention = await _resolve_anaphoric_file_mention(
+                        message, session, self.llm_service,
+                        conversation_id=session_id)
+                    if _ask_mention:
+                        logger.info(
+                            "[file-ask] anaphoric reference resolved: "
+                            "'the workbook' -> %r (session=%s)",
+                            _ask_mention, session_id)
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
+                    # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
+                    # consistency-run T3: 'always include the tennsmith
+                    # sheet for roper whitney searches' was hijacked by
+                    # the read lane — 'searches' matched the retrieval
+                    # noun and the reply became 'I found 0 results'
+                    # while the teaching ack never fired). The canvas
+                    # edit gate already exempts teaching cues; the read
+                    # gate must too — the lesson is acknowledged and
+                    # stored by the teaching channel.
+                    try:
+                        from core.chat_teaching import (
+                            detect_mid_message_cue,
+                            detect_teaching_cue,
+                        )
+
+                        if detect_teaching_cue(
+                                message or "") or detect_mid_message_cue(
+                                message or ""):
+                            # clear eligibility COMPLETELY — the anaphoric
+                            # fallback below would otherwise re-resolve
+                            # 'the workbook' from the stored identity and
+                            # re-enter the ask lane (observed live, T3:
+                            # the teaching turn still answered 'I found 0
+                            # results' through exactly that door).
+                            _ask_mention = ""
+                            _teaching_cue_turn = True
+                    except Exception:  # noqa: BLE001 — classification only
+                        pass
                     from core.plan_relevance import _is_substantive_request
 
-                    _ask_direct = _is_substantive_request(message)
+                    _ask_direct = (
+                        _is_substantive_request(message)
+                        and not locals().get("_teaching_cue_turn"))
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
             if (
@@ -4937,12 +5564,243 @@ class ChatOrchestrator:
                     "original_message": message,
                     "disambiguation": (context or {}).get("disambiguation"),
                 }
+                # TURN PROGRAM (2026-10-01, migration step 1): ONE typed
+                # interpretation per turn — operation, file, target set,
+                # prior-retrieval reference, standing-scope constraints —
+                # composed from the resolvers that previously ran
+                # sequentially here. Lanes execute the program; decided
+                # facts ride it (``decided_facts``) so the propagation
+                # invariant (tests/test_turn_program_invariants.py) can
+                # assert every decided fact reaches the executed read or
+                # its rejection. Behavior is identical-by-construction:
+                # the program's fields are the same task fields the
+                # lanes already consumed.
+                _turn_program = None
+                try:
+                    from core.target_set_resolution import (
+                        extract_items_from_text as _tp_extract,
+                    )
+                    from core.turn_program import build_turn_program
+
+                    _tp_canvas_text = ""
+                    if isinstance(_canvas_ctx, dict):
+                        _tp_cc = _canvas_ctx.get("canvas_content")
+                        if isinstance(_tp_cc, dict):
+                            _tp_canvas_text = str(
+                                _tp_cc.get("body")
+                                or _tp_cc.get("content") or "")
+                        elif isinstance(_tp_cc, str):
+                            _tp_canvas_text = _tp_cc
+                        if not _tp_canvas_text:
+                            _tp_canvas_text = str(
+                                _canvas_ctx.get("body")
+                                or _canvas_ctx.get("content") or "")
+                    # DIALOGUE-STATE PROJECTIONS (2026-10-01, step 2):
+                    # the active objective comes from the conversation's
+                    # append-only ledger first (it survives restarts and
+                    # supersession by construction), with the carrier
+                    # chain as fallback while the ledger fills. Standing
+                    # preferences taught in ANY earlier turn ride every
+                    # program — the durable-facts rule (a lesson taught
+                    # on turn 3 applies on turn 300, with its receipt).
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ledger_items = _ds.active_objective_items(
+                            session_id)
+                        _tp_prior = (
+                            _ledger_items
+                            or _stored_requested_items(session))
+                        logger.debug(
+                            "[dialogue-state] objective source: %s (%d "
+                            "item(s))",
+                            "ledger" if _ledger_items else "carriers",
+                            len(_tp_prior))
+                        _ledger_prefs = _ds.active_preference_phrases(
+                            session_id)
+                        # THIS TURN'S OWN hints, kept separate from the
+                        # merge below so preference capture never
+                        # re-writes what the ledger already holds.
+                        _turn_scope_hints = list(_td_scope_hints)
+                        if _ledger_prefs:
+                            _td_scope_hints = list(dict.fromkeys(
+                                list(_td_scope_hints) + _ledger_prefs))
+                    except Exception as _ds_err:  # noqa: BLE001 — ledger optional
+                        logger.debug(
+                            "dialogue-state projection skipped: %r",
+                            _ds_err)
+                        _tp_prior = _stored_requested_items(session)
+                        _turn_scope_hints = list(_td_scope_hints)
+                    _tp_last_served = (
+                        ((session.get("_pending_file_result") or {})
+                         .get("structured_result") or {})
+                        .get("requested_items") or [])
+                    _turn_program = build_turn_program(
+                        message,
+                        decision=_td_decision,
+                        file_mention=_ask_mention,
+                        canvas_items=(
+                            _tp_extract(_tp_canvas_text)
+                            if _tp_canvas_text else []),
+                        prior_items=_tp_prior,
+                        last_served_items=_tp_last_served,
+                        own_items=_tp_extract(message),
+                        standing_scope_hints=_td_scope_hints,
+                    )
+                    _ask_task["turn_program"] = _turn_program
+                    # LEDGER WRITES (2026-10-01, step 2) — append-only,
+                    # fault-isolated: audit the decided program; record
+                    # the objective when THIS turn changed it (explicit
+                    # or contrastive-resolved sets — inherited means the
+                    # objective is unchanged); capture STANDING
+                    # preferences ("always include the tennsmith sheet…")
+                    # the moment they are taught, so they apply from the
+                    # projection on every later turn.
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ds.record_program(
+                            session_id, _turn_program,
+                            workspace_id=(context or {}).get("workspace_id"))
+                        _tp_set0 = _turn_program.get("target_set") or {}
+                        if (_tp_set0.get("kind") in
+                                ("explicit", "contrastive_resolved")
+                                and _tp_set0.get("items")):
+                            _ds.append_event(
+                                _ds.OBJECTIVE_SET, session_id,
+                                {"items": list(_tp_set0["items"]),
+                                 "file": _ask_mention,
+                                 "origin": _tp_set0.get("origin")},
+                                workspace_id=(context or {}).get(
+                                    "workspace_id"))
+                        # (standing-preference capture moved to the
+                        # DECISION layer — build_turn_decision — so the
+                        # teaching lane captures too; see 2026-10-01
+                        # live-e2e finding in core/turn_decision.py)
+                    except Exception as _ds_w_err:  # noqa: BLE001
+                        logger.debug(
+                            "dialogue-state writes skipped: %r", _ds_w_err)
+                    _tp_set = _turn_program.get("target_set") or {}
+                    _tp_kind = _tp_set.get("kind")
+                    if _turn_program.get("clarify", {}).get("needed"):
+                        # Contrastive follow-up the typed candidates
+                        # could not resolve ('check the other machinery'
+                        # with no list to draw from): ASK — never read
+                        # inherited items ('related' is not 'repeat').
+                        _clarify_message = (
+                            str(_turn_program["clarify"].get("question")
+                                or "Which items should I check?")
+                            + " Nothing was looked up yet, so nothing is "
+                              "half-checked.")
+                        _clarify_response = {
+                            "success": True,
+                            "message": _clarify_message,
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "clarify",
+                            "confidence": 0.9,
+                            "data": {
+                                "clarify": True,
+                                "target_set_resolution": "unresolved",
+                                "turn_program": _turn_program,
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": [],
+                        }
+                        self._update_session(
+                            session, message, _clarify_response,
+                            {"primary_intent": "clarify",
+                             "confidence": 0.9})
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            "success")
+                        self._finish_chat_execution(
+                            _execution_id, "success", _clarify_message,
+                            session=session, message=message,
+                            response=_clarify_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=[],
+                        )
+                        logger.info(
+                            "[turn-program] target set unresolved — "
+                            "clarifying, NO read ran")
+                        return _clarify_response
+                    if _tp_kind == "contrastive_resolved":
+                        # A target-set edit IS a revision of the
+                        # objective: revised_targets outranks every
+                        # inheritance path downstream.
+                        _ask_task["revised_targets"] = list(
+                            _tp_set.get("items") or [])
+                        _ask_task["target_set_origin"] = _tp_set.get(
+                            "origin")
+                        logger.info(
+                            "[turn-program] contrastive follow-up "
+                            "resolved to %d item(s) from %s",
+                            len(_tp_set.get("items") or []),
+                            _tp_set.get("origin"))
+                    _tp_op = _turn_program.get("operation")
+                    if _tp_op in ("refresh", "compare"):
+                        # COMPARE rides the refresh machinery (the
+                        # newer-source fetch) and carries the stronger
+                        # answer contract (per-item comparison or an
+                        # explicit unable-to-verify).
+                        _ask_task["operation"] = _tp_op
+                    if _td_scope_hints:
+                        # Standing scope guidance from the decision layer
+                        # — resolved against the read's real sheet
+                        # catalog, never guessed here.
+                        _ask_task["sheet_scope_hints"] = list(
+                            _td_scope_hints)
+                except Exception as _tp_err:  # noqa: BLE001 — floor follows
+                    logger.debug(
+                        "turn-program build skipped: %r", _tp_err)
+                if _turn_program is None:
+                    # Fallback: the pre-program sequential path (kept so
+                    # a program-build failure is a behavior no-op).
+                    if _td_scope_hints:
+                        _ask_task["sheet_scope_hints"] = list(
+                            _td_scope_hints)
+                    try:
+                        from core.target_set_resolution import (
+                            resolve_target_set as _tsr_resolve,
+                        )
+
+                        _tsr = _tsr_resolve(
+                            message,
+                            canvas_items=[],
+                            prior_items=_stored_requested_items(session),
+                            last_served_items=(
+                                ((session.get("_pending_file_result")
+                                  or {}).get("structured_result") or {})
+                                .get("requested_items") or []),
+                        )
+                        if _tsr.get("kind") == "resolved":
+                            _ask_task["revised_targets"] = list(
+                                _tsr["items"])
+                            _ask_task["target_set_origin"] = _tsr.get(
+                                "origin")
+                    except Exception:  # noqa: BLE001 — floor follows
+                        pass
                 _ask_active = _stored_requested_items(session)
                 if _ask_active:
                     # Active-objective inheritance for vague follow-up
                     # asks; the producer still prefers the turn's own
                     # explicit items and never unions history.
                     _ask_task["requested_targets"] = _ask_active
+                    # RECOGNITION SEAM (2026-09-30): these items are
+                    # INHERITED, not asked for in this turn's own words —
+                    # the reader uses the flag to tell "re-run what I
+                    # asked before" (a reference) from "show me the
+                    # sheet" (a listing) when the turn itself carries no
+                    # item codes. One explicit decision at one gate
+                    # (chat_tool_planner's browse gate), instead of the
+                    # route silently depending on which carriers happen
+                    # to be populated.
+                    _ask_task["inherited_targets"] = True
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -4974,6 +5832,43 @@ class ChatOrchestrator:
                             "disambiguation"):
                         _ask_task["disambiguation"] = _stored_ctx[
                             "disambiguation"]
+                    # LEDGER BINDINGS FALLBACK (2026-10-01): user-asserted
+                    # row bindings captured on ANY earlier turn (active at
+                    # the stored workbook revision) ride the read when the
+                    # task carrier lost them — supersession and restarts
+                    # no longer forget what the user confirmed.
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ledger_hash = (
+                            ((session.get("_pending_file_result") or {})
+                             .get("structured_result") or {})
+                            .get("source_identity") or {}
+                        ).get("content_hash")
+                        _lb = _ds.active_bindings(
+                            session_id, _ledger_hash)
+                        if _lb:
+                            _dis = _ask_task.setdefault(
+                                "disambiguation", {})
+                            if isinstance(_dis, dict):
+                                _have = {
+                                    (str(b.get("item") or "").lower(),
+                                     str(b.get("sheet") or "").lower(),
+                                     b.get("row"))
+                                    for b in (
+                                        _dis.get("resolved_bindings")
+                                        or [])}
+                                for b in _lb:
+                                    _k = (
+                                        str(b.get("item") or "").lower(),
+                                        str(b.get("sheet") or "").lower(),
+                                        b.get("row"))
+                                    if _k not in _have:
+                                        _dis.setdefault(
+                                            "resolved_bindings",
+                                            []).append(b)
+                    except Exception:  # noqa: BLE001 — ledger optional
+                        pass
                     if _stored_ctx.get("resolved_file") and not _ask_task.get(
                             "resolved_file"):
                         _ask_task["resolved_file"] = _stored_ctx[
@@ -5048,6 +5943,14 @@ class ChatOrchestrator:
                             authorized_actions=[],
                         )
                         return _tl_blocked_response
+                # NEW-TURN RESET of the one-fetch guard: a fresh user
+                # ask is a new operation instance — an earlier turn's
+                # refresh must not block this turn's re-fetch (observed
+                # live: compare asks kept answering 'couldn't verify'
+                # off a spent guard). The WITHIN-operation loop guard
+                # is untouched (set/check inside _verify_source_
+                # freshness).
+                _ask_task.pop("refresh_attempted", None)
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
                     (context or {}).get("workspace_id"), _deadline,
@@ -5134,6 +6037,130 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
+                    _ask_options = None
+                    # COMPARISON PLANNING (2026-09-30 'check the other
+                    # machinery … verify if any pricing needs updating'
+                    # directive): a verification turn is NOT an ordinary
+                    # search answer. When the newer source could not be
+                    # fetched, the question asked ("does anything need
+                    # updating") gets an explicit UNABLE-TO-VERIFY lead —
+                    # the saved-copy values ride as reference, clearly
+                    # framed. When the refresh SUCCEEDED and content
+                    # changed, the answer carries a per-item comparison
+                    # against the baseline record; when content is
+                    # verified identical, it says so per the verdict.
+                    if _ask_freshness.get("status") in (
+                            "refresh_failed", "unverified"):
+                        _unable_lead = (
+                            "I couldn't verify against the latest "
+                            "source, so I can't tell whether anything "
+                            "needs updating — no comparison was "
+                            "possible. What the saved copy shows follows "
+                            "for reference:")
+                        _ask_content = (
+                            _unable_lead + "\n\n" + _ask_content
+                            + str(_ask_freshness.get("note") or ""))
+                        _ask_core = _ask_content
+                    elif _ask_freshness.get("status") == "refreshed":
+                        try:
+                            from core.answer_presentation import (
+                                compare_item_values,
+                            )
+
+                            _baseline_rec = ((session.get(
+                                "_pending_file_result") or {})
+                                .get("structured_result") or {})
+                            _cmp = compare_item_values(
+                                _baseline_rec if isinstance(
+                                    _baseline_rec, dict) else None,
+                                _ask_structured if isinstance(
+                                    _ask_structured, dict) else None)
+                            _cmp_bits = []
+                            for _ci in (_cmp.get("items") or []):
+                                if _ci.get("outcome") == "changed":
+                                    _cmp_bits.append(
+                                        f"{_ci['item']}: "
+                                        f"{_ci.get('baseline') or '?'} → "
+                                        f"{_ci.get('current') or '?'}")
+                                elif _ci.get("outcome") == "unchanged":
+                                    _cmp_bits.append(
+                                        f"{_ci['item']} unchanged "
+                                        f"({_ci.get('current') or '?'})")
+                            _cmp_lead = (
+                                "Compared with the earlier saved copy — "
+                                + ("; ".join(_cmp_bits)
+                                   if _cmp_bits else
+                                   "no comparable values between the two "
+                                   "reads")
+                                + ".")
+                            _ask_content = (
+                                _cmp_lead + "\n\n" + _ask_content
+                                + str(_ask_freshness.get("note") or ""))
+                            _ask_core = _cmp_lead + "\n\n" + _ask_core
+                        except Exception as _cmp_err:  # noqa: BLE001
+                            logger.debug(
+                                "refresh comparison skipped: %r", _cmp_err)
+                            if _ask_freshness.get("note"):
+                                _ask_content = (
+                                    _ask_content
+                                    + str(_ask_freshness["note"]))
+                    elif _ask_freshness.get("note"):
+                        _ask_content = (
+                            _ask_content
+                            + str(_ask_freshness["note"]))
+                    # (the not-found escalation policy was removed from
+                    # here 2026-10-01 by owner direction: it is BUSINESS
+                    # TRAINING, carried as a taught lesson and executed by
+                    # the trained agent via the datasets value_trace tool —
+                    # the platform provides the capability, never the
+                    # policy)
+                    # RETRY DELTA (2026-09-30): a re-run against the SAME
+                    # file revision answering the SAME items found what
+                    # the last search found — saying so in one line is the
+                    # difference between a conversation that progresses
+                    # and one that re-prints itself verbatim on "try
+                    # again". The full results still ride below (and in
+                    # the card); the lead states what changed: nothing in
+                    # the copy, only (when true) the scope.
+                    try:
+                        _prev_rec = ((session.get("_pending_file_result")
+                                      or {}).get("structured_result") or {})
+                        _new_rec = _ask_structured if isinstance(
+                            _ask_structured, dict) else {}
+                        if (_prev_rec.get("evidence_revision")
+                                and _new_rec.get("evidence_revision")
+                                == _prev_rec.get("evidence_revision")
+                                and (_new_rec.get("requested_items")
+                                     or []) == (
+                                     _prev_rec.get("requested_items")
+                                     or [])
+                                and _new_rec.get("evidence_action")
+                                == "new_read"):
+                            _new_scope = set(
+                                _new_rec.get("requested_sheets") or [])
+                            _old_scope = set(
+                                _prev_rec.get("requested_sheets") or [])
+                            _delta_bits = []
+                            if _new_scope - _old_scope:
+                                _delta_bits.append(
+                                    "this time scoped to "
+                                    + ", ".join(sorted(_new_scope)))
+                            if _new_scope != _old_scope and (
+                                    _old_scope - _new_scope):
+                                _delta_bits.append(
+                                    "previously scoped to "
+                                    + ", ".join(sorted(_old_scope)))
+                            _delta_lead = (
+                                "Same results as my last search — the "
+                                "saved copy hasn't changed"
+                                + (" (" + "; ".join(_delta_bits) + ")"
+                                   if _delta_bits else "")
+                                + ". ")
+                            _ask_content = _delta_lead + _ask_content
+                            _ask_core = _delta_lead + _ask_core
+                    except Exception as _delta_err:  # noqa: BLE001
+                        logger.debug(
+                            "retry-delta lead skipped: %r", _delta_err)
                     if _ask_freshness.get("note"):
                         _ask_content = (
                             _ask_content + str(_ask_freshness["note"]))
@@ -5144,6 +6171,25 @@ class ChatOrchestrator:
                             "execution_id": _execution_id,
                         }
                         session["_resolved_file_identity"] = _ask_identity
+                        # LEDGER (2026-10-01): the conversation's resolved
+                        # file identity is a durable fact — later turns
+                        # (and restarted processes) resolve "the workbook"
+                        # from it even when every carrier was superseded.
+                        try:
+                            from core import dialogue_state as _ds
+
+                            if _ask_identity.get("file_name"):
+                                _ds.append_event(
+                                    _ds.FILE_RESOLVED, session_id, {
+                                        "file_name": _ask_identity.get(
+                                            "file_name"),
+                                        "resource_id": _ask_identity.get(
+                                            "resource_id"),
+                                        "content_hash": _ask_identity.get(
+                                            "content_hash"),
+                                    })
+                        except Exception:  # noqa: BLE001 — ledger optional
+                            pass
                     _ask_complete = bool(
                         _ask_result.get("retrieval_complete"))
                     _ask_result_row = {
@@ -5270,67 +6316,159 @@ class ChatOrchestrator:
                         _ask_stored = mark_task_delivered(
                             mark_task_retrieved(_ask_stored, _ask_identity))
                     session[FILE_TASK_SESSION_KEY] = _ask_stored
-                    _ask_response = {
+                    # USER-ASSERTED ROW BINDINGS: AFTER the task is stored
+                    # (an earlier placement let the assignment overwrite
+                    # the capture); the current message carries the
+                    # assertion.
+                    _capture_resolved_row_bindings(
+                        session, history or [],
+                        _ask_result.get("structured_result")
+                        if isinstance(_ask_result, dict) else None,
+                        current_message=message,
+                        conversation_id=session_id)
+                    try:
+                        from core.answer_presentation import (
+                            workbook_result_card as _wrc,
+                        )
+
+                        _ask_card = _wrc(
+                            _ask_structured if isinstance(
+                                _ask_structured, dict) else None)
+                    except Exception:
+                        _ask_card = None
+                    # TRAINED-AGENT HANDOFF ON MISSES (2026-10-01,
+                    # owner policy-is-training correction): a read with
+                    # MISSES is not a dead end the platform answers
+                    # alone — the escalation is TAUGHT knowledge in the
+                    # agent's learning log, consulted only by narration.
+                    # Durable read bookkeeping above stands; the turn
+                    # continues to narration with the honest evidence
+                    # attached, where the trained agent applies its
+                    # lesson (attachment check via datasets value_trace,
+                    # then the two options with the business specifics).
+                    # Reads with values still return directly —
+                    # determinism where the platform has an answer,
+                    # agency where only the business process does.
+                    # FLAG-GATED (default OFF): the miss→narration
+                    # handoff — narration owns miss turns so trained
+                    # lessons can speak. Evidence threading, assembly-
+                    # gate widening, and the lessons-budget fix all
+                    # landed 2026-10-01, but the last live check still
+                    # produced a weak reply under heavy load; it ships
+                    # OFF until verified end-to-end in a calm window
+                    # (ATOM_MISS_HANDOFF_NARRATION=1 to enable). The
+                    # deterministic miss answer remains the default.
+                    _ask_missed_any = (
+                        os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
+                        .lower() in ("1", "true", "on")
+                        and any(
+                            ((t or {}).get("identity") or {}).get("status")
+                            == "none"
+                            for t in ((_ask_structured or {})
+                                      .get("targets") or [])))
+                    _ask_miss_handoff = False
+                    _ask_handoff_block = None
+                    if _ask_missed_any:
+                        _ask_miss_handoff = True
+                        _tool_block = (
+                            str(_ask_result.get("block")
+                                or _ask_result.get("rendered_answer")
+                                or _ask_content))
+                        # EXECUTED-EVIDENCE FLAGS for the narrator: the
+                        # read RAN (misses are results, not absence of a
+                        # lookup) — without these the narration guard
+                        # tells the honest-but-wrong 'lookup hasn't run'
+                        # story instead of narrating the miss evidence.
+                        _turn_structured_record = (
+                            _ask_structured
+                            if isinstance(_ask_structured, dict) else None)
+                        _ask_handoff_block = _tool_block
+                        logger.info(
+                            "[file-ask] read had misses — handing the "
+                            "turn to narration with the evidence (the "
+                            "escalation is trained knowledge)")
+                    else:
+                        _ask_response = {
                         "success": True,
                         "message": _ask_content,
-                        "session_id": session_id,
-                        "execution_id": _execution_id,
-                        "intent": "search",
-                        "confidence": 0.9,
-                        "data": {
-                            "deterministic_delivery": True,
-                            "file_identity": _ask_identity,
-                            "coverage_complete": _ask_complete,
-                            "resumable": not _ask_complete,
-                            "freshness": _ask_freshness.get("status") or None,
-                            "presentation_action": _ask_action_summary,
-                            "task_run_id": session.get("_task_run_id"),
-                            "task_operation": _tl_operation_ref,
-                            "reconciliation_required": _tl_outcome_uncertain,
-                        },
-                        "model": "deterministic",
-                        "provider": "structured",
-                        "requires_confirmation": False,
-                        "next_steps": [],
-                        "suggested_actions": [],
-                    }
-                    self._update_session(
-                        session, message, _ask_response,
-                        {"primary_intent": "search", "confidence": 0.9})
-                    # Isolated fault injection (env + marker gated): fail
-                    # AFTER the provisional delivery persists, so the
-                    # failure path is provable against captured pre/post.
-                    _maybe_force_turn_failure(
-                        session, _execution_id, _ask_content, message,
-                        context)
-                    if _ask_complete:
-                        _ask_result_row["status"] = "delivered"
-                        _ask_result_row["delivered_at"] = time.time()
-                    _ask_terminal_status = (
-                        "success" if _ask_complete else "partial"
-                    )
-                    await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id,
-                        _ask_terminal_status)
-                    self._finish_chat_execution(
-                        _execution_id,
-                        _ask_terminal_status,
-                        _ask_content,
-                        session=session,
-                        message=message,
-                        response=_ask_response,
-                        deadline=_deadline,
-                        pending_task=session.get("_pending_file_task"),
-                        authorized_actions=["read"],
-                    )
-                    logger.info(
-                        "[file-ask] spreadsheet ask answered directly by "
-                        "the file-scoped reader (no narration path)")
-                    return _ask_response
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "search",
+                            "confidence": 0.9,
+                            "data": {
+                                "workbook_result": _ask_card,
+                                "deterministic_delivery": True,
+                                "file_identity": _ask_identity,
+                                "coverage_complete": _ask_complete,
+                                "resumable": not _ask_complete,
+                                "freshness": _ask_freshness.get("status") or None,
+                                "presentation_action": _ask_action_summary,
+                                "task_run_id": session.get("_task_run_id"),
+                                "task_operation": _tl_operation_ref,
+                                "reconciliation_required": _tl_outcome_uncertain,
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": (_ask_options or []),
+                        }
+                        self._update_session(
+                            session, message, _ask_response,
+                            {"primary_intent": "search", "confidence": 0.9})
+                        # Isolated fault injection (env + marker gated): fail
+                        # AFTER the provisional delivery persists, so the
+                        # failure path is provable against captured pre/post.
+                        _maybe_force_turn_failure(
+                            session, _execution_id, _ask_content, message,
+                            context)
+                        if _ask_complete:
+                            _ask_result_row["status"] = "delivered"
+                            _ask_result_row["delivered_at"] = time.time()
+                        _ask_terminal_status = (
+                            "success" if _ask_complete else "partial"
+                        )
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            _ask_terminal_status)
+                        self._finish_chat_execution(
+                            _execution_id,
+                            _ask_terminal_status,
+                            _ask_content,
+                            session=session,
+                            message=message,
+                            response=_ask_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=["read"],
+                        )
+                        logger.info(
+                            "[file-ask] spreadsheet ask answered "
+                            "directly by the file-scoped reader (no "
+                            "narration path)")
+                        return _ask_response
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
             if _pending_file_task:
-                if _OBJECTIVE_SYNTHESIS_RE.search(
+                # TEACHING DIRECTIVES SKIP THE RESUME LANE TOO (2026-10-01
+                # consistency-run T3, stored-task sessions): 'always
+                # include the tennsmith sheet…' was claimed here by the
+                # rerun classifier ('searches') and answered 'I found 0
+                # results' — the teaching channel must own it. Same
+                # exemption the ask gate and the canvas-edit gate have.
+                try:
+                    from core.chat_teaching import (
+                        detect_mid_message_cue,
+                        detect_teaching_cue,
+                    )
+
+                    if detect_teaching_cue(
+                            message or "") or detect_mid_message_cue(
+                            message or ""):
+                        _pending_file_task = None
+                except Exception:  # noqa: BLE001 — classification only
+                    pass
+                if _pending_file_task and _OBJECTIVE_SYNTHESIS_RE.search(
                     str(_pending_file_task.get("original_message") or "")
                 ):
                     _direct_result = {
@@ -5342,6 +6480,147 @@ class ChatOrchestrator:
                             _direct_task = _pending_file_task
                             _direct_active = _stored_requested_items(session)
                             _direct_presentation = None
+                            # TARGET-SET RESOLUTION — RESUME LANE +
+                            # SELF-HEAL (2026-10-01 live finding on the
+                            # canvas conversation): a stored task made
+                            # every follow-up ride THIS lane, which
+                            # inherited the stored items ("the other
+                            # machinery" was answered with 381 again) —
+                            # the ask lane's turn program never ran.
+                            # Same contract as the ask lane, plus the
+                            # SELF-HEAL: a resolved contrastive set
+                            # reconciles the DURABLE task carrier and
+                            # the ledger, so the conversation repairs
+                            # its own state instead of re-serving the
+                            # stale one; an unresolvable set clarifies
+                            # instead of reading.
+                            try:
+                                from core.target_set_resolution import (
+                                    extract_items_from_text as _rl_extract,
+                                    resolve_target_set as _rl_resolve,
+                                )
+                                from core.turn_program import (
+                                    is_comparison_request as _rl_is_compare,
+                                )
+
+                                _rl_canvas_text = ""
+                                if isinstance(_canvas_ctx, dict):
+                                    _rl_cc = _canvas_ctx.get("canvas_content")
+                                    if isinstance(_rl_cc, dict):
+                                        _rl_canvas_text = str(
+                                            _rl_cc.get("body")
+                                            or _rl_cc.get("content") or "")
+                                    elif isinstance(_rl_cc, str):
+                                        _rl_canvas_text = _rl_cc
+                                    if not _rl_canvas_text:
+                                        _rl_canvas_text = str(
+                                            _canvas_ctx.get("body")
+                                            or _canvas_ctx.get("content")
+                                            or "")
+                                _rl_served = (
+                                    ((session.get("_pending_file_result")
+                                      or {}).get("structured_result")
+                                     or {}).get("requested_items") or [])
+                                # (no ledger fallback for last_served:
+                                # "what we just covered" is the last
+                                # DELIVERED answer, not the objective —
+                                # conflating them excludes everything)
+                                _rl = _rl_resolve(
+                                    message,
+                                    canvas_items=(
+                                        _rl_extract(_rl_canvas_text)
+                                        if _rl_canvas_text else []),
+                                    prior_items=_direct_active,
+                                    last_served_items=_rl_served)
+                                if _rl.get("kind") == "resolved":
+                                    _rl_items = list(_rl.get("items") or [])
+                                    _direct_task = dict(
+                                        _direct_task,
+                                        revised_targets=_rl_items,
+                                        target_set_origin=_rl.get("origin"))
+                                    # SELF-HEAL (durable): reconcile the
+                                    # stored task + ledger so the corrected
+                                    # set is what later turns inherit.
+                                    try:
+                                        _pending_file_task[
+                                            "requested_targets"] = _rl_items
+                                        from core import (
+                                            dialogue_state as _rl_ds,
+                                        )
+
+                                        _rl_ds.append_event(
+                                            _rl_ds.OBJECTIVE_SET,
+                                            session_id,
+                                            {"items": _rl_items,
+                                             "file": (
+                                                 _pending_file_task.get(
+                                                     "resolved_file")
+                                                 or {}).get("file_name"),
+                                             "origin": "self_heal"},
+                                            workspace_id=(
+                                                context or {}).get(
+                                                "workspace_id"))
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    logger.info(
+                                        "[target-set][resume] contrastive "
+                                        "ask resolved to %d item(s) — "
+                                        "durable state reconciled",
+                                        len(_rl_items))
+                                elif _rl.get("kind") == "clarify":
+                                    _rl_question = str(
+                                        _rl.get("question")
+                                        or "Which items should I check?")
+                                    _rl_response = {
+                                        "success": True,
+                                        "message": (
+                                            _rl_question
+                                            + " Nothing was looked up "
+                                              "yet, so nothing is "
+                                              "half-checked."),
+                                        "session_id": session_id,
+                                        "execution_id": _execution_id,
+                                        "intent": "clarify",
+                                        "confidence": 0.9,
+                                        "data": {"clarify": True,
+                                                 "target_set_resolution":
+                                                 "unresolved"},
+                                        "model": "deterministic",
+                                        "provider": "structured",
+                                        "requires_confirmation": False,
+                                        "next_steps": [],
+                                        "suggested_actions": [],
+                                    }
+                                    self._update_session(
+                                        session, message, _rl_response,
+                                        {"primary_intent": "clarify",
+                                         "confidence": 0.9})
+                                    await self._emit_agent_status(
+                                        session_id, _trace_agent_id,
+                                        _execution_id, "success")
+                                    self._finish_chat_execution(
+                                        _execution_id, "success",
+                                        _rl_response.get("message", ""),
+                                        session=session, message=message,
+                                        response=_rl_response,
+                                        deadline=_deadline,
+                                        pending_task=session.get(
+                                            "_pending_file_task"),
+                                        authorized_actions=[])
+                                    logger.info(
+                                        "[target-set][resume] unresolved — "
+                                        "clarifying, NO read ran")
+                                    return _rl_response
+                                if _rl_is_compare(message):
+                                    # A comparison ask rides the freshness
+                                    # machinery with the comparison answer
+                                    # contract (never a bare refresh).
+                                    _direct_task = dict(
+                                        _direct_task, operation="compare")
+                            except Exception as _rl_err:  # noqa: BLE001 — floor follows
+                                logger.debug(
+                                    "resume target-set resolution "
+                                    "skipped: %r", _rl_err)
                             try:
                                 _direct_decision = (
                                     self._continuation_decision(message, session))
@@ -5644,6 +6923,7 @@ class ChatOrchestrator:
                                         authorized_actions=[],
                                     )
                                     return _tl_blocked_response
+                            _direct_task.pop("refresh_attempted", None)
                             _direct_result = await self._direct_confirmed_file_read(
                                 _direct_task,
                                 history,
@@ -5742,11 +7022,79 @@ class ChatOrchestrator:
                     # source-freshness request ships its verdict with the
                     # answer — refreshed, failed, or unverified — so an
                     # old copy can never pass as current.
+                    # COMPARISON CONTRACT (2026-10-01 owner directive): a
+                    # verify/compare ask is never an ordinary search
+                    # answer — unchanged content leads with "nothing
+                    # needs updating", changed content carries the
+                    # per-item comparison, and a failed fetch leads with
+                    # unable-to-verify.
                     _freshness = _direct_result.get("freshness") or {}
                     _direct_core = _direct_content
+                    try:
+                        from core.turn_program import (
+                            is_comparison_request as _dl_is_compare,
+                        )
+
+                        if _dl_is_compare(message):
+                            if _freshness.get("status") == "current":
+                                _direct_content = (
+                                    "Verified against the latest source — "
+                                    "its content is unchanged, so no "
+                                    "updates are needed:\n\n"
+                                    + _direct_content)
+                            elif _freshness.get("status") == "refreshed":
+                                try:
+                                    from core.answer_presentation import (
+                                        compare_item_values,
+                                    )
+
+                                    _dl_base = ((session.get(
+                                        "_pending_file_result") or {})
+                                        .get("structured_result") or {})
+                                    _dl_cmp = compare_item_values(
+                                        _dl_base if isinstance(
+                                            _dl_base, dict) else None,
+                                        _direct_structured if isinstance(
+                                            _direct_structured, dict)
+                                        else None)
+                                    _dl_bits = []
+                                    for _ci in (_dl_cmp.get("items") or []):
+                                        if _ci.get("outcome") == "changed":
+                                            _dl_bits.append(
+                                                f"{_ci['item']}: "
+                                                f"{_ci.get('baseline') or '?'} → "
+                                                f"{_ci.get('current') or '?'}")
+                                        elif _ci.get("outcome") == "unchanged":
+                                            _dl_bits.append(
+                                                f"{_ci['item']} unchanged "
+                                                f"({_ci.get('current') or '?'})")
+                                    _direct_content = (
+                                        "Compared with the earlier saved "
+                                        "copy — "
+                                        + ("; ".join(_dl_bits)
+                                           if _dl_bits else
+                                           "no comparable values between "
+                                           "the two reads")
+                                        + ".\n\n" + _direct_content)
+                                except Exception:  # noqa: BLE001
+                                    pass
+                            elif _freshness.get("status") in (
+                                    "refresh_failed", "unverified"):
+                                _direct_content = (
+                                    "I couldn't verify against the latest "
+                                    "source, so I can't tell whether "
+                                    "anything needs updating — no "
+                                    "comparison was possible.\n\n"
+                                    + _direct_content)
+                    except Exception:  # noqa: BLE001 — framing optional
+                        pass
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
+                    # (not-found escalation policy removed 2026-10-01 —
+                    # business training, not platform code; see the ask
+                    # lane note and the datasets value_trace tool)
+                    _direct_options = None
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         _direct_identity = {
@@ -5886,8 +7234,27 @@ class ChatOrchestrator:
                                 message,
                                 _pending_file_task.get("mention") or "",
                             )
+                        # USER-ASSERTED ROW BINDINGS (completion pass): the
+                        # same capture as the ask lane — history assertions
+                        # verified by this read persist on the task.
+                        _capture_resolved_row_bindings(
+                            session, history or [],
+                            _direct_result.get("structured_result")
+                            if isinstance(_direct_result, dict) else None,
+                            current_message=message,
+                            conversation_id=session_id)
                     except Exception:
                         pass
+                    try:
+                        from core.answer_presentation import (
+                            workbook_result_card as _wrc2,
+                        )
+
+                        _direct_card = _wrc2(
+                            (_direct_result.get("structured_result")
+                             if isinstance(_direct_result, dict) else None))
+                    except Exception:
+                        _direct_card = None
                     _direct_response = {
                         "success": True,
                         "message": _direct_content,
@@ -5896,6 +7263,7 @@ class ChatOrchestrator:
                         "intent": "search",
                         "confidence": 0.9,
                         "data": {
+                            "workbook_result": _direct_card,
                             "deterministic_delivery": True,
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],
@@ -5911,7 +7279,7 @@ class ChatOrchestrator:
                         "provider": "structured",
                         "requires_confirmation": False,
                         "next_steps": [],
-                        "suggested_actions": [],
+                        "suggested_actions": (_direct_options or []),
                     }
                     self._update_session(
                         session,
@@ -6013,12 +7381,19 @@ class ChatOrchestrator:
             _canvas_preclassified_intent: Optional[Dict[str, Any]] = None
             _canvas_action_bypassed = False
             if _canvas_ctx and not _pending_file_task:
-                _canvas_preclassified_intent = self._fallback_intent_analysis(message)
-                _canvas_action_bypassed = (
-                    not _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
-                    and _canvas_non_edit_intent(
-                        _canvas_preclassified_intent.get("primary_intent"))
-                )
+                if _edit_retry is not None:
+                    # A bare retry must reach the edit lane (the original
+                    # instruction is edit-shaped; "try again" is not, and
+                    # the fallback intent would bypass on that alone).
+                    _canvas_preclassified_intent = None
+                    _canvas_action_bypassed = False
+                else:
+                    _canvas_preclassified_intent = self._fallback_intent_analysis(message)
+                    _canvas_action_bypassed = (
+                        not _canvas_edit_shaped(message, {"canvas": _canvas_ctx})
+                        and _canvas_non_edit_intent(
+                            _canvas_preclassified_intent.get("primary_intent"))
+                    )
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -6329,17 +7704,23 @@ class ChatOrchestrator:
                     # BEFORE the mutation, so an intention that cannot be
                     # persisted never reaches the canvas. A denied
                     # reservation skips the leg entirely.
+                    # FAILED-EDIT RETRY: the edit lane plans the ORIGINAL
+                    # instruction — a bare "try again" carries no edit
+                    # vocabulary and the classifier could only decline it.
+                    _edit_message = (
+                        _edit_retry["instruction"]
+                        if _edit_retry is not None else message)
                     _edit_task_reserved = _begin_task_edit(
                         getattr(self, "tenant_id", None),
                         (context or {}).get("workspace_id"),
-                        session, session_id, message, _execution_id,
+                        session, session_id, _edit_message, _execution_id,
                         canvas_ctx=_canvas_ctx)
                     # Only a RESERVED decision may mutate. "denied" and
                     # "unavailable" both block the leg, for different
                     # reasons, and neither may be downgraded to a
                     # fall-through that another route would then perform.
                     _edit_leg = self._try_canvas_edit( \
-                        message, history, _canvas_ctx, user_id, session_id, \
+                        _edit_message, history, _canvas_ctx, user_id, session_id, \
                         _execution_id, (context or {}).get("agent_id"), \
                         provenance=(context or {}).get("canvas_provenance"), \
                         shared_tool_state=_shared_tool, \
@@ -6454,15 +7835,27 @@ class ChatOrchestrator:
                                 # leg pre-started one).
                                 _edit_leg_timed_out = True
                                 # ASYNC TIER FORK (2026-09-22, research per
-                                # AGENTS.md §3): an edit-shaped turn whose
-                                # edit starved at the interactive bound does
-                                # NOT end as a squeezed chat answer — the
-                                # edit continues in the background under its
-                                # own budget and the user is notified when
-                                # it lands (Nielsen's 10s attention limit;
-                                # async agent workflows decouple submission
-                                # from execution).
-                                if _canvas_edit_shaped(message, context):
+                                # AGENTS.md §3): an edit turn whose edit
+                                # starved at the interactive bound continues
+                                # in the background under its own budget and
+                                # the user is notified when it lands
+                                # (Nielsen's 10s attention limit; async
+                                # agent workflows decouple submission from
+                                # execution).
+                                # MUTATION AUTHORITY (2026-09-30 directive):
+                                # an edit-shape HINT may nominate, never
+                                # authorize. The fork may start only from a
+                                # USER-GROUNDED edit decision: a bare retry
+                                # re-dispatching a previously authorized
+                                # edit instruction (_edit_retry carries the
+                                # original wording). Hint-only matches fork
+                                # nothing — the turn reports the limitation
+                                # instead (reasoning unavailable ≠ license
+                                # to edit; live 02:28: 'learn to include
+                                # …' matched 'include' and forked a doomed
+                                # edit while every reasoning route was
+                                # skipped pre-dispatch).
+                                if _edit_retry is not None:
                                     try:
                                         from core.async_turn_continuation import (
                                             fork_canvas_edit_continuation,
@@ -6580,14 +7973,17 @@ class ChatOrchestrator:
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _action_response = None
                         # ASYNC TIER FORK ON PLANNER-UNAVAILABILITY
-                        # (2026-09-22): a transient edit-planner failure is
-                        # exactly what the background retry exists for — it
-                        # re-runs with a relaxed inner timeout and a fresh
-                        # cascade. One-in-flight claim per session caps the
-                        # churn on persistent outages; the reply stays
-                        # honest (planner-unavailable note + background
-                        # note).
-                        if _canvas_edit_shaped(message, {"canvas": _canvas_ctx}):
+                        # (2026-09-22; authority revised 2026-09-30): the
+                        # background retry may start only from a
+                        # USER-GROUNDED edit decision — a bare retry of a
+                        # previously authorized edit instruction. An
+                        # edit-shape HINT alone never forks: when reasoning
+                        # is unavailable the deterministic layer reports
+                        # the limitation and changes nothing (directive:
+                        # 'do not turn a keyword match into permission to
+                        # edit'; live 02:28 the hint matched a teaching
+                        # phrase's 'include').
+                        if _edit_retry is not None:
                             try:
                                 from core.async_turn_continuation import (
                                     fork_canvas_edit_continuation,
@@ -6595,7 +7991,7 @@ class ChatOrchestrator:
 
                                 _cont_id2 = fork_canvas_edit_continuation(
                                     self,
-                                    message=message,
+                                    message=_edit_retry["instruction"],
                                     history=history,
                                     canvas=_canvas_ctx or {},
                                     user_id=user_id,
@@ -6728,9 +8124,16 @@ class ChatOrchestrator:
                         "canvas_edit_no_apply_reason"
                     ) or "planner_unavailable"
                     if _background_started:
+                        # INTERIM STATUS (2026-09-30, research-grounded —
+                        # long-running chat work states WHAT is running
+                        # and promises the closure, per the Goal-mode
+                        # progress-row pattern): names the work, promises
+                        # the confirmation, and asserts no change yet (a
+                        # non-claim, so the success-claim gate holds).
                         _no_apply_message = (
-                            "The canvas edit is still running in the background, "
-                            "but nothing is confirmed changed yet."
+                            "I'm still applying that edit in the "
+                            "background — I'll confirm here the moment "
+                            "it lands. Nothing has changed yet."
                         )
                     elif _no_apply_reason == "planner_declined":
                         # Do NOT tell the user to clarify. The planner read the
@@ -6785,6 +8188,10 @@ class ChatOrchestrator:
                         "no_apply": True,
                         "reason": _no_apply_reason,
                         "background_started": _background_started,
+                        # BACKGROUND-RUN UI: the id the pending indicator
+                        # binds to (None when no fork actually started).
+                        "continuation_id": (
+                            _shared_tool.get("async_continuation_id")),
                         # D3: a refusal that mutates lifecycle state must still
                         # be attributable. This turn reserved an operation and
                         # released it, and the only way to bind that to a turn is
@@ -7089,6 +8496,11 @@ class ChatOrchestrator:
             used_model = None
             used_provider = None
             if ai_response:
+                from core.chat_canvas_editor import (
+                    canvas_operation_has_receipt,
+                    reply_claims_canvas_change,
+                )
+
                 main_message = ai_response["content"]
                 # HONEST EXECUTION STATUS (2026-09-24 task-continuity
                 # regression): a turn resuming an outstanding file task
@@ -7130,6 +8542,39 @@ class ChatOrchestrator:
                     logger.warning(
                         "[pending-file-task] promise gate crashed — "
                         "honest-status check skipped: %r", _gate_err)
+                # CANVAS-CLAIM RECEIPT GATE (2026-09-29 live): the edit lane
+                # declined/bypassed, and the narration claimed the canvas
+                # was UPDATED — with no audit row carrying this turn's
+                # operation id. A success claim without a receipt is
+                # replaced with the honest outcome, regardless of provider
+                # availability.
+                try:
+                    if (
+                        _canvas_ctx
+                        and (_canvas_ctx or {}).get("canvas_id")
+                        and _canvas_edit_shaped(
+                            message, {"canvas": _canvas_ctx})
+                        and main_message
+                        and reply_claims_canvas_change(main_message)
+                        and not canvas_operation_has_receipt(
+                            user_id,
+                            (_canvas_ctx or {}).get("canvas_id"),
+                            _execution_id)
+                    ):
+                        main_message = (
+                            "The canvas edit did not apply — nothing was "
+                            "changed. The edit step could not be completed "
+                            "just now; you can try again, and nothing on "
+                            "the canvas was modified.")
+                        ai_response["content"] = main_message
+                        logger.warning(
+                            "[canvas-claim] reply claimed a canvas update "
+                            "with no audit receipt — replaced with the "
+                            "honest outcome (execution=%s)", _execution_id)
+                except Exception as _cc_err:  # noqa: BLE001 — observable
+                    logger.warning(
+                        "[canvas-claim] receipt gate crashed — check "
+                        "skipped: %r", _cc_err)
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
@@ -7678,9 +9123,44 @@ class ChatOrchestrator:
                         "message": original,
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
-                        "disambiguation": pending_task.get("disambiguation"),
+                        # STALE-CRITERIA GUARD (2026-10-01 consistency
+                        # run T4): the stored task's disambiguation was
+                        # mined from THE TURN THAT STORED IT — its text
+                        # criteria ('roper whitney', brand words) rode
+                        # into LATER turns' reads and eliminated
+                        # candidates the new ask never constrained
+                        # (U-22's LINMAC row answered 'no match').
+                        # Only the DURABLE, revision-scoped part
+                        # crosses turns: resolved_bindings. Everything
+                        # else is turn-local and must be re-derived
+                        # from the current ask.
+                        "disambiguation": (
+                            {"resolved_bindings": _rb}
+                            if (_rb := (pending_task.get("disambiguation")
+                                        or {}).get("resolved_bindings"))
+                            else None),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # Whether the targets were inherited from the
+                        # conversation's objective (vs revised/own) —
+                        # consumed by the reader's reference-recognition
+                        # gate.
+                        "inherited_targets": bool(
+                            pending_task.get("inherited_targets")),
+                        # Sheet-scope guidance from the turn decision (the
+                        # user's standing/taught preference in their own
+                        # words) — the read resolves these against the
+                        # file's indexed sheet names; no match scopes
+                        # nothing.
+                        "sheet_scope_hints": (
+                            pending_task.get("sheet_scope_hints") or []),
+                        # THE TURN PROGRAM (decided-once interpretation):
+                        # when present, the reader EXECUTES it — its
+                        # prior-retrieval reference and target set are
+                        # authoritative, and the reader skips its own
+                        # re-derivation of the same questions (deciding
+                        # them twice is how the lanes diverged).
+                        "turn_program": pending_task.get("turn_program"),
                         # A REVISED OBJECTIVE IS AUTHORITATIVE, and it has to
                         # be declared as such: the query handed to the reader
                         # is the STORED ASK, which still names the outgoing
@@ -7693,7 +9173,18 @@ class ChatOrchestrator:
                         # objective sets this.
                         "revised_targets": (
                             (pending_task.get("objective_edit") or {}).get(
-                                "items") or []),
+                                "items")
+                            or pending_task.get("revised_targets")
+                            or []),
+                        # ANAPHORIC RESOLUTION (2026-09-29 row-338): the
+                        # ask text may name the file only generically
+                        # ("the workbook"); the resolved identity —
+                        # resource pin name first, stored mention second
+                        # — scopes the read to THIS conversation's file.
+                        "named_file_mention": (
+                            ((pending_task.get("resolved_file") or {}).get(
+                                "file_name"))
+                            or mention),
                         "execution_id": execution_id,
                         "session_id": session_id,
                         "request_id": request_id,
@@ -7751,7 +9242,7 @@ class ChatOrchestrator:
             "structured_result": meta.get("structured_result"),
             "reason": "" if block else "file-scoped reader returned no result",
         }
-        if (pending_task or {}).get("operation") == "refresh":
+        if (pending_task or {}).get("operation") in ("refresh", "compare"):
             # REFRESH (2026-09-24 review round 3): a source-freshness
             # request must verify the UPSTREAM version and retrieve
             # updated content — re-running the materialized copy search
@@ -7763,6 +9254,7 @@ class ChatOrchestrator:
                 history=history,
             )
         return result
+
 
     async def _verify_source_freshness(
         self,
@@ -7839,18 +9331,41 @@ class ChatOrchestrator:
             )
 
             uis = UniversalIntegrationService()
+            # CALLER-PINNED IDENTITY (2026-09-30): the refresh addresses
+            # the conversation's OWN resolved resource — file_id plus
+            # its known name and verified flag, so the read action never
+            # re-derives the target by name (the 2026-09-30 incident:
+            # the refresh was refused as an 'unverified candidate' on
+            # its own resource id and reported a bogus 'read failed').
             fetch = await asyncio.wait_for(
                 uis.execute(
                     service, "read",
-                    {"file_id": resource_id, "query":
-                     str(pending_task.get("original_message") or "")[:200]},
+                    {"file_id": resource_id,
+                     "file_name": (pending_task.get("resolved_file")
+                                   or {}).get("file_name"),
+                     "identity_verified": True,
+                     "query": str(
+                         pending_task.get("original_message")
+                         or "")[:200]},
                     {"user_id": user_id or "",
                      "workspace_id": workspace_id},
                 ),
                 timeout=fetch_timeout,
             )
-            fetch_ok = isinstance(fetch, dict) and fetch.get("status") == \
-                "success"
+            # TRUTHFUL FETCH VERDICT (2026-09-30): the storage read
+            # returns status "success" for refusals too (found=False,
+            # served=False, reason inside data.message) — treating the
+            # top-level status as the fetch outcome is how a refused
+            # lookup became a nameless "read failed". Served content is
+            # the only success; the refusal's own message is the error.
+            fetch_data = (fetch or {}).get("data") if isinstance(
+                fetch, dict) else None
+            fetch_ok = (
+                isinstance(fetch, dict)
+                and fetch.get("status") == "success"
+                and bool(
+                    (fetch_data or {}).get("found")
+                    or (fetch_data or {}).get("served")))
         except Exception as exc:
             fetch_ok = False
             fetch = None
@@ -7858,9 +9373,14 @@ class ChatOrchestrator:
         else:
             fetch_error = ""
             if not fetch_ok:
+                _fd = (fetch or {}).get("data") or {}
                 fetch_error = str(
                     (fetch or {}).get("message")
-                    or (fetch or {}).get("error") or "read failed")[:160]
+                    or (fetch_data or {}).get("message")
+                    or _fd.get("message")
+                    or (fetch or {}).get("error")
+                    or _fd.get("error")
+                    or "read failed")[:160]
         if not fetch_ok:
             return _verdict(
                 "refresh_failed",
@@ -8159,8 +9679,9 @@ class ChatOrchestrator:
             )
         elif background_forked:
             replacement = (
-                "*(The canvas edit is still running in the background — "
-                "nothing is confirmed changed yet.)*"
+                "*(I'm still applying that edit in the background — "
+                "I'll confirm here the moment it lands; nothing has "
+                "changed yet.)*"
             )
         elif claim_found:
             replacement = (
@@ -8733,7 +10254,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Resolve agent identity for role-scoped recall
                 _agent_id = agent_id
 
-                if assembly_enabled() and not _file_scoped_request:
+                # (HANDOFF EXCEPTION, 2026-10-01: a file-scoped turn whose
+                # read MISSED now continues to narration so the trained
+                # employee can speak — skipping memory/lesson assembly
+                # there left the employee lesson-less ('I found 0
+                # results'). Assembly runs when the handoff fired.)
+                if assembly_enabled() and (
+                        not _file_scoped_request
+                        or locals().get("_ask_miss_handoff")):
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -9049,12 +10577,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _requested_targets = _task_targets
             except Exception:
                 _requested_targets = []
-            _live_file_lookup_ran = False
+            _live_file_lookup_ran = bool(
+                locals().get("_ask_miss_handoff"))
             # Pending-file-task lifecycle state (2026-09-23 review, gap 3):
             # attempted != completed — a lookup that ran but missed/failed
             # keeps the task pending; identity is retained separately from
             # completion so a retry reuses the resolved resource.
-            _file_lookup_attempted = False
+            _file_lookup_attempted = bool(
+                locals().get("_ask_miss_handoff"))
             _resolved_file_identity: Optional[Dict[str, Any]] = None
             # Timer for the "[stage-timing] reply generation" log. The plan
             # branch re-anchors it; the prefetched path (blackboard reuse)
@@ -10333,8 +11863,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # raw tool-call syntax instead of answering. User turns alone
             # give grounding without the refusal wall. They remain fully in
             # the DB/UI; only this turn's prompt changes.
+            # HANDOFF EVIDENCE RE-ASSERT (2026-10-01): the miss→narration
+            # handoff's evidence must survive the intermediate evidence
+            # stages above (they legitimately overwrite _tool_block for
+            # their own flows); restore it here, at the narration
+            # prompt's consumption point, so the trained employee reads
+            # the EXECUTED miss evidence — not a stale 'no lookup ran'
+            # story.
+            if locals().get("_ask_miss_handoff") and locals().get(
+                    "_ask_handoff_block"):
+                _tool_block = _ask_handoff_block
             if _tool_block:
-                # RECENT USER REQUESTS, and the ASSISTANT TURNS THAT SUCCEEDED.
+                # RECENT USER REQUESTS, and THE ASSISTANT TURNS THAT SUCCEEDED.
                 #
                 # Two defects here, both RCA 2026-09-17 finding 1:
                 #
@@ -14195,10 +15735,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         never in a single-purpose sidecar detector.
         """
         from core.pending_file_task import (
+            FILE_TASK_SESSION_KEY,
             _CONFIRMATION_ACTION_RE,
             _OUTBOUND_ACTION_RE,
             is_retrieval_refresh_request,
             is_source_refresh_request,
+            request_extends_objective,
         )
 
         t = (message or "").strip()
@@ -14214,10 +15756,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if _FIELD_SELECT_RE.search(t):
             field = _match_field_preference(t)
         if is_retrieval_refresh_request(t):
-            operation = ("refresh" if is_source_refresh_request(t)
-                         else "rerun")
-            return {"retrieval": operation,
-                    "presentation": {"style": style, "field": field}}
+            # COVERAGE GATE (2026-09-29 cross-source incident): the
+            # rerun/refresh contract is valid only when the stored read
+            # can satisfy the WHOLE current request. A retry-shaped
+            # follow-up that adds a source or changes the requested
+            # information ("check <person>'s email and the workbook
+            # descriptions…") is new work, not a continuation — fall
+            # through to the guards below (the outbound/action vocabulary
+            # stops most such turns; otherwise None = normal flow).
+            _stored_task = (session or {}).get(FILE_TASK_SESSION_KEY) if (
+                isinstance(session, dict)) else None
+            try:
+                _extends = request_extends_objective(t, _stored_task)
+            except Exception:  # noqa: BLE001 — keep the decision fail-closed
+                _extends = False
+            if not _extends:
+                operation = ("refresh" if is_source_refresh_request(t)
+                             else "rerun")
+                return {"retrieval": operation,
+                        "presentation": {"style": style, "field": field}}
+            # An extending follow-up is not a continuation of the stored
+            # read in ANY sense — neither a re-run nor a format-only
+            # re-render (a trailing style word must not hand it the
+            # "none" contract). Normal flow owns the turn.
+            return None
         if _HALT_RE.search(t):
             return None
         if "?" in t:
@@ -15194,6 +16756,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"ChatSession row backfill skipped for {session_id}: {e}")
 
     def _update_session(self, session: Dict, message: str, response, intent: Dict):
+        # TURN-DECISION SHADOW (2026-09-30 consolidation, directive
+        # step 2): one structured decision per turn, composed from the
+        # same gates that routed it — recorded for evaluation; NOTHING
+        # routes by it yet. Computed BEFORE serialization so the durable
+        # row carries it.
+        _shadow_decision = None
+        try:
+            from core.turn_decision import build_turn_decision
+
+            _shadow_decision = build_turn_decision(
+                message, session,
+                (session.get("history") or [])[-8:],
+                {"canvas_id": (response or {}).get("data", {}).get(
+                    "canvas_edit", {}).get("canvas_id")} if isinstance(
+                    response, dict) else {},
+                session_id=str(session.get("id") or ""),
+                reasoning_available=None)
+        except Exception as _td_err:  # noqa: BLE001 — shadow only
+            logger.debug("turn-decision shadow skipped: %r", _td_err)
+        if _shadow_decision is not None:
+            session["_last_turn_decision"] = _shadow_decision
         # Error-turn detection: a reply that is a known failure artifact (no
         # provider, cancelled, budget-halted, protocol residue) must never
         # enter the model's context later — in a long session they stack into
@@ -15362,30 +16945,48 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 # delivered) — restart-safe delivery retry
                                 # without re-reading.
                                 _msg_meta["pending_file_result"] = _pfr_row
+                                # WORKBOOK RESULT CARD (presentation pass):
+                                # compact UI payload from the same
+                                # artifact; markdown stays authoritative.
+                                try:
+                                    from core.answer_presentation import (
+                                        workbook_result_card,
+                                    )
+
+                                    _card = workbook_result_card(
+                                        _pfr_row.get("structured_result"))
+                                    if _card:
+                                        _msg_meta["workbook_result"] = _card
+                                except Exception:
+                                    pass
+                            _resolved_identity = session.get(
+                                "_resolved_file_identity")
+                            if not isinstance(_resolved_identity, dict):
+                                _task_identity = session.get(
+                                    "_pending_file_task")
+                                if isinstance(_task_identity, dict):
+                                    _resolved_identity = (
+                                        _task_identity.get("resolved_file"))
+                            if isinstance(_resolved_identity, dict):
+                                _msg_meta["resolved_file_identity"] = (
+                                    _resolved_identity)
+                            _msg_meta["_pending_file_task"] = session.get(
+                                "_pending_file_task"
+                            )
+                            if _shadow_decision is not None:
+                                _msg_meta["turn_decision"] = (
+                                    _shadow_decision)
+                            db.add(ChatMessageModel(
+                                id=_asst_msg_id,
+                                conversation_id=session_id,
+                                tenant_id=tenant_id,
+                                role="assistant",
+                                content=resp_content,
+                                metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
+                                created_at=datetime.now(timezone.utc),
+                            ))
                         except Exception:
                             pass
-                        _resolved_identity = session.get(
-                            "_resolved_file_identity")
-                        if not isinstance(_resolved_identity, dict):
-                            _task_identity = session.get("_pending_file_task")
-                            if isinstance(_task_identity, dict):
-                                _resolved_identity = _task_identity.get(
-                                    "resolved_file")
-                        if isinstance(_resolved_identity, dict):
-                            _msg_meta["resolved_file_identity"] = (
-                                _resolved_identity)
-                        _msg_meta["_pending_file_task"] = session.get(
-                            "_pending_file_task"
-                        )
-                        db.add(ChatMessageModel(
-                            id=_asst_msg_id,
-                            conversation_id=session_id,
-                            tenant_id=tenant_id,
-                            role="assistant",
-                            content=resp_content,
-                            metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
-                            created_at=datetime.now(timezone.utc),
-                        ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
 

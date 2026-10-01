@@ -904,6 +904,65 @@ def _bounded_email_content(
     return merged
 
 
+# A reply CLAIMING a canvas change was made ("updated the email",
+# "applied the change", "updated quote below"). Deliberately generic
+# across artifacts and businesses; denials ("didn't apply", "still
+# running") and questions never match. Consumed by the chat reply gate
+# that replaces an unbacked success claim with the honest outcome.
+_CANVAS_SUCCESS_CLAIM_RE = re.compile(
+    r"\b(?:updated|revised|applied|swapped|replaced)\b[^.\n]{0,60}?"
+    r"\b(?:email|draft|canvas|quote|table|document)\b"
+    r"|\bupdated quote below\b"
+    r"|\bquote below\b",
+    re.IGNORECASE,
+)
+_CANVAS_CLAIM_NEGATION_RE = re.compile(
+    r"\b(?:didn'?t|did not|could not|couldn'?t|cannot|can't|not)\b"
+    r"[^.]{0,60}\b(?:updated|applied|changed|applied the change)\b"
+    r"|\bstill running in the background\b",
+    re.IGNORECASE,
+)
+
+
+def reply_claims_canvas_change(text: str) -> bool:
+    """Whether a reply claims a canvas change was made (success wording).
+
+    Negations and pending/background wording are not claims. Generic
+    across artifacts; no business vocabulary.
+    """
+    t = str(text or "")
+    if not t:
+        return False
+    if _CANVAS_CLAIM_NEGATION_RE.search(t):
+        return False
+    return bool(_CANVAS_SUCCESS_CLAIM_RE.search(t))
+
+
+def canvas_operation_has_receipt(
+    user_id: Any, canvas_id: Any, execution_id: Any,
+) -> bool:
+    """Whether a canvas_audit row carries THIS operation's id — the
+    receipt that a claimed change actually landed. Fault-isolated: any
+    failure returns False (no receipt), never raises."""
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        with get_db_session() as db:
+            row = (
+                db.query(CanvasAudit)
+                .filter(
+                    CanvasAudit.canvas_id == str(canvas_id),
+                    CanvasAudit.details_json.like(
+                        f'%{{"operation_id": "{str(execution_id)}"%'),
+                )
+                .first()
+            )
+            return row is not None
+    except Exception:  # noqa: BLE001 — no receipt on any failure
+        return False
+
+
 def _scope_placeholder_violations(body: str, rows: List[List[str]]) -> List[str]:
     violations: List[str] = []
     if re.search(r"\[[^\]]+\]", body):
@@ -946,6 +1005,20 @@ def _validate_scoped_edit(
     missing_codes = _scope_codes(request_messages) - new_tokens
     if missing_codes:
         return "scope_missing_product"
+    # PRESERVATION (the invariant the old wide history window groped at):
+    # a regeneration may not silently DROP a product identity the canvas
+    # already had. Values may change -- that is what edits do; identities
+    # may only leave when the instruction itself names them ("remove
+    # U-22"). Sourced from the artifact's previous state, so no pasted
+    # conversation data can poison it.
+    dropped_identities = (
+        _scope_codes([old_body])
+        - _scope_codes(request_messages)
+        - _scope_codes([new_body])
+    )
+    if dropped_identities:
+        head = ",".join(sorted(dropped_identities)[:4])
+        return f"scope_dropped_product:{head}"
     new_money = {
         _money_key(match)
         for match in re.findall(
@@ -3100,7 +3173,16 @@ async def apply_canvas_edit(
     request_messages = []
     if request_message:
         request_messages.append(str(request_message))
-    request_messages.extend(_scope_user_messages(history))
+    # HISTORY IS NOT A SCOPE SOURCE (2026-09-29 live incident): requiring
+    # the artifact to contain every code mentioned anywhere in the
+    # conversation let a pasted data row (381<TAB>167072381...) demand a
+    # raw 9-digit catalog number inside the email, so every edit plan
+    # was refused scope_missing_product and the user's explicit price
+    # update dead-ended after 3 honest retries. Established practice for
+    # artifact edits is to validate the DIFF against the artifact's own
+    # previous state: the instruction constrains the delta, the old body
+    # constrains preservation. (The edit-plan PROMPT may still see
+    # history for context -- _request_scope_section keeps it.)
     scope_reason = _validate_scoped_edit(
         current, new_content, request_messages, preserve_footer=preserve_footer)
     if scope_reason:

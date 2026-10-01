@@ -38,6 +38,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         setInput,
         isProcessing,
         statusMessage,
+        backgroundRun,
         messages,
         chatAgent,
         sessionTitle,
@@ -356,6 +357,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 streamingContent={streamingContent}
                 isProcessing={isProcessing}
                 statusMessage={statusMessage}
+                backgroundRun={backgroundRun}
                 messagesEndRef={messagesEndRef}
                 handleActionClick={handleActionClick}
                 handleFeedback={handleFeedback}

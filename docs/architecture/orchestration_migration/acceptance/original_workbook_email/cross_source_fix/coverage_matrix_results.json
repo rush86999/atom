@@ -1,0 +1,359 @@
+{
+  "metrics": {
+    "turns": 18,
+    "decision_correct": 17,
+    "lane_agree": 16,
+    "omitted_research": 0,
+    "unintended_mutation": 0,
+    "missing_writes": 0,
+    "teaching_attached": 3,
+    "teaching_expected": 3,
+    "bindings_captured": 1,
+    "latency_ms": [
+      7742,
+      290,
+      6141,
+      5289,
+      3042,
+      2690,
+      6844,
+      3369,
+      2480,
+      475,
+      2587,
+      15028,
+      629,
+      5440,
+      5202,
+      2908,
+      2582,
+      1296
+    ],
+    "latency_p50_ms": 3042,
+    "latency_max_ms": 15028
+  },
+  "rows": [
+    {
+      "session": "research_arc",
+      "msg": "find the prices of these 8 machines in Consolidated Pric",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 7742,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "That filename is correct",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 290,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "search again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 6141,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "check Chandrakant's email and or description in workbook",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 5289,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "roper whitney and tennsmith are 2 brands under 1 ownersh",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 3042,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "repeat the search and learn to include tennsmith sheet f",
+      "expected": [
+        "research",
+        "learning"
+      ],
+      "decision": [
+        "research",
+        "learning"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 2690,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": true
+    },
+    {
+      "session": "research_arc",
+      "msg": "make it cleaner",
+      "expected": [
+        "presentation"
+      ],
+      "decision": [
+        "presentation"
+      ],
+      "served": "planning",
+      "model": null,
+      "latency_ms": 6844,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": false,
+      "teaching": false
+    },
+    {
+      "session": "research_arc",
+      "msg": "find this in the tracker",
+      "expected": [],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 3369,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": false,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "edit_arc",
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 2480,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "edit_arc",
+      "msg": "update the No. 381 price in this draft to $3,254.00",
+      "expected": [
+        "canvas_edit"
+      ],
+      "decision": [
+        "canvas_edit"
+      ],
+      "served": "planning",
+      "model": null,
+      "latency_ms": 475,
+      "wrote": false,
+      "mutate_expected": true,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "edit_arc",
+      "msg": "search the file again",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 2587,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "edit_arc",
+      "msg": "the draft should mention the tennsmith sheet",
+      "expected": [],
+      "decision": [
+        "conversation"
+      ],
+      "served": "planning",
+      "model": "deepseek-flash",
+      "latency_ms": 15028,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "edit_arc",
+      "msg": "make it cleaner",
+      "expected": [
+        "presentation"
+      ],
+      "decision": [
+        "presentation"
+      ],
+      "served": "planning",
+      "model": null,
+      "latency_ms": 629,
+      "wrote": false,
+      "mutate_expected": true,
+      "dec_ok": true,
+      "lane_ok": false,
+      "teaching": false
+    },
+    {
+      "session": "learning_arc",
+      "msg": "remember that roper whitney ships from tulare",
+      "expected": [
+        "learning"
+      ],
+      "decision": [
+        "learning"
+      ],
+      "served": "planning",
+      "model": "deepseek-flash",
+      "latency_ms": 5440,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": true
+    },
+    {
+      "session": "learning_arc",
+      "msg": "always include the Tennsmith sheet for roper whitney sea",
+      "expected": [
+        "learning"
+      ],
+      "decision": [
+        "learning"
+      ],
+      "served": "planning",
+      "model": "deepseek-flash",
+      "latency_ms": 5202,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": true
+    },
+    {
+      "session": "learning_arc",
+      "msg": "find the prices for No. 381, U-22, SLE24-16 and GSL48-16",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 2908,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "learning_arc",
+      "msg": "run the lookup again on that price sheet please",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 2582,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    },
+    {
+      "session": "learning_arc",
+      "msg": "what are the prices for No. 622 in the workbook?",
+      "expected": [
+        "research"
+      ],
+      "decision": [
+        "research"
+      ],
+      "served": "read",
+      "model": "deterministic",
+      "latency_ms": 1296,
+      "wrote": false,
+      "mutate_expected": false,
+      "dec_ok": true,
+      "lane_ok": true,
+      "teaching": false
+    }
+  ]
+}

@@ -229,7 +229,7 @@ _SERVICE_DESCRIPTIONS = {
     # routed to documents.grep, which found nothing — the workbook's rows
     # live HERE; the planner had no signal that filename asks route to
     # datasets).
-    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -1273,6 +1273,11 @@ async def plan_tool_use(
         if plan.service == "datasets":
             allowed_intents.add("ask")  # NL→SQL over allowlisted app tables
             allowed_intents.add("find_all")  # Excel-style Find All over cells
+            # which OTHER cataloged documents carry given item codes —
+            # the attachment-derivation capability the trained agent
+            # uses for the not-found escalation policy (the POLICY is a
+            # taught lesson; this is only the tool)
+            allowed_intents.add("value_trace")
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -5711,9 +5716,9 @@ def _set_structured_result(plan: Any, record: Dict[str, Any]) -> None:
         meta["storage_read"] = storage
     storage["structured_result"] = record
 
-
 def _build_workbook_structured_record(
-    *, item_tokens: List[str],
+    *,
+    item_tokens: List[str],
     artifact_outcomes: Dict[str, Any],
     per_item: Dict[str, Any],
     field_requests: List[str],
@@ -5723,6 +5728,8 @@ def _build_workbook_structured_record(
     evidence_action: str,
     attempt_id: str,
     order_hint: Optional[str] = None,
+    requested_sheets: Optional[List[str]] = None,
+    scope_sources: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Artifact-native record for one scan attempt (one attempt id even
     when the evidence revision is unchanged). Pure build — no retrieval,
@@ -5742,7 +5749,9 @@ def _build_workbook_structured_record(
         f"{prov.get('ingested_at') or '?'}"
     )
     targets = build_targets_from_scan(
-        resolved, artifact_outcomes or {}, per_item or {})
+        resolved, artifact_outcomes or {}, per_item or {},
+        requested_fields=field_requests or None,
+        requested_sheets=requested_sheets or None)
     return build_structured_record(
         source_identity={
             "file_name": file_name,
@@ -5760,8 +5769,122 @@ def _build_workbook_structured_record(
         evidence_action=evidence_action,
         requested_items=resolved,
         requested_fields=list(field_requests or ["price"]),
+        requested_sheets=list(requested_sheets or []),
+        requested_sheets_sources=dict(scope_sources or {}),
         targets=targets,
         coverage=dict(coverage_limits or {}),
+    )
+
+
+def _build_sheet_browse_record(
+    *,
+    scope_sheets: List[str],
+    rows_by_sheet: Dict[str, List[Dict[str, Any]]],
+    sheet_total_rows: Dict[str, Optional[int]],
+    file_name: Optional[str],
+    prov: Dict[str, Any],
+    catalog_truncated: bool,
+    indexed_sheets: int,
+    scanned_sheets: int,
+    attempt_id: str,
+    browse_rows_per_sheet: int = 12,
+) -> Dict[str, Any]:
+    """Structured RECORD for a sheet-scope browse ('show me the tennsmith
+    sheet searches' — a listing request with no item codes).
+
+    The ask lane renders ``storage_read.structured_result`` with
+    ``present_from_record``, whose contract is the structured-RECORD schema
+    (``source_identity`` / ``requested_items`` / ``targets``). Stamping the
+    raw workbook-read ARTIFACT there instead rendered 'Results from the
+    saved copy of the workbook … Coverage: partial' with zero rows — the
+    schema mismatch behind the 2026-09-30 footer-only answers (owner
+    evidence: message 65b9f7bd, whose stored structured_result carries
+    artifact keys and no source_identity). This builder emits the shape the
+    presenter actually consumes: one target per requested sheet, its browsed
+    rows as candidates, flagged ``presentation: "listing"`` so the renderer
+    shows the rows instead of candidate-disambiguation language.
+
+    Pure build — no retrieval, no parquet reads, no writes.
+    """
+    from core.answer_presentation import (
+        IDENTITY_UNVERIFIED,
+        build_structured_record,
+        typed_value,
+    )
+
+    targets: List[Dict[str, Any]] = []
+    for sheet in scope_sheets:
+        rows = rows_by_sheet.get(sheet) or []
+        candidates: List[Dict[str, Any]] = []
+        pooled: List[Dict[str, Any]] = []
+        for r in rows:
+            values = []
+            for name, raw in (r.get("cells") or []):
+                tv = typed_value(raw)
+                values.append({"basis": str(name), **tv})
+            candidates.append({
+                "ref": f"{sheet}!R{r.get('row', '?')}",
+                "values": values,
+                # A browse row was not MATCHED against anything — there is
+                # no matched identity cell to bind, and inventing one would
+                # dress a listing up as evidence. Unverified is the honest
+                # status; the row locator carries the position.
+                "identity": {"status": IDENTITY_UNVERIFIED,
+                             "references": []},
+            })
+            pooled.extend(values)
+        targets.append({
+            "item": sheet,
+            "aliases": [],
+            "identity": {
+                "status": ("none" if not candidates
+                           else "single" if len(candidates) == 1
+                           else "multiple"),
+                "candidates": candidates,
+            },
+            "field": {"status": "single" if pooled else "absent",
+                      "values": pooled},
+            "presentation": "listing",
+            "listing_total_rows": sheet_total_rows.get(sheet),
+        })
+    coverage = {
+        "indexed_sheets": indexed_sheets,
+        "scanned_sheets": scanned_sheets,
+        "catalog_truncated": bool(catalog_truncated),
+        "row_display_cap": browse_rows_per_sheet,
+        "read_status": None,
+        "absence_claimable": None,
+        "unreadable_sheet_count": 0,
+        "error_category": None,
+        "artifact_available": True,
+        "artifact_complete": True,
+        "probe_failed": False,
+        "unmaterialized_sheets": [],
+    }
+    revision = (
+        f"{(prov or {}).get('content_hash') or '?'}:"
+        f"{(prov or {}).get('ingested_at') or '?'}"
+    )
+    return build_structured_record(
+        source_identity={
+            "file_name": file_name,
+            "service": "datasets",
+            "source": (prov or {}).get("source"),
+            "resource_id": (prov or {}).get("resource_id"),
+            "content_hash": (prov or {}).get("content_hash"),
+            "ingested_at": (prov or {}).get("ingested_at"),
+            "source_modified_at": (prov or {}).get("source_modified_at"),
+            "live_vs_saved": "saved copy",
+            "evidence_kind": "materialized_copy",
+        },
+        evidence_revision=revision,
+        attempt_id=attempt_id,
+        evidence_action="new_read",
+        requested_items=[str(s) for s in scope_sheets],
+        requested_fields=[],
+        targets=targets,
+        coverage=coverage,
+        requested_sheets=[str(s) for s in scope_sheets],
     )
 
 
@@ -5895,6 +6018,33 @@ def _stamp_named_file_meta(
         pass
 
 
+#: Retrieval-work nouns that make a follow-up a REFERENCE to this
+#: conversation's prior searches rather than a fresh request for sheet
+#: contents ("show me the tennsmith sheet searches" = re-run my searches
+#: scoped there, not list the sheet). Consulted by the sheet-scope browse
+#: gate so a reference-shaped turn prefers the scoped re-run.
+#:
+#: DEMONSTRATIVE OBJECTS (2026-09-30, corpus-measured): mining this
+#: workspace's real follow-up turns (228 following a workbook answer; 73
+#: in the population where floor silence matters — no own item codes, no
+#: filename, no communication source) showed the noun family covers the
+#: common phrasings (search/results/try-again), and the residual genuine
+#: references are verb+demonstrative shapes the nouns miss: "please
+#: research this", "check it again", "pull those up". Relative-pronoun
+#: "that" is deliberately EXCLUDED — "find the row that was mentioned"
+#: is a fresh ask, not a reference, and a false positive here would
+#: turn a listing into a re-run (the exact inversion of the defect this
+#: gate exists to prevent). Precision over recall: the NLU residue
+#: catches what the floor will not.
+_RETRIEVAL_REFERENCE_RE = re.compile(
+    r"\b(?:search(?:es|ing)?|result(?:s)?|lookup(?:s)?|match(?:es|ed)?|"
+    r"finding(?:s)?|hit(?:s)?)\b"
+    r"|\b(?:research|check|find|look\s?up|show|pull\s?up|try|run|repeat)\b"
+    r"[A-Za-z0-9 ,']{0,24}\b(?:this|it|them|those)\b"
+    r"|\b(?:pull|pick|bring)\s+(?:this|it|them|those)\s+up\b",
+    re.IGNORECASE)
+
+
 async def _datasets_named_file_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
     plan: Any = None,
@@ -5937,6 +6087,18 @@ async def _datasets_named_file_block(
     msg_text = _current_message_text(context) or ""
     lookup_text = " ".join(value for value in (query, msg_text) if value)
     mentions = detect_file_mentions(lookup_text)
+    if not mentions:
+        # ANAPHORIC RESOLUTION (2026-09-29 row-338 incident): "find this
+        # in the workbook" names no extension-ful filename. When the
+        # caller already RESOLVED the file in this conversation (the
+        # task's resource pin), that identity scopes the read — the same
+        # executable-context rule the resume lane runs on. Without it
+        # the named-file path returns None and a same-workbook targeted
+        # ask falls to mail/integration search that cannot match cells.
+        pinned = str((context or {}).get("named_file_mention")
+                     or "").strip()
+        if pinned:
+            mentions = [pinned]
     if not mentions:
         return None
     ws = (context or {}).get("workspace_id")
@@ -6079,6 +6241,47 @@ async def _datasets_named_file_block(
         for entry in file_entries
         if str(entry.get("entity_name") or "").strip()
     })
+    # SHEET SCOPE THE READER ASSERTED (2026-09-30). Resolved against the
+    # sheets THIS file actually indexes, so a phrase naming no real sheet
+    # scopes nothing and the answer is unchanged. It reorders candidates so
+    # the named sheet's rows reach the visible window; it never filters, so
+    # no candidate can be eliminated by it (see
+    # `answer_presentation.resolve_requested_sheets` for why this is a
+    # ranking seam and not another `_disambiguation_criteria` door).
+    _scope_sheets: List[str] = []
+    _scope_sources: Dict[str, str] = {}
+    try:
+        from core.answer_presentation import resolve_requested_sheets
+
+        _scope_sheets = resolve_requested_sheets(lookup_text, sheet_names)
+        _scope_sources = {s: "message" for s in _scope_sheets}
+        # STANDING-SCOPE HINTS (2026-09-30): sheet guidance the turn
+        # DECISION extracted ("include tennsmith sheet for roper whitney
+        # searches") rides the context in the user's own words. Resolved
+        # against THIS file's indexed sheets exactly like a message
+        # mention — a phrase naming no real sheet is ignored, never a
+        # fabricated filter. Provenance is kept so the answer can say the
+        # scope came from the user's standing preference, not guesswork.
+        _hint_phrases = " ".join(
+            str(h or "").strip()
+            for h in ((context or {}).get("sheet_scope_hints") or [])
+            if str(h or "").strip())
+        if _hint_phrases:
+            # The decision layer extracts the clause VERBATIM ("tennsmith
+            # sheet" — often without the determiner the sheet-reference
+            # grammar expects), so each hint is tried as-is AND with a
+            # determiner. Resolution still requires a real catalog match;
+            # a phrase naming no indexed sheet is ignored.
+            _hint_probe = " ".join(
+                f"the {str(h or '').strip()} "
+                for h in ((context or {}).get("sheet_scope_hints") or [])
+                if str(h or "").strip()) + _hint_phrases
+            for _hs in resolve_requested_sheets(_hint_probe, sheet_names):
+                if _hs not in _scope_sheets:
+                    _scope_sheets.append(_hs)
+                    _scope_sources[_hs] = "standing"
+    except Exception as _scope_err:  # noqa: BLE001 — scope is optional
+        logger.debug("workbook sheet scope unresolved: %r", _scope_err)
     ingested_values = sorted(
         str(entry.get("ingested_at") or "") for entry in file_entries
         if entry.get("ingested_at")
@@ -6104,6 +6307,256 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # IDENTITY-SHAPE FILTER ON MESSAGE-MINED ITEMS (2026-10-01 live
+    # finding, T2 of the consistency run): an assertion like 'no. 381 is
+    # on Tennsmith sheet under row 338' mined THREE items — 381 (real,
+    # identifier-prefixed), 'Tennsmith' (the SHEET NAME), and '338' (the
+    # ROW NUMBER) — so the answer carried junk rows for the sheet and
+    # the row. Generic rules, same family as the canvas extractor:
+    #   (a) a token that IS a sheet name of THIS workbook is a scope,
+    #       not an item;
+    #   (b) a bare number that follows 'row'/'R' in the message is a
+    #       row locator, not an item;
+    #   (c) otherwise: identifier-prefixed, alnum-mixed, or >=4 digits.
+    try:
+        import re as _id_re
+
+        from core.target_set_resolution import (
+            extract_items_from_text as _id_extract,
+        )
+
+        _id_whole = " ".join(v for v in (query, msg_text) if v)
+        _id_keep = set(_id_extract(_id_whole))
+        _id_sheets = {str(x).strip().lower() for x in (sheet_names or [])}
+        _id_rownums = {
+            m.group(1).lower()
+            for m in _id_re.finditer(
+                r"\brow\s+(\d{1,6})\b", _id_whole,
+                _id_re.IGNORECASE)}
+        _id_filtered = []
+        for _id_t in item_tokens:
+            _id_low = str(_id_t).strip().lower()
+            if _id_low in _id_sheets or _id_low in _id_rownums:
+                continue
+            if str(_id_t) in _id_keep or any(
+                    str(_id_t).lower() == str(_id_k).lower()
+                    for _id_k in _id_keep):
+                _id_filtered.append(_id_t)
+                continue
+            # prefixed forms like 'No. 381' extract as '381' — the
+            # identifier prefix in the message is the keep-signal
+            if _id_re.search(
+                    r"\b(?:no\.?|model|sku|part|item|code|m/n|p/n|ref)\.?\s*"
+                    + _id_re.escape(str(_id_t))
+                    + r"\b", _id_whole, _id_re.IGNORECASE):
+                _id_filtered.append(_id_t)
+        if _id_filtered:
+            item_tokens = _id_filtered
+        elif item_tokens and not _id_keep and not _id_sheets:
+            pass  # nothing learned; keep the original set
+        elif not _id_filtered and _id_keep:
+            item_tokens = [
+                t for t in item_tokens
+                if str(t).strip().lower() in {
+                    str(k).strip().lower() for k in _id_keep}]
+    except Exception as _id_err:  # noqa: BLE001 — filter is advisory
+        logger.debug("item identity filter skipped: %r", _id_err)
+    # REFERENCE-RECOGNITION GATE (2026-09-30) — ONE decision point for
+    # "does this turn refer to the conversation's prior retrieval work,
+    # or does it ask for something of its own?". Research-grounded:
+    # conversation→standalone condensation before retrieval is the
+    # established lineage (InfoCQR, CONQRR, ConvSearch-R1; Apple's joint
+    # ellipsis+anaphora work), and the repo's own labeled gate set
+    # measured this question kind as the one local readouts pass
+    # (JevK5-9B 4/4, Qwen3.5-4B 4/4 — see RESEARCH_ollaya_jev.md). The
+    # recognition runs floor-first (deterministic retrieval-noun regex,
+    # free and auditable) with the cheap-NLU residue behind the same
+    # interface as every other refinement verdict — fail-closed to the
+    # floor when disabled, cached, breaker-open or errored.
+    #
+    # ROUTING TABLE for a turn that names a sheet and carries NO item
+    # codes of its own (own-items present → normal scoped read, as
+    # before):
+    #   reference recognized (floor regex or NLU residue)
+    #     → scoped RE-RUN of the active objective's items
+    #   no reference → the plain reading: a LISTING of the named sheet
+    #     (inherited targets do NOT silently redirect it — routing must
+    #     not depend on which carriers happen to be populated).
+    _retrieval_reference = bool(_RETRIEVAL_REFERENCE_RE.search(
+        " ".join(v for v in (query, msg_text) if v)))
+    _context_targets = [
+        str(v).strip() for v in
+        ((context or {}).get("requested_targets") or [])
+        if str(v).strip()]
+    # THE TURN PROGRAM IS AUTHORITATIVE (2026-10-01, migration step 1):
+    # when the caller decided the interpretation ONCE (turn-program-1 on
+    # the context), the reader EXECUTES it — reference and target set
+    # come from the program, and this gate skips its own re-derivation
+    # (deciding the same question twice, slightly differently per lane,
+    # is how the lanes diverged). Absent a program (other callers), the
+    # reader's own computation stands unchanged.
+    _turn_program = (context or {}).get("turn_program")
+    _program_present = (
+        isinstance(_turn_program, dict)
+        and _turn_program.get("schema") == "turn-program-1")
+    _own_item_tokens: List[str] = []
+    if _program_present:
+        _tp_ref = _turn_program.get("reference") or {}
+        _tp_set = _turn_program.get("target_set") or {}
+        _retrieval_reference = bool(_tp_ref.get("prior_retrieval"))
+        if _tp_set.get("kind") == "explicit":
+            _own_item_tokens = [
+                str(v).strip() for v in (_tp_set.get("items") or [])
+                if str(v).strip()]
+    elif _scope_sheets:
+        try:
+            # TURN-ONLY items: what THIS message asks for in its own
+            # words — not inherited targets, not history-mined mentions
+            # (an earlier turn's "381" must not masquerade as this
+            # turn's ask and silently turn a listing into a scan).
+            from core.workbook_read_artifact import extract_targets
+
+            _own_item_tokens = extract_targets(
+                query, [msg_text] if msg_text else [], [])
+        except Exception:  # noqa: BLE001 — own-item probe is advisory
+            _own_item_tokens = []
+        if (not _retrieval_reference and not _own_item_tokens
+                and (item_tokens or _context_targets)):
+            # Floor silent, nothing of the turn's own, and an objective
+            # EXISTS that the words could be referring to — this is
+            # exactly the residue ("pull up what you found on the
+            # tennsmith sheet") the noun list cannot anticipate. The
+            # verdict decides re-run vs listing; None keeps the floor
+            # (no noun → the plain listing reading).
+            try:
+                from core.llm.cheap_nlu import refers_to_prior_retrieval
+
+                _ref_verdict = await refers_to_prior_retrieval(
+                    " ".join(v for v in (query, msg_text) if v))
+                _retrieval_reference = _ref_verdict is True
+            except Exception as _ref_err:  # noqa: BLE001 — floor follows
+                logger.debug(
+                    "prior-retrieval residue judgment skipped: %r", _ref_err)
+    # Reference recognized but NOTHING to re-run (no stored objective)?
+    # The listing is the graceful degradation — a named sheet served
+    # beats an empty scan.
+    _browse_intent = bool(
+        _scope_sheets
+        and not _own_item_tokens
+        and (not _retrieval_reference or not item_tokens))
+    if _browse_intent:
+        # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
+        # searches' follow-up): the user asked to SEE a sheet with no
+        # item codes. inspect_dataset_entries needs item targets and
+        # yields zero outcomes for this shape, so list the scoped
+        # sheets' rows directly — deterministic, capped, honest. The
+        # rows are stamped as a structured RECORD (the schema the ask
+        # lane's presenter consumes), not the raw read artifact.
+        try:
+            import pandas as _pd
+
+            from core.answer_presentation import (
+                new_attempt_id as _naid,
+                present_from_record as _pfr,
+            )
+            from core.invocation_events import (
+                SCAN_END,
+                SCAN_START,
+                Timer as _Timer,
+                record as _rec,
+            )
+
+            _scan_id = _naid()
+            _scan_timer = _Timer()
+            _rec(SCAN_START, execution_id=(context or {}).get(
+                "execution_id"),
+                session_id=(context or {}).get("session_id"),
+                request_id=(context or {}).get("request_id"),
+                attempt_id=_scan_id)
+            _rows_by_sheet: Dict[str, List[Dict[str, Any]]] = {}
+            _sheet_totals: Dict[str, Optional[int]] = {}
+            for _e in file_entries:
+                _sheet_name = str(
+                    _e.get("entity_name") or "").strip()
+                if _sheet_name not in _scope_sheets:
+                    continue
+                try:
+                    _sheet_totals[_sheet_name] = int(_e.get("row_count"))
+                except (TypeError, ValueError):
+                    _sheet_totals[_sheet_name] = None
+                _df = await asyncio.to_thread(
+                    _pd.read_parquet, _e.get("parquet_path"))
+                _rowcol = ("__sheet_row"
+                           if "__sheet_row" in _df.columns else None)
+                _shown = 0
+                for _, _row in _df.iterrows():
+                    if _shown >= 12:
+                        break
+                    _cells = [
+                        (str(_c), _row[_c]) for _c in _df.columns
+                        if _c != _rowcol
+                        and str(_row[_c]) not in ("", "nan", "None")]
+                    if not _cells:
+                        continue
+                    _rn = (int(_row[_rowcol]) if _rowcol
+                           and str(_row[_rowcol]).isdigit()
+                           else _shown + 1)
+                    _rows_by_sheet.setdefault(_sheet_name, []).append(
+                        {"row": _rn, "cells": _cells[:4]})
+                    _shown += 1
+            if not any(_rows_by_sheet.values()):
+                logger.debug(
+                    "scoped browse: no readable rows on %s",
+                    _scope_sheets)
+            else:
+                _browse_record = _build_sheet_browse_record(
+                    scope_sheets=_scope_sheets,
+                    rows_by_sheet=_rows_by_sheet,
+                    sheet_total_rows=_sheet_totals,
+                    file_name=names[key],
+                    prov=prov,
+                    catalog_truncated=catalog_truncated,
+                    indexed_sheets=len(sheet_names),
+                    scanned_sheets=len(file_entries),
+                    attempt_id=_scan_id,
+                )
+                _stamp_named_file_meta(
+                    plan, key, names, [], prov,
+                    coverage_complete=True,
+                    coverage_limits=dict(
+                        _browse_record.get("coverage") or {}),
+                    workbook_read=None,
+                )
+                _browse_meta = getattr(plan, "_result_meta", None)
+                if isinstance(_browse_meta, dict):
+                    _browse_sr = _browse_meta.get("storage_read")
+                    if isinstance(_browse_sr, dict):
+                        _browse_sr.update({
+                            "sheet_scope": _scope_sheets,
+                            "browse": True,
+                        })
+                _set_structured_result(plan, _browse_record)
+                _set_rendered_answer(
+                    plan, str(_pfr(_browse_record).get("answer") or ""))
+                _lines = [
+                    "LIVE TOOL RESULTS (datasets.named-file, file='"
+                    + names[key] + "') — the request asked to SEE the "
+                    "sheet(s) "
+                    + ", ".join(_scope_sheets)
+                    + "; their rows follow (up to 12 per sheet):"
+                ]
+                for _sheet, _rows in _rows_by_sheet.items():
+                    _lines.append("- sheet " + _sheet + ":")
+                    _lines.extend(
+                        "  R" + str(_r["row"]) + ": " + ", ".join(
+                            f"{_n}={_v}" for _n, _v in _r["cells"])
+                        for _r in _rows)
+                _rec(SCAN_END, attempt_id=_scan_id,
+                     duration_ms=_scan_timer.ms())
+                return _with_grounding("\n".join(_lines))
+        except Exception as _browse_err:  # noqa: BLE001 — browse is optional
+            logger.warning(
+                "sheet-scope browse failed: %r", _browse_err)
     # Did this turn REVISE the objective? When it did, `item_tokens` is the
     # revised set and therefore the requested ORDER, and the asking turn's
     # text must not re-sort it (see the `order_hint` argument below).
@@ -6232,6 +6685,31 @@ async def _datasets_named_file_block(
             except Exception:  # noqa: BLE001 — attribute extraction optional
                 _attr_words = []
                 _field_requests = []
+            # SOURCE-REFERENCE REFINEMENT (2026-09-29 row-338 seam four):
+            # possessives the deterministic communication-noun floor does
+            # not settle ("Meera's Notion page", "Sam's ticket queue")
+            # are judged by the cheap-NLU layer — a source reference
+            # names WHERE to look and must never become a row constraint.
+            # Fail-closed: no verdict ⇒ floor behavior; disabled under
+            # TESTING/kill switch ⇒ zero LLM calls.
+            _source_ref_names: List[str] = []
+            try:
+                from core.llm.cheap_nlu import (
+                    is_source_reference,
+                    switch_enabled as _nlu_switch_on,
+                )
+                from core.workbook_read_artifact import (
+                    possessive_source_candidates,
+                )
+
+                if _nlu_switch_on():
+                    _cands = possessive_source_candidates(context_texts)
+                    for _cand in _cands[:4]:
+                        if await is_source_reference(
+                                _cand["possessor"], _cand["noun"]):
+                            _source_ref_names.append(_cand["possessor"])
+            except Exception:  # noqa: BLE001 — refinement is optional
+                _source_ref_names = []
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -6249,6 +6727,7 @@ async def _datasets_named_file_block(
                 ingested_at=prov["ingested_at"],
                 disambiguation=(context or {}).get("disambiguation"),
                 attribute_texts=_brand_texts,
+                source_reference_names=_source_ref_names,
             )
             render_artifact = render_workbook_artifact(workbook_read)
         except Exception as artifact_error:
@@ -6368,9 +6847,11 @@ async def _datasets_named_file_block(
                 # the swap that was asked for. When the turn revised the
                 # objective, `item_tokens` already IS the requested order, so
                 # the hint is dropped rather than allowed to override it.
-                order_hint=None if revised_targets else " ".join(
-                    value for value in (query, msg_text) if value),
-            ),
+        order_hint=None if revised_targets else " ".join(
+            value for value in (query, msg_text) if value),
+        requested_sheets=_scope_sheets,
+        scope_sources=_scope_sources,
+    ),
         )
     except Exception as _sr_err:  # noqa: BLE001 — structured record optional
         logger.debug("workbook structured record skipped: %r", _sr_err)
@@ -6396,8 +6877,9 @@ async def _datasets_named_file_block(
                          item: ("matched" if rec else "miss")
                          for item, rec in list(per_item.items())[:20]
                      },
-                     "matched_sheets": list(sheet_names or [])[:8],
-                     "probe_failed": bool(probe_failed),
+                      "matched_sheets": list(sheet_names or [])[:8],
+                      "requested_sheets": list(_scope_sheets or []),
+                      "probe_failed": bool(probe_failed),
                  },
                  **_scan_ctx)
     coverage_note = (
@@ -6449,6 +6931,7 @@ async def _datasets_named_file_block(
                 if row.get(column) is not None
             ]
             refs = []
+            family_hit = False
             for column in columns:
                 value = row.get(column)
                 if value is None:
@@ -6457,9 +6940,24 @@ async def _datasets_named_file_block(
                     r"price|cost|amount|rate|value|list|total|dealer",
                     str(column), re.IGNORECASE,
                 ):
+                    family_hit = True
                     letter = letters.get(column)
                     if letter:
                         refs.append(f"{letter}{row_number}={value}")
+            if not family_hit:
+                # DOMAIN-GENERAL: no pricing-family column on this row —
+                # surface the row's own leading cells rather than nothing
+                # (a preference ranks, it never erases).
+                for column in columns:
+                    if column in ("__sheet_row", "__row__") or len(refs) >= 3:
+                        continue
+                    value = row.get(column)
+                    if value is None:
+                        continue
+                    letter = letters.get(column)
+                    refs.append(
+                        f"{letter}{row_number}={value}" if letter
+                        else f"{column}={value}")
             sheet = record.get("entity_name") or "?"
             out.append(
                 f"{sheet} R{row_number}"
@@ -7941,6 +8439,50 @@ async def execute_tool_plan(
                 )
             except Exception as ask_err:  # noqa: BLE001 — fall through
                 logger.warning(f"datasets.ask failed: {ask_err}")
+        if (plan.intent or "search") == "value_trace":
+            # Which OTHER cataloged documents carry these item codes?
+            # The attachment-derivation CAPABILITY (2026-10-01): pure
+            # evidence — the escalation policy around it is taught
+            # business knowledge, never this code.
+            try:
+                import re as _vt_re
+
+                from core.value_provenance import (
+                    provenance_lines as _vt_lines,
+                    trace_items_across_catalog as _vt_trace,
+                )
+
+                _vt_query = " ".join((plan.query or "").split())
+                _vt_exclude = None
+                _vt_m = _vt_re.search(
+                    r"\b(?:excluding|except|besides)\s+([^,;]+?"
+                    r"\.(?:xlsx|xls|csv|tsv))\b", _vt_query,
+                    _vt_re.IGNORECASE)
+                if _vt_m:
+                    _vt_exclude = _vt_m.group(1).strip()
+                _vt_items = [
+                    t.strip(" ,;'") for t in _vt_re.split(
+                        r"[,;/]|\band\b", _vt_query)
+                    if t.strip(" ,;'")]
+                _vt_items = [t for t in _vt_items if t and not t.lower(
+                ).startswith(("excluding", "except"))][:8]
+                if _vt_items:
+                    _vt_res = await asyncio.to_thread(
+                        _vt_trace, _vt_items,
+                        exclude_file=_vt_exclude,
+                        user_id=(context or {}).get("user_id") or user_id,
+                        workspace_id=(context or {}).get("workspace_id"))
+                    _vt_out = _vt_lines(_vt_res)
+                    if _vt_out:
+                        return _with_grounding(
+                            "LIVE TOOL RESULTS (datasets.value_trace) — "
+                            "which other cataloged documents carry the "
+                            "requested items:\n" + "\n".join(_vt_out)
+                            + "\nPresent these as evidence; a value no "
+                              "document carries is body-only (its quoted "
+                              "figure is the only source found).")
+            except Exception as _vt_err:  # noqa: BLE001 — tool optional
+                logger.warning("datasets.value_trace failed: %r", _vt_err)
         if (plan.intent or "search") == "find_all":
             # Excel-style Find All: every cell containing the value, across
             # the whole catalog or one named workbook. Query shape is the

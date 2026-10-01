@@ -167,6 +167,8 @@ class TestSurface:
             "shopify_create_product",
             "shopify_update_inventory",
             "shopify_get_orders",
+            "shopify_get_fulfillments",
+            "shopify_create_fulfillment",
             "query_financial_metrics",
             "list_finance_invoices",
             "finance_close_check",
@@ -1113,6 +1115,99 @@ class TestExecuteToolLocalTools:
             "local-tools", "shopify_get_orders", {}, {"workspace_id": "ws"}
         )
         assert result == "No orders found."
+
+    @pytest.mark.asyncio
+    async def _shopify_store_service(self, svc, monkeypatch):
+        """Connect a fake store and return the ShopifyService mock."""
+        db = MagicMock()
+        store = MagicMock()
+        store.access_token = "tok"
+        store.shop_domain = "shop.myshopify.com"
+        db.query.return_value.filter.return_value.first.return_value = store
+        monkeypatch.setattr(
+            "core.database.SessionLocal", _session_factory(db)
+        )
+        service = MagicMock()
+        monkeypatch.setattr(
+            "integrations.shopify_service.ShopifyService", lambda: service
+        )
+        return service
+
+    @pytest.mark.asyncio
+    async def test_shopify_get_fulfillments_summary(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        service.get_fulfillments = AsyncMock(return_value=[
+            {"id": 5, "status": "success",
+             "tracking_number": "TN9", "tracking_company": "USPS"},
+            {"id": 6, "status": "pending", "tracking_number": None},
+        ])
+        result = await svc.execute_tool(
+            "local-tools", "shopify_get_fulfillments",
+            {"order_id": "o1"}, {"workspace_id": "ws"},
+        )
+        service.get_fulfillments.assert_awaited_once_with("tok", "shop.myshopify.com", order_id="o1")
+        assert "Fulfillment 5: status=success tracking=TN9 (USPS)" in result
+        assert "Fulfillment 6: status=pending tracking=none (no carrier)" in result
+
+    @pytest.mark.asyncio
+    async def test_shopify_get_fulfillments_empty(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        service.get_fulfillments = AsyncMock(return_value=[])
+        result = await svc.execute_tool(
+            "local-tools", "shopify_get_fulfillments",
+            {"order_id": "o1"}, {"workspace_id": "ws"},
+        )
+        assert result == "No fulfillments found for order o1."
+
+    @pytest.mark.asyncio
+    async def test_shopify_get_fulfillments_missing_order_id(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        result = await svc.execute_tool(
+            "local-tools", "shopify_get_fulfillments", {}, {"workspace_id": "ws"}
+        )
+        assert result == "order_id is required."
+        service.get_fulfillments.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shopify_create_fulfillment_success(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        service.create_fulfillment = AsyncMock(return_value={
+            "id": 11, "status": "success", "tracking_number": "TN1",
+        })
+        result = await svc.execute_tool(
+            "local-tools", "shopify_create_fulfillment",
+            {"order_id": "o1", "tracking_number": "TN1", "tracking_company": "UPS",
+             "notify_customer": False},
+            {"workspace_id": "ws"},
+        )
+        service.create_fulfillment.assert_awaited_once_with(
+            "tok", "shop.myshopify.com", order_id="o1", location_id=None,
+            tracking_number="TN1", tracking_company="UPS", notify_customer=False,
+        )
+        assert result == "Fulfillment created successfully. id=11 status=success tracking=TN1"
+
+    @pytest.mark.asyncio
+    async def test_shopify_create_fulfillment_missing_order_id(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        result = await svc.execute_tool(
+            "local-tools", "shopify_create_fulfillment", {}, {"workspace_id": "ws"}
+        )
+        assert result == "order_id is required."
+        service.create_fulfillment.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shopify_create_fulfillment_upstream_error(self, svc, monkeypatch):
+        service = await self._shopify_store_service(svc, monkeypatch)
+        # ShopifyService.create_fulfillment raises HTTPException on upstream
+        # failure (502) or nothing-fulfillable (422); the handler propagates it.
+        service.create_fulfillment = AsyncMock(
+            side_effect=HTTPException(status_code=502, detail="Shopify create fulfillment failed")
+        )
+        with pytest.raises(HTTPException):
+            await svc.execute_tool(
+                "local-tools", "shopify_create_fulfillment",
+                {"order_id": "o1"}, {"workspace_id": "ws"},
+            )
 
     @pytest.mark.asyncio
     async def test_reconcile_payroll(self, svc, monkeypatch):

@@ -217,9 +217,20 @@ async def pinned_structured_call(
             log_label,
             pin_kwargs.get("provider_model"),
         )
+        # EXCLUDE THE FAILED PIN (2026-09-29 live, fork 91fedfd1): the
+        # pinned route had just failed deterministically (output truncated
+        # at max_tokens — a per-route, per-cap failure that repeats), and
+        # the unpinned fallback re-ranked the SAME route to the top and
+        # repeated the failure until the plan budget died. A failed pin is
+        # evidence about that ROUTE, not about the pool: exclude it from
+        # the fallback so the cascade lands on a different model.
+        fallback_kwargs = dict(base)
+        _failed_pin = pin_kwargs.get("provider_model")
+        if _failed_pin:
+            fallback_kwargs["exclude_provider_model"] = _failed_pin
         try:
             return await _record_if_cancelled(
-                llm_service.generate_structured_response(**base),
+                llm_service.generate_structured_response(**fallback_kwargs),
                 log_label, task_type, _t0)
         except Exception as unpinned_err:  # noqa: BLE001
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)

@@ -287,6 +287,18 @@ def _select_value_columns(
             item for item in selected
             if _VALUE_HEADER_RE.search(str(item.get("label") or ""))
         ]
+    if not selected:
+        # A PREFERENCE RANKS, IT NEVER ERASES (2026-09-30 domain
+        # generalization): nothing matched the requested fields, the
+        # ask's raw terms, or the value-header family — either the
+        # domain is not pricing-shaped or the ask named no field. The
+        # sheet's own leading columns still carry the row's content
+        # (hydration, stock, lead time); "no selection" here previously
+        # produced evidence with zero values, which rendered as "no
+        # column matching price" on a row that had exactly what was
+        # asked about. Bounded to the first few columns; bases stay
+        # labeled so the answer always names what it is showing.
+        selected = list(descriptors)[:4]
     selected_positions = {id(item) for item in selected}
     selected = [item for item in descriptors if id(item) in selected_positions]
     ambiguous_fields: List[str] = []
@@ -792,6 +804,24 @@ def _criteria_values(value: Any) -> List[str]:
     return [text] if text else []
 
 
+def _is_data_payload_value(text: str) -> bool:
+    """Whether a mined constraint VALUE is actually a pasted data row.
+
+    "here's the data: 381<TAB>167072381<TAB>Roll Bending Machine,
+    $3,254.00" colon-mines as ``s_the_data = 381 167072381 …`` — a
+    constraint no cell can satisfy, which filtered out every row and
+    rendered the row the user themselves supplied as "absent" (2026-09-29
+    row-338 incident). A real attribute value ("capacity is 22 tons",
+    "organization is Brennan Machinery", "model: 381") carries at most
+    ONE standalone number and no tab-separated columns; a value with a
+    tab or two or more standalone numbers is the THING BEING LOOKED UP.
+    """
+    t = str(text or "")
+    if "\t" in t:
+        return True
+    return len(re.findall(r"(?<![\w.,])\d[\d,]*(?:\.\d+)?(?![\w.])", t)) >= 2
+
+
 def _add_criteria_value(
     criteria: Dict[str, List[str]], attribute: Any, value: Any,
 ) -> None:
@@ -801,6 +831,8 @@ def _add_criteria_value(
         return
     values = criteria.setdefault(field, [])
     for text in _criteria_values(value):
+        if _is_data_payload_value(text):
+            continue
         if text.lower() not in {item.lower() for item in values}:
             values.append(text)
 
@@ -812,37 +844,292 @@ _INTERROGATIVE_GUARD = {
     "search", "check", "tell", "show", "give",
 }
 
+# A possessive over a COMMUNICATION-SOURCE noun — "Priya's text message",
+# "Chandrakant's email", "Dana's slack thread" — names WHERE to look, not
+# an attribute the rows carry (2026-09-29 row-338 incident, seam four: the
+# prior turn's cross-source request mined organization="Priya", and that
+# constraint filtered every workbook row to absence on the next read).
+# GENERIC communication nouns only — no person, product or integration
+# names. The noun list is the deterministic FLOOR; the residue is judged
+# semantically by the cheap-NLU layer (core/llm/cheap_nlu.py), so the
+# behavior does not depend on this list staying current.
+_COMMUNICATION_SOURCE_NOUN_RE = re.compile(
+    r"^\s*(?:e-?mails?|mails?|messages?|msgs?|texts?|chats?|threads?|dms?|"
+    r"whats?apps?|slacks?|teams?|inbox(?:es)?|voicemails?|calendars?|"
+    r"invites?|pings?|calls?|notes?|memos?|letters?|repl(?:y|ies)|"
+    r"responses?|comments?|posts?|tickets?|announcements?|reminders?|"
+    r"forwards?|attachments?|transcripts?)\b",
+    re.IGNORECASE,
+)
+
+# The possessive miner's own regex, exposed so the candidate collector and
+# the miner cannot drift apart.
+_POSSESSIVE_RE = re.compile(
+    r"(?<![\w])([A-Za-z][A-Za-z0-9&.'-]*(?:\s+[A-Za-z][A-Za-z0-9&.'-]*){0,3})'s\b",
+    re.IGNORECASE,
+)
+
+# Explicitly labelled attributes ("organization is X", "vendor: Y") — the
+# high-precision lane; never affected by source-reference filtering.
+_POSSESSIVE_LABELLED_RE = re.compile(
+    r"\b(organization|company|manufacturer|supplier|vendor|owner|brand)"
+    r"\s*(?:is|=|:)\s*([A-Za-z0-9][A-Za-z0-9 ._&-]*)",
+    re.IGNORECASE,
+)
+
+
+# A user ASSERTION of a concrete workbook location: "no. 381 is on
+# Tennsmith sheet under row 338", "row 90 of the pricing sheet". Generic
+# across sheets/domains; captures (sheet, row) only.
+_ROW_ASSERTION_RE = re.compile(
+    r"\b(?:on|in|at)\s+(?:the\s+)?"
+    r"([A-Za-z][A-Za-z0-9 .&'/-]{1,40}?)\s+sheet\b"
+    r"[^\n]{0,140}?\brow\s+(\d{1,6})\b",
+    re.IGNORECASE,
+)
+
+
+def _canonical_item(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
+
+
+def capture_resolved_bindings(
+    history_user_texts: Sequence[str],
+    structured_result: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """User-asserted + read-verified row bindings, for the task's
+    disambiguation container.
+
+    A binding is captured ONLY when BOTH halves exist: the user's own
+    text asserts a concrete location (sheet + row) for an item, and this
+    read's artifact verifies a bound candidate at exactly that
+    sheet!row for that item. A price match alone is never a binding
+    (the user must have authored the location). The binding carries the
+    workbook revision (content_hash) so a changed workbook expires it,
+    the identity cells that anchored the row, and the value basis — so
+    later reads, formatting turns and draft edits all cite the same
+    provenance instead of re-litigating ambiguity.
+    """
+    result = structured_result or {}
+    source_hash = str(
+        (result.get("source_identity") or {}).get("content_hash") or "")
+    if not source_hash:
+        return []
+    assertions: List[tuple] = []
+    for text in history_user_texts or []:
+        for m in _ROW_ASSERTION_RE.finditer(str(text or "")):
+            sheet = m.group(1).strip(" .,;-")
+            if sheet:
+                assertions.append((sheet, int(m.group(2)), str(text)))
+    if not assertions:
+        return []
+    out: List[Dict[str, Any]] = []
+    seen: set = set()
+    for target in result.get("targets") or []:
+        item = str((target or {}).get("item") or "").strip()
+        if not item:
+            continue
+        item_key = _canonical_item(item)
+        for cand in ((target.get("identity") or {}).get("candidates")
+                     or []):
+            ref = str((cand or {}).get("ref") or "")
+            if "!" not in ref or not ref.upper().startswith("R", ref.find("!") + 1):
+                continue
+            cand_sheet, row_part = ref.split("!", 1)
+            if not row_part.upper().lstrip("R").isdigit():
+                continue
+            row = int(row_part.upper().lstrip("R"))
+            for sheet, arow, atext in assertions:
+                if row != arow:
+                    continue
+                if _canonical_item(cand_sheet) != _canonical_item(sheet):
+                    continue
+                refs = [r for r in (
+                    (cand.get("identity") or {}).get("references") or [])
+                    if (r or {}).get("cell")]
+                if not refs:
+                    continue  # unbound candidate is not a verified row
+                # THE ASSERTION MUST NAME THIS ITEM — token overlap, not
+                # word-order substring ("sourdough loaf" must match an
+                # assertion saying "sourdough hydration…"; exact-phrase
+                # matching failed every paraphrase). Passes when at least
+                # half the item's significant tokens appear, OR the row's
+                # own matched-value token does (the identity cell content
+                # the user was looking at). An assertion naming neither
+                # binds nothing — the conservative direction.
+                _a_tokens = {
+                    t for t in re.findall(r"[a-z0-9]+", atext.lower())
+                    if len(t) >= 2}
+                _i_tokens = {
+                    t for t in re.findall(r"[a-z0-9]+", item.lower())
+                    if len(t) >= 2} or {item_key}
+                _overlap_ok = (
+                    len(_i_tokens & _a_tokens)
+                    >= max(1, len(_i_tokens) // 2))
+                _value_ok = any(
+                    _canonical_item(str((r or {}).get("value") or ""))
+                    and _canonical_item(str(r.get("value") or ""))
+                    in _canonical_item(atext)
+                    for r in refs)
+                if not (_overlap_ok or _value_ok):
+                    continue
+                first_value = next(
+                    (v for v in (cand.get("values") or [])
+                     if str(v.get("display") or "").strip().lower()
+                     not in ("", "blank", "unavailable")),
+                    None)
+                basis = ""
+                if first_value:
+                    basis = (f"{first_value.get('col')} '"
+                             f"{first_value.get('basis')}'")
+                key = (item_key, _canonical_item(sheet), row)
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append({
+                    "item": item,
+                    "sheet": str(cand_sheet).strip(),
+                    "row": row,
+                    "identity_cells": [r.get("cell") for r in refs[:3]],
+                    "value_basis": basis,
+                    "value": (first_value or {}).get("display") or "",
+                    "content_hash": source_hash,
+                    "confirmation": "user_supplied+verified_read",
+                })
+    return out[:16]
+
+
+_SHEET_MENTION_RE = re.compile(
+    r"\b(?:the\s+|on\s+the\s+|in\s+the\s+|from\s+the\s+)?"
+    r"([A-Za-z][A-Za-z0-9 .&'/-]{2,30}?)\s+sheets?\b",
+    re.IGNORECASE,
+)
+
+
+def _sheet_scope_from_text(
+    texts: Sequence[str], known_sheets: Sequence[str],
+) -> List[str]:
+    """Explicit sheet-name mentions in the user's text ("show me the
+    tennsmith sheet searches") as a SCOPE on the read.
+
+    Generic: any named sheet whose name contains (or is contained in)
+    the mentioned fragment, case-insensitive. Only fragments matching a
+    sheet in THIS workbook apply — a mention of a sheet that does not
+    exist is ignored (never a fabricated filter).
+    """
+    scope: List[str] = []
+    known = [str(k or "").strip() for k in known_sheets or [] if str(
+        k or "").strip()]
+    if not known:
+        return scope
+    for text in texts or []:
+        for m in _SHEET_MENTION_RE.finditer(str(text or "")):
+            fragment = m.group(1).strip().lower()
+            if len(fragment) < 3:
+                continue
+            for k in known:
+                kl = k.lower()
+                if fragment in kl or kl in fragment:
+                    if k not in scope:
+                        scope.append(k)
+    return scope
+
+
+def _possessor_phrase(group: str) -> Optional[str]:
+    """Normalize a possessive match's holder to the entity phrase.
+
+    Shared by the constraint miner and the cheap-NLU candidate collector
+    so the two cannot drift: pops leading stopwords/interrogatives
+    ("check Priya" -> "Priya") and strips glued conjunction tails
+    ("email and Meera" -> "Meera" — the holder after the conjunction is
+    the possessor). Returns None when nothing remains.
+    """
+    parts = [p for p in str(group or "").strip().split() if p]
+    while parts and (
+        parts[0].lower() in _ATTRIBUTE_STOPWORDS
+        or parts[0].lower() in _INTERROGATIVE_GUARD
+        or parts[0].lower() in {"does", "do", "did", "is", "are"}
+    ):
+        parts.pop(0)
+    while len(parts) > 1 and parts[-1].lower() in {"and", "or", "the"}:
+        parts.pop()
+    for i in range(len(parts) - 2, -1, -1):
+        if parts[i].lower() in {"and", "or"}:
+            parts = parts[i + 1:]
+            break
+    if not parts or parts[0].lower() in _INTERROGATIVE_GUARD:
+        return None
+    return " ".join(parts)
+
+
+def possessive_source_candidates(
+    texts: Sequence[str],
+) -> List[Dict[str, str]]:
+    """Possessives NOT settled by the deterministic floor, for cheap-NLU.
+
+    Each item is ``{"possessor": <joined phrase>, "noun": <following
+    word>}`` for a possessive whose following noun is not a known
+    communication source (those are already skipped) — e.g. "Meera's
+    Notion page", "Sam's ticket queue". The LLM layer judges only this
+    residue, so the noun list never has to anticipate every surface.
+    """
+    out: List[Dict[str, str]] = []
+    seen: set = set()
+    for text in texts or []:
+        value_text = str(text or "")
+        for match in _POSSESSIVE_RE.finditer(value_text):
+            if _COMMUNICATION_SOURCE_NOUN_RE.match(value_text[match.end():]):
+                continue
+            possessor = _possessor_phrase(match.group(1))
+            if not possessor:
+                continue
+            key = possessor.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            rest = value_text[match.end():].lstrip()
+            noun = rest.split()[0].strip(",.;:!?") if rest.split() else ""
+            out.append({"possessor": possessor, "noun": noun})
+    return out
+
 
 def extract_natural_language_criteria(
     texts: Sequence[str],
+    source_reference_names: Optional[Sequence[str]] = None,
 ) -> Dict[str, List[str]]:
+    """Mine attribute constraints from natural language.
+
+    ``source_reference_names`` carries possessor phrases the cheap-NLU
+    layer judged to be SOURCE references (where to look) rather than row
+    attributes; they are skipped like the deterministic communication
+    noun floor. Uncertain/absent verdicts keep the floor's behavior.
+    """
     criteria: Dict[str, List[str]] = {}
-    possessive = re.compile(
-        r"(?<![\w])([A-Za-z][A-Za-z0-9&.'-]*(?:\s+[A-Za-z][A-Za-z0-9&.'-]*){0,3})'s\b",
-        re.IGNORECASE,
-    )
-    labelled = re.compile(
-        r"\b(organization|company|manufacturer|supplier|vendor|owner|brand)"
-        r"\s*(?:is|=|:)\s*([A-Za-z0-9][A-Za-z0-9 ._&-]*)",
-        re.IGNORECASE,
-    )
+    source_refs = {
+        str(name or "").strip().lower()
+        for name in (source_reference_names or [])
+    }
     for text in texts or []:
         value_text = str(text or "")
-        for match in possessive.finditer(value_text):
-            parts = match.group(1).strip().split()
-            # INTERROGATIVE GUARD (2026-09-24): "when does A. Kumar's
-            # certificate expire" is a QUESTION — the possessive phrase
-            # 'when does A. Kumar' must never become an organization
-            # constraint (it filtered out the only matching row).
-            while parts and (
-                parts[0].lower() in _ATTRIBUTE_STOPWORDS
-                or parts[0].lower() in _INTERROGATIVE_GUARD
-                or parts[0].lower() in {"does", "do", "did", "is", "are"}
-            ):
-                parts.pop(0)
-            if parts and not parts[0].lower() in _INTERROGATIVE_GUARD:
-                _add_criteria_value(criteria, "organization", " ".join(parts))
-        for match in labelled.finditer(value_text):
+        for match in _POSSESSIVE_RE.finditer(value_text):
+            # SOURCE REFERENCE, NOT CONSTRAINT: "<name>'s email/message/
+            # thread/…" scopes where to search — it never describes the
+            # rows, so mining it as an organization value filters out
+            # every candidate (live: "check Priya's text message … in
+            # workbook" made the NEXT workbook read return absent).
+            if _COMMUNICATION_SOURCE_NOUN_RE.match(
+                    value_text[match.end():]):
+                continue
+            # INTERROGATIVE GUARD (2026-09-24, inside the shared
+            # normalizer): "when does A. Kumar's certificate expire" is
+            # a QUESTION — its possessive phrase must never become an
+            # organization constraint (it filtered out the only match).
+            possessor = _possessor_phrase(match.group(1))
+            if possessor:
+                if possessor.lower() in source_refs:
+                    continue  # cheap-NLU verdict: source, not attribute
+                _add_criteria_value(criteria, "organization", possessor)
+        for match in _POSSESSIVE_LABELLED_RE.finditer(value_text):
             _add_criteria_value(criteria, match.group(1), match.group(2).strip())
     return criteria
 
@@ -851,6 +1138,7 @@ def _disambiguation_criteria(
     query: str = "",
     context_texts: Optional[Sequence[str]] = None,
     explicit: Optional[Dict[str, Any]] = None,
+    source_reference_names: Optional[Sequence[str]] = None,
 ) -> Dict[str, List[str]]:
     criteria: Dict[str, List[str]] = {}
     explicit = explicit or {}
@@ -902,7 +1190,8 @@ def _disambiguation_criteria(
                 criteria, field_text, match.group(2).strip(" \"'")
             )
     for attribute, values in extract_natural_language_criteria(
-        [query or "", *(context_texts or [])]
+        [query or "", *(context_texts or [])],
+        source_reference_names=source_reference_names,
     ).items():
         for value in values:
             _add_criteria_value(criteria, attribute, value)
@@ -1493,6 +1782,23 @@ def inspect_workbook_bytes(
         })
 
     outcomes: List[Dict[str, Any]] = []
+    # RESOLVED-ROW BINDINGS (2026-09-29 completion pass): a user-asserted,
+    # read-verified binding on the task's disambiguation pins this item to
+    # its sheet!row — but ONLY at the same workbook revision
+    # (content_hash). A changed workbook expires the binding (the row
+    # number alone is not a durable identity); a binding whose row is
+    # absent from this revision's evidence is ignored (fall through to
+    # normal ambiguity — never a fabricated pin).
+    _bindings_by_item: Dict[str, Dict[str, Any]] = {}
+    try:
+        for b in (disambiguation or {}).get("resolved_bindings") or []:
+            if (isinstance(b, dict) and b.get("content_hash") == content_hash
+                    and b.get("item") and b.get("sheet") is not None
+                    and b.get("row") is not None):
+                _bindings_by_item[_canonical_item(str(b["item"]))] = b
+    except Exception:  # noqa: BLE001 — bindings are an optimization
+        _bindings_by_item = {}
+
     for target in requested:
         found = evidence[target]
         # Direct (exact-target) hits outrank alias hits; an alias lane is
@@ -1501,12 +1807,40 @@ def inspect_workbook_bytes(
         alias_hits = [e for e in found if e.get("matched_alias")]
         found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
+        _binding = _bindings_by_item.get(_canonical_item(target))
+        if _binding is not None and designations:
+            _pinned = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and e.get("row") == _binding["row"]
+            ]
+            if _pinned:
+                designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
+        # ELIMINATION vs RANKING (2026-10-01 live-e2e finding): criteria
+        # mined from HISTORY text ("note 3: filler turn…") once wiped
+        # EVERY designation — an item that matched 10 rows rendered 'no
+        # match in this copy' after a few off-topic turns. Text-mined
+        # criteria from history may RANK (corroboration below), but only
+        # criteria from THIS ask's own words — or explicit disambiguation
+        # containers — may eliminate; a query-only pass that matches
+        # nothing is treated as mining noise and keeps the designations.
         if designations and any(criteria.values()):
             constrained = [
                 item for item in designations
                 if _matches_disambiguation(item, criteria)
             ]
+            if not constrained:
+                _query_criteria = _disambiguation_criteria(
+                    query, [], disambiguation)
+                if any(_query_criteria.values()):
+                    constrained = [
+                        item for item in designations
+                        if _matches_disambiguation(item, _query_criteria)
+                    ]
+                else:
+                    constrained = list(designations)
             if constrained:
                 designations = constrained
             else:
@@ -1803,10 +2137,19 @@ def inspect_dataset_entries(
     ingested_at: Optional[str] = None,
     disambiguation: Optional[Dict[str, Any]] = None,
     attribute_texts: Optional[Sequence[str]] = None,
+    source_reference_names: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Build the same artifact from materialized sheet Parquet entries."""
     requested = extract_targets(query, context_texts, targets)
-    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    criteria = _disambiguation_criteria(
+        query, context_texts, disambiguation,
+        source_reference_names=source_reference_names)
+    # SHEET SCOPE (2026-09-30 'show me the tennsmith sheet' defect): an
+    # explicit sheet-name mention scopes the read to matching sheets.
+    _sheet_scope = _sheet_scope_from_text(
+        [query or "", *(context_texts or [])],
+        [str(e.get("entity_name") or e.get("sheet_name") or "")
+         for e in entries])
     alias_map = _left_drop_aliases(requested)
     # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
     # constraints may be mined from ANY text — user asks, assistant
@@ -2049,6 +2392,17 @@ def inspect_dataset_entries(
     absence_claimable = not read_failed_legs
 
     outcomes = []
+    _bindings_by_item: Dict[str, Dict[str, Any]] = {}
+    try:
+        for _b in (disambiguation or {}).get("resolved_bindings") or []:
+            if (isinstance(_b, dict)
+                    and _b.get("content_hash") == content_hash
+                    and _b.get("item") and _b.get("sheet") is not None
+                    and _b.get("row") is not None):
+                _bindings_by_item[_canonical_item(str(_b["item"]))] = _b
+    except Exception:  # noqa: BLE001 — bindings are an optimization
+        _bindings_by_item = {}
+
     for target in requested:
         found = evidence[target]
         # Direct (exact-target) hits outrank alias hits; an alias lane is
@@ -2057,12 +2411,51 @@ def inspect_dataset_entries(
         alias_hits = [e for e in found if e.get("matched_alias")]
         found = direct_hits or alias_hits
         designations = [e for e in found if e.get("designation")]
+        _binding = _bindings_by_item.get(_canonical_item(target))
+        if _binding is not None and designations:
+            _pinned = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and e.get("row") == _binding["row"]
+            ]
+            if _pinned:
+                designations = _pinned
         coincidences = [e for e in found if not e.get("designation")]
+
+        # SHEET SCOPE (see _sheet_scope_from_text): restrict designations
+        # to sheets the user explicitly named. If none of the matched
+        # designations sit on a named sheet, keep the unscoped set —
+        # never fabricate absence from a scope that matched nothing.
+        if _sheet_scope:
+            _scoped = [
+                e for e in designations
+                if str(e.get("sheet") or "").strip() in _sheet_scope]
+            if _scoped:
+                designations = _scoped
+        # ELIMINATION vs RANKING (2026-10-01 live-e2e finding): criteria
+        # mined from HISTORY text ("note 3: filler turn…") once wiped
+        # EVERY designation — an item that matched 10 rows rendered 'no
+        # match in this copy' after a few off-topic turns. Text-mined
+        # criteria from history may RANK (corroboration below), but only
+        # criteria from THIS ask's own words — or explicit disambiguation
+        # containers — may eliminate; a query-only pass that matches
+        # nothing is treated as mining noise and keeps the designations.
         if designations and any(criteria.values()):
             constrained = [
                 item for item in designations
                 if _matches_disambiguation(item, criteria)
             ]
+            if not constrained:
+                _query_criteria = _disambiguation_criteria(
+                    query, [], disambiguation)
+                if any(_query_criteria.values()):
+                    constrained = [
+                        item for item in designations
+                        if _matches_disambiguation(item, _query_criteria)
+                    ]
+                else:
+                    constrained = list(designations)
             if constrained:
                 designations = constrained
             else:
@@ -2264,6 +2657,16 @@ def inspect_dataset_entries(
             "field_selection": selection,
             "field_ambiguities": field_ambiguities,
         }
+        if (status == "found" and _binding is not None and designations
+                and str(designations[0].get("sheet") or "").strip().lower()
+                == str(_binding["sheet"]).strip().lower()
+                and designations[0].get("row") == _binding["row"]):
+            # BOUND BY THE USER'S OWN EARLIER ASSERTION: this row is not a
+            # guess — the reader told us "row 338 on the Tennsmith sheet"
+            # in an earlier turn and this read verified a bound candidate
+            # exactly there. Carried so the ANSWER can say so ("the row
+            # you confirmed") instead of re-opening a settled question.
+            outcome["bound_by"] = "user_assertion"
         if status == TARGET_UNAVAILABLE:
             outcome["error_category"] = _dominant_read_category(unreadable_categories)
             outcome["absence_claimable"] = False
