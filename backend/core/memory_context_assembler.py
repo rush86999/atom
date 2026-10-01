@@ -932,7 +932,15 @@ async def assemble_memory_context(
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
-            _safe(_lessons_leg(message, agent_id), "lessons"),
+            # TRAINING AVAILABILITY (2026-10-01 live finding): the
+            # lessons leg is one indexed JSON-column read — the
+            # employee's TRAINING — yet it shared the 1.5s per-leg
+            # budget with the heavy retrieval legs and timed out under
+            # load, so handoff turns ran lesson-less ('I found 0
+            # results'). Cheap leg, durable budget.
+            _safe(_lessons_leg(message, agent_id), "lessons",
+                  timeout=float(os.getenv(
+                      "ATOM_MEMORY_LESSONS_TIMEOUT", "5"))),
             _safe(_exchange_examples_leg(message, workspace_id), "exchange_examples"),
             _safe(_playbooks_leg(message, workspace_id, tenant_id,
                                  canvas_type=canvas_type), "playbooks"),

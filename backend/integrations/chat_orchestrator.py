@@ -5911,6 +5911,14 @@ class ChatOrchestrator:
                             authorized_actions=[],
                         )
                         return _tl_blocked_response
+                # NEW-TURN RESET of the one-fetch guard: a fresh user
+                # ask is a new operation instance — an earlier turn's
+                # refresh must not block this turn's re-fetch (observed
+                # live: compare asks kept answering 'couldn't verify'
+                # off a spent guard). The WITHIN-operation loop guard
+                # is untouched (set/check inside _verify_source_
+                # freshness).
+                _ask_task.pop("refresh_attempted", None)
                 _ask_result = await self._direct_confirmed_file_read(
                     _ask_task, history or [], user_id, session_id,
                     (context or {}).get("workspace_id"), _deadline,
@@ -6310,13 +6318,13 @@ class ChatOrchestrator:
                     # determinism where the platform has an answer,
                     # agency where only the business process does.
                     # FLAG-GATED (default OFF): the miss→narration
-                    # handoff drafted 2026-10-01 — narration owns miss
-                    # turns so trained lessons can speak — but later
-                    # evidence stages in the orchestrator currently
-                    # overwrite a handoff-set tool block (observed
-                    # live: the narrator told the 'lookup hasn't run'
-                    # story despite the read executing). Ships off
-                    # until that flow is threaded properly; the
+                    # handoff — narration owns miss turns so trained
+                    # lessons can speak. Evidence threading, assembly-
+                    # gate widening, and the lessons-budget fix all
+                    # landed 2026-10-01, but the last live check still
+                    # produced a weak reply under heavy load; it ships
+                    # OFF until verified end-to-end in a calm window
+                    # (ATOM_MISS_HANDOFF_NARRATION=1 to enable). The
                     # deterministic miss answer remains the default.
                     _ask_missed_any = (
                         os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
@@ -6327,6 +6335,7 @@ class ChatOrchestrator:
                             for t in ((_ask_structured or {})
                                       .get("targets") or [])))
                     _ask_miss_handoff = False
+                    _ask_handoff_block = None
                     if _ask_missed_any:
                         _ask_miss_handoff = True
                         _tool_block = (
@@ -6341,6 +6350,7 @@ class ChatOrchestrator:
                         _turn_structured_record = (
                             _ask_structured
                             if isinstance(_ask_structured, dict) else None)
+                        _ask_handoff_block = _tool_block
                         logger.info(
                             "[file-ask] read had misses — handing the "
                             "turn to narration with the evidence (the "
@@ -6863,6 +6873,7 @@ class ChatOrchestrator:
                                         authorized_actions=[],
                                     )
                                     return _tl_blocked_response
+                            _direct_task.pop("refresh_attempted", None)
                             _direct_result = await self._direct_confirmed_file_read(
                                 _direct_task,
                                 history,
@@ -10178,7 +10189,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Resolve agent identity for role-scoped recall
                 _agent_id = agent_id
 
-                if assembly_enabled() and not _file_scoped_request:
+                # (HANDOFF EXCEPTION, 2026-10-01: a file-scoped turn whose
+                # read MISSED now continues to narration so the trained
+                # employee can speak — skipping memory/lesson assembly
+                # there left the employee lesson-less ('I found 0
+                # results'). Assembly runs when the handoff fired.)
+                if assembly_enabled() and (
+                        not _file_scoped_request
+                        or locals().get("_ask_miss_handoff")):
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -11780,8 +11798,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # raw tool-call syntax instead of answering. User turns alone
             # give grounding without the refusal wall. They remain fully in
             # the DB/UI; only this turn's prompt changes.
+            # HANDOFF EVIDENCE RE-ASSERT (2026-10-01): the miss→narration
+            # handoff's evidence must survive the intermediate evidence
+            # stages above (they legitimately overwrite _tool_block for
+            # their own flows); restore it here, at the narration
+            # prompt's consumption point, so the trained employee reads
+            # the EXECUTED miss evidence — not a stale 'no lookup ran'
+            # story.
+            if _ask_miss_handoff and locals().get("_ask_handoff_block"):
+                _tool_block = _ask_handoff_block
             if _tool_block:
-                # RECENT USER REQUESTS, and the ASSISTANT TURNS THAT SUCCEEDED.
+                # RECENT USER REQUESTS, and THE ASSISTANT TURNS THAT SUCCEEDED.
                 #
                 # Two defects here, both RCA 2026-09-17 finding 1:
                 #
