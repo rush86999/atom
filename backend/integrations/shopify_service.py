@@ -719,7 +719,8 @@ class ShopifyService(IntegrationService):
                     order_id=parameters["order_id"],
                     location_id=parameters.get("location_id"),
                     tracking_number=parameters.get("tracking_number"),
-                    tracking_company=parameters.get("tracking_company")
+                    tracking_company=parameters.get("tracking_company"),
+                    notify_customer=parameters.get("notify_customer", True)
                 )
                 return {"success": True, "result": result}
             elif operation == "get_refunds":

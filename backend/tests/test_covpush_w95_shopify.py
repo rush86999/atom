@@ -635,7 +635,11 @@ class TestExecuteOperation:
         assert out["success"] is True
         svc.create_fulfillment.assert_awaited_once_with(
             "tok", "s", order_id="o1", location_id="l1",
-            tracking_number="T", tracking_company="U")
+            tracking_number="T", tracking_company="U", notify_customer=True)
+        await svc.execute_operation("create_fulfillment", {
+            "access_token": "tok", "shop": "s", "order_id": "o1",
+            "notify_customer": False})
+        assert svc.create_fulfillment.call_args.kwargs["notify_customer"] is False
 
     async def test_get_refunds_op(self):
         svc = _svc()

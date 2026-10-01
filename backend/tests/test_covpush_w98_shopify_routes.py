@@ -363,6 +363,16 @@ class TestFulfillments:
             params=_q({"location_id": "loc-1"}))
         assert response.status_code == 200
 
+    def test_create_notify_customer_opt_out(self, client):
+        sr.shopify_service.create_fulfillment.return_value = {"id": 9}
+        response = client.post(
+            "/api/shopify/fulfillments/10",
+            params=_q({"notify_customer": "false", "tracking_number": "TN2"}))
+        assert response.status_code == 200
+        kwargs = sr.shopify_service.create_fulfillment.call_args.kwargs
+        assert kwargs["notify_customer"] is False
+        assert kwargs["tracking_number"] == "TN2"
+
     def test_create_error_500(self, client):
         sr.shopify_service.create_fulfillment.side_effect = \
             RuntimeError("boom")

@@ -1451,6 +1451,11 @@ class TestAgentIntegrationGateway:
             {**base, "order_id": "o1", "location_id": "l1",
              "tracking_number": "tn", "tracking_company": "ups"})
         assert result["status"] == "success"
+        assert shopify.create_fulfillment.call_args.kwargs["notify_customer"] is True
+        await gateway.execute_action(
+            g.ActionType.SHOPIFY_CREATE_FULFILLMENT, "shopify",
+            {**base, "order_id": "o1", "notify_customer": False})
+        assert shopify.create_fulfillment.call_args.kwargs["notify_customer"] is False
         result = await gateway.execute_action(
             g.ActionType.SHOPIFY_MANAGE_INVENTORY, "shopify",
             {**base, "location_id": "l1"})
