@@ -5450,6 +5450,7 @@ class ChatOrchestrator:
                 # off or any error restores the resolver-only behavior.
                 _td_scope_hints: List[str] = []
                 _td_decision: Optional[Dict[str, Any]] = None
+                _teaching_cue_turn = False
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
@@ -5498,7 +5499,8 @@ class ChatOrchestrator:
                         logger.debug(
                             "turn-decision routing skipped: %r",
                             _tdr_err)
-                if not _ask_mention:
+                if not _ask_mention and not locals().get(
+                        "_teaching_cue_turn"):
                     # ANAPHORIC FILE REFERENCE (2026-09-29 row-338
                     # incident): "find this in the workbook" names no
                     # extension-ful filename; resolve it against the
@@ -5532,12 +5534,21 @@ class ChatOrchestrator:
                         if detect_teaching_cue(
                                 message or "") or detect_mid_message_cue(
                                 message or ""):
+                            # clear eligibility COMPLETELY — the anaphoric
+                            # fallback below would otherwise re-resolve
+                            # 'the workbook' from the stored identity and
+                            # re-enter the ask lane (observed live, T3:
+                            # the teaching turn still answered 'I found 0
+                            # results' through exactly that door).
                             _ask_mention = ""
+                            _teaching_cue_turn = True
                     except Exception:  # noqa: BLE001 — classification only
                         pass
                     from core.plan_relevance import _is_substantive_request
 
-                    _ask_direct = _is_substantive_request(message)
+                    _ask_direct = (
+                        _is_substantive_request(message)
+                        and not locals().get("_teaching_cue_turn"))
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
             if (
@@ -6439,7 +6450,25 @@ class ChatOrchestrator:
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
             if _pending_file_task:
-                if _OBJECTIVE_SYNTHESIS_RE.search(
+                # TEACHING DIRECTIVES SKIP THE RESUME LANE TOO (2026-10-01
+                # consistency-run T3, stored-task sessions): 'always
+                # include the tennsmith sheet…' was claimed here by the
+                # rerun classifier ('searches') and answered 'I found 0
+                # results' — the teaching channel must own it. Same
+                # exemption the ask gate and the canvas-edit gate have.
+                try:
+                    from core.chat_teaching import (
+                        detect_mid_message_cue,
+                        detect_teaching_cue,
+                    )
+
+                    if detect_teaching_cue(
+                            message or "") or detect_mid_message_cue(
+                            message or ""):
+                        _pending_file_task = None
+                except Exception:  # noqa: BLE001 — classification only
+                    pass
+                if _pending_file_task and _OBJECTIVE_SYNTHESIS_RE.search(
                     str(_pending_file_task.get("original_message") or "")
                 ):
                     _direct_result = {
@@ -9094,7 +9123,22 @@ class ChatOrchestrator:
                         "message": original,
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
-                        "disambiguation": pending_task.get("disambiguation"),
+                        # STALE-CRITERIA GUARD (2026-10-01 consistency
+                        # run T4): the stored task's disambiguation was
+                        # mined from THE TURN THAT STORED IT — its text
+                        # criteria ('roper whitney', brand words) rode
+                        # into LATER turns' reads and eliminated
+                        # candidates the new ask never constrained
+                        # (U-22's LINMAC row answered 'no match').
+                        # Only the DURABLE, revision-scoped part
+                        # crosses turns: resolved_bindings. Everything
+                        # else is turn-local and must be re-derived
+                        # from the current ask.
+                        "disambiguation": (
+                            {"resolved_bindings": _rb}
+                            if (_rb := (pending_task.get("disambiguation")
+                                        or {}).get("resolved_bindings"))
+                            else None),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
                         # Whether the targets were inherited from the
@@ -11826,7 +11870,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # prompt's consumption point, so the trained employee reads
             # the EXECUTED miss evidence — not a stale 'no lookup ran'
             # story.
-            if _ask_miss_handoff and locals().get("_ask_handoff_block"):
+            if locals().get("_ask_miss_handoff") and locals().get(
+                    "_ask_handoff_block"):
                 _tool_block = _ask_handoff_block
             if _tool_block:
                 # RECENT USER REQUESTS, and THE ASSISTANT TURNS THAT SUCCEEDED.
