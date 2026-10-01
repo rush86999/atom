@@ -6296,64 +6296,115 @@ class ChatOrchestrator:
                                 _ask_structured, dict) else None)
                     except Exception:
                         _ask_card = None
-                    _ask_response = {
+                    # TRAINED-AGENT HANDOFF ON MISSES (2026-10-01,
+                    # owner policy-is-training correction): a read with
+                    # MISSES is not a dead end the platform answers
+                    # alone — the escalation is TAUGHT knowledge in the
+                    # agent's learning log, consulted only by narration.
+                    # Durable read bookkeeping above stands; the turn
+                    # continues to narration with the honest evidence
+                    # attached, where the trained agent applies its
+                    # lesson (attachment check via datasets value_trace,
+                    # then the two options with the business specifics).
+                    # Reads with values still return directly —
+                    # determinism where the platform has an answer,
+                    # agency where only the business process does.
+                    # FLAG-GATED (default OFF): the miss→narration
+                    # handoff drafted 2026-10-01 — narration owns miss
+                    # turns so trained lessons can speak — but later
+                    # evidence stages in the orchestrator currently
+                    # overwrite a handoff-set tool block (observed
+                    # live: the narrator told the 'lookup hasn't run'
+                    # story despite the read executing). Ships off
+                    # until that flow is threaded properly; the
+                    # deterministic miss answer remains the default.
+                    _ask_missed_any = (
+                        os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
+                        .lower() in ("1", "true", "on")
+                        and any(
+                            ((t or {}).get("identity") or {}).get("status")
+                            == "none"
+                            for t in ((_ask_structured or {})
+                                      .get("targets") or [])))
+                    _ask_miss_handoff = False
+                    if _ask_missed_any:
+                        _ask_miss_handoff = True
+                        _tool_block = (
+                            str(_ask_result.get("block")
+                                or _ask_result.get("rendered_answer")
+                                or _ask_content))
+                        # EXECUTED-EVIDENCE FLAGS for the narrator: the
+                        # read RAN (misses are results, not absence of a
+                        # lookup) — without these the narration guard
+                        # tells the honest-but-wrong 'lookup hasn't run'
+                        # story instead of narrating the miss evidence.
+                        _turn_structured_record = (
+                            _ask_structured
+                            if isinstance(_ask_structured, dict) else None)
+                        logger.info(
+                            "[file-ask] read had misses — handing the "
+                            "turn to narration with the evidence (the "
+                            "escalation is trained knowledge)")
+                    else:
+                        _ask_response = {
                         "success": True,
                         "message": _ask_content,
-                        "session_id": session_id,
-                        "execution_id": _execution_id,
-                        "intent": "search",
-                        "confidence": 0.9,
-                        "data": {
-                            "workbook_result": _ask_card,
-                            "deterministic_delivery": True,
-                            "file_identity": _ask_identity,
-                            "coverage_complete": _ask_complete,
-                            "resumable": not _ask_complete,
-                            "freshness": _ask_freshness.get("status") or None,
-                            "presentation_action": _ask_action_summary,
-                            "task_run_id": session.get("_task_run_id"),
-                            "task_operation": _tl_operation_ref,
-                            "reconciliation_required": _tl_outcome_uncertain,
-                        },
-                        "model": "deterministic",
-                        "provider": "structured",
-                        "requires_confirmation": False,
-                        "next_steps": [],
-                        "suggested_actions": (_ask_options or []),
-                    }
-                    self._update_session(
-                        session, message, _ask_response,
-                        {"primary_intent": "search", "confidence": 0.9})
-                    # Isolated fault injection (env + marker gated): fail
-                    # AFTER the provisional delivery persists, so the
-                    # failure path is provable against captured pre/post.
-                    _maybe_force_turn_failure(
-                        session, _execution_id, _ask_content, message,
-                        context)
-                    if _ask_complete:
-                        _ask_result_row["status"] = "delivered"
-                        _ask_result_row["delivered_at"] = time.time()
-                    _ask_terminal_status = (
-                        "success" if _ask_complete else "partial"
-                    )
-                    await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id,
-                        _ask_terminal_status)
-                    self._finish_chat_execution(
-                        _execution_id,
-                        _ask_terminal_status,
-                        _ask_content,
-                        session=session,
-                        message=message,
-                        response=_ask_response,
-                        deadline=_deadline,
-                        pending_task=session.get("_pending_file_task"),
-                        authorized_actions=["read"],
-                    )
-                    logger.info(
-                        "[file-ask] spreadsheet ask answered directly by "
-                        "the file-scoped reader (no narration path)")
-                    return _ask_response
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "search",
+                            "confidence": 0.9,
+                            "data": {
+                                "workbook_result": _ask_card,
+                                "deterministic_delivery": True,
+                                "file_identity": _ask_identity,
+                                "coverage_complete": _ask_complete,
+                                "resumable": not _ask_complete,
+                                "freshness": _ask_freshness.get("status") or None,
+                                "presentation_action": _ask_action_summary,
+                                "task_run_id": session.get("_task_run_id"),
+                                "task_operation": _tl_operation_ref,
+                                "reconciliation_required": _tl_outcome_uncertain,
+                            },
+                            "model": "deterministic",
+                            "provider": "structured",
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": (_ask_options or []),
+                        }
+                        self._update_session(
+                            session, message, _ask_response,
+                            {"primary_intent": "search", "confidence": 0.9})
+                        # Isolated fault injection (env + marker gated): fail
+                        # AFTER the provisional delivery persists, so the
+                        # failure path is provable against captured pre/post.
+                        _maybe_force_turn_failure(
+                            session, _execution_id, _ask_content, message,
+                            context)
+                        if _ask_complete:
+                            _ask_result_row["status"] = "delivered"
+                            _ask_result_row["delivered_at"] = time.time()
+                        _ask_terminal_status = (
+                            "success" if _ask_complete else "partial"
+                        )
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            _ask_terminal_status)
+                        self._finish_chat_execution(
+                            _execution_id,
+                            _ask_terminal_status,
+                            _ask_content,
+                            session=session,
+                            message=message,
+                            response=_ask_response,
+                            deadline=_deadline,
+                            pending_task=session.get("_pending_file_task"),
+                            authorized_actions=["read"],
+                        )
+                        logger.info(
+                            "[file-ask] spreadsheet ask answered "
+                            "directly by the file-scoped reader (no "
+                            "narration path)")
+                        return _ask_response
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
             if _pending_file_task:
@@ -10443,12 +10494,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _requested_targets = _task_targets
             except Exception:
                 _requested_targets = []
-            _live_file_lookup_ran = False
+            _live_file_lookup_ran = bool(
+                locals().get("_ask_miss_handoff"))
             # Pending-file-task lifecycle state (2026-09-23 review, gap 3):
             # attempted != completed — a lookup that ran but missed/failed
             # keeps the task pending; identity is retained separately from
             # completion so a retry reuses the resolved resource.
-            _file_lookup_attempted = False
+            _file_lookup_attempted = bool(
+                locals().get("_ask_miss_handoff"))
             _resolved_file_identity: Optional[Dict[str, Any]] = None
             # Timer for the "[stage-timing] reply generation" log. The plan
             # branch re-anchors it; the prefetched path (blackboard reuse)
