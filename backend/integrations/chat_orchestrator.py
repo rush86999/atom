@@ -5997,6 +5997,7 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
+                    _ask_options = None
                     # COMPARISON PLANNING (2026-09-30 'check the other
                     # machinery … verify if any pricing needs updating'
                     # directive): a verification turn is NOT an ordinary
@@ -6067,6 +6068,44 @@ class ChatOrchestrator:
                         _ask_content = (
                             _ask_content
                             + str(_ask_freshness["note"]))
+                    # VALUE-PROVENANCE TRACE + TYPED DECISION (2026-10-01
+                    # owner policy): a value the read cannot derive is not
+                    # 'unsourced' until the OTHER cataloged documents
+                    # (attachments, worksheets) have been checked — manual
+                    # calculations live there. Body-only values then get
+                    # the two-option choice as clickable actions; the
+                    # business specifics (who to ask, which components)
+                    # stay in taught knowledge, never here.
+                    try:
+                        if isinstance(_ask_structured, dict):
+                            from core.value_provenance import (
+                                decision_options as _vp_options,
+                                provenance_lines as _vp_lines,
+                                trace_items_across_catalog as _vp_trace,
+                            )
+
+                            _vp_items = list(
+                                (_ask_structured.get("requested_items")
+                                 or [])[:8])
+                            if _vp_items:
+                                _vp_res = await asyncio.to_thread(
+                                    _vp_trace, _vp_items,
+                                    exclude_file=(_ask_identity or {}).get(
+                                        "file_name"),
+                                    user_id=user_id,
+                                    workspace_id=(context or {}).get(
+                                        "workspace_id"))
+                                _vp_out = _vp_lines(_vp_res)
+                                if _vp_out:
+                                    _ask_content += "\n\n" + "\n".join(
+                                        _vp_out)
+                                    _ask_core += "\n\n" + "\n".join(
+                                        _vp_out)
+                                if any(not v for v in _vp_res.values()):
+                                    _ask_options = _vp_options()
+                    except Exception as _vp_err:  # noqa: BLE001 — optional
+                        logger.debug(
+                            "value-provenance trace skipped: %r", _vp_err)
                     # RETRY DELTA (2026-09-30): a re-run against the SAME
                     # file revision answering the SAME items found what
                     # the last search found — saying so in one line is the
@@ -6312,7 +6351,7 @@ class ChatOrchestrator:
                         "provider": "structured",
                         "requires_confirmation": False,
                         "next_steps": [],
-                        "suggested_actions": [],
+                        "suggested_actions": (_ask_options or []),
                     }
                     self._update_session(
                         session, message, _ask_response,
@@ -6972,6 +7011,37 @@ class ChatOrchestrator:
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
+                    # VALUE-PROVENANCE TRACE + TYPED DECISION (same
+                    # policy as the ask lane — see the block there).
+                    _direct_options = None
+                    try:
+                        if isinstance(_direct_structured, dict):
+                            from core.value_provenance import (
+                                decision_options as _vp_options,
+                                provenance_lines as _vp_lines,
+                                trace_items_across_catalog as _vp_trace,
+                            )
+
+                            _vp_items = list(
+                                (_direct_structured.get("requested_items")
+                                 or [])[:8])
+                            if _vp_items:
+                                _vp_res = await asyncio.to_thread(
+                                    _vp_trace, _vp_items,
+                                    exclude_file=(_direct_identity
+                                                  or {}).get("file_name"),
+                                    user_id=user_id,
+                                    workspace_id=(context or {}).get(
+                                        "workspace_id"))
+                                _vp_out = _vp_lines(_vp_res)
+                                if _vp_out:
+                                    _direct_content += "\n\n" + "\n".join(
+                                        _vp_out)
+                                if any(not v for v in _vp_res.values()):
+                                    _direct_options = _vp_options()
+                    except Exception as _vp_err:  # noqa: BLE001 — optional
+                        logger.debug(
+                            "value-provenance trace skipped: %r", _vp_err)
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         _direct_identity = {
@@ -7156,7 +7226,7 @@ class ChatOrchestrator:
                         "provider": "structured",
                         "requires_confirmation": False,
                         "next_steps": [],
-                        "suggested_actions": [],
+                        "suggested_actions": (_direct_options or []),
                     }
                     self._update_session(
                         session,
