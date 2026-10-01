@@ -229,7 +229,7 @@ _SERVICE_DESCRIPTIONS = {
     # routed to documents.grep, which found nothing — the workbook's rows
     # live HERE; the planner had no signal that filename asks route to
     # datasets).
-    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns",
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -1273,6 +1273,11 @@ async def plan_tool_use(
         if plan.service == "datasets":
             allowed_intents.add("ask")  # NL→SQL over allowlisted app tables
             allowed_intents.add("find_all")  # Excel-style Find All over cells
+            # which OTHER cataloged documents carry given item codes —
+            # the attachment-derivation capability the trained agent
+            # uses for the not-found escalation policy (the POLICY is a
+            # taught lesson; this is only the tool)
+            allowed_intents.add("value_trace")
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -8380,6 +8385,50 @@ async def execute_tool_plan(
                 )
             except Exception as ask_err:  # noqa: BLE001 — fall through
                 logger.warning(f"datasets.ask failed: {ask_err}")
+        if (plan.intent or "search") == "value_trace":
+            # Which OTHER cataloged documents carry these item codes?
+            # The attachment-derivation CAPABILITY (2026-10-01): pure
+            # evidence — the escalation policy around it is taught
+            # business knowledge, never this code.
+            try:
+                import re as _vt_re
+
+                from core.value_provenance import (
+                    provenance_lines as _vt_lines,
+                    trace_items_across_catalog as _vt_trace,
+                )
+
+                _vt_query = " ".join((plan.query or "").split())
+                _vt_exclude = None
+                _vt_m = _vt_re.search(
+                    r"\b(?:excluding|except|besides)\s+([^,;]+?"
+                    r"\.(?:xlsx|xls|csv|tsv))\b", _vt_query,
+                    _vt_re.IGNORECASE)
+                if _vt_m:
+                    _vt_exclude = _vt_m.group(1).strip()
+                _vt_items = [
+                    t.strip(" ,;'") for t in _vt_re.split(
+                        r"[,;/]|\band\b", _vt_query)
+                    if t.strip(" ,;'")]
+                _vt_items = [t for t in _vt_items if t and not t.lower(
+                ).startswith(("excluding", "except"))][:8]
+                if _vt_items:
+                    _vt_res = await asyncio.to_thread(
+                        _vt_trace, _vt_items,
+                        exclude_file=_vt_exclude,
+                        user_id=(context or {}).get("user_id") or user_id,
+                        workspace_id=(context or {}).get("workspace_id"))
+                    _vt_out = _vt_lines(_vt_res)
+                    if _vt_out:
+                        return _with_grounding(
+                            "LIVE TOOL RESULTS (datasets.value_trace) — "
+                            "which other cataloged documents carry the "
+                            "requested items:\n" + "\n".join(_vt_out)
+                            + "\nPresent these as evidence; a value no "
+                              "document carries is body-only (its quoted "
+                              "figure is the only source found).")
+            except Exception as _vt_err:  # noqa: BLE001 — tool optional
+                logger.warning("datasets.value_trace failed: %r", _vt_err)
         if (plan.intent or "search") == "find_all":
             # Excel-style Find All: every cell containing the value, across
             # the whole catalog or one named workbook. Query shape is the
