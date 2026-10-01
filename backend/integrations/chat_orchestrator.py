@@ -6068,44 +6068,24 @@ class ChatOrchestrator:
                         _ask_content = (
                             _ask_content
                             + str(_ask_freshness["note"]))
-                    # VALUE-PROVENANCE TRACE + TYPED DECISION (2026-10-01
-                    # owner policy): a value the read cannot derive is not
-                    # 'unsourced' until the OTHER cataloged documents
-                    # (attachments, worksheets) have been checked — manual
-                    # calculations live there. Body-only values then get
-                    # the two-option choice as clickable actions; the
-                    # business specifics (who to ask, which components)
-                    # stay in taught knowledge, never here.
-                    try:
-                        if isinstance(_ask_structured, dict):
-                            from core.value_provenance import (
-                                decision_options as _vp_options,
-                                provenance_lines as _vp_lines,
-                                trace_items_across_catalog as _vp_trace,
-                            )
-
-                            _vp_items = list(
-                                (_ask_structured.get("requested_items")
-                                 or [])[:8])
-                            if _vp_items:
-                                _vp_res = await asyncio.to_thread(
-                                    _vp_trace, _vp_items,
-                                    exclude_file=(_ask_identity or {}).get(
-                                        "file_name"),
-                                    user_id=user_id,
-                                    workspace_id=(context or {}).get(
-                                        "workspace_id"))
-                                _vp_out = _vp_lines(_vp_res)
-                                if _vp_out:
-                                    _ask_content += "\n\n" + "\n".join(
-                                        _vp_out)
-                                    _ask_core += "\n\n" + "\n".join(
-                                        _vp_out)
-                                if any(not v for v in _vp_res.values()):
-                                    _ask_options = _vp_options()
-                    except Exception as _vp_err:  # noqa: BLE001 — optional
-                        logger.debug(
-                            "value-provenance trace skipped: %r", _vp_err)
+                    # NOT-FOUND POLICY (2026-10-01 owner teaching): fires
+                    # on read MISSES (prices not found in the price list —
+                    # the policy's original context) and on comparison
+                    # verdicts alike: trace every OTHER cataloged document
+                    # for the derivation; body-only values get the typed
+                    # two-option choice as clickable actions.
+                    _vp_missed = self._read_miss_items(_ask_structured)
+                    _vp_lines_out, _vp_opts = await self._not_found_policy(
+                        _ask_structured,
+                        _ask_result.get("identity") or {},
+                        user_id,
+                        (context or {}).get("workspace_id"),
+                        only_items=(_vp_missed or None))
+                    if _vp_lines_out:
+                        _ask_content += "\n\n" + "\n".join(_vp_lines_out)
+                        _ask_core += "\n\n" + "\n".join(_vp_lines_out)
+                    if _vp_opts:
+                        _ask_options = _vp_opts
                     # RETRY DELTA (2026-09-30): a re-run against the SAME
                     # file revision answering the SAME items found what
                     # the last search found — saying so in one line is the
@@ -7011,37 +6991,21 @@ class ChatOrchestrator:
                     if _freshness.get("note"):
                         _direct_content = (
                             _direct_content + str(_freshness["note"]))
-                    # VALUE-PROVENANCE TRACE + TYPED DECISION (same
-                    # policy as the ask lane — see the block there).
+                    # NOT-FOUND POLICY (same shared seam as the ask
+                    # lane — misses and comparisons alike).
                     _direct_options = None
-                    try:
-                        if isinstance(_direct_structured, dict):
-                            from core.value_provenance import (
-                                decision_options as _vp_options,
-                                provenance_lines as _vp_lines,
-                                trace_items_across_catalog as _vp_trace,
-                            )
-
-                            _vp_items = list(
-                                (_direct_structured.get("requested_items")
-                                 or [])[:8])
-                            if _vp_items:
-                                _vp_res = await asyncio.to_thread(
-                                    _vp_trace, _vp_items,
-                                    exclude_file=(_direct_identity
-                                                  or {}).get("file_name"),
-                                    user_id=user_id,
-                                    workspace_id=(context or {}).get(
-                                        "workspace_id"))
-                                _vp_out = _vp_lines(_vp_res)
-                                if _vp_out:
-                                    _direct_content += "\n\n" + "\n".join(
-                                        _vp_out)
-                                if any(not v for v in _vp_res.values()):
-                                    _direct_options = _vp_options()
-                    except Exception as _vp_err:  # noqa: BLE001 — optional
-                        logger.debug(
-                            "value-provenance trace skipped: %r", _vp_err)
+                    _vp_missed_d = self._read_miss_items(_direct_structured)
+                    _vp_lines_d, _vp_opts_d = await self._not_found_policy(
+                        _direct_structured,
+                        _direct_result.get("identity") or {},
+                        user_id,
+                        (context or {}).get("workspace_id"),
+                        only_items=(_vp_missed_d or None))
+                    if _vp_lines_d:
+                        _direct_content += "\n\n" + "\n".join(
+                            _vp_lines_d)
+                    if _vp_opts_d:
+                        _direct_options = _vp_opts_d
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         _direct_identity = {
@@ -9186,6 +9150,75 @@ class ChatOrchestrator:
                 history=history,
             )
         return result
+
+
+    async def _not_found_policy(
+        self,
+        structured: Optional[Dict[str, Any]],
+        identity: Optional[Dict[str, Any]],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        *,
+        only_items: Optional[List[str]] = None,
+    ) -> "tuple[List[str], Optional[List[Dict[str, str]]]]":
+        """The owner's not-found policy, as one shared seam (2026-10-01).
+
+        Triggered BOTH by read MISSES (prices not found in the price
+        list — the policy's original context) and by comparison
+        verdicts: values the workbook cannot source are first traced
+        across every OTHER cataloged document (manual calculations
+        typically live in email attachments); items no document carries
+        are body-only, and the decision becomes the typed two-option
+        choice (use as-is / rebuild from components). Business
+        specifics — who to ask for which components, the margin rule —
+        stay in taught knowledge and are applied when the user picks a
+        path, never encoded here.
+        """
+        if not isinstance(structured, dict):
+            return [], None
+        if only_items is None:
+            only_items = list(
+                structured.get("requested_items") or [])
+        items = [str(i).strip() for i in (only_items or [])
+                 if str(i).strip()]
+        if not items:
+            return [], None
+        try:
+            from core.value_provenance import (
+                decision_options as _vp_options,
+                provenance_lines as _vp_lines,
+                trace_items_across_catalog as _vp_trace,
+            )
+
+            trace = await asyncio.to_thread(
+                _vp_trace, items[:8],
+                exclude_file=(identity or {}).get("file_name"),
+                user_id=user_id, workspace_id=workspace_id)
+            lines = _vp_lines(trace)
+            options = (_vp_options()
+                       if any(not v for v in trace.values()) else None)
+            return lines, options
+        except Exception as exc:  # noqa: BLE001 — policy is additive
+            logger.debug("not-found policy skipped: %r", exc)
+            return [], None
+
+    @staticmethod
+    def _read_miss_items(structured: Optional[Dict[str, Any]]) -> List[str]:
+        """Items a completed read could NOT find in the workbook — the
+        policy's trigger set ('prices that weren't found in the price
+        list')."""
+        if not isinstance(structured, dict):
+            return []
+        missed: List[str] = []
+        for target in structured.get("targets") or []:
+            if not isinstance(target, dict):
+                continue
+            status = ((target.get("identity") or {}).get("status"))
+            if status == "none":
+                item = str(target.get("item") or "").strip()
+                if item:
+                    missed.append(item)
+        return missed
 
     async def _verify_source_freshness(
         self,

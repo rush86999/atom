@@ -87,9 +87,51 @@ class TestDecisionOptions:
         import integrations.chat_orchestrator as orch
 
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
-        assert src.count("value_provenance import") >= 2
-        assert "suggested_actions\": (_ask_options or [])" in src.replace(
-            '"suggested_actions": (_ask_options or [])',
-            'suggested_actions": (_ask_options or [])') or \
-            "(_ask_options or [])" in src
+        # the helper carries the policy once; both lanes call it
+        helper = inspect.getsource(orch.ChatOrchestrator._not_found_policy)
+        assert "value_provenance import" in helper
+        assert src.count("await self._not_found_policy(") >= 2
+        assert "(_ask_options or [])" in src
         assert "(_direct_options or [])" in src
+
+
+# Miss-trigger (2026-10-01 owner clarification): the policy's original
+# context is 'prices that weren't found in the price list' — plain READ
+# misses fire it, not just comparison turns.
+
+class TestMissTrigger:
+    def test_read_miss_items_detected_from_targets(self):
+        import integrations.chat_orchestrator as orch
+
+        structured = {
+            "requested_items": ["A-1", "B-2"],
+            "targets": [
+                {"item": "A-1", "identity": {"status": "single"}},
+                {"item": "B-2", "identity": {"status": "none"}},
+            ],
+        }
+        assert orch.ChatOrchestrator._read_miss_items(structured) == ["B-2"]
+        assert orch.ChatOrchestrator._read_miss_items(None) == []
+
+    def test_both_lanes_trigger_on_misses(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert src.count("_read_miss_items(") >= 2
+        assert src.count("await self._not_found_policy(") >= 2
+        # the helper carries the policy once, shared
+        helper = inspect.getsource(orch.ChatOrchestrator._not_found_policy)
+        assert "trace_items_across_catalog" in helper
+        assert "decision_options" in helper
+
+    def test_policy_helper_semantics_no_items_no_output(self):
+        import asyncio
+
+        import integrations.chat_orchestrator as orch
+
+        o = object.__new__(orch.ChatOrchestrator)
+        lines, opts = asyncio.run(
+            o._not_found_policy({"requested_items": []}, None, None, None))
+        assert lines == [] and opts is None
