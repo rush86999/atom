@@ -648,6 +648,58 @@ async def oauth_callback(
 # Management Endpoints
 # ============================================================================
 
+# Grace past the token's recorded expiry before the grant is called dead:
+# TokenRefreshWorker refreshes suite rows every 300s inside a 600s
+# pre-expiry window, and the WorkDrive service refreshes its own row on
+# demand — so a healthy grant is never more than a few minutes past
+# expiry. 15 min covers several failed worker cycles without ever
+# flagging a grant that is merely between refreshes.
+_ZOHO_GRANT_EXPIRY_GRACE_SECONDS = 15 * 60
+
+
+def _zoho_grant_health(db) -> Optional[Dict[str, Any]]:
+    """Live health of the shared Zoho OAuth grant from integration_tokens.
+
+    The legacy OAuthToken row only records that a connect once happened
+    (is_active flips only on explicit disconnect), so the integrations UI
+    badge stayed green for weeks while the provider refused every refresh
+    (live 2026-10-02: access_token_expires_at read 2026-09-05). The
+    integration_tokens family rows are the live state — the suite rows are
+    refreshed ahead of expiry by workers.token_refresh_worker and the
+    WorkDrive row by its own service — and they share one grant: if ANY
+    row is fresh the grant works; if EVERY row is expired past the grace
+    window the grant is dead and the user must reconnect.
+
+    Returns None when no zoho-family integration rows exist (connected but
+    never synced — the legacy flag is all there is), else
+    {"status": "active"|"expired", "expires_at": iso-or-None}.
+    """
+    try:
+        from core.models import IntegrationToken
+
+        rows = db.query(IntegrationToken).filter(
+            IntegrationToken.provider.like("zoho%"),
+            IntegrationToken.status == "active",
+        ).all()
+        if not rows:
+            return None
+        newest = None
+        for row in rows:
+            exp = row.expires_at
+            if exp and exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp and (newest is None or exp > newest):
+                newest = exp
+        if newest is None:
+            return None
+        dead = newest + timedelta(seconds=_ZOHO_GRANT_EXPIRY_GRACE_SECONDS) <= datetime.now(timezone.utc)
+        return {
+            "status": "expired" if dead else "active",
+            "expires_at": newest.isoformat(),
+        }
+    except Exception:  # noqa: BLE001 — health enrichment must never 500 the list
+        return None
+
 @router.get("/tokens")
 async def list_oauth_tokens(
     request: Request,
@@ -668,13 +720,29 @@ async def list_oauth_tokens(
         query = query.filter(OAuthToken.client_id == f"{provider}_client")
 
     tokens = query.all()
+    # One shared Zoho grant backs the whole suite; compute its live health
+    # once (the legacy rows below cannot express "provider refuses").
+    zoho_health = _zoho_grant_health(db)
     return {
         "integrations": [
             {
                 # client_id is stored as "{provider}_client" at callback time.
                 "provider": t.client_id[:-len("_client")] if t.client_id and t.client_id.endswith("_client") else t.client_id,
-                "status": "active" if t.is_active else "revoked",
-                "expires_at": t.access_token_expires_at.isoformat() if t.access_token_expires_at else None,
+                # Zoho: the legacy is_active flag says "connected once and
+                # never disconnected" — it stayed green while every provider
+                # call failed. Override with the live grant health when the
+                # integration rows exist; "expired" keeps the connect button
+                # honest instead of silently claiming Connected.
+                "status": (
+                    (zoho_health or {}).get("status")
+                    if (t.is_active and t.client_id and t.client_id.startswith("zoho"))
+                    else ("active" if t.is_active else "revoked")
+                ),
+                "expires_at": (
+                    (zoho_health or {}).get("expires_at")
+                    if (t.is_active and t.client_id and t.client_id.startswith("zoho") and zoho_health)
+                    else (t.access_token_expires_at.isoformat() if t.access_token_expires_at else None)
+                ),
                 "last_used": t.last_used_at.isoformat() if t.last_used_at else None,
                 # Consent grant scope — lets the UI detect missing permissions
                 # (e.g. Mail.Send added to the request after the token was

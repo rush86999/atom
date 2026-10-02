@@ -451,7 +451,20 @@ class ZohoWorkDriveService(IntegrationService):
                         me_attrs = me_res.json().get("data", {}).get("attributes", {})
                         tid = me_attrs.get("preferred_team_id")
                         if tid:
-                            teams_to_query = [{"id": tid}]
+                            # last_viewed_org_info carries the org's DISPLAY
+                            # NAME (verified live 2026-10-02: org_name
+                            # "Brennan Machinery Inc." for org_id
+                            # 5fx4k0dfb…). Without it the synthesized team
+                            # dict has no attributes and t_name falls back to
+                            # the raw team id — every team folder then showed
+                            # the identical 34-char id under its name in the
+                            # integrations UI.
+                            org_info = me_attrs.get("last_viewed_org_info") or {}
+                            org_name = org_info.get("org_name") if isinstance(org_info, dict) else None
+                            teams_to_query = [{
+                                "id": tid,
+                                "attributes": {"name": org_name} if org_name else {},
+                            }]
                             logger.debug("Fell back to preferred_team_id %s from /users/me", tid)
 
             all_folders = []

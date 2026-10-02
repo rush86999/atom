@@ -72,6 +72,11 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
   }, []);
 
   const connected = tokenInfo?.status === "active";
+  // "expired": a grant that once connected but whose refresh the provider
+  // now refuses (all live token rows expired past grace). The green badge
+  // used to stay on in this state — it read a local "never disconnected"
+  // flag — so the page claimed Connected while every API call failed.
+  const expired = tokenInfo?.status === "expired";
 
   // Browser navigation cannot send the Authorization header, and the unified
   // initiate route fails closed without a valid JWT (header, cookie, or
@@ -110,6 +115,15 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
             className="mb-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
           >
             ● Connected
+          </span>
+        )}
+        {checked && expired && (
+          <span
+            data-testid="zoho-expired-badge"
+            title="The connection exists but Zoho is refusing its token refresh — reconnect to restore access."
+            className="mb-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+          >
+            ● Session expired — reconnect
           </span>
         )}
       </div>
