@@ -398,28 +398,37 @@ def _rank_candidates(
     candidates: List[Dict[str, Any]],
     requested_fields: Optional[Sequence[str]] = None,
     requested_sheets: Optional[Sequence[str]] = None,
+    item: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Stable partition: answerable candidates first, then sheet scope, then
-    scan order.
+    """Stable partition: answerable candidates first, then sheet scope,
+    then identity fidelity, then scan order.
 
-    Two precedence axes, in this order:
+    Three precedence axes, in this order:
 
     1. ANSWERABILITY. A candidate whose requested value is a real figure
        leads; blank/zero/unavailable cannot answer however well its identity
        matches.
     2. SHEET SCOPE. Within each of those buckets, a candidate on a sheet the
        reader named leads.
+    3. IDENTITY FIDELITY (2026-10-02, the comma-form ordering defect):
+       within each scope bucket, a candidate whose MATCHED IDENTITY CELL
+       equals the requested item (comma-normalized — the sheet displays
+       "56,100" while the item is 56100) leads over fragment/containment
+       matches ("56", "100" matched inside other text). Fidelity is a
+       DISPLAY order only: nothing is eliminated, ambiguity is still
+       reported, and the confirmation ask still stands.
 
     The axis order is deliberate: answerability decides what can REPLY, so it
     outranks a positional preference. Scope then decides what the reader gets
-    to SEE among rows that can all reply.
+    to SEE among rows that can all reply. Fidelity then puts the row the
+    user's own tokens spell out first among equals.
 
     Stable by construction (one pass per axis, no sort key), so candidates
-    that are equally answerable and equally in-scope keep the reader's order
-    and no existing rendering changes. Neither axis ELIMINATES: every input
-    candidate is still returned, so ambiguity is still reported, the
-    confirmation ask still stands, and the structured artifact still retains
-    the full set.
+    that are equally answerable, equally in-scope and equally faithful keep
+    the reader's order and no existing rendering changes. No axis
+    ELIMINATES: every input candidate is still returned, so ambiguity is
+    still reported, the confirmation ask still stands, and the structured
+    artifact still retains the full set.
     """
     scoped_keys = {_sheet_scope_key(s) for s in (requested_sheets or [])}
     scoped_keys.discard("")
@@ -433,12 +442,35 @@ def _rank_candidates(
                 if _sheet_scope_key(_candidate_sheet(c)) not in scoped_keys]
         return named + rest
 
+    _want = str(item or "").strip().lower().replace(",", "")
+    _want = _want.replace("\u202f", "").replace("\xa0", "")
+
+    def _fidelity_first(bucket: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not _want or not bucket:
+            return bucket
+        exact: List[Dict[str, Any]] = []
+        rest: List[Dict[str, Any]] = []
+        for c in bucket:
+            refs = ((c.get("identity") or {}).get("references") or [])
+            cell_values = [
+                str((r or {}).get("value") or "")
+                .strip().lower().replace(",", "")
+                .replace("\u202f", "").replace("\xa0", "")
+                for r in refs
+                if isinstance(r, dict)
+                and str((r or {}).get("role") or "") == "matched_target"]
+            (exact if _want in cell_values else rest).append(c)
+        return exact + rest
+
     answering: List[Dict[str, Any]] = []
     silent: List[Dict[str, Any]] = []
     for candidate in candidates:
         (answering if _candidate_answers_request(candidate, requested_fields)
          else silent).append(candidate)
-    return _scope_first(answering) + _scope_first(silent)
+    return (
+        _fidelity_first(_scope_first(answering))
+        + _fidelity_first(_scope_first(silent))
+    )
 
 
 def _read_failure_clause(t: Dict[str, Any]) -> Optional[str]:
@@ -1359,7 +1391,7 @@ def _rank_candidates_with_receipt(
         return ranked, receipt
     except Exception:  # noqa: BLE001 — fail-open to identical direct ranking
         return _rank_candidates(candidate_list, requested_fields,
-                                requested_sheets), None
+                                requested_sheets, item=item), None
 
 
 def build_targets_from_scan(

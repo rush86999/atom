@@ -847,7 +847,8 @@ def execute_program(program: ActionProgram,
                 base.update({"status": STATUS_SKIPPED_NO_CANDIDATES,
                              "resolved_sheets": resolved})
             else:
-                ranked = _rank_candidates(source, fields, resolved)
+                ranked = _rank_candidates(source, fields, resolved,
+                                          item=action.item)
                 scope_keys = {_sheet_scope_key(s) for s in resolved}
                 in_scope = [c for c in ranked
                             if _sheet_scope_key(_candidate_sheet(c))

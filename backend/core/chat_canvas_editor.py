@@ -266,6 +266,28 @@ the authority, NOT your memory of earlier drafts:
   fields its UI renders). For object content set "field" to one of THOSE
   keys; the op applies inside that field only, and the other keys stay
   untouched.
+- REFERENTIAL VALUES (2026-10-02 live, the 'update the prices that were
+  found in the email' turn): when the request references values by their
+  SOURCE instead of naming them ('the prices found in the email', 'the
+  numbers from the quote', 'your latest findings', 'the confirmed
+  values'), RESOLVE them from the Recent conversation section — it
+  carries the agent's own replies with the exact figures. Emit ops whose
+  "replace" holds the CONCRETE value quoted there (e.g. "$2,902.00") and
+  whose "find" is the canvas's current text for that same row, copied
+  verbatim. NEVER emit an op whose replace is a description ("the email
+  price") or leave a value unresolved because the user didn't type it —
+  the conversation is the authority the request points at. If a
+  referenced value genuinely appears nowhere in the prompt, do not guess
+  and do not emit a vague op: wants_edit=false with a reply naming
+  exactly which values are missing.
+- REFERENTIAL EDITS REPORT THE FULL SET (2026-10-02 live, the 'updated
+  only 1 price' misread): a plural referential instruction ("update the
+  prices that were found in the email") resolved to ONE changed row is
+  usually CORRECT — the other rows already match — but a reply that
+  names only the change reads as if the work stopped short. The reply
+  must account for EVERY referenced item: how many were checked, which
+  changed (old → new), and how many already matched. Same for
+  fill-in-the-blank sets: report filled vs already-correct vs missing.
 - SET-FIELD ops: to FILL AN EMPTY field (e.g. an empty To or Cc), return
   {"field": "<name>", "find": "", "replace": "<new value>"}. find="" is
   accepted ONLY when that field is currently empty — it sets the field.

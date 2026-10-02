@@ -508,6 +508,13 @@ def extract_targets(
         text = str(value or "").strip()
         if not text or _is_year(text):
             return
+        # BARE 1-2 DIGIT NUMERICS ARE NEVER ITEM CODES (2026-10-01
+        # three-domain confirmation): '10'/'12' ride from 'packs of 10',
+        # 'cartons of 12', '(10-11 wks)' — every lane's own shape rule
+        # drops them downstream; dropping at the source fixes every
+        # caller at once. 3+ digit bare codes ('381', '6603') still ride.
+        if text.isdigit() and len(text) < 3:
+            return
         canonical = _canonical(text)
         if len(canonical) < 2 or canonical in seen:
             return
@@ -518,18 +525,45 @@ def extract_targets(
         add(value)
     if values:
         return values[:64]
+    # TITLE+DESIGNATOR SPANS ARE NOT ENTITIES (2026-10-01
+    # fresh-domain finding): 'Lab Consumables Register 2026 file is the
+    # canonical register…' — the cap-phrase lane mined the FILE TITLE as
+    # the only item (the incident domain's title words were all in
+    # _CAP_STOP; a new domain's are not). A capitalized run (with an
+    # optional year or season/version token like Q3/FY26) directly
+    # before a generic document designator names the SOURCE, never a row
+    # item — same rule the extension-ful blanking already applies.
+    _FILE_DESIGNATOR_SPAN_RE = re.compile(
+        r"\b(?:[A-Z0-9][A-Za-z0-9_()\'\-]*"
+        r"(?:\s+[A-Z0-9][A-Za-z0-9_()\'\-]*){0,7})"
+        r"(?:\s+(?:[A-Z]{1,3}\d{1,4}|\d{2,4}))?"
+        r"\s+(?:excel\s+)?"
+        r"(?:files?|workbooks?|spreadsheets?|documents?|docs?)\b")
+
     for text in [query or "", *(context_texts or [])]:
-        raw = str(text or "")
+        raw = _FILE_DESIGNATOR_SPAN_RE.sub(" ", str(text or ""))
         for match in _TARGET_RE.finditer(raw):
             if _is_value_position(
                     raw, match.start(), match.end(), match.group(0)):
                 continue
             add(match.group(0))
-    # ALWAYS run name extraction; merge only IDENTITY-LIKE names when
-    # numeric targets already exist (a mixed list keeps its name-only
-    # entities without importing prose fragments); with no numeric
-    # targets, all extracted names ride (the pre-merge behavior).
-    _numeric_count = len(values)
+        # COMMA-FORMATTED PART NUMBERS (2026-10-02 live): sheets write
+        # '56,100'; token mining split it into '56'/'100' and the read
+        # matched the wrong rows. A thousands-grouped number is ONE
+        # token — the comma inside it is never an enumeration separator
+        # ('8 machines: 381, U-22' has no digit after its comma, so
+        # lists are unaffected).
+        for match in re.finditer(r"\b\d{1,3}(?:,\d{3})+\b", raw):
+            add(match.group(0))
+    # ALWAYS run name extraction. Name-lane output is IDENTITY-SHAPED or
+    # it does not ride — unconditionally, not only when numeric targets
+    # already exist (live 2026-10-01: '…xlsx is the official price list
+    # updated…' had no numeric targets, so the conditional merge let the
+    # adjective 'official' ride as the ONLY item and the workbook read
+    # answered 'official — no match' while losing the whole machinery
+    # list). Same rule every other entity lane already applies: a digit
+    # (model code), a hyphen (U-22), or a capitalized word (brand/product
+    # name); lowercase prose fragments are never identifiers.
     _named: List[str] = []
     if True:
         named_target = re.compile(
@@ -565,6 +599,7 @@ def extract_targets(
             # before name extraction so 'Stock Status.xlsx' cannot
             # contribute 'Stock'.
             value_text = _FILENAME_RE.sub(" ", str(text or ""))
+            value_text = _FILE_DESIGNATOR_SPAN_RE.sub(" ", value_text)
             for match in quoted_target.finditer(value_text):
                 _named.append(match.group(1))
             for match in named_target.finditer(value_text):
@@ -596,6 +631,7 @@ def extract_targets(
     _source_for_caps = [query or "", *(context_texts or [])]
     for source_text in _source_for_caps:
         raw_src = _FILENAME_TOKEN_RE.sub(" ", str(source_text or ""))
+        raw_src = _FILE_DESIGNATOR_SPAN_RE.sub(" ", raw_src)
         for match in _cap_phrase.finditer(raw_src):
             phrase = match.group(1).strip()
             words = phrase.split()
@@ -607,7 +643,7 @@ def extract_targets(
         canonical = _canonical(text)
         if not text or len(canonical) < 2 or canonical in seen:
             continue
-        if _numeric_count and not (
+        if not (
             any(ch.isdigit() for ch in text)
             or "-" in text
             or any(w[:1].isupper() for w in text.split())
@@ -618,6 +654,34 @@ def extract_targets(
         seen.add(canonical)
         values.append(text)
     return values[:64]
+
+
+def identity_shaped_item(text: str) -> bool:
+    """Whether a mined token is identity-shaped enough to be a REQUESTED
+    ITEM — the one shared keep-rule for every lane that turns mined text
+    into the read's item set (the orchestrator's requested_targets
+    mining and the reader's item filter).
+
+    An item is code-shaped when ANY word of it is: >=3 chars with a digit
+    AND mostly ASCII-alphanumeric ('381', 'U-22', 'SLE24-16'), or a
+    capitalized alpha >=4 chars ('PEXTO', 'Manual Flanger'). Short bare
+    numerics ('36' from a 36" spec, '10'/'11' from '(10–11 wks)'
+    delivery windows) and lowercase prose ('official') are never
+    identifiers — live 2026-10-01, both classes rode trusted
+    requested-target lanes and answered junk. The ASCII-density test
+    keeps space-free PROSE runs with an incidental digit out
+    ('2026年6月の価格' is a clause, not a code) without needing to know
+    the script — non-Latin name-only entities stay the cheap-NLU
+    residue layer's job, mined CJK prose must not ride as items.
+    """
+    for word in str(text or "").split():
+        if (len(word) >= 3 and any(ch.isdigit() for ch in word)
+                and sum(ch.isascii() and ch.isalnum() for ch in word)
+                / max(1, len(word)) >= 0.7):
+            return True
+        if word[:1].isupper() and word.isalpha() and len(word) >= 4:
+            return True
+    return False
 
 
 def _cell_text(value: Any) -> str:
@@ -656,6 +720,60 @@ def _left_drop_aliases(targets: Sequence[str]) -> Dict[str, List[str]]:
 
 _MERGED_RANGE_RE = re.compile(
     r"^([A-Z]{1,3})(\d{1,7}):([A-Z]{1,3})(\d{1,7})$")
+
+
+_NAME_WORD_RE = re.compile(r"[A-Za-z]+|\d+(?:-\d+)?")
+
+
+def _dropped_head_words(target: str, alias: str) -> List[str]:
+    """The words of ``target`` that a left-dropped ``alias`` threw away.
+
+    ``_left_drop_aliases`` synthesizes contiguous RIGHT tails, so the head
+    is exactly the leading words the alias removed. Returned lowercase and
+    empty when ``alias`` is not a tail of ``target`` (nothing to corroborate).
+    """
+    _words = lambda s: [
+        w.lower() for w in _NAME_WORD_RE.findall(str(s or "")) if len(w) >= 2
+    ]
+    head, tail = _words(target), _words(alias)
+    if not tail or len(tail) >= len(head):
+        return []
+    if head[len(head) - len(tail):] != tail:
+        return []
+    return head[:len(head) - len(tail)]
+
+
+def _alias_head_corroborated(
+    target: str, alias: str, *haystacks: Any
+) -> bool:
+    """Does the row/sheet corroborate the part of the name the alias dropped?
+
+    A right tail is only a valid HANDLE for a name when the head it drops is
+    corroborated somewhere on the row or on the sheet the workbook itself
+    groups it under. Measured 2026-10-02 on a live quote: the tail
+    "Rotary Machine" bound ``Roper Whitney No. 622`` to a LINMAC row whose
+    cell reads "722 Rotary Machine", and the tail "Gang Slitter" bound
+    ``Tin Knocker TK Multi Wheel Gang Slitter`` to a TENNSMITH row — each
+    answer a DIFFERENT MACHINE's price, led as if it were the one asked
+    for. A tail alias that carries no trace of the head it dropped is a
+    noun phrase, not an identifier, and it may corroborate a candidate but
+    never establish one.
+
+    Provenance, not vocabulary: no product noun is listed, and the head
+    tokens are whatever the asker's own string contained. The workbook's
+    own sheet name counts as corroboration because a sheet IS the
+    workbook's grouping of its rows.
+    """
+    head = _dropped_head_words(target, alias)
+    if not head:
+        return True
+    blob = " ".join(str(part or "") for part in haystacks).lower()
+    if not blob:
+        return False
+    return any(
+        re.search(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", blob)
+        for word in head
+    )
 
 
 def _col_index(letters: str) -> int:
@@ -704,6 +822,14 @@ def _matches_target(target: str, value: Any) -> bool:
     if not text or not target_text:
         return False
     candidates = [target_text]
+    # COMMA-FORMATTED PART NUMBERS (2026-10-02 live): the source sheet
+    # writes '56,100' — the ask's '56,100' or '56100' must match both
+    # forms; comma-stripped variants join the candidate set.
+    _bare_num = re.sub(r"[^0-9A-Za-z-]", "", target_text)
+    if _bare_num and _bare_num != target_text:
+        candidates.append(_bare_num)
+    if re.fullmatch(r"\d{1,3}(?:,\d{3})+", target_text):
+        candidates.append(target_text.replace(",", ""))
     # Number-abbreviation honorific ("No. 381" vs a cell holding "381"):
     # the designation is the same machine, so match the bare form too.
     # Display keeps the user's literal text; only matching normalizes.
@@ -727,7 +853,8 @@ _QUANTITY_WITH_UNIT_RE = re.compile(
 
 
 def _is_designation_match(
-    text: str, column_header: str
+    text: str, column_header: str,
+    first_data_column: bool = False,
 ) -> bool:
     """Is this match a plausible PRODUCT-ROW designation rather than a
     numeric coincidence?
@@ -780,6 +907,17 @@ def _is_designation_match(
         re.IGNORECASE,
     ):
         return False
+    # FIRST-COLUMN IDENTITY (2026-10-01 fresh-domain finding): identity
+    # columns overwhelmingly LEAD the sheet, and noun lists cannot
+    # anticipate every domain's name for them — the price list's 'MODEL
+    # NO.' was listed, a lab register's 'Ref' was not, and every
+    # bare-code row rendered structurally absent. A bare-numeric match
+    # in the sheet's first data column — already proven above to be no
+    # value/quantity/positional column — is a designation. Positional
+    # (headerless) sheets keep the old rejection: their first column is
+    # c1 and the c\d+ check above has already returned.
+    if first_data_column:
+        return True
     return bool(re.search(
         r"model|part|item|sku|product|description|name|catalog|cat\.?\s*no|code|"
         r"employee|staff|worker|person|component|software|application|"
@@ -1180,6 +1318,22 @@ def _disambiguation_criteria(
         r"([^,;\n]+)",
         re.IGNORECASE,
     )
+    # SOURCE-STATEMENT FIELDS (2026-10-01 live false-miss, e2e turn 4):
+    # "…excel file is the official price list updated by the team…" — the
+    # field names the SOURCE ("file"/"price list"/"workbook"), so the
+    # assertion is a statement ABOUT WHERE TO LOOK, never an attribute
+    # the rows carry. Mined as a criterion, its prose value matched no
+    # row and the elimination branch emptied EVERY designation — a read
+    # that had answered U-22/SLE24-16/GSL48-16 correctly one turn
+    # earlier returned all-absent on the identical item set.
+    _source_statement_field = re.compile(
+        r"\b(?:excel\s+)?(?:files?|workbooks?|spreadsheets?|worksheets?|"
+        r"sheets?|documents?|catalogs?|catalogues?|sources?|copies|copy|"
+        r"versions?)\s*$"
+        r"|\bprice\s+(?:lists?|books?)\s*$|\bpricebooks?\s*$|"
+        r"\blists?\s*$|\bcatalogs?\s*$",
+        re.IGNORECASE,
+    )
     for text in [query or "", *(context_texts or [])]:
         for match in pattern.finditer(str(text or "")):
             field_text = match.group(1).strip()
@@ -1189,6 +1343,8 @@ def _disambiguation_criteria(
                 re.IGNORECASE,
             ):
                 continue
+            if _source_statement_field.search(field_text):
+                continue
             # INTERROGATIVE GUARD (2026-09-24 review: ordinary requests
             # must not misparse as constraints): "what IS the weight" is a
             # question, not "what = the weight".
@@ -1196,9 +1352,16 @@ def _disambiguation_criteria(
                     or field_text.lower().split()[0] in _INTERROGATIVE_GUARD
                     or len(field_text) < 3):
                 continue
-            _add_criteria_value(
-                criteria, field_text, match.group(2).strip(" \"'")
-            )
+            # SENTENCE BOUNDARY + LENGTH (same incident): an attribute
+            # value never spans sentences or runs a paragraph — cut at
+            # the first sentence end (decimals like 2.5 stay intact) and
+            # drop prose-length remainders.
+            raw_value = match.group(2).strip(" \"'")
+            raw_value = re.split(
+                r"(?<!\d)\.\s+(?=[A-Z0-9])", raw_value, maxsplit=1)[0]
+            if len(raw_value) > 80:
+                continue
+            _add_criteria_value(criteria, field_text, raw_value)
     for attribute, values in extract_natural_language_criteria(
         [query or "", *(context_texts or [])],
         source_reference_names=source_reference_names,
@@ -1278,6 +1441,88 @@ def _attribute_corroborates(
     if identity_values:
         return any(attr in value.lower() for value in identity_values)
     return attr in str(evidence.get("sheet") or "").lower()
+
+
+def _explicit_criteria_fields(
+    disambiguation: Optional[Dict[str, Any]],
+) -> set:
+    """Canonical field keys of the EXPLICIT disambiguation container.
+
+    Explicit containers (caller-supplied ``attributes``/``selectors``/
+    structured constraints) are trusted input — the ELIMINATION-vs-
+    RANKING rule exempts them from every text-mining noise guard, schema
+    anchoring included. Keys are canonicalized the same way
+    ``_add_criteria_value`` canonicalizes fields.
+    """
+    out: set = set()
+    for key, value in (disambiguation or {}).items():
+        if key in ("attributes", "selectors", "fields", "filters",
+                   "constraints") and isinstance(value, dict):
+            for field in value.keys():
+                canon = _canonical(field)
+                if canon:
+                    out.add(canon)
+        elif key != "resolved_bindings":
+            canon = _canonical(key)
+            if canon:
+                out.add(canon)
+    return out
+
+
+def _schema_anchored_criteria(
+    criteria: Dict[str, List[str]],
+    designations: List[Dict[str, Any]],
+    exempt_fields: Optional[set] = None,
+) -> Dict[str, List[str]]:
+    """Criteria whose FIELD names something in the workbook's own surface.
+
+    The brand-hint layer's SCHEMA VALIDATION principle (2026-09-25),
+    applied to plain criteria (2026-10-01, the fresh-domain residue of
+    the 'official price list' false miss): a criterion may ELIMINATE
+    candidates only when its field is anchored — its canonical name
+    appears in a candidate row's headers or sheet names ('capacity' in
+    'Capacity (tons)', 'vendor' in 'Vendor Name'). A field the workbook
+    never names ('the manifest', 'the excel file', a new domain's
+    source noun the noun-list floor missed) is prose about the REQUEST
+    or the SOURCE, not a row attribute: it may rank via corroboration
+    but never disqualify — an unanchored criterion that matched nothing
+    used to render every row absent. EXPLICIT container fields are
+    exempt (trusted input, same rule as every other noise guard).
+    """
+    exempt = exempt_fields or set()
+    surface: set = set()
+    for item in designations or []:
+        for header in ((item.get("headers") or {}) or {}).values():
+            canon = _canonical(header)
+            if canon:
+                surface.add(canon)
+        # The bytes lane carries no headers map — its row_context holds
+        # the same header names as per-cell field labels.
+        for cell in (item.get("row_context") or []):
+            canon = _canonical((cell or {}).get("field"))
+            if canon:
+                surface.add(canon)
+        canon_sheet = _canonical(item.get("sheet"))
+        if canon_sheet:
+            surface.add(canon_sheet)
+    if not surface:
+        return criteria  # nothing to anchor against — keep as-is
+
+    anchored: Dict[str, List[str]] = {}
+    for attribute, terms in criteria.items():
+        # the same alias set the matcher uses — 'organization' anchors to
+        # a 'Vendor' header exactly because _matches_disambiguation would
+        # match it there
+        names = {
+            _canonical(alias)
+            for alias in _field_aliases(attribute)
+        } - {""}
+        names.add(_canonical(attribute))
+        if names and (names & exempt or any(
+                name in canon or canon in name
+                for name in names for canon in surface if canon)):
+            anchored[attribute] = terms
+    return anchored
 
 
 def _matches_disambiguation(
@@ -1664,6 +1909,7 @@ def inspect_workbook_bytes(
         rows = list(worksheet.iter_rows())
         header_map, header_rows = _infer_header_map(rows)
         header_columns = sorted(header_map)
+        first_header_column = header_columns[0] if header_columns else None
         header_descriptors = _column_descriptors(
             [header_map[column] for column in header_columns],
             positions=[column - 1 for column in header_columns],
@@ -1727,6 +1973,8 @@ def inspect_workbook_bytes(
                         _canonical(target) == _canonical(direct)
                         for direct, _ in _target_hits
                     )
+                    and _alias_head_corroborated(
+                        target, alias, text, worksheet.title, *row_values)
                 )
                 for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
@@ -1772,7 +2020,9 @@ def inspect_workbook_bytes(
                             "column": header_map.get(cell.column, ""),
                             "matched_alias": matched_alias,
                             "designation": _is_designation_match(
-                                text, header_map.get(cell.column, "")),
+                                text, header_map.get(cell.column, ""),
+                                first_data_column=(
+                                    cell.column == first_header_column)),
                             "formula": value if is_formula else None,
                             "formula_state": formula_state,
                             "row_context": row_values[:40],
@@ -1836,21 +2086,47 @@ def inspect_workbook_bytes(
         # criteria from THIS ask's own words — or explicit disambiguation
         # containers — may eliminate; a query-only pass that matches
         # nothing is treated as mining noise and keeps the designations.
+        # SCHEMA ANCHORING (same day, the fresh-domain residue): only
+        # criteria whose FIELD the workbook itself names may eliminate —
+        # an unanchored field ('the manifest is the official register',
+        # any new domain's source noun the noun-list floor missed) is
+        # request/source prose, never a row attribute.
         if designations and any(criteria.values()):
+            # ELIMINATION READS THE ASK, NOT THE ENVELOPE (2026-10-02, the
+            # quote-canvas false miss): ``criteria`` also carries what was
+            # mined from the CONTEXT texts, and for an email/HTML canvas
+            # that context is a SERIALIZED DOCUMENT — every declaration in
+            # `style="…margin: 0px 8px…"` became a `field = value` row
+            # criterion. A criterion whose field the workbook happens to
+            # name is exactly the dangerous one: `margin` anchors on
+            # `DEALER MARGIN` / `BRENNAN MARGIN`, which restricted those
+            # rows' haystack to numbers, matched no token, and DELETED
+            # three priced rows — measured 3 of 8 rows of one quote
+            # rendering 'no readable value' while holding 1631 / 8143 /
+            # 12979 in the artifact. Schema anchoring cannot catch it: the
+            # field was real, only the VALUE was markup.
+            # So elimination is fed the ask's OWN words plus the explicit
+            # containers — the rule the comment above already states.
+            # Context-mined criteria still RANK (the corroboration lane
+            # below) and still ride the reported payload; they just can no
+            # longer delete a candidate row. Provenance, not vocabulary:
+            # nothing here is specific to markup, CSS, or any domain.
+            _ask_criteria = _disambiguation_criteria(
+                query, [], disambiguation)
+            _anchored = _schema_anchored_criteria(
+                _ask_criteria, designations,
+                exempt_fields=_explicit_criteria_fields(disambiguation))
             constrained = [
                 item for item in designations
-                if _matches_disambiguation(item, criteria)
+                if _matches_disambiguation(item, _anchored)
             ]
-            if not constrained:
-                _query_criteria = _disambiguation_criteria(
-                    query, [], None)
-                if any(_query_criteria.values()):
-                    constrained = [
-                        item for item in designations
-                        if _matches_disambiguation(item, _query_criteria)
-                    ]
-                else:
-                    constrained = list(designations)
+            if not constrained and any(_ask_criteria.values()):
+                # Unanchored ask criteria (this ask's own words, with no
+                # schema anchor) still get their pass, exactly as before.
+                constrained = [
+                    item for item in designations
+                    if _matches_disambiguation(item, _ask_criteria)
+                ]
             if constrained:
                 designations = constrained
             else:
@@ -2017,6 +2293,16 @@ def inspect_workbook_bytes(
             ]
             if len(exact) == 1:
                 designations = exact
+            elif len(exact) > 1:
+                # EXACT-CODE MATCHES OUTRANK FRAGMENTS (2026-10-01 live,
+                # the 381/622 ambiguity) — same rule as the dataset lane:
+                # rows whose identity cell IS the code are the real
+                # machines; digit-fragments inside longer codes are noise.
+                designations = exact + [
+                    item for item in designations
+                    if _canonical(item.get("value"))
+                    != _canonical(target)
+                ]
         selection: Dict[str, Any] = {}
         field_ambiguities: Dict[str, Any] = {}
         for candidate in [*designations, *found]:
@@ -2332,6 +2618,8 @@ def inspect_dataset_entries(
                         _canonical(target) == _canonical(direct)
                         for direct, _ in _target_hits
                     )
+                    and _alias_head_corroborated(
+                        target, alias, text, sheet_name, *row_values)
                 )
                 for target, matched_alias in _target_hits:
                     values: List[Dict[str, Any]] = []
@@ -2371,7 +2659,13 @@ def inspect_dataset_entries(
                             _column_letter(index + 1): label
                             for index, label in enumerate(value_columns)
                         },
-                        "designation": _is_designation_match(text, column),
+                        "designation": _is_designation_match(
+                            text, column,
+                            first_data_column=(
+                                column_index == 1
+                                and not re.fullmatch(
+                                    r"c\d+", column,
+                                    re.IGNORECASE))),
                         "formula": formula_map.get(cell_ref),
                         "formula_state": (
                             "cached" if cell_ref in formula_map else "literal"
@@ -2462,21 +2756,48 @@ def inspect_dataset_entries(
         # criteria from THIS ask's own words — or explicit disambiguation
         # containers — may eliminate; a query-only pass that matches
         # nothing is treated as mining noise and keeps the designations.
+        # SCHEMA ANCHORING (same day, the fresh-domain residue): only
+        # criteria whose FIELD the workbook itself names may eliminate —
+        # an unanchored field ('the manifest is the official register',
+        # any new domain's source noun the noun-list floor missed) is
+        # request/source prose, never a row attribute.
         if designations and any(criteria.values()):
+            # ELIMINATION READS THE ASK, NOT THE ENVELOPE (2026-10-02, the
+            # quote-canvas false miss): ``criteria`` also carries what was
+            # mined from the CONTEXT texts, and for an email/HTML canvas
+            # that context is a SERIALIZED DOCUMENT — every declaration in
+            # `style="…margin: 0px 8px…"` became a `field = value` row
+            # criterion. A criterion whose field the workbook happens to
+            # name is exactly the dangerous one: `margin` anchors on
+            # `DEALER MARGIN` / `BRENNAN MARGIN`, which restricted those
+            # rows' haystack to numbers, matched no token, and DELETED
+            # three priced rows — measured 3 of 8 rows of one quote
+            # rendering 'no readable value' while holding 1631 / 8143 /
+            # 12979 in the artifact. Schema anchoring cannot catch it: the
+            # field was real, only the VALUE was markup.
+            # So elimination is fed the ask's OWN words plus the explicit
+            # containers — the rule the comment above already states.
+            # Context-mined criteria still RANK (the corroboration lane
+            # below) and still ride the reported payload; they just can no
+            # longer delete a candidate row. Provenance, not vocabulary:
+            # nothing here is specific to markup, CSS, or any domain.
+            _ask_criteria = _disambiguation_criteria(
+                query, [], disambiguation,
+                source_reference_names=source_reference_names)
+            _anchored = _schema_anchored_criteria(
+                _ask_criteria, designations,
+                exempt_fields=_explicit_criteria_fields(disambiguation))
             constrained = [
                 item for item in designations
-                if _matches_disambiguation(item, criteria)
+                if _matches_disambiguation(item, _anchored)
             ]
-            if not constrained:
-                _query_criteria = _disambiguation_criteria(
-                    query, [], None)
-                if any(_query_criteria.values()):
-                    constrained = [
-                        item for item in designations
-                        if _matches_disambiguation(item, _query_criteria)
-                    ]
-                else:
-                    constrained = list(designations)
+            if not constrained and any(_ask_criteria.values()):
+                # Unanchored ask criteria (this ask's own words, with no
+                # schema anchor) still get their pass, exactly as before.
+                constrained = [
+                    item for item in designations
+                    if _matches_disambiguation(item, _ask_criteria)
+                ]
             if constrained:
                 designations = constrained
             else:
@@ -2642,6 +2963,21 @@ def inspect_dataset_entries(
             ]
             if len(exact) == 1:
                 designations = exact
+            elif len(exact) > 1:
+                # EXACT-CODE MATCHES OUTRANK FRAGMENTS (2026-10-01 live,
+                # the 381/622 ambiguity): '381' matched 10 rows — two rows
+                # whose MODEL NO. cell IS '381' (the real machines) and
+                # eight where the digits sit inside longer codes ('381 700
+                # 092') or numeric noise. Uniqueness could not resolve it,
+                # so the presenter showed fragment rows first and the
+                # user re-answered a settled question. Exact matches rank
+                # first; ambiguity is kept (the user confirms among the
+                # REAL model rows, not the noise).
+                designations = exact + [
+                    item for item in designations
+                    if _canonical(item.get("value"))
+                    != _canonical(target)
+                ]
         if not designations and read_failed_legs:
             # READ FAILURE, NOT ABSENCE (2026-09-26). No candidate row was
             # found AND part of the source could not be opened, so "the item

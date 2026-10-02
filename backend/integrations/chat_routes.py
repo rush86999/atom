@@ -1899,6 +1899,23 @@ async def send_chat_message(
             "agent_id": getattr(request, "agent_id", None)
             or ((request.context or {}).get("agent_id")),
         }
+        # WORKSPACE ON THE TURN CONTEXT (2026-10-01, cross-conversation
+        # workbook memory): chat turns never carried a workspace_id, so
+        # workspace-scoped seams (dialogue_state.workbook_bindings — a
+        # user-confirmed row inherited by NEW conversations on the same
+        # file) stayed closed in production. Resolved from the acting
+        # user, exactly like turn-time memory recall does; an explicit
+        # request-context value still wins.
+        if not context_with_agent.get("workspace_id"):
+            try:
+                from integrations.chat_orchestrator import (
+                    resolve_user_workspace,
+                )
+
+                context_with_agent["workspace_id"] = (
+                    resolve_user_workspace(active_user_id))
+            except Exception:  # noqa: BLE001 — context enrichment only
+                pass
         # The keyed id travels INTO the turn so the execution row can record it.
         # `ChatRequestRecord.execution_id` is only written at finalization, so a
         # turn that crashes in flight leaves a key with no link to anything --

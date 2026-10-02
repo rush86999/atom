@@ -390,8 +390,12 @@ class TestGetQwenResponse:
         orch.llm_service.generate_completion = AsyncMock(return_value={
             "success": True, "content": "ok", "model": "m", "provider": "p",
         })
+        # sticky_hint is keyword-only in the current signature (deadline
+        # took the 4th positional slot) — the old positional call bound
+        # the tuple to `deadline` and crashed the reply path.
         await orch._get_qwen_response(
-            "hi", [], {"model": "m1", "tier": "fast", "intent": "crm"}, ("p", "m"),
+            "hi", [], {"model": "m1", "tier": "fast", "intent": "crm"},
+            sticky_hint=("p", "m"),
         )
         kwargs = orch.llm_service.generate_completion.await_args.kwargs
         assert kwargs["model"] == "m1"

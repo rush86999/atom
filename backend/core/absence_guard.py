@@ -49,6 +49,16 @@ _DATA_VERBS = (
 #: rescope). Kept to clear universal forms — hedged phrasing ("I could not
 #: find", "no results in the CRM search") is honest already and must not
 #: trip a regeneration.
+#: A claim ABOUT spreadsheet artifacts (rows/cells/sheets/the copy) —
+#: covered only by spreadsheet-read evidence, never by mailbox hits.
+_FILE_CLAIM_RE = re.compile(
+    r"\b(?:rows?|workbooks?|spreadsheets?|excel|sheets?|cells?|"
+    r"price\s*lists?|catalog(?:ue)?|saved\s+copy)\b", re.IGNORECASE)
+_WORKBOOK_EVIDENCE_RE = re.compile(
+    r"MATERIALIZED COPY|PER-ITEM OUTCOMES|Results from the saved copy|"
+    r"saved copy of|indexed sheets|catalogued file|Workbook read:|"
+    r"LIVE TOOL RESULTS \(datasets", re.IGNORECASE)
+
 _ABSENCE_RES: List[re.Pattern] = [
     # "No file with that name exists in the system", "no matching records"
     re.compile(r"\bno\s+(?:\w+\s+){0,4}?(?:such|matching)\b", re.IGNORECASE),
@@ -168,6 +178,16 @@ def _claims_covered(claim: str, tool_block: str) -> bool:
     if not tool_block:
         return False
     if not any(m in tool_block for m in _COVERAGE_MARKERS):
+        return False
+    # FILE-EVIDENCE SCOPE (2026-10-01 live, replay-retry2 22:43): a
+    # workbook absence claim ('no matching row in the saved copy')
+    # shipped against MAILBOX evidence — token overlap ('copy') plus
+    # generic coverage markers covered it, while the turn's reply
+    # described a workbook search that never ran. A claim naming
+    # spreadsheet artifacts is coverable only by spreadsheet-READ
+    # evidence in the block; mailbox/document lines never cover it.
+    if _FILE_CLAIM_RE.search(claim) and not _WORKBOOK_EVIDENCE_RE.search(
+            tool_block):
         return False
     block = tool_block[:4000]
     # A failed/denied/timed-out lookup cannot support absence.

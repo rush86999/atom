@@ -7068,20 +7068,26 @@ class BYOKHandler:
                                 continue
 
                             # (3) Soft-SC logprobs unsupported. Deliberately
-                            # narrow: ONLY an error that actually names
-                            # logprobs AND says unsupported/not-supported
-                            # triggers this (deepseek: "logprobs are not
-                            # supported"; OpenCode Go: '"logprobs" is not
-                            # supported by this endpoint' — 2026-09-21). A
-                            # broader match would swallow genuine schema/
-                            # validation failures by retrying them once
-                            # without logprobs.
+                            # narrow: ONLY an error that actually names the
+                            # logprob kwarg family AND says unsupported /
+                            # not-supported triggers this (deepseek:
+                            # "logprobs are not supported"; OpenCode Go:
+                            # '"logprobs" is not supported by this endpoint'
+                            # — 2026-09-21; OpenCode Go DFLASH: "does not
+                            # support return_logprob yet" — 2026-10-01,
+                            # the singular form missed the old substring
+                            # match so EVERY structured call on DFLASH
+                            # failed instead of retrying once without
+                            # logprobs). A broader match would swallow
+                            # genuine schema/validation failures by
+                            # retrying them once without logprobs.
                             if (
                                 _soft_sc_on
                                 and "logprobs" in _create_kwargs
-                                and "logprobs" in _err_txt
+                                and "logprob" in _err_txt
                                 and ("not supported" in _err_txt
-                                     or "are not supported" in _err_txt)
+                                     or "are not supported" in _err_txt
+                                     or "does not support" in _err_txt)
                                 and "logprobs" not in _recovered
                             ):
                                 _recovered.add("logprobs")

@@ -159,6 +159,60 @@ def extract_items_from_text(text: str) -> List[str]:
     return out
 
 
+#: Outcome-referenced subsets: 'the ones not found', 'the missing
+#: machinery', 'the incomplete ones', 'the ones without prices' — the
+#: user points at a RESULT STATE of the conversation's own reads instead
+#: of naming items. Deterministic floor; the statuses map to the read's
+#: identity statuses ('none' = absent in the artifact's vocabulary).
+_OUTCOME_SUBSET_RE = re.compile(
+    r"\b(?:ones?|items?|machinery|machines?|models?|parts?|prices?|"
+    r"pricing)\b"
+    r"[^.;!?\n]{0,30}\b(?:not\s+found|missing|absent|incomplete|"
+    r"not\s+complete|without\s+prices?|unpriced)\b"
+    r"|\b(?:not\s+found|missing|absent|incomplete|not\s+complete|"
+    r"unpriced)\b"
+    r"[^.;!?\n]{0,20}\b(?:ones?|items?|machinery|machines?|models?|"
+    r"parts?|prices?|pricing)\b"
+    r"|\bwhat\s+machinery\s+was\s+not\s+found\b",
+    re.IGNORECASE,
+)
+
+
+def outcome_referenced_items(
+    message: str,
+    conversation_id: Optional[str] = None,
+) -> List[str]:
+    """The items a result-state reference points at ('the ones not
+    found') — resolved from the conversation's durable read outcomes,
+    never from the user re-typing codes. Absent items first (that is
+    what 'not found' means), then ambiguous (unconfirmed — 'incomplete'
+    covers them); found-only items never ride. [] when the message
+    carries no outcome reference or the ledger holds no outcomes
+    (fail-closed: the normal lanes own the turn)."""
+    if not _OUTCOME_SUBSET_RE.search(message or ""):
+        return []
+    if not conversation_id:
+        return []
+    try:
+        from core import dialogue_state as _ds
+
+        outcomes = _ds.active_item_outcomes(conversation_id)
+    except Exception:  # noqa: BLE001 — ledger optional
+        return []
+    absent = [i for i, s in outcomes.items() if s == "none"]
+    ambiguous = [i for i, s in outcomes.items() if s == "multiple"]
+    # preserve the objective's order when available
+    try:
+        order = [
+            i for i in _ds.active_objective_items(conversation_id)]
+    except Exception:  # noqa: BLE001
+        order = []
+    rank = {i: n for n, i in enumerate(order)}
+    absent.sort(key=lambda i: rank.get(i, 10_000))
+    ambiguous.sort(key=lambda i: rank.get(i, 10_000))
+    return absent + ambiguous
+
+
 def resolve_target_set(
     message: str,
     *,
@@ -238,17 +292,76 @@ def resolve_target_set(
             "candidate_sets": {},
         }
 
-    excluded_norm = set(_norm(served))
-    for item in extract_items_from_text(message):
-        excluded_norm |= set(_norm([item]))
-    for item in extract_items_from_text(contrast.get("excluded_text") or ""):
-        excluded_norm |= set(_norm([item]))
-
     base_norms = _norm(base)
+
+    def _message_exclusions() -> set:
+        """Items of THIS base the message itself names or excludes.
+
+        Two lanes, unioned: the item extractor (identifier-prefixed,
+        alnum-mixed, bare >=4 digits) and BASE-AWARE LITERAL MATCHING
+        (2026-10-01 flagged gap): 'except 622' names a bare 3-digit code
+        the extractor deliberately drops — but we are not mining new
+        items here, we are recognizing which KNOWN base items the user
+        moved past, so a word-boundary literal hit on a base item counts.
+        This cannot reopen the '36' junk class: only tokens that ARE
+        base items match.
+        """
+        out: set = set()
+        for item in extract_items_from_text(message):
+            out |= set(_norm([item]))
+        for item in extract_items_from_text(
+                contrast.get("excluded_text") or ""):
+            out |= set(_norm([item]))
+        span = f"{message} {contrast.get('excluded_text') or ''}"
+        for i, n in zip(base, base_norms):
+            if not i or not n or n in out:
+                continue
+            if re.search(
+                    rf"(?<![\w-]){re.escape(str(i))}(?![\w-])",
+                    span, re.IGNORECASE):
+                out.add(n)
+        return out
+
+    excluded_norm = set(_norm(served)) | _message_exclusions()
+
     resolved = [
         i for i, n in zip(base, base_norms)
         if not _matches_any(n, excluded_norm)]
+
     if not resolved:
+        # REFRESH-OPERATIVE RE-CHECK (2026-10-01 live, e2e replay): an
+        # EXPLICIT re-retrieval / source-freshness request over a set we
+        # just served is a RE-CHECK of that set against the latest
+        # source — not a request for new items. Live: 'check the other
+        # machinery from price list and verify if any pricing needs to
+        # be updated from latest pricing data' arrived right after the
+        # full 8-item set was served; 'other' made it contrastive, the
+        # whole base was already served, and the clarify branch answered
+        # 'which other items should I check?' — a question the user did
+        # not ask, while their re-verification never ran. When the
+        # message itself asks for the re-check, resolve to the base
+        # minus only the items the MESSAGE names/excludes.
+        try:
+            from core.pending_file_task import (
+                is_retrieval_refresh_request,
+            )
+
+            if is_retrieval_refresh_request(message):
+                _msg_excluded = _message_exclusions()
+                recheck = [
+                    i for i, n in zip(base, base_norms)
+                    if not _matches_any(n, _msg_excluded)]
+                if recheck:
+                    return {
+                        "kind": "resolved",
+                        "items": recheck,
+                        "origin": f"{origin}_recheck",
+                        "base_size": len(base),
+                        "excluded": [i for i, n in zip(base, base_norms)
+                                     if _matches_any(n, _msg_excluded)],
+                    }
+        except Exception:  # noqa: BLE001 — clarify remains the floor
+            pass
         return {
             "kind": "clarify",
             "question": (

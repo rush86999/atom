@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -43,11 +44,19 @@ __all__ = [
     "active_objective_items",
     "active_preference_phrases",
     "active_bindings",
+    "workbook_bindings",
+    "active_item_outcomes",
+    "record_item_outcomes",
     "record_program",
     "OBJECTIVE_SET",
 ]
 
 OBJECTIVE_SET = "objective_set"
+#: Per-item READ OUTCOMES (found / ambiguous / absent) at the current
+#: evidence revision — the durable state behind referential subsets
+#: ("the ones not found", "the missing machinery"). Newest event wins
+#: per item; items absent from a later event keep their last status.
+ITEM_OUTCOMES = "item_outcomes"
 OBJECTIVE_SUPERSEDED = "objective_superseded"
 PREFERENCE_SET = "preference_set"
 PREFERENCE_RETIRED = "preference_retired"
@@ -173,6 +182,7 @@ def project_events(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     binding_event_ids: set = set()
     last_program: Optional[Dict[str, Any]] = None
     file: Optional[Dict[str, Any]] = None
+    item_outcomes: Dict[str, str] = {}
 
     for ev in events or []:
         kind = str((ev or {}).get("kind") or "")
@@ -210,12 +220,19 @@ def project_events(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             last_program = dict(payload)
         elif kind == FILE_RESOLVED:
             file = dict(payload)
+        elif kind == ITEM_OUTCOMES:
+            _outcomes = payload.get("outcomes") or {}
+            if isinstance(_outcomes, dict):
+                item_outcomes.update({
+                    str(k): str(v)
+                    for k, v in _outcomes.items() if str(v)})
     return {
         "objective": objective,
         "preferences": preferences,
         "bindings": bindings,
         "last_program": last_program,
         "file": file,
+        "item_outcomes": item_outcomes,
     }
 
 
@@ -259,6 +276,133 @@ def active_bindings(
             continue
         out.append({k: v for k, v in b.items() if k != "_event_id"})
     return out
+
+
+def active_item_outcomes(
+    conversation_id: str,
+    *,
+    statuses: Optional[Sequence[str]] = None,
+) -> Dict[str, str]:
+    """Per-item read outcomes for the conversation (item -> status),
+    optionally filtered to given statuses ('absent', 'ambiguous',
+    'found'). The durable state behind referential subsets — 'the ones
+    not found' resolves through this, never through the user re-typing
+    model codes."""
+    outcomes = (_projection(conversation_id).get("item_outcomes") or {})
+    if statuses:
+        wanted = {str(s) for s in statuses}
+        outcomes = {
+            k: v for k, v in outcomes.items() if v in wanted}
+    return outcomes
+
+
+def workbook_bindings(
+    workspace_id: Optional[str],
+    content_hash: Optional[str] = None,
+    items: Optional[Sequence[str]] = None,
+    *,
+    limit: int = 800,
+) -> List[Dict[str, Any]]:
+    """User-asserted row bindings for a WORKBOOK revision, ACROSS the
+    workspace's conversations (2026-10-01, the cross-session memory gap:
+    a confirmed row — "381 is on Tennsmith sheet under row 338" — is a
+    fact about the workbook, not about one chat; a NEW conversation on
+    the same file re-asked "which row do you mean?" for rows the user
+    had already settled).
+
+    Same expiry rule as ``active_bindings``: a binding rides only at its
+    captured ``content_hash``. Newest assertion per (item, sheet, row)
+    wins; each carries ``cross_conversation: True`` and its source
+    conversation so the answer can say "the row you confirmed earlier"
+    instead of presenting a settled question as open. Append/fetch only —
+    no new store operations.
+    """
+    try:
+        from core.models import ConversationEvent
+
+        db = _session()
+        try:
+            query = db.query(ConversationEvent).filter(
+                ConversationEvent.kind == BINDING_CAPTURED)
+            if workspace_id:
+                query = query.filter(
+                    ConversationEvent.workspace_id == str(workspace_id))
+            rows = (
+                query.order_by(ConversationEvent.created_at.desc(),
+                               ConversationEvent.id.desc())
+                .limit(int(limit))
+                .all())
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001 — read failure = no state
+        logger.debug("dialogue-state workbook binding fetch failed: %r",
+                     exc)
+        return []
+
+    wanted = {
+        re.sub(r"[^a-z0-9]+", "", str(i or "").lower())
+        for i in (items or [])
+    } - {""}
+    out: List[Dict[str, Any]] = []
+    seen: Dict[tuple, Dict[str, Any]] = {}
+    for row in rows:  # newest first
+        try:
+            payload = json.loads(row.payload_json or "{}")
+        except (TypeError, ValueError):
+            continue
+        if content_hash and payload.get("content_hash") != content_hash:
+            continue
+        item_key = re.sub(
+            r"[^a-z0-9]+", "", str(payload.get("item") or "").lower())
+        if wanted and item_key not in wanted:
+            continue
+        key = (
+            item_key,
+            re.sub(r"[^a-z0-9]+", "",
+                   str(payload.get("sheet") or "").lower()),
+            payload.get("row"),
+        )
+        if not item_key or key in seen:
+            continue
+        entry = {
+            "item": payload.get("item"),
+            "sheet": payload.get("sheet"),
+            "row": payload.get("row"),
+            "value": payload.get("value"),
+            "identity_cells": payload.get("identity_cells"),
+            "content_hash": payload.get("content_hash"),
+            "asserted_in": payload.get("asserted_in"),
+            "cross_conversation": True,
+            "source_conversation": row.conversation_id,
+            "captured_at": (
+                row.created_at.isoformat() if row.created_at else None),
+        }
+        seen[key] = entry
+        out.append(entry)
+    return out
+
+
+def record_item_outcomes(
+    conversation_id: str,
+    outcomes: Dict[str, str],
+    *,
+    file_name: Optional[str] = None,
+    content_hash: Optional[str] = None,
+) -> None:
+    """Persist one read's per-item outcomes (item -> status). Called
+    wherever a read completes so later turns can resolve 'the ones not
+    found' without the user re-naming the items. The statuses are the
+    structured target identity statuses verbatim — 'single' (found),
+    'multiple' (ambiguous), 'none' (absent) — which is the same
+    vocabulary outcome_referenced_items filters on ('none' = the absent
+    set, 'multiple' = the needs-your-pick set)."""
+    if not outcomes:
+        return
+    append_event(ITEM_OUTCOMES, conversation_id, {
+        "file": file_name,
+        "content_hash": content_hash,
+        "outcomes": {str(k): str(v) for k, v in outcomes.items()},
+    })
 
 
 def record_program(

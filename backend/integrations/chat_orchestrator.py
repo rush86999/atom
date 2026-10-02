@@ -226,13 +226,94 @@ class _DeadlineStage:
         return False
 
 
+def _sheet_formulas(sheet_name: str) -> Optional[Dict[str, str]]:
+    """The named sheet's formula sidecar ({cell: formula}), or None when
+    the sheet cannot be found in the datasets catalog. Read-only."""
+    try:
+        from core.sheet_dataset_service import (
+            find_entries_sync,
+            load_formulas_for_parquet,
+        )
+
+        for entry in find_entries_sync(sheet_name or " ")[:8]:
+            if str(entry.get("entity_name") or "").strip().lower() != (
+                    sheet_name or "").strip().lower():
+                continue
+            path = entry.get("parquet_path")
+            if path:
+                return load_formulas_for_parquet(path) or {}
+        return None
+    except Exception:  # noqa: BLE001 — sidecar read is best-effort
+        return None
+
+
+def _derivation_formula_section(
+    structured: Optional[Dict[str, Any]],
+    message: str,
+    history: Optional[List[Dict[str, Any]]],
+) -> str:
+    """The FORMULAS section appended to a derivation-shaped ask's answer:
+    per matched sheet, the matched row's formulas from the formula
+    sidecar (or the honest 'static values in this copy'), plus the
+    sheet's first formula anchors (cross-sheet rate links like
+    ='Exchange-Index'!H4 ride here). '' when the ask is not
+    derivation-shaped or there is nothing to show."""
+    if not structured or not _derivation_ask(
+            message, {"history": history or []}):
+        return ""
+    lines: List[str] = []
+    sheets_seen = set()
+    for t in (structured.get("targets") or []):
+        for e in (t.get("evidence") or [])[:3]:
+            sheet = str(e.get("sheet") or "")
+            if not sheet or sheet in sheets_seen:
+                continue
+            sheets_seen.add(sheet)
+            fx = _sheet_formulas(sheet)
+            if fx is None:
+                continue
+            row = e.get("row")
+            row_fx = {}
+            if row:
+                row_fx = {
+                    c: f for c, f in fx.items()
+                    if str(c).lstrip(
+                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ").startswith(str(row))
+                }
+            if row_fx:
+                lines.append(
+                    f"{sheet} row {row} formulas: " + "; ".join(
+                        f"{c} {f}" for c, f in list(row_fx.items())[:6]))
+            else:
+                lines.append(
+                    f"{sheet} row {row}: the matched cells hold STATIC "
+                    "values in this copy — no formulas stored for that "
+                    "row.")
+            anchors = [f"{c} {f}" for c, f in list(fx.items())[:3]]
+            if anchors:
+                lines.append(
+                    f"{sheet} sheet-level formula anchors: "
+                    + "; ".join(anchors))
+    if not lines:
+        return ""
+    return (
+        "\n\nFORMULAS (from the materialized copy's formula sidecar — "
+        "the cached results are the values above):\n- "
+        + "\n- ".join(lines))
+
+
 def _request_deadline_seconds(derivation: bool = False) -> float:
     """Total wall-clock budget for one chat REQUEST (not one reply leg).
 
     Defaults sit under the client's 120 s abort so the backend answers first.
     ``ATOM_CHAT_REQUEST_DEADLINE_SECONDS`` overrides; ``0`` disables.
     """
-    raw = os.getenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS")
+    # Env failures degrade to the default budget — a broken env read
+    # must not kill the turn before it starts (w109 contract).
+    try:
+        raw = os.getenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS")
+    except Exception:  # noqa: BLE001 — default budget on env failure
+        raw = None
     if raw is not None and str(raw).strip() != "":
         try:
             return float(raw)
@@ -1792,12 +1873,16 @@ def _canvas_edit_shaped(
     # directives route to the teaching channel (one-click lesson); the
     # deterministic edit gate must not act on them.
     try:
-        from core.chat_teaching import (
-            detect_mid_message_cue,
-            detect_teaching_cue,
-        )
+        try:
+            from core.chat_teaching import (
+                detect_mid_message_cue,
+                detect_teaching_cue,
+            )
+        except Exception:  # noqa: BLE001 — import-time env/module failures
+            detect_mid_message_cue = None  # degrade: not a teaching cue
 
-        if detect_teaching_cue(text) or detect_mid_message_cue(text):
+        if detect_mid_message_cue is not None and (
+                detect_teaching_cue(text) or detect_mid_message_cue(text)):
             return False
     except Exception:  # noqa: BLE001 — classification only
         pass
@@ -1935,6 +2020,148 @@ _FILE_READ_SHAPE_RE = re.compile(
     r"how\s+much|what|which|where|compare|fetch|locate|does|do|is|are)\b",
     re.IGNORECASE,
 )
+# A RESULT-REFERENCE ask: the message asks about the RESULTS of the
+# conversation's retrieval work in result vocabulary, with no file noun
+# at all — resolved against the objective's own file. Both halves
+# required (a bare 'results?' must not resolve on its own).
+_RESULT_REFERENCE_ASK_RE = re.compile(
+    r"\b(?:what|which|list|show|give|tell)\b[^.!?\n]{0,60}"
+    r"\b(?:not\s+found|no\s+match|missing|absent|"
+    r"weren'?t\s+found|wasn'?t\s+found)\b",
+    re.IGNORECASE,
+)
+
+# STATUS-OF-RESULTS ASKS (2026-10-02, the empty re-delivery incident):
+# "give me the list with a table show what is confirmed and what is not"
+# asks for a NEW PRESENTATION of the conversation's own retrieval
+# outcomes — re-delivering the previous wording cannot answer it, and
+# when the stored record is degenerate it renders header+footer with no
+# body. The confirmation vocabulary is the signal; these turns belong to
+# planning (the ask lane answers from the objective ledger).
+_STATUS_TABLE_ASK_RE = re.compile(
+    r"\b(?:what(?:'s| is| are)|which|list|show|give|table|summary)\b"
+    r"[^.!?\n]{0,80}\b(?:confirmed|not\s+confirmed|unconfirmed|"
+    r"verified|still\s+missing|need(?:s|ing)?\s+(?:a\s+)?(?:pick|choice))\b"
+    r"|\bconfirmed\s+and\s+what\s+is\s+not\b"
+    r"|\bconfirmed\s+vs\.?\s+not\b",
+    re.IGNORECASE,
+)
+
+# CLARIFICATION FOLLOWS (2026-10-02, same incident): "clarify what you
+# mean for the other machinery you didn't mention in the previous
+# message" asks ABOUT the previous reply — a persisted re-render of an
+# OLDER result is doubly wrong (different content, and it re-served an
+# empty shell). The clarify vocabulary marks the turn for planning.
+_CLARIFY_PREVIOUS_RE = re.compile(
+    r"\bclarif(?:y|ication|ying)\b"
+    r"|\bwhat\s+do\s+you\s+mean\b"
+    r"|\byou\s+didn'?t\s+mention\b"
+    r"|\bdidn'?t\s+mention\s+in\s+the\s+previous\b",
+    re.IGNORECASE,
+)
+
+# CHAINED FALLBACK WORKFLOWS (2026-10-02, the recorded architectural
+# gap, now built): an edit-shaped instruction whose steps are joined by
+# STILL-NOT-FOUND conditions — "update the prices found in the email;
+# search attachments for the ones not found; if still not found find
+# vendor pricing; if still not found ask Vipul or Chandrakant" — is ONE
+# workflow with an item set threading through it, not one edit. TWO
+# distinct fallback markers are required (fail-closed: an ordinary
+# edit request never matches) before the chain evidence phase runs.
+_MULTI_STEP_CHAIN_RE = re.compile(
+    r"\b(?:for|with)\s+the\s+(?:ones?|items?|machinery|rows?)\s+"
+    r"not\s+found\b"
+    r"|\bif\s+still\s+not\s+found\b"
+    r"|\bif\s+not\s+found\b"
+    r"|\bstill\s+(?:not\s+found|missing)\b"
+    r"|\bfor\s+the\s+(?:ones?|items?)\s+(?:that\s+(?:are|were)\s+)"
+    r"(?:still\s+)?(?:not\s+found|missing)\b",
+    re.IGNORECASE,
+)
+
+# The terminal human handoff of a chain: "ask Vipul or Chandrakant to
+# figure out …" — names captured for the ready-to-send draft ask.
+# Unicode letter classes: accented names (José, François) are people too.
+_CHAIN_ASK_PEOPLE_RE = re.compile(
+    r"\bask\s+((?:[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,24}[,\s]*"
+    r"(?:\s*(?:and|or|,)\s*)?){1,4})"
+    r"\s+to\b",
+)
+
+# DOMAIN-INDEPENDENT VALUE VOCABULARY (2026-10-02 independence audit):
+# the chain's search qualifier and field words come from the USER'S OWN
+# instruction ("update the LEAD TIMES that were found…") and the read's
+# requested_fields first; these constants are only the neutral fallback
+# for instructions that name no value kind. English matches the
+# platform's NLU language; the basis-preference list adds the common
+# cost/price words of other Western-language business sheets (Preis,
+# prix, precio, prezzo, coût) — a wrong-language sheet still works
+# through the first-value fallback, this only improves the pick.
+_CHAIN_VALUE_NOUN_RE = re.compile(
+    r"\b(?:update|set|fill\s+in|correct|refresh|revise)\s+"
+    r"(?:the\s+|our\s+)?"
+    r"(?!(?:these|those|such|them|it|all)\b)"
+    r"([a-z][a-z\s/-]{2,30}?)\s+(?:that|which)\s+(?:were|was|are|is)\s+"
+    r"(?:found|located|confirmed|listed)\b",
+    re.IGNORECASE,
+)
+_CHAIN_DEFAULT_VALUE_NOUN = "pricing"
+_CHAIN_FALLBACK_QUALIFIERS = ("price", "cost", "list")
+_CHAIN_BASIS_PREFERENCE_RE = re.compile(
+    r"price|list|cost|rate|tarif|preis|prix|precio|prezzo|preço",
+    re.IGNORECASE,
+)
+
+
+def _chain_value_vocabulary(
+    message: str,
+    carrier: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """The chain's value words from the USER'S OWN vocabulary — the
+    independence seam (2026-10-02 audit). A chain about lead times must
+    search and extract lead times, not prices; the noun comes from the
+    instruction ("update the lead times that were found"), the fields
+    from the read's own requested_fields, and only when both are absent
+    does the neutral fallback apply. Never enumerates business nouns.
+    """
+    noun = ""
+    m = _CHAIN_VALUE_NOUN_RE.search(message or "")
+    if m:
+        noun = re.sub(r"\s+", " ", m.group(1).strip()).strip()
+    fields: List[str] = []
+    try:
+        carried = ((carrier or {}).get("structured_result")
+                   or {}).get("requested_fields") or []
+        fields = [str(f) for f in carried if str(f).strip()][:2]
+    except Exception:  # noqa: BLE001 — vocabulary is best-effort
+        fields = []
+    if not fields and noun:
+        fields = [noun]
+    if not fields:
+        fields = list(_CHAIN_FALLBACK_QUALIFIERS[:1])
+    # The neutral fallbacks ride along ONLY when the instruction named
+    # no value vocabulary of its own — a lead-times chain must never
+    # search "…price" (2026-10-02 independence audit).
+    qualifiers = ([noun] if noun else []) + list(fields)
+    if not qualifiers:
+        qualifiers = list(_CHAIN_FALLBACK_QUALIFIERS)
+    qualifiers = list(dict.fromkeys(
+        q.lower() for q in qualifiers if q and q.lower()))[:4]
+    return {
+        "noun": noun or _CHAIN_DEFAULT_VALUE_NOUN,
+        "fields": fields,
+        "qualifiers": qualifiers,
+    }
+
+# A not-found-SHAPED ask: the user explicitly asks for the missing/
+# unmatched items — the answer must NAME them, deterministically.
+_NOT_FOUND_ASK_RE = re.compile(
+    r"\b(?:what|which|list|show|give)\b[^.\n]{0,60}"
+    r"\b(?:not\s+found|no\s+match|missing|absent|weren'?t\s+found)\b"
+    r"|\blist\s+what\b[^.\n]{0,60}\bnot\b",
+    re.IGNORECASE,
+)
+
 _OBJECTIVE_SYNTHESIS_RE = re.compile(
     r"\b(?:compare|comparison|reconcile|reconciliation|discrepanc(?:y|ies)|"
     r"difference|differences|against|historical|implication|implications|"
@@ -1955,11 +2182,84 @@ _OBJECTIVE_SYNTHESIS_RE = re.compile(
 # verbs (delete/update/send) are deliberately absent — the read-shape gate
 # above stays the action boundary; this regex only ever RESOLVES a name.
 _GENERIC_FILE_REF_RE = re.compile(
-    r"\b(?:in|from|of|into|across|on)\s+(?:the\s+|this\s+|that\s+|our\s+)?"
+    # DIRECT-OBJECT FORM (2026-10-01 live, the 23:2x turn): 'search the
+    # price list workbook to confirm…' — the file as the OBJECT of the
+    # retrieval verb, the most basic file-scoped ask, matched no floor.
+    r"\b(?:search|read|open|check|scan|recheck|verify|review|"
+    r"look\s+through|go\s+through|pull|fetch)\s+"
+    r"(?:the\s+|this\s+|that\s+|our\s+)?"
+    r"(?:[a-z][a-z0-9-]*\s+)?"
+    r"(?:workbooks?|spreadsheets?|excel(?:\s+files?)?|sheets?|"
+    r"price\s+lists?|files?|documents?|docs?|reports?)\b"
+    # PREPOSITIONAL FORM: 'in the workbook', 'from our master file' —
+    # ONE modifier word before the noun is free (2026-10-01 fresh-domain
+    # finding: 'in the register file'); the noun list stays generic.
+    r"|\b(?:in|from|of|into|across|on)\s+"
+    r"(?:the\s+|this\s+|that\s+|our\s+)?"
+    r"(?:[a-z][a-z0-9-]*\s+)?"
     r"(?:workbooks?|spreadsheets?|excel(?:\s+files?)?|sheets?|"
     r"price\s+lists?|files?|documents?|docs?|reports?)\b",
     re.IGNORECASE,
 )
+
+
+def _adopt_pending_file_result(
+    session: Dict[str, Any],
+    candidate: Any,
+    *,
+    source: str,
+) -> Any:
+    """Adopt a freshly built file result as the conversation's re-delivery
+    carrier — UNLESS it would DOWNGRADE a healthy one (2026-10-02, the
+    empty re-delivery incident).
+
+    Live sequence: a read executed while the row catalog was mid-rebuild
+    returned zero targets; the empty structured result REPLACED the
+    healthy 6-target carrier in the session and in the persisted
+    metadata, and every later non-substantive ask re-delivered the
+    degenerate shell (attribution header + freshness footer, no body) —
+    twice in one session, 13 hours apart. A 0-target verdict is a fact
+    about THIS attempt (stale dataset, transient parse state), never a
+    reason to forget the last good answer: the visible reply still shows
+    the honest empty copy, but the durable carrier keeps the previous
+    set. Adoption is unconditional when the carrier holds no targets
+    (first read, or a genuinely empty conversation).
+    """
+    try:
+        existing = session.get("_pending_file_result")
+        if not isinstance(candidate, dict):
+            return candidate
+
+        def _target_count(rec: Any) -> int:
+            if not isinstance(rec, dict):
+                return 0
+            sr = rec.get("structured_result")
+            if not isinstance(sr, dict):
+                return -1  # no artifact — legacy shape, never blocks
+            targets = sr.get("targets")
+            return len(targets) if isinstance(targets, list) else -1
+
+        existing_n = _target_count(existing)
+        candidate_n = _target_count(candidate)
+        if (
+            isinstance(existing, dict)
+            and existing_n is not None and existing_n > 0
+            and candidate_n == 0
+        ):
+            logger.warning(
+                "[pending-file-result] downgrade refused (%s): incoming "
+                "record has 0 targets; keeping the healthy carrier "
+                "(%d targets) as the re-delivery source",
+                source, existing_n)
+            return existing
+        session["_pending_file_result"] = candidate
+        return candidate
+    except Exception:  # noqa: BLE001 — guard must never break the lane
+        try:
+            session["_pending_file_result"] = candidate
+        except Exception:  # noqa: BLE001
+            pass
+        return candidate
 
 # Services whose live lookups can actually serve a file-scoped ask (storage
 # reads, sheet datasets, ingested documents). A mailbox/calendar hit does
@@ -2073,6 +2373,15 @@ def _derivation_ask(
     message/canvas/history — so 'how was that score computed' fires in any
     domain, and no business vocabulary is enumerated."""
     if not _DERIVATION_ASK_RE.search(message or ""):
+        return False
+    # AN EDIT IMPERATIVE IS NOT A DERIVATION QUESTION (2026-10-02, the
+    # chain-turn 12s starve): 'update the prices… ask Vipul to figure out
+    # how to get the pricing' carries both "figure out" and "price", so
+    # this classifier bounded the edit leg at the derivation short-slice
+    # and the planner starved. "Figure out" in a request ADDRESSED TO A
+    # PERSON is delegation wording, not a how-was-it-derived question; an
+    # edit-shaped turn is never answered by the derivation lane anyway.
+    if _canvas_edit_shaped(message, context or {}):
         return False
     if _DERIVATION_VALUE_RE.search(message or ""):
         return True
@@ -3114,12 +3423,72 @@ async def _resolve_anaphoric_file_mention(
     # 2026-09-30 regression): "check <person>'s email and the workbook
     # descriptions" names a communication source AND a workbook — its
     # job is supersession + normal planning, never a deterministic
-    # workbook read. This guard must precede BOTH the inheritance and
-    # the generic-ref floor ("in workbook" alone would otherwise
-    # resolve it).
-    if re.search(
+    # workbook read. CLAUSE-SCOPED (2026-10-01 live): the refusal stands
+    # when a communication source and the file vocabulary share ONE
+    # clause — a single cross-source objective. Separate sentences are
+    # separate objectives ("give me a list first what machinery was not
+    # found in the price list excel file. Also check email attachments."
+    # — the message-level guard refused resolution there, the excel ask
+    # lost its deterministic read, and the reply answered only the
+    # attachments half). The file clause resolves; the communication
+    # clause stays with normal planning.
+    _xs_comm = re.compile(
         r"\b(?:e-?mails?|mails?|inbox|threads?|dms?|chats?|"
-        r"messages?|texts?|calendar|tickets?)\b", t, re.IGNORECASE):
+        r"messages?|texts?|calendar|tickets?)\b", re.IGNORECASE)
+    _xs_file = re.compile(
+        r"\b(?:workbooks?|spreadsheets?|excel|sheets?|files?|filename|"
+        r"price\s+lists?)\b", re.IGNORECASE)
+    # RESULT-REFERENCE SPANS (2026-10-01 live, replay-retry2 23:2x):
+    # 'search the price list workbook to confirm the rows that are found
+    # in the email' — the email noun is the PROVENANCE of rows the user
+    # already has, not a search target ('rows found/mentioned/quoted in
+    # the email'); stripping those spans lets the FILE objective through
+    # while genuine cross-source objectives ('check Chandrakant's email
+    # and the workbook descriptions' — retrieval verb + comm object)
+    # stay refused.
+    _xs_result_ref = re.compile(
+        r"\b(?:that\s+)?(?:are\s+|were\s+|is\s+|was\s+)?"
+        r"(?:found|listed|mentioned|quoted|shown|referenced|cited|"
+        r"attached|priced)\b[^.;!?]{0,60}?"
+        r"\b(?:in|from)\s+(?:the\s+|your\s+|an\s+)?"
+        r"(?:e-?mails?|mails?|inbox|threads?|chats?|messages?|texts?|"
+        r"dms?)\b", re.IGNORECASE)
+    if any(
+            _xs_comm.search(clause) and _xs_file.search(clause)
+            for clause in re.split(
+                r"[.!?;]+", _xs_result_ref.sub(" ", t))):
+        return ""
+    # OUTCOME-SEEWHERE ASKS YIELD (2026-10-02, the 'ones not found' live
+    # turn): 'search email attachments for the ones not found' — the SET
+    # comes from this conversation's workbook results, but the SEARCH
+    # belongs in the named communication source. Resolving the file
+    # reference here would re-deliver the stored workbook result and
+    # ignore the attachment half (observed live). The planner leg owns
+    # the turn; its query is enriched with the resolved codes at the
+    # _plan_msg seam.
+    try:
+        from core.target_set_resolution import outcome_referenced_items
+
+        if (outcome_referenced_items(t, conversation_id)
+                and re.search(
+                    r"\b(?:search|check|look|scan|try|find)\b[^.;!?\n]{0,40}"
+                    r"\b(?:e-?mails?|attachments?|mailbox|inbox|threads?|"
+                    r"messages?)\b", t, re.IGNORECASE)):
+            return ""
+    except Exception:  # noqa: BLE001 — yield rule is best-effort
+        pass
+    # An OUTBOUND verb anywhere refuses on behalf of the whole turn: a
+    # clause-scoped resolution must never let the deterministic read
+    # lane consume (and end) a turn whose other clause asks to SEND or
+    # CHANGE something — that clause's own lanes own it. 'email' counts
+    # only as a VERB ("email Vipul"), never as the noun of 'check email
+    # attachments' — the lookahead keeps the noun form reading-side.
+    if re.search(
+            r"\b(?:send|forward|upload|export|share|post|publish|update|"
+            r"replace|delete|edit)\b"
+            r"|\bemail(?:s|ed)?\s+"
+            r"(?!attachments?|folder|inbox|threads?|accounts?)[A-Za-z]",
+            t, re.IGNORECASE):
         return ""
     resolved_name = ""
     # RERUN-INHERITANCE (2026-09-30 gap fix): a rerun-shaped message
@@ -3198,10 +3567,39 @@ async def _resolve_anaphoric_file_mention(
                 resolved_name = _lname
         except Exception:  # noqa: BLE001 — ledger optional
             pass
+    if not resolved_name and conversation_id:
+        # ACTIVE-OBJECTIVE FALLBACK (2026-10-01, the short-form ask): the
+        # conversation's file-scoped objective carries ITS file — durable
+        # in the ledger even when every read carrier was superseded.
+        try:
+            from core import dialogue_state as _ds
+            from core.agent_file_context import SPREADSHEET_EXTENSIONS
+
+            _obj = (_ds.project_events(
+                _ds.fetch_events(conversation_id)) or {}
+            ).get("objective") or {}
+            _oname = str((_obj or {}).get("file") or "").strip()
+            if _oname and _oname.rsplit(".", 1)[-1].lower() in (
+                    SPREADSHEET_EXTENSIONS):
+                resolved_name = _oname
+        except Exception:  # noqa: BLE001 — ledger optional
+            pass
     if not resolved_name:
         return ""
     # Deterministic floor: generic file nouns resolve outright.
     if _GENERIC_FILE_REF_RE.search(t):
+        return resolved_name.lower()
+    # RESULT-REFERENCE FLOOR (2026-10-01, the short-form ask live in
+    # replay-retry2): 'give me a list first what machinery was not
+    # found. Also check email attachments.' names NO file vocabulary at
+    # all — the generic-noun floor cannot match and the cheap-NLU judge
+    # said no — yet the ask is entirely ABOUT THE RESULTS of this
+    # conversation's own retrieval work, whose source the objective
+    # pins. A list/what-ask over retrieval-RESULT vocabulary (not
+    # found / no match / missing / absent) is a reference to that work's
+    # source: resolve it, and the read answers from the workbook the
+    # results came from.
+    if _RESULT_REFERENCE_ASK_RE.search(t):
         return resolved_name.lower()
     # NAMED-SHEET REFERENCE (2026-09-30). A preposition is not required to be
     # talking about the workbook: "show me the tennsmith sheet searches" and
@@ -3226,7 +3624,16 @@ async def _resolve_anaphoric_file_mention(
             return resolved_name.lower()
     except Exception:  # noqa: BLE001 — fail toward normal planning
         pass
-    # Cheap-NLU residue: unknown generic noun, judged semantically.
+    # Cheap-NLU residue — THE AUTHORITATIVE CLASSIFIER for phrasings no
+    # deterministic floor anticipates (2026-10-01 systemic close): ten
+    # rounds of live phrasing misses (rounds 4, 8, 9, 10 — each a new
+    # user vocabulary the regex floors did not cover) proved the floors
+    # cannot enumerate every business's way of naming their file work.
+    # The NLU question now carries the CONVERSATION context (resolved
+    # file, objective items, recent results) and judges the full semantic
+    # space — lookups in the file, confirmations against it, and
+    # questions about its results. Floors stay the fast path; this is
+    # what makes a NEW user's first-day phrasing work.
     try:
         from core.llm.cheap_nlu import (
             refers_to_resolved_file,
@@ -3234,10 +3641,44 @@ async def _resolve_anaphoric_file_mention(
         )
 
         if _nlu_switch_on():
-            if await refers_to_resolved_file(t, resolved_name, llm_service):
+            _nlu_ctx = ""
+            try:
+                from core import dialogue_state as _ds
+
+                _proj = _ds.project_events(
+                    _ds.fetch_events(conversation_id)) \
+                    if conversation_id else {}
+                _obj = _proj.get("objective") or {}
+                _items = ", ".join(
+                    str(i) for i in (_obj.get("items") or [])[:10])
+                _nlu_ctx = (
+                    f"Active objective: items [{_items}] in file "
+                    f"{_obj.get('file') or resolved_name}. "
+                    "Lookups against this file have already run and "
+                    "results were served."
+                ) if (_items or _obj.get("file")) else (
+                    "Lookups against this file have already run and "
+                    "results were served.")
+            except Exception:  # noqa: BLE001 — context is enrichment
+                pass
+            if await refers_to_resolved_file(
+                    t, resolved_name, llm_service,
+                    context_hint=_nlu_ctx):
                 return resolved_name.lower()
     except Exception:  # noqa: BLE001 — fail-closed to normal planning
         pass
+    # MISS TELEMETRY (2026-10-01): the conversation HAS a resolved file,
+    # the message cleared the hard-safety guards (no '?', no outbound
+    # verb, no genuine cross-source objective), and yet nothing resolved
+    # it — a phrasing the deterministic floors and the NLU both missed.
+    # This is exactly what a NEW user's first miss looks like: it must be
+    # VISIBLE (typed, greppable, counted) instead of silently degrading
+    # to a generic search — that is how the phrasing coverage improves
+    # from evidence instead of from incident reports.
+    logger.warning(
+        "[file-ref-miss] conversation holds resolved file %r but no "
+        "resolver accepted the phrasing: %r",
+        resolved_name, t[:160])
     return ""
 
 
@@ -3394,6 +3835,7 @@ def _capture_resolved_row_bindings(
     structured_result: Optional[Dict[str, Any]],
     current_message: str = "",
     conversation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> None:
     """Persist user-asserted + read-verified row bindings on the task.
 
@@ -3468,7 +3910,12 @@ def _capture_resolved_row_bindings(
                                 .get("source_identity") or {}
                             ).get("content_hash"),
                             "asserted_in": (current_message or "")[:200],
-                        })
+                        },
+                        # WORKBOOK-SCOPED MEMORY (2026-10-01): the binding
+                        # is a fact about the file revision — stamping the
+                        # workspace lets workbook_bindings() surface it to
+                        # OTHER conversations on the same workbook.
+                        workspace_id=workspace_id)
             except Exception:  # noqa: BLE001 — ledger optional
                 pass
         logger.info(
@@ -4931,7 +5378,11 @@ class ChatOrchestrator:
             # answer, finalize, or persist anything, and a turn that would
             # have failed still fails after the release. One env lookup when
             # unset.
-            if os.getenv("ATOM_ACCEPTANCE_BARRIER"):
+            try:
+                _barrier_on = bool(os.getenv("ATOM_ACCEPTANCE_BARRIER"))
+            except Exception:  # noqa: BLE001 — env failure = barrier off
+                _barrier_on = False
+            if _barrier_on:
                 from core.acceptance_barrier import await_barrier as _barrier
 
                 await _barrier("chat_turn_after_claim", {
@@ -5161,18 +5612,71 @@ class ChatOrchestrator:
                     # fields win downstream). No speculative retrieval
                     # starts while deciding — this verdict is pure text.
                     _continuation = self._continuation_decision(message, session)
+                    # RESULT/STATUS/CLARIFICATION ASKS FIRST (2026-10-02
+                    # live re-run, the format-branch gap): 'give me the
+                    # list with a table show what is confirmed and what is
+                    # not' reads to the continuation NLU as a presentation
+                    # follow-up (retrieval: none, style: table), so the
+                    # FORMAT branch re-rendered the stored record instead
+                    # of planning — the delivery-retry guard alone was not
+                    # enough; the same disqualification must gate BOTH
+                    # delivery-lane entrances. These asks want outcome
+                    # SEMANTICS (which items are confirmed), which a
+                    # re-render of previous wording cannot produce.
+                    _result_reference_ask = bool(
+                        _RESULT_REFERENCE_ASK_RE.search(message or "")
+                        or _STATUS_TABLE_ASK_RE.search(message or "")
+                        or _CLARIFY_PREVIOUS_RE.search(message or ""))
                     _format_request = (
                         _continuation is not None
                         and _continuation.get("retrieval") == "none"
                         and not _refresh_request
+                        and not _result_reference_ask
                         and not _canvas_edit_shaped(message, context)
                         and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
                         and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
                     )
+                    # OUTCOME-SEEK-WHERE ASKS ARE SUBSTANTIVE (2026-10-02
+                    # live): 'search email attachments for the ones not
+                    # found' is a short imperative that _is_substantive
+                    # rates non-substantive — the lane then re-delivered
+                    # the stored workbook result and ignored the
+                    # attachment search. The resolved subset seeds the
+                    # planner's mail query instead.
+                    try:
+                        from core.target_set_resolution import (
+                            outcome_referenced_items as _ori,
+                        )
+
+                        _outcome_seek_elsewhere = bool(
+                            _ori(message, session_id)
+                            and re.search(
+                                r"\b(?:search|check|look|scan|try|find)\b"
+                                r"[^.;!?\n]{0,40}\b(?:e-?mails?|"
+                                r"attachments?|mailbox|inbox|threads?|"
+                                r"messages?)\b",
+                                message or "", re.IGNORECASE))
+                    except Exception:  # noqa: BLE001
+                        _outcome_seek_elsewhere = False
+                    # RESULT/STATUS/CLARIFICATION ASKS ARE NOT DELIVERIES
+                    # (2026-10-02, the empty re-delivery incident): "give me
+                    # the list with a table show what is confirmed and what
+                    # is not" and "clarify what you mean for the other
+                    # machinery" both rate non-substantive on generic
+                    # word-shape, so the lane re-delivered the stored result
+                    # verbatim — and when that stored record was the
+                    # degenerate 0-target shell (see the adoption guard
+                    # below), the reply was header + freshness footer with
+                    # NO body, twice in one session. These asks want a NEW
+                    # presentation of the outcomes (or a clarification OF
+                    # the reply) — planning owns them. (_result_reference_ask
+                    # is computed above, gating BOTH delivery entrances.)
                     _delivery_retry = (
                         (is_filename_confirmation(message)
                          or not _new_substantive)
                         and not _refresh_request
+                        and not _outcome_seek_elsewhere
+                        and not _result_reference_ask
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
@@ -5417,6 +5921,43 @@ class ChatOrchestrator:
                         authorized_actions=["read"],
                         allow_persisted_evidence=True,
                     )
+                    # FORMULA SURFACING on re-delivery (2026-10-02 live:
+                    # derivation asks reached THIS lane, not the ask lane):
+                    # the stored render plus the formulas section for the
+                    # matched cells — one append at the lane exit covers
+                    # every delivery branch.
+                    try:
+                        _fx_section = _derivation_formula_section(
+                            _pfr.get("structured_result")
+                            if isinstance(_pfr, dict) else None,
+                            message, history or [])
+                        if _fx_section:
+                            _deliver_content += _fx_section
+                            _deliver_response["message"] = _deliver_content
+                    except Exception:  # noqa: BLE001 — bonus
+                        pass
+                    # EMPTY-RECORD HONESTY (2026-10-02, the empty
+                    # re-delivery incident): a degenerate stored record (a
+                    # 0-target read once overwrote the healthy carrier — see
+                    # the adoption guard) re-rendered as attribution header +
+                    # freshness footer with NO body, which reads as a normal
+                    # answer. If the stored record carries no target rows,
+                    # say so explicitly instead of shipping silent emptiness.
+                    try:
+                        _deliv_targets = (
+                            ((_pfr.get("structured_result") or {})
+                             .get("targets") or [])
+                            if isinstance(_pfr, dict) else [])
+                        if not _deliv_targets:
+                            _deliver_content += (
+                                "\n\nNote: the stored result this reply was "
+                                "re-delivered from carries no item rows — it "
+                                "cannot answer a content question. Ask me to "
+                                "search the file again and I will re-run the "
+                                "read.")
+                            _deliver_response["message"] = _deliver_content
+                    except Exception:  # noqa: BLE001 — honesty is best-effort
+                        pass
                     logger.info(
                         "[pending-file-task] delivery retry — persisted "
                         "result re-rendered without re-reading")
@@ -5758,6 +6299,30 @@ class ChatOrchestrator:
                 except Exception as _tp_err:  # noqa: BLE001 — floor follows
                     logger.debug(
                         "turn-program build skipped: %r", _tp_err)
+                # Active-objective items FIRST (2026-10-02 ordering fix):
+                # contrastive resolution in the fallback branch below needs
+                # the ledger-aware prior — resolved BEFORE it runs, or "the
+                # other machinery" on churned carriers had no base set to
+                # subtract from and fell through as kind=none. Computed on
+                # BOTH paths: the program path's task stamping below reads
+                # it too.
+                _ask_active = _stored_requested_items(session)
+                if not _ask_active:
+                    # LEDGER-OBJECTIVE ITEM FALLBACK (2026-10-02 live, the
+                    # empty-answer turns): task carriers die with
+                    # supersession churn, but the conversation's ACTIVE
+                    # OBJECTIVE items are durable ledger facts — a
+                    # follow-up with no codes of its own ("cross check
+                    # what's already confirmed") inherits them instead of
+                    # reading an EMPTY set (which rendered as header +
+                    # coverage footer + freshness verdict with no body).
+                    try:
+                        from core import dialogue_state as _ds
+
+                        _ask_active = _ds.active_objective_items(
+                            session_id)
+                    except Exception:  # noqa: BLE001 — ledger optional
+                        _ask_active = []
                 if _turn_program is None:
                     # Fallback: the pre-program sequential path (kept so
                     # a program-build failure is a behavior no-op).
@@ -5772,7 +6337,7 @@ class ChatOrchestrator:
                         _tsr = _tsr_resolve(
                             message,
                             canvas_items=[],
-                            prior_items=_stored_requested_items(session),
+                            prior_items=_ask_active,
                             last_served_items=(
                                 ((session.get("_pending_file_result")
                                   or {}).get("structured_result") or {})
@@ -5785,7 +6350,6 @@ class ChatOrchestrator:
                                 "origin")
                     except Exception:  # noqa: BLE001 — floor follows
                         pass
-                _ask_active = _stored_requested_items(session)
                 if _ask_active:
                     # Active-objective inheritance for vague follow-up
                     # asks; the producer still prefers the turn's own
@@ -5837,6 +6401,12 @@ class ChatOrchestrator:
                     # the stored workbook revision) ride the read when the
                     # task carrier lost them — supersession and restarts
                     # no longer forget what the user confirmed.
+                    # CROSS-CONVERSATION (same day, the flagged memory
+                    # gap): a confirmed row is a fact about the WORKBOOK
+                    # revision — other conversations on the same file
+                    # (same workspace, same content hash) inherit it, so
+                    # a new session stops re-asking "which row do you
+                    # mean?" for rows the user already settled.
                     try:
                         from core import dialogue_state as _ds
 
@@ -5847,10 +6417,35 @@ class ChatOrchestrator:
                         ).get("content_hash")
                         _lb = _ds.active_bindings(
                             session_id, _ledger_hash)
-                        if _lb:
+                        _lb_extra = []
+                        if _ledger_hash and (
+                                context or {}).get("workspace_id"):
+                            # BOTH scopes required (2026-10-01, live test
+                            # catch): a binding crossing conversations
+                            # must be pinned to a workspace AND a workbook
+                            # revision — a workspace-less context inherits
+                            # nothing (cross-workbook pollution), and a
+                            # hash-less one cannot expire by revision.
+                            try:
+                                _lb_extra = _ds.workbook_bindings(
+                                    (context or {}).get("workspace_id"),
+                                    _ledger_hash,
+                                    # only items this ask still needs — a
+                                    # settled row for an unasked item
+                                    # rides as noise
+                                    list(_ask_task.get(
+                                        "requested_targets") or []),
+                                )
+                            except Exception:  # noqa: BLE001 — optional
+                                _lb_extra = []
+                        for _b in ([*_lb, *_lb_extra]):
                             _dis = _ask_task.setdefault(
                                 "disambiguation", {})
                             if isinstance(_dis, dict):
+                                _k = (
+                                    str(_b.get("item") or "").lower(),
+                                    str(_b.get("sheet") or "").lower(),
+                                    _b.get("row"))
                                 _have = {
                                     (str(b.get("item") or "").lower(),
                                      str(b.get("sheet") or "").lower(),
@@ -5858,15 +6453,10 @@ class ChatOrchestrator:
                                     for b in (
                                         _dis.get("resolved_bindings")
                                         or [])}
-                                for b in _lb:
-                                    _k = (
-                                        str(b.get("item") or "").lower(),
-                                        str(b.get("sheet") or "").lower(),
-                                        b.get("row"))
-                                    if _k not in _have:
-                                        _dis.setdefault(
-                                            "resolved_bindings",
-                                            []).append(b)
+                                if _k not in _have:
+                                    _dis.setdefault(
+                                        "resolved_bindings",
+                                        []).append(_b)
                     except Exception:  # noqa: BLE001 — ledger optional
                         pass
                     if _stored_ctx.get("resolved_file") and not _ask_task.get(
@@ -6165,9 +6755,62 @@ class ChatOrchestrator:
                     except Exception as _delta_err:  # noqa: BLE001
                         logger.debug(
                             "retry-delta lead skipped: %r", _delta_err)
-                    if _ask_freshness.get("note"):
+                    # IDEMPOTENT (2026-10-01 live, e2e round 3): the
+                    # compare/refresh branches above already append this
+                    # note to _ask_content — the unconditional second
+                    # append here delivered the SOURCE FRESHNESS
+                    # paragraph twice in one answer. The note text is
+                    # turn-unique (it carries the content hash/stamp),
+                    # so containment is a safe idempotence check.
+                    if _ask_freshness.get("note") and str(
+                            _ask_freshness["note"]) not in _ask_content:
                         _ask_content = (
                             _ask_content + str(_ask_freshness["note"]))
+                    # FORMULA SURFACING (2026-10-02, the 'what about
+                    # formulas' gap) — shared helper, used by BOTH the ask
+                    # lane and the delivery lane: a derivation-shaped ask
+                    # must show the formulas behind the matched cells.
+                    try:
+                        _ask_content += _derivation_formula_section(
+                            _ask_structured if isinstance(
+                                _ask_structured, dict) else None,
+                            message, history or [])
+                    except Exception:  # noqa: BLE001 — formulas are a bonus
+                        pass
+                    # EMPTY-ITEM HONESTY (2026-10-02 live, the
+                    # empty-answer turns): a read that completed with ZERO
+                    # requested items must never deliver a header +
+                    # coverage footer with no body — that renders as a
+                    # confident empty answer. Ask which items, offering
+                    # the objective's list when the ledger holds one.
+                    try:
+                        _ask_items_used = (
+                            _ask_structured or {}
+                        ).get("requested_items") or []
+                        if not _ask_items_used:
+                            _offer = ""
+                            try:
+                                from core import dialogue_state as _ds
+
+                                _obj_items = _ds.active_objective_items(
+                                    session_id)
+                                if _obj_items:
+                                    _offer = (
+                                        " The conversation's current list "
+                                        "is: " + ", ".join(_obj_items[:12])
+                                        + " — say the word and I'll check "
+                                        "those.")
+                            except Exception:  # noqa: BLE001 — optional
+                                pass
+                            _ask_content = (
+                                "The workbook was read, but no items were "
+                                "named to check — nothing can be "
+                                "confirmed or ruled out from an empty "
+                                "list. Which items should I check?" + _offer)
+                            _ask_handoff_block = None
+                            _ask_miss_handoff = False
+                    except Exception:  # noqa: BLE001 — honesty is a floor
+                        pass
                     _ask_identity = _ask_result.get("identity") or {}
                     if _ask_identity:
                         _ask_identity = {
@@ -6192,6 +6835,27 @@ class ChatOrchestrator:
                                         "content_hash": _ask_identity.get(
                                             "content_hash"),
                                     })
+                            # ITEM OUTCOMES (2026-10-02, the referential-
+                            # subset gap): persist this read's per-item
+                            # statuses so a later 'search attachments for
+                            # the ones not found' resolves the SET without
+                            # the user re-typing model codes.
+                            _outcomes = {
+                                str((t or {}).get("item") or ""):
+                                    str(((t or {}).get("identity")
+                                         or {}).get("status") or "")
+                                for t in (
+                                    (_ask_structured or {})
+                                    .get("targets") or [])
+                            }
+                            _outcomes = {
+                                k: v for k, v in _outcomes.items() if k and v}
+                            if _outcomes:
+                                _ds.record_item_outcomes(
+                                    session_id, _outcomes,
+                                    file_name=_ask_identity.get("file_name"),
+                                    content_hash=_ask_identity.get(
+                                        "content_hash"))
                         except Exception:  # noqa: BLE001 — ledger optional
                             pass
                     _ask_complete = bool(
@@ -6230,7 +6894,8 @@ class ChatOrchestrator:
                             _ask_result_row, _ask_content[:24000])
                     except Exception:  # noqa: BLE001 — pin optional
                         pass
-                    session["_pending_file_result"] = _ask_result_row
+                    _adopt_pending_file_result(
+                        session, _ask_result_row, source="ask_lane")
                     _tl_outcome_uncertain = False
                     _tl_operation_ref = None
                     try:
@@ -6275,8 +6940,9 @@ class ChatOrchestrator:
 
                                 _ask_result_row = _mark_uncertain(
                                     _ask_result_row, _ask_content[:24000])
-                                session["_pending_file_result"] = (
-                                    _ask_result_row)
+                                _adopt_pending_file_result(
+                                    session, _ask_result_row,
+                                    source="ask_lane_uncertain")
                             except Exception:
                                 pass
                         else:
@@ -6311,6 +6977,14 @@ class ChatOrchestrator:
                         message,
                         _ask_mention,
                         (context or {}).get("disambiguation"),
+                        # SUPERSESSION-STASH INHERITANCE: the pop at
+                        # supersession time leaves existing=None here, so
+                        # without the stash the replacement task was born
+                        # with no requested_targets (the empty-read churn)
+                        # and the stash's item set reached execution only
+                        # through the read-time fallbacks.
+                        inherit=session.get(
+                            "_superseded_file_task_context"),
                     )
                     if _ask_complete:
                         # Mirrors the resume lane: the read finished, then the
@@ -6329,7 +7003,8 @@ class ChatOrchestrator:
                         _ask_result.get("structured_result")
                         if isinstance(_ask_result, dict) else None,
                         current_message=message,
-                        conversation_id=session_id)
+                        conversation_id=session_id,
+                        workspace_id=(context or {}).get("workspace_id"))
                     try:
                         from core.answer_presentation import (
                             workbook_result_card as _wrc,
@@ -6378,6 +7053,47 @@ class ChatOrchestrator:
                             str(_ask_result.get("block")
                                 or _ask_result.get("rendered_answer")
                                 or _ask_content))
+                        # NOT-FOUND-SHAPED ASKS GET A DETERMINISTIC LEAD
+                        # (2026-10-01 three-domain live finding): the
+                        # user asks "list what was not found" — the
+                        # evidence carries the absent/ambiguous items,
+                        # but narration may summarize without NAMING
+                        # them (kitchen run: ZZ-99 was in the record,
+                        # the reply said only 'I did not find one').
+                        # The lead is computed from the structured
+                        # result, so the answer to the actual question
+                        # never depends on model phrasing.
+                        try:
+                            if _NOT_FOUND_ASK_RE.search(message or ""):
+                                _absent, _ambig = [], []
+                                for _t in ((_ask_structured or {})
+                                           .get("targets") or []):
+                                    _st = ((_t or {}).get("identity")
+                                           or {}).get("status")
+                                    if _st == "none":
+                                        _absent.append(str(
+                                            _t.get("item") or ""))
+                                    elif _st == "multiple":
+                                        _ambig.append(str(
+                                            _t.get("item") or ""))
+                                _lead_bits = []
+                                if _absent:
+                                    _lead_bits.append(
+                                        "NOT FOUND in this copy: "
+                                        + ", ".join(
+                                            i for i in _absent if i))
+                                if _ambig:
+                                    _lead_bits.append(
+                                        "AMBIGUOUS (needs the user's "
+                                        "pick): " + ", ".join(
+                                            i for i in _ambig if i))
+                                if _lead_bits:
+                                    _tool_block = (
+                                        "ANSWER TO THE USER'S ASK — "
+                                        + " ".join(_lead_bits)
+                                        + "\n\n" + _tool_block)
+                        except Exception:  # noqa: BLE001 — lead is a bonus
+                            pass
                         # EXECUTED-EVIDENCE FLAGS for the narrator: the
                         # read RAN (misses are results, not absence of a
                         # lookup) — without these the narration guard
@@ -6483,6 +7199,23 @@ class ChatOrchestrator:
                 else:
                             _direct_task = _pending_file_task
                             _direct_active = _stored_requested_items(session)
+                            if not _direct_active:
+                                # LEDGER-OBJECTIVE ITEM FALLBACK (same
+                                # contract as the ask lane, 2026-10-02 the
+                                # empty-answer turns): the carriers die with
+                                # supersession churn while the ledger's
+                                # active objective is durable — a follow-up
+                                # with no codes of its own must not run
+                                # THIS lane with zero targets either (zero
+                                # targets rendered header + coverage footer
+                                # with no body).
+                                try:
+                                    from core import dialogue_state as _ds
+
+                                    _direct_active = _ds.active_objective_items(
+                                        session_id)
+                                except Exception:  # noqa: BLE001 — ledger optional
+                                    _direct_active = []
                             _direct_presentation = None
                             # TARGET-SET RESOLUTION — RESUME LANE +
                             # SELF-HEAL (2026-10-01 live finding on the
@@ -7139,6 +7872,45 @@ class ChatOrchestrator:
                             "execution_id": _execution_id,
                         }
                         session["_resolved_file_identity"] = _direct_identity
+                        # LEDGER (same contract as the ask lane): the
+                        # resolved file identity and this read's per-item
+                        # outcomes are durable facts — later turns (and
+                        # restarted processes) resolve "the workbook" and
+                        # "the ones not found" from them even when every
+                        # in-memory carrier was superseded.
+                        try:
+                            from core import dialogue_state as _ds
+
+                            if _direct_identity.get("file_name"):
+                                _ds.append_event(
+                                    _ds.FILE_RESOLVED, session_id, {
+                                        "file_name": _direct_identity.get(
+                                            "file_name"),
+                                        "resource_id": _direct_identity.get(
+                                            "resource_id"),
+                                        "content_hash": _direct_identity.get(
+                                            "content_hash"),
+                                    })
+                            _direct_outcomes = {
+                                str((t or {}).get("item") or ""):
+                                    str(((t or {}).get("identity")
+                                         or {}).get("status") or "")
+                                for t in (
+                                    (_direct_structured or {})
+                                    .get("targets") or [])
+                            }
+                            _direct_outcomes = {
+                                k: v for k, v in _direct_outcomes.items()
+                                if k and v}
+                            if _direct_outcomes:
+                                _ds.record_item_outcomes(
+                                    session_id, _direct_outcomes,
+                                    file_name=_direct_identity.get(
+                                        "file_name"),
+                                    content_hash=_direct_identity.get(
+                                        "content_hash"))
+                        except Exception:  # noqa: BLE001 — ledger optional
+                            pass
                     _direct_complete = bool(
                         _direct_result.get("retrieval_complete"))
                     _direct_result_row = {
@@ -7201,7 +7973,8 @@ class ChatOrchestrator:
                                 _prior_row["rendered"])[:24000]
                             _direct_result_row["previous_status"] = (
                                 _prior_row.get("status"))
-                    session["_pending_file_result"] = _direct_result_row
+                    _adopt_pending_file_result(
+                        session, _direct_result_row, source="direct_read")
                     _tl_outcome_uncertain = False
                     _tl_operation_ref = None
                     try:
@@ -7246,8 +8019,9 @@ class ChatOrchestrator:
                                 _direct_result_row = _mark_uncertain(
                                     _direct_result_row,
                                     _direct_content[:24000])
-                                session["_pending_file_result"] = (
-                                    _direct_result_row)
+                                _adopt_pending_file_result(
+                                    session, _direct_result_row,
+                                    source="direct_read_uncertain")
                             except Exception:
                                 pass
                         else:
@@ -7279,7 +8053,8 @@ class ChatOrchestrator:
                             _direct_result.get("structured_result")
                             if isinstance(_direct_result, dict) else None,
                             current_message=message,
-                            conversation_id=session_id)
+                            conversation_id=session_id,
+                            workspace_id=(context or {}).get("workspace_id"))
                     except Exception:
                         pass
                     try:
@@ -7471,6 +8246,27 @@ class ChatOrchestrator:
                     # correct" names nothing to look up — planned literally,
                     # the planner declines and the read never runs).
                     _plan_msg = message
+                    # OUTCOME-SUBSET QUERY ENRICHMENT (2026-10-02): a
+                    # result-state reference ('search email attachments
+                    # for the ones not found') resolves to concrete codes
+                    # from the ledger — append them to the PLANNER's
+                    # message so the mail/attachment search queries carry
+                    # the actual model numbers instead of the reference
+                    # phrase alone. The user's own message is untouched.
+                    try:
+                        from core.target_set_resolution import (
+                            outcome_referenced_items,
+                        )
+
+                        _osub = outcome_referenced_items(
+                            message, session_id)
+                        if _osub:
+                            _plan_msg = (
+                                f"{message} "
+                                f"(the not-found items to search for: "
+                                f"{', '.join(_osub)})")
+                    except Exception:  # noqa: BLE001 — enrichment only
+                        pass
                     _plan_hist = _plan_history
                     if _pending_file_task:
                         _pft_orig = str(
@@ -7735,6 +8531,14 @@ class ChatOrchestrator:
                     logger.info(
                         "[stage-timing] canvas-edit leg skipped — read-only "
                         "file-data ask (the reply leg runs the lookup)")
+                    # MARKER (2026-10-02, the failed-edit-planner battery):
+                    # the skip means NOBODY classified this turn for the
+                    # action leg either — leaving the gate unset sent
+                    # search-shaped read-only turns into the canvas-ACTION
+                    # planner, which could dispatch an unintended action.
+                    # The reply leg (the lookup) owns the turn, same as
+                    # with an unavailable planner.
+                    _shared_tool["canvas_edit_skipped_read_only"] = True
                     _edit_response = None
                 elif _canvas_ctx and not _canvas_action_bypassed:
                     # TASK LIFECYCLE (Step 2, flag-gated): reserve the edit
@@ -7756,6 +8560,58 @@ class ChatOrchestrator:
                     # "unavailable" both block the leg, for different
                     # reasons, and neither may be downgraded to a
                     # fall-through that another route would then perform.
+                    # CHAINED FALLBACK WORKFLOWS (2026-10-02): a
+                    # multi-step "update → search attachments → vendor
+                    # email → ask <people>" instruction is ONE workflow.
+                    # The evidence phase resolves the unresolved item set
+                    # through the ladder BEFORE the edit leg runs, so the
+                    # ONE edit applies everything found (the values ride
+                    # the editor's outcome-data section) and the terminal
+                    # ask drafts for whatever remains. Fail-closed: a
+                    # non-chain message (TWO fallback markers required)
+                    # never enters; a phase failure degrades to the
+                    # ordinary edit turn.
+                    if (_canvas_ctx
+                            and len(_MULTI_STEP_CHAIN_RE.findall(
+                                message or "")) >= 2):
+                        try:
+                            # The in-memory session key is empty after a
+                            # restart (the loader holds the newest durable
+                            # carrier in the _pfr local); seed it so the
+                            # chain's unresolved-set reader sees the same
+                            # record the lanes do.
+                            if not isinstance(
+                                    session.get("_pending_file_result"),
+                                    dict) and isinstance(_pfr, dict):
+                                session["_pending_file_result"] = _pfr
+                            _chain_state = (
+                                await self._run_fallback_chain_evidence(
+                                    message, session, session_id, user_id,
+                                    context))
+                            session["_chain_evidence"] = _chain_state
+                            _shared_tool["chain_evidence"] = _chain_state
+                            _shared_tool["chain_report"] = (
+                                self._chain_report_text(
+                                    _chain_state, message))
+                            logger.info(
+                                "[fallback-chain] evidence phase: "
+                                "started=%d found=%d remaining=%d",
+                                len(_chain_state.get("started_with") or []),
+                                len(_chain_state.get("found") or []),
+                                len(
+                                    _chain_state.get("unresolved_after")
+                                    or []))
+                        except Exception as chain_err:  # noqa: BLE001
+                            logger.warning(
+                                "[fallback-chain] evidence phase failed "
+                                "— continuing as an ordinary edit turn: "
+                                "%r", chain_err)
+                    elif session.get("_chain_evidence") is not None:
+                        # STALENESS GUARD: chain evidence belongs to the
+                        # turn that gathered it — a later ordinary edit
+                        # must not see the previous chain's values in its
+                        # outcome-data section.
+                        session.pop("_chain_evidence", None)
                     _edit_leg = self._try_canvas_edit( \
                         _edit_message, history, _canvas_ctx, user_id, session_id, \
                         _execution_id, (context or {}).get("agent_id"), \
@@ -7768,7 +8624,8 @@ class ChatOrchestrator:
                         # THIS operation by structured field equality —
                         # one logical operation per turn is also the
                         # correct idempotency key.
-                        operation_id=_execution_id) \
+                        operation_id=_execution_id, \
+                        session=session) \
                         if _edit_task_reserved["status"] in (
                             "reserved", "legacy") else None
                     # D1: a reservation is a CLAIM, and a claim with no verified
@@ -7944,6 +8801,15 @@ class ChatOrchestrator:
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
                     if _edit_response:
+                        # CHAIN REPORT (applied path): the consolidated
+                        # fallback-ladder outcome rides the edit reply so
+                        # the user sees every step's result in ONE turn.
+                        _chain_report_applied = _shared_tool.get(
+                            "chain_report")
+                        if _chain_report_applied:
+                            _edit_response["message"] = (
+                                f"{_edit_response.get('message') or ''}"
+                                f"\n\n{_chain_report_applied}").strip()
                         # Persist the turn so follow-ups ("now make it shorter")
                         # have the request in session history, then return —
                         # skipping feature routing means edit requests can no
@@ -8007,7 +8873,9 @@ class ChatOrchestrator:
                     # Not an edit — is it an ACTION on the canvas ("send this")?
                     # Gated by the owner's autonomy policy + hire maturity.
                     _action_t0 = time.monotonic()
-                    if _shared_tool.get("canvas_planning_unavailable"):
+                    if _shared_tool.get(
+                            "canvas_planning_unavailable"
+                    ) or _shared_tool.get("canvas_edit_skipped_read_only"):
                         _action_response = None
                         # ASYNC TIER FORK ON PLANNER-UNAVAILABILITY
                         # (2026-09-22; authority revised 2026-09-30): the
@@ -8250,6 +9118,13 @@ class ChatOrchestrator:
                         _canvas_edit_data["planner_outcome"] = _shared_tool[
                             "canvas_planning_outcome"
                         ]
+                    # CHAIN REPORT (no-apply path): even when the edit
+                    # could not apply, the fallback ladder's findings and
+                    # the ready-to-send ask must reach the user.
+                    if _shared_tool.get("chain_report"):
+                        _no_apply_message = (
+                            f"{_no_apply_message}\n\n"
+                            f"{_shared_tool['chain_report']}").strip()
                     response = {
                         "success": True,
                         "message": _no_apply_message,
@@ -8334,7 +9209,22 @@ class ChatOrchestrator:
                     workspace_id=(context or {}).get("workspace_id"),
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
-                    prefetched_tool_block=_shared_tool.get("block"),
+                    # MISS-HANDOFF EVIDENCE (2026-10-01): the file-ask
+                    # handoff lane never publishes to the turn's tool
+                    # blackboard — its read block died here, leaving the
+                    # narrator evidence-less. The handoff block stands in
+                    # when the blackboard is empty (the read already ran;
+                    # re-planning it would double latency for identical
+                    # results).
+                    prefetched_tool_block=(
+                        _shared_tool.get("block")
+                        or (locals().get("_ask_handoff_block")
+                            if locals().get("_ask_miss_handoff")
+                            else None)),
+                    miss_handoff=bool(locals().get("_ask_miss_handoff")),
+                    miss_handoff_block=(
+                        locals().get("_ask_handoff_block")
+                        if locals().get("_ask_miss_handoff") else None),
                     # RELEVANCE GATE (RCA findings 2 and 4; 2026-09-22
                     # revision). A block produced by a plan built for an
                     # OLDER request must not stand as this turn's evidence —
@@ -8354,6 +9244,109 @@ class ChatOrchestrator:
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
                 )
+                # NOT-FOUND GUARANTEE (2026-10-01 three-domain live
+                # finding): on a not-found-shaped ask the absent items'
+                # NAMES are a deterministic fact from the structured
+                # record — narration may paraphrase them away ("I did
+                # not find one", kitchen run) even with the lead in its
+                # prompt. If any name is missing from the reply, prepend
+                # the deterministic lead so the user's actual question is
+                # always answered, narration keeps covering the other
+                # clauses.
+                try:
+                    if (ai_response and locals().get("_ask_miss_handoff")
+                            and _NOT_FOUND_ASK_RE.search(message or "")):
+                        _nf_absent = [
+                            str(t.get("item") or "")
+                            for t in (((locals().get("_ask_structured")
+                                        or {}).get("targets")) or [])
+                            if ((t or {}).get("identity") or {}).get(
+                                "status") == "none"]
+                        # The names must open the reply ("give me a
+                        # list FIRST") — a mention buried in a closing
+                        # sentence does not answer the ask, and the
+                        # narration may garble the per-item lines into
+                        # boilerplate (live: the header led, the list
+                        # became 'I did not find one' ×3, the names rode
+                        # only the final next-step sentence).
+                        _nf_opening = str(
+                            ai_response.get("content") or "")[:500]
+                        _nf_missing = [
+                            i for i in _nf_absent
+                            if i and not re.search(
+                                rf"\b{re.escape(i)}\b",
+                                _nf_opening, re.IGNORECASE)]
+                        if _nf_missing:
+                            ai_response["content"] = (
+                                "Not found in this copy: "
+                                + ", ".join(_nf_missing)
+                                + ".\n\n"
+                                + str(ai_response.get("content") or ""))
+                except Exception:  # noqa: BLE001 — guarantee is a bonus
+                    pass
+                if (ai_response is None
+                        and locals().get("_ask_miss_handoff")
+                        and (locals().get("_ask_content")
+                             or locals().get("_ask_handoff_block"))):
+                    # NARRATION-UNAVAILABLE FALLBACK (2026-10-01 live):
+                    # the miss→narration handoff's answer IS the
+                    # narration (trained lessons + evidence); when
+                    # narration cannot run — every provider out of
+                    # credits, provider failure — the turn must still
+                    # deliver the READ's deterministic content: the
+                    # per-item table with its honest no-match lines
+                    # answers the primary ask ("give me a list first
+                    # what machinery was not found…"), and the note
+                    # says plainly that the narration layer was
+                    # unavailable. Without this, the turn returned only
+                    # the credit-exhaustion envelope while the read's
+                    # results sat in the turn record.
+                    _fb_content = str(
+                        locals().get("_ask_content")
+                        or locals().get("_ask_handoff_block"))
+                    _fb_content += (
+                        "\n\n(Delivered from the file read's results — "
+                        "the conversational layer was unavailable for "
+                        "this reply, so attachments and follow-up "
+                        "questions were not covered.)")
+                    _fb_response = {
+                        "success": True,
+                        "message": _fb_content,
+                        "session_id": session_id,
+                        "execution_id": _execution_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {
+                            "deterministic_delivery": True,
+                            "narration_unavailable_fallback": True,
+                            "file_identity": (
+                                session.get("_resolved_file_identity")),
+                        },
+                        "model": "deterministic",
+                        "provider": "structured",
+                        "requires_confirmation": False,
+                        "next_steps": [],
+                        "suggested_actions": [],
+                    }
+                    self._update_session(
+                        session, message, _fb_response,
+                        {"primary_intent": "search",
+                         "confidence": 0.9})
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id,
+                        "success")
+                    self._finish_chat_execution(
+                        _execution_id, "success", _fb_content,
+                        session=session, message=message,
+                        response=_fb_response, deadline=_deadline,
+                        pending_task=session.get("_pending_file_task"),
+                        authorized_actions=["read"],
+                        allow_persisted_evidence=True,
+                    )
+                    logger.info(
+                        "[file-ask] narration unavailable — delivered the "
+                        "read's deterministic content as the fallback")
+                    return _fb_response
                 if _shared_tool.get("canvas_planning_unavailable"):
                     # The edit classifier failed, not the search. Finish the
                     # read-only answer here so CRM/task/action routing cannot
@@ -8932,11 +9925,14 @@ class ChatOrchestrator:
             return response
 
         except Exception as e:
-            logger.error(f"Error processing chat message: {e}")
+            # exc_info: the error path used to log only the message, so
+            # WHERE a turn failed stayed hidden behind a one-line ERROR.
+            logger.error(f"Error processing chat message: {e}",
+                         exc_info=True)
             try:
                 await self._emit_agent_status(
                     session_id, (context or {}).get("agent_id") or "chat",
-                    _execution_id, "failed",
+                    locals().get("_execution_id"), "failed",
                 )
             except Exception:
                 pass
@@ -8945,7 +9941,7 @@ class ChatOrchestrator:
             )
             error_response["execution_id"] = locals().get("_execution_id")
             self._finish_chat_execution(
-                _execution_id,
+                locals().get("_execution_id"),
                 "failed",
                 str(e)[:300],
                 session=locals().get("session"),
@@ -9412,13 +10408,39 @@ class ChatOrchestrator:
             )
         # Bounded live re-fetch: the storage `read` action downloads the
         # CURRENT file and re-ingests it (warming the index).
-        fetch_timeout = 40.0
+        # BUDGET FIX (2026-10-01 live): the 40s ceiling was measured too
+        # small for the 13MB Consolidated Price List workbook — the
+        # download alone exceeded it and EVERY refresh on this file
+        # reported 'could NOT be re-fetched', even on turns with a
+        # healthy deadline. Ceiling 75s, still deadline-bounded, and when
+        # the deadline leaves less than a viable window (<12s), do NOT
+        # burn the reply budget on a fetch that cannot finish — state
+        # the budget skip plainly instead of a guaranteed timeout.
+        fetch_ceiling = 75.0
+        fetch_timeout = fetch_ceiling
         try:
             if deadline is not None:
                 fetch_timeout = min(
-                    fetch_timeout, max(5.0, deadline.remaining() - 15.0))
+                    fetch_ceiling,
+                    max(0.0, deadline.remaining() - 15.0))
         except Exception:  # noqa: BLE001 — deadline optional
             pass
+        if fetch_timeout < 12.0:
+            _remaining_note = "unknown"
+            try:
+                if deadline is not None:
+                    _remaining_note = f"{deadline.remaining():.0f}s"
+            except Exception:  # noqa: BLE001
+                pass
+            return _verdict(
+                "unverified",
+                "\n\nSOURCE FRESHNESS: the turn's remaining budget "
+                f"({_remaining_note}) cannot fit a live re-fetch, so the "
+                "upstream version was NOT checked this turn. This answer "
+                f"is the materialized copy ingested {ingested_at} — no "
+                "current-version claim is made.",
+                reason="turn budget too small for a live re-fetch",
+            )
         try:
             from integrations.universal_integration_service import (
                 UniversalIntegrationService,
@@ -9460,10 +10482,27 @@ class ChatOrchestrator:
                 and bool(
                     (fetch_data or {}).get("found")
                     or (fetch_data or {}).get("served")))
+        except asyncio.TimeoutError:
+            # TimeoutError stringifies to '' — rendered verbatim it was
+            # the nameless '(read failed)' verdict (live 2026-09-30/10-01:
+            # a 13MB WorkDrive download inside a 5s floor never had a
+            # chance, and the note said nothing about why).
+            fetch_ok = False
+            fetch = None
+            fetch_error = (
+                f"re-fetch timed out after {fetch_timeout:.0f}s")
+            logger.warning(
+                "[source-freshness] live re-fetch of %s/%s timed out "
+                "after %.0fs", service, str(resource_id)[:24],
+                fetch_timeout)
         except Exception as exc:
             fetch_ok = False
             fetch = None
-            fetch_error = str(exc)[:160]
+            fetch_error = (str(exc)[:160]
+                           or type(exc).__name__)[:160]
+            logger.warning(
+                "[source-freshness] live re-fetch of %s/%s failed: %s",
+                service, str(resource_id)[:24], fetch_error)
         else:
             fetch_error = ""
             if not fetch_ok:
@@ -9475,6 +10514,10 @@ class ChatOrchestrator:
                     or (fetch or {}).get("error")
                     or _fd.get("error")
                     or "read failed")[:160]
+                logger.warning(
+                    "[source-freshness] live re-fetch of %s/%s was not "
+                    "served: %s", service, str(resource_id)[:24],
+                    fetch_error)
         if not fetch_ok:
             return _verdict(
                 "refresh_failed",
@@ -10124,6 +11167,8 @@ class ChatOrchestrator:
         disambiguation: Optional[Dict[str, Any]] = None,
         async_continuation_forked: bool = False,
         session: Optional[Dict[str, Any]] = None,
+        miss_handoff: bool = False,
+        miss_handoff_block: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -10145,6 +11190,19 @@ class ChatOrchestrator:
         ``sticky_hint`` (when present) is a ``(provider, model)`` tuple from
         the session's last-known-good path — forwarded to the routing layer
         as a boost hint for multi-turn consistency (LKGP).
+
+        ``miss_handoff``/``miss_handoff_block`` (2026-10-01): the file-ask
+        lane's miss→narration handoff state, EXPLICITLY passed. The four
+        consumers below previously read ``locals().get("_ask_miss_handoff")``
+        — a name only ever assigned in ``process_chat_message``'s scope, so
+        every read here silently returned None and the handoff's levers
+        (lesson assembly, evidence re-assert, honest-status flags) never
+        fired: the flag comment's "weak reply under heavy load" was this
+        scope bug, not load — the narrator ran lesson-less and
+        evidence-less and answered "I don't have the contents" while the
+        read's results sat in the turn record (live, e2e-rca-official
+        turn 1). Same class as the swallowed `_pending_file_task` NameError
+        documented at the requested-targets note.
 
         ``routing_overrides`` (when present) is unpacked into the
         ``generate_completion`` call: ``model`` overrides auto-routing,
@@ -10355,7 +11413,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # results'). Assembly runs when the handoff fired.)
                 if assembly_enabled() and (
                         not _file_scoped_request
-                        or locals().get("_ask_miss_handoff")):
+                        or miss_handoff):
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -10640,6 +11698,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _requested_targets = extract_targets(
                     _gate_msg, [_canvas_identity],
                 )
+                # IDENTITY-SHAPE POST-FILTER (2026-10-01 live, '36'): this
+                # mining feeds requested_targets, a lane downstream code
+                # trusts outright — the raw extractor's numeric lane still
+                # emits short bare numerics ('36' from a 36" spec, '10'/
+                # '11' from '(10–11 wks)'), and a trusted '36' then
+                # matched every sheet containing 36 anywhere. The same
+                # keep-rule the reader's item filter applies, one shared
+                # predicate (identity_shaped_item).
+                try:
+                    from core.workbook_read_artifact import (
+                        identity_shaped_item,
+                    )
+
+                    _requested_targets = [
+                        t for t in _requested_targets
+                        if identity_shaped_item(t)]
+                except Exception:  # noqa: BLE001 — post-filter is advisory
+                    pass
                 # IDENTIFIER INHERITANCE (2026-09-25): when the stored ask
                 # is VAGUER than the identifier-rich ask it superseded
                 # (live: "find all these prices…" lost "8 machines: 381,
@@ -10665,20 +11741,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if str(item).strip()
                 ] if isinstance(pending_file_task, dict) else []
-                if _task_targets and not any(
+                # OUTCOME-REFERENCED SUBSETS (2026-10-02, the 'shouldn't
+                # have to mention them by name' gap): 'search email
+                # attachments for the ones not found' points at a RESULT
+                # STATE of this conversation's reads — resolve it from
+                # the ledger's item outcomes (absent first, then
+                # ambiguous) so the search and narration carry the CODES
+                # without the user re-typing them.
+                try:
+                    from core.target_set_resolution import (
+                        outcome_referenced_items,
+                    )
+
+                    _outcome_subset = outcome_referenced_items(
+                        message, session_id)
+                except Exception:  # noqa: BLE001 — ledger optional
+                    _outcome_subset = []
+                if _outcome_subset:
+                    _requested_targets = list(_outcome_subset)
+                elif _task_targets and not any(
                     re.search(r"[\d-]", item) for item in _requested_targets
                 ):
                     _requested_targets = _task_targets
             except Exception:
                 _requested_targets = []
-            _live_file_lookup_ran = bool(
-                locals().get("_ask_miss_handoff"))
+            _live_file_lookup_ran = bool(miss_handoff)
             # Pending-file-task lifecycle state (2026-09-23 review, gap 3):
             # attempted != completed — a lookup that ran but missed/failed
             # keeps the task pending; identity is retained separately from
             # completion so a retry reuses the resolved resource.
-            _file_lookup_attempted = bool(
-                locals().get("_ask_miss_handoff"))
+            _file_lookup_attempted = bool(miss_handoff)
             _resolved_file_identity: Optional[Dict[str, Any]] = None
             # Timer for the "[stage-timing] reply generation" log. The plan
             # branch re-anchors it; the prefetched path (blackboard reuse)
@@ -11964,9 +13056,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # prompt's consumption point, so the trained employee reads
             # the EXECUTED miss evidence — not a stale 'no lookup ran'
             # story.
-            if locals().get("_ask_miss_handoff") and locals().get(
-                    "_ask_handoff_block"):
-                _tool_block = _ask_handoff_block
+            if miss_handoff and miss_handoff_block:
+                # COMPOUND TURNS (2026-10-01 live): the planner's block
+                # serves the message's OTHER clause ("give me the
+                # not-found list from the price list excel. Also check
+                # email attachments.") — the re-assert must not DISCARD
+                # it. Both ride: workbook evidence first (the primary,
+                # deterministic ask), the planner's results after.
+                _tool_block = (
+                    miss_handoff_block
+                    + (f"\n\n{_tool_block}"
+                       if _tool_block
+                       and _tool_block != miss_handoff_block
+                       else ""))
             if _tool_block:
                 # RECENT USER REQUESTS, and THE ASSISTANT TURNS THAT SUCCEEDED.
                 #
@@ -14171,7 +15273,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     execution_id=execution_id,
                 )
                 return {
-                    "content": _claimed_content,
+                    # STRIPPED (restored 2026-10-01): leading/trailing
+                    # whitespace on the model's reply leaked to the user
+                    # verbatim — pinned by the w115 contract tests.
+                    "content": str(_claimed_content or "").strip(),
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
@@ -14685,6 +15790,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         operation_id: Optional[str] = None,
         expected_prior_audit_id: Optional[str] = None,
         edit_plan_timeout: float = 30.0,
+        session: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         # When the schema-capable edit-plan rung is pinned
         # (ATOM_ASYNC_EDIT_PLAN_MODEL), the plan needs its full latency —
@@ -14821,6 +15927,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     shared_tool_state["canvas_edit_no_apply_reason"] = no_apply_reason
             return None
         fresh_data = fresh.section
+        # OUTCOME VALUES INTO THE EDITOR (2026-10-02, single-price edit):
+        # the confirmed item→value table rides the fresh-data section so
+        # the edit plan works from data, not history prose.
+        if _edit_requested:
+            _outcome_section = self._outcome_values_section(session, session_id)
+            if _outcome_section:
+                fresh_data = f"{fresh_data}\n\n{_outcome_section}".strip()
 
         # Overlap the ACTION planner with this edit plan. Both are independent
         # structured LLM calls over the same turn inputs (message, history,
@@ -17178,6 +18291,412 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 t_seen.add(key)
                 threads.append(t)
         return out, threads
+
+    _OUTCOME_SECTION_MAX_ITEMS = 12
+    _OUTCOME_SECTION_MAX_VALUES = 6
+    _OUTCOME_SECTION_MAX_CHARS = 2400
+
+    @staticmethod
+    def _chain_unresolved_items(session: Dict[str, Any]) -> List[str]:
+        """Items of the conversation's last completed read that still
+        lack a single confirmed value (absent or ambiguous). The chain
+        threads exactly this set through its fallback steps."""
+        try:
+            carrier = session.get("_pending_file_result")
+            targets = ((carrier or {}).get("structured_result")
+                       or {}).get("targets") or []
+            out = []
+            for t in targets:
+                if not isinstance(t, dict):
+                    continue
+                status = str(((t.get("identity") or {}).get("status"))
+                             or "")
+                item = str(t.get("item") or "").strip()
+                if item and status in ("none", "multiple"):
+                    out.append(item)
+            return out[:8]
+        except Exception:  # noqa: BLE001 — evidence phase is additive
+            return []
+
+    async def _run_fallback_chain_evidence(
+        self,
+        message: str,
+        session: Dict[str, Any],
+        session_id: Optional[str],
+        user_id: str,
+        context: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Chained-conditional instruction → the item values its FALLBACK
+        LADDER actually finds (2026-10-02, the recorded one-turn-one-step
+        gap closed on the existing general mechanisms).
+
+        "update the prices found in the email; search attachments for
+        the ones not found; if still not found find vendor pricing; if
+        still not found ask Vipul or Chandrakant" — the first step (the
+        edit) is the canvas-edit lane's job, which this phase FEEDS; the
+        middle steps are evidence lookups over mechanisms that already
+        exist (``value_provenance.trace_items_across_catalog`` → which
+        cataloged documents carry each item; ``inspect_dataset_entries``
+        → that document's rows/values; ``outlook_service.search_emails``
+        → vendor mail); the terminal step is a ready-to-send DRAFT ask
+        (HITL: nothing is sent). Pure evidence: no mutation here, so a
+        failure at any step degrades to the pre-chain behavior.
+        """
+        state: Dict[str, Any] = {
+            "found": {},        # item -> {display, basis, source, ref}
+            "steps": [],        # per-step outcome trail for the report
+            "people": [],       # terminal handoff names
+            "unresolved_after": [],
+        }
+        carrier = session.get("_pending_file_result")
+        vocab = _chain_value_vocabulary(message, carrier)
+        state["value_noun"] = vocab["noun"]
+        state["primary_file"] = str(
+            ((carrier or {}).get("identity") or {}).get("file_name") or "")
+        people_m = _CHAIN_ASK_PEOPLE_RE.search(message or "")
+        if people_m:
+            # Separator-split WITH surrounding whitespace: a bare "and"
+            # would cut inside names ("Ch-and-rakant").
+            names = re.split(r"\s*(?:,|\band\b|\bor\b)\s*", people_m.group(1))
+            state["people"] = [n.strip() for n in names
+                               if n.strip() and len(n.strip()) > 1][:4]
+        unresolved = self._chain_unresolved_items(session)
+        primary_file = state["primary_file"]
+        if not unresolved:
+            state["steps"].append({
+                "source": "chain", "outcome": "no_unresolved_items"})
+            return state
+
+        # STEP 1 — ATTACHMENTS / OTHER CATALOGED DOCUMENTS: which other
+        # documents carry each unresolved item, then that document's row
+        # values for it. value_trace is the existing attachment-derivation
+        # capability; the read artifact reads ANY cataloged document.
+        try:
+            from core.value_provenance import trace_items_across_catalog
+
+            trace = await asyncio.to_thread(
+                trace_items_across_catalog, unresolved,
+                exclude_file=primary_file or None,
+                user_id=user_id,
+                workspace_id=(context or {}).get("workspace_id"))
+            holder_docs: List[str] = []
+            per_item_docs: Dict[str, List[str]] = {}
+            for item, files in (trace or {}).items():
+                docs = [f for f in (files or [])
+                        if f and f.lower() != primary_file.lower()][:2]
+                if docs:
+                    per_item_docs[item] = docs
+                    holder_docs.extend(docs)
+            step1_found, step1_missed = [], list(unresolved)
+            for doc in list(dict.fromkeys(holder_docs))[:3]:
+                try:
+                    from core.sheet_dataset_service import find_entries_sync
+                    from core.workbook_read_artifact import (
+                        inspect_dataset_entries,
+                    )
+
+                    tokens = " ".join(
+                        t for t in re.split(r"[^A-Za-z0-9]+", doc)
+                        if len(t) > 1)[:120]
+                    entries = await asyncio.to_thread(
+                        find_entries_sync, tokens, user_id,
+                        (context or {}).get("workspace_id"), 500)
+                    entries = [e for e in (entries or [])
+                               if str(e.get("file_name") or "") == doc]
+                    if not entries:
+                        continue
+                    doc_items = [i for i in unresolved
+                                 if i in per_item_docs and doc
+                                 in per_item_docs[i]]
+                    if not doc_items:
+                        doc_items = unresolved
+                    art = await asyncio.to_thread(
+                        inspect_dataset_entries, entries, doc,
+                        targets=doc_items)
+                    for t in (art.get("targets") or []):
+                        ident = t.get("identity") or {}
+                        if str(ident.get("status")) != "single":
+                            continue
+                        cands = ident.get("candidates") or []
+                        if not cands:
+                            continue
+                        cand = cands[0]
+                        values = [
+                            v for v in (cand.get("values") or [])
+                            if isinstance(v, dict)
+                            and str(v.get("display") or "").strip()]
+                        if not values:
+                            continue
+                        best = next(
+                            (v for v in values if _CHAIN_BASIS_PREFERENCE_RE
+                             .search(str(v.get("basis") or ""))),
+                            values[0])
+                        item = str(t.get("item") or "")
+                        state["found"][item] = {
+                            "display": str(best.get("display")),
+                            "basis": str(best.get("basis") or ""),
+                            "source": doc,
+                            "ref": str(cand.get("ref") or ""),
+                        }
+                        if item in step1_missed:
+                            step1_missed.remove(item)
+                            step1_found.append(item)
+                except Exception as doc_err:  # noqa: BLE001 — per-doc
+                    logger.debug(
+                        "chain attachment read failed for %s: %r",
+                        doc, doc_err)
+            state["steps"].append({
+                "source": "cataloged documents (attachments, other files)",
+                "found": step1_found, "missed": list(step1_missed)})
+        except Exception as trace_err:  # noqa: BLE001 — step is additive
+            logger.debug("chain value_trace step failed: %r", trace_err)
+
+        # STEP 2 — MAILBOX (the instruction's "email" fallback, whatever
+        # the business calls it): item + the USER'S OWN value vocabulary
+        # against the mailbox; message bodies through the same
+        # text-observation extractor the mail lane uses. Owner-scoped
+        # search only. Qualifiers rotate (noun → fields → neutral
+        # fallbacks) so a lead-time chain never searches "…price".
+        remaining = [i for i in unresolved
+                     if i not in state["found"]][:5]
+        step2_found, step2_missed = [], list(remaining)
+        if remaining:
+            try:
+                from core.workbook_read_artifact import (
+                    observations_from_text,
+                )
+                from integrations.outlook_service import outlook_service
+
+                for item in remaining:
+                    emails = None
+                    for qualifier in vocab["qualifiers"]:
+                        try:
+                            emails = await asyncio.wait_for(
+                                outlook_service.search_emails(
+                                    user_id=user_id,
+                                    query=f"{item} {qualifier}",
+                                    max_results=5, quote=False),
+                                timeout=10.0)
+                        except Exception as mail_err:  # noqa: BLE001
+                            logger.debug(
+                                "chain mail search failed for %s (%s): %r",
+                                item, qualifier, mail_err)
+                            emails = None
+                        if emails:
+                            break
+                    for email in (emails or [])[:3]:
+                        # Body fields only — the subject line is not body
+                        # text and its tokens ("RE: U-38") produced
+                        # spurious numeric observations.
+                        body = " ".join(
+                            str(email.get(k) or "")
+                            for k in ("body", "body_preview", "preview",
+                                      "content", "text"))[:4000]
+                        if not body.strip():
+                            continue
+                        obs = observations_from_text(
+                            body,
+                            requested_entities=[item],
+                            requested_fields=vocab["fields"],
+                            source={
+                                "source_id": email.get("id"),
+                                "subject": email.get("subject"),
+                                "sender": (
+                                    (email.get("from") or {}).get(
+                                        "emailAddress", {})
+                                ).get("address")
+                                if isinstance(email.get("from"), dict)
+                                else email.get("from"),
+                                "sent_date_time": email.get("received"),
+                            })
+                        priced = next(
+                            (o for o in (obs or [])
+                             if str(o.get("raw_value")
+                                    or o.get("numeric_value")
+                                    or o.get("value")
+                                    or o.get("display") or "").strip()),
+                            None)
+                        if priced:
+                            state["found"][item] = {
+                                "display": str(
+                                    priced.get("raw_value")
+                                    or priced.get("numeric_value")
+                                    or priced.get("value")
+                                    or priced.get("display")),
+                                "basis": f"email {vocab['noun']}",
+                                "source": (
+                                    f"email: {email.get('subject') or ''}"
+                                    ).strip(),
+                                "ref": str(email.get("id") or "")[:40],
+                            }
+                            step2_found.append(item)
+                            if item in step2_missed:
+                                step2_missed.remove(item)
+                            break
+            except Exception as mail_step_err:  # noqa: BLE001
+                logger.debug(
+                    "chain mailbox step failed: %r", mail_step_err)
+            state["steps"].append({
+                "source": "mailbox search",
+                "found": step2_found, "missed": list(step2_missed)})
+
+        state["unresolved_after"] = [
+            i for i in unresolved if i not in state["found"]]
+        return state
+
+    @staticmethod
+    def _chain_report_text(
+        state: Optional[Dict[str, Any]],
+        message: str,
+    ) -> str:
+        """The consolidated fallback-chain report: what each step found,
+        where each value came from, and the ready-to-send ask for the
+        remainder (a DRAFT — the user sends it; nothing is dispatched).
+        Vocabulary is the USER'S OWN (value noun, primary file name) —
+        no business nouns are hardcoded (2026-10-02 independence audit)."""
+        if not isinstance(state, dict):
+            return ""
+        noun = str(state.get("value_noun") or "pricing")
+        primary = str(state.get("primary_file") or "").strip() or (
+            "the primary file")
+        parts: List[str] = []
+        found = state.get("found") or {}
+        if found:
+            parts.append("**Fallback chain — values found beyond the "
+                         "primary file and message bodies:**")
+            for item, hit in found.items():
+                basis = f" {hit.get('basis')}" if hit.get("basis") else ""
+                ref = f" ({hit.get('ref')})" if hit.get("ref") else ""
+                parts.append(
+                    f"- **{item}** — {hit.get('display')}{basis} — "
+                    f"source: {hit.get('source')}{ref}")
+        unresolved = state.get("unresolved_after") or []
+        if unresolved:
+            who = state.get("people") or []
+            addressed = (", ".join(who) if who
+                         else "the team")
+            parts.append(
+                "**Still not found anywhere** "
+                f"({primary}, attachments, mailbox): "
+                f"{', '.join(unresolved)}.")
+            parts.append(
+                "Ready-to-send ask (drafted for you — I have not sent "
+                f"anything):\n\n> Hi {addressed} — could you help us get "
+                f"current {noun} for these items? We could not find them "
+                f"in {primary}, any attachment, or the mailbox: "
+                f"{', '.join(unresolved)}. Thanks!")
+        steps = state.get("steps") or []
+        if not found and not unresolved and steps:
+            # Nothing was unresolved to begin with — say so in one line.
+            if any(s.get("outcome") == "no_unresolved_items"
+                   for s in steps):
+                return ""
+        if not parts:
+            return ""
+        return "\n".join(parts)
+
+    def _outcome_values_section(
+        self, session: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+    ) -> str:
+        """The conversation's confirmed lookup values as EDITOR DATA
+        (2026-10-02, the single-price canvas-edit incident).
+
+        'update the prices that were found in the email' reached the canvas
+        editor with the instruction and the canvas, but the confirmed
+        values lived in the read artifact — so a flash-class planner
+        resolved ONE row's edit and stopped, and the reply reported one
+        change with no full-set accounting. The editor's REFERENTIAL
+        VALUES rule told it to resolve from history prose; a prompt rule
+        did not hold. The general mechanism is to hand the resolved data
+        over: the healthy carrier's structured targets already carry
+        per-item matched values with cell refs, and the ledger knows each
+        item's outcome. Both go into the editor prompt as a compact
+        section, making the full-set edit and the full-set report the
+        natural plan.
+        """
+        try:
+            carrier = session.get("_pending_file_result")
+            sr = (carrier or {}).get("structured_result") or {}
+            targets = sr.get("targets") or []
+            if not isinstance(targets, list) or not targets:
+                return ""
+            chain_found_preview = (
+                ((session or {}).get("_chain_evidence") or {})
+                .get("found") or {})
+            file_name = str(
+                ((carrier or {}).get("identity") or {}).get("file_name")
+                or (sr.get("source_identity") or {}).get("file_name")
+                or "the resolved file")
+            lines: List[str] = []
+            for t in targets[:self._OUTCOME_SECTION_MAX_ITEMS]:
+                if not isinstance(t, dict):
+                    continue
+                item = str(t.get("item") or "").strip()
+                if not item:
+                    continue
+                identity = t.get("identity") or {}
+                status = str(identity.get("status") or "")
+                if status == "none":
+                    # The chain may have FOUND this item elsewhere — the
+                    # chain's value line replaces the not-found line.
+                    if item not in chain_found_preview:
+                        lines.append(
+                            f"- {item} — not found in this copy")
+                    continue
+                cands = identity.get("candidates") or []
+                if not isinstance(cands, list) or not cands:
+                    continue
+                if status == "multiple":
+                    lines.append(
+                        f"- {item} — ambiguous: {len(cands)} candidate "
+                        "rows (needs the user's pick before quoting)")
+                    continue
+                cand = cands[0]
+                ref = str(cand.get("ref") or "")
+                values = []
+                for v in (cand.get("values") or [])[
+                        :self._OUTCOME_SECTION_MAX_VALUES]:
+                    if not isinstance(v, dict):
+                        continue
+                    display = str(v.get("display") or v.get("value") or "")
+                    basis = str(v.get("basis") or "")
+                    col = str(v.get("col") or "")
+                    if display:
+                        values.append(
+                            f"{basis} {display} ({col})" if basis
+                            else f"{display} ({col})")
+                lines.append(
+                    f"- {item} — found at {ref}"
+                    + (": " + "; ".join(values) if values else ""))
+            # CHAIN-FOUND VALUES (the fallback ladder's evidence): items
+            # resolved by the attachment/vendor steps ride the same data
+            # section, so the ONE edit covers everything found.
+            chain_found = ((session or {}).get("_chain_evidence")
+                           or {}).get("found") or {}
+            for item, hit in list(chain_found.items())[
+                    :self._OUTCOME_SECTION_MAX_ITEMS]:
+                if not isinstance(hit, dict):
+                    continue
+                basis = (f" {hit.get('basis')}" if hit.get("basis")
+                         else "")
+                lines.append(
+                    f"- {item} — {hit.get('display')}{basis} "
+                    f"(source: {hit.get('source')})")
+            if not lines:
+                return ""
+            section = (
+                "CONFIRMED LOOKUP VALUES (the conversation's last completed "
+                f"read of {file_name}) — when this edit sets values for "
+                "these items, use THESE values with their source; check "
+                "EVERY item below against the canvas, change every row the "
+                "instruction covers, and report the full set (changed, "
+                "already matched, and items you could not resolve):\n"
+                + "\n".join(lines)
+            )
+            return section[:self._OUTCOME_SECTION_MAX_CHARS]
+        except Exception:  # noqa: BLE001 — editor data is additive
+            return ""
 
     def _load_pending_file_result(
         self, session_id: Optional[str],

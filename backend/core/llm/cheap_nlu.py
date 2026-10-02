@@ -308,21 +308,42 @@ async def refers_to_resolved_file(
     message: str,
     file_name: str,
     llm_service: Any = None,
+    context_hint: str = "",
 ) -> Optional[bool]:
-    """Does this message ask to look something up inside the file the
-    conversation already resolved, referring to it generically ("the
-    workbook", "the document", "the list") without naming it?
+    """Is this message's PRIMARY intent a lookup in — or a question about
+    the results of lookups in — the file the conversation already
+    resolved?
+
+    Covers every indirect-reference shape, not just the generic-noun
+    form: "the workbook/the list/our sheet" (generic noun), "search the
+    catalog to confirm the rows from the email" (file as direct object,
+    other sources as provenance), "what was not found" (results
+    reference), "confirm the draft numbers against the book" (verification
+    target). The deterministic floors stay the fast path for the shapes
+    they know; this judges the residue so behavior does not depend on a
+    phrasing list anticipating every user's vocabulary (2026-10-01: ten
+    rounds of live phrasing misses proved it cannot).
 
     None keeps the deterministic floor's decision (do not resolve).
     """
+    context = f"\nConversation context: {context_hint[:600]}" if context_hint else ""
     question = (
-        'The conversation previously resolved the file "%s". Does the '
-        "following message ask to look something up INSIDE that file, "
-        "referring to it generically (e.g. \"the workbook\", \"the "
-        "document\", \"the list\", \"the sheet\") without naming a "
-        "different file?\n\nMessage: %s\n\nAnswer YES only if the "
-        "message clearly asks to search inside that resolved file." % (
-            file_name, (message or "")[:1500])
+        'The conversation previously resolved the file "%s" and has been '
+        "running lookups against it.%s\n\nDoes the following message's "
+        "PRIMARY intent involve THAT file — looking something up inside "
+        "it, checking/confirming values against it, or asking about the "
+        "results of lookups in it (which items were found / not found / "
+        "missing / need confirmation)? The file may be referenced "
+        "indirectly (a generic noun like the workbook/the list/the "
+        "sheet, or entirely implicitly through its results). Mentioning "
+        "another source (e.g. rows found in an email) is fine when the "
+        "file is still the target being searched or confirmed against."
+        "\n\nAnswer NO if the message primarily asks about a different "
+        "source (emails, chats, CRM records on their own), asks to "
+        "send/modify/forward something, or has nothing to do with the "
+        "file's data.\n\nMessage: %s\n\nAnswer YES only if that file "
+        "is what the message needs searched, confirmed, or asked about." % (
+            file_name, context, (message or "")[:1500])
     )
     return await binary(
         "anaphoric_file_reference", question, file_name, llm_service)

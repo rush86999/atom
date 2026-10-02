@@ -1080,6 +1080,66 @@ async def test_prefixed_mention_resolves_only_when_containment_unique():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
+async def test_inherited_item_set_survives_when_ask_does_not_restate_it():
+    """Live 2026-10-01: 'check the other machinery from price list and
+    verify if any pricing needs to be updated' inherits the stored
+    objective's items ['381','U-22','622','SLE24-16','1624','GSL48-16'];
+    the ask names none of them. The identity filter judged items by
+    PRESENCE in the turn text and wiped the whole set (log: out=[]),
+    leaving the read nothing to search. Shape is judged on the item
+    itself; the inherited set must ride."""
+    from core.chat_tool_planner import _datasets_named_file_block
+
+    catalog = [
+        {"source": "zoho_workdrive", "external_id": "u8ai1e3a",
+         "file_name": "Consolidated Price List 2019.xlsx",
+         "entity_name": "Tennsmith", "content_hash": "ff2597d26f",
+         "ingested_at": "2026-09-07T23:06:19", "source_modified_at": None},
+    ]
+
+    def fake_probe(entries, token, max_rows):
+        if token.lower() in ("u-22", "u22"):
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "Tennsmith",
+                    "columns": ["Model", "List Price"],
+                    "rows": [{"__sheet_row": 26, "Model": "U-22",
+                              "List Price": 1777}],
+                    "row_count": 1}
+        return None
+
+    with (
+        patch("core.sheet_dataset_service.sheet_datasets_enabled",
+              return_value=True),
+        patch("core.sheet_dataset_service.find_entries_sync",
+              return_value=list(catalog)),
+        patch("core.sheet_dataset_service._probe_cached",
+              side_effect=fake_probe),
+        patch("core.sheet_dataset_service.candidate_probe_tokens",
+              return_value=[]),
+    ):
+        block = await _datasets_named_file_block(
+            "u1",
+            "check the other machinery from price list and verify if "
+            "any pricing needs to be updated from latest pricing data",
+            {
+                "message": "check the other machinery from price list "
+                           "and verify if any pricing needs to be "
+                           "updated from latest pricing data",
+                "history": [],
+                # the resume lane pins the conversation's resolved file
+                # (the ask itself names no workbook)
+                "named_file_mention": "Consolidated Price List 2019.xlsx",
+                "requested_targets": [
+                    "381", "U-22", "622", "SLE24-16", "1624",
+                    "GSL48-16"],
+                "inherited_targets": True,
+            },
+            None,
+        )
+    assert block and "| U-22 | FOUND |" in block
+
+
+@pytest.mark.asyncio
 async def test_named_file_block_carries_provenance_and_coverage_limits():
     """Version identity (resource id + hash + ingestion) rides the block,
     and not-found is scoped to the INDEXED CONTENT — never claimed as
@@ -3621,7 +3681,8 @@ async def test_refresh_with_live_source_reports_updated_content():
 
     async def live_read(service, action, params, context):
         reads["live"] = reads.get("live", 0) + 1
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -3700,7 +3761,8 @@ async def test_refresh_unchanged_content_reports_current_not_refreshed():
     reads = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -3763,7 +3825,8 @@ async def test_refresh_with_unchanged_index_labels_the_old_copy():
     reads = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -3823,7 +3886,8 @@ async def test_refresh_with_incomplete_extraction_is_unverified():
     reads_inc = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads_inc["count"] += 1
@@ -3972,7 +4036,8 @@ async def test_current_requires_positive_hash_equality():
     reads = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -4032,12 +4097,14 @@ async def test_refresh_reread_must_resolve_the_fetched_resource():
     }
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     reads = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -4216,7 +4283,8 @@ async def test_non_refreshed_verdict_preserves_last_good_result():
     reads = {"count": 0}
 
     async def live_read(service, action, params, context):
-        return {"status": "success", "data": {"file_id": "wd-77"}}
+        return {"status": "success", "data": {
+            "file_id": "wd-77", "found": True, "served": True}}
 
     def fake_named_block(user_id, query, ctx, plan=None):
         reads["count"] += 1
@@ -4261,3 +4329,292 @@ async def test_non_refreshed_verdict_preserves_last_good_result():
     assert row["previous_rendered"] == "| GOOD ANSWER 14,500 |", (
         "the last-known-good answer survives a non-refreshed refresh")
     assert row["freshness"] == "stale_index"
+
+
+class TestClauseScopedAnaphoricResolution:
+    """2026-10-01 live (19:33 turn): 'give me a list first what machinery
+    was not found in the price list excel file. Also check email
+    attachments.' — the cross-source guard fired MESSAGE-wide on 'email',
+    the excel ask lost its deterministic read, and the reply answered only
+    the attachments half. The guard is clause-scoped: a communication
+    source and file vocabulary in ONE clause is a cross-source objective
+    (refused, unchanged); separate sentences are separate objectives."""
+
+    @staticmethod
+    def _session():
+        return {"_pending_file_task": {"resolved_file": {
+            "file_name": "Consolidated Price List 2019.xlsx"}}}
+
+    def test_compound_excel_plus_attachments_resolves(self):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        got = asyncio.run(_resolve_anaphoric_file_mention(
+            "give me a list first what machinery was not found in the "
+            "price list excel file. Also check email attachments.",
+            self._session()))
+        assert got == "consolidated price list 2019.xlsx"
+
+    def test_single_clause_cross_source_still_refused(self):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        assert asyncio.run(_resolve_anaphoric_file_mention(
+            "check Chandrakant's email and or description in workbook "
+            "to find correct sheet", self._session())) == ""
+
+    def test_outbound_clause_refuses(self):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        assert asyncio.run(_resolve_anaphoric_file_mention(
+            "find U-22 in the workbook. then email Vipul the answer",
+            self._session())) == ""
+
+    def test_handoff_reassert_keeps_the_planner_block(self):
+        """Compound turns: the evidence re-assert must CONCATENATE the
+        planner's block (the other clause's results), not replace it."""
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator._get_qwen_response)
+        assert "_tool_block != miss_handoff_block" in src
+
+
+def test_narration_unavailable_fallback_delivers_the_read():
+    """2026-10-01 live: on a miss→narration handoff turn whose narration
+    cannot run (every provider out of credits), the turn must still
+    deliver the READ's deterministic content — the per-item table with
+    its honest no-match lines — instead of the credit-exhaustion
+    envelope while the read's results sit in the turn record."""
+    import inspect
+
+    import integrations.chat_orchestrator as orch
+
+    src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+    assert "narration_unavailable_fallback" in src
+    assert "delivered the read's deterministic content" in src or (
+        "narration unavailable — delivered the" in src)
+
+
+class TestResultReferenceResolution:
+    """2026-10-01 live (replay-retry2 22:40): the SHORT form — 'give me a
+    list first what machinery was not found. Also check email
+    attachments.' — names NO file vocabulary; the noun floors cannot
+    match and the cheap-NLU judge declined, so the workbook read never
+    ran. Asking about the RESULTS of the conversation's own retrieval
+    work is a reference to that work's source: resolved via the ledger's
+    ACTIVE-OBJECTIVE file."""
+
+    @staticmethod
+    def _ledger_conv(monkeypatch, conv="conv-rr"):
+        from core import dialogue_state as ds
+        real = ds.fetch_events
+        def fake(cid, **kw):
+            if cid == conv:
+                return [{"id": "e1", "kind": ds.OBJECTIVE_SET,
+                         "payload": {"items": ["381", "U-22"],
+                                     "file": "Consolidated Price List 2019.xlsx"},
+                         "supersedes_event_id": None}]
+            return real(cid, **kw)
+        monkeypatch.setattr(ds, "fetch_events", fake)
+
+    def test_short_form_not_found_ask_resolves(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        self._ledger_conv(monkeypatch)
+        got = asyncio.run(_resolve_anaphoric_file_mention(
+            "give me a list first what machinery was not found. "
+            "Also check email attachments.", {},
+            conversation_id="conv-rr"))
+        assert got == "consolidated price list 2019.xlsx"
+
+    def test_question_mark_still_refuses(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        self._ledger_conv(monkeypatch)
+        assert asyncio.run(_resolve_anaphoric_file_mention(
+            "which items had no match?", {},
+            conversation_id="conv-rr")) == ""
+
+    def test_no_objective_fails_closed(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        got = asyncio.run(_resolve_anaphoric_file_mention(
+            "give me a list first what machinery was not found.", {},
+            conversation_id=f"conv-empty"))
+        assert got == ""
+
+
+class TestRetryShapedSubstantiveAsks:
+    """2026-10-01 live (replay-retry2 22:43): 'search the price list
+    workbook in more than one ways to confirm. attachments from emails
+    might show something as well' — the loose retry shape ('search …
+    workbook') classified it a BARE confirmation; the resolver refused,
+    no read ran, and narration fabricated the search with a FALSE
+    'confirmed not found' for U-22 (which the workbook holds at
+    LINMAC!A26)."""
+
+    def test_substantive_multi_clause_search_is_not_a_confirmation(self):
+        from core.pending_file_task import is_filename_confirmation
+
+        assert not is_filename_confirmation(
+            "search the price list workbook in more than one ways to "
+            "confirm. attachments from emails might show something as "
+            "well")
+
+    def test_bare_retries_still_confirm(self):
+        from core.pending_file_task import is_filename_confirmation
+
+        for msg in ("try the file search again",
+                    "search the workbook again more thoroughly",
+                    "check the file again and give me a clean response"):
+            assert is_filename_confirmation(msg), msg
+
+
+def test_workbook_absence_needs_workbook_evidence():
+    """The fabricated-absence side of the same incident: 'no matching row
+    in the saved copy' shipped COVERED by mailbox evidence (token overlap
+    on 'copy'). A spreadsheet-artifact claim is coverable only by
+    spreadsheet-READ evidence."""
+    from core.absence_guard import (
+        strip_uncovered_absence_claims,
+        uncovered_absence_claims,
+    )
+
+    reply = ("Confirmed not found: Linmac Bead Roller U-22 — no matching "
+             "row in the saved copy.")
+    mailbox_block = ("MAILBOX RESULTS: 4 evidence line(s). 1 result "
+                     "found. Consolidated Price List 2019.pdf attachment "
+                     "metadata.")
+    assert uncovered_absence_claims(reply, mailbox_block)
+    stripped = strip_uncovered_absence_claims(reply, mailbox_block)
+    assert "no matching row" not in stripped
+    assert "did not find one in what this turn actually searched" in stripped
+
+
+class TestEmailProvenanceFileAsks:
+    """2026-10-01 live (replay-retry2 23:2x): 'search the price list
+    workbook to confirm the rows that are found in the email' — three
+    gates refused in sequence: the cross-source guard (email + file in
+    one clause), the generic floor (no prepositional form), and the
+    retry branch ('search … workbook' shape). The mailbox search owned
+    the turn and the reply honestly said the workbook never ran."""
+
+    @staticmethod
+    def _conv(monkeypatch, cid="conv-ep"):
+        from core import dialogue_state as ds
+        real = ds.fetch_events
+        def fake(c, **kw):
+            if c == cid:
+                return [{"id": "e1", "kind": ds.OBJECTIVE_SET,
+                         "payload": {"items": ["381"],
+                                     "file": "Consolidated Price List 2019.xlsx"},
+                         "supersedes_event_id": None}]
+            return real(c, **kw)
+        monkeypatch.setattr(ds, "fetch_events", fake)
+
+    def test_rows_found_in_email_resolves_the_workbook(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        self._conv(monkeypatch)
+        got = asyncio.run(_resolve_anaphoric_file_mention(
+            "search the price list workbook to confirm the rows that "
+            "are found in the email", {},
+            conversation_id="conv-ep"))
+        assert got == "consolidated price list 2019.xlsx"
+
+    def test_plain_search_the_workbook_resolves(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        self._conv(monkeypatch)
+        got = asyncio.run(_resolve_anaphoric_file_mention(
+            "search the workbook", {}, conversation_id="conv-ep"))
+        assert got == "consolidated price list 2019.xlsx"
+
+    def test_genuine_cross_source_objective_still_refused(self, monkeypatch):
+        import asyncio
+
+        from integrations.chat_orchestrator import (
+            _resolve_anaphoric_file_mention,
+        )
+
+        self._conv(monkeypatch)
+        assert asyncio.run(_resolve_anaphoric_file_mention(
+            "check the inbox and the workbook together", {},
+            conversation_id="conv-ep")) == ""
+
+    def test_plain_search_the_workbook_is_not_a_confirmation(self):
+        from core.pending_file_task import is_filename_confirmation
+
+        assert not is_filename_confirmation("search the workbook")
+        assert is_filename_confirmation("search the workbook again")
+
+
+class TestEmptyItemReads:
+    """2026-10-02 live (replay-retry2 00:08/00:10): 'cross check what's
+    already confirmed' and 'give me the list with a table' — the read ran
+    with ZERO items (task carriers dead after churn, message names no
+    codes) and delivered HEADER + coverage footer + freshness verdict
+    with NO BODY: a confident empty answer, twice."""
+
+    def test_ledger_objective_items_fall_in(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert "_ds.active_objective_items(" in src
+        assert "LEDGER-OBJECTIVE ITEM FALLBACK" in src
+
+    def test_empty_item_read_asks_instead_of_empty_body(self):
+        import inspect
+
+        import integrations.chat_orchestrator as orch
+
+        src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
+        assert "EMPTY-ITEM HONESTY" in src
+        # the message is built from concatenated literals — assert on
+        # the pieces as they appear in source
+        assert "no items were" in src and "named to check" in src
+        assert "Which items should I check?" in src
+
+    def test_active_objective_items_read(self):
+        import uuid as _uuid
+
+        from core import dialogue_state as ds
+
+        cid = f"ei-{_uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.OBJECTIVE_SET, cid,
+                        {"items": ["381", "U-22"], "file": "f.xlsx"})
+        assert ds.active_objective_items(cid) == ["381", "U-22"]

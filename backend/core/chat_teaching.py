@@ -58,7 +58,7 @@ _TEACHING_CUE_RE = re.compile(
     r"always\b|"
     r"never\b|"
     r"learn(?:ing)?[ \t]+to\b|"
-    r"teach(?:ing)?[ \t]+you[ \t]+to\b"
+    r"teach(?:ing)?[ \t]+you[ \t]+to\b|"
     r"from now on\b|"
     r"going forward\b|"
     r"remember(?:[ \t]+that)?\b|"

@@ -42,6 +42,37 @@ def test_extract_targets_keeps_model_codes_whole():
     assert values == ["U-22", "GSL48-16", "SLE24-16", "381", "622"]
 
 
+def test_extract_targets_drops_prose_adjectives_from_source_statements():
+    """Live 2026-10-01 (replay-retry2-20260923): 'Consolidated Price List
+    2019 excel file is the official price list updated by the team…' has
+    no numeric targets, so the name lane's conditional identity filter
+    let the adjective 'official' ride as the ONLY item — the workbook
+    read then answered 'official — no match in this copy' and lost the
+    conversation's whole machinery list. Name-lane output must be
+    identity-shaped unconditionally: a digit, a hyphen, or a capitalized
+    word. Lowercase prose is never an identifier."""
+    msg = (
+        "Consolidated Price List 2019 excel file is the official price "
+        "list updated by the team. Other one likely has manual "
+        "calculations so price can be verified. exchange rate changes "
+        "every month with a 3 cent buffer for USD to CAD from factory "
+        "pricing"
+    )
+    assert extract_targets(msg, [msg]) == []
+
+
+def test_extract_targets_keeps_name_only_entities_without_numbers():
+    """The unconditional identity rule must not over-drop: 'Manual
+    Flanger' (capitalized) and 'PEXTO' (brand word) still ride when no
+    numeric code exists in the ask."""
+    assert extract_targets(
+        "what is the price for the Manual Flanger"
+    ) == ["Manual Flanger"]
+    assert extract_targets(
+        "find the price for the PEXTO shearmaker"
+    ) == ["PEXTO"]
+
+
 def test_filename_colon_does_not_become_an_attribute_constraint():
     criteria = _disambiguation_criteria(
         "find values in catalog.xlsx: A-1, B-2",
@@ -1167,3 +1198,219 @@ def test_resolved_bindings_container_is_never_mined_as_criteria(tmp_path):
     assert outcome["status"] in ("found", "ambiguous"), outcome
     assert (outcome.get("evidence") or []), (
         "the bindings container must never eliminate a matched row")
+
+
+def test_identity_shaped_item_drops_short_bare_numerics_and_prose():
+    """Live 2026-10-01 ('36'): the numeric lane still emits short bare
+    numerics — '36' from a 36" spec, '10'/'11' from '(10–11 wks)' — and
+    the orchestrator's requested-targets mining trusts its output, so a
+    '36' rode the trusted lane and matched every sheet containing 36
+    anywhere. The shared keep-rule drops them; real codes and names
+    survive."""
+    from core.workbook_read_artifact import identity_shaped_item
+
+    junk = ["36", "10", "11", "12", "official", "wks", ""]
+    keep = ["381", "622", "1624", "U-22", "SLE24-16", "GSL48-16",
+            "PEXTO", "Manual Flanger", "No. 381"]
+    for t in junk:
+        assert not identity_shaped_item(t), t
+    for t in keep:
+        assert identity_shaped_item(t), t
+
+
+def test_orchestrator_target_mining_post_filter_drops_spec_numerics():
+    """The orchestrator's _requested_targets mining (a trusted lane)
+    post-filters with the shared predicate — the canvas-title spec '36'
+    and delivery-window '10'/'11' die, the model codes ride."""
+    from core.workbook_read_artifact import extract_targets, identity_shaped_item
+
+    title = 'Roper Whitney 36" No. 381 Roll Bender — $2,902.00 (10–11 wks)'
+    mined = extract_targets(title, [title])
+    filtered = [t for t in mined if identity_shaped_item(t)]
+    assert "36" not in filtered
+    assert "10" not in filtered and "11" not in filtered
+    assert "381" in filtered
+
+
+def test_source_statement_does_not_become_a_row_constraint():
+    """Live 2026-10-01 (e2e turn 4): '…excel file is the official price
+    list updated by the team…' — the is-lane mined the whole remainder
+    as a criterion on the FILE-NAME field; no row carries that prose, so
+    the elimination branch emptied EVERY designation and a read that had
+    answered U-22/SLE24-16/GSL48-16 correctly one turn earlier returned
+    all-absent on the identical item set. A field naming the SOURCE
+    (file/workbook/price list/sheet…) asserts WHERE to look, never a row
+    attribute; and a value never spans sentences."""
+    criteria = _disambiguation_criteria(
+        "Consolidated Price List 2019 excel file is the official price "
+        "list updated by the team. Other one likely has manual "
+        "calculations so price can be verified. exchange rate changes "
+        "every month with a 3 cent buffer for USD to CAD from factory "
+        "pricing",
+        [], None,
+    )
+    assert criteria == {}
+
+    # source statements in other shapes, same rule
+    assert _disambiguation_criteria(
+        "the workbook is the official one", [], None) == {}
+    assert _disambiguation_criteria(
+        "that price list is outdated", [], None) == {}
+    # real row attributes still mine
+    assert _disambiguation_criteria(
+        "the vendor is Roper Whitney", [], None) == {
+            "vendor": ["Roper Whitney"]}
+    assert _disambiguation_criteria(
+        "capacity: 22 tons", [], None) == {"capacity": ["22 tons"]}
+
+
+def test_exact_code_matches_outrank_digit_fragments():
+    """Live 2026-10-01 (the flagged 381/622 ambiguity): '381' matched 10
+    rows — two rows whose MODEL cell IS '381' (the real machines) and
+    eight where the digits sit inside longer codes ('381 700 092') or
+    numeric noise. Uniqueness could not resolve, and the presenter
+    showed fragment rows FIRST. Exact-code matches must rank first;
+    ambiguity is kept honestly."""
+    from openpyxl import Workbook as _WB
+
+    wb = _WB()
+    rw = wb.active
+    rw.title = "RoperWhitney"
+    rw.append(["MODEL NO.", "CAT. NO.", "PRICE"])
+    rw.append(["381", "167 072 381", 100])          # exact code
+    rw.append(["0381", "167 074 0381", 90])
+    rw.append(["381 700 092", "381 700 092", 117])  # fragment
+    rw.append(["381 700 085", "381 700 085", 95])   # fragment
+    ts = wb.create_sheet("Tennsmith")
+    ts.append(["MODEL NO.", "CAT. NO.", "PRICE"])
+    ts.append(["381", "167072381", 3254])           # exact code
+    ts.append(["SLE24-16", "83815", 8984])
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    artifact = inspect_workbook_bytes(
+        buf.getvalue(), "Consolidated Price List 2019.xlsx",
+        query="find the price for 381",
+        provider="zoho_workdrive", resource_id="f1",
+    )
+    outcome = next(o for o in artifact["coverage"]["outcomes"]
+                   if o["target"] == "381")
+    assert outcome["status"] in ("ambiguous", "found")
+    values = [e.get("value") for e in outcome["evidence"]]
+    # the two exact MODEL cells lead the candidate list
+    assert values.count("381") >= 2
+    assert values[:2] == ["381", "381"]
+
+
+# ---------------------------------------------------------------------------
+# ELIMINATION READS THE ASK, NOT THE ENVELOPE (2026-10-02, the quote-canvas
+# false miss). The live incident: an HTML email canvas is handed to the
+# reader as a context text, so every CSS declaration in its `style="…"`
+# attributes is mined as a `field = value` row criterion. `margin` anchors
+# on the workbook's own `DEALER MARGIN` / `BRENNAN MARGIN` columns, which
+# narrows those rows' haystack to numbers, matches no token, and DELETES the
+# candidate — so three priced rows of a live quote rendered "no readable
+# value" while holding their prices in the artifact. Schema anchoring cannot
+# catch it: the field was real, only the value was markup. The invariant
+# (context-mined criteria may rank, never eliminate) is asserted below on the
+# exact shapes, not on the vocabulary that triggered them.
+# ---------------------------------------------------------------------------
+
+def _canvas_markup_workbook_bytes() -> bytes:
+    workbook = Workbook()
+    priced = workbook.active
+    priced.title = "Slitters"
+    priced.append(["Model", "Description", "Price", "Factory Price",
+                   "Dealer Margin", "Brennan Margin"])
+    priced.append(["TK 1624", "TK 1624 Slitter", 8143, 5450, 8040.5, 7000.25])
+    priced.append(["TK Gang", "TK Gang Slitter", 12979, 5450, 12978.37, 9000.5])
+    plain = workbook.create_sheet("Roll Benders")
+    plain.append(["Model", "Description", "Price"])
+    plain.append(["381", "ROLL BENDING MACH", 236.66])
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+# The canvas body verbatim in shape: a serialized HTML email whose inline
+# styles contain `margin: 0px 8px 0px 4px` and friends. `margin` is a real
+# column on the priced sheet; `8px 0` is not anything a row can hold.
+_CANVAS_EMAIL_CONTEXT = (
+    '<table style="border-collapse: collapse; margin: 0px 8px 0px 4px; '
+    'padding: 0px; width: 100%;"><tr><td>TK 1624 Slitter</td>'
+    '<td>$8,040.00</td></tr><tr><td>Tin Knocker TK Multi Wheel Gang Slitter'
+    '</td><td>$12,838.00</td></tr></table>'
+)
+
+
+def test_canvas_markup_cannot_eliminate_a_priced_row():
+    """The live false miss: presence of a canvas must not delete a match."""
+    artifact = inspect_workbook_bytes(
+        _canvas_markup_workbook_bytes(),
+        "Consolidated Price List 2019.xlsx",
+        query="cross check what's already confirmed",
+        context_texts=[_CANVAS_EMAIL_CONTEXT],
+        targets=["TK 1624 Slitter", "Tin Knocker TK Multi Wheel Gang Slitter"],
+        requested_fields=["price"],
+    )
+    outcomes = {
+        outcome["target"]: outcome
+        for outcome in artifact["coverage"]["outcomes"]
+    }
+    for target in ("TK 1624 Slitter", "Tin Knocker TK Multi Wheel Gang Slitter"):
+        assert outcomes[target]["evidence"], (
+            f"{target}: canvas markup eliminated a row that exists and is "
+            f"priced — criteria={_disambiguation_criteria('cross check', [_CANVAS_EMAIL_CONTEXT], None)}"
+        )
+
+
+def test_ask_criteria_still_eliminate():
+    """The fix is provenance, not a blanket refusal to eliminate.
+
+    A constraint in THIS ask's own words, naming a column the workbook
+    really has, still discriminates between candidate rows — that is the
+    whole point of feeding elimination the ask rather than the envelope,
+    and it must keep working.
+    """
+    artifact = inspect_workbook_bytes(
+        _canvas_markup_workbook_bytes(),
+        "Consolidated Price List 2019.xlsx",
+        query="TK slitter where Dealer Margin is 12978.37",
+        context_texts=[_CANVAS_EMAIL_CONTEXT],
+        targets=["TK 1624 Slitter", "Tin Knocker TK Multi Wheel Gang Slitter"],
+        requested_fields=["price"],
+    )
+    outcomes = {
+        outcome["target"]: outcome
+        for outcome in artifact["coverage"]["outcomes"]
+    }
+    # The ask's own criterion keeps the gang slitter (12978.37) and drops
+    # the 1624 row (8040.5) — elimination ran, from the ask.
+    kept = outcomes["Tin Knocker TK Multi Wheel Gang Slitter"]["evidence"]
+    dropped = outcomes["TK 1624 Slitter"]["evidence"]
+    assert kept, "the ask's own criterion must still select its row"
+    assert not dropped, (
+        "a criterion from the ask's own words still eliminates non-matching "
+        "rows — the barrier is on PROVENANCE, not on eliminating"
+    )
+
+
+def test_markup_mined_criteria_are_reported_not_applied():
+    """Context criteria still RANK and still ride the payload — they are
+    only barred from deleting a row."""
+    artifact = inspect_workbook_bytes(
+        _canvas_markup_workbook_bytes(),
+        "Consolidated Price List 2019.xlsx",
+        query="cross check what's already confirmed",
+        context_texts=[_CANVAS_EMAIL_CONTEXT],
+        targets=["TK 1624 Slitter"],
+        requested_fields=["price"],
+    )
+    mined = _disambiguation_criteria(
+        "cross check what's already confirmed", [_CANVAS_EMAIL_CONTEXT], None)
+    assert any("margin" in str(key).lower() for key in mined), (
+        "precondition: the markup must still mine, so the test proves the "
+        "barrier rather than a miner that stopped producing noise"
+    )
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["disambiguation"], "mined criteria stay in the payload"

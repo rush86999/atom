@@ -6307,9 +6307,9 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
-    # IDENTITY-SHAPE FILTER ON MESSAGE-MINED ITEMS (2026-10-01 live
-    # finding, T2 of the consistency run): an assertion like 'no. 381 is
-    # on Tennsmith sheet under row 338' mined THREE items — 381 (real,
+    # IDENTITY-SHAPE FILTER ON THE ITEM SET (2026-10-01 live finding, T2
+    # of the consistency run): an assertion like 'no. 381 is on Tennsmith
+    # sheet under row 338' mined THREE items — 381 (real,
     # identifier-prefixed), 'Tennsmith' (the SHEET NAME), and '338' (the
     # ROW NUMBER) — so the answer carried junk rows for the sheet and
     # the row. Generic rules, same family as the canvas extractor:
@@ -6317,29 +6317,30 @@ async def _datasets_named_file_block(
     #       not an item;
     #   (b) a bare number that follows 'row'/'R' in the message is a
     #       row locator, not an item;
-    #   (c) otherwise: identifier-prefixed, alnum-mixed, or >=4 digits.
+    #   (c) otherwise the ITEM itself must be code-shaped.
+    # SHAPE IS JUDGED ON THE ITEM, NOT ON PRESENCE IN THE TURN TEXT
+    # (2026-10-01 regression): the first version of this filter kept
+    # only items the current message restates — which wiped every item
+    # the reader did NOT mine from the ask: the stored objective's
+    # inherited set ('check the other machinery…' carries
+    # ['381','U-22','622','SLE24-16','1624','GSL48-16'], the ask names
+    # none of them → out=[]) and the probe-fallback tokens, leaving the
+    # read nothing to search (measured: per-item tables rendered empty).
+    # Caller-supplied requested/revised targets are additionally trusted
+    # outright — durable objective state, the same rule
+    # _named_file_targets documents ("trusted and never filtered").
+    _id_trusted = {
+        re.sub(r"[^0-9a-z]+", "", str(v).strip().lower())
+        for v in [
+            *((context or {}).get("requested_targets") or []),
+            *((context or {}).get("revised_targets") or []),
+        ]
+        if str(v).strip()
+    }
     try:
         import re as _id_re
 
-        # CODE-SHAPE KEEP RULE (2026-10-01, PEXTO finding): the canvas
-        # extractor's digit requirement dropped brand-word subjects —
-        # 'PEXTO' in 'the PEXTO 888 shearmaker' is a code-shaped token
-        # (capitalized, >=4 chars) even without a digit. Keep rule here:
-        # has a digit (>=3 chars), OR capitalized alpha >= 4 chars.
         _id_whole = " ".join(v for v in (query, msg_text) if v)
-        _id_keep = set()
-        for _id_t in _id_re.findall(
-                r"\b[A-Za-z0-9][A-Za-z0-9./&-]*\b",
-                " ".join(v for v in (query, msg_text) if v)):
-            if len(_id_t) < 3 or _id_re.fullmatch(
-                    r"\d{1,3}", _id_t):
-                continue
-            if _id_re.search(r"\d", _id_t) or (
-                    _id_t[:1].isupper() and _id_t.isalpha()
-                    and len(_id_t) >= 4):
-                _id_low_k = _id_t.lower()
-                if _id_low_k not in _id_keep:
-                    _id_keep.add(_id_low_k)
         _id_sheets = {str(x).strip().lower() for x in (sheet_names or [])}
         _id_rownums = {
             m.group(1).lower()
@@ -6347,35 +6348,37 @@ async def _datasets_named_file_block(
                 r"\brow\s+(\d{1,6})\b", _id_whole,
                 _id_re.IGNORECASE)}
         _id_filtered = []
+        try:
+            from core.workbook_read_artifact import identity_shaped_item
+        except Exception:  # noqa: BLE001 — fallback keeps inline rule
+            identity_shaped_item = None
         for _id_t in item_tokens:
             _id_low = str(_id_t).strip().lower()
             if _id_low in _id_sheets or _id_low in _id_rownums:
                 continue
-            if _id_low in _id_keep or any(
-                    str(_id_t).lower() == str(_id_k)
-                    for _id_k in _id_keep):
+            if _id_low in _id_trusted or re.sub(
+                    r"[^0-9a-z]+", "", _id_low) in _id_trusted:
                 _id_filtered.append(_id_t)
                 continue
-            # prefixed forms like 'No. 381' extract as '381' — the
-            # identifier prefix in the message is the keep-signal
-            if _id_re.search(
-                    r"\b(?:no\.?|model|sku|part|item|code|m/n|p/n|ref)\.?\s*"
-                    + _id_re.escape(str(_id_t))
-                    + r"\b", _id_whole, _id_re.IGNORECASE):
+            # CODE-SHAPE KEEP RULE, judged per item via the one shared
+            # predicate (2026-10-01, PEXTO finding): a word with a digit
+            # >=3 chars ('381', 'SLE24-16') or a capitalized alpha >=4
+            # ('PEXTO'; 'Manual Flanger' via its capitalized word). Bare
+            # <=2-digit numerics and lowercase prose drop.
+            _shaped = (
+                identity_shaped_item(_id_t)
+                if identity_shaped_item is not None else any(
+                    (len(w) >= 3 and _id_re.search(r"\d", w))
+                    or (w[:1].isupper() and w.isalpha() and len(w) >= 4)
+                    for w in str(_id_t).split()))
+            if _shaped:
                 _id_filtered.append(_id_t)
         logger.info(
-            "[item-filter] in=%r keep=%r sheets=%r rownums=%r out=%r",
-            list(item_tokens), sorted(_id_keep), sorted(_id_sheets)[:6],
+            "[item-filter] in=%r sheets=%r rownums=%r out=%r",
+            list(item_tokens), sorted(_id_sheets)[:6],
             sorted(_id_rownums), _id_filtered)
-        if _id_filtered:
+        if _id_filtered or _id_sheets or _id_rownums:
             item_tokens = _id_filtered
-        elif item_tokens and not _id_keep and not _id_sheets:
-            pass  # nothing learned; keep the original set
-        elif not _id_filtered and _id_keep:
-            item_tokens = [
-                t for t in item_tokens
-                if str(t).strip().lower() in {
-                    str(k).strip().lower() for k in _id_keep}]
     except Exception as _id_err:  # noqa: BLE001 — filter is advisory
         logger.debug("item identity filter skipped: %r", _id_err)
     # REFERENCE-RECOGNITION GATE (2026-09-30) — ONE decision point for
@@ -6747,6 +6750,44 @@ async def _datasets_named_file_block(
                             _source_ref_names.append(_cand["possessor"])
             except Exception:  # noqa: BLE001 — refinement is optional
                 _source_ref_names = []
+            # CROSS-CONVERSATION WORKBOOK BINDINGS (2026-10-01, the
+            # cross-session memory gap): a user-confirmed row is a fact
+            # about the WORKBOOK revision, not one chat. The session/task
+            # carriers are empty on a FRESH conversation's first read, so
+            # the merge happens HERE — after the reader resolved the
+            # file (content_hash known), before the scan pins candidates.
+            # Both scopes required (workspace AND revision), matching the
+            # orchestrator-side gate; the reader itself still honors only
+            # bindings whose content_hash equals this revision's.
+            def _workbook_binding_disambiguation():
+                dis = dict((context or {}).get("disambiguation") or {})
+                try:
+                    from core import dialogue_state as _ds
+
+                    _ws = (context or {}).get("workspace_id")
+                    if (not _ws or not prov.get("content_hash")
+                            or not item_tokens):
+                        return dis
+                    extra = _ds.workbook_bindings(
+                        _ws, prov.get("content_hash"), list(item_tokens))
+                    if not extra:
+                        return dis
+                    merged = list(dis.get("resolved_bindings") or [])
+                    have = {
+                        (str(b.get("item") or "").lower(),
+                         str(b.get("sheet") or "").lower(), b.get("row"))
+                        for b in merged if isinstance(b, dict)}
+                    for b in extra:
+                        _k = (str(b.get("item") or "").lower(),
+                              str(b.get("sheet") or "").lower(),
+                              b.get("row"))
+                        if _k not in have:
+                            merged.append(b)
+                    dis["resolved_bindings"] = merged[:64]
+                except Exception:  # noqa: BLE001 — memory tier is optional
+                    pass
+                return dis
+
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -6762,7 +6803,7 @@ async def _datasets_named_file_block(
                 content_hash=prov["content_hash"],
                 content_hash_algorithm="sha1",
                 ingested_at=prov["ingested_at"],
-                disambiguation=(context or {}).get("disambiguation"),
+                disambiguation=_workbook_binding_disambiguation(),
                 attribute_texts=_brand_texts,
                 source_reference_names=_source_ref_names,
             )
