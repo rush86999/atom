@@ -180,6 +180,70 @@ class EmailCanvasService:
                 "subject": subject,
                 "body": draft.body or "",
             }
+
+            # SAME-ARTIFACT ADOPTION (2026-10-02, the duplicate quote
+            # canvases): the chat draft path (chat_to_canvas) had already
+            # created an ACTIVE email canvas with this subject, and
+            # creating a compose sibling here forked the artifact — two
+            # "Quote – …" canvases with one title, edits landing on
+            # whichever the panel had open (live 0e4defa5 vs b6156b79).
+            # Adopt the chat canvas instead: the compose thread's audit
+            # rows land on the SAME canvas id (the audit trail is the
+            # source of truth), and a fresh empty draft never overwrites
+            # a populated artifact.
+            _adopted = None
+            try:
+                _norm_subject = " ".join(
+                    str(subject or "").split()).casefold()
+                if _norm_subject:
+                    _candidates = (
+                        self.db.query(Canvas)
+                        .filter(
+                            Canvas.created_by == str(user_id),
+                            Canvas.canvas_type == "email",
+                            Canvas.status == "active",
+                        )
+                        .order_by(desc(Canvas.updated_at))
+                        .limit(50)
+                        .all())
+                    for _c in _candidates:
+                        if " ".join(
+                                str(_c.name or "").split()).casefold() != \
+                                _norm_subject:
+                            continue
+                        _create_audit = (
+                            self.db.query(CanvasAudit)
+                            .filter(
+                                CanvasAudit.canvas_id == _c.id,
+                                CanvasAudit.action_type == "create",
+                            )
+                            .order_by(desc(CanvasAudit.created_at))
+                            .first())
+                        _src = str(
+                            ((_create_audit.details_json or {}).get("source")
+                             if isinstance(_create_audit.details_json, dict)
+                             else "") or "")
+                        if _src == "chat_to_canvas":
+                            _adopted = _c
+                            break
+            except Exception as _adopt_err:
+                logger.debug(
+                    f"email canvas adoption check skipped: {_adopt_err}")
+                _adopted = None
+            if _adopted is not None:
+                canvas_id = _adopted.id
+                audit.canvas_id = canvas_id
+                _existing_content = (
+                    _adopted.content
+                    if isinstance(_adopted.content, dict) else {})
+                if not str(_existing_content.get("body") or "").strip():
+                    _adopted.content = canvas_content
+                    _adopted.last_edited_by = str(user_id)
+                    _adopted.last_edited_at = datetime.now(timezone.utc)
+                logger.info(
+                    f"Adopted existing canvas {canvas_id} for email "
+                    f"compose: {subject}")
+
             canvas_row = Canvas(
                 id=canvas_id,
                 tenant_id="default",
@@ -194,7 +258,8 @@ class EmailCanvasService:
                 last_edited_at=datetime.now(timezone.utc),
             )
 
-            self.db.add(canvas_row)
+            if _adopted is None:
+                self.db.add(canvas_row)
             self.db.add(audit)
             self.db.commit()
             self.db.refresh(audit)

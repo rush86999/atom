@@ -1,4 +1,5 @@
 """Multi-turn regressions for canvas a1a13834; all stores/providers mocked."""
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -84,33 +85,52 @@ async def test_failed_edit_planner_allows_search_without_action_dispatch():
     session = {"id": "isolated", "history": []}
     canvas = {"canvas_id": "c1", "canvas_type": "email",
               "content": {"subject": "Draft", "body": "Unchanged"}}
-    with (
-        patch.object(orch, "_get_or_create_session", return_value=session),
-        patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=canvas)),
-        patch.object(orch, "_refresh_canvas_from_store", new=AsyncMock(return_value=canvas)),
-        patch.object(orch, "_heal_degenerate_canvas", new=AsyncMock(return_value=canvas)),
-        patch.object(orch, "_start_chat_execution", return_value="e1"),
-        patch.object(orch, "_record_chat_step", new=AsyncMock()),
-        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
-        patch.object(orch, "_finish_chat_execution"),
-        patch.object(orch, "_update_session"),
-        patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
-        patch("core.chat_canvas_editor.fetch_fresh_data_section", new=AsyncMock(
-            return_value=FreshDataResult(section="", needed=False, ok=True))),
-        patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
-            side_effect=CanvasPlanUnavailable("provider down"))),
-        patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock()),
-        patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock()) as edit,
-        patch.object(orch, "_try_canvas_action", new=AsyncMock()) as action,
-        patch.object(orch, "_try_zoho_crm_write", new=AsyncMock()) as crm,
-        patch.object(orch, "_route_to_features", new=AsyncMock()) as features,
-        patch.object(orch, "_get_qwen_response", new=AsyncMock(return_value={
-            "content": "Found the source email.", "model": "test", "provider": "test",
-        })) as answer,
-        patch.object(planner, "_provenance_menu", new=AsyncMock(return_value="")),
-        patch.object(planner, "plan_tool_use", new=AsyncMock(return_value=planner.ToolPlan(
-            use_tool=True, service="memory", intent="search", query="quoted price"))),
-    ):
+    # ExitStack, not one parenthesized with: the context-manager list hit
+    # CPython's static-nesting limit when the task-lifecycle patch was
+    # added (Python 3.14).
+    edit = AsyncMock()
+    action = AsyncMock()
+    crm = AsyncMock()
+    features = AsyncMock()
+    answer = AsyncMock(return_value={
+        "content": "Found the source email.", "model": "test",
+        "provider": "test",
+    })
+    with ExitStack() as stack:
+        for cm in (
+            patch.object(orch, "_get_or_create_session", return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_refresh_canvas_from_store", new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_heal_degenerate_canvas", new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_start_chat_execution", return_value="e1"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            # The scenario is a FAILED EDIT PLANNER — the turn must reach
+            # the edit leg. Without this, the task-lifecycle reservation
+            # denies the leg first (an isolated fixture has no task
+            # context) and the planner is never consulted, so the premise
+            # cannot materialize.
+            patch("integrations.chat_orchestrator._begin_task_edit",
+                  return_value={"status": "legacy", "run_id": None,
+                                "operation_id": None, "reason": None}),
+            patch("core.chat_mini_app_authoring.try_handle", new=AsyncMock(return_value=None)),
+            patch("core.chat_canvas_editor.fetch_fresh_data_section", new=AsyncMock(
+                return_value=FreshDataResult(section="", needed=False, ok=True))),
+            patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
+                side_effect=CanvasPlanUnavailable("provider down"))),
+            patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock()),
+            patch("core.chat_canvas_editor.apply_canvas_edit", new=edit),
+            patch.object(orch, "_try_canvas_action", new=action),
+            patch.object(orch, "_try_zoho_crm_write", new=crm),
+            patch.object(orch, "_route_to_features", new=features),
+            patch.object(orch, "_get_qwen_response", new=answer),
+            patch.object(planner, "_provenance_menu", new=AsyncMock(return_value="")),
+            patch.object(planner, "plan_tool_use", new=AsyncMock(return_value=planner.ToolPlan(
+                use_tool=True, service="memory", intent="search", query="quoted price"))),
+        ):
+            stack.enter_context(cm)
         result = await orch.process_chat_message(
             "u1", "search for this one: $ 5,350.00 - 10 % in stock",
             "isolated", context={"canvas_id": "c1", "agent_id": "a1"})

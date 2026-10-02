@@ -930,9 +930,18 @@ class TestSignature:
 
         for svc, _ in [self._svc()]:
             with patch("core.user_preference_service.UserPreferenceService") as PrefMock:
-                PrefMock.return_value.get_preference.return_value = "Custom sig\nLine 2"
+                # The stored-override branch reads BOTH keys (text + the
+                # persisted signature_html); a text-only store mirrors
+                # signature_html as None (the get_signature contract).
+                def _pref(user_id, workspace_id, key, _svc=svc):
+                    return (
+                        "Custom sig\nLine 2"
+                        if key == _svc.SIGNATURE_KEY else None)
+
+                PrefMock.return_value.get_preference.side_effect = _pref
                 result = await svc.get_signature("user-1")
-        assert result == {"success": True, "signature": "Custom sig\nLine 2", "source": "stored"}
+        assert result == {"success": True, "signature": "Custom sig\nLine 2",
+                          "signature_html": None, "source": "stored"}
 
     @pytest.mark.asyncio
     async def test_integration_default_mined_from_sent_mail(self):
