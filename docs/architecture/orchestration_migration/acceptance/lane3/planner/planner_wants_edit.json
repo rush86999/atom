@@ -1,0 +1,97 @@
+{
+  "schema": "lane3-planner-wants-edit-v1",
+  "generated_at": "2026-09-27T14:40:13-0400",
+  "world": "candidate_fix1",
+  "env": {
+    "world": "candidate_fix1",
+    "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0",
+    "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "byok_present": true,
+    "source_id": "a8bc48dc13e5-dirty.01b47729575c"
+  },
+  "request": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30",
+  "canvas": {
+    "canvas_id": "lane3-planner-probe",
+    "canvas_type": "email",
+    "title": "Quote for Steve",
+    "content": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p></div>"
+  },
+  "pin_env_var": "ATOM_ASYNC_EDIT_PLAN_MODEL",
+  "runs": [
+    {
+      "pin": "(unpinned - production control)",
+      "ok": true,
+      "wants_edit": false,
+      "edit_mode": "",
+      "ops_count": 0,
+      "op_kinds": [],
+      "reply_head": "",
+      "latency_s": 9.41
+    },
+    {
+      "pin": "deepseek/deepseek-flash",
+      "ok": true,
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops_count": 1,
+      "op_kinds": [
+        "CanvasPatchOp"
+      ],
+      "reply_head": "Updated the quote validity from 15 days to 30 days in the body. Tracked as edit VALIDITY-30 (the label itself isn't written into the email).",
+      "latency_s": 3.13
+    },
+    {
+      "pin": "deepseek/deepseek-v4-pro",
+      "ok": true,
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops_count": 1,
+      "op_kinds": [
+        "CanvasPatchOp"
+      ],
+      "reply_head": "Updated quote validity to 30 days and marked VALIDITY-30.",
+      "latency_s": 21.55
+    },
+    {
+      "pin": "opencode-go/glm-5.3",
+      "ok": true,
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops_count": 1,
+      "op_kinds": [
+        "CanvasPatchOp"
+      ],
+      "reply_head": "Changed the quote validity from 15 to 30 days and tagged the edit VALIDITY-30 in the body.",
+      "latency_s": 10.98
+    },
+    {
+      "pin": "openrouter/anthropic/claude-sonnet-5",
+      "ok": true,
+      "wants_edit": false,
+      "edit_mode": "",
+      "ops_count": 0,
+      "op_kinds": [],
+      "reply_head": "",
+      "latency_s": 1.19
+    }
+  ],
+  "control": {
+    "pin": "(unpinned - production control)",
+    "wants_edit": false,
+    "ops_count": 0
+  },
+  "summary": {
+    "measured": 5,
+    "errors": 0,
+    "accepts_edit": [
+      "deepseek/deepseek-flash",
+      "deepseek/deepseek-v4-pro",
+      "opencode-go/glm-5.3"
+    ],
+    "declines_edit": [
+      "(unpinned - production control)",
+      "openrouter/anthropic/claude-sonnet-5"
+    ]
+  },
+  "verdict": "MODEL-QUALITY BOUND. The unpinned router declines this unambiguous edit; 3 pinned model(s) accept it: ['deepseek/deepseek-flash', 'deepseek/deepseek-v4-pro', 'opencode-go/glm-5.3']. A pin is a candidate fix, but this is ONE prompt on ONE canvas -- it is a lead, not a measured accuracy result, and it must be re-measured across a corpus before being adopted."
+}

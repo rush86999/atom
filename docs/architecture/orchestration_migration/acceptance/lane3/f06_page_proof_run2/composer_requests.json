@@ -1,0 +1,25 @@
+[
+  {
+    "url": "http://localhost:8087/api/chat/message",
+    "json": {
+      "message": "Change the line that says All quotes are valid for 15 days only. to say it is valid for 30 days.",
+      "user_id": "8301093f-ba01-4c75-aed4-7e0879af9eb0",
+      "session_id": "new",
+      "request_id": "f220fc27-adda-4a4a-ba1d-1923fc4b6299",
+      "context": {
+        "current_page": "/canvas/15ca7962-ea3d-4942-820f-5732941ecf85",
+        "canvas_id": "15ca7962-ea3d-4942-820f-5732941ecf85",
+        "canvas_type": "email",
+        "canvas_title": null,
+        "canvas_content": {
+          "to": "steve@example.com",
+          "cc": "",
+          "subject": "Quote for Steve",
+          "body": "Hi Steve,\n\nThanks for your interest.\n\nAll quotes are valid for 15 days only.\n\nBest regards,\nRish"
+        },
+        "conversation_history": []
+      }
+    },
+    "raw_len": 616
+  }
+]

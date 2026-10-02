@@ -1,0 +1,32 @@
+{
+  "schema": "lane3-d0-negative-control-v2",
+  "recorded_at": "2026-09-27T16:31:44-0400",
+  "control": "backend/tests/test_write_path_d0_negative_control.py",
+  "cases": 9,
+  "cases_list": [
+    "editor refuses success when read-back disagrees",
+    "verified write still succeeds",
+    "no reply text can assert the change",
+    "wrong canvas is rejected",
+    "partial write is rejected",
+    "incidental text elsewhere does not satisfy the intended change",
+    "concurrent update is rejected",
+    "no audit id means no verified operation",
+    "a plan asking for nothing cannot succeed"
+  ],
+  "pre_fix": {
+    "source": "candidate_fix1 immutable export",
+    "chat_canvas_editor_sha256": "60fc8585e63b112251f6dd8f7e8e069085ef8f349953a0e70f319a9fd575d0bc",
+    "result": "7 failed, 2 passed",
+    "harness": "core/ + tools/ + integrations/ + api/ copied to a temp tree, test BACKEND repointed there"
+  },
+  "post_fix": {
+    "source": "working tree",
+    "result": "9 passed"
+  },
+  "the_two_that_already_passed": [
+    "no reply text can assert the change - pre-fix also avoided the phrase",
+    "a plan asking for nothing cannot succeed - the pre-existing no-change guard already caught a no-op plan"
+  ],
+  "CORRECTION": "An earlier report of this comparison said '3 FAILED pre-fix'. That measurement was INVALID: the temp tree contained only core/, so patch('tools.canvas_crud_tool...') raised ModuleNotFoundError and every test errored at collection rather than failing an assertion. The numbers above are from a run whose tree also contained tools/, integrations/ and api/, and the failures are named per-test assertion failures."
+}

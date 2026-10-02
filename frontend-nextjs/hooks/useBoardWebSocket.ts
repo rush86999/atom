@@ -50,7 +50,7 @@ export function useBoardWebSocket(
 ) {
   const wsUrl = boardId ? buildBoardWsUrl(boardId) : null;
 
-  const { lastMessage } = useWebSocket({
+  const { onMessage } = useWebSocket({
     url: wsUrl || undefined,
     autoConnect: Boolean(wsUrl),
   });
@@ -60,9 +60,16 @@ export function useBoardWebSocket(
     dirtyTaskIds: new Set<string>(),
   });
 
-  useEffect(() => {
-    if (!lastMessage) return;
-    const msg = lastMessage as BoardEvent;
+  // Board events are read from the socket's `onMessage` listener rather than
+  // the `lastMessage` state slot. That slot is ONE slot: a burst of frames
+  // inside a single render commit produces one commit, so an effect keyed on it
+  // sees only the newest frame. A drag that emits create → move → transition
+  // lands as a burst, and a coalesced slot invalidated the cache for only the
+  // last one — so the board could refetch with a task the server had already
+  // moved on from, rendering a stale position until the next event.
+  useEffect(() => onMessage((raw: any) => {
+    if (!raw) return;
+    const msg = raw as BoardEvent;
     switch (msg.type) {
       case 'board:task:created':
       case 'board:task:moved':
@@ -82,7 +89,7 @@ export function useBoardWebSocket(
       default:
         dispatch({ kind: 'noop' });
     }
-  }, [lastMessage]);
+  }), [onMessage]);
 
   return state;
 }

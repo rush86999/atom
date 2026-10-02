@@ -1,0 +1,200 @@
+{
+  "assistant_message_id": "05442d82-fabe-4c06-b173-0c2b6c06577f",
+  "created_at": "2026-09-30 14:55:16.817175",
+  "execution_id": "67dbce2a-e170-45c5-9b1a-04bb739268a9",
+  "user_request": "show me the tennsmith sheet searches",
+  "decision_actions": [
+    {
+      "kind": "research",
+      "reason": "direct_ask",
+      "target": {
+        "kind": "spreadsheet",
+        "name": "consolidated price list 2019.xlsx"
+      },
+      "additional_sources": [],
+      "constraints": [],
+      "authorization": "granted",
+      "proposed_revision": {
+        "retains_previous_objective": true,
+        "adds_constraints": [],
+        "adds_sources": []
+      }
+    }
+  ],
+  "attempt_id": "attempt-dbf5b0ae-ebce-46f4-8652-b72176d51186",
+  "evidence_action": "new_read",
+  "source_identity": {
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "service": "datasets",
+    "source": "zoho_workdrive",
+    "resource_id": "u8ai1e3a4ceb717574b5bbf20429142d718b4",
+    "content_hash": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348",
+    "ingested_at": "2026-09-07T23:06:19",
+    "source_modified_at": null,
+    "live_vs_saved": "saved copy",
+    "evidence_kind": "materialized_copy"
+  },
+  "candidate_refs": [
+    "RoperWhitney!R203",
+    "RoperWhitney!R204",
+    "RoperWhitney!R247",
+    "RoperWhitney!R260",
+    "RoperWhitney!R351",
+    "Tennsmith!R338",
+    "Tennsmith!R340",
+    "RoperWhitney!R88",
+    "RoperWhitney!R89",
+    "RoperWhitney!R90"
+  ],
+  "requested_sheet_candidates": [
+    {
+      "ref": "Tennsmith!R338",
+      "values": [
+        {
+          "col": "E338",
+          "basis": "PRICE",
+          "kind": "number",
+          "value": 3254.0,
+          "display": "3,254"
+        },
+        {
+          "col": "M338",
+          "basis": "U.S. LIST",
+          "kind": "number",
+          "value": 1845.0,
+          "display": "1,845"
+        },
+        {
+          "col": "O338",
+          "basis": "U.S. COST",
+          "kind": "number",
+          "value": 1476.0,
+          "display": "1,476"
+        },
+        {
+          "col": "V338",
+          "basis": "FLAT FREIGHT RATE",
+          "kind": "unavailable",
+          "display": "unavailable"
+        },
+        {
+          "col": "W338",
+          "basis": "FULL COST CDN",
+          "kind": "number",
+          "value": 2290.3936,
+          "display": "2,290.39"
+        },
+        {
+          "col": "AA338",
+          "basis": "CDN LIST",
+          "kind": "number",
+          "value": 3253.5041088000003,
+          "display": "3,253.5"
+        },
+        {
+          "col": "AJ338",
+          "basis": "Current Exchange Rate",
+          "kind": "blank",
+          "display": "blank"
+        }
+      ],
+      "identity": {
+        "status": "bound",
+        "references": [
+          {
+            "sheet": "Tennsmith",
+            "cell": "A338",
+            "row": 338,
+            "value": "381",
+            "role": "matched_target"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "Tennsmith!R340",
+      "values": [
+        {
+          "col": "E340",
+          "basis": "PRICE",
+          "kind": "number",
+          "value": 906.0,
+          "display": "906"
+        },
+        {
+          "col": "M340",
+          "basis": "U.S. LIST",
+          "kind": "number",
+          "value": 495.0,
+          "display": "495"
+        },
+        {
+          "col": "O340",
+          "basis": "U.S. COST",
+          "kind": "number",
+          "value": 396.0,
+          "display": "396"
+        },
+        {
+          "col": "V340",
+          "basis": "FLAT FREIGHT RATE",
+          "kind": "unavailable",
+          "display": "unavailable"
+        },
+        {
+          "col": "W340",
+          "basis": "FULL COST CDN",
+          "kind": "number",
+          "value": 637.6056,
+          "display": "637.61"
+        },
+        {
+          "col": "AA340",
+          "basis": "CDN LIST",
+          "kind": "number",
+          "value": 905.7187548,
+          "display": "905.72"
+        },
+        {
+          "col": "AJ340",
+          "basis": "Current Exchange Rate",
+          "kind": "blank",
+          "display": "blank"
+        }
+      ],
+      "identity": {
+        "status": "bound",
+        "references": [
+          {
+            "sheet": "Tennsmith",
+            "cell": "D340",
+            "row": 340,
+            "value": "No. 381 Heavy Duty Welded Floor",
+            "role": "matched_target"
+          }
+        ]
+      }
+    }
+  ],
+  "coverage": {
+    "catalog_rows_seen": 301,
+    "catalog_truncated": false,
+    "indexed_sheets": 46,
+    "scanned_sheets": 46,
+    "row_display_cap": 8,
+    "alias_probes": {
+      "381": [
+        "381"
+      ]
+    },
+    "artifact_available": true,
+    "artifact_complete": true,
+    "probe_failed": false,
+    "unmaterialized_sheets": [],
+    "read_status": "success",
+    "absence_claimable": true,
+    "unreadable_sheet_count": 0,
+    "error_category": null
+  },
+  "finding": "New read retained current request but decision constraints and proposed_revision.adds_constraints were empty; all-sheet candidates were rendered with a three-candidate window. This is lost sheet scope, not cached replay or missing Tennsmith evidence."
+}

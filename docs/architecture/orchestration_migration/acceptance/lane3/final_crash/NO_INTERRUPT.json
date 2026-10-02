@@ -1,0 +1,10 @@
+{
+ "schema": "lane3-crash-no-interrupt-v1",
+ "reason": "no running execution was observed within 180s; the turn was never slow enough to interrupt",
+ "baseline_status": 200,
+ "outcome": {
+  "resp": "{'status': 200, 'success': True, 'message': \"Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\\n\\n- **No. 381** - several rows match (RoperWhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\\n- **U-22** - 1,777 (LINMAC!R26, identity A26, column C26 'List Price'; also"
+ },
+ "world": "write_combined",
+ "backend": "http://127.0.0.1:8076"
+}

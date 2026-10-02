@@ -2658,6 +2658,80 @@ async def chat_draft_to_canvas(
             )
         except Exception as sig_err:
             logger.debug(f"default signature resolution skipped: {sig_err}")
+    # SAME-CONVERSATION DEDUP (2026-10-02, the duplicate quote canvases):
+    # re-running "make this a canvas" — or a rebuild landing here after a
+    # retry — inserted a SIBLING with the identical title, and the panel
+    # then held two same-named quote drafts the editor could not tell
+    # apart (edits landed on whichever was open; the other went stale).
+    # When THIS conversation already created an active canvas of the same
+    # type and normalized title, UPDATE that artifact instead of forking
+    # it. Conversation-scoped (the create audit's session_id) so distinct
+    # conversations keep their own same-titled drafts.
+    _existing_canvas = None
+    try:
+        _norm_title = " ".join(str(title or "").split()).casefold()
+        if _norm_title and session_id:
+            for _c in (
+                db.query(Canvas)
+                .filter(
+                    Canvas.created_by == current_user.id,
+                    Canvas.canvas_type == canvas_type,
+                    Canvas.status == "active",
+                )
+                .order_by(Canvas.updated_at.desc())
+                .limit(50)
+                .all()
+            ):
+                if " ".join(
+                        str(_c.name or "").split()).casefold() != _norm_title:
+                    continue
+                _create_row = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == _c.id,
+                        CanvasAudit.action_type == "create",
+                    )
+                    .order_by(CanvasAudit.created_at.desc())
+                    .first()
+                )
+                if _create_row is not None and str(
+                        _create_row.session_id or "") == str(session_id):
+                    _existing_canvas = _c
+                    break
+    except Exception as _dedup_err:
+        logger.debug(f"chat canvas dedup lookup skipped: {_dedup_err}")
+        _existing_canvas = None
+
+    if _existing_canvas is not None:
+        _existing_canvas.content = canvas_content
+        _existing_canvas.name = title
+        _existing_canvas.last_edited_by = current_user.id
+        _existing_canvas.last_edited_at = datetime.now(timezone.utc)
+        db.add(_existing_canvas)
+        db.add(CanvasAudit(
+            canvas_id=_existing_canvas.id,
+            tenant_id=_existing_canvas.tenant_id,
+            session_id=session_id,
+            agent_id=agent_id,
+            canvas_type=canvas_type,
+            action_type="update",
+            user_id=current_user.id,
+            details_json={
+                "source": "chat_to_canvas",
+                "title": title,
+                "content": canvas_content,
+                "dedup": "adopted_same_conversation_canvas",
+            },
+        ))
+        db.commit()
+        result = {"success": True, "canvas_id": _existing_canvas.id,
+                  "url": f"/canvas/{_existing_canvas.id}"}
+        if selected and selected.get("message_id") is not None:
+            result["selected_message_id"] = selected["message_id"]
+        if office_fallback_warning:
+            result["warning"] = office_fallback_warning
+        return result
+
     canvas = Canvas(
         id=canvas_id,
         tenant_id=current_user.tenant_id or "default",

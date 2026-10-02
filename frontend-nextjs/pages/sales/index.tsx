@@ -11,14 +11,20 @@ import { useEffect } from "react";
 
 const SalesIntelligencePage = () => {
     const { toast } = useToast();
-    const { lastMessage, subscribe } = useWebSocket();
+    // Frames are read from the socket's `onMessage` listener rather than the
+    // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside
+    // a single render commit produces one commit, so an effect keyed on it sees
+    // only the newest frame. New-lead and deal-health frames arrive in bursts,
+    // and each one is a notification the user is meant to see — coalescing them
+    // silently dropped notifications.
+    const { subscribe, onMessage } = useWebSocket();
     const workspaceId = "sales-test-ws"; // This would be dynamic in a real app
 
     useEffect(() => {
         subscribe(`workspace:${workspaceId}`);
     }, [subscribe]);
 
-    useEffect(() => {
+    useEffect(() => onMessage((lastMessage: any) => {
         if (!lastMessage) return;
 
         // BUG-095: Guard against missing/null data payload — previously
@@ -39,7 +45,7 @@ const SalesIntelligencePage = () => {
                 variant: (data.health_score ?? 100) < 40 ? "warning" : "default",
             });
         }
-    }, [lastMessage, toast]);
+    }), [onMessage, toast]);
 
     return (
         <div className="space-y-6">

@@ -1,0 +1,138 @@
+{
+ "schema": "lane3-published-case-v1",
+ "source_artifact": "docs/architecture/orchestration_migration/acceptance/lane3/write_combined_d5/c16_controlled_bg-failure.json",
+ "case_key": "case_bg-failure",
+ "generated_at": "2026-09-28T06:25:39-0400",
+ "world": "write_combined",
+ "verdict": "PASS",
+ "counts": {
+  "published": 24,
+  "pass": 24,
+  "fail": 0,
+  "not_applicable": 0,
+  "applicable": 24,
+  "note": "24/24 of the APPLICABLE assertions passed; 0 published as NOT APPLICABLE and not counted in the ratio"
+ },
+ "assertions": [
+  {
+   "assertion": "injection_was_consumed",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "interactive_budget_knob_reached_the_server",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "stall_exceeds_interactive_budget",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "durable_lookup_was_trustworthy",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "durable_lookup_controls_all_green",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "background_path_was_actually_exercised",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "initial_response_was_pending_not_complete",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "terminal_state_observed",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "terminal_state_matches_expectation",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "durable_completion_recorded",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_duplicate_effect_after_reconnect",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "history_recovery_reachable",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_stranded_operation",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_unsupported_success",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "zero_update_audits",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "old_text_intact",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_false_success_in_summary",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "history_reports_the_failure",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_fallback_provider_supplied_the_plan",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "injection_was_proven_at_the_shim",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "edit_leg_actually_ran",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "intended_stall_was_consumed",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_unmatched_request_drew_the_stall",
+   "verdict": "PASS",
+   "recorded_value": true
+  },
+  {
+   "assertion": "no_mutation_landed_on_a_failed_turn",
+   "verdict": "PASS",
+   "recorded_value": true
+  }
+ ]
+}

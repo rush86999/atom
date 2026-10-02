@@ -1,0 +1,22 @@
+[
+ {
+  "id": "2026-10-01T12:27:09",
+  "planner_user_prompt": "You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether the conversation itself is\nenough.\n\nRules:\n- Retry phrases (\"try again\", \"any luck?\", \"still nothing\", \"didn't work\")\n  mean RE-RUN the most recent data request in the conversation \u2014 EVEN IF\n  that earlier attempt failed or the assistant earlier said it couldn't.\n  A failed attempt plus \"try again\" is precisely a request to attempt it\n  again now. Plan use_tool=true with the same service and query terms.\n- query must be the minimal search terms (names, companies, subjects,\n  keywords) \u2014 not the whole user message. For web_fetch the query is the\n  websit",
+  "use_tool": false
+ },
+ {
+  "id": "2026-10-01T12:27:11",
+  "planner_user_prompt": "You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether the conversation itself is\nenough.\n\nRules:\n- Retry phrases (\"try again\", \"any luck?\", \"still nothing\", \"didn't work\")\n  mean RE-RUN the most recent data request in the conversation \u2014 EVEN IF\n  that earlier attempt failed or the assistant earlier said it couldn't.\n  A failed attempt plus \"try again\" is precisely a request to attempt it\n  again now. Plan use_tool=true with the same service and query terms.\n- query must be the minimal search terms (names, companies, subjects,\n  keywords) \u2014 not the whole user message. For web_fetch the query is the\n  websit",
+  "use_tool": false
+ },
+ {
+  "id": "2026-10-01T12:27:13",
+  "planner_user_prompt": "You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether the conversation itself is\nenough.\n\nRules:\n- Retry phrases (\"try again\", \"any luck?\", \"still nothing\", \"didn't work\")\n  mean RE-RUN the most recent data request in the conversation \u2014 EVEN IF\n  that earlier attempt failed or the assistant earlier said it couldn't.\n  A failed attempt plus \"try again\" is precisely a request to attempt it\n  again now. Plan use_tool=true with the same service and query terms.\n- query must be the minimal search terms (names, companies, subjects,\n  keywords) \u2014 not the whole user message. For web_fetch the query is the\n  websit",
+  "use_tool": false
+ },
+ {
+  "id": "2026-10-01T12:27:25",
+  "planner_user_prompt": "You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether the conversation itself is\nenough.\n\nRules:\n- Retry phrases (\"try again\", \"any luck?\", \"still nothing\", \"didn't work\")\n  mean RE-RUN the most recent data request in the conversation \u2014 EVEN IF\n  that earlier attempt failed or the assistant earlier said it couldn't.\n  A failed attempt plus \"try again\" is precisely a request to attempt it\n  again now. Plan use_tool=true with the same service and query terms.\n- query must be the minimal search terms (names, companies, subjects,\n  keywords) \u2014 not the whole user message. For web_fetch the query is the\n  websit",
+  "use_tool": false
+ }
+]

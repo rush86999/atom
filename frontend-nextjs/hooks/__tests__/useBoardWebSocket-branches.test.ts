@@ -5,15 +5,15 @@
  */
 import { renderHook, act } from '@testing-library/react';
 
-let _setLastMessage: (m: any) => void = () => {};
+
+// The hook reads board events through the socket's `onMessage` listener — a
+// drag emits create → move → transition as a burst, and the `lastMessage`
+// state slot coalesces that to one frame, so the cache was invalidated for
+// only the last event. The mock delivers to listeners as well as the slot.
+import { wsMock } from '../../tests/helpers/wsMock';
 
 jest.mock('../useWebSocket', () => ({
-  useWebSocket: () => {
-    const React = require('react');
-    const [lm, setLm] = React.useState(null);
-    _setLastMessage = setLm;
-    return { lastMessage: lm };
-  },
+  useWebSocket: require('../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 import { useBoardWebSocket } from '../useBoardWebSocket';
@@ -22,7 +22,7 @@ describe('useBoardWebSocket (branch coverage)', () => {
   it('falls back to no dirty ids when event data has no task id', () => {
     const { result } = renderHook(() => useBoardWebSocket('board-1'));
     act(() => {
-      _setLastMessage({ type: 'board:task:created', data: { task: {} } });
+      wsMock().emit({ type: 'board:task:created', data: { task: {} } });
     });
     expect(result.current.dirtyTaskIds.size).toBe(0);
     expect(result.current.lastEventAt).toBeGreaterThan(0);
@@ -31,7 +31,7 @@ describe('useBoardWebSocket (branch coverage)', () => {
   it('handles an event with no data payload at all', () => {
     const { result } = renderHook(() => useBoardWebSocket('board-1'));
     act(() => {
-      _setLastMessage({ type: 'board:task:deleted' });
+      wsMock().emit({ type: 'board:task:deleted' });
     });
     expect(result.current.dirtyTaskIds.size).toBe(0);
   });
@@ -40,7 +40,7 @@ describe('useBoardWebSocket (branch coverage)', () => {
     const { result } = renderHook(() => useBoardWebSocket('board-1'));
     const before = result.current.lastEventAt;
     act(() => {
-      _setLastMessage({ type: 'board:unknown:thing' });
+      wsMock().emit({ type: 'board:unknown:thing' });
     });
     expect(result.current.lastEventAt).toBe(before);
   });
@@ -49,7 +49,7 @@ describe('useBoardWebSocket (branch coverage)', () => {
     const { result } = renderHook(() => useBoardWebSocket('board-1'));
     const before = result.current.lastEventAt;
     act(() => {
-      _setLastMessage(null);
+      wsMock().emit(null);
     });
     expect(result.current.lastEventAt).toBe(before);
   });
@@ -57,7 +57,7 @@ describe('useBoardWebSocket (branch coverage)', () => {
   it('works with a null boardId (wsUrl undefined)', () => {
     const { result } = renderHook(() => useBoardWebSocket(null));
     act(() => {
-      _setLastMessage({ type: 'board:task:updated', data: { task: { id: 'Z' } } });
+      wsMock().emit({ type: 'board:task:updated', data: { task: { id: 'Z' } } });
     });
     expect(result.current.dirtyTaskIds.has('Z')).toBe(true);
   });

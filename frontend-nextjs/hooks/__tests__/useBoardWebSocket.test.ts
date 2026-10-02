@@ -9,15 +9,15 @@
 import { renderHook, act } from '@testing-library/react';
 
 // Mutable lastMessage the test drives into the hook's effect.
-let _setLastMessage: (m: any) => void = () => {};
+
+// The hook reads board events through the socket's `onMessage` listener — a
+// drag emits create → move → transition as a burst, and the `lastMessage`
+// state slot coalesces that to one frame, so the cache was invalidated for
+// only the last event. The mock delivers to listeners as well as the slot.
+import { wsMock } from '../../tests/helpers/wsMock';
 
 jest.mock('../useWebSocket', () => ({
-  useWebSocket: () => {
-    const React = require('react');
-    const [lm, setLm] = React.useState(null);
-    _setLastMessage = setLm;
-    return { lastMessage: lm };
-  },
+  useWebSocket: require('../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 import { useBoardWebSocket } from '../useBoardWebSocket';
@@ -28,13 +28,13 @@ describe('useBoardWebSocket dirtyTaskIds accumulation', () => {
 
     // First task updated.
     act(() => {
-      _setLastMessage({ type: 'board:task:updated', data: { task: { id: 'A' } } });
+      wsMock().emit({ type: 'board:task:updated', data: { task: { id: 'A' } } });
     });
     expect(result.current.dirtyTaskIds.has('A')).toBe(true);
 
     // Second task updated before a flush.
     act(() => {
-      _setLastMessage({ type: 'board:task:updated', data: { task: { id: 'B' } } });
+      wsMock().emit({ type: 'board:task:updated', data: { task: { id: 'B' } } });
     });
 
     // Both must remain dirty — the original code replaced the set, dropping 'A'.
@@ -46,10 +46,10 @@ describe('useBoardWebSocket dirtyTaskIds accumulation', () => {
     const { result } = renderHook(() => useBoardWebSocket('board-1'));
 
     act(() => {
-      _setLastMessage({ type: 'board:task:updated', data: { task_id: 'T1' } });
+      wsMock().emit({ type: 'board:task:updated', data: { task_id: 'T1' } });
     });
     act(() => {
-      _setLastMessage({ type: 'board:comment:posted', data: { task_id: 'T2', comment: {} } });
+      wsMock().emit({ type: 'board:comment:posted', data: { task_id: 'T2', comment: {} } });
     });
 
     expect(result.current.dirtyTaskIds.has('T1')).toBe(true);

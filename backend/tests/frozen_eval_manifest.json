@@ -39,6 +39,90 @@
     "model_config:data/provider_model_catalog.json"
    ],
    "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "f6c9ebcad7986c42765852eb753fa664efa4c8a3 2026-09-30T09:48:16-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
+  },
+  {
+   "at": "94794484c7af20d6c011c1e2480b6cfd7acaa69a 2026-09-30T12:19:37-04:00",
+   "items": [
+    "model_config:data/provider_model_catalog.json"
+   ],
+   "note": "unavoidable provider drift (recorded, not invalidating)"
   }
  ],
  "frozen_at": "ddfa249392d0322cffe01a14ef287ee8c11b00df 2026-09-24T23:02:19-04:00",

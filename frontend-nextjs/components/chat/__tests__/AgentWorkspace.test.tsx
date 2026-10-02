@@ -19,6 +19,7 @@
 import React from 'react';
 import { renderWithProviders, screen, fireEvent, waitFor } from '../../../tests/test-utils';
 import AgentWorkspace from '../AgentWorkspace';
+import { wsMock } from '../../../tests/helpers/wsMock';
 
 let mockWsState: { lastMessage: any; isConnected: boolean } = {
   lastMessage: null,
@@ -36,9 +37,19 @@ jest.mock('@/lib/agent-trace-api', () => ({
   submitStepFeedback: (...args: any[]) => mockSubmitStepFeedback(...args),
 }));
 
-jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => mockWsState,
-}));
+// AgentWorkspace reads frames through the socket's `onMessage` listener: the
+// `lastMessage` state slot coalesces a burst, and a run's `agent_step_update`
+// frames arrive as a burst, so the trace used to render with holes in it. The
+// mock therefore delivers to listeners, and `seed` replays the frame a test
+// staged in `mockWsState` before mount — mirroring a frame that arrived just
+// before the component subscribed.
+jest.mock('@/hooks/useWebSocket', () => {
+  const mock = require('../../../tests/helpers/wsMock').createWebSocketMock({
+    get isConnected() { return mockWsState.isConnected; },
+    seed: () => mockWsState.lastMessage,
+  });
+  return { useWebSocket: mock };
+});
 
 jest.mock('../canvas-host', () => ({
   CanvasHost: ({ lastMessage }: { lastMessage: any }) => (
@@ -198,13 +209,13 @@ describe('AgentWorkspace event handling', () => {
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Execution Steps (1)')).toBeInTheDocument();
 
-    mockWsState.lastMessage = { type: 'agent_step_update', step: { step: 2, thought: 'Two' } };
+    wsMock().emit({ type: 'agent_step_update', step: { step: 2, thought: 'Two' } });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Execution Steps (2)')).toBeInTheDocument();
     expect(screen.getByText('Two')).toBeInTheDocument();
 
     // Duplicate step 2 must NOT be appended again
-    mockWsState.lastMessage = { type: 'agent_step_update', step: { step: 2, thought: 'Two' } };
+    wsMock().emit({ type: 'agent_step_update', step: { step: 2, thought: 'Two' } });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Execution Steps (2)')).toBeInTheDocument();
   });
@@ -215,11 +226,11 @@ describe('AgentWorkspace event handling', () => {
       lastMessage: { type: 'agent_step_update', step: { step: 1, thought: 'One' } },
     };
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
-    mockWsState.lastMessage = { type: 'agent_step_update', step: { step: 2, thought: 'Two' } };
+    wsMock().emit({ type: 'agent_step_update', step: { step: 2, thought: 'Two' } });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Execution Steps (2)')).toBeInTheDocument();
 
-    mockWsState.lastMessage = { type: 'agent_step_update', step: { step: 1, thought: 'Fresh start' } };
+    wsMock().emit({ type: 'agent_step_update', step: { step: 1, thought: 'Fresh start' } });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Execution Steps (1)')).toBeInTheDocument();
     expect(screen.getByText('Fresh start')).toBeInTheDocument();
@@ -229,11 +240,11 @@ describe('AgentWorkspace event handling', () => {
   test('agent_status_change updates the status (flat and nested)', () => {
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = { type: 'agent_status_change', status: 'completed' };
+    wsMock().emit({ type: 'agent_status_change', status: 'completed' });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText(/Agent Status: completed/)).toBeInTheDocument();
 
-    mockWsState.lastMessage = { type: 'agent_status_change', data: { status: 'failed' } };
+    wsMock().emit({ type: 'agent_status_change', data: { status: 'failed' } });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText(/Agent Status: failed/)).toBeInTheDocument();
   });
@@ -362,24 +373,25 @@ describe('AgentWorkspace trace pipeline', () => {
   });
 
   test('normalizes the backend `output` key to observation', () => {
-    mockWsState.lastMessage = {
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
       type: 'agent_step_update',
       data: {
         execution_id: 'exec-a', session_id: 's1', agent_id: 'atom_main',
         step: { step: 1, thought: 'Think', action: 'search', output: 'Found it' },
       },
-    };
-    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    });
+
     expect(screen.getByText('Found it')).toBeInTheDocument();
     expect(screen.getByText('search')).toBeInTheDocument();
   });
 
   test('drops events that belong to a different chat session', async () => {
-    mockWsState.lastMessage = {
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
       type: 'agent_step_update',
       data: { execution_id: 'exec-b', session_id: 'other-session', step: { step: 1, thought: 'Not mine' } },
-    };
-    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    });
     await waitFor(() => expect(screen.getByText(/No execution steps yet/)).toBeInTheDocument());
     expect(screen.queryByText('Not mine')).not.toBeInTheDocument();
   });
@@ -387,18 +399,18 @@ describe('AgentWorkspace trace pipeline', () => {
   test('groups steps by execution id and archives the earlier run', () => {
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
       data: { execution_id: 'exec-1', step: { step: 1, thought: 'First run step' } },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('First run step')).toBeInTheDocument();
 
     // a new execution id starts a fresh current run; the old one is archived
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
       data: { execution_id: 'exec-2', step: { step: 1, thought: 'Second run step' } },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
     expect(screen.getByText('Second run step')).toBeInTheDocument();
     expect(screen.queryByText('First run step')).not.toBeInTheDocument(); // collapsed
@@ -413,19 +425,19 @@ describe('AgentWorkspace trace pipeline', () => {
       <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
     );
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_status_change',
       data: { status: 'running', execution_id: 'exec-7', agent_id: 'atom_main' },
-    };
+    });
     rerender(
       <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
     );
     expect(onAgentActivity).toHaveBeenCalledWith('run_start');
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_status_change',
       data: { status: 'success', execution_id: 'exec-7' },
-    };
+    });
     rerender(
       <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
     );
@@ -474,14 +486,14 @@ describe('AgentWorkspace trace pipeline', () => {
   });
 
   test('step feedback posts through the trace API with run linkage', async () => {
-    mockWsState.lastMessage = {
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
       type: 'agent_step_update',
       data: {
         execution_id: 'exec-fb', agent_id: 'atom_main', session_id: 's1',
         step: { step: 2, thought: 'Plan', action: 'query', observation: 'rows' },
       },
-    };
-    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    });
 
     fireEvent.click(screen.getByLabelText('Thumbs up'));
     await waitFor(() =>
@@ -499,14 +511,14 @@ describe('AgentWorkspace trace pipeline', () => {
 
   test('collapsed rail renders, badges unread steps, and expands on click', () => {
     const onToggleCollapsed = jest.fn();
-    // collapse first, then a step arrives while collapsed
-    mockWsState.lastMessage = {
+    const { rerender } = renderWithProviders(
+      <AgentWorkspace sessionId="s1" collapsed onToggleCollapsed={onToggleCollapsed} />
+    );
+    // A step arrives while the rail is collapsed.
+    wsMock().emit({
       type: 'agent_step_update',
       data: { execution_id: 'exec-r', step: { step: 1, thought: 'rail step' } },
-    };
-    const { rerender } = renderWithProviders(
-      <AgentWorkspace sessionId={null} collapsed onToggleCollapsed={onToggleCollapsed} />
-    );
+    });
 
     expect(screen.getByTestId('workspace-rail')).toBeInTheDocument();
     expect(screen.getByLabelText('1 unread steps')).toBeInTheDocument();
@@ -589,7 +601,7 @@ describe('AgentWorkspace structured action payloads', () => {
     };
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'maturity_update',
       data: {
         agent_id: 'agent-1',
@@ -600,7 +612,7 @@ describe('AgentWorkspace structured action payloads', () => {
         transition: true,
         source: 'feedback',
       },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
 
     const strip = screen.getByTestId('maturity-strip');
@@ -620,10 +632,10 @@ describe('AgentWorkspace structured action payloads', () => {
     };
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'maturity_update',
       data: { agent_id: 'agent-2', confidence: 0.51, tier: 'intern', source: 'outcome' },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
 
     const strip = screen.getByTestId('maturity-strip');
@@ -642,10 +654,10 @@ describe('AgentWorkspace structured action payloads', () => {
     };
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'maturity_update',
       data: { agent_id: 'agent-other', confidence: 0.9, tier: 'autonomous', transition: true },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
 
     expect(screen.queryByTestId('maturity-strip')).not.toBeInTheDocument();
@@ -662,10 +674,10 @@ describe('AgentWorkspace structured action payloads', () => {
     };
     const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'maturity_update',
       data: { agent_id: 'agent-1', confidence: null, tier: 'intern' },
-    };
+    });
     rerender(<AgentWorkspace sessionId={null} />);
 
     expect(screen.queryByTestId('maturity-strip')).not.toBeInTheDocument();

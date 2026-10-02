@@ -1,0 +1,501 @@
+{
+ "schema": "lane3-crash-recovery-v1",
+ "generated_at": "2026-09-28T07:26:06-0400",
+ "world": "barrier_c17",
+ "backend": "http://127.0.0.1:8086",
+ "mode": "barrier-after-claim",
+ "barrier": {
+  "stage": "chat_turn_after_claim",
+  "armed": true,
+  "env": {
+   "ATOM_ACCEPTANCE_BARRIER": "chat_turn_after_claim",
+   "ATOM_ACCEPTANCE_BARRIER_MATCH": "crash-victim-6162a7fe",
+   "ATOM_ACCEPTANCE_BARRIER_TIMEOUT": "600"
+  },
+  "confined_to": "acceptance_worlds (refused elsewhere)"
+ },
+ "identity_before": {
+  "pid": 38699,
+  "started_at": "2026-09-28T11:24:44.787817+00:00",
+  "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/backend_root",
+  "git_commit": "6e34725c7017",
+  "source_id": "6e34725c7017-dirty.6955e1cd3902",
+  "instance_id": "6e34725c7017-dirty.6955e1cd3902.38699.1790594689",
+  "revision": "6e34725c70179506515888a23c00635188f833c0",
+  "dirty": true,
+  "dirty_digest": "6955e1cd3902",
+  "dirty_paths": [
+   ".gitignore",
+   "AGENTS.md",
+   "backend/core/async_turn_continuation.py",
+   "backend/core/chat_transport.py",
+   "backend/core/execution_recovery.py",
+   "backend/core/models.py",
+   "backend/integrations/chat_orchestrator.py",
+   "backend/integrations/chat_routes.py",
+   "backend/main_api_app.py",
+   "backend/scripts/orchestration_acceptance/preview_server.py",
+   "backend/scripts/orchestration_acceptance/preview_stack.py",
+   "backend/scripts/orchestration_acceptance/restart_durability.py",
+   "backend/scripts/orchestration_acceptance/run_isolated.py",
+   "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+   "backend/tests/test_async_turn_continuation.py",
+   "backend/tests/test_chat_canvas_editor.py",
+   "backend/tests/test_covpush_w65b_sql_fusion_recovery.py",
+   "docs/architecture/orchestration_migration/MANUAL_TEST_QUICKSTART.md",
+   "docs/architecture/orchestration_migration/RESUME.md",
+   "docs/architecture/orchestration_migration/acceptance/preview/credential_isolation.py",
+   "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+   "docs/architecture/orchestration_migration/acceptance/task_correction_results.json",
+   "frontend-nextjs/README_TEAM_CHAT.md",
+   "frontend-nextjs/components/Agents/AgentStudio.tsx",
+   "frontend-nextjs/components/Agents/AutoDevReviewPanel.tsx",
+   "frontend-nextjs/components/Agents/__tests__/AutoDevReviewPanel.test.tsx",
+   "frontend-nextjs/components/Collaboration/CollaborativeCursor.tsx",
+   "frontend-nextjs/components/GlobalChatWidget.tsx",
+   "frontend-nextjs/components/Teams/TeamChatPanel.tsx",
+   "frontend-nextjs/components/__tests__/GlobalChatWidget.test.tsx",
+   "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+   "frontend-nextjs/components/canvas/MiniAppHarness.tsx",
+   "frontend-nextjs/components/chat/AgentWorkspace.tsx",
+   "frontend-nextjs/components/chat/__tests__/AgentWorkspace.test.tsx",
+   "frontend-nextjs/components/chat/canvas-host.tsx",
+   "frontend-nextjs/components/dashboards/CommunicationCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/FinanceCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/KnowledgeCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/ProjectCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/SalesCommandCenter.tsx"
+  ],
+  "untracked_paths": [
+   "backend/config/world_storage.json",
+   "backend/core/acceptance_barrier.py",
+   "backend/core/execution_ownership.py",
+   "backend/core/world_storage_guard.py",
+   "backend/scripts/orchestration_acceptance/archive_dest_only_evidence.py",
+   "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+   "backend/scripts/orchestration_acceptance/worlds_migration_verify.py",
+   "backend/tests/core/test_archive_dest_only_evidence.py",
+   "backend/tests/core/test_world_storage_guard.py",
+   "backend/tests/core/test_world_storage_interlock.py",
+   "backend/tests/core/test_worlds_delete_audit.py",
+   "backend/tests/test_acceptance_barrier.py",
+   "backend/tests/test_boot_recovery_not_gated_by_scheduler.py",
+   "backend/tests/test_execution_insert_path_audit.py",
+   "backend/tests/test_execution_ownership_and_crashed_keys.py",
+   "backend/tests/test_task_correction_routing.py",
+   "backend/tests/test_write_path_d0_negative_control.py",
+   "backend/tests/test_zero_effect_claim.py",
+   "docs/architecture/orchestration_migration/FINISH_LANE3_DIRECTIVE_2026_09_27.md",
+   "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+   "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+   "docs/architecture/orchestration_migration/LANE_2_HANDOFF_2026_09_27.md",
+   "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+   "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+   "docs/architecture/orchestration_migration/STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/C16_BOUNDARY_TRACE.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/CASE_ACCOUNTING_C00_C26.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/LANE3_RESUME_2026_09_27_CASE2_BLOCKED.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/LANE_3_INVENTORY.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/RELOCATION_PLAN.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/STORAGE_RECOVERY_REPORT.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_HANDOFF.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/authorized_edit_probe.py",
+   "docs/architecture/orchestration_migration/acceptance/lane3/background_interrupt_probe.py",
+   "docs/architecture/orchestration_migration/acceptance/lane3/bg_barrier_run1/background_interrupt.json",
+   "docs/architecture/orchestration_migration/acceptance/lane3/bg_barrier_run1/planner_script.json"
+  ],
+  "captured_at": "2026-09-28T11:24:49.213530+00:00",
+  "port": null,
+  "error": null,
+  "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db",
+  "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/backend_root/data/byok_keys.json"
+ },
+ "identity_after": {
+  "pid": 39117,
+  "started_at": "2026-09-28T11:25:24.832315+00:00",
+  "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/backend_root",
+  "git_commit": "6e34725c7017",
+  "source_id": "6e34725c7017-dirty.6955e1cd3902",
+  "instance_id": "6e34725c7017-dirty.6955e1cd3902.39117.1790594728",
+  "revision": "6e34725c70179506515888a23c00635188f833c0",
+  "dirty": true,
+  "dirty_digest": "6955e1cd3902",
+  "dirty_paths": [
+   ".gitignore",
+   "AGENTS.md",
+   "backend/core/async_turn_continuation.py",
+   "backend/core/chat_transport.py",
+   "backend/core/execution_recovery.py",
+   "backend/core/models.py",
+   "backend/integrations/chat_orchestrator.py",
+   "backend/integrations/chat_routes.py",
+   "backend/main_api_app.py",
+   "backend/scripts/orchestration_acceptance/preview_server.py",
+   "backend/scripts/orchestration_acceptance/preview_stack.py",
+   "backend/scripts/orchestration_acceptance/restart_durability.py",
+   "backend/scripts/orchestration_acceptance/run_isolated.py",
+   "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+   "backend/tests/test_async_turn_continuation.py",
+   "backend/tests/test_chat_canvas_editor.py",
+   "backend/tests/test_covpush_w65b_sql_fusion_recovery.py",
+   "docs/architecture/orchestration_migration/MANUAL_TEST_QUICKSTART.md",
+   "docs/architecture/orchestration_migration/RESUME.md",
+   "docs/architecture/orchestration_migration/acceptance/preview/credential_isolation.py",
+   "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+   "docs/architecture/orchestration_migration/acceptance/task_correction_results.json",
+   "frontend-nextjs/README_TEAM_CHAT.md",
+   "frontend-nextjs/components/Agents/AgentStudio.tsx",
+   "frontend-nextjs/components/Agents/AutoDevReviewPanel.tsx",
+   "frontend-nextjs/components/Agents/__tests__/AutoDevReviewPanel.test.tsx",
+   "frontend-nextjs/components/Collaboration/CollaborativeCursor.tsx",
+   "frontend-nextjs/components/GlobalChatWidget.tsx",
+   "frontend-nextjs/components/Teams/TeamChatPanel.tsx",
+   "frontend-nextjs/components/__tests__/GlobalChatWidget.test.tsx",
+   "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+   "frontend-nextjs/components/canvas/MiniAppHarness.tsx",
+   "frontend-nextjs/components/chat/AgentWorkspace.tsx",
+   "frontend-nextjs/components/chat/__tests__/AgentWorkspace.test.tsx",
+   "frontend-nextjs/components/chat/canvas-host.tsx",
+   "frontend-nextjs/components/dashboards/CommunicationCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/FinanceCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/KnowledgeCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/ProjectCommandCenter.tsx",
+   "frontend-nextjs/components/dashboards/SalesCommandCenter.tsx"
+  ],
+  "untracked_paths": [
+   "backend/config/world_storage.json",
+   "backend/core/acceptance_barrier.py",
+   "backend/core/execution_ownership.py",
+   "backend/core/world_storage_guard.py",
+   "backend/scripts/orchestration_acceptance/archive_dest_only_evidence.py",
+   "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+   "backend/scripts/orchestration_acceptance/worlds_migration_verify.py",
+   "backend/tests/core/test_archive_dest_only_evidence.py",
+   "backend/tests/core/test_world_storage_guard.py",
+   "backend/tests/core/test_world_storage_interlock.py",
+   "backend/tests/core/test_worlds_delete_audit.py",
+   "backend/tests/test_acceptance_barrier.py",
+   "backend/tests/test_boot_recovery_not_gated_by_scheduler.py",
+   "backend/tests/test_execution_insert_path_audit.py",
+   "backend/tests/test_execution_ownership_and_crashed_keys.py",
+   "backend/tests/test_task_correction_routing.py",
+   "backend/tests/test_write_path_d0_negative_control.py",
+   "backend/tests/test_zero_effect_claim.py",
+   "docs/architecture/orchestration_migration/FINISH_LANE3_DIRECTIVE_2026_09_27.md",
+   "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+   "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+   "docs/architecture/orchestration_migration/LANE_2_HANDOFF_2026_09_27.md",
+   "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+   "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+   "docs/architecture/orchestration_migration/STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/C16_BOUNDARY_TRACE.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/CASE_ACCOUNTING_C00_C26.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/LANE3_RESUME_2026_09_27_CASE2_BLOCKED.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/LANE_3_INVENTORY.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/RELOCATION_PLAN.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/STORAGE_RECOVERY_REPORT.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_HANDOFF.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_STATUS.md",
+   "docs/architecture/orchestration_migration/acceptance/lane3/authorized_edit_probe.py",
+   "docs/architecture/orchestration_migration/acceptance/lane3/background_interrupt_probe.py",
+   "docs/architecture/orchestration_migration/acceptance/lane3/bg_barrier_run1/background_interrupt.json",
+   "docs/architecture/orchestration_migration/acceptance/lane3/bg_barrier_run1/planner_script.json"
+  ],
+  "captured_at": "2026-09-28T11:25:28.641641+00:00",
+  "port": null,
+  "error": null,
+  "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db",
+  "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/backend_root/data/byok_keys.json"
+ },
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a",
+ "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db",
+ "verdict": "PASS",
+ "checks_passed": 29,
+ "checks_total": 29,
+ "checks": {
+  "launched identity is this world": true,
+  "identity database is the db this probe reads": true,
+  "a pre-crash turn was delivered": true,
+  "the serving worker parked mid-turn at the acceptance barrier": true,
+  "the barrier parked the RECORDED serving worker, on the victim turn's own execution row": true,
+  "the worker is ALIVE while parked (a stall in a live process is a different case, and the boot sweep correctly refuses to touch it)": true,
+  "the victim turn was observably RUNNING before the kill": true,
+  "a retry while the turn is unfinished answers 202 in-progress": true,
+  "a second process's boot sweep leaves the live turn running": true,
+  "the second process reported it as owned by a LIVE process": true,
+  "the process is gone (SIGKILL, no graceful shutdown)": true,
+  "BEFORE any restart the interrupted execution is still 'running'": true,
+  "no finished answer exists for the interrupted turn": true,
+  "restarted against the SAME run dir and database": true,
+  "the interrupted execution is no longer 'running'": true,
+  "it is marked as CRASH-recovered, not a genuine failure": true,
+  "it was reconciled from a VERIFIED dead owner": true,
+  "the restart ran with the barrier DISARMED": true,
+  "the keyed record is terminal 'crashed', not in progress": true,
+  "the keyed retry creates NO new execution": true,
+  "the keyed retry is refused 409 request_crashed (not 202, not a replay)": true,
+  "the crashed key was not re-executed into a new delivery": true,
+  "a NEW request id in the same session runs a real turn": true,
+  "recovery did not invent a second execution": true,
+  "the boot sweep says it ran (independent of the row)": true,
+  "no stale claim points at the dead execution": true,
+  "recovery did not present the interrupted turn as a finished answer": true,
+  "a NEW turn works after the crash": true,
+  "the pre-crash answer is still returned after recovery": true
+ },
+ "details": {
+  "launched identity is this world": {
+   "source_id": "6e34725c7017-dirty.6955e1cd3902",
+   "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db"
+  },
+  "identity database is the db this probe reads": {
+   "identity_db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db",
+   "probe_db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db"
+  },
+  "a pre-crash turn was delivered": {
+   "status": 200
+  },
+  "the serving worker parked mid-turn at the acceptance barrier": {
+   "stage": "chat_turn_after_claim",
+   "expected_pid": 38699,
+   "waited_for": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/acceptance_barrier",
+   "barrier_armed": "chat_turn_after_claim",
+   "thread_alive": true
+  },
+  "the barrier parked the RECORDED serving worker, on the victim turn's own execution row": {
+   "arrival": {
+    "stage": "chat_turn_after_claim",
+    "pid": 38699,
+    "arrived_at": "2026-09-28T11:25:14.764512+00:00",
+    "wall_clock": 1790594714.764521,
+    "context": {
+     "surface": "chat",
+     "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2",
+     "session_id": "crash-victim-6162a7fe",
+     "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+     "request_id": "crash-req-c78f08271912"
+    },
+    "_file": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/acceptance_barrier/barrier.chat_turn_after_claim.arrived.38699.json"
+   },
+   "serving_pid": 38699,
+   "session": "crash-victim-6162a7fe",
+   "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2",
+   "why": "a marker from another pid or another session would mean the kill is not landing mid-turn"
+  },
+  "the worker is ALIVE while parked (a stall in a live process is a different case, and the boot sweep correctly refuses to touch it)": {
+   "pid": 38699
+  },
+  "the victim turn was observably RUNNING before the kill": {
+   "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2",
+   "thread_alive": true,
+   "outcome": {}
+  },
+  "a retry while the turn is unfinished answers 202 in-progress": {
+   "status": 202,
+   "error_code": "request_in_progress",
+   "durable_state": "execution running"
+  },
+  "a second process's boot sweep leaves the live turn running": {
+   "second_process": {
+    "workflow_recovered": 0,
+    "agent_recovered": 0,
+    "agent_untouched_live": 1,
+    "agent_untouched_detail": [
+     {
+      "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2",
+      "owner_state": "live",
+      "pid": 38699,
+      "host": "MacBook-Pro.local",
+      "token": "d6678c29ae6a4a43afbc94604ddb5550",
+      "os_process_start_recorded": "ps:Mon Sep 28 07:24:38 2026",
+      "os_process_start_now": "ps:Mon Sep 28 07:24:38 2026"
+     }
+    ],
+    "agent_unknown_owner": 0,
+    "agent_unknown_detail": [],
+    "chat_requests_released": 0,
+    "enabled": true,
+    "pid": 39054
+   },
+   "status_after": "running"
+  },
+  "the second process reported it as owned by a LIVE process": {
+   "agent_untouched_live": 1,
+   "agent_recovered": 0,
+   "agent_unknown_owner": 0,
+   "pid": 39054,
+   "note": "untouched-live, not untouched-unknown: an unverifiable owner must not be conflated with a verified live one"
+  },
+  "the process is gone (SIGKILL, no graceful shutdown)": {
+   "pid": 38699,
+   "signal": "SIGKILL"
+  },
+  "BEFORE any restart the interrupted execution is still 'running'": {
+   "status": "running",
+   "note": "this is the ghost-run state; without it, nothing below proves anything about recovery"
+  },
+  "no finished answer exists for the interrupted turn": {
+   "assistant_rows": []
+  },
+  "restarted against the SAME run dir and database": {
+   "before": {
+    "run_id": "run-acc59621176a",
+    "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db"
+   },
+   "after": {
+    "run_id": "run-acc59621176a",
+    "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-acc59621176a/data/atom.db"
+   }
+  },
+  "the interrupted execution is no longer 'running'": {
+   "status": "failed"
+  },
+  "it is marked as CRASH-recovered, not a genuine failure": {
+   "recovery": {
+    "crashed": true,
+    "recovered_at": "2026-09-28T11:25:27.439814+00:00",
+    "owner_state": "dead"
+   },
+   "error_message": "Process restarted while execution was running (crashed)"
+  },
+  "it was reconciled from a VERIFIED dead owner": {
+   "owner_state": "dead",
+   "why": "'unknown' means the owner could not be established, and reconciling on that is how a live turn gets failed; it must be left alone"
+  },
+  "the restart ran with the barrier DISARMED": {
+   "effective_flags": {
+    "ATOM_ACCEPTANCE_BARRIER": "(disarmed)",
+    "ATOM_ACCEPTANCE_BARRIER_MATCH": "(any session)",
+    "ATOM_ASYNC_EDIT_PLAN_MODEL": "(unpinned)",
+    "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "(product default)",
+    "ATOM_CHAT_STREAMING": "true",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+     "EMBEDDING_PROVIDER",
+     "FASTEMBED_MODEL",
+     "OLLAMA_MODEL",
+     "OPENROUTER_API_KEY"
+    ]
+   },
+   "why": "a barrier still armed during recovery would let this probe's own seam, not the product, decide when recovery finished"
+  },
+  "the keyed record is terminal 'crashed', not in progress": {
+   "request_id": "crash-req-c78f08271912",
+   "state": "crashed",
+   "execution_id": null,
+   "error": "the process restarted while this turn was in flight; it did not complete. Send a new request_id to try again."
+  },
+  "the keyed retry creates NO new execution": {
+   "status": 409,
+   "executions_before": 1,
+   "executions_after": 1
+  },
+  "the keyed retry is refused 409 request_crashed (not 202, not a replay)": {
+   "status": 409,
+   "error_code": "request_crashed",
+   "detail": "the process restarted while this turn was in flight; it did not complete. Send a NEW request ID to try again -- this ID will not replay and will not re-run.",
+   "raw_keys": [
+    "detail",
+    "error",
+    "request_id",
+    "status"
+   ],
+   "why_not_202": "the sweep marked the execution failed, so the turn is not in progress; an indefinite in-progress answer is the absence of a policy",
+   "why_not_200": "nothing completed, so there is no pinned response and replaying one would be a lie"
+  },
+  "the crashed key was not re-executed into a new delivery": {
+   "assistant_rows_before": 0,
+   "after": 0
+  },
+  "a NEW request id in the same session runs a real turn": {
+   "status": 200,
+   "head": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\n- **No. 381** - several rows match (RoperWhitney!R88, identi"
+  },
+  "recovery did not invent a second execution": {
+   "before": 1,
+   "after": 1
+  },
+  "the boot sweep says it ran (independent of the row)": {
+   "matched": true
+  },
+  "no stale claim points at the dead execution": {
+   "claims": []
+  },
+  "recovery did not present the interrupted turn as a finished answer": {
+   "assistant_rows_for_this_execution": [],
+   "all_rows_in_session": 1
+  },
+  "a NEW turn works after the crash": {
+   "status": 200
+  },
+  "the pre-crash answer is still returned after recovery": {
+   "chars": 649,
+   "unchanged": true
+  }
+ },
+ "timeline": [
+  {
+   "at": "07:24:56",
+   "event": "launched",
+   "pid": 38699,
+   "run_id": "run-acc59621176a",
+   "port": 8086,
+   "barrier": "chat_turn_after_claim"
+  },
+  {
+   "at": "07:25:14",
+   "event": "barrier arrival",
+   "pid": 38699,
+   "stage": "chat_turn_after_claim",
+   "context": {
+    "surface": "chat",
+    "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2",
+    "session_id": "crash-victim-6162a7fe",
+    "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "request_id": "crash-req-c78f08271912"
+   }
+  },
+  {
+   "at": "07:25:14",
+   "event": "victim execution running",
+   "execution_id": "81572019-4260-47b6-9ee7-dde5345b85d2"
+  },
+  {
+   "at": "07:25:16",
+   "event": "second-process sweep ran",
+   "pid": 39054,
+   "agent_recovered": 0,
+   "agent_untouched_live": 1
+  },
+  {
+   "at": "07:25:16",
+   "event": "killed",
+   "pid": 38699
+  },
+  {
+   "at": "07:25:16",
+   "event": "ghost state read",
+   "executions": 1,
+   "assistant_rows": 0
+  },
+  {
+   "at": "07:25:35",
+   "event": "restarted",
+   "pid": 39117,
+   "source_id": "6e34725c7017-dirty.6955e1cd3902"
+  }
+ ],
+ "scope_note": "the barrier is a PAUSE between two steps that both really happen -- the committed `running` execution row and the turn's finalization. It answers nothing, finalizes nothing and persists nothing."
+}

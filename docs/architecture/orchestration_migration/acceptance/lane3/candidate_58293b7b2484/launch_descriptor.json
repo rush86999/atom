@@ -1,0 +1,87 @@
+{
+  "byok": {
+    "files_copied": [
+      "byok_keys.json",
+      "byok_config.json",
+      "byok_encryption_key"
+    ],
+    "files_missing": [],
+    "note": "encrypted store copied verbatim; no secret was read or printed",
+    "provider_ids_present": [
+      "deepseek",
+      "opencode-go",
+      "openrouter"
+    ]
+  },
+  "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+  "effective_flags": {
+    "ATOM_CHAT_STREAMING": "1",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "emitted_by": "preview_stack.py",
+  "expected_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+  "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+  "health_identity": {
+    "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root/data/byok_keys.json",
+    "captured_at": "2026-09-27T14:09:24.106956+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "dirty": true,
+    "dirty_digest": "58293b7b2484",
+    "dirty_paths": [
+      "AGENTS.md",
+      "backend/core/chat_tool_planner.py",
+      "backend/integrations/chat_orchestrator.py",
+      "backend/scripts/orchestration_acceptance/preview_server.py",
+      "backend/scripts/orchestration_acceptance/preview_stack.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+      "backend/tests/test_reply_leg_name_safety.py",
+      "backend/tests/test_workbook_structured_delivery.py",
+      "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+      "scripts/drive_status.sh"
+    ],
+    "error": null,
+    "git_commit": "a8bc48dc13e5",
+    "instance_id": "a8bc48dc13e5-dirty.58293b7b2484.11007.1790518164",
+    "pid": 11007,
+    "port": null,
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "source_id": "a8bc48dc13e5-dirty.58293b7b2484",
+    "started_at": "2026-09-27T14:09:20.294446+00:00",
+    "untracked_paths": [
+      "backend/config/world_storage.json",
+      "backend/core/world_storage_guard.py",
+      "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+      "backend/tests/core/test_world_storage_guard.py",
+      "backend/tests/core/test_worlds_delete_audit.py",
+      "backend/tests/test_task_correction_routing.py",
+      "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+      "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+      "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+      "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+      "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+      "frontend-nextjs/hooks/chat/__tests__/fixtures/useWebSocket.broken.ts",
+      "frontend-nextjs/hooks/chat/__tests__/useWebSocket.stale-callbacks.test.ts",
+      "scripts/_drive_status_worlds.sh"
+    ]
+  },
+  "log_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/preview_backend.log",
+  "pid": 11007,
+  "port": 8071,
+  "run_id": "run-7325767729a0",
+  "seatbelt": false,
+  "source_snapshot_sha256": "code_snapshot_sha256=db8d733f967ae9a6869c894a1173d4e976f899937ac768da9554b7a61a133f71",
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1"
+}

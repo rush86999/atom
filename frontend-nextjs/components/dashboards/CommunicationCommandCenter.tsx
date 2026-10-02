@@ -47,7 +47,13 @@ export const CommunicationCommandCenter: React.FC = () => {
     const [platformStatus, setPlatformStatus] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const { lastMessage } = useWebSocket({
+    // Frames are read from the socket's `onMessage` listener rather than the
+    // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside
+    // a single render commit produces one commit, so an effect keyed on it sees
+    // only the newest frame and the rest are dropped. `status_update` and
+    // `platform_status_change` arrive in bursts, so the stats and platform
+    // tiles were painted from whichever frame happened to win the race.
+    const { onMessage } = useWebSocket({
         initialChannels: ['communication_stats', 'platform_status']
     });
 
@@ -62,23 +68,23 @@ export const CommunicationCommandCenter: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        if (!lastMessage) return;
+    useEffect(() => onMessage((msg: any) => {
+        if (!msg) return;
 
-        if (lastMessage.type === 'status_update') {
-            setStats(prev => ({ ...prev, ...lastMessage.data }));
+        if (msg.type === 'status_update') {
+            setStats(prev => ({ ...prev, ...msg.data }));
             toast.info('Communication stats updated');
-        } else if (lastMessage.type === 'platform_status_change') {
+        } else if (msg.type === 'platform_status_change') {
             // Match by substring so multi-word platform names ("Slack Workspace",
             // "Microsoft Teams") still match the short id ("slack", "teams").
-            const target = String(lastMessage.data.platform).toLowerCase();
+            const target = String(msg.data.platform).toLowerCase();
             setPlatformStatus(prev => prev.map(p =>
                 p.name.toLowerCase().includes(target)
-                    ? { ...p, status: lastMessage.data.status }
+                    ? { ...p, status: msg.data.status }
                     : p
             ));
         }
-    }, [lastMessage]);
+    }), [onMessage]);
 
     useEffect(() => {
         const fetchData = async () => {

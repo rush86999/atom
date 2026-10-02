@@ -105,10 +105,26 @@ export function PdfFileCanvas({
             try {
                 const blob = await fetchPdfBytes(canvasId, hash);
                 const pdfjs = await import("pdfjs-dist");
-                // Isolated in lib/pdf-worker-src (webpack asset); if worker
-                // setup fails, pdf.js degrades to a main-thread fake worker.
+                // The worker is an ES MODULE, so it must be started as one.
+                //
+                // pdfjs-dist 4.x ships only .mjs worker builds, and webpack
+                // emits the asset from lib/pdf-worker-src unchanged, so the
+                // emitted file still contains `export` statements. Assigning it
+                // to GlobalWorkerOptions.workerSrc makes pdf.js construct a
+                // CLASSIC worker, which cannot parse ESM: measured on the
+                // isolated frontend, the worker died with
+                // "Uncaught SyntaxError: Unexpected token 'export'" and pdf.js
+                // silently fell through to its main-thread fake worker. So the
+                // URL was fetchable and the page rendered while the worker was
+                // never actually running.
+                //
+                // Constructing the module worker explicitly and handing pdf.js
+                // the port is what makes it real. Verified on the isolated
+                // frontend: classic worker -> "Unexpected token 'export'";
+                // module worker -> alive.
                 try {
-                    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc();
+                    const worker = new Worker(pdfWorkerSrc(), { type: "module" });
+                    pdfjs.GlobalWorkerOptions.workerPort = worker;
                 } catch {
                     /* fake-worker fallback still renders */
                 }

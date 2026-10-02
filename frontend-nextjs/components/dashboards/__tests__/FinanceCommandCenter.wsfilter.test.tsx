@@ -15,22 +15,19 @@ import { render, screen, act } from '@testing-library/react';
 
 // --- Mocks for the deep dependency tree ---
 
-// The WS mock must use React state so a new lastMessage triggers a re-render
-// (and thus re-runs the effect). A plain object mutation would NOT re-render.
-let _setLastMessage: (m: any) => void = () => {};
-const mockWsState: { lastMessage: any } = { lastMessage: null };
-
-// The refresh spy must be stable across renders (the effect depends on it).
+// `refresh` is a jest.fn so the tests can assert the filter decides whether a
+// refresh happens at all.
 const refreshSpy = jest.fn();
 
+// --- WS mock -----------------------------------------------------------------
+// Frames reach the component through the socket's `onMessage` listener, so the
+// mock must deliver to listeners as well as to the state slot. tests/helpers/
+// wsMock does both, and `wsMock().burst()` reproduces the case this component
+// has to survive: many frames inside one render commit.
+import { wsMock } from '../../../tests/helpers/wsMock';
+
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => {
-    const React = require('react');
-    const [lm, setLm] = React.useState(null);
-    _setLastMessage = setLm;
-    mockWsState.lastMessage = lm;
-    return { lastMessage: lm };
-  },
+  useWebSocket: require('../../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 jest.mock('@/hooks/useLiveFinance', () => ({
@@ -69,7 +66,7 @@ describe('FinanceCommandCenter status_update filtering', () => {
   });
 
   const sendMessage = (msg: any) => {
-    act(() => { _setLastMessage(msg); });
+    act(() => { wsMock().emit(msg); });
   };
 
   it('does NOT refresh on a projects-pipeline status_update', () => {

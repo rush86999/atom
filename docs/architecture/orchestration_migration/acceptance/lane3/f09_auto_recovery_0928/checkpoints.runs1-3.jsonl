@@ -1,0 +1,27 @@
+{"t": "2026-09-28T22:51:01-0400", "epoch": 1790650261.5827909, "event": "driver_start", "phase": "2", "world": "f09_delivery", "pid": 36180}
+{"t": "2026-09-28T22:51:01-0400", "epoch": 1790650261.688469, "event": "skip_phase", "phase": 1, "reason": "--phase 2 standalone"}
+{"t": "2026-09-28T22:51:01-0400", "epoch": 1790650261.693846, "event": "armed", "session": "f09-dlv-14d2649c", "lease_s": 90.0, "interval_s": 5.0, "barrier": "continuation_after_effect"}
+{"t": "2026-09-28T22:51:14-0400", "epoch": 1790650274.401128, "event": "launched", "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-e5eb903a5763", "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-e5eb903a5763/data/atom.db", "pid": 36188}
+{"t": "2026-09-28T22:52:30-0400", "epoch": 1790650350.783882, "event": "driver_start", "phase": "2", "world": "f09_delivery", "pid": 36394}
+{"t": "2026-09-28T22:52:30-0400", "epoch": 1790650350.898259, "event": "skip_phase", "phase": 1, "reason": "--phase 2 standalone"}
+{"t": "2026-09-28T22:52:30-0400", "epoch": 1790650350.903023, "event": "armed", "session": "f09-dlv-4bf34ed5", "lease_s": 90.0, "interval_s": 5.0, "barrier": "continuation_after_effect"}
+{"t": "2026-09-28T22:52:43-0400", "epoch": 1790650363.240644, "event": "launched", "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-7e14ac8dbbd2", "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-7e14ac8dbbd2/data/atom.db", "pid": 36405}
+{"t": "2026-09-28T22:52:43-0400", "epoch": 1790650363.2512362, "event": "stall_armed", "seconds": 40, "first_n": 1}
+{"t": "2026-09-28T22:53:16-0400", "epoch": 1790650396.1697652, "event": "arrival_polled", "parked": true, "marker": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-7e14ac8dbbd2/data/acceptance_barrier/barrier.continuation_after_effect.arrived.36405.json"}
+{"t": "2026-09-28T22:53:16-0400", "epoch": 1790650396.1886258, "event": "prekill_verified", "pid": 36405, "one_fork_record": true, "fork_still_running": true, "delivery_claim_taken": false, "no_terminal_message_yet": true, "no_release_file": true, "worker_alive": true}
+{"t": "2026-09-28T22:53:16-0400", "epoch": 1790650396.193253, "event": "skip_phase", "phase": 3, "reason": "--phase 2"}
+{"t": "2026-09-28T22:55:29-0400", "epoch": 1790650529.823755, "event": "driver_start", "phase": "2", "world": "f09_delivery", "pid": 36837}
+{"t": "2026-09-28T22:55:29-0400", "epoch": 1790650529.953282, "event": "skip_phase", "phase": 1, "reason": "--phase 2 standalone"}
+{"t": "2026-09-28T22:55:29-0400", "epoch": 1790650529.957498, "event": "armed", "session": "f09-dlv-c7927927", "lease_s": 90.0, "interval_s": 5.0, "barrier": "continuation_after_claim"}
+{"t": "2026-09-28T22:55:40-0400", "epoch": 1790650540.0235488, "event": "launched", "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-b140bbab7c2a", "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-b140bbab7c2a/data/atom.db", "pid": 36848}
+{"t": "2026-09-28T22:55:40-0400", "epoch": 1790650540.0331898, "event": "stall_armed", "seconds": 40, "first_n": 1}
+{"t": "2026-09-28T22:56:12-0400", "epoch": 1790650572.57661, "event": "arrival_polled", "parked": true, "marker": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-b140bbab7c2a/data/acceptance_barrier/barrier.continuation_after_claim.arrived.36848.json"}
+{"t": "2026-09-28T22:56:12-0400", "epoch": 1790650572.5931368, "event": "prekill_verified", "pid": 36848, "one_fork_record": true, "fork_still_running": true, "delivery_claim_taken": true, "no_terminal_message_yet": true, "no_release_file": true, "worker_alive": true}
+{"t": "2026-09-28T22:56:12-0400", "epoch": 1790650572.622974, "event": "killed", "pid": 36848, "dead": true, "never_released": true}
+{"t": "2026-09-28T22:56:12-0400", "epoch": 1790650572.627063, "event": "claim_anchor_read", "claim_anchor": 1790650572.080064, "expiry_at": 1790650662.080064, "lease_s": 90.0}
+{"t": "2026-09-28T22:56:21-0400", "epoch": 1790650581.0858, "event": "restarted", "old_pid": 36848, "new_pid": 36961, "boot_done": 1790650581.085771, "same_db": true, "started_before_expiry": true}
+{"t": "2026-09-28T22:56:27-0400", "epoch": 1790650587.1101031, "event": "boot_defer_checked", "n1": 0, "m1": 0}
+{"t": "2026-09-28T22:57:45-0400", "epoch": 1790650665.774946, "event": "delivery_observed", "delivered_at": 1790650665.767742, "after_expiry": true, "n2": 1, "m2": 1}
+{"t": "2026-09-28T22:58:05-0400", "epoch": 1790650685.803183, "event": "stability_checked", "m3": 1, "n3": 1, "update_count_after": 1, "still_same_process": true}
+{"t": "2026-09-28T22:58:05-0400", "epoch": 1790650685.8103092, "event": "phase2_complete", "reason": "--phase 2 standalone"}
+{"t": "2026-09-28T22:58:05-0400", "epoch": 1790650685.814213, "event": "skip_phase", "phase": 3, "reason": "--phase 2"}

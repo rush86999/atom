@@ -1,103 +1,133 @@
 {
- "comment": "Authored PROVIDER responses for the mutation-overlap case. Tool-plan requests decline; edit-plan requests are keyed by the turn token embedded in each ask. Find-strings extracted VERBATIM from the frozen canvas's audit-first resolved revision.",
- "responses": [
-  {
-   "match": "tool planner for an AI automation platform",
-   "response": {
-    "tool_call": {
-     "name": "ToolPlan",
-     "arguments": {
-      "use_tool": false
-     }
-    }
-   }
-  },
-  {
-   "match": "Validation Error found",
-   "response": {
-    "tool_call": {
-     "name": "ToolPlan",
-     "arguments": {
-      "use_tool": false
-     }
-    }
-   }
-  },
-  {
-   "match": "expert NLU parser",
-   "response": {
-    "tool_call": {
-     "name": "CommandIntentResult",
-     "arguments": {
-      "command_type": "update",
-      "platforms": [],
-      "entities": [
-       "canvas"
+  "comment": "Authored PROVIDER responses for the mutation-overlap case. Tool-plan requests decline; edit-plan requests are keyed by the turn token embedded in each ask. Find-strings extracted VERBATIM from the frozen canvas's audit-first resolved revision. TOOL SCOPING (2026-09-28, F03): every entry now declares the tool it answers, so the shim selects by EXACT advertised tool name before falling back to a prompt substring. Measured: with substring-only selection, 12 of 16 CanvasEditPlan calls were served a ToolPlan decline because the two CanvasEditPlan entries carried no 'match' key at all and a catch-all substring ('Validation Error found') was consuming the edit-planner requests. The CanvasEditPlan entries therefore were never reachable. Tool scoping is harness selection only: it is not per-prompt routing and it does not change production dispatch. TOOL+DISCRIMINATOR SELECTION (2026-09-28, F03): each plan answers CanvasEditPlan, so a bare tool key left only the last one reachable and every edit-planner request was served the OVLAP-B plan, whose `find` text is absent from the canvas. Both plans now carry the request ref present in their own prompt and are keyed (tool, match); the shim prefers that pair over a bare tool hit. Still harness selection only -- not per-prompt routing, and no production dispatch change. F05: the negative control needs an actual execution FAILURE, not merely a missing target -- a missing target still gets satisfied by the tool fallback path. F12 (2026-09-29): the six read workflows include two plain-language turns that are not workbook reads. Without a scripted answer the shim returned 502 'no scripted response matched this request', which the case then had to distinguish from a product failure.",
+  "responses": [
+    {
+      "match": "tool planner for an AI automation platform",
+      "response": {
+        "tool_call": {
+          "name": "ToolPlan",
+          "arguments": {
+            "use_tool": false
+          }
+        },
+        "tool": "ToolPlan"
+      }
+    },
+    {
+      "match": "Validation Error found",
+      "response": {
+        "tool_call": {
+          "name": "ToolPlan",
+          "arguments": {
+            "use_tool": false
+          }
+        },
+        "tool": "ToolPlan"
+      }
+    },
+    {
+      "match": "expert NLU parser",
+      "response": {
+        "tool_call": {
+          "name": "CommandIntentResult",
+          "arguments": {
+            "command_type": "update",
+            "platforms": [],
+            "entities": [
+              "canvas"
+            ],
+            "parameters": {
+              "target": "canvas",
+              "action": "edit"
+            },
+            "confidence": 0.9,
+            "reasoning": "user asks to change canvas content"
+          }
+        },
+        "tool": "CommandIntentResult"
+      }
+    },
+    {
+      "all": [
+        "updated_content_json",
+        "ovlapref-a"
       ],
-      "parameters": {
-       "target": "canvas",
-       "action": "edit"
+      "response": {
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "All quotes are valid for 15 days only, thank you for understanding.",
+                "replace": "All quotes are valid for 30 days (OVLAP-A) only, thank you for understanding."
+              }
+            ],
+            "reply": "Footer validity updated to 30 days."
+          }
+        },
+        "tool": "CanvasEditPlan"
       },
-      "confidence": 0.9,
-      "reasoning": "user asks to change canvas content"
-     }
-    }
-   }
-  },
-  {
-   "all": [
-    "updated_content_json",
-    "ovlapref-a"
-   ],
-   "response": {
-    "tool_call": {
-     "name": "CanvasEditPlan",
-     "arguments": {
-      "wants_edit": true,
-      "edit_mode": "patch",
-      "ops": [
-       {
-        "field": "body",
-        "find": "All quotes are valid for 15 days only, thank you for understanding.",
-        "replace": "All quotes are valid for 30 days (OVLAP-A) only, thank you for understanding."
-       }
+      "match": "ovlapref-a"
+    },
+    {
+      "all": [
+        "updated_content_json",
+        "ovlapref-b"
       ],
-      "reply": "Footer validity updated to 30 days."
-     }
+      "response": {
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters.",
+                "replace": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters. (OVLAP-B)"
+              }
+            ],
+            "reply": "Row-group note updated."
+          }
+        },
+        "tool": "CanvasEditPlan"
+      },
+      "match": "ovlapref-b"
+    },
+    {
+      "match": "ovlapref-a",
+      "response": "The canvas footer's quote validity was updated to 30 days (OVLAP-A)."
+    },
+    {
+      "match": "ovlapref-b",
+      "response": "The row-group note in the canvas now carries the OVLAP-B marker."
+    },
+    {
+      "match": "ovlapref-fail",
+      "response": {
+        "tool": "CanvasEditPlan",
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": []
+          }
+        }
+      },
+      "comment": "F05 controlled EXECUTION FAILURE. wants_edit=True with zero ops is a plan-contract violation: the editor must refuse it, commit nothing, and let the background leg record an honest failure. Chosen because the ovlapref-b plan is NOT a negative control -- its `find` text is absent, but the marker was still added through the tool fallback path with the rest of the body intact, so it applied instead of failing."
+    },
+    {
+      "match": "what is a price list used for",
+      "response": "A price list is a document that sets out the prices a seller charges for products or services, usually by part, model or tier."
+    },
+    {
+      "match": "make this easier to read",
+      "response": "Here is the same information in a plainer layout: one item per line, each with its part number, description and list price, and no repeating table headers."
     }
-   }
-  },
-  {
-   "all": [
-    "updated_content_json",
-    "ovlapref-b"
-   ],
-   "response": {
-    "tool_call": {
-     "name": "CanvasEditPlan",
-     "arguments": {
-      "wants_edit": true,
-      "edit_mode": "patch",
-      "ops": [
-       {
-        "field": "body",
-        "find": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters.",
-        "replace": "Rows 1\u20135 are the requested machines; rows 6\u20138 are alternative slitters. (OVLAP-B)"
-       }
-      ],
-      "reply": "Row-group note updated."
-     }
-    }
-   }
-  },
-  {
-   "match": "ovlapref-a",
-   "response": "The canvas footer's quote validity was updated to 30 days (OVLAP-A)."
-  },
-  {
-   "match": "ovlapref-b",
-   "response": "The row-group note in the canvas now carries the OVLAP-B marker."
-  }
- ],
- "fail_unmatched": true
+  ],
+  "fail_unmatched": true
 }

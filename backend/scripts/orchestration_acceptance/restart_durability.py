@@ -99,6 +99,37 @@ def sha(obj: Any) -> str:
                                      default=str).encode()).hexdigest()
 
 
+IDENTITY_FIELDS = ("pid", "started_at", "cwd", "git_commit", "source_id",
+                   "instance_id", "revision", "dirty", "dirty_digest",
+                   "database")
+
+
+def health_identity(base: str) -> Dict[str, Any]:
+    """Launch identity of whatever is serving `base` right now."""
+    import httpx
+    try:
+        return (httpx.get(f"{base}/api/health", timeout=15,
+                          trust_env=False).json() or {}).get("identity", {})
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+def identity_summary(ident: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: ident.get(k) for k in IDENTITY_FIELDS}
+
+
+def pid_alive(pid: Optional[int]) -> bool:
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--world", default=DEFAULT_WORLD)
@@ -122,6 +153,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     token = mint(st["run_dir"])
     base = f"http://127.0.0.1:{st['backend_port']}"
     print(f"restart durability on {args.world} at {base}")
+
+    # Identity of the process about to be replaced, read BEFORE the restart.
+    # `preview_stack up` rewrites preview_stack.json, so any pid re-read from
+    # that file afterwards describes the NEW process and can only ever be
+    # compared against itself.
+    pre_pid = st.get("backend_pid")
+    pre_ident = health_identity(base)
+    pre_state = dict(st)
+    results["identity_before"] = identity_summary(pre_ident)
+    results["identity_after"] = None
+    results["source_id"] = pre_ident.get("source_id")
+    check("the pre-restart process is observable before we touch it",
+          pre_ident.get("pid") == pre_pid and bool(pre_ident.get("source_id")),
+          f"state pid={pre_pid} health pid={pre_ident.get('pid')} "
+          f"source_id={pre_ident.get('source_id')}")
 
     # ---- 1. before the restart -------------------------------------------
     r1 = ask(base, token, sess, ask_text, request_id=rid)
@@ -156,21 +202,58 @@ def main(argv: Optional[List[str]] = None) -> int:
     base2 = f"http://127.0.0.1:{st2['backend_port']}"
 
     # ---- 3. the relaunch is the same world -------------------------------
-    ident: Dict[str, Any] = {}
-    try:
-        ident = (httpx.get(f"{base2}/api/health", timeout=15,
-                           trust_env=False).json() or {}).get("identity", {})
-    except Exception as exc:
-        ident = {"error": str(exc)}
+    ident = health_identity(base2)
+    results["identity_after"] = identity_summary(ident)
     check("relaunched server's cwd is this world",
           str(Path(ident.get("cwd", "")).resolve())
           == str((BACKEND / "data" / "acceptance_worlds" / args.world
                   / "backend_root").resolve()), ident.get("cwd"))
+    check("relaunched server's open database is this world's run dir",
+          str(ident.get("database", "")).startswith(str(run_dir)),
+          f"{ident.get('database')} under {run_dir}")
     check("relaunched pid differs from the pre-restart pid (a real restart)",
-          ident.get("pid") != json.loads(
-              (BACKEND / "data" / "acceptance_worlds" / args.world
-               / "preview_stack.json").read_text()).get("backend_pid")
-          or True, f"pid now {ident.get('pid')}")
+          ident.get("pid") != pre_pid and pid_alive(ident.get("pid")),
+          f"pre-restart pid={pre_pid} is "
+          f"{'STILL ALIVE' if pid_alive(pre_pid) else 'gone'}; "
+          f"now serving pid={ident.get('pid')}")
+    check("the pre-restart process is actually gone", not pid_alive(pre_pid),
+          f"pid {pre_pid}")
+
+    # ---- same CODE, not just the same label ------------------------------
+    # `source_id` is NOT proof of which code is loaded. It is a digest of
+    # `git status` in whatever repository the process's cwd resolves to, and an
+    # acceptance world's exported code is not a git repository -- so the lookup
+    # walks up to the MAIN repo and `source_id` describes the main working
+    # tree while the process executes the world's immutable export. Editing a
+    # harness file or a doc in the main tree therefore moves `source_id` with
+    # no change at all to the running code.
+    #
+    # So the identity check is on the LOADED MODULE HASHES, which are read from
+    # the code the interpreter actually imported. `source_id` is recorded as
+    # context, and a move in it is reported rather than failed, because it is
+    # not evidence about the code.
+    pre_mods = pre_state.get("loaded_modules") or {}
+    post_mods = load(args.world).get("loaded_modules") or {}
+    code_moved = sorted(
+        name for name in set(pre_mods) | set(post_mods)
+        if (pre_mods.get(name) or {}).get("sha256")
+        != (post_mods.get(name) or {}).get("sha256"))
+    compared = sorted(set(pre_mods) | set(post_mods))
+    check("the relaunch serves the SAME loaded code",
+          bool(pre_mods) and bool(post_mods) and not code_moved,
+          {"modules_compared": len(compared), "changed": code_moved}
+          if code_moved
+          else "%d loaded module hashes identical" % len(compared))
+    results["source_id_moved"] = {
+        "before": pre_ident.get("source_id"),
+        "after": ident.get("source_id"),
+        "moved": pre_ident.get("source_id") != ident.get("source_id"),
+        "why_it_is_not_a_code_change": (
+            "source_id digests `git status` of the repository the cwd resolves "
+            "to; an acceptance world's export is not a git repo, so it resolves "
+            "to the main working tree. Loaded module hashes are the authority "
+            "and are unchanged."),
+    }
 
     # ---- 4. an unrelated request still works after the restart ----------
     r2 = ask(base2, token, other_sess, ask_text)

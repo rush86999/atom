@@ -1,3 +1,13 @@
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NO PRODUCTION CONSUMER. This hook predates `useWebSocket`, which now covers
+// its needs (auth token from the session, exponential-backoff reconnect, and a
+// per-socket GENERATION guard). Do not adopt this file as-is: it opens a raw
+// socket with no generation, so when its effect re-runs the previous socket's
+// late `onmessage` can still deliver frames into the connection that replaced
+// it, and its `onclose` can null a live socket. If a WhatsApp surface is ever
+// needed, build it on `useWebSocket`, or on the guard in `lib/guardedSocket.ts`.
+// ─────────────────────────────────────────────────────────────────────────────
 // WhatsApp WebSocket Hook
 // React hook for real-time WebSocket connection to WhatsApp Business
 

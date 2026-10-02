@@ -1,5 +1,12 @@
 # Manual test quickstart — Atom isolated preview
 
+> **SUPERSEDED for the live preview.** The `:3091` preview this file describes is
+> stopped. The current preview, its fingerprint, and what is verified on it are in
+> `acceptance/lane3/PREVIEW_STATUS.md`. Its how-to-use guide is
+> `acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md` (**http://localhost:3102/chat**).
+> Everything below is kept as the historical record of the `:3091` run, including
+> the `PREVIEW-01` lookup defect that is closed on the current candidate.
+
 **The app is running now.** Open **http://localhost:3091**
 
 | | |

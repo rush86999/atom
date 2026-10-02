@@ -35,6 +35,20 @@ interface CanvasState {
 
 interface CanvasHostProps {
     lastMessage: any;
+    /**
+     * Lossless frame delivery, when the parent has a live socket to share.
+     *
+     * The `lastMessage` prop is ONE state slot. A burst of canvas frames inside
+     * a single render commit produces N updates and ONE commit, so an effect
+     * keyed on it applies only the newest frame — and if the newest frame is
+     * the one that matters, it is the one that gets dropped. Passing the
+     * parent's `onMessage` here instead applies EVERY frame, in arrival order.
+     *
+     * Optional on purpose: callers with no live socket (and every existing
+     * test) keep the prop path unchanged.
+     */
+    onSocketMessage?: (handler: (msg: any) => void) => (() => void) | void;
+
     /** Hosts (the /canvas/{id} co-editor page) register a callback that
      *  flushes pending autosave edits; they MUST await it before dispatching
      *  a chat message — the co-editor plans against the durable store, so
@@ -45,7 +59,7 @@ interface CanvasHostProps {
     registerFlushBeforeSend?: (flush: () => Promise<void>) => void;
 }
 
-export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHostProps) {
+export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeSend }: CanvasHostProps) {
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -428,6 +442,33 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [emailSignature, resetAutosave, flushAutosave]);
 
+    // Live frames, losslessly. The listener sees EVERY message in arrival
+    // order, where the `lastMessage` state slot collapses a burst into one
+    // render and an effect keyed on the prop can only ever apply the newest.
+    useEffect(() => {
+        if (!onSocketMessage) return;
+        return onSocketMessage((msg: any) => {
+            if (msg) applyCanvasMessage(msg);
+        });
+    }, [onSocketMessage, applyCanvasMessage]);
+
+    // The parent's CURRENT state, applied whenever it changes.
+    //
+    // NOT an alternative to the listener above — the two carry different
+    // things and both are needed. The prop is the parent's authoritative view
+    // of the canvas right now: on /canvas/[id] it is the synthetic present
+    // frame the page builds from the canvas it fetched on mount, and it
+    // changes on reload and on every explicit refresh. The listener carries
+    // live broadcasts only.
+    //
+    // Gating this on `!onSocketMessage` is what made the canvas area blank on
+    // load and after a reload: /canvas/[id] passes BOTH, so the prop path was
+    // skipped entirely and the panel stayed null until the agent happened to
+    // broadcast something. Guarding on the listener traded a burst-loss bug
+    // for a blank-canvas bug. Re-applying an already-known payload is a no-op
+    // regardless, because both paths funnel through `applyCanvasMessage`,
+    // whose `payloadKey` / `lastSavedSigRef` guards make identical payloads
+    // idempotent.
     useEffect(() => {
         if (lastMessage) applyCanvasMessage(lastMessage);
     }, [lastMessage, applyCanvasMessage]);

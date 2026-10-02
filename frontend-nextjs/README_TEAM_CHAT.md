@@ -85,6 +85,18 @@ SECRET_KEY=your-secret-key-here
 ### Testing WebSocket Connection
 ```javascript
 const token = localStorage.getItem('auth_token');
+// Use the shared guard rather than a bare socket: a raw `new WebSocket` has no
+// generation, so when the surrounding effect re-runs (team switch, canvas
+// switch) the previous socket's late `onmessage` can still append another
+// room's messages to the room now on screen.
+//
+//   const guard = useRef(createSocketGuard()).current;
+//   return guard.open(url, {
+//     onOpen: (ws) => ws.send(JSON.stringify({ type: 'subscribe', channel })),
+//     onMessage: (data) => { /* ... */ },
+//   });
+//
+// See lib/guardedSocket.ts.
 const ws = new WebSocket(`ws://localhost:5061/ws?token=${token}`);
 
 ws.onopen = () => {

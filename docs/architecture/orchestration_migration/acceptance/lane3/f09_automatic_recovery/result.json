@@ -1,0 +1,38 @@
+{
+  "schema": "f09-automatic-recovery-v1",
+  "lease_seconds": 20,
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash",
+  "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-8d5a96d2df88",
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-8d5a96d2df88/data/atom.db",
+  "serving_process": 9883,
+  "canvas_id": "2aedcc55-649f-4886-a31e-4f2afb49dff3",
+  "seed_status": [
+    200,
+    200
+  ],
+  "findings": [
+    {
+      "check": "canvas created through the public endpoint",
+      "ok": true,
+      "detail": "POST /api/canvas/email/create -> 200, PUT -> 200"
+    },
+    {
+      "check": "the public turn was accepted",
+      "ok": true,
+      "detail": "HTTP 200 in 15.2s; background_started=None"
+    },
+    {
+      "check": "the worker parked at the claim barrier",
+      "ok": false,
+      "detail": "no continuation reached the claim barrier within 120s -- the turn probably did not fork a background continuation"
+    }
+  ],
+  "canvas_audit_before": 2,
+  "turn_status": 200,
+  "turn": {
+    "status": 200,
+    "background_started": null,
+    "outcome": "completed",
+    "elapsed": 15.2
+  }
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { wsMock } from '../../tests/helpers/wsMock';
 import AgentStudio from '@/components/Agents/AgentStudio';
 
 // Mock axios. Must provide a factory: the automock returns `undefined` from
@@ -29,15 +30,21 @@ jest.mock('@/components/ui/use-toast', () => ({
   })
 }));
 
-// Mock useWebSocket with a mutable state object so extended tests can inject
-// WebSocket messages (agent_step_update / hitl_* / agent_status_change).
+// AgentStudio reads frames through the socket's `onMessage` listener — the
+// `lastMessage` state slot coalesces a burst, and a run's `agent_step_update`
+// frames arrive as a burst, so the live trace rendered with steps missing. The
+// mock delivers to listeners as well as the slot, and keeps `isConnected` live.
 const mockWsState = {
   isConnected: true,
   lastMessage: null as any,
-  subscribe: jest.fn()
+  subscribe: jest.fn(),
 };
+
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => mockWsState
+  useWebSocket: require('../../tests/helpers/wsMock').createWebSocketMock({
+    isConnectedOf: () => mockWsState.isConnected,
+    subscribe: (channel: string) => mockWsState.subscribe(channel),
+  }),
 }));
 
 describe('AgentStudio Component', () => {
@@ -1028,7 +1035,7 @@ describe('AgentStudio (extended coverage)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockWsState.lastMessage = null;
+    wsMock().reset();
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     axios.get.mockResolvedValue(agentsData());
     axios.post.mockResolvedValue({ data: { success: true } });
@@ -1267,45 +1274,41 @@ describe('AgentStudio (extended coverage)', () => {
     await runTask('Live task');
 
     // step arrives over WS
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
       agent_id: 'agent-1',
       step: { step: 1, thought: 'First thought', output: 'First output' }
-    };
-    view.rerenderFresh();
+    });
 
     expect(await screen.findByText('First thought')).toBeInTheDocument();
 
     // duplicate step (same step + output) is ignored
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
       agent_id: 'agent-1',
       step: { step: 1, thought: 'First thought', output: 'First output' }
-    };
-    view.rerenderFresh();
+    });
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.getAllByText('First thought').length).toBe(1);
 
     // same step number with new output updates in place
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
       agent_id: 'agent-1',
       step: { step: 1, output: 'Updated output' }
-    };
-    view.rerenderFresh();
+    });
     expect(await screen.findByText('Updated output')).toBeInTheDocument();
     expect(screen.queryByText('First output')).not.toBeInTheDocument();
 
     // status change completes the run: runResult is only rendered when the
     // trace is empty, so assert the run finished via the re-enabled play
     // button (it is disabled while isRunning).
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_status_change',
       agent_id: 'agent-1',
       status: 'success',
       result: { output: 'WS final output' }
-    };
-    view.rerenderFresh();
+    });
 
     await waitFor(() => {
       const play = screen
@@ -1322,24 +1325,22 @@ describe('AgentStudio (extended coverage)', () => {
     const view = await openEditDialog();
     await runTask('Needs approval');
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'hitl_paused',
       agent_id: 'agent-1',
       action_id: 'ws-action-1',
       tool: 'delete_file',
       reason: 'Destructive action'
-    };
-    view.rerenderFresh();
+    });
 
     expect(await screen.findByText(/human approval required/i)).toBeInTheDocument();
     expect(screen.getByText(/destructive action/i)).toBeInTheDocument();
 
-    mockWsState.lastMessage = {
+    wsMock().emit({
       type: 'hitl_decision',
       action_id: 'ws-action-1',
       decision: 'approved'
-    };
-    view.rerenderFresh();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('APPROVED')).toBeInTheDocument();

@@ -1,0 +1,481 @@
+{
+  "schema": "lane3-browser-correction-chain-v1",
+  "generated_at": "2026-09-27T13:12:28-0400",
+  "world": "candidate_fix1",
+  "frontend": "http://localhost:3102",
+  "backend": "http://127.0.0.1:8071",
+  "backend_health_identity": {
+    "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root/data/byok_keys.json",
+    "captured_at": "2026-09-27T17:08:03.058668+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "dirty": true,
+    "dirty_digest": "90f75e4ad858",
+    "dirty_paths": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/core/chat_tool_planner.py",
+      "backend/integrations/chat_orchestrator.py",
+      "backend/scripts/orchestration_acceptance/preview_server.py",
+      "backend/scripts/orchestration_acceptance/preview_stack.py",
+      "backend/scripts/orchestration_acceptance/restart_durability.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+      "backend/tests/test_reply_leg_name_safety.py",
+      "backend/tests/test_workbook_structured_delivery.py",
+      "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+      "docs/architecture/orchestration_migration/acceptance/task_correction_results.json",
+      "frontend-nextjs/README_TEAM_CHAT.md",
+      "frontend-nextjs/components/Agents/AgentStudio.tsx",
+      "frontend-nextjs/components/Agents/AutoDevReviewPanel.tsx",
+      "frontend-nextjs/components/Agents/__tests__/AutoDevReviewPanel.test.tsx",
+      "frontend-nextjs/components/Collaboration/CollaborativeCursor.tsx",
+      "frontend-nextjs/components/GlobalChatWidget.tsx",
+      "frontend-nextjs/components/Teams/TeamChatPanel.tsx",
+      "frontend-nextjs/components/__tests__/GlobalChatWidget.test.tsx",
+      "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+      "frontend-nextjs/components/canvas/MiniAppHarness.tsx",
+      "frontend-nextjs/components/chat/AgentWorkspace.tsx",
+      "frontend-nextjs/components/chat/__tests__/AgentWorkspace.test.tsx",
+      "frontend-nextjs/components/chat/canvas-host.tsx",
+      "frontend-nextjs/components/dashboards/CommunicationCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/FinanceCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/KnowledgeCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/ProjectCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/SalesCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/SupportCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/CommunicationCommandCenter.test.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/FinanceCommandCenter.wsfilter.test.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/KnowledgeCommandCenter.test.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/ProjectCommandCenter.test.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/SalesCommandCenter.test.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/SupportCommandCenter.test.tsx",
+      "frontend-nextjs/components/shared/CommentSection.tsx",
+      "frontend-nextjs/components/shared/__tests__/CommentSection.test.tsx"
+    ],
+    "error": null,
+    "git_commit": "a8bc48dc13e5",
+    "instance_id": "a8bc48dc13e5-dirty.90f75e4ad858.2399.1790528883",
+    "pid": 2399,
+    "port": null,
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "source_id": "a8bc48dc13e5-dirty.90f75e4ad858",
+    "started_at": "2026-09-27T17:08:00.242630+00:00",
+    "untracked_paths": [
+      "backend/config/world_storage.json",
+      "backend/core/world_storage_guard.py",
+      "backend/scripts/orchestration_acceptance/archive_dest_only_evidence.py",
+      "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+      "backend/scripts/orchestration_acceptance/worlds_migration_verify.py",
+      "backend/tests/core/test_archive_dest_only_evidence.py",
+      "backend/tests/core/test_world_storage_guard.py",
+      "backend/tests/core/test_world_storage_interlock.py",
+      "backend/tests/core/test_worlds_delete_audit.py",
+      "backend/tests/test_task_correction_routing.py",
+      "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+      "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+      "docs/architecture/orchestration_migration/LANE_2_HANDOFF_2026_09_27.md",
+      "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+      "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+      "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/CASE_ACCOUNTING_C00_C26.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/LANE_3_INVENTORY.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/browser_correction_chain.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B0_login.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B1_chat_ready.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B1_lookup.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B2_replace.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B3_formatting.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B4_research.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate/screenshots/B5_reload.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/browser_correction_chain.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B0_login.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B1_chat_ready.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B1_lookup.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B2_replace.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B3_formatting.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B4_research.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_candidate_lane2/screenshots/B5_reload.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_correction_chain.py",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_final/browser_correction_chain.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_final/screenshots/B0_login.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_final/screenshots/B1_chat_ready.png",
+      "docs/architecture/orchestration_migration/acceptance/lane3/browser_final/screenshots/B1_lookup.png"
+    ]
+  },
+  "source_id": "a8bc48dc13e5-dirty.90f75e4ad858",
+  "backend_frozen": true,
+  "backend_freeze_note": "the backend serves this world's immutable code export; its source_id and run dir are stable for this process",
+  "frontend_source": {
+    "farm": "/Users/rushiparikh/projects/atom/frontend-nextjs/.preview-instance/candidate_fix1",
+    "tree_sha256": "e588e838c8ccd831be77f66f0f99d80eef8bf71805d9e373a3486c2a172c3458",
+    "files": {
+      "hooks/useWebSocket.ts": "c9ecca740548215197e3e932f64683f5765b70459fb345e1d81ba7507f4cd22e",
+      "hooks/chat/useChatInterface.ts": "d36521954f3a6aad11059fab3ff079e839b4d6608f27d28c768e3c939cf4062f",
+      "components/chat/ChatInterface.tsx": "b160bd3222e50a28a43679a7f247b680649596bc71aa779f6f776c7ece86c341",
+      "components/chat/ChatInput.tsx": "6be8714598eebe3693164b40d3f9009945e1c22b03696a51f8db3f25852af418",
+      "components/chat/MessageList.tsx": "3e249dfe1243d6f77a57187c3db54c8d49323563432e64a27bef70e86f6cb1e6",
+      "pages/chat/index.tsx": "667edaae8cd6f22ea88642cb0b57a89727355bd2031b03a78c9a0492ffec2a94",
+      "pages/login.tsx": "736da7ce206ff54f107b4cb59afee7b718beec3cc988a31f883808ffd8284c56",
+      "next.config.js": "d0ef5d08bd014581ed7601a5aa9f64b800a8108ea3a3ca9a06ce6dbb2489d3bc"
+    },
+    "note": "symlink farm over the live working tree; the backend is frozen by the world's code export but the frontend is not, so this digest is what makes the browser result attributable"
+  },
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+  "expected": {
+    "base": [
+      "No. 381",
+      "U-22",
+      "No. 622",
+      "TK Manual Flanger",
+      "SLE24-16",
+      "TK 1624",
+      "TK Multi Wheel Gang Slitter",
+      "GSL48-16"
+    ],
+    "revised": [
+      "No. 381",
+      "U-38",
+      "No. 622",
+      "TK Manual Flanger",
+      "SLE24-16",
+      "TK 1624",
+      "TK Multi Wheel Gang Slitter",
+      "GSL48-16"
+    ]
+  },
+  "steps": [
+    {
+      "step": "B0_login_through_real_form",
+      "ok": true,
+      "detail": "http://localhost:3102/dashboard"
+    },
+    {
+      "step": "B0_browser_only_talks_to_this_candidate",
+      "ok": true,
+      "detail": {
+        "origins": [
+          "http://localhost:3102",
+          "http://localhost:8071"
+        ],
+        "foreign": []
+      }
+    },
+    {
+      "step": "B1_lookup_shows_all_eight_in_order",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-22",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B1_lookup_did_not_create_a_task",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "step": "B2_displayed_set_is_the_revised_one",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B2_outgoing_item_is_gone",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B2_incoming_item_is_present",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B2_is_not_a_task_creation_confirmation",
+      "ok": true,
+      "detail": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88, identity A88"
+    },
+    {
+      "step": "B2_incoming_item_labelled_absent_no_invented_value",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "reason": "explicit absence wording present",
+        "marker": "no matching row",
+        "mentions_item": true,
+        "lines": [
+          "U-38 - no matching row in the indexed content searched"
+        ]
+      }
+    },
+    {
+      "step": "B2_previous_answer_unchanged",
+      "ok": true,
+      "detail": "the base answer is still exactly what was delivered"
+    },
+    {
+      "step": "B2_no_task_row_created",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "step": "B3_formatting_shows_the_revised_set",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B3_formatting_did_not_resurrect_the_outgoing_item",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B3_earlier_answers_are_unchanged",
+      "ok": true,
+      "detail": {
+        "base_sha": "d029ab7e149e76fa",
+        "replace_sha": "39678a3fce0d408c"
+      }
+    },
+    {
+      "step": "B3_bubble_count_grew_by_exactly_one",
+      "ok": true,
+      "detail": {
+        "expected": 3,
+        "actual": 3
+      }
+    },
+    {
+      "step": "B4_research_returns_the_revised_set",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B4_research_did_not_resurrect_the_outgoing_item",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B5_reload_returns_the_same_number_of_answers",
+      "ok": true,
+      "detail": {
+        "before": 4,
+        "after": 4
+      }
+    },
+    {
+      "step": "B5_reload_preserves_every_answer_exactly",
+      "ok": true,
+      "detail": {
+        "first_diff": null
+      }
+    },
+    {
+      "step": "B5_reloaded_final_answer_is_the_revised_set",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B5_reload_did_not_resurrect_the_outgoing_item",
+      "ok": true,
+      "detail": [
+        "No. 381",
+        "U-38",
+        "No. 622",
+        "TK Manual Flanger",
+        "SLE24-16",
+        "TK 1624",
+        "TK Multi Wheel Gang Slitter",
+        "GSL48-16"
+      ]
+    },
+    {
+      "step": "B6_whole_chain_created_no_task_row",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "step": "B7_streamed_turn_added_exactly_one_bubble",
+      "ok": true,
+      "detail": {
+        "before": 4,
+        "after": 5
+      }
+    },
+    {
+      "step": "B7_bubble_text_grew_progressively",
+      "ok": true,
+      "detail": {
+        "samples": 27,
+        "distinct_lengths": [
+          27,
+          99,
+          195,
+          315
+        ],
+        "intermediate_lengths": 3,
+        "first_heads": [
+          "Reasoning Process (1 steps)",
+          "Reasoning Process (1 steps)",
+          "Reasoning Process (1 steps)"
+        ]
+      }
+    },
+    {
+      "step": "B7_bubble_settled_on_non_empty_text",
+      "ok": true,
+      "detail": {
+        "final_chars": 315,
+        "head": "A price list is a document that records the standard selling prices of a company's products or services, so quotes and i"
+      }
+    },
+    {
+      "step": "B7_final_bubble_matches_durable_history",
+      "ok": true,
+      "detail": {
+        "session_id_from_request_body": "session_1790529093456_zfdsrqu95",
+        "history_chars": 286,
+        "bubble_chars": 315
+      }
+    }
+  ],
+  "passed": 26,
+  "total": 26,
+  "all_pass": true,
+  "answers": {
+    "base": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (LINMAC!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (RoperWhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.",
+    "replace": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (RoperWhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.",
+    "formatting": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (RoperWhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (Tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (Tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.",
+    "research": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\nNo. 381 - several rows match (RoperWhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); RoperWhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); RoperWhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (RoperWhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); RoperWhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); RoperWhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (Tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (Tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (Tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (Tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); Tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); Tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (Tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-07T23:06:19. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook."
+  },
+  "answer_sha256": {
+    "base": "d029ab7e149e76fa85dc670ed11fe8accba30343c4ee9881c75b5e2a65835f70",
+    "replace": "39678a3fce0d408cab0520ef89bf0f308676f97b4dbcbb5a862fa57b47fcfe71",
+    "formatting": "bec04dc0a522283c7d4c12ff6f1d45b0c72394840383365e0dfb7c35e5bc5197",
+    "research": "39678a3fce0d408cab0520ef89bf0f308676f97b4dbcbb5a862fa57b47fcfe71"
+  },
+  "network_origins": [
+    "http://localhost:3102",
+    "http://localhost:8071"
+  ],
+  "console": [
+    "error: [next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unex",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "error: [API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "warning: [ChatWidget] Pending approvals unreachable: TypeError: Failed to fetch\n    at authFetch (webpack-internal:///(pages-dir-browser)/../../lib/auth-headers.ts:52:28)\n    at GlobalChatWidget.useEffect.fetc",
+    "info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+    "log: [HMR] connected",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "log: WakeWordProvider unmounting. Cleaning up audio resources.",
+    "log: Stopping audio processing for wake word.",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: [next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unex",
+    "error: [next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unex",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+    "log: [HMR] connected",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "log: WakeWordProvider unmounting. Cleaning up audio resources.",
+    "log: Stopping audio processing for wake word.",
+    "warning: WebSocket connection to 'ws://localhost:8071/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2MTU0OTMsImp0aSI6ImE5NTlmZTc3LTJmN",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: [next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unex",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: [next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON {error: Object, url: /api/auth/session, message: Unex",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "note": "the preview password is set in the world for this run and is never recorded here"
+}

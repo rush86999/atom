@@ -1,0 +1,116 @@
+{
+  "checks": [
+    {
+      "check": "the pre-restart process is observable before we touch it",
+      "ok": true,
+      "detail": "state pid=98167 health pid=98167 source_id=a8bc48dc13e5-dirty.bfc420d4bc8b"
+    },
+    {
+      "check": "keyed request succeeds before restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "pinned response is non-empty",
+      "ok": true,
+      "detail": "161 chars"
+    },
+    {
+      "check": "stack came back up on the same run dir",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0"
+    },
+    {
+      "check": "relaunched server's cwd is this world",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root"
+    },
+    {
+      "check": "relaunched server's open database is this world's run dir",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db under /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0"
+    },
+    {
+      "check": "relaunched pid differs from the pre-restart pid (a real restart)",
+      "ok": true,
+      "detail": "pre-restart pid=98167 is gone; now serving pid=2399"
+    },
+    {
+      "check": "the pre-restart process is actually gone",
+      "ok": true,
+      "detail": "pid 98167"
+    },
+    {
+      "check": "the relaunch serves the SAME loaded code",
+      "ok": true,
+      "detail": "14 loaded module hashes identical"
+    },
+    {
+      "check": "an unrelated new request works after restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "replay after restart returns success",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "check": "replay after restart returns BYTE-IDENTICAL pinned content",
+      "ok": true,
+      "detail": "pinned=257cc61eb662f07f replay=257cc61eb662f07f"
+    },
+    {
+      "check": "replay did not create a second execution",
+      "ok": true,
+      "detail": "18e95d49-9ee6-43e5-8f70-209f725aa5cc vs 18e95d49-9ee6-43e5-8f70-209f725aa5cc"
+    },
+    {
+      "check": "same request_id with a DIFFERENT payload is refused (409)",
+      "ok": true,
+      "detail": "status=409"
+    },
+    {
+      "check": "pre-restart history still contains the delivered answer",
+      "ok": true,
+      "detail": "2 history rows"
+    }
+  ],
+  "world": "candidate_fix1",
+  "identity_before": {
+    "pid": 98167,
+    "started_at": "2026-09-27T17:03:51.059981+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "git_commit": "a8bc48dc13e5",
+    "source_id": "a8bc48dc13e5-dirty.bfc420d4bc8b",
+    "instance_id": "a8bc48dc13e5-dirty.bfc420d4bc8b.98167.1790528634",
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "dirty": true,
+    "dirty_digest": "bfc420d4bc8b",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db"
+  },
+  "identity_after": {
+    "pid": 2399,
+    "started_at": "2026-09-27T17:08:00.242630+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "git_commit": "a8bc48dc13e5",
+    "source_id": "a8bc48dc13e5-dirty.90f75e4ad858",
+    "instance_id": "a8bc48dc13e5-dirty.90f75e4ad858.2399.1790528883",
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "dirty": true,
+    "dirty_digest": "90f75e4ad858",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db"
+  },
+  "source_id": "a8bc48dc13e5-dirty.bfc420d4bc8b",
+  "pinned_message_sha256": "257cc61eb662f07f04675ec9532603e9e17c6b183def0185468b1e5a62605942",
+  "pinned_message_head": "A price list is used to determine the list price of machinery we commonly sell, based on vendor-specific formulas that get updated as new vendor pricing arrives.",
+  "source_id_moved": {
+    "before": "a8bc48dc13e5-dirty.bfc420d4bc8b",
+    "after": "a8bc48dc13e5-dirty.90f75e4ad858",
+    "moved": true,
+    "why_it_is_not_a_code_change": "source_id digests `git status` of the repository the cwd resolves to; an acceptance world's export is not a git repo, so it resolves to the main working tree. Loaded module hashes are the authority and are unchanged."
+  },
+  "passed": 15,
+  "total": 15,
+  "all_pass": true
+}

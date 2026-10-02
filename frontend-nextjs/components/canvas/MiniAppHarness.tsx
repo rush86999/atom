@@ -15,7 +15,7 @@
  * Talks to the backend via the unified RPC client (POST /api/rpc/{action})
  * and a direct PUT for save (logic is canvas-scoped).
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import {
   Play,
@@ -36,6 +36,19 @@ import { rpc } from "@/lib/rpc-client";
 interface MiniAppHarnessProps {
   canvasId: string;
   lastMessage?: any; // WS stream from the page's useWebSocket
+  /**
+   * Lossless frame delivery, when the parent shares its live listener.
+   *
+   * `lastMessage` is ONE state slot: a burst of frames inside a single render
+   * commit collapses to one commit, so an effect keyed on it sees only the
+   * newest frame — and a `mini_app_state` broadcast that lands mid-burst is
+   * simply never applied, leaving the harness showing a stale draft. Passing
+   * the parent's `onMessage` applies every frame in arrival order.
+   *
+   * Optional on purpose: callers with no live socket (and the existing tests)
+   * keep the prop path unchanged.
+   */
+  onSocketMessage?: (handler: (msg: any) => void) => (() => void) | void;
   agentId?: string;
   // The canvas type this panel is mounted on — the default base type for new
   // apps, so authoring from inside a sheets/email/… canvas builds ON it.
@@ -66,7 +79,7 @@ interface DevRunResult extends LogicRunResult {
   state_changed?: boolean;
 }
 
-export function MiniAppHarness({ canvasId, lastMessage, agentId, canvasType }: MiniAppHarnessProps) {
+export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId, canvasType }: MiniAppHarnessProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [source, setSource] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -122,17 +135,31 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId, canvasType }: M
   }, [targetCanvasId]);
 
   // Consume live mini-app state broadcasts from the WS stream.
-  useEffect(() => {
-    const data = lastMessage?.data ?? lastMessage;
+  const applyLiveState = useCallback((msg: any) => {
+    const data = msg?.data ?? msg;
     if (
-      lastMessage?.type === "canvas:update" &&
+      msg?.type === "canvas:update" &&
       data?.action === "mini_app_state" &&
       data?.canvas_id &&
       data.canvas_id === (installedCanvasId ?? canvasId)
     ) {
       setLiveState({ version: data.version ?? 0, data: data.data ?? {} });
     }
-  }, [lastMessage, canvasId, installedCanvasId]);
+  }, [canvasId, installedCanvasId]);
+
+  // Live broadcasts, losslessly — see the note on CanvasPanel's listener.
+  useEffect(() => {
+    if (!onSocketMessage) return;
+    return onSocketMessage(applyLiveState);
+  }, [onSocketMessage, applyLiveState]);
+
+  // The parent's current frame, applied whenever it changes. Not an
+  // alternative to the listener: /canvas/[id] passes both, and gating the prop
+  // on `!onSocketMessage` meant the harness never saw the frame that was
+  // handed to it directly.
+  useEffect(() => {
+    if (lastMessage) applyLiveState(lastMessage);
+  }, [lastMessage, applyLiveState]);
 
   // Reconnect after a page reload: appId lives in component state, so a
   // refresh orphaned the draft — Dev-Run/Publish/Install stayed disabled

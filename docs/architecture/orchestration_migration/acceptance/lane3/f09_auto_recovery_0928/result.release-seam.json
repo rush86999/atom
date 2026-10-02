@@ -1,0 +1,80 @@
+{
+ "generated_at": "2026-09-29T07:59:54-0400",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/seam_recovery_0929/runs/run-0a6c40f7de49",
+ "foreign_interference": {
+  "foreign_sessions": [],
+  "detected": false
+ },
+ "export_binding": {
+  "code_snapshot_sha256": null,
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ]
+ },
+ "results": [
+  {
+   "case": "F09A_running_server_expiry_recovery",
+   "status": "FAIL",
+   "checks": {
+    "parked_at_boundary_session_matched": true,
+    "old_process_dead": true,
+    "barrier_never_released": true,
+    "restarted_same_database": true,
+    "new_process_started_before_expiry": true,
+    "in_flight_claim_deferred_at_boot": false,
+    "automatic_delivery_after_expiry_same_process": false,
+    "exactly_one_terminal_row": true,
+    "no_additional_canvas_mutation": true,
+    "wording_matches_recorded_attribution": false
+   },
+   "notes": [],
+   "details": {
+    "timings": {
+     "claim_anchor": 1790683152.994612,
+     "expiry_at": 1790683242.994612,
+     "boot_done": 1790683168.373505,
+     "delivered_at": 1790683174.40239,
+     "lease_s": 90.0,
+     "interval_s": 5.0
+    },
+    "pids": {
+     "before": 83075,
+     "after": 83348
+    },
+    "prekill": {
+     "one_fork_record": true,
+     "fork_still_running": true,
+     "delivery_claim_taken": true,
+     "no_terminal_message_yet": true,
+     "no_release_file": true,
+     "worker_alive": true
+    },
+    "notifications": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "msgs": [
+     1,
+     1,
+     1
+    ],
+    "update_count": [
+     1,
+     1
+    ],
+    "effects": [
+     "landed"
+    ],
+    "history_r2": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update applied before the interruption. The change is on the canvas; only its confirmation was cut "
+    ],
+    "notification_channel_note": "notification deltas are recorded as live-channel evidence per handoff step 10; the durable terminal MESSAGE is the gating delivery."
+   }
+  }
+ ]
+}

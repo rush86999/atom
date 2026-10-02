@@ -1,0 +1,10 @@
+{
+  "acquired_at": 1790530045.493386,
+  "acquired_at_iso": "2026-09-27T13:27:25-0400",
+  "active": true,
+  "drain_waited_s": 0.0,
+  "drained": false,
+  "operator": "rushiparikh",
+  "pid": 10313,
+  "reason": "relocating acceptance_worlds to external drive"
+}

@@ -14,8 +14,22 @@ let mockWsState: any = {
 
 const mockToastFn = jest.fn();
 
+// WebSocket event delivery. The hook registers through the socket's
+// `onMessage` listener (the lossless path — a single `lastMessage` state slot
+// coalesces a token burst, so it cannot express "these 5 frames arrived").
+// `emit` therefore hands the frame to every registered listener, which is
+// exactly what useWebSocket does on the wire.
+const wsListeners = new Set<(m: any) => void>();
+const emit = (frame: any) => {
+  act(() => { wsListeners.forEach((h) => h(frame)); });
+};
+const onMessage = (handler: (m: any) => void) => {
+  wsListeners.add(handler);
+  return () => { wsListeners.delete(handler); };
+};
+
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => mockWsState,
+  useWebSocket: () => ({ ...mockWsState, onMessage }),
 }));
 
 jest.mock('@/components/ui/use-toast', () => ({
@@ -42,6 +56,7 @@ const mockPatch = apiClient.patch as jest.Mock;
 describe('useChatInterface (supplemental branches)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    wsListeners.clear();
     mockToastFn.mockClear();
     mockWsState = {
       isConnected: false,
@@ -143,32 +158,32 @@ describe('useChatInterface (supplemental branches)', () => {
   });
 
   test('agent step update with an action sets the executing status', async () => {
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useChatInterface({ sessionId: 's1', initialAgentId: null })
     );
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: 'agent_step_update',
+    emit({
+      type: 'agent_step_update',
+      data: {
         step: { step: 2, action: { tool: 'search_tool' }, thought: 'looking' },
+        execution_id: 'exec-1',
+        session_id: 's1',
       },
-    };
-    rerender();
+    });
     expect(result.current.statusMessage).toBe('Executing search_tool...');
   });
 
   test('agent step update with only a thought sets the thinking status', async () => {
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useChatInterface({ sessionId: 's1', initialAgentId: null })
     );
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: 'agent_step_update',
+    emit({
+      type: 'agent_step_update',
+      data: {
         step: { step: 1, thought: 'pondering', action: undefined },
+        execution_id: 'exec-2',
+        session_id: 's1',
       },
-    };
-    rerender();
+    });
     expect(result.current.statusMessage).toBe('Thinking...');
   });
 
@@ -177,11 +192,10 @@ describe('useChatInterface (supplemental branches)', () => {
       useChatInterface({ sessionId: 's1', initialAgentId: null })
     );
     const before = result.current.statusMessage;
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: { type: 'agent_step_update', step: { step: 1 } },
-    };
-    rerender();
+    emit({
+      type: 'agent_step_update',
+      data: { step: { step: 1 }, execution_id: 'exec-3', session_id: 's1' },
+    });
     expect(result.current.statusMessage).toBe(before);
   });
 });

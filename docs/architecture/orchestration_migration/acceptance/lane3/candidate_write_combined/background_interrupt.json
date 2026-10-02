@@ -1,0 +1,165 @@
+{
+ "schema": "lane3-background-interrupt-v1",
+ "generated_at": "2026-09-27T21:59:27-0400",
+ "world": "write_combined",
+ "backend": "http://127.0.0.1:8079",
+ "verdict": "PASS",
+ "checks_passed": 12,
+ "checks_total": 12,
+ "checks": {
+  "a BACKGROUND continuation was running when the kill was timed": true,
+  "the recorded serving worker is gone (SIGKILL, not a stall)": true,
+  "BEFORE any restart the continuation is still 'running' (a ghost)": true,
+  "the same run dir and database served the restart": true,
+  "the interrupted continuation is no longer 'running'": true,
+  "it is reconciled as CRASH-recovered from a VERIFIED dead owner": true,
+  "recovery did not invent a second continuation row": true,
+  "the already-landed effect was NOT applied a second time": true,
+  "no new audit row appeared during recovery itself": true,
+  "a follow-up turn did not re-apply the same edit": true,
+  "after recovery the session still reports the turn honestly": true,
+  "no duplicate execution was created for the interrupted turn": true
+ },
+ "details": {
+  "a BACKGROUND continuation was running when the kill was timed": {
+   "continuations": [
+    {
+     "id": "73c3732b-3891-4bd5-9676-87526f509dd9",
+     "status": "running",
+     "error_message": null,
+     "metadata": {
+      "session_id": "bgint-BGINT-1790560725-bdc9",
+      "surface": "async_turn_continuation",
+      "originating_execution_id": "f2a6954b-d9e7-45d0-8ae6-04963fd97612",
+      "origin_operation_id": "53e1c145-91b4-4bf8-809c-dfb6aed55180",
+      "continuation": {
+       "session_id": "bgint-BGINT-1790560725-bdc9",
+       "canvas_id": "638f2301-f67e-4798-acf6-0ee9023a925f",
+       "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+       "message": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit BGINT-1790560725-bdc9",
+       "snapshot_content_hash": "2e64c8c3f1d1113985825d7a50933983fe5654252ab996c4e2462d2bc09146cf",
+       "snapshot_audit_ts": "2026-09-28T01:58:45",
+       "origin_operation_id": "53e1c145-91b4-4bf8-809c-dfb6aed55180",
+       "failure_stage": "",
+       "evidence_contract": null
+      },
+      "owner": {
+       "pid": 71387,
+       "token": "43b90e75d43f45caba5b858e58189338",
+       "host": "MacBook-Pro.local",
+       "process_started_at": "2026-09-28T01:59:05.876070+00:00",
+       "os_process_start": "ps:Sun Sep 27 21:58:30 2026"
+      }
+     },
+     "started_at": "2026-09-28 01:59:05",
+     "completed_at": null
+    }
+   ],
+   "thread_alive": true
+  },
+  "the recorded serving worker is gone (SIGKILL, not a stall)": {
+   "pid": 71387,
+   "why_not_a_stall": "a stall keeps a live owner, and the boot sweep correctly refuses to touch live work -- that is a different case and would not measure recovery"
+  },
+  "BEFORE any restart the continuation is still 'running' (a ghost)": {
+   "status": "running"
+  },
+  "the same run dir and database served the restart": {
+   "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-e7cddacf93f7/data/atom.db",
+   "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-e7cddacf93f7"
+  },
+  "the interrupted continuation is no longer 'running'": {
+   "status": "failed"
+  },
+  "it is reconciled as CRASH-recovered from a VERIFIED dead owner": {
+   "recovery": {
+    "crashed": true,
+    "recovered_at": "2026-09-28T01:59:15.871378+00:00",
+    "owner_state": "dead"
+   },
+   "owner_state_meaning": "dead = no such pid, or a confirmed pid reuse; anything else would be 'unknown' and must NOT be reconciled"
+  },
+  "recovery did not invent a second continuation row": {
+   "rows": 1
+  },
+  "the already-landed effect was NOT applied a second time": {
+   "update_audits_at_kill": 0,
+   "after_recovery": 0,
+   "audits": [
+    "create"
+   ],
+   "why": "a repeated mutation on a user's canvas is the one failure this whole path exists to prevent"
+  },
+  "no new audit row appeared during recovery itself": {
+   "at_kill": 1,
+   "after": 1
+  },
+  "a follow-up turn did not re-apply the same edit": {
+   "note": "the effect had not landed before the kill, so there was nothing to repeat"
+  },
+  "after recovery the session still reports the turn honestly": {
+   "status": 200,
+   "bytes": 78,
+   "raw_bracket_diagnostic": false,
+   "note": "the bracketed text is the known D5 UX gap, recorded not fixed here"
+  },
+  "no duplicate execution was created for the interrupted turn": {
+   "executions": [
+    {
+     "id": "f2a6954b-d9e7-45d0-8ae6-04963fd97612",
+     "status": "failed",
+     "error": "Process restarted while execution was running (crashed)"
+    },
+    {
+     "id": "73c3732b-3891-4bd5-9676-87526f509dd9",
+     "status": "failed",
+     "error": "Process restarted while execution was running (crashed)"
+    }
+   ]
+  }
+ },
+ "timeline": [
+  {
+   "at": "21:57:59",
+   "event": "shim listening",
+   "port": 60664
+  },
+  {
+   "at": "21:58:44",
+   "event": "world launched",
+   "pid": 71387,
+   "run_dir": "run-e7cddacf93f7",
+   "pin": "local_6d31fb23/shim-1"
+  },
+  {
+   "at": "21:58:45",
+   "event": "canvas seeded",
+   "canvas_id": "638f2301-f67e-4798-acf6-0ee9023a925f",
+   "audit_count": 1
+  },
+  {
+   "at": "21:59:06",
+   "event": "continuation running",
+   "execution_id": "73c3732b-3891-4bd5-9676-87526f509dd9"
+  },
+  {
+   "at": "21:59:06",
+   "event": "worker killed",
+   "pid": 71387
+  },
+  {
+   "at": "21:59:06",
+   "event": "state at kill",
+   "audit_count": 1,
+   "updates": 0,
+   "effect_landed": false
+  },
+  {
+   "at": "21:59:23",
+   "event": "restarted",
+   "pid": 71915,
+   "source_id": "a8bc48dc13e5-dirty.daf3ef1de465"
+  }
+ ],
+ "scope_note": "the only injection is the planner's model response; the fork, the continuation, the reservation, the store, the audit rows and the recovery are all the product's."
+}

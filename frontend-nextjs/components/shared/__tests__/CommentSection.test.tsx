@@ -120,6 +120,10 @@ describe('CommentSection', () => {
   it('sends a comment frame and optimistically renders the message', () => {
     render(<CommentSection channel="projects" />);
     const ws = getMockWS();
+    // A real send needs an OPEN socket — `WebSocket.send` throws
+    // InvalidStateError while CONNECTING, so the composer only transmits once
+    // the connection is up.
+    act(() => { ws.readyState = 1; ws.onopen?.(new Event('open')); });
 
     fireEvent.change(screen.getByPlaceholderText('Discuss projects...'), {
       target: { value: 'I reviewed the numbers' },

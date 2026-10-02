@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "Expected storage layout for backend/data/acceptance_worlds.",
+    "This file is deliberately OUTSIDE the movable tree: nothing under",
+    "backend/data/acceptance_worlds is ever trusted as configuration, because",
+    "that tree is what gets moved. backend/data/ is gitignored, so config",
+    "cannot live there either.",
+    "",
+    "layout:",
+    "  local          - worlds root is a real directory on the internal disk (current state)",
+    "  drive_symlink  - worlds root must be a symlink into the volume below",
+    "",
+    "Flip local -> drive_symlink only AFTER the symlink is in place. The guard",
+    "rejects a plain local directory while drive_symlink is configured, which is",
+    "what stops a launcher from silently mkdir-ing a fresh empty world when the",
+    "drive is absent.",
+    "",
+    "Enable with: python -m core.world_storage_guard check"
+  ],
+  "enabled": true,
+  "layout": "local",
+  "worlds": {
+    "root": "data/acceptance_worlds",
+    "link_target": "/Volumes/Seagate Portable Drive/projects/atom/backend/data/acceptance_worlds"
+  },
+  "volume": {
+    "mount_point": "/Volumes/Seagate Portable Drive",
+    "name": "Seagate Portable Drive",
+    "uuid": "0C0C11D3-8011-4F04-A213-E3EFE642C992"
+  },
+  "symlink_sample": 25,
+  "fail_on_broken_symlinks": false
+}

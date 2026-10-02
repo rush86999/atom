@@ -1,0 +1,838 @@
+[
+ {
+  "id": "conversation_email_prices.json#1",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.7703
+    }
+   },
+   "usage": {
+    "input_tokens": 422,
+    "output_tokens": 1
+   },
+   "latency_ms": 345.25,
+   "_client_ms": 346.2
+  }
+ },
+ {
+  "id": "conversation_inherit_verify.json#1",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 779.86,
+   "_client_ms": 780.7
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#1",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.1709
+    }
+   },
+   "usage": {
+    "input_tokens": 783,
+    "output_tokens": 1
+   },
+   "latency_ms": 713.62,
+   "_client_ms": 714.5
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#2",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2189
+    }
+   },
+   "usage": {
+    "input_tokens": 127,
+    "output_tokens": 1
+   },
+   "latency_ms": 187.92,
+   "_client_ms": 188.9
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#4",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2014
+    }
+   },
+   "usage": {
+    "input_tokens": 727,
+    "output_tokens": 1
+   },
+   "latency_ms": 770.39,
+   "_client_ms": 771.3
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#6",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2166
+    }
+   },
+   "usage": {
+    "input_tokens": 692,
+    "output_tokens": 1
+   },
+   "latency_ms": 652.99,
+   "_client_ms": 653.8
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#8",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.1911
+    }
+   },
+   "usage": {
+    "input_tokens": 109,
+    "output_tokens": 1
+   },
+   "latency_ms": 133.42,
+   "_client_ms": 134.3
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#9",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3341
+    }
+   },
+   "usage": {
+    "input_tokens": 146,
+    "output_tokens": 1
+   },
+   "latency_ms": 227.69,
+   "_client_ms": 228.6
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#11",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2259
+    }
+   },
+   "usage": {
+    "input_tokens": 559,
+    "output_tokens": 1
+   },
+   "latency_ms": 483.37,
+   "_client_ms": 484.2
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#13",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2661
+    }
+   },
+   "usage": {
+    "input_tokens": 525,
+    "output_tokens": 1
+   },
+   "latency_ms": 526.41,
+   "_client_ms": 527.3
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#14",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3986
+    }
+   },
+   "usage": {
+    "input_tokens": 108,
+    "output_tokens": 1
+   },
+   "latency_ms": 181.96,
+   "_client_ms": 182.8
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#16",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3165
+    }
+   },
+   "usage": {
+    "input_tokens": 565,
+    "output_tokens": 1
+   },
+   "latency_ms": 457.13,
+   "_client_ms": 458.1
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#18",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.7446
+    }
+   },
+   "usage": {
+    "input_tokens": 429,
+    "output_tokens": 1
+   },
+   "latency_ms": 356.89,
+   "_client_ms": 357.8
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#19",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3434
+    }
+   },
+   "usage": {
+    "input_tokens": 143,
+    "output_tokens": 1
+   },
+   "latency_ms": 146.51,
+   "_client_ms": 147.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#21",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3426
+    }
+   },
+   "usage": {
+    "input_tokens": 561,
+    "output_tokens": 1
+   },
+   "latency_ms": 452.99,
+   "_client_ms": 453.8
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#23",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.1911
+    }
+   },
+   "usage": {
+    "input_tokens": 109,
+    "output_tokens": 1
+   },
+   "latency_ms": 130.26,
+   "_client_ms": 131.2
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#25",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3051
+    }
+   },
+   "usage": {
+    "input_tokens": 645,
+    "output_tokens": 1
+   },
+   "latency_ms": 609.37,
+   "_client_ms": 610.3
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#27",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2268
+    }
+   },
+   "usage": {
+    "input_tokens": 730,
+    "output_tokens": 1
+   },
+   "latency_ms": 656.0,
+   "_client_ms": 656.9
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#28",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.4163
+    }
+   },
+   "usage": {
+    "input_tokens": 141,
+    "output_tokens": 1
+   },
+   "latency_ms": 173.69,
+   "_client_ms": 174.5
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#30",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.4571
+    }
+   },
+   "usage": {
+    "input_tokens": 306,
+    "output_tokens": 1
+   },
+   "latency_ms": 318.63,
+   "_client_ms": 319.6
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#32",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.4066
+    }
+   },
+   "usage": {
+    "input_tokens": 575,
+    "output_tokens": 1
+   },
+   "latency_ms": 481.67,
+   "_client_ms": 482.6
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#34",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2873
+    }
+   },
+   "usage": {
+    "input_tokens": 113,
+    "output_tokens": 1
+   },
+   "latency_ms": 148.2,
+   "_client_ms": 149.1
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#36",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2115
+    }
+   },
+   "usage": {
+    "input_tokens": 626,
+    "output_tokens": 1
+   },
+   "latency_ms": 564.49,
+   "_client_ms": 565.3
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#38",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3348
+    }
+   },
+   "usage": {
+    "input_tokens": 721,
+    "output_tokens": 1
+   },
+   "latency_ms": 650.05,
+   "_client_ms": 651.0
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#40",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3348
+    }
+   },
+   "usage": {
+    "input_tokens": 721,
+    "output_tokens": 1
+   },
+   "latency_ms": 592.96,
+   "_client_ms": 594.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#42",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.4503
+    }
+   },
+   "usage": {
+    "input_tokens": 665,
+    "output_tokens": 1
+   },
+   "latency_ms": 639.27,
+   "_client_ms": 640.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#44",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2013
+    }
+   },
+   "usage": {
+    "input_tokens": 455,
+    "output_tokens": 1
+   },
+   "latency_ms": 411.76,
+   "_client_ms": 412.6
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#46",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.249
+    }
+   },
+   "usage": {
+    "input_tokens": 119,
+    "output_tokens": 1
+   },
+   "latency_ms": 183.55,
+   "_client_ms": 184.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#48",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 667.71,
+   "_client_ms": 668.6
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#50",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2221
+    }
+   },
+   "usage": {
+    "input_tokens": 970,
+    "output_tokens": 1
+   },
+   "latency_ms": 916.25,
+   "_client_ms": 917.2
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#52",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 744.42,
+   "_client_ms": 745.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#54",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2123
+    }
+   },
+   "usage": {
+    "input_tokens": 850,
+    "output_tokens": 1
+   },
+   "latency_ms": 742.82,
+   "_client_ms": 743.8
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#56",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 663.17,
+   "_client_ms": 664.1
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#58",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2123
+    }
+   },
+   "usage": {
+    "input_tokens": 850,
+    "output_tokens": 1
+   },
+   "latency_ms": 736.79,
+   "_client_ms": 737.7
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#60",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2078
+    }
+   },
+   "usage": {
+    "input_tokens": 841,
+    "output_tokens": 1
+   },
+   "latency_ms": 814.41,
+   "_client_ms": 815.4
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#62",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 752.51,
+   "_client_ms": 753.5
+  }
+ },
+ {
+  "id": "conversation_original_drift.json#64",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 774.01,
+   "_client_ms": 774.9
+  }
+ },
+ {
+  "id": "conversation_quote_thread.json#1",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.3606
+    }
+   },
+   "usage": {
+    "input_tokens": 252,
+    "output_tokens": 1
+   },
+   "latency_ms": 292.28,
+   "_client_ms": 293.2
+  }
+ },
+ {
+  "id": "conversation_quote_thread.json#3",
+  "label": true,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.5864
+    }
+   },
+   "usage": {
+    "input_tokens": 264,
+    "output_tokens": 1
+   },
+   "latency_ms": 258.13,
+   "_client_ms": 259.0
+  }
+ },
+ {
+  "id": "conversation_quote_thread.json#5",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2028
+    }
+   },
+   "usage": {
+    "input_tokens": 597,
+    "output_tokens": 1
+   },
+   "latency_ms": 588.51,
+   "_client_ms": 589.4
+  }
+ },
+ {
+  "id": "conversation_quote_thread.json#7",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.1911
+    }
+   },
+   "usage": {
+    "input_tokens": 109,
+    "output_tokens": 1
+   },
+   "latency_ms": 133.73,
+   "_client_ms": 134.6
+  }
+ },
+ {
+  "id": "conversation_true_eight_replay.json#1",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 702.17,
+   "_client_ms": 703.1
+  }
+ },
+ {
+  "id": "conversation_true_eight_replay.json#3",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 691.82,
+   "_client_ms": 692.8
+  }
+ },
+ {
+  "id": "conversation_true_eight_replay.json#5",
+  "label": false,
+  "response": {
+   "model": "strands-decider-2B-hobson-v19",
+   "answers": {
+    "wobble": {
+     "type": "noul",
+     "noul": 0.2376
+    }
+   },
+   "usage": {
+    "input_tokens": 829,
+    "output_tokens": 1
+   },
+   "latency_ms": 722.96,
+   "_client_ms": 724.0
+  }
+ }
+]

@@ -1,0 +1,294 @@
+{
+  "schema": "lane3-c16-authorized-edit-v1",
+  "generated_at": "2026-09-27T14:54:45-0400",
+  "world": "candidate_fix1",
+  "backend": "http://127.0.0.1:8071",
+  "source_id": "a8bc48dc13e5-dirty.bc7460ffa8f7",
+  "db_identity": {
+    "probed_db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "health_identity_database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "open_db_paths": [
+      "/Users/rushiparikh/Library/Caches/python/Cache.db",
+      "/Users/rushiparikh/Library/Caches/python/Cache.db-shm",
+      "/Users/rushiparikh/Library/Caches/python/Cache.db-wal",
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db-shm",
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db-wal",
+      "Support/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db",
+      "Support/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db-shm",
+      "Support/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db-wal"
+    ],
+    "is_the_served_db": true,
+    "lsof_agrees": true,
+    "pid": 46402
+  },
+  "marker": "LANE3-EDIT-4056F6E0",
+  "canvas_id": "6385bb7c-f1f3-44d9-9bf0-74266bf48fea",
+  "session_id": "lane3-edit-1790534997",
+  "execution_id": "68f82294-fb15-4fd0-a482-76a614546059",
+  "reply": "I'll update the quote validity text in the canvas from 15 days to 30 days now.\n\n---\n\n**Canvas Updated:**\n\n| Field | Value |\n|-------|-------|\n| **To** | steve@example.com |\n| **Subject** | Quote for Steve |\n| **Body** | Quote validity: **30 days**. |\n\n*Edit marker: LANE3-EDIT-4056F6E0*\n\n*(The canvas edit is still running in the background \u2014 nothing is confirmed changed yet.)*",
+  "seeded": {
+    "canvas_id": "6385bb7c-f1f3-44d9-9bf0-74266bf48fea",
+    "seeded_content_chars": 235,
+    "marker": "LANE3-EDIT-4056F6E0",
+    "content_is_json": true
+  },
+  "before": {
+    "audit_rows": [],
+    "audit_count": 0,
+    "canvas_content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- LANE3-EDIT-4056F6E0 seed d3721773 --></div>\"}",
+    "canvas_contains_marker": true,
+    "canvas_contains_30_days": false,
+    "recent_operations": [
+      {
+        "id": "b465eb60-0b92-4626-8746-c2e32c159db7",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:42:35"
+      },
+      {
+        "id": "baf6b8dc-d78e-4d93-9872-68be520adabd",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:09:29"
+      },
+      {
+        "id": "5b060a16-5b8c-49e6-8ec7-8eec62704c9d",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 17:59:13"
+      }
+    ]
+  },
+  "during_poll": {
+    "audit_rows": [],
+    "audit_count": 0,
+    "canvas_content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- LANE3-EDIT-4056F6E0 seed d3721773 --></div>\"}",
+    "canvas_contains_marker": true,
+    "canvas_contains_30_days": false,
+    "recent_operations": [
+      {
+        "id": "bdae7737-99b5-4b98-a435-edc4b0b25f84",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:49:57"
+      },
+      {
+        "id": "b465eb60-0b92-4626-8746-c2e32c159db7",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:42:35"
+      },
+      {
+        "id": "baf6b8dc-d78e-4d93-9872-68be520adabd",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:09:29"
+      },
+      {
+        "id": "5b060a16-5b8c-49e6-8ec7-8eec62704c9d",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 17:59:13"
+      }
+    ]
+  },
+  "after": {
+    "audit_rows": [],
+    "audit_count": 0,
+    "canvas_content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- LANE3-EDIT-4056F6E0 seed d3721773 --></div>\"}",
+    "canvas_contains_marker": true,
+    "canvas_contains_30_days": false,
+    "recent_operations": [
+      {
+        "id": "bdae7737-99b5-4b98-a435-edc4b0b25f84",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:49:57"
+      },
+      {
+        "id": "b465eb60-0b92-4626-8746-c2e32c159db7",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:42:35"
+      },
+      {
+        "id": "baf6b8dc-d78e-4d93-9872-68be520adabd",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:09:29"
+      },
+      {
+        "id": "5b060a16-5b8c-49e6-8ec7-8eec62704c9d",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 17:59:13"
+      }
+    ]
+  },
+  "readback": {
+    "audit_rows": [],
+    "audit_count": 0,
+    "canvas_content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- LANE3-EDIT-4056F6E0 seed d3721773 --></div>\"}",
+    "canvas_contains_marker": true,
+    "canvas_contains_30_days": false,
+    "recent_operations": [
+      {
+        "id": "bdae7737-99b5-4b98-a435-edc4b0b25f84",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:49:57"
+      },
+      {
+        "id": "b465eb60-0b92-4626-8746-c2e32c159db7",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:42:35"
+      },
+      {
+        "id": "baf6b8dc-d78e-4d93-9872-68be520adabd",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 18:09:29"
+      },
+      {
+        "id": "5b060a16-5b8c-49e6-8ec7-8eec62704c9d",
+        "operation_type": "edit",
+        "status": "pending",
+        "created_at": "2026-09-27 17:59:13"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "step": "probing the database the server actually has open",
+      "boundary": "precondition",
+      "ok": true,
+      "detail": {
+        "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+        "pid": 46402
+      }
+    },
+    {
+      "step": "the seeded canvas starts without the edit",
+      "boundary": "precondition",
+      "ok": true,
+      "detail": {
+        "audit_rows": 0,
+        "contains_30_days": false
+      }
+    },
+    {
+      "step": "the seeded canvas is a parseable canvas document",
+      "boundary": "precondition",
+      "ok": true,
+      "detail": {
+        "content_is_json": true,
+        "head": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote vali"
+      }
+    },
+    {
+      "step": "the turn reached a real answer",
+      "boundary": "interpretation",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "execution_id": "68f82294-fb15-4fd0-a482-76a614546059",
+        "reply_head": "I'll update the quote validity text in the canvas from 15 days to 30 days now.\n\n---\n\n**Canvas Updated:**\n\n| Field | Value |\n|-------|-------|\n| **To** | steve@example.com |\n| **Subject** | Quote for Steve |\n| **Body** | "
+      }
+    },
+    {
+      "step": "the reply is not a content-free stub",
+      "boundary": "interpretation",
+      "ok": true,
+      "detail": {
+        "stub_like": false,
+        "claims_mutation": true
+      }
+    },
+    {
+      "step": "EXACTLY ONE durable mutation landed in canvas_audit",
+      "boundary": "effect",
+      "ok": false,
+      "detail": {
+        "audit_rows": 0,
+        "rows": []
+      }
+    },
+    {
+      "step": "the durable canvas content now contains the requested change",
+      "boundary": "effect",
+      "ok": false,
+      "detail": {
+        "contains_30_days": false,
+        "content_head": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- LANE3-EDIT"
+      }
+    },
+    {
+      "step": "the answer does not claim a change that did not happen",
+      "boundary": "delivery",
+      "ok": false,
+      "detail": {
+        "claimed_mutation": true,
+        "actually_mutated": false,
+        "reply": "I'll update the quote validity text in the canvas from 15 days to 30 days now.\n\n---\n\n**Canvas Updated:**\n\n| Field | Value |\n|-------|-------|\n| **To** | steve@example.com |\n| **Subject** | Quote for S"
+      }
+    },
+    {
+      "step": "the answer does not deny a change that did happen",
+      "boundary": "delivery",
+      "ok": true,
+      "detail": {
+        "actually_mutated": false,
+        "claimed_mutation": true
+      }
+    },
+    {
+      "step": "an operation was reserved for this execution",
+      "boundary": "reservation",
+      "ok": true,
+      "detail": {
+        "operations_seen": [
+          {
+            "id": "bdae7737-99b5-4b98-a435-edc4b0b25f84",
+            "operation_type": "edit",
+            "status": "pending",
+            "created_at": "2026-09-27 18:49:57"
+          },
+          {
+            "id": "b465eb60-0b92-4626-8746-c2e32c159db7",
+            "operation_type": "edit",
+            "status": "pending",
+            "created_at": "2026-09-27 18:42:35"
+          },
+          {
+            "id": "baf6b8dc-d78e-4d93-9872-68be520adabd",
+            "operation_type": "edit",
+            "status": "pending",
+            "created_at": "2026-09-27 18:09:29"
+          },
+          {
+            "id": "5b060a16-5b8c-49e6-8ec7-8eec62704c9d",
+            "operation_type": "edit",
+            "status": "pending",
+            "created_at": "2026-09-27 17:59:13"
+          }
+        ]
+      }
+    },
+    {
+      "step": "the mutation survives an independent readback",
+      "boundary": "durability",
+      "ok": true,
+      "detail": {
+        "readback_30_days": false,
+        "readback_audit": 0
+      }
+    }
+  ],
+  "passed": 8,
+  "total": 11,
+  "all_pass": false,
+  "first_divergent_boundary": "effect",
+  "verdict": "C16 STILL UNPROVEN - first divergence at boundary: effect"
+}

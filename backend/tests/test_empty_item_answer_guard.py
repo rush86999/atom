@@ -145,14 +145,18 @@ class TestLiveFollowUpResolution:
     def test_the_ones_not_found_is_an_outcome_reference(self):
         assert _OUTCOME_SUBSET_RE.search(self.ONES_NOT_FOUND)
 
-    def test_cross_check_rides_the_ledger_fallback(self):
-        """Documents WHY the ledger-objective fallback is load-bearing:
-        this continuation is neither outcome-referenced ('not complete'
-        is not the regex's 'incomplete') nor contrastive — without the
-        fallback it read an empty target set and rendered the bare
-        footer."""
-        assert not _OUTCOME_SUBSET_RE.search(self.CROSS_CHECK)
-        assert detect_contrastive_reference(self.CROSS_CHECK) is None
+    def test_cross_check_phrase_is_now_outcome_shaped(self):
+        """'…holds the most uptodate pricing but is not complete' — the
+        00:08 wording that originally fell through every resolver. The
+        regex now covers 'not complete' (+ the 'pricing' noun), so the
+        phrase resolves as an outcome reference WHEN the ledger holds
+        outcomes; with an empty ledger it still fails closed ([]), and
+        the ledger-objective fallback owns the turn instead."""
+        assert _OUTCOME_SUBSET_RE.search(self.CROSS_CHECK)
+        from core.target_set_resolution import outcome_referenced_items
+
+        assert outcome_referenced_items(
+            self.CROSS_CHECK, "no-such-conversation-empty-ledger") == []
 
     def test_other_machinery_resolves_to_the_unserved_set(self):
         prior = ["381", "U-22", "622", "SLE24-16", "1624", "GSL48-16"]

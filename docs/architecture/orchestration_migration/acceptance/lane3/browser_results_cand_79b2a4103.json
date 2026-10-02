@@ -1,0 +1,736 @@
+{
+  "world": "cand_79b2a4103_preview",
+  "frontend": "http://localhost:3160",
+  "backend_port": 8072,
+  "steps": {
+    "M01": {
+      "expect": "relevant answer, no unintended task or action",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M01.png",
+      "ok": true,
+      "elapsed_s": 11.6,
+      "network": {
+        "total_requests": 92,
+        "requests_to_our_backend": 46,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M02": {
+      "expect": "eight ordered entries, honest ambiguity, readable evidence",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M02.png",
+      "ok": true,
+      "elapsed_s": 15.6,
+      "network": {
+        "total_requests": 95,
+        "requests_to_our_backend": 49,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M03": {
+      "expect": "new concise answer; prior answer unchanged",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nMake this easier to read\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M03.png",
+      "ok": true,
+      "elapsed_s": 9.6,
+      "network": {
+        "total_requests": 97,
+        "requests_to_our_backend": 51,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M04": {
+      "expect": "new read; saved/live status truthful",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nMake this easier to read\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nSearch again and show the same items\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M04.png",
+      "ok": true,
+      "elapsed_s": 15.6,
+      "network": {
+        "total_requests": 103,
+        "requests_to_our_backend": 57,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M05": {
+      "expect": "correct labeled values; no silent substitution",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nMake this easier to read\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nSearch again and show the same items\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nUse the factory price instead\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88; roperwhitney!R89, identity D89; roperwhitney!R90, identity B90, L90); which one is yours needs your confirmation\nU-22 - matched at linmac!R26, identity A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265; roperwhitney!R266, identity A266; roperwhitney!R268, identity A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (tinknocker!R42, identity A42, column H42 'Factory Price')\nSLE24-16 - matched at tennsmith!R101, identity A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (tinknocker!R101, identity A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105; tennsmith!R106, identity D106; tinknocker!R100, identity A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at tennsmith!R106, identity A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M05.png",
+      "ok": true,
+      "elapsed_s": 9.6,
+      "network": {
+        "total_requests": 105,
+        "requests_to_our_backend": 59,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M06": {
+      "expect": "updated list without resurrecting old distractors",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nMake this easier to read\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nSearch again and show the same items\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nUse the factory price instead\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88; roperwhitney!R89, identity D89; roperwhitney!R90, identity B90, L90); which one is yours needs your confirmation\nU-22 - matched at linmac!R26, identity A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265; roperwhitney!R266, identity A266; roperwhitney!R268, identity A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (tinknocker!R42, identity A42, column H42 'Factory Price')\nSLE24-16 - matched at tennsmith!R101, identity A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (tinknocker!R101, identity A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105; tennsmith!R106, identity D106; tinknocker!R100, identity A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at tennsmith!R106, identity A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nReplace U-22 with U-38\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M06.png",
+      "ok": true,
+      "elapsed_s": 13.6,
+      "network": {
+        "total_requests": 106,
+        "requests_to_our_backend": 60,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M07": {
+      "expect": "unrelated question answered without losing the task",
+      "visible_text": "In one sentence, what is a price list used for?\n11:18 PM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\nReasoning Process (1 steps)\n11:18 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n11:18 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nMake this easier to read\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nSearch again and show the same items\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nUse the factory price instead\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88; roperwhitney!R89, identity D89; roperwhitney!R90, identity B90, L90); which one is yours needs your confirmation\nU-22 - matched at linmac!R26, identity A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265; roperwhitney!R266, identity A266; roperwhitney!R268, identity A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (tinknocker!R42, identity A42, column H42 'Factory Price')\nSLE24-16 - matched at tennsmith!R101, identity A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (tinknocker!R101, identity A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105; tennsmith!R106, identity D106; tinknocker!R100, identity A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at tennsmith!R106, identity A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nReplace U-22 with U-38\n11:19 PM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n11:19 PM\ndeterministic\nWhat is the capital of France?\n11:19 PM\n\nParis.\n\nReasoning Process (1 steps)\n11:20 PM\nglm-5.3-flash\n\ud83e\udde0 Context used (539 chars)",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M07.png",
+      "ok": true,
+      "elapsed_s": 11.6,
+      "network": {
+        "total_requests": 109,
+        "requests_to_our_backend": 63,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    },
+    "M08": {
+      "expect": "reload: same final answers, artifact and evidence association",
+      "visible_text": "In one sentence, what is a price list used for?\n03:18 AM\n\nA price list is a document that lists the prices of products or services offered, so sales teams and customers have a consistent reference for quoting and billing.\n\n03:18 AM\nfind the prices of these 8 machines in Consolidated Price List 2019.xlsx: No. 381, U-22, No. 622, TK Manual Flanger, SLE24-16, TK 1624, TK Multi Wheel Gang Slitter and GSL48-16\n03:19 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n03:19 AM\nMake this easier to read\n03:19 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, 'List Price')\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, 'Price')\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, 'PRICE')\nTK 1624 - 8,040 (tinknocker!R101, identity A101, 'Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, 'PRICE')\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n03:19 AM\nSearch again and show the same items\n03:19 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-22 - 1,777 (linmac!R26, identity A26, column C26 'List Price'; also M26 'List Price_2' 1,777)\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n03:19 AM\nUse the factory price instead\n03:19 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88; roperwhitney!R89, identity D89; roperwhitney!R90, identity B90, L90); which one is yours needs your confirmation\nU-22 - matched at linmac!R26, identity A26; requested 'factory price' is not among the available bases (List Price, List Price_2). Which basis should answer?\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265; roperwhitney!R266, identity A266; roperwhitney!R268, identity A268); which one is yours needs your confirmation\nTK Manual Flanger - 950 (tinknocker!R42, identity A42, column H42 'Factory Price')\nSLE24-16 - matched at tennsmith!R101, identity A101; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\nTK 1624 - 3,950 (tinknocker!R101, identity A101, column H101 'Factory Price')\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105; tennsmith!R106, identity D106; tinknocker!R100, identity A100 (H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - matched at tennsmith!R106, identity A106; requested 'factory price' is not among the available bases (CDN LIST, FULL COST CDN, PRICE, U.S. COST, U.S. LIST). Which basis should answer?\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n03:19 AM\nReplace U-22 with U-38\n03:19 AM\n\nResults from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-25T00:00:00):\n\nNo. 381 - several rows match (roperwhitney!R88, identity A88, B88, L88 (E88 'PRICE' blank; M88 'U.S. LIST' blank; P88 'U.S. COST' 0); roperwhitney!R89, identity D89 (E89 'PRICE' blank; M89 'U.S. LIST' blank; P89 'U.S. COST' 0); roperwhitney!R90, identity B90, L90 (E90 'PRICE' blank; M90 'U.S. LIST' blank; P90 'U.S. COST' 0)); which one is yours needs your confirmation\nU-38 - no matching row in the indexed content searched\nNo. 622 - several rows match (roperwhitney!R265, identity B265, D265, L265 (E265 'PRICE' 670; M265 'U.S. LIST' 350; P265 'U.S. COST' 280); roperwhitney!R266, identity A266 (E266 'PRICE' 0; M266 'U.S. LIST' blank; P266 'U.S. COST' 0); roperwhitney!R268, identity A268 (E268 'PRICE' 2,421; M268 'U.S. LIST' 1,350; P268 'U.S. COST' 1,012.5)); which one is yours needs your confirmation\nTK Manual Flanger - 1,609 (tinknocker!R42, identity A42, column D42 'Price'; also H42 'Factory Price' 950)\nSLE24-16 - 8,880 (tennsmith!R101, identity A101, column E101 'PRICE'; also M101 'U.S. LIST' 4,500, O101 'U.S. COST' 3,600, W101 'FULL COST CDN' 6,250.96, AA101 'CDN LIST' 8,879.49)\nTK 1624 - 8,040 (tinknocker!R101, identity A101, column D101 'Price'; also H101 'Factory Price' 3,950)\nTK Multi Wheel Gang Slitter (matched via 'Gang Slitter') - several rows match (tennsmith!R105, identity A105 (E105 'PRICE' blank; M105 'U.S. LIST' unavailable; O105 'U.S. COST' unavailable); tennsmith!R106, identity D106 (E106 'PRICE' 14,166; M106 'U.S. LIST' 6,575; O106 'U.S. COST' 5,260); tinknocker!R100, identity A100 (D100 'Price' 12,838; H100 'Factory Price' 5,450)); which one is yours needs your confirmation\nGSL48-16 - 14,166 (tennsmith!R106, identity A106, column E106 'PRICE'; also M106 'U.S. LIST' 6,575, O106 'U.S. COST' 5,260, W106 'FULL COST CDN' 9,972.24, AA106 'CDN LIST' 14,165.56)\n\nSource: Consolidated Price List 2019.xlsx - saved copy, copy saved 2026-09-25T00:00:00. Coverage: indexed sheets=46; scanned entries=46. Unlisted sheets or newer versions may contain more; this is not an absence claim about the live workbook.\n\n03:19 AM\nWhat is the capital of France?\n03:20 AM\n\nParis.\n\n03:20 AM",
+      "screenshot": "docs/architecture/orchestration_migration/acceptance/preview_browser/cand_79b2a4103_preview_M08.png",
+      "ok": true,
+      "elapsed_s": 16.7,
+      "network": {
+        "total_requests": 146,
+        "requests_to_our_backend": 80,
+        "our_backend_origins": [
+          "localhost:8072"
+        ],
+        "websockets": [
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:3160/_next/webpack-hmr",
+            "origin": "localhost:3160"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          },
+          {
+            "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+            "origin": "localhost:8072"
+          }
+        ],
+        "websocket_origins": [
+          "localhost:3160",
+          "localhost:8072"
+        ],
+        "foreign_origin_hits": [],
+        "isolated": true,
+        "console_errors": [
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+        ],
+        "page_errors": [],
+        "failed_requests": [
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+          "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+        ]
+      }
+    }
+  },
+  "login": {
+    "attempted": true,
+    "ok": true,
+    "landed_url": "http://localhost:3160/dashboard",
+    "token_present_after_login": true
+  },
+  "first_run_modals": {
+    "attempted": true,
+    "dismissed": [
+      "Welcome to Atom  Your AI-powered automation workspace  Welcome Profile 3 Connect (via Escape)"
+    ],
+    "left_open": [],
+    "composer_clickable": true
+  },
+  "final_network": {
+    "total_requests": 146,
+    "requests_to_our_backend": 80,
+    "our_backend_origins": [
+      "localhost:8072"
+    ],
+    "websockets": [
+      {
+        "url": "ws://localhost:3160/_next/webpack-hmr",
+        "origin": "localhost:3160"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:3160/_next/webpack-hmr",
+        "origin": "localhost:3160"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:3160/_next/webpack-hmr",
+        "origin": "localhost:3160"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      },
+      {
+        "url": "ws://localhost:8072/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YzBiOTBiMi02NzU2LTQzOTctOTllMi0xYTllODNhNmMwZTUiLCJleHAiOjE3OTA3MzgzMDUsImp0aSI6IjczN2E2MjgzLTRjZGQtNDQwNy1iZjZlLWNjMWI5MDNhZmQwMiJ9.xgIkVtX8qovKmY9u8nJN38lqZ84mnl4FLHiNWvQ-oDk",
+        "origin": "localhost:8072"
+      }
+    ],
+    "websocket_origins": [
+      "localhost:3160",
+      "localhost:8072"
+    ],
+    "foreign_origin_hits": [],
+    "isolated": true,
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+    ],
+    "page_errors": [],
+    "failed_requests": [
+      "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+      "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED",
+      "GET http://localhost:3160/api/agents/approvals/pending :: net::ERR_ABORTED"
+    ]
+  }
+}

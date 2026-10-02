@@ -1,0 +1,212 @@
+{
+ "schema": "lane3-concurrent-claim-v1",
+ "generated_at": "2026-09-28T06:36:04-0400",
+ "world": "write_combined",
+ "backend": "http://127.0.0.1:8077",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-311d05da9580",
+ "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-311d05da9580/data/atom.db",
+ "launch_identity": {
+  "source_id": null,
+  "pid": 25245
+ },
+ "verdict": "FAIL",
+ "checks_passed": 9,
+ "checks_total": 11,
+ "checks": {
+  "A: exactly one process won the claim": true,
+  "A: the durable record holds exactly ONE row for the key": true,
+  "A: the loser was handed the WINNER's operation id (so it replays, never mints a second effect)": true,
+  "B: still exactly ONE row for the key": true,
+  "B: the loser was handed a DIFFERENT payload hash -- a conflict, not a replay": true,
+  "B: no second operation was materialised for the contested key": true,
+  "C: exactly ONE execution for the contested request": false,
+  "C: exactly ONE delivered answer (no duplicate effect)": false,
+  "C: the loser waited or replayed, never re-executed": true,
+  "C: a different payload under the same request id is refused": true,
+  "C: the conflicting payload created NO second execution or answer": true
+ },
+ "details": {
+  "A: exactly one process won the claim": {
+   "results": {
+    "p2": {
+     "role": "p2",
+     "won": true,
+     "claim": null,
+     "operation_id": "d17c1961-273f-4503-b206-cba1a795ad14",
+     "asked_payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6",
+     "materialise_error": "TaskLifecycleError: no task record on run claim-a-0b44ee47"
+    },
+    "p1": {
+     "role": "p1",
+     "won": false,
+     "claim": {
+      "operation_id": "d17c1961-273f-4503-b206-cba1a795ad14",
+      "operation_type": "canvas_edit",
+      "idempotency_key": "idem-4f88f6c9a564",
+      "payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6",
+      "status": "pending"
+     },
+     "operation_id": "8e963ff8-dc30-4618-820c-fc6590c68c5d",
+     "asked_payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6"
+    }
+   }
+  },
+  "A: the durable record holds exactly ONE row for the key": {
+   "rows": [
+    {
+     "operation_id": "d17c1961-273f-4503-b206-cba1a795ad14",
+     "idempotency_key": "idem-4f88f6c9a564",
+     "payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6",
+     "status": "pending",
+     "operation_type": "canvas_edit"
+    }
+   ]
+  },
+  "A: the loser was handed the WINNER's operation id (so it replays, never mints a second effect)": {
+   "loser_claim": {
+    "operation_id": "d17c1961-273f-4503-b206-cba1a795ad14",
+    "operation_type": "canvas_edit",
+    "idempotency_key": "idem-4f88f6c9a564",
+    "payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6",
+    "status": "pending"
+   },
+   "row": {
+    "operation_id": "d17c1961-273f-4503-b206-cba1a795ad14",
+    "idempotency_key": "idem-4f88f6c9a564",
+    "payload_sha256": "1de1adaddc3ac9670c0e473fd18411cfc6531ef1de4a60b8cdd8cdbde43856e6",
+    "status": "pending",
+    "operation_type": "canvas_edit"
+   },
+   "winner_operation_id": "d17c1961-273f-4503-b206-cba1a795ad14"
+  },
+  "B: still exactly ONE row for the key": {
+   "rows": [
+    {
+     "operation_id": "d3fc49a6-9ddd-4b2d-9ec2-58680beb4a28",
+     "idempotency_key": "idem-e3bb79f71797",
+     "payload_sha256": "d0337aaf9453f2825b14102b9c774fafaae93462f3e175cf9d08965d0e23db3b",
+     "status": "pending",
+     "operation_type": "canvas_edit"
+    }
+   ],
+   "results": {
+    "p1": {
+     "role": "p1",
+     "won": true,
+     "claim": null,
+     "operation_id": "d3fc49a6-9ddd-4b2d-9ec2-58680beb4a28",
+     "asked_payload_sha256": "d0337aaf9453f2825b14102b9c774fafaae93462f3e175cf9d08965d0e23db3b",
+     "materialise_error": "TaskLifecycleError: no task record on run claim-b-459907cb"
+    },
+    "p2": {
+     "role": "p2",
+     "won": false,
+     "claim": {
+      "operation_id": "d3fc49a6-9ddd-4b2d-9ec2-58680beb4a28",
+      "operation_type": "canvas_edit",
+      "idempotency_key": "idem-e3bb79f71797",
+      "payload_sha256": "d0337aaf9453f2825b14102b9c774fafaae93462f3e175cf9d08965d0e23db3b",
+      "status": "pending"
+     },
+     "operation_id": "5df85343-c55a-4852-8503-dccaae98531b",
+     "asked_payload_sha256": "195560cd0c88828359ec107058aa5726fe97341ce0c7edd6202a6c4d9412cbe7"
+    }
+   }
+  },
+  "B: the loser was handed a DIFFERENT payload hash -- a conflict, not a replay": {
+   "loser": [
+    "p2"
+   ],
+   "loser_claim": {
+    "operation_id": "d3fc49a6-9ddd-4b2d-9ec2-58680beb4a28",
+    "operation_type": "canvas_edit",
+    "idempotency_key": "idem-e3bb79f71797",
+    "payload_sha256": "d0337aaf9453f2825b14102b9c774fafaae93462f3e175cf9d08965d0e23db3b",
+    "status": "pending"
+   },
+   "asked_hashes": {
+    "p1": "d0337aaf9453f2825b14102b9c774fafaae93462f3e175cf9d08965d0e23db3b",
+    "p2": "195560cd0c88828359ec107058aa5726fe97341ce0c7edd6202a6c4d9412cbe7"
+   },
+   "why": "the key is bound to a canonical payload hash, so a different payload under the same key must be reported as a conflict rather than served as a replay of an effect the loser never asked for"
+  },
+  "B: no second operation was materialised for the contested key": {
+   "operations": [],
+   "key": "idem-e3bb79f71797"
+  },
+  "C: exactly ONE execution for the contested request": {
+   "executions": [],
+   "responses": [
+    200,
+    202
+   ]
+  },
+  "C: exactly ONE delivered answer (no duplicate effect)": {
+   "answers": [],
+   "responses": [
+    200,
+    202
+   ]
+  },
+  "C: the loser waited or replayed, never re-executed": {
+   "statuses": [
+    200,
+    202
+   ],
+   "bodies": {
+    "p1": "Request claim-req-899861f3e6ef is already in progress; retry with the same request ID for its result.",
+    "p2": "A price list is used to look up the standard list prices for the machinery we commonly sell, based on vendor pricing for"
+   }
+  },
+  "C: a different payload under the same request id is refused": {
+   "status": 409,
+   "error": "request_id_conflict",
+   "detail": "this request ID was already used with a different payload; mint a new ID for a new turn."
+  },
+  "C: the conflicting payload created NO second execution or answer": {
+   "executions_before": 0,
+   "after": 0,
+   "answers_before": 0
+  }
+ },
+ "timeline": [
+  {
+   "at": "06:35:49",
+   "event": "launched",
+   "pid": 25245,
+   "run_id": "run-311d05da9580"
+  },
+  {
+   "at": "06:35:52",
+   "event": "phase A",
+   "winners": [
+    "p2"
+   ],
+   "rows": 1
+  },
+  {
+   "at": "06:35:54",
+   "event": "phase B",
+   "rows": 1,
+   "hashes": 1
+  },
+  {
+   "at": "06:36:01",
+   "event": "phase C",
+   "statuses": [
+    200,
+    202
+   ],
+   "executions": 0,
+   "answers": 0
+  },
+  {
+   "at": "06:36:01",
+   "event": "phase C conflict",
+   "status": 409,
+   "executions": 0,
+   "answers": 0
+  }
+ ],
+ "scope_note": "phases A and B measure the durable operation claim, which is the layer that gates a mutation. The canvas-audit row itself needs an accepting planner (the C16 lane's provider shim) and is NOT measured here."
+}

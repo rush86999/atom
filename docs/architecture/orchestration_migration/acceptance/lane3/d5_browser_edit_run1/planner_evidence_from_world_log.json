@@ -1,0 +1,66 @@
+{
+  "schema": "lane3-browser-canvas-edit-planner-evidence-v1",
+  "generated_at": "2026-09-28T13:40:00-0400",
+  "purpose": "The production planner's own trace for the two real-planner browser turns, transcribed verbatim from the world log. Kept as its own file because the diagnostic lines are what make a DECLINE publishable, and because the world's log is no longer on disk (see provenance).",
+  "provenance": {
+    "world": "d5_browser_edit",
+    "log_path": "backend/data/acceptance_worlds/d5_browser_edit/preview_backend.log",
+    "transcribed_at": "2026-09-28 ~13:15-13:30 local",
+    "log_still_on_disk": false,
+    "why_gone": "The worlds tree was pruned by ANOTHER process while this case was in flight: backend/data/acceptance_worlds went from 20 worlds to 2 (only write_combined and write_verify_0928 survived) and d5_browser_edit was removed with its run dir, its code export and its log. `preview_stack.py down` does NOT delete a world (cmd_down only signals the two pids and stamps stopped_at), so this was not the driver's teardown. A rebuild was then refused by run_isolated with 'could not read the live dev database read-only (disk I/O error)' on backend/data/atom.db, so the case could not be repeated on a fresh world. The two driver artifacts carry the world, run dir, source_id, ports, canvas ids, execution ids and audit ids needed to attribute the result; these lines are the only copy of the planner trace.",
+    "how_to_redo": "backend/venv314/bin/python backend/scripts/orchestration_acceptance/run_isolated.py --name d5_browser_edit --port 8086 --cases true_eight --snapshot-working-tree --rebuild-world --refreeze-db && backend/venv314/bin/python docs/architecture/orchestration_migration/acceptance/lane3/frontend_farm_recursive.py build --name d5_browser_edit && backend/venv314/bin/python backend/scripts/orchestration_acceptance/preview_stack.py --world d5_browser_edit up --backend-port 8086 --frontend-port 3106 && backend/venv314/bin/python docs/architecture/orchestration_migration/acceptance/lane3/browser_canvas_edit.py --world d5_browser_edit --out <dir> --label unpinned",
+    "not_transcribed": "Every other line of the 32,977-byte log window. The lines below are the ones the diagnosis rests on; nothing was paraphrased or reordered."
+  },
+  "turn_1_unpinned": {
+    "label": "unpinned (BPC routes the plan; production control)",
+    "canvas_id": "1aa90d3d-c65d-4fc1-a242-7b61a541fb34",
+    "session_id": "992390ed-879d-42e8-8d6a-c441ae071a1e",
+    "execution_id": "0df2b5df-59a2-45f6-824c-8285ce2eaffc",
+    "operation_id": "da2242cd-b28b-419f-b7ec-f002847c27c8",
+    "http_response_s": 6.99,
+    "outcome": "DECLINED - canvas_edit.updated=false, no_apply=true, reason=planner_declined, outcome=refused",
+    "lines": [
+      "INFO:integrations.chat_routes:[CHATCTX] request.agent_id=None context={'current_page': '/canvas/1aa90d3d-c65d-4fc1-a242-7b61a541fb34', 'canvas_id': '1aa90d3d-c65d-4fc1-a242-7b61a541fb34', 'canvas_type': 'email', 'canvas_title': None, 'canvas_content': {'to': 'steve@example.com', 'cc': '', 'subject': 'Quote for Steve', 'body': '<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>'}, 'conversation_history': []}",
+      "INFO:integrations.chat_orchestrator:released an unapplied edit claim: run=b2416800-810c-47b1-a862-601eaeed4d93 operation=da2242cd-b28b-419f-b7ec-f002847c27c8 execution=0df2b5df-59a2-45f6-824c-8285ce2eaffc",
+      "INFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model opencode-go/gemini-3-flash (eff.cost=0.000e+00, quality=93, default score would have picked gpt-5.3-codex-spark)",
+      "WARNING:core.llm.byok_handler:openrouter benched for 300s — account-level credit exhaustion; healthy providers take over",
+      "INFO:core.llm.byok_handler:[structured-trace] opencode-go/glm-5.3-flash cap=14000 dur=0.9s finish=tool_calls content_present=True tool_calls_present=True result_type=CanvasEditPlan",
+      "INFO:integrations.chat_orchestrator:[timeline] chat planner finished: 5.0s after the turn's canvas-edit clock started"
+    ],
+    "negative_evidence": {
+      "statement": "A grep of the whole world log for 'SCHEMA-BOUNDARY', 'repair exchange' and 'consistency repair' returned ZERO matches.",
+      "means": "The plan_canvas_edit contract check introduced in 6e34725c7 did NOT fire. The plan was not a self-contradictory wants_edit=false-with-ops answer; it was an INTERNALLY CONSISTENT DECLINE (wants_edit=false, ops empty, no replacement, no restore id) that plan_contract_violation() returns None for, so no bounded repair was attempted and none was possible."
+    }
+  },
+  "turn_2_pinned": {
+    "label": "pinned ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-flash (the operator knob the brief permits; model selection is a routing decision and carries no authority over whether a canvas may change)",
+    "canvas_id": "9c99d5ec-8d30-4ad4-a085-b71cbf9afa6f",
+    "session_id": "91de5448-8dfb-45... (see artifact)",
+    "execution_id": "ee654075-b2fb-4da8-bd41-8a5f285ed4ea",
+    "operation_id": "ee654075-b2fb-4da8-bd41-8a5f285ed4ea",
+    "audit_id": "90995356-0b08-4a58-add0-3982ea347c9d",
+    "http_response_s": 47.81,
+    "outcome": "EDIT APPLIED - canvas_edit.updated=true, postcondition_verified=true, review_status=accepted",
+    "lines": [
+      "INFO:core.llm.byok_handler:[structured-trace] opencode-go/glm-5.3-flash cap=6000 dur=35.8s finish=tool_calls content_present=True tool_calls_present=True result_type=ToolPlan",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-flash cap=14000 dur=2.6s finish=stop content_present=True tool_calls_present=False result_type=CanvasEditPlan",
+      "INFO:integrations.chat_orchestrator:canvas co-editor edit applied: canvas=8a6a026b-ba11-4a45-a62e-68840e22644e type=email"
+    ],
+    "note": "The `canvas co-editor edit applied` line above is from the FIRST pinned run (canvas 8a6a026b-...); the second pinned run's canvas_edit block in the artifact carries its own updated=true. The first pinned run is preserved in d5_browser_edit_run1_first_measurement/."
+  },
+  "diagnosis": {
+    "question": "Why does the production planner decline a plain canvas edit sent from the real composer?",
+    "answer": "Not a provider failure, not a canvas-identity failure, not a schema-contract failure. On the identical request bytes the same turn reached the planner, the planner answered with a well-formed CanvasEditPlan in 0.9s, and the answer was a CONSISTENT decline. Every other stage behaved: the composer sent the right canvas id, type, page and content; the lifecycle reservation, the claim and the release all ran; the refusal was reported truthfully and nothing was written.",
+    "what_this_rules_out": [
+      "composer dropped the canvas / posted to a generic session -- RULED OUT: the captured request carries context.canvas_id, canvas_type='email', current_page='/canvas/<id>' and the full canvas_content, byte for byte",
+      "the provider was unavailable -- RULED OUT: the structured-trace line proves a CanvasEditPlan came back in 0.9s (openrouter WAS benched for account-level credit exhaustion mid-turn, and BPC fell over to opencode-go; that is a routing event, not the cause)",
+      "the 6e34725c7 schema-boundary contract bug -- RULED OUT for this turn: no violation was logged, so the plan was consistent and the bounded repair was never reached",
+      "the patch could not be applied (a find/replace mismatch) -- RULED OUT as the cause: with no ops there was nothing to match, and the pinned run's identical op DID apply cleanly"
+    ],
+    "what_remains": "Either the model behind the unpinned route (opencode-go/glm-5.3-flash) or the _EDITOR_SYSTEM prompt/template shape makes this request read as 'not an edit'. Both are un-separated by this evidence, and separating them needs either the plan body (which the product does not log for a consistent decline) or a second pin. NOT substituted: no accepting plan, no shim, no stub was used to make the unpinned turn pass.",
+    "follow_ups_worth_doing": [
+      "log the plan SHAPE for every canvas-edit plan, not only on a contract violation -- as it stands a clean decline is not quotable without a re-run",
+      "A/B the unpinned rung against deepseek/deepseek-flash on the same prompt bytes to attribute the decline to the model rather than the prompt"
+    ]
+  }
+}

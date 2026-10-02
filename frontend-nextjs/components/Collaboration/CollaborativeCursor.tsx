@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createSocketGuard, redactSocketUrl } from '@/lib/guardedSocket';
 import { motion } from 'framer-motion';
 
 interface CursorPosition {
@@ -38,7 +39,11 @@ export interface CollaborativeCursorHandle {
 export const CollaborativeCursor = React.forwardRef<CollaborativeCursorHandle, CollaborativeCursorProps>(
   ({ sessionId, workflowId, currentUserId, canvasRef }, ref) => {
   const [remoteCursors, setRemoteCursors] = useState<Map<string, RemoteCursor>>(new Map());
-  const wsRef = useRef<WebSocket | null>(null);
+  // Generation-guarded socket (lib/guardedSocket). Changing session or user
+  // re-runs the effect: the old socket is closed and a new one opened, but the
+  // close is asynchronous, so the OLD socket's onmessage could still deliver
+  // another document's cursors into the one now on screen.
+  const socketGuardRef = useRef(createSocketGuard());
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize WebSocket connection
@@ -50,16 +55,9 @@ export const CollaborativeCursor = React.forwardRef<CollaborativeCursorHandle, C
     const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, '');
     const wsBase = apiBase.replace(/^http/, 'ws');
     const wsUrl = `${wsBase}/ws/${sessionId}/${currentUserId}`;
-    wsRef.current = new WebSocket(wsUrl);
 
-    wsRef.current.onopen = () => {
-      console.log('Collaboration WebSocket connected');
-    };
-
-    wsRef.current.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
+    const closeSocket = socketGuardRef.current.open(wsUrl, {
+      onMessage: (message) => {
         if (message.type === 'cursor_update') {
           setRemoteCursors((prev) => {
             const newMap = new Map(prev);
@@ -103,43 +101,42 @@ export const CollaborativeCursor = React.forwardRef<CollaborativeCursorHandle, C
         } else if (message.type === 'lock_released') {
           console.log('Lock released:', message.resource_id);
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    wsRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    wsRef.current.onclose = () => {
-      console.log('Collaboration WebSocket disconnected');
-    };
+      },
+      onParseError: () => {
+        // A non-JSON frame (keepalive, proxy noise, partial) is swallowed so it
+        // cannot kill the handler — but it is reported rather than silent.
+        console.error('[CollaborativeCursor] unparseable WebSocket frame');
+      },
+      onError: () => {
+        console.error(`[CollaborativeCursor] WebSocket error on ${redactSocketUrl(wsUrl)}`);
+      },
+    });
 
     // Send heartbeat every 30 seconds
     heartbeatIntervalRef.current = setInterval(() => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'heartbeat' }));
+      const ws = socketGuardRef.current.current();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'heartbeat' }));
       }
     }, 30000);
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      closeSocket();
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
       }
     };
   }, [sessionId, currentUserId]);
 
   // Send cursor position updates
   const sendCursorPosition = useCallback((position: CursorPosition, selectedNode?: string) => {
-    if (!sessionId || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+    const ws = socketGuardRef.current.current();
+    if (!sessionId || !ws || ws.readyState !== WebSocket.OPEN) {
       return;
     }
 
-    wsRef.current.send(JSON.stringify({
+    ws.send(JSON.stringify({
       type: 'cursor_update',
       cursor_position: position,
       selected_node: selectedNode,

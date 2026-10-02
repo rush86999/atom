@@ -21,16 +21,15 @@ import '@testing-library/jest-dom';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 
-// --- WS mock: React state so a new lastMessage re-renders the component ---
-let _setLastMessage: (m: any) => void = () => {};
+// --- WS mock -----------------------------------------------------------------
+// Frames reach the component through the socket's `onMessage` listener, so the
+// mock must deliver to listeners as well as to the state slot. tests/helpers/
+// wsMock does both, and `wsMock().burst()` reproduces the case this component
+// has to survive: many frames inside one render commit.
+import { wsMock } from '../../../tests/helpers/wsMock';
 
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => {
-    const React = require('react');
-    const [lm, setLm] = React.useState(null);
-    _setLastMessage = setLm;
-    return { lastMessage: lm, isConnected: false };
-  },
+  useWebSocket: require('../../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 jest.mock('next-auth/react', () => ({
@@ -242,14 +241,14 @@ describe('KnowledgeCommandCenter', () => {
     await screen.findByText('Global Intelligence Hub');
 
     act(() => {
-      _setLastMessage({ type: 'urgent_alert', data: { message: 'DB partition failed' } });
+      wsMock().emit({ type: 'urgent_alert', data: { message: 'DB partition failed' } });
     });
 
     expect(mockToast.error).toHaveBeenCalledWith('DB partition failed', { duration: 5000 });
     expect(refreshSpy).toHaveBeenCalled();
 
     act(() => {
-      _setLastMessage({ type: 'status_update' });
+      wsMock().emit({ type: 'status_update' });
     });
 
     expect(mockToast.info).toHaveBeenCalledWith('Intelligence sync complete. Refreshing data...');

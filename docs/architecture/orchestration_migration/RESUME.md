@@ -1,5 +1,12 @@
 # Resume — chat-orchestrator preview + search-correctness slice
 
+> **The live state moved on after this file was written.** The current preview
+> (`:3102` / `:8071`, fingerprint `a8bc48dc13e5-dirty.e2323daaad44`), its verified
+> scope, and its named exclusions are in
+> `acceptance/lane3/PREVIEW_STATUS.md` — read that instead of reconstructing state
+> from here. `PREVIEW-01` and the replacement blocker described below are both
+> closed as observed on that candidate. This file remains the history.
+
 Last updated: 2026-09-27. Read this first, then
 `notes/AGENT_COORDINATION.md` (tail) for the full narrative.
 

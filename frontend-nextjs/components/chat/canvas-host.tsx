@@ -33,6 +33,20 @@ interface CanvasState {
 
 interface CanvasHostProps {
     lastMessage: any;
+    /**
+     * Lossless frame delivery, when the parent has a live socket to share.
+     *
+     * The `lastMessage` prop is ONE state slot. A burst of canvas frames inside
+     * a single render commit produces N updates and ONE commit, so an effect
+     * keyed on it applies only the newest frame — and if the newest frame is
+     * the one that matters, it is the one that gets dropped. Passing the
+     * parent's `onMessage` here instead applies EVERY frame, in arrival order.
+     *
+     * Optional on purpose: callers with no live socket (and every existing
+     * test) keep the prop path unchanged.
+     */
+    onSocketMessage?: (handler: (msg: any) => void) => (() => void) | void;
+
     /** Chat session the canvas belongs to — carried into the expanded page
         so its agent chat panel continues the same conversation. */
     sessionId?: string | null;
@@ -43,7 +57,7 @@ interface CanvasHostProps {
     onVisibilityChange?: (visible: boolean) => void;
 }
 
-export function CanvasHost({ lastMessage, sessionId, onVisibilityChange }: CanvasHostProps) {
+export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibilityChange }: CanvasHostProps) {
     const router = useRouter();
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -261,9 +275,21 @@ export function CanvasHost({ lastMessage, sessionId, onVisibilityChange }: Canva
                 setHasUnsavedChanges(false);
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resetAutosave]);
 
+    // Live frames, losslessly — see the note on CanvasPanel. The listener sees
+    // every message in arrival order; the `lastMessage` slot collapses a burst
+    // into one render.
+    useEffect(() => {
+        if (!onSocketMessage) return;
+        return onSocketMessage((msg: any) => {
+            if (msg) applyCanvasMessage(msg);
+        });
+    }, [onSocketMessage, applyCanvasMessage]);
+
+    // The parent's current state, applied whenever it changes. This is NOT an
+    // alternative to the listener: callers pass both, and gating the prop on
+    // `!onSocketMessage` left the host blank until a broadcast arrived.
     useEffect(() => {
         if (lastMessage) applyCanvasMessage(lastMessage);
     }, [lastMessage, applyCanvasMessage]);

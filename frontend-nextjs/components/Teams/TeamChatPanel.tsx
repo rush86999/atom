@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Paperclip, MoreVertical } from 'lucide-react';
+import { createSocketGuard, redactSocketUrl } from '@/lib/guardedSocket';
 
 interface Message {
     id: string;
@@ -29,7 +30,11 @@ export default function TeamChatPanel({
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const wsRef = useRef<WebSocket | null>(null);
+    // Generation-guarded socket (lib/guardedSocket). Switching team re-runs the
+    // effect: the old socket is closed and a new one opened, but the close is
+    // asynchronous, so the OLD socket's onmessage could still fire and append
+    // the previous team's messages to the team now on screen.
+    const socketGuardRef = useRef(createSocketGuard());
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -79,41 +84,30 @@ export default function TeamChatPanel({
         // no env). Now derives from NEXT_PUBLIC_API_URL.
         const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, '');
         const wsBase = apiBase.replace(/^http/, 'ws');
-        const ws = new WebSocket(`${wsBase}/ws?token=${token}`);
-        wsRef.current = ws;
+        const url = `${wsBase}/ws?token=${token}`;
 
-        ws.onopen = () => {
-            console.log('WebSocket connected');
-            // Subscribe to team channel
-            ws.send(JSON.stringify({
-                type: 'subscribe',
-                channel: `team:${teamId}`
-            }));
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'message.received') {
-                const msg = data.data;
-                // Only add if it matches our context filter (or no filter)
-                if (!contextType || (msg.context_type === contextType && msg.context_id === contextId)) {
-                    setMessages(prev => [...prev, msg]);
+        return socketGuardRef.current.open(url, {
+            onOpen: (ws) => {
+                // Subscribe to team channel
+                ws.send(JSON.stringify({
+                    type: 'subscribe',
+                    channel: `team:${teamId}`
+                }));
+            },
+            onMessage: (data) => {
+                if (data.type === 'message.received') {
+                    const msg = data.data;
+                    // Only add if it matches our context filter (or no filter)
+                    if (!contextType || (msg.context_type === contextType && msg.context_id === contextId)) {
+                        setMessages(prev => [...prev, msg]);
+                    }
                 }
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        ws.onclose = () => {
-            console.log('WebSocket disconnected');
-        };
-
-        return () => {
-            ws.close();
-        };
+            },
+            onError: () => {
+                // The endpoint is logged with its credential stripped.
+                console.error(`[TeamChatPanel] WebSocket error on ${redactSocketUrl(url)}`);
+            },
+        });
     }, [teamId, contextType, contextId]);
 
     const sendMessage = async () => {

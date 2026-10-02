@@ -1,0 +1,116 @@
+{
+  "checks": [
+    {
+      "check": "the pre-restart process is observable before we touch it",
+      "ok": true,
+      "detail": "state pid=40897 health pid=40897 source_id=a8bc48dc13e5-dirty.43d0b57b5c64"
+    },
+    {
+      "check": "keyed request succeeds before restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "pinned response is non-empty",
+      "ok": true,
+      "detail": "102 chars"
+    },
+    {
+      "check": "stack came back up on the same run dir",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0"
+    },
+    {
+      "check": "relaunched server's cwd is this world",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root"
+    },
+    {
+      "check": "relaunched server's open database is this world's run dir",
+      "ok": true,
+      "detail": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db under /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0"
+    },
+    {
+      "check": "relaunched pid differs from the pre-restart pid (a real restart)",
+      "ok": true,
+      "detail": "pre-restart pid=40897 is gone; now serving pid=43549"
+    },
+    {
+      "check": "the pre-restart process is actually gone",
+      "ok": true,
+      "detail": "pid 40897"
+    },
+    {
+      "check": "the relaunch serves the SAME loaded code",
+      "ok": true,
+      "detail": "14 loaded module hashes identical"
+    },
+    {
+      "check": "an unrelated new request works after restart",
+      "ok": true,
+      "detail": "status=200 error_code=None"
+    },
+    {
+      "check": "replay after restart returns success",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "check": "replay after restart returns BYTE-IDENTICAL pinned content",
+      "ok": true,
+      "detail": "pinned=40454db626754f9a replay=40454db626754f9a"
+    },
+    {
+      "check": "replay did not create a second execution",
+      "ok": true,
+      "detail": "760b623f-03e7-46b4-b720-cb3df0453bb6 vs 760b623f-03e7-46b4-b720-cb3df0453bb6"
+    },
+    {
+      "check": "same request_id with a DIFFERENT payload is refused (409)",
+      "ok": true,
+      "detail": "status=409"
+    },
+    {
+      "check": "pre-restart history still contains the delivered answer",
+      "ok": true,
+      "detail": "2 history rows"
+    }
+  ],
+  "world": "candidate_fix1",
+  "identity_before": {
+    "pid": 40897,
+    "started_at": "2026-09-27T15:30:04.848329+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "git_commit": "a8bc48dc13e5",
+    "source_id": "a8bc48dc13e5-dirty.43d0b57b5c64",
+    "instance_id": "a8bc48dc13e5-dirty.43d0b57b5c64.40897.1790523009",
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "dirty": true,
+    "dirty_digest": "43d0b57b5c64",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db"
+  },
+  "identity_after": {
+    "pid": 43549,
+    "started_at": "2026-09-27T15:35:13.427615+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "git_commit": "a8bc48dc13e5",
+    "source_id": "a8bc48dc13e5-dirty.6863ed1ef4af",
+    "instance_id": "a8bc48dc13e5-dirty.6863ed1ef4af.43549.1790523317",
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "dirty": true,
+    "dirty_digest": "6863ed1ef4af",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db"
+  },
+  "source_id": "a8bc48dc13e5-dirty.43d0b57b5c64",
+  "pinned_message_sha256": "40454db626754f9af3b4b4adaa9b7983b7dd513e8aeec915d1ff13764de64ca8",
+  "pinned_message_head": "A price list is used to show the standard selling prices of products or services offered to customers.",
+  "source_id_moved": {
+    "before": "a8bc48dc13e5-dirty.43d0b57b5c64",
+    "after": "a8bc48dc13e5-dirty.6863ed1ef4af",
+    "moved": true,
+    "why_it_is_not_a_code_change": "source_id digests `git status` of the repository the cwd resolves to; an acceptance world's export is not a git repo, so it resolves to the main working tree. Loaded module hashes are the authority and are unchanged."
+  },
+  "passed": 15,
+  "total": 15,
+  "all_pass": true
+}

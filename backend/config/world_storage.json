@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Expected storage layout for backend/data/acceptance_worlds.",
+    "This file is deliberately OUTSIDE the worlds tree: nothing under",
+    "backend/data/acceptance_worlds is ever trusted as configuration.",
+    "backend/data/ is gitignored, so config cannot live there either.",
+    "",
+    "layout:",
+    "  local          - worlds root is a real directory on the internal disk (current state)",
+    "  drive_symlink  - worlds root must be a symlink into a declared external volume",
+    "",
+    "The worlds tree lives on the internal disk. The 2026-09-27 relocation to",
+    "an external Seagate volume was ABANDONED and its destination deleted, so",
+    "there is no link_target and no volume block here. Do not reintroduce them",
+    "as a pending task: moving the tree is a deliberate operation, not a",
+    "pending one, and an interrupted copy leaves a truncated destination that",
+    "reads as a valid world.",
+    "",
+    "The guard still understands drive_symlink for a future relocation. Flip",
+    "local -> drive_symlink only AFTER the symlink is in place, and declare the",
+    "volume identity (mount_point + name + uuid) in the same change: the guard",
+    "rejects a plain local directory while drive_symlink is configured, which is",
+    "what stops a launcher from silently mkdir-ing a fresh empty world when the",
+    "drive is absent. Volume UUID, not name, is the identity check.",
+    "",
+    "Enable with: python -m core.world_storage_guard check"
+  ],
+  "enabled": true,
+  "layout": "local",
+  "worlds": {
+    "root": "data/acceptance_worlds"
+  },
+  "symlink_sample": 25,
+  "fail_on_broken_symlinks": false
+}

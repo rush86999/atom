@@ -1,0 +1,174 @@
+{
+  "backend_health_identity": {
+    "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root/data/byok_keys.json",
+    "captured_at": "2026-09-27T14:09:24.106956+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/backend_root",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+    "dirty": true,
+    "dirty_digest": "58293b7b2484",
+    "dirty_paths": [
+      "AGENTS.md",
+      "backend/core/chat_tool_planner.py",
+      "backend/integrations/chat_orchestrator.py",
+      "backend/scripts/orchestration_acceptance/preview_server.py",
+      "backend/scripts/orchestration_acceptance/preview_stack.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+      "backend/tests/test_reply_leg_name_safety.py",
+      "backend/tests/test_workbook_structured_delivery.py",
+      "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+      "scripts/drive_status.sh"
+    ],
+    "error": null,
+    "git_commit": "a8bc48dc13e5",
+    "instance_id": "a8bc48dc13e5-dirty.58293b7b2484.11007.1790518164",
+    "pid": 11007,
+    "port": null,
+    "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+    "source_id": "a8bc48dc13e5-dirty.58293b7b2484",
+    "started_at": "2026-09-27T14:09:20.294446+00:00",
+    "untracked_paths": [
+      "backend/config/world_storage.json",
+      "backend/core/world_storage_guard.py",
+      "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+      "backend/tests/core/test_world_storage_guard.py",
+      "backend/tests/core/test_worlds_delete_audit.py",
+      "backend/tests/test_task_correction_routing.py",
+      "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+      "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+      "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+      "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+      "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+      "frontend-nextjs/hooks/chat/__tests__/fixtures/useWebSocket.broken.ts",
+      "frontend-nextjs/hooks/chat/__tests__/useWebSocket.stale-callbacks.test.ts",
+      "scripts/_drive_status_worlds.sh"
+    ]
+  },
+  "backend_pid": 11007,
+  "backend_port": 8071,
+  "byok": {
+    "files_copied": [
+      "byok_keys.json",
+      "byok_config.json",
+      "byok_encryption_key"
+    ],
+    "files_missing": [],
+    "note": "encrypted store copied verbatim; no secret was read or printed",
+    "provider_ids_present": [
+      "deepseek",
+      "opencode-go",
+      "openrouter"
+    ]
+  },
+  "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+  "effective_flags": {
+    "ATOM_CHAT_STREAMING": "1",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "frontend_pid": null,
+  "frontend_port": 3102,
+  "loaded_modules": {
+    "core.answer_presentation": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/answer_presentation.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/answer_presentation.py",
+      "sha256": "d875f731037a087b8ce636c372552659cc3551163271fef1ef4f608dea89fa15"
+    },
+    "core.chat_tool_planner": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/chat_tool_planner.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/chat_tool_planner.py",
+      "sha256": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243"
+    },
+    "core.chat_transport": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/chat_transport.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/chat_transport.py",
+      "sha256": "22b1015c8caabf9bc0a5c93226968e71041f533e1fade39f00afa92142600b82"
+    },
+    "core.hybrid_retrieval_service": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/hybrid_retrieval_service.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/hybrid_retrieval_service.py",
+      "sha256": "f6ebea1853f57ee3a514d2f88c9714f5c1fda7ffc0a20ffe75956edb54915412"
+    },
+    "core.hybrid_search.documents_hybrid": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/hybrid_search/documents_hybrid.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/hybrid_search/documents_hybrid.py",
+      "sha256": "cf73d492676523bb69e7efc427fb2e3d2d8dbc2772cfd5655fbf05239938047b"
+    },
+    "core.identifier_search": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/identifier_search.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/identifier_search.py",
+      "sha256": "240687c5309bb7225fb0a5ad15fd86326d3c570eb031cac89c1c3a5c90865b14"
+    },
+    "core.memory_context_assembler": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/memory_context_assembler.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/memory_context_assembler.py",
+      "sha256": "901af64547f2d1a7eda5aad29d220e5b2f3806a66b72e3941de4f936fdbe6a8e"
+    },
+    "core.pending_file_task": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/pending_file_task.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/pending_file_task.py",
+      "sha256": "107bb419b8ee9114d52acd366837bb012deec0b39751b8407edee1ab1f65186f"
+    },
+    "core.task_lifecycle": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/task_lifecycle.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/task_lifecycle.py",
+      "sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4"
+    },
+    "core.workbook_read_artifact": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/workbook_read_artifact.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/core/workbook_read_artifact.py",
+      "sha256": "c38df2e437f6b4d3f9ad514df1aae9b9e6d912bdfe3e6fff44e813c2e13a1796"
+    },
+    "integrations.chat_orchestrator": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/integrations/chat_orchestrator.py",
+      "sha256": "7a462e4afd8695cef7a2cd43ecd20e04c2ba436d12fd9e1301a3738d49cde58a"
+    },
+    "integrations.chat_routes": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/integrations/chat_routes.py",
+      "sha256": "307cd8dcdb42d110b0a48251afc3100cfc87c3c7922228fd89a99001e037ba06"
+    },
+    "main_api_app": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/main_api_app.py",
+      "sha256": "4852e6b70ee8e96568de5ff05a63069b9e5ce5a7ef1347feae1dced68d162732"
+    },
+    "tools.drive_tool": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/tools/drive_tool.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/code/backend/tools/drive_tool.py",
+      "sha256": "a033c7b42531eba1d2f2409b6dd7e0d814445ae149cb7fb5387728f56e02515a"
+    }
+  },
+  "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0",
+  "seatbelt": false,
+  "seatbelt_note": "preview requires real model egress; isolation is at the data boundary. See module docstring.",
+  "source_snapshot_sha256": "code_snapshot_sha256=db8d733f967ae9a6869c894a1173d4e976f899937ac768da9554b7a61a133f71",
+  "started_at": "2026-09-27T10:09:27-0400",
+  "world": "candidate_fix1",
+  "world_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1"
+}
