@@ -556,6 +556,20 @@ def present(*, requested_items: List[str], requested_fields: List[str],
     plain words instead of audit vocabulary.
     """
     lines: List[str] = []
+    # EMPTY-ITEM GUARD (2026-10-02 live, the bare-footer turns): a read
+    # that ran with an empty item set rendered as header + coverage
+    # footer with NO body — the user's question visibly unanswered with
+    # nothing to say it was unanswered. A record whose targets survived
+    # but whose requested_items were dropped (older record, broken
+    # inheritance) still knows the objective — render ITS items. If
+    # neither exists, the block says so explicitly below instead of
+    # rendering a silent empty shell.
+    if not requested_items:
+        requested_items = [
+            str((t or {}).get("item") or "").strip()
+            for t in (targets or [])
+        ]
+        requested_items = [i for i in requested_items if i]
     name = source.get("file_name") or "the workbook"
     saved = _human_date(source.get("saved_copy_date"))
     live_vs_saved = source.get("live_vs_saved") or "saved copy"
@@ -567,6 +581,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         if saved:
             opening += f" (copy saved {saved})"
         lines.append(opening + ":")
+        if not requested_items:
+            lines.append(_no_items_resolved_line(name))
         lines.append("")
         lines.append("| item | result |")
         lines.append("|---|---|")
@@ -583,6 +599,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         if saved:
             opening += f" (saved {saved})"
         lines.append(opening + ":")
+        if not requested_items:
+            lines.append(_no_items_resolved_line(name))
         # Scope receipt: the search was narrowed, and the user can see why.
         scope_bits = []
         for s in (requested_sheets or []):
@@ -683,6 +701,16 @@ def present(*, requested_items: List[str], requested_fields: List[str],
             "evidence_revision": evidence_revision,
             "requested_fields": list(requested_fields),
             "style": style}
+
+
+def _no_items_resolved_line(name: str) -> str:
+    """The both-empty case, stated instead of rendered as silence: the
+    read completed but resolved no items, so the block carries no
+    per-item rows and the reader needs the one-line way out."""
+    return ("No items were resolved from the request, so there is no "
+            "per-item result here — name the items to look up in "
+            f"{name} (for example '381, U-22'), or ask to repeat the "
+            "previous set.")
 
 
 def _unresolved_clause(source_failure: Optional[str]) -> str:
