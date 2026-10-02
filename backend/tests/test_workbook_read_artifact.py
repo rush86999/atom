@@ -1133,3 +1133,37 @@ def test_history_noise_never_eliminates_candidates(tmp_path):
     assert outcome["status"] in ("found", "ambiguous"), outcome
     assert (outcome.get("evidence") or []), (
         "history-mined criteria must not eliminate the matched rows")
+
+
+def test_resolved_bindings_container_is_never_mined_as_criteria(tmp_path):
+    """2026-10-01 ROOT CAUSE (live-only U-22 false-miss): the bindings
+    container crossed turns inside `disambiguation`, and the criteria
+    miner treated `resolved_bindings = [{item: 381, sheet: ...}]` as a
+    criterion — which nothing matches — so the elimination branch
+    emptied EVERY designation on any bound turn. Bindings are durable
+    state (they pin reads); they are never ask constraints."""
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+
+    path = tmp_path / "wb.parquet"
+    pd.DataFrame({
+        "__sheet_row": [26, 30],
+        "MODEL": ["U-22", "WG-36"],
+        "PRICE": ["1777", "899"],
+    }).to_parquet(path)
+    u22 = {"entity_name": "LINMAC", "parquet_path": str(path),
+           "row_count": 2, "coverage": {"known": True, "truncated": False}}
+    # a binding for ANOTHER item (381) is present — durable state
+    disambiguation = {"resolved_bindings": [{
+        "item": "381", "sheet": "LINMAC", "row": 26,
+        "content_hash": "rev-1", "confirmation": "user_supplied"}]}
+    art = inspect_dataset_entries(
+        [u22], "w.xlsx",
+        query="find the price for U-22 in the workbook",
+        context_texts=[], targets=["U-22"],
+        disambiguation=disambiguation, content_hash="rev-1")
+    outcome = art["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous"), outcome
+    assert (outcome.get("evidence") or []), (
+        "the bindings container must never eliminate a matched row")

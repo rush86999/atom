@@ -6321,12 +6321,25 @@ async def _datasets_named_file_block(
     try:
         import re as _id_re
 
-        from core.target_set_resolution import (
-            extract_items_from_text as _id_extract,
-        )
-
+        # CODE-SHAPE KEEP RULE (2026-10-01, PEXTO finding): the canvas
+        # extractor's digit requirement dropped brand-word subjects —
+        # 'PEXTO' in 'the PEXTO 888 shearmaker' is a code-shaped token
+        # (capitalized, >=4 chars) even without a digit. Keep rule here:
+        # has a digit (>=3 chars), OR capitalized alpha >= 4 chars.
         _id_whole = " ".join(v for v in (query, msg_text) if v)
-        _id_keep = set(_id_extract(_id_whole))
+        _id_keep = set()
+        for _id_t in _id_re.findall(
+                r"\b[A-Za-z0-9][A-Za-z0-9./&-]*\b",
+                " ".join(v for v in (query, msg_text) if v)):
+            if len(_id_t) < 3 or _id_re.fullmatch(
+                    r"\d{1,3}", _id_t):
+                continue
+            if _id_re.search(r"\d", _id_t) or (
+                    _id_t[:1].isupper() and _id_t.isalpha()
+                    and len(_id_t) >= 4):
+                _id_low_k = _id_t.lower()
+                if _id_low_k not in _id_keep:
+                    _id_keep.add(_id_low_k)
         _id_sheets = {str(x).strip().lower() for x in (sheet_names or [])}
         _id_rownums = {
             m.group(1).lower()
@@ -6338,8 +6351,8 @@ async def _datasets_named_file_block(
             _id_low = str(_id_t).strip().lower()
             if _id_low in _id_sheets or _id_low in _id_rownums:
                 continue
-            if str(_id_t) in _id_keep or any(
-                    str(_id_t).lower() == str(_id_k).lower()
+            if _id_low in _id_keep or any(
+                    str(_id_t).lower() == str(_id_k)
                     for _id_k in _id_keep):
                 _id_filtered.append(_id_t)
                 continue
@@ -6350,6 +6363,10 @@ async def _datasets_named_file_block(
                     + _id_re.escape(str(_id_t))
                     + r"\b", _id_whole, _id_re.IGNORECASE):
                 _id_filtered.append(_id_t)
+        logger.info(
+            "[item-filter] in=%r keep=%r sheets=%r rownums=%r out=%r",
+            list(item_tokens), sorted(_id_keep), sorted(_id_sheets)[:6],
+            sorted(_id_rownums), _id_filtered)
         if _id_filtered:
             item_tokens = _id_filtered
         elif item_tokens and not _id_keep and not _id_sheets:
@@ -6400,6 +6417,25 @@ async def _datasets_named_file_block(
         isinstance(_turn_program, dict)
         and _turn_program.get("schema") == "turn-program-1")
     _own_item_tokens: List[str] = []
+    # VALUE-LOOKUP Subjects (2026-10-01, recorded gap): 'find the price
+    # for the PEXTO 888 shearmaker' carries a subject the item rules
+    # correctly reject as a code ('888' bare numeric) — but the ask is a
+    # VALUE LOOKUP, not a listing. When a value is requested and no item
+    # survived, mine the subject from the ask itself so the read runs
+    # honestly (candidates or a stated miss) instead of listing a sheet
+    # the user never asked to see.
+    try:
+        from core.workbook_read_artifact import (
+            extract_field_requests as _vfr,
+            extract_targets as _vext,
+        )
+
+        _value_request = bool(_vfr(
+            [query] + ([msg_text] if msg_text else [])))
+        if _value_request and not item_tokens:
+            item_tokens = _vext(query, [msg_text] if msg_text else [], [])
+    except Exception:  # noqa: BLE001 — subject mining is advisory
+        _value_request = False
     if _program_present:
         _tp_ref = _turn_program.get("reference") or {}
         _tp_set = _turn_program.get("target_set") or {}
@@ -6443,7 +6479,8 @@ async def _datasets_named_file_block(
     _browse_intent = bool(
         _scope_sheets
         and not _own_item_tokens
-        and (not _retrieval_reference or not item_tokens))
+        and not item_tokens
+        and (not _retrieval_reference or not _context_targets))
     if _browse_intent:
         # SCOPED BROWSE (2026-09-30, 'show me the tennsmith sheet
         # searches' follow-up): the user asked to SEE a sheet with no

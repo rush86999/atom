@@ -107,7 +107,7 @@ fi
 echo "==> Starting backend from $BACKEND_DIR"
 mkdir -p "$(dirname "$LOG_FILE")"
 cd "$BACKEND_DIR" || exit 1
-nohup "$PY" -m uvicorn main_api_app:app \
+nohup env ATOM_MISS_HANDOFF_NARRATION=1 "$PY" -m uvicorn main_api_app:app \
     --host 0.0.0.0 --port "$PORT" --timeout-keep-alive 75 \
     >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!

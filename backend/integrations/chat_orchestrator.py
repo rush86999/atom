@@ -6037,7 +6037,11 @@ class ChatOrchestrator:
                     # same freshness contract as the resume lane.
                     _ask_freshness = _ask_result.get("freshness") or {}
                     _ask_core = _ask_content
-                    _ask_options = None
+                    # TYPED UNCERTAINTY SIGNAL: a comparison that could
+                    # not verify is a wobble — the turn consults the
+                    # mentor (see the consult seam at the narration call).
+                    _ask_uncertain = _ask_freshness.get("status") in (
+                        "refresh_failed", "unverified")
                     # COMPARISON PLANNING (2026-09-30 'check the other
                     # machinery … verify if any pricing needs updating'
                     # directive): a verification turn is NOT an ordinary
@@ -6411,7 +6415,7 @@ class ChatOrchestrator:
                             "provider": "structured",
                             "requires_confirmation": False,
                             "next_steps": [],
-                            "suggested_actions": (_ask_options or []),
+                            "suggested_actions": [],
                         }
                         self._update_session(
                             session, message, _ask_response,
@@ -6924,6 +6928,35 @@ class ChatOrchestrator:
                                     )
                                     return _tl_blocked_response
                             _direct_task.pop("refresh_attempted", None)
+                            # EXECUTE THE CURRENT ASK'S WORDS (2026-10-01
+                            # root cause of the U-22 live-only false-miss):
+                            # the resume lane passed the STORED original as
+                            # the read's query/message — so item mining,
+                            # criteria, and elimination all ran against the
+                            # OLD ask's words while the ITEMS came from the
+                            # current message. T4 ('find U-22 in the
+                            # workbook') executed with T2's text as the
+                            # query: U-22's row matched nothing in T2's
+                            # mined criteria and was eliminated → 'no
+                            # match in this copy'. The stored task pins
+                            # scope/bindings; the WORDS executed are the
+                            # current turn's WHEN the turn carries its own
+                            # targets or a resolved revision. A PLAIN
+                            # retry ('search the file again') carries no
+                            # new words — it keeps the stored original, so
+                            # the stored objective's items stay the ask.
+                            try:
+                                from core.target_set_resolution import (
+                                    extract_items_from_text as _rm_extract,
+                                )
+
+                                if (_direct_task.get("revised_targets")
+                                        or _rm_extract(message)):
+                                    _direct_task = dict(
+                                        _direct_task,
+                                        original_message=message)
+                            except Exception:  # noqa: BLE001 — floor follows
+                                pass
                             _direct_result = await self._direct_confirmed_file_read(
                                 _direct_task,
                                 history,
@@ -7094,7 +7127,11 @@ class ChatOrchestrator:
                     # (not-found escalation policy removed 2026-10-01 —
                     # business training, not platform code; see the ask
                     # lane note and the datasets value_trace tool)
-                    _direct_options = None
+                    # TYPED UNCERTAINTY SIGNAL: a comparison that could
+                    # not verify is a wobble — the turn consults the
+                    # mentor (see the consult seam at the narration call).
+                    _direct_uncertain = _freshness.get("status") in (
+                        "refresh_failed", "unverified")
                     _direct_identity = _direct_result.get("identity") or {}
                     if _direct_identity:
                         _direct_identity = {
@@ -7279,7 +7316,7 @@ class ChatOrchestrator:
                         "provider": "structured",
                         "requires_confirmation": False,
                         "next_steps": [],
-                        "suggested_actions": (_direct_options or []),
+                        "suggested_actions": [],
                     }
                     self._update_session(
                         session,
@@ -8262,11 +8299,35 @@ class ChatOrchestrator:
                 _canvas_evidence_status = _canvas_status_from_flags(
                     _shared_tool, _gate_relevance)
 
+                # WOBBLE → SUPERVISOR/MORE-SKILLED AGENT (2026-10-01
+                # owner principle): when the deterministic layer recorded
+                # a DECISION-UNCERTAIN outcome — body-only values awaiting
+                # the user's choice, an unresolved contrastive set, or a
+                # comparison that could not verify — the turn is exactly
+                # the "uncertain" case that goes UP: the reply is
+                # generated by the employee's designated mentor (a more
+                # skilled agent) so the DECISION carries senior judgment.
+                # The signals are typed platform facts; WHICH decisions
+                # warrant escalation is training (the mentor's own
+                # lessons ride the consult via its identity).
+                _consult_agent_id = None
+                try:
+                    _uncertain = (
+                        locals().get("_ask_miss_handoff")
+                        or locals().get("_direct_options")
+                        or locals().get("_ask_uncertain"))
+                    _op_agent = (context or {}).get('agent_id')
+                    if _uncertain and _op_agent:
+                        _consult_agent_id = self._resolve_mentor_agent(
+                            _op_agent)
+                except Exception:  # noqa: BLE001 — consult is optional
+                    _consult_agent_id = None
                 ai_response = await self._get_qwen_response(
                     message, history, routing_overrides,
                     deadline=_deadline,
                     sticky_hint=sticky_hint, user_id=user_id,
-                    agent_id=(context or {}).get('agent_id'),
+                    agent_id=_consult_agent_id or (
+                        context or {}).get('agent_id'),
                     planner_history=session.get("history", []),
                     session_id=session_id,
                     execution_id=_execution_id,
@@ -9255,6 +9316,39 @@ class ChatOrchestrator:
             )
         return result
 
+
+
+    def _resolve_mentor_agent(
+        self, agent_id: Optional[str],
+    ) -> Optional[str]:
+        """The more-skilled agent a wobbly turn consults: the
+        employee's own designated teacher from its learning config
+        (atom_main is the default mentor for chat hires). Returns None
+        when the employee IS the mentor or has none — no self-consult.
+        Capability only: WHEN to consult is decided by typed uncertainty
+        signals; WHO is more skilled comes from training config."""
+        if not agent_id:
+            return None
+        try:
+            from core.database import SessionLocal
+            from core.models import AgentRegistry
+
+            db = SessionLocal()
+            try:
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id).first()
+                if not agent:
+                    return None
+                config = agent.configuration if isinstance(
+                    agent.configuration, dict) else {}
+                learning = config.get("learning") or {}
+                mentor = str(
+                    learning.get("teacher_agent_id") or "").strip()
+                return mentor or None
+            finally:
+                db.close()
+        except Exception:  # noqa: BLE001 — consult is optional
+            return None
 
     async def _verify_source_freshness(
         self,
