@@ -14824,8 +14824,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     try:
                         from core.chat_tool_planner import _unsupported_figures
 
+                        # THE OPEN CANVAS IS EVIDENCE (2026-10-03, the
+                        # 8-machine replay): narration echoing the user's OWN
+                        # quote-table values ($2,902.00, $1,777.00, …) tripped
+                        # the guard — those figures live on the canvas, not in
+                        # the tool block — triggering a needless grounded
+                        # regeneration that then lost the reply's table. The
+                        # canvas the user is looking at is ground truth for
+                        # what its own text says.
+                        _canvas_evidence = ""
+                        try:
+                            from core.chat_canvas_editor import (
+                                _serialize_content as _canvas_serialize,
+                            )
+
+                            if isinstance(_canvas_ctx, dict):
+                                _canvas_evidence = str(_canvas_serialize(
+                                    _canvas_ctx.get("content")))[:24000]
+                        except Exception:  # noqa: BLE001 — additive evidence
+                            _canvas_evidence = ""
                         _unsupported = _unsupported_figures(
-                            _content, f"{_tool_block}\n{message}"
+                            _content,
+                            f"{_tool_block}\n{message}\n{_canvas_evidence}",
                         )
                         _grounding_ran = True
                     except Exception as _fig_err:  # noqa: BLE001
@@ -18362,6 +18382,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                if n.strip() and len(n.strip()) > 1][:4]
         unresolved = self._chain_unresolved_items(session)
         primary_file = state["primary_file"]
+        state["started_with"] = list(unresolved)
         if not unresolved:
             state["steps"].append({
                 "source": "chain", "outcome": "no_unresolved_items"})

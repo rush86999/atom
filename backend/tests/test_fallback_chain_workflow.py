@@ -373,3 +373,106 @@ class TestChainDomainIndependence:
         assert pref.search("Preis")
         assert pref.search("Prix unitaire")
         assert pref.search("Coste")
+
+
+class TestGuardTableExemption:
+    """The 8-machine replay data loss (2026-10-03): a results TABLE with
+    honest 'no match' rows was one 'sentence' to the absence guard — the
+    whole table was replaced with scoped-limitation boilerplate, and the
+    reply shipped as a tail fragment. Tables are evidence, not prose."""
+
+    def test_table_with_no_match_rows_is_not_a_claim(self):
+        from core.absence_guard import (
+            uncovered_absence_claims, strip_uncovered_absence_claims,
+        )
+
+        reply = (
+            "Here's the scan:\n\n"
+            "| Item | Result |\n|---|---|\n"
+            "| 381 | 1,845 |\n| GSL24-16 | no match |\n"
+            "| U-38 | not found in this copy |\n\n"
+            "Saved 2026-10-02.")
+        assert uncovered_absence_claims(reply, "coverage: complete") == []
+        # The deterministic strip keeps the table byte-for-byte.
+        assert strip_uncovered_absence_claims(
+            reply, "coverage: complete") == reply
+
+    def test_prose_absence_still_flagged_beside_tables(self):
+        from core.absence_guard import uncovered_absence_claims
+
+        reply = (
+            "| Item | Result |\n|---|---|\n| 381 | 1,845 |\n\n"
+            "No such machine exists anywhere in the industry.")
+        claims = uncovered_absence_claims(reply, "coverage: complete")
+        assert len(claims) == 1
+        assert "industry" in claims[0]
+
+    def test_figure_grounding_counts_canvas_values(self):
+        # The canvas quote prices the narration echoed are evidence once
+        # the canvas text joins the pool — via the same combined-evidence
+        # string the reply leg now passes.
+        from core.chat_tool_planner import _unsupported_figures
+
+        canvas = ("to: x; subject: Quote; body: <table><tr><td>"
+                  "Roper Whitney 381</td><td>$2,902.00</td></tr>"
+                  "<tr><td>Linmac U-22</td><td>$1,777.00</td></tr></table>")
+        reply = ("381 is $2,902.00 on the quote and the workbook lists "
+                 "1,845 U.S. LIST.")
+        evidence = f"tool block with 1,845\n{canvas}"
+        assert _unsupported_figures(reply, evidence) == []
+        # Without the canvas text, the canvas prices ARE unsupported
+        # (guards the fix's mechanism, not just its absence).
+        assert any("2,902.00" in f for f in
+                   _unsupported_figures(reply, "tool block with 1,845"))
+
+
+class TestGuardRepresentationIndependence:
+    """Round-22 audit: the table exemption must hold for EVERY table
+    form a producer may emit, in ANY business's vocabulary."""
+
+    def test_html_table_rows_exempt(self):
+        from core.absence_guard import (
+            strip_uncovered_absence_claims, uncovered_absence_claims,
+        )
+
+        reply = ("Scan results:\n<table>\n<tr><td>SKU-1</td>"
+                 "<td>in stock</td></tr>\n<tr><td>SKU-9</td>"
+                 "<td>not carried</td></tr>\n</table>\nDone.")
+        assert uncovered_absence_claims(reply, "coverage: complete") == []
+        assert strip_uncovered_absence_claims(
+            reply, "coverage: complete") == reply
+
+    def test_inline_html_table_exempt(self):
+        # Producers emit the whole table on ONE line.
+        from core.absence_guard import uncovered_absence_claims
+
+        reply = ("Results: <table><tr><td>Item A</td><td>discontinued"
+                 "</td></tr><tr><td>Item B</td><td>no longer offered"
+                 "</td></tr></table> — full list above.")
+        assert uncovered_absence_claims(reply, "coverage: complete") == []
+
+    def test_restaurant_and_clinic_tables(self):
+        from core.absence_guard import strip_uncovered_absence_claims
+
+        restaurant = ("| Dish | Supplier status |\n|---|---|\n"
+                      "| Scallops | out of stock seasonally |\n"
+                      "| Truffles | not carried by any vendor on file |")
+        clinic = ("| Panel | Availability |\n|---|---|\n"
+                  "| Rare antigens | not performed in-network |\n"
+                  "| Standard CBC | available |")
+        for table in (restaurant, clinic):
+            assert strip_uncovered_absence_claims(
+                table, "coverage: complete") == table
+
+    def test_prose_rewrite_keeps_table_intact(self):
+        # When a rewrite DOES fire in the prose, the table survives
+        # byte-for-byte (the old space-join flattened it).
+        from core.absence_guard import strip_uncovered_absence_claims
+
+        reply = ("| Item | Status |\n|---|---|\n| X | available |\n\n"
+                 "There is no such supplier anywhere in the world.")
+        out = strip_uncovered_absence_claims(reply, "coverage: complete")
+        assert "| Item | Status |" in out
+        assert "| X | available |" in out
+        assert "did not find one in what this turn actually searched" in out
+        assert "anywhere in the world" not in out
