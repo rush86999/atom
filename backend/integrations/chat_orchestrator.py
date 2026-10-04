@@ -9638,6 +9638,7 @@ class ChatOrchestrator:
                     miss_handoff_block=(
                         locals().get("_ask_handoff_block")
                         if locals().get("_ask_miss_handoff") else None),
+                    shared_tool_state=_shared_tool,
                     # RELEVANCE GATE (RCA findings 2 and 4; 2026-09-22
                     # revision). A block produced by a plan built for an
                     # OLDER request must not stand as this turn's evidence —
@@ -11641,8 +11642,14 @@ class ChatOrchestrator:
         session: Optional[Dict[str, Any]] = None,
         miss_handoff: bool = False,
         miss_handoff_block: Optional[str] = None,
+        shared_tool_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
+
+        ``shared_tool_state`` is the turn's tool blackboard (the same dict
+        handed to _try_canvas_edit): the reply leg's required-source
+        chaining reads ``consulted_sources`` from it so chaining is driven
+        by what actually executed, not by block non-emptiness.
 
         ``images``: user-submitted image data URLs for this turn — routed to
         vision-capable models via the handler's image_payload path (streaming
@@ -13783,13 +13790,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             logger.debug(
                                 f"required-source chain skipped: "
                                 f"{_chain_err!r}")
-                elif not _planned and not _tool_block and not _research_turn:
+                elif not _planned and not _tool_block:
                     # The planner itself timed out/failed BEFORE choosing a
                     # service (live 2026-09-13: 31-38s canvas-edit plan ate the
                     # 25s wait). With no plan and no block the model answered
                     # from a vacuum and invented a lookup it never ran. Hand it
                     # deterministic ingested-mail evidence, or at minimum a
-                    # truthful "no lookup ran" note.
+                    # truthful "no lookup ran" note. CATCH-ALL, deliberately
+                    # reached by research-shaped turns too: the replan branch
+                    # above serves them only when required sources are
+                    # derivable (round 34 fix — a hole here left a lesson-less
+                    # research turn with NO honest evidence block, which
+                    # unshipped the pending-file "did NOT run" labeling).
                     _tool_block = await _planner_timeout_evidence(
                         message, user_id, {"history": planner_history or history}
                     )
