@@ -14031,11 +14031,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # its authorization are untouched.
                     from core.plan_relevance import canvas_topic_text
 
-                    _chain_items = [
-                        str((t or {}).get("item") or "")
-                        for t in (_requested_targets or [])
-                        if (t or {}).get("item")] or list(
-                            _stored_requested_items(session) or [])
+                    # SHAPE-TOLERANT (live msA11): _requested_targets holds
+                    # dicts with "item" on some paths and plain strings on
+                    # others — ('str' has no .get) killed the whole response.
+                    _chain_items = []
+                    for _t in (_requested_targets or []):
+                        if isinstance(_t, dict) and (_t or {}).get("item"):
+                            _chain_items.append(str(_t["item"]))
+                        elif isinstance(_t, str) and _t.strip():
+                            _chain_items.append(_t.strip())
+                    if not _chain_items:
+                        _chain_items = [
+                            str(x) for x in
+                            (_stored_requested_items(session) or [])
+                            if str(x).strip()]
                     # canvas_context is not always a dict on every path (a
                     # bare canvas id string reaches here — live run msA10:
                     # 'str' object has no attribute 'get' killed the whole
