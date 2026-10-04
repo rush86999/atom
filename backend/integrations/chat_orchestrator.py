@@ -13674,209 +13674,300 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.debug(
                             f"planner-independent confirmed read failed: "
                             f"{_direct_err!r}")
-                # REQUIREMENT-DRIVEN RECOVERY + CHAINING (2026-10-04
-                # reviewer closeout #3/#4): a research-shaped turn whose
-                # plan produced no executable tool gets ONE bounded replan
-                # naming the missing obligations; whichever TAUGHT source
-                # did not execute is chained next (workbook-first,
-                # mailbox-first, or any integration — derived from the
-                # lessons, not from which search ran first). If planning
-                # still fails, record planning_failed — never dress it up
-                # as a source-access failure or an approval request.
-                from core.chat_tool_planner import (
-                    ToolPlan,
-                    execute_tool_plan,
-                )
-                _research_turn = bool(re.search(
-                    r"\b(?:research|verify|check|compare|comparison|"
-                    r"workbook|quote|pricing|price|update)\b",
-                    message or "", re.IGNORECASE))
-                _required_sources = (
-                    self._required_research_sources(
-                        # COORDINATION FIX (2026-10-04, logged in
-                        # AGENT_COORDINATION round 33): this in-flight
-                        # block referenced ``context``, which is not a
-                        # parameter of _get_qwen_response — a NameError on
-                        # every research-shaped turn. The method's own
-                        # agent_id parameter is the intended value.
-                        agent_id=agent_id,
-                        message=message,
-                    ) if _research_turn else set())
-                _replanned_service: Optional[str] = None
-                # TURN-BUDGET READ (round 34 fix): this method's clock is the
-                # ``deadline`` parameter (the block previously referenced
-                # ``_deadline`` — process_chat_message's local — a NameError
-                # that killed every research turn whose planner timed out;
-                # the template fallback shipped instead of the recovery).
+            # REQUIREMENT-DRIVEN RECOVERY + CHAINING (2026-10-04
+            # reviewer closeout #3/#4): a research-shaped turn whose
+            # plan produced no executable tool gets ONE bounded replan
+            # naming the missing obligations; whichever TAUGHT source
+            # did not execute is chained next (workbook-first,
+            # mailbox-first, or any integration — derived from the
+            # lessons, not from which search ran first). If planning
+            # still fails, record planning_failed — never dress it up
+            # as a source-access failure or an approval request.
+
+            from core.chat_tool_planner import (
+                ToolPlan,
+                execute_tool_plan,
+            )
+            _research_turn = bool(re.search(
+                r"\b(?:research|verify|check|compare|comparison|"
+                r"workbook|quote|pricing|price|update)\b",
+                message or "", re.IGNORECASE))
+            _required_sources = (
+                self._required_research_sources(
+                    # COORDINATION FIX (2026-10-04, logged in
+                    # AGENT_COORDINATION round 33): this in-flight
+                    # block referenced ``context``, which is not a
+                    # parameter of _get_qwen_response — a NameError on
+                    # every research-shaped turn. The method's own
+                    # agent_id parameter is the intended value.
+                    agent_id=agent_id,
+                    message=message,
+                ) if _research_turn else set())
+            _replanned_service: Optional[str] = None
+            # TURN-BUDGET READ (round 34 fix): this method's clock is the
+            # ``deadline`` parameter (the block previously referenced
+            # ``_deadline`` — process_chat_message's local — a NameError
+            # that killed every research turn whose planner timed out;
+            # the template fallback shipped instead of the recovery).
+            _turn_left = float("inf")
+            try:
+                if deadline is not None:
+                    _turn_left = deadline.remaining()
+            except Exception:  # noqa: BLE001 — deadline is optional
                 _turn_left = float("inf")
+            # CONSULTED-SOURCE SET (2026-10-04 reviewer closeout #4):
+            # which source SERVICES actually executed this turn —
+            # read from the blackboard the canvas-edit leg filled.
+            # Block non-emptiness proved nothing (a junk mailbox scan
+            # of HTML CSS pixels filled the block while the taught
+            # workbook source was never consulted).
+            _consulted_sources = (
+                set((shared_tool_state or {}).get(
+                    "consulted_sources") or [])
+                if isinstance(shared_tool_state, dict) else set())
+            # RECOVERY OBSERVABILITY (round 34): the chain/replan arms
+            # failed silently three runs in a row — their skip paths
+            # log at DEBUG. One INFO line at the decision point makes
+            # 'why did the taught source not chain' answerable from
+            # the log (live acceptance runs msA2–msA4).
+            logger.info(
+                "[planner-boundary] research turn recovery state: "
+                "research=%s required=%s consulted=%s planned=%s "
+                "block=%s turn_left=%.0fs",
+                _research_turn, sorted(_required_sources),
+                sorted(_consulted_sources),
+                bool(_planned), bool(_tool_block), _turn_left)
+            if _planned and not _tool_block:
+                _tool_block = _tool_failure_block(_planned)
+            elif (not _planned and not _tool_block and _research_turn
+                    and _required_sources):
+                _replan_wait = min(
+                    25.0, max(0.0, _turn_left - 15.0))
+                if _replan_wait >= 8.0:
+                    try:
+                        from core.chat_tool_planner import plan_tool_use
+
+                        _obligation = (
+                            message
+                            + "\n\nREQUIRED RESEARCH (prior plan "
+                            "produced no executable tool): consult the "
+                            "taught sources for this task — the "
+                            "designated price-list workbook (datasets "
+                            "search) AND the vendor correspondence "
+                            "(outlook search) as applicable. Return the "
+                            "tool call that executes the lookups.")
+                        _replan = await asyncio.wait_for(
+                            plan_tool_use(
+                                _obligation,
+                                planner_history or history,
+                                user_id, self.llm_service,
+                                # COORDINATION FIX (2026-10-04, round 35):
+                                # fourth undefined name in this recovery
+                                # block — ``_canvas_ctx`` is a
+                                # process_chat_message local; the parameter
+                                # here is ``canvas_context``. Proven live by
+                                # the observation run: '[planner-boundary]
+                                # replan failed: NameError(_canvas_ctx)'.
+                                canvas=canvas_context, provenance=None,
+                            ),
+                            timeout=_replan_wait,
+                        )
+                        if _replan is not None and _replan.use_tool:
+                            _replanned_service = _replan.service
+                        else:
+                            # PLANNER SAID NO-TOOL (2026-10-04 boundary
+                            # capture): healthy route dispatched, parse
+                            # succeeded, and the model still returned
+                            # use_tool=False. The obligation is already
+                            # authorized — construct the deterministic
+                            # lookup for the FIRST required source
+                            # instead of asking permission for it.
+                            _fallback_svc = (
+                                sorted(_required_sources)[0]
+                                if _required_sources else None)
+                            if _fallback_svc:
+                                _replan = ToolPlan(
+                                    use_tool=True,
+                                    service=_fallback_svc,
+                                    intent="search",
+                                    query=message[:200],
+                                )
+                                logger.warning(
+                                    "[planner-boundary] replan model "
+                                    "returned no tool — executing the "
+                                    f"required {_fallback_svc} lookup "
+                                    "directly (authorized obligation)")
+                        if _replan is not None and _replan.use_tool:
+                            _replanned_service = _replan.service
+                            _tool_block = await execute_tool_plan(
+                                _replan, user_id,
+                                tenant_id=getattr(
+                                    self, "tenant_id", "default"),
+                                context={"history": planner_history
+                                         or history},
+                                llm_service=self.llm_service,
+                            ) or ""
+                            logger.info(
+                                "[planner-boundary] replan executed: "
+                                "%s.%s (block=%d chars)",
+                                _replan.service, _replan.intent,
+                                len(_tool_block))
+                    except Exception as _rp_err:  # noqa: BLE001
+                        logger.warning(
+                            f"[planner-boundary] replan failed: {_rp_err!r}")
+                if not _consulted_sources:
+                    logger.error(
+                        "[planning-failed] research turn produced no "
+                        "executable plan after replan and consulted NO "
+                        "source (required "
+                        f"sources: {sorted(_required_sources)})")
+                    _tool_block = (
+                        "PLANNING FAILED: the required lookups "
+                        f"({', '.join(sorted(_required_sources))}) "
+                        "could not be planned after a bounded retry — "
+                        "no source was consulted this turn. This is a "
+                        "planning failure, not a statement about the "
+                        "sources' contents.")
+                    # DURABLE EXHAUSTION (round 34, msA7): a planning
+                    # failure is unfinished WORK, not a finished answer —
+                    # the guide's 'persist exhaustion honestly'. The
+                    # ledger record carries the not_dispatched outcome
+                    # with the planning-failure cause and the re-run as
+                    # the open next action, so a later turn (or a bare
+                    # 'continue') resumes instead of the model asking
+                    # the user to invent a retry protocol.
+                    try:
+                        _pf_tl2 = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None), workspace_id)
+                        if _pf_tl2 is not None:
+                            from core import task_lifecycle as _tlm
+
+                            _pf2_run, _pf2_op = _tlm.begin_retrieval_turn(
+                                _pf_tl2,
+                                session if isinstance(session, dict) else {},
+                                session_id or "",
+                                "required research lookups (planning failed)",
+                                execution_id,
+                                canvas_id=(
+                                    (canvas_context or {}).get("canvas_id")
+                                    or (canvas_context or {}).get("id")))
+                            _tlm.finish_retrieval_turn(
+                                _pf_tl2, _pf2_run, _pf2_op, {},
+                                execution_id, False,
+                                execution={
+                                    "invoked": False,
+                                    "outcome": "not_dispatched",
+                                    "served_basis": "none",
+                                    "failure_stage": "planning_failed",
+                                    "planning": {"source": "unavailable",
+                                                 "recovered": False},
+                                })
+                            if isinstance(session, dict):
+                                session["_last_open_work"] = (
+                                    _tlm.record_read_outcome(
+                                        _pf_tl2, _pf2_run, _pf2_op,
+                                        structured_result=None,
+                                        freshness=None,
+                                        execution=None,
+                                        extra_questions=[{
+                                            "item": "",
+                                            "kind": "verification",
+                                            "question": (
+                                                "the taught source lookups "
+                                                "could not be planned after "
+                                                "a bounded retry"),
+                                            "evidence": (
+                                                "planner timeout + replan "
+                                                "timeout; no source "
+                                                "consulted"),
+                                            "next_action": (
+                                                "re-run the required "
+                                                "research lookups for the "
+                                                "quote's items"),
+                                        }]))
+                    except Exception as _pf2_ledger_err:  # noqa: BLE001
+                        logger.warning(
+                            "[job-work-ledger] planning-failed record "
+                            "skipped: %r", _pf2_ledger_err)
+            elif _research_turn and _required_sources and (
+                    _consulted_sources or _planned and _tool_block):
+                # CHAIN THE MISSING TAUGHT SOURCE (order-independent):
+                # whichever required source did not execute is looked
+                # up now, bounded by the reply budget. Keyed on the
+                # CONSULTED-SOURCE set, never on block emptiness.
+                _consulted = set(_consulted_sources)
+                if _replanned_service:
+                    _consulted.add(_replanned_service)
+                # THE EXECUTED PLAN'S OWN SERVICE (round 34 live finding,
+                # msA6): consulted_sources only tracks the canvas-edit leg's
+                # accounting, which never ran when the scope gate denied the
+                # edit — so a turn whose plan executed datasets.search
+                # chained datasets AGAIN (alphabetically first in the
+                # missing set) instead of the taught mailbox source. The
+                # plan whose block the reply leg carries has, by
+                # definition, consulted its own service.
+                if _plan is not None and getattr(_plan, "use_tool", False) \
+                        and _tool_block:
+                    _consulted.add(getattr(_plan, "service", None))
+                _missing = _required_sources - _consulted
                 try:
                     if deadline is not None:
                         _turn_left = deadline.remaining()
                 except Exception:  # noqa: BLE001 — deadline is optional
                     _turn_left = float("inf")
-                # CONSULTED-SOURCE SET (2026-10-04 reviewer closeout #4):
-                # which source SERVICES actually executed this turn —
-                # read from the blackboard the canvas-edit leg filled.
-                # Block non-emptiness proved nothing (a junk mailbox scan
-                # of HTML CSS pixels filled the block while the taught
-                # workbook source was never consulted).
-                _consulted_sources = (
-                    set((shared_tool_state or {}).get(
-                        "consulted_sources") or [])
-                    if isinstance(shared_tool_state, dict) else set())
-                if _planned and not _tool_block:
-                    _tool_block = _tool_failure_block(_planned)
-                elif (not _planned and not _tool_block and _research_turn
-                        and _required_sources):
-                    _replan_wait = min(
-                        25.0, max(0.0, _turn_left - 15.0))
-                    if _replan_wait >= 8.0:
-                        try:
-                            from core.chat_tool_planner import plan_tool_use
-
-                            _obligation = (
-                                message
-                                + "\n\nREQUIRED RESEARCH (prior plan "
-                                "produced no executable tool): consult the "
-                                "taught sources for this task — the "
-                                "designated price-list workbook (datasets "
-                                "search) AND the vendor correspondence "
-                                "(outlook search) as applicable. Return the "
-                                "tool call that executes the lookups.")
-                            _replan = await asyncio.wait_for(
-                                plan_tool_use(
-                                    _obligation,
-                                    planner_history or history,
-                                    user_id, self.llm_service,
-                                    canvas=_canvas_ctx, provenance=None,
-                                ),
-                                timeout=_replan_wait,
-                            )
-                            if _replan is not None and _replan.use_tool:
-                                _replanned_service = _replan.service
-                            else:
-                                # PLANNER SAID NO-TOOL (2026-10-04 boundary
-                                # capture): healthy route dispatched, parse
-                                # succeeded, and the model still returned
-                                # use_tool=False. The obligation is already
-                                # authorized — construct the deterministic
-                                # lookup for the FIRST required source
-                                # instead of asking permission for it.
-                                _fallback_svc = (
-                                    sorted(_required_sources)[0]
-                                    if _required_sources else None)
-                                if _fallback_svc:
-                                    _replan = ToolPlan(
-                                        use_tool=True,
-                                        service=_fallback_svc,
-                                        intent="search",
-                                        query=message[:200],
-                                    )
-                                    logger.warning(
-                                        "[planner-boundary] replan model "
-                                        "returned no tool — executing the "
-                                        f"required {_fallback_svc} lookup "
-                                        "directly (authorized obligation)")
-                            if _replan is not None and _replan.use_tool:
-                                _replanned_service = _replan.service
-                                _tool_block = await execute_tool_plan(
-                                    _replan, user_id,
-                                    tenant_id=getattr(
-                                        self, "tenant_id", "default"),
-                                    context={"history": planner_history
-                                             or history},
-                                    llm_service=self.llm_service,
-                                ) or ""
-                                logger.info(
-                                    "[planner-boundary] replan executed: "
-                                    "%s.%s (block=%d chars)",
-                                    _replan.service, _replan.intent,
-                                    len(_tool_block))
-                        except Exception as _rp_err:  # noqa: BLE001
-                            logger.warning(
-                                f"[planner-boundary] replan failed: {_rp_err!r}")
-                    if not _consulted_sources:
-                        logger.error(
-                            "[planning-failed] research turn produced no "
-                            "executable plan after replan and consulted NO "
-                            "source (required "
-                            f"sources: {sorted(_required_sources)})")
-                        _tool_block = (
-                            "PLANNING FAILED: the required lookups "
-                            f"({', '.join(sorted(_required_sources))}) "
-                            "could not be planned after a bounded retry — "
-                            "no source was consulted this turn. This is a "
-                            "planning failure, not a statement about the "
-                            "sources' contents.")
-                elif _research_turn and _required_sources and (
-                        _consulted_sources or _planned and _tool_block):
-                    # CHAIN THE MISSING TAUGHT SOURCE (order-independent):
-                    # whichever required source did not execute is looked
-                    # up now, bounded by the reply budget. Keyed on the
-                    # CONSULTED-SOURCE set, never on block emptiness.
-                    _consulted = set(_consulted_sources)
-                    if _replanned_service:
-                        _consulted.add(_replanned_service)
-                    _missing = _required_sources - _consulted
+                _chain_wait = min(
+                    20.0, max(0.0, _turn_left - 15.0))
+                if _missing and _chain_wait >= 8.0:
                     try:
-                        if deadline is not None:
-                            _turn_left = deadline.remaining()
-                    except Exception:  # noqa: BLE001 — deadline is optional
-                        _turn_left = float("inf")
-                    _chain_wait = min(
-                        20.0, max(0.0, _turn_left - 15.0))
-                    if _missing and _chain_wait >= 8.0:
-                        try:
-                            _missing_svc = sorted(_missing)[0]
-                            _chain_plan = ToolPlan(
-                                use_tool=True,
-                                service=_missing_svc,
-                                intent="search",
-                                query=(message[:200]
-                                       + " (required source not yet "
-                                       "consulted)"),
-                            )
-                            _chain_block = await asyncio.wait_for(
-                                execute_tool_plan(
-                                    _chain_plan, user_id,
-                                    tenant_id=getattr(
-                                        self, "tenant_id", "default"),
-                                    context={"history": planner_history
-                                             or history},
-                                    llm_service=self.llm_service,
-                                ),
-                                timeout=_chain_wait,
-                            )
-                            if _chain_block:
-                                _tool_block = (
-                                    f"{_tool_block}\n\nREQUIRED-SOURCE "
-                                    f"CROSS-CHECK ({_missing_svc} — the "
-                                    "other taught source for this task):\n"
-                                    + _chain_block)
-                                logger.info(
-                                    "[planner-boundary] chained missing "
-                                    "source: %s (%d chars)", _missing_svc,
-                                    len(_chain_block))
-                        except Exception as _chain_err:  # noqa: BLE001
-                            logger.debug(
-                                f"required-source chain skipped: "
-                                f"{_chain_err!r}")
-                elif not _planned and not _tool_block:
-                    # The planner itself timed out/failed BEFORE choosing a
-                    # service (live 2026-09-13: 31-38s canvas-edit plan ate the
-                    # 25s wait). With no plan and no block the model answered
-                    # from a vacuum and invented a lookup it never ran. Hand it
-                    # deterministic ingested-mail evidence, or at minimum a
-                    # truthful "no lookup ran" note. CATCH-ALL, deliberately
-                    # reached by research-shaped turns too: the replan branch
-                    # above serves them only when required sources are
-                    # derivable (round 34 fix — a hole here left a lesson-less
-                    # research turn with NO honest evidence block, which
-                    # unshipped the pending-file "did NOT run" labeling).
-                    _tool_block = await _planner_timeout_evidence(
-                        message, user_id, {"history": planner_history or history}
-                    )
-
+                        _missing_svc = sorted(_missing)[0]
+                        _chain_plan = ToolPlan(
+                            use_tool=True,
+                            service=_missing_svc,
+                            intent="search",
+                            query=(message[:200]
+                                   + " (required source not yet "
+                                   "consulted)"),
+                        )
+                        _chain_block = await asyncio.wait_for(
+                            execute_tool_plan(
+                                _chain_plan, user_id,
+                                tenant_id=getattr(
+                                    self, "tenant_id", "default"),
+                                context={"history": planner_history
+                                         or history},
+                                llm_service=self.llm_service,
+                            ),
+                            timeout=_chain_wait,
+                        )
+                        if _chain_block:
+                            _tool_block = (
+                                f"{_tool_block}\n\nREQUIRED-SOURCE "
+                                f"CROSS-CHECK ({_missing_svc} — the "
+                                "other taught source for this task):\n"
+                                + _chain_block)
+                            logger.info(
+                                "[planner-boundary] chained missing "
+                                "source: %s (%d chars)", _missing_svc,
+                                len(_chain_block))
+                    except Exception as _chain_err:  # noqa: BLE001
+                        logger.debug(
+                            f"required-source chain skipped: "
+                            f"{_chain_err!r}")
+            elif not _planned and not _tool_block:
+                # The planner itself timed out/failed BEFORE choosing a
+                # service (live 2026-09-13: 31-38s canvas-edit plan ate the
+                # 25s wait). With no plan and no block the model answered
+                # from a vacuum and invented a lookup it never ran. Hand it
+                # deterministic ingested-mail evidence, or at minimum a
+                # truthful "no lookup ran" note. CATCH-ALL, deliberately
+                # reached by research-shaped turns too: the replan branch
+                # above serves them only when required sources are
+                # derivable (round 34 fix — a hole here left a lesson-less
+                # research turn with NO honest evidence block, which
+                # unshipped the pending-file "did NOT run" labeling).
+                _tool_block = await _planner_timeout_evidence(
+                    message, user_id, {"history": planner_history or history}
+                )
             # PENDING FILE TASK bookkeeping (2026-09-23): a file-scoped ask
             # survives the turn until a COMPLETED read serves it (identity
             # and completion tracked separately — a failed/incomplete
