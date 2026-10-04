@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, HardDriveUpload, Folder, ChevronRight } from "lucide-react";
+import { Bot, Loader2, HardDriveUpload, Folder, ChevronRight } from "lucide-react";
 import { uploadCanvasData } from "@/lib/canvas-api";
 
 /**

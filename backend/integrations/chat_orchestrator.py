@@ -6120,6 +6120,31 @@ class ChatOrchestrator:
                             "[file-ask] anaphoric reference resolved: "
                             "'the workbook' -> %r (session=%s)",
                             _ask_mention, session_id)
+                if not _ask_mention and not locals().get(
+                        "_teaching_cue_turn"):
+                    # LESSON-DESIGNATED SOURCE (2026-10-04, the fresh-
+                    # session completion failure): a trained employee's
+                    # teaching NAMES its sources ("price list 2019 in
+                    # zoho workdrive" — lesson 37). A fresh session has
+                    # no resolved identity and no ledger; the lesson text
+                    # is the durable antecedent. Scan this agent's
+                    # lessons for a designation that matches exactly one
+                    # catalogued workbook family and resolve to it —
+                    # the taught source, session-independent.
+                    try:
+                        _ask_mention = await self._lesson_designated_file(
+                            message, agent_id=(context or {}).get(
+                                "agent_id") or agent_id,
+                            user_id=user_id,
+                            workspace_id=(context or {}).get(
+                                "workspace_id"))
+                        if _ask_mention:
+                            logger.info(
+                                "[file-ask] lesson-designated source "
+                                "resolved: %r", _ask_mention)
+                    except Exception as _ld_err:  # noqa: BLE001 — additive floor
+                        logger.debug(
+                            f"lesson-designated source skipped: {_ld_err}")
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
                     # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
                     # consistency-run T3: 'always include the tennsmith
@@ -18480,6 +18505,90 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     _OUTCOME_SECTION_MAX_ITEMS = 12
     _OUTCOME_SECTION_MAX_VALUES = 6
     _OUTCOME_SECTION_MAX_CHARS = 2400
+
+    async def _lesson_designated_file(
+        self,
+        message: str,
+        *,
+        agent_id: Optional[str],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+    ) -> str:
+        """Resolve a generic file reference through the OWNER'S TEACHING
+        (2026-10-04, the fresh-session completion failure).
+
+        Session state (resolved identity, ledger, carriers) dies with the
+        session — but the teaching is durable and explicitly names the
+        sources the employee must use ("price list 2019 in zoho workdrive
+        has the most common formulas…"). When a file-scoped ask in a
+        fresh session names no file and the session holds no identity,
+        the lessons are scanned for a designation that matches exactly
+        ONE catalogued workbook family; that file is the taught source.
+        General mechanism: any lesson text, any file name, any business —
+        single-family match required (two candidates = ambiguous = no
+        resolution)."""
+        if not agent_id:
+            return ""
+        try:
+            lessons = self._agent_lessons(agent_id, message, limit=8)
+        except Exception:  # noqa: BLE001 — floor is additive
+            return ""
+        if not lessons:
+            return ""
+        candidates: List[str] = []
+        for lesson in lessons:
+            text = " ".join(str(
+                lesson.get("lesson") or lesson.get("summary") or ""
+            ).split())
+            for m in re.finditer(
+                r"([A-Za-z0-9][A-Za-z0-9 .,'&()\-]{2,80}?"
+                r"\.(?:xlsx|xls|xlsm|csv))\b", text
+            ):
+                candidates.append(m.group(1).strip())
+            # "price list 2019 (in zoho workdrive)" — the value noun IS
+            # the designation; the store phrase is context, not the name.
+            for m in re.finditer(
+                r"\b((?:the\s+)?[a-z][a-z0-9 .,'&()\-]{2,60}?"
+                r"(?:workbook|spreadsheet))\b",
+                text, re.IGNORECASE,
+            ):
+                candidates.append(m.group(1).strip())
+            # NOUN-FIRST form: "price list 2019 …" — the designation
+            # STARTS with the value noun (a year may follow it).
+            for m in re.finditer(
+                r"\b(price\s+lists?(?:\s+\d{2,4})?)\b"
+                r"(?=[a-z0-9 ,.'\-]*(?:in|on|from|has|\b))",
+                text, re.IGNORECASE,
+            ):
+                candidates.append(m.group(1).strip())
+        if not candidates:
+            return ""
+        try:
+            from core.sheet_dataset_service import find_entries_sync
+
+            entries = await asyncio.to_thread(
+                find_entries_sync, "", user_id, workspace_id, 500)
+        except Exception:  # noqa: BLE001
+            return ""
+        catalog_files: Dict[str, str] = {}
+        for e in entries or []:
+            fn = str(e.get("file_name") or "").strip()
+            if fn:
+                catalog_files[fn.lower()] = fn
+        if not catalog_files:
+            return ""
+        resolved: Optional[str] = None
+        for cand in candidates:
+            c_low = cand.lower().rstrip(".")
+            matches = [
+                fn for lfn, fn in catalog_files.items()
+                if c_low in lfn or lfn in c_low
+            ]
+            families = {m.lower() for m in matches}
+            if len(families) == 1 and matches:
+                resolved = matches[0]
+                break
+        return resolved.lower() if resolved else ""
 
     async def _tbc_items_catalog_probe(
         self,

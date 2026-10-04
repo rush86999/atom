@@ -820,3 +820,50 @@ def test_negated_edit_vocabulary_is_not_edit_shaped():
     # A REAL edit keeps its lane.
     assert _canvas_edit_shaped(
         "update item 2 delivery to In Stock", {"canvas": canvas})
+
+
+def test_lesson_designated_file_resolves_from_teaching():
+    """Fresh-session completion (2026-10-04): session state dies with the
+    session, but the teaching names the source durably. A generic file
+    reference in a fresh session resolves through the lesson designation
+    when exactly one catalog family matches."""
+    import asyncio
+
+    svc = _svc()
+    svc._agent_lessons = lambda agent_id, query, limit=5: [
+        {"source": "teacher",
+         "lesson": "price list 2019 in zoho workdrive has the most "
+                   "common formulas used for different machinery"}]
+    canvas_files = {
+        "consolidated price list 2019.xlsx": "Consolidated Price List 2019.xlsx",
+        "inventory tracking 1.xlsx": "Inventory Tracking 1.xlsx",
+    }
+
+    def fake_entries(query, user_id, ws, limit):
+        return [{"file_name": fn} for fn in canvas_files.values()]
+
+    async def run():
+        with patch("core.sheet_dataset_service.find_entries_sync",
+                   fake_entries):
+            return await svc._lesson_designated_file(
+                "search the workbook for 381", agent_id="a1",
+                user_id="u1", workspace_id=None)
+
+    resolved = asyncio.run(run())
+    assert resolved == "consolidated price list 2019.xlsx"
+
+    # Ambiguous (two families match) → no resolution.
+    def fake_entries2(query, user_id, ws, limit):
+        return [
+            {"file_name": "Acme Price List 2019.xlsx"},
+            {"file_name": "Zenith Price List 2019.xlsx"},
+        ]
+
+    async def run2():
+        with patch("core.sheet_dataset_service.find_entries_sync",
+                   fake_entries2):
+            return await svc._lesson_designated_file(
+                "search the workbook", agent_id="a1", user_id="u1",
+                workspace_id=None)
+
+    assert asyncio.run(run2()) == ""
