@@ -177,3 +177,33 @@ availability or delivery today; the July GSL48-16 figure ($13,285,
 11–12wk) is a historical alternative whose supplier/specification/terms
 comparability must be established before it is treated as a direct
 conflict with $14,166.
+
+## Round-39 shell diagnosis and persistence fixes (cont11–12, pid 52818)
+
+**Diagnosed (not assumed)**: the job was a shell because
+`_resolve_or_create` binds objective/entities ONLY at creation — this job
+was created by the denied edit lane with an empty objective, and settles
+reconcile entities only from structured_result.requested_items which the
+sweeps never provide.
+
+**Fixed**: (1) `begin_retrieval_turn` backfills an existing task's empty
+objective via revise_objective — which itself now WRITES objective_text
+(previously it only handled entities/fields; live-verified: objective
+bound, 11 item identities persisted). (2) chain settles pass
+requested_items so the reconcile binds the resolved set. (3) value_trace
+attaches a per-item receipt (item→[documents]); the settle records
+per-item open questions naming the exact document to read. (4) BOTH
+DIRECTIONS gate: the continuation fallback seeds only an incomplete job —
+entities all covered by successful retrievals = complete = NOT restarted.
+
+**Verified live (cont12)**: bare "continue" resumed the healed job, rows
+5–8 re-grounded against the Sept 18 email, the GSL48-16 July discrepancy
+surfaced for owner decision, rows 1–4 honestly no-receipt per the
+training rule ("won't substitute a recalled figure"). Remaining precise
+defects, enumerated: the backfilled objective wording takes the last
+begin's message (singleflight) rather than the original ask; the chain's
+named-file-first path skips the receipt-producing sweep (no
+datasets_search/value_trace meta on those attempts); plan-level
+convergence on the recorded targeted reads (Flanger cell, full-thread by
+id) is still not demonstrated. Draft untouched; nothing sent; original
+canvas untouched.
