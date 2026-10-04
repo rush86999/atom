@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 import uuid
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 # Try imports for optional dependencies
 try:
@@ -6493,6 +6493,7 @@ class BYOKHandler:
         relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs (user-approved spend)
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
         route_trace_id: Optional[str] = None,
+        _force_candidates: Optional[List[Tuple[str, str]]] = None,  # sweep: catalog-driven pool
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -6645,6 +6646,21 @@ class BYOKHandler:
                     else None),
                 relax_tier=relax_tier,
             )
+            # SWEEP CANDIDATE INJECTION (2026-10-04, the planner-pool
+            # starvation): the ranked pool for a task class can contain
+            # ONLY the benched gateway's routes (live: planner pool =
+            # [openrouter/deepseek-v4-pro] while opencode-go served other
+            # calls) because enumeration is keyed on vendor-prefixed
+            # model ids. Re-ranking (force_value_ranking) reorders that
+            # starved list — it cannot ADD the missing gateway. The sweep
+            # injects catalog-driven candidates for untried healthy
+            # providers so the healthy gateway actually dispatches.
+            if _force_candidates:
+                options = list(_force_candidates)
+                logger.warning(
+                    "[structured-pool] sweep injected %d catalog-driven "
+                    "candidate(s): %s", len(options),
+                    ", ".join(f"{p}/{m}" for p, m in options[:4]))
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
             # is pinned, reduce the option list to that single tuple so sample
@@ -7586,6 +7602,34 @@ class BYOKHandler:
                 await self._route_exclusion_trace_and_refresh(
                     route_trace_id, options, _cascade_exclusions,
                     dispatched=_attempted_any)
+                # CATALOG-DRIVEN SWEEP CANDIDATES (2026-10-04, the
+                # planner-pool starvation): re-ranking cannot add a
+                # gateway the enumeration missed. Walk the untried,
+                # non-cooldown providers' SERVED catalogs directly (same
+                # walk as the completion ladder's sweep) and inject them.
+                try:
+                    from core.llm.model_route_registry import (
+                        get_provider_model_catalog,
+                    )
+
+                    _attempted_set = {p for p, _ in options}
+                    _sweep_candidates: List[Tuple[str, str]] = []
+                    for _sp in self.clients.keys():
+                        if (_sp in _attempted_set
+                                or self._provider_cooldown_active(_sp)):
+                            continue
+                        _cat = get_provider_model_catalog()
+                        _served = sorted(_cat.served(_sp) or [])
+                        if not _served:
+                            _served = self._provider_models_cached(_sp)
+                        for _sm in _served[:2]:
+                            if self._ranked_model_is_known_unserved(_sp, _sm):
+                                continue
+                            _sweep_candidates.append((_sp, _sm))
+                    _sweep_candidates = _sweep_candidates[:4]
+                except Exception as _sc_err:  # noqa: BLE001 — best-effort
+                    logger.debug(f"sweep candidates skipped: {_sc_err}")
+                    _sweep_candidates = []
                 try:
                     _swept = await self.generate_structured_response(
                         prompt=prompt,
@@ -7605,6 +7649,8 @@ class BYOKHandler:
                         relax_tier=True,
                         _sweep_depth=_sweep_depth + 1,
                         route_trace_id=route_trace_id,
+                        _force_candidates=(
+                            _sweep_candidates or None),
                     )
                     if _swept is not None:
                         return _swept
