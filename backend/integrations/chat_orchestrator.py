@@ -14036,8 +14036,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         for t in (_requested_targets or [])
                         if (t or {}).get("item")] or list(
                             _stored_requested_items(session) or [])
+                    # canvas_context is not always a dict on every path (a
+                    # bare canvas id string reaches here — live run msA10:
+                    # 'str' object has no attribute 'get' killed the whole
+                    # conversational response and the template fallback
+                    # shipped). Guard the type before using it.
                     _chain_topic = canvas_topic_text(canvas_context) \
-                        if canvas_context else ""
+                        if isinstance(canvas_context, dict) else ""
                     _query_bits = ([_chain_topic[:160]] if _chain_topic
                                    else []) + _chain_items[:8]
                     _chain_query = " ".join(dict.fromkeys(
