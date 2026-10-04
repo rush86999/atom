@@ -319,6 +319,12 @@ def apply_transition(
         new_task["new_attempt_required"] = True
     elif kind == "revise_objective":
         removed = set(transition.get("removed_entity_ids") or [])
+        # OBJECTIVE BACKFILL (round 39): a task created by a denied edit
+        # lane has no objective_text; the shell backfill's revise carries
+        # the authorized ask — write it, not just the entities.
+        if transition.get("objective_text"):
+            new_task["objective_text"] = str(
+                transition["objective_text"])[:500]
         if "entities" in transition:
             new_task["entities"] = [dict(e) for e in transition["entities"]]
         if "requested_fields" in transition:
@@ -2027,6 +2033,7 @@ def begin_retrieval_turn(
             lifecycle.apply_transition(run_id, {
                 "kind": "revise_objective",
                 "requested_change": _bounded_text(message, 500),
+                "objective_text": _bounded_text(message, 500),
                 "entities": (_entities_from_items(items)
                              or list(_rev.get("entities") or [])),
                 "removed_entity_ids": [],
