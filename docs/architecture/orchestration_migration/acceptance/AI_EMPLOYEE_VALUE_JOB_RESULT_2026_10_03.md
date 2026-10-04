@@ -625,7 +625,10 @@ sends)
 
 ---
 
-## Addendum 8 (2026-10-04): final per-item classification (post closeout arc)
+## Addendum 10 (2026-10-04): final per-item classification (post closeout arc)
+
+> Numbering corrected by the coordination audit (was a duplicate
+> "Addendum 8"; addenda 8 and 9 already exist in this file).
 
 Verified evidence per item (all runs this calendar day, saved copy
 2026-10-03, Sep 18 vendor quote email):
