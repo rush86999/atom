@@ -622,3 +622,38 @@ sends)
    highest-leverage fix).
 3. Then ONE rerun of this protocol; the ledger arms are in place and
    unit-pinned.
+
+---
+
+## Addendum 8 (2026-10-04): final per-item classification (post closeout arc)
+
+Verified evidence per item (all runs this calendar day, saved copy
+2026-10-03, Sep 18 vendor quote email):
+
+| # | Item | COMPLETED | UNRESOLVED (decision/verification owed) | BLOCKED (actual failure recorded) |
+| --- | --- | --- | --- | --- |
+| 1 | 381 | Manual $2,902 preserved; workbook rows cited (E338=3297, M338=1845) | current-price re-verification (Zoho refresh root cause open) | — |
+| 2 | U-22 | In Stock + $1,777 preserved; C26=1799 cited | same | — |
+| 3 | Manual Flanger | — | R42 historical location named; per-code search not yet run (combined-query planner quality) | per-code find_all on Tinknocker |
+| 4 | 622 | Row 268 bound on draft; 8 candidates named | row pick owed by owner | — |
+| 5 | SLE24-16 | E101=8984 cited; Sep 18 email $8,880 matches draft | same re-verification as row 1 | — |
+| 6 | TK 1624 | Sep 18 email $8,040 matches draft | R101 re-verification (same planner-quality tail as row 3) | — |
+| 7 | TK Multi Wheel | Sep 18 email $12,838 matches draft | $12,979 vs 10%-offer $11,681 vs draft — owner decision | — |
+| 8 | GSL48-16 | E106=14318 cited; Sep 18 email $14,166 matches draft | same re-verification as row 1 | — |
+
+Honest status: **draft prepared and protected; per-item evidence
+gathered; current-price verification partial** — the live Zoho
+re-verification needs its credential/root-cause owner, and per-code
+find_all needs the planner to split combined queries (single-code
+searches verified working, e.g. SLE24-16 row 101).
+
+Shipped in the closeout arc (bea8bf4b5, 622904302, + staged):
+- consulted-source accounting (chain keys on consulted-vs-required,
+  not block emptiness — the junk-scan lesson from acceptance-3)
+- requirement-driven replan with a deterministic fallback execution
+  when the planner (any model) returns no-tool on an authorized
+  obligation
+- planning_failed recorded and named as planning failure, never
+  source-access
+- stage-attributed refresh outcomes; sweep-injection controls
+  (exclusion/cooldown) re-asserted and pinned

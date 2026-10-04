@@ -902,14 +902,48 @@ class TestSweepInjectionControls:
         assert "self._ranked_model_is_known_unserved(_sp, _sm)" in src
 
 
-def test_pricing_verify_cross_check_shape():
-    """Reviewer closeout #4 (2026-10-04): the acceptance run consulted
-    only the mailbox and stopped to ask permission for a read-only
-    lookup. Verification-shaped turns must chain the workbook cross-
-    check in the same block (deterministic gate: pricing/verify
-    vocabulary + identifier tokens present)."""
-    src = open("core/chat_tool_planner.py").read()
-    assert "PRICING-VERIFY CROSS-CHECK" in src
-    assert "WORKBOOK CROSS-CHECK (taught source" in src
-    # Bounded: tokens are capped at 4 in the chained loop.
-    assert "tokens[:4]" in src
+def test_required_source_chaining_is_general():
+    """Reviewer closeout #4/#5 (2026-10-04): the mailbox-first patch is
+    REPLACED by requirement-driven chaining — required sources derive
+    from the lessons, the missing source is chained regardless of order,
+    and an unexecutable plan gets one bounded replan then
+    planning_failed (never a source-access story or an approval ask)."""
+    orch = open("integrations/chat_orchestrator.py").read()
+    assert "REQUIRED-SOURCE " in orch and "CROSS-CHECK (" in orch
+    assert "_required_research_sources" in orch
+    assert "PLANNING FAILED: the required lookups" in orch
+    assert "REQUIRED RESEARCH (prior plan" in orch
+    # The mailbox-first patch is gone.
+    planner = open("core/chat_tool_planner.py").read()
+    assert "PRICING-VERIFY CROSS-CHECK" not in planner
+
+
+def test_required_sources_derived_from_lessons_not_business_nouns():
+    import asyncio
+
+    svc = _svc()
+    svc._agent_lessons = lambda agent_id, query, limit=5: [
+        {"source": "teacher",
+         "lesson": "always check the designated workbook first, and the "
+                   "vendor correspondence for anything not in it"}]
+    required = svc._required_research_sources(
+        agent_id="a1", message="verify whether pricing needs updating")
+    assert required == {"datasets", "outlook"}
+    # No teaching → no derived requirements (the turn proceeds normally).
+    svc2 = _svc()
+    svc2._agent_lessons = lambda agent_id, query, limit=5: []
+    assert svc2._required_research_sources(
+        agent_id="a1", message="verify pricing") == set()
+
+
+def test_consulted_sources_accounting_keys_chain_not_block_emptiness():
+    """Acceptance-3 diagnosis (2026-10-04): the canvas-edit leg's junk
+    mailbox scan (HTML CSS pixels as item codes) filled the tool block,
+    so block-emptiness conditions skipped the required-source chain. The
+    chain must key on the CONSULTED-SOURCE set vs required sources."""
+    src = open("integrations/chat_orchestrator.py").read()
+    assert 'shared_tool_state.setdefault(\n                    "consulted_sources", set())' in src
+    assert "_consulted_sources = (" in src
+    assert "_missing = _required_sources - _consulted" in src
+    # planning_failed keys on consulted emptiness, not block emptiness
+    assert "if not _consulted_sources:" in src
