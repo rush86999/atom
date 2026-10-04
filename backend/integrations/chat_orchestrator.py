@@ -1976,14 +1976,33 @@ def _search_execution_receipt(
     returned_text = bool(block is not None and str(block).strip())
     dispatched = returned_text or bool(threads) or bool(structured)
     retrieved = bool(threads or observations or reads or structured)
+    # BOUNDED ABSENCE (reviewer, round 35): a search that provably EXECUTED
+    # over its store and returned zero usable hits is a valid empty search —
+    # it establishes absence without endless retries. The meta key being
+    # PRESENT (even empty) is the execution record; its absence means no
+    # receipt at all.
+    executed_search = ("searched_threads" in meta) or bool(observations) \
+        or bool(reads) or bool(structured)
+    _sr_targets = []
+    _sr = structured.get("structured_result")
+    if isinstance(_sr, dict):
+        _sr_targets = [
+            str((t or {}).get("item") or "")
+            for t in (_sr.get("targets") or [])
+            if isinstance(t, dict) and (t or {}).get("item")]
     return {
         "dispatched": dispatched,
         "retrieved": retrieved,
+        "bounded_absence": bool(executed_search and not retrieved),
         "receipt": {
             "structured_keys": sorted(structured),
             "searched_threads": len(threads),
             "source_observations": len(observations),
             "read_outcomes": len(reads),
+            # COVERAGE (reviewer, round 35): items the receipt actually
+            # names — the caller compares against the RESOLVED set;
+            # retrieval alone does not mean the requested items were seen.
+            "coverage_items": sorted(set(_sr_targets)),
         },
     }
 
@@ -12565,6 +12584,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _prefetch_result_meta.get("storage_read")
                                 or {}
                             )
+                            # ORIGINAL RECEIPT RIDES THE BLACKBOARD (round 35
+                            # reviewer correction): reuse carries the ORIGINAL
+                            # plan's execution receipt and service identity,
+                            # so the recovery arm can credit coverage from the
+                            # receipt — never from the returned text alone.
+                            if shared_tool_state is not None and \
+                                    isinstance(shared_tool_state, dict):
+                                shared_tool_state["primary_service"] = (
+                                    getattr(_prefetch_plan, "service", None))
+                                shared_tool_state["primary_receipt"] = (
+                                    _search_execution_receipt(
+                                        _prefetch_plan, _tool_block))
                         except Exception:
                             _prefetch_meta = {}
                     if _plan_mentions:
@@ -13962,14 +13993,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if _replanned_service:
                     _consulted.add(_replanned_service)
                 # RECEIPT-BASED COVERAGE (round 34 reviewer correction 2):
-                # the plan's own service counts as consulted only on a
-                # structured retrieval receipt — a block of text (an error
-                # explanation, or a search that matched junk filenames) is
-                # dispatch evidence, not a satisfied source obligation.
-                if _plan is not None and getattr(_plan, "use_tool", False) \
-                        and _search_execution_receipt(
-                            _plan, _tool_block)["retrieved"]:
-                    _consulted.add(getattr(_plan, "service", None))
+                # a service counts as consulted only on a structured
+                # retrieval receipt — or a VALID EMPTY SEARCH (bounded
+                # absence, round 35): provably executed, zero hits.
+                # Returned text alone credits nothing.
+                if _plan is not None and getattr(_plan, "use_tool", False):
+                    _p_receipt = _search_execution_receipt(
+                        _plan, _tool_block)
+                    if _p_receipt["retrieved"] or \
+                            _p_receipt["bounded_absence"]:
+                        _consulted.add(getattr(_plan, "service", None))
+                # SINGLEFLIGHT REUSE (round 35): the ORIGINAL plan's receipt
+                # and service ride the blackboard — reused execution credits
+                # from its receipt, never from the reused text.
+                if isinstance(shared_tool_state, dict):
+                    _primary_svc = shared_tool_state.get("primary_service")
+                    _primary_receipt = shared_tool_state.get(
+                        "primary_receipt")
+                    if _primary_svc and isinstance(_primary_receipt, dict) \
+                            and (_primary_receipt.get("retrieved")
+                                 or _primary_receipt.get("bounded_absence")):
+                        _consulted.add(_primary_svc)
                 _missing = _required_sources - _consulted
                 try:
                     if deadline is not None:
@@ -14056,9 +14100,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         try:
                             from core import task_lifecycle as _tlm
 
+                            # A valid empty search (bounded absence) also
+                            # completes the obligation — honestly, as an
+                            # established absence (round 35).
                             _complete = bool(
                                 _receipt["dispatched"]
-                                and _receipt["retrieved"])
+                                and (_receipt["retrieved"]
+                                     or _receipt.get("bounded_absence")))
                             _tlm.finish_retrieval_turn(
                                 _c_tl, _c_begin[0], _c_begin[1], {},
                                 execution_id, _complete,
@@ -14145,6 +14193,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _chain_settle(
                             "search_succeeded"
                             if _c_receipt["retrieved"]
+                            else "search_succeeded_empty"
+                            if _c_receipt["bounded_absence"]
                             else "search_returned_no_receipt",
                             None, _c_receipt)
                     except asyncio.TimeoutError as _chain_err:
