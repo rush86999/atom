@@ -2628,6 +2628,13 @@ def inspect_dataset_entries(
                         source_value = value_values[value_index]
                         source_cell = f"{_column_letter(value_index + 1)}{row_number}"
                         label = str(descriptor.get("label") or "")
+                        # FORMULA PER VALUE (2026-10-03, the every-row
+                        # availability contract): the sidecar's formula for
+                        # THIS cell rides the value into every consumer —
+                        # evidence, presenter candidates, the editor's
+                        # outcome-data section, chain evidence. Sidecars
+                        # missing → None → consumers omit the key; the
+                        # formula_state field already says "literal".
                         values.append({
                             "cell": source_cell,
                             "value": _cell_text(source_value),
@@ -2636,6 +2643,7 @@ def inspect_dataset_entries(
                             "unit": descriptor.get("unit"),
                             "price_basis": label,
                             **_currency_for(source_value, "", label),
+                            "formula": formula_map.get(source_cell),
                             "formula_state": (
                                 "cached" if source_cell in formula_map else "literal"
                             ),
@@ -2667,6 +2675,18 @@ def inspect_dataset_entries(
                                     r"c\d+", column,
                                     re.IGNORECASE))),
                         "formula": formula_map.get(cell_ref),
+                        # THE MATCHED ROW'S WHOLE FORMULA MAP (2026-10-03,
+                        # every-row availability): selected_columns covers
+                        # only the request's fields, but a computed row
+                        # derives through cells the request never named
+                        # (live: the BurrKing row's price chain lives in
+                        # K5/L5/M5 while the request selected only AH5).
+                        # Bounded — a price-list row carries ~6, a model
+                        # sheet ~20; the cap guards pathological sheets.
+                        "row_formulas": dict(list({
+                            k: v for k, v in formula_map.items()
+                            if k.endswith(str(row_number))
+                        }.items())[:30]),
                         "formula_state": (
                             "cached" if cell_ref in formula_map else "literal"
                         ),

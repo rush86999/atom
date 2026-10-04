@@ -887,8 +887,13 @@ _REASONING_BUDGET_UNSUPPORTED: set = set()
 _MODEL_COOLDOWN_SECONDS = 120.0
 _MODEL_OUTPUT_COOLDOWN_UNTIL: Dict[str, float] = {}
 _MODEL_OUTPUT_COOLDOWN_LOCK = threading.Lock()
-_MODEL_ATTEMPT_INFLIGHT: set[str] = set()
+_MODEL_ATTEMPT_INFLIGHT: Dict[str, float] = {}  # pair -> claimed_at epoch
 _MODEL_ATTEMPT_INFLIGHT_LOCK = threading.Lock()
+# Claims older than this are LEAKS (a hung/crashed turn that never
+# released) and are stolen by the next caller — a structured call's own
+# latency is bounded well below this.
+_MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS = float(
+    os.getenv("ATOM_MODEL_ATTEMPT_INFLIGHT_TTL", "120") or 120)
 
 # Provider-scoped failures (a rejected credential, an exhausted quota, an
 # entitlement block) mean "asking this provider for a DIFFERENT model fails the
@@ -904,8 +909,16 @@ _PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = float(
 #: stops costing every subsequent call a round trip, short enough that a
 #: refill recovers without a restart (user directive 2026-09-22: healthy
 #: providers like opencode-go must serve while another's balance is low).
+# ACCOUNT-LEVEL CREDIT COOLDOWN (2026-10-03, the taught-employee job):
+# the default 300s re-admitted a credit-dead gateway to the TOP of the
+# ranking mid-job (benched 22:46, expired 22:51, its 402s killed the next
+# reply while opencode-go sat healthy). A balance does not refill in five
+# minutes — an account-level quota failure now benches the provider for
+# 30 minutes by default; the operator's top-up clears it naturally on the
+# next successful call, and ATOM_PROVIDER_QUOTA_COOLDOWN_SECONDS still
+# overrides.
 _PROVIDER_QUOTA_COOLDOWN_SECONDS = float(
-    os.getenv("ATOM_PROVIDER_QUOTA_COOLDOWN_SECONDS", "300") or 300)
+    os.getenv("ATOM_PROVIDER_QUOTA_COOLDOWN_SECONDS", "1800") or 1800)
 _PROVIDER_COOLDOWN_UNTIL: Dict[str, float] = {}
 _PROVIDER_COOLDOWN_REASON: Dict[str, tuple] = {}
 _PROVIDER_COOLDOWN_LOCK = threading.Lock()
@@ -2184,15 +2197,28 @@ class BYOKHandler:
     def _claim_model_attempt(self, provider_id: str, model: str) -> bool:
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
-            if pair in _MODEL_ATTEMPT_INFLIGHT:
-                return False
-            _MODEL_ATTEMPT_INFLIGHT.add(pair)
+            now = time.time()
+            # TTL (2026-10-04, the taught-employee job): claims had no
+            # expiry — a turn that hung or crashed between claim and
+            # release held the pair for the PROCESS LIFETIME, and every
+            # later turn skipped the healthy route as "model_inflight"
+            # (live: opencode-go/kimi-k2.7-code blocked across turns while
+            # openrouter's corpse led every ranking). A claim older than
+            # the TTL is a leak: steal it.
+            _claimed_at = _MODEL_ATTEMPT_INFLIGHT.get(pair)
+            if _claimed_at is not None:
+                if now - _claimed_at < _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
+                    return False
+                logger.warning(
+                    f"{pair} inflight claim expired after "
+                    f"{now - _claimed_at:.0f}s — stealing (leaked claim)")
+            _MODEL_ATTEMPT_INFLIGHT[pair] = now
             return True
 
     def _release_model_attempt(self, provider_id: str, model: str) -> None:
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
-            _MODEL_ATTEMPT_INFLIGHT.discard(pair)
+            _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
 
     def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
         """True while a (provider, model) pair is benched for bad output."""
@@ -5389,6 +5415,12 @@ class BYOKHandler:
                     if ("402" in _attempt_str or "more credits" in _attempt_str.lower()
                             or "quota" in _attempt_str.lower()):
                         _credit_failed_providers.add(provider_id)
+                        # ACCOUNT-LEVEL BENCH (mirrors the structured path):
+                        # without it the dead gateway re-entered the top of
+                        # the ranking on the very next turn and killed it
+                        # (live 2026-10-03, step 4 of the taught job).
+                        self._bench_provider_on_quota_error(
+                            provider_id, _attempt_str)
 
                     # TEMPERATURE-LOCKED recovery (provider-general,
                     # 2026-09-21): endpoints announce their single allowed
@@ -5676,6 +5708,89 @@ class BYOKHandler:
                     continue # Try next provider
             
             logger.error(f"All providers failed. Last error: {last_error}")
+
+            # LAST-RESORT CATALOG SWEEP for the non-stream path (2026-10-03,
+            # the taught-employee job): the ranked candidate list can
+            # collapse to ONE gateway's models while another healthy BYOK
+            # provider (opencode-go / direct deepseek) sits untried — the
+            # ranking favored the dead gateway and the ladder died as
+            # "every configured provider is out of credits" that was never
+            # true. Mirror the stream path's sweep: walk the untried,
+            # non-cooldown providers' SERVED catalogs directly, capped.
+            try:
+                from core.llm.model_route_registry import (
+                    get_provider_model_catalog,
+                )
+
+                _attempted = {
+                    p for p, _ in options
+                } | set(failed_providers)
+                _sweep: List[tuple] = []
+                for p in self.clients.keys():
+                    if p in _attempted or self._provider_cooldown_active(p):
+                        continue
+                    _catalog_obj = get_provider_model_catalog()
+                    _served = sorted(_catalog_obj.served(p) or [])
+                    if not _served:
+                        _served = self._provider_models_cached(p)
+                    for m in _served[:2]:
+                        if self._ranked_model_is_known_unserved(p, m):
+                            continue
+                        _sweep.append((p, m))
+                _sweep = _sweep[:4]
+            except Exception as _sweep_err:  # noqa: BLE001 — best-effort
+                logger.debug(f"completion ladder sweep skipped: {_sweep_err}")
+                _sweep = []
+            if _sweep:
+                logger.warning(
+                    "completion ladder exhausted the ranked candidates — "
+                    "one catalog-driven sweep over untried healthy "
+                    "providers: %s",
+                    ", ".join(f"{p}/{m_}" for p, m_ in _sweep))
+                for _sp, _sm in _sweep:
+                    try:
+                        _client = self.clients.get(_sp)
+                        if _client is None:
+                            continue
+                        # Mirror the main loop's request shape (model
+                        # remapped to the sweep candidate; pristine
+                        # transcript so fallbacks never stack turns).
+                        _sweep_kwargs = {
+                            "model": _direct_api_model_name(_sp, _sm),
+                            "messages": [
+                                dict(m) for m in (_pristine_messages
+                                                  or messages or [])],
+                            "temperature": _required_temperature(
+                                _sp, _sm, temperature),
+                            "max_tokens": (
+                                max_tokens if max_tokens is not None
+                                else _DEFAULT_COMPLETION_MAX_TOKENS),
+                        }
+                        _reasoning_body = self._reasoning_request_body(
+                            _sp, _sm, _sweep_kwargs["max_tokens"])
+                        if _reasoning_body:
+                            _sweep_kwargs["extra_body"] = _reasoning_body
+                        response = await _to_thread_safe(
+                            _client.chat.completions.create, **_sweep_kwargs)
+                        self._capture_echoed_model(response)
+                        _sweep_result = response.choices[0].message.content
+                        if _visible_content_missing(_sweep_result):
+                            raise _EmptyCompletionError(
+                                _sweep_result or "")
+                        logger.warning(
+                            "completion ladder sweep SUCCEEDED on %s/%s",
+                            _sp, _sm)
+                        self._last_used_model = _sm
+                        self._last_used_provider = _sp
+                        return _sweep_result
+                    except Exception as _sweep_attempt_err:
+                        logger.warning(
+                            f"completion ladder sweep attempt failed for "
+                            f"{_sp}/{_sm}: {_sweep_attempt_err}")
+                        last_error = _sweep_attempt_err
+                logger.error(
+                    f"completion ladder sweep exhausted; all fallbacks failed")
+
             # TRUTHFUL FALLBACK (2026-09-21): the generic "check your API key"
             # text misattributed a temperature-rejection (400) and — worse —
             # was accepted by downstream validators as an answer. Name the
@@ -5690,6 +5805,24 @@ class BYOKHandler:
             # kept so downstream error detectors still classify it.
             if _credit_failed_providers:
                 _names = ", ".join(sorted(_credit_failed_providers))
+                # TRUTHFUL SCOPE (2026-10-03, the taught-employee job): the
+                # old text claimed "every configured provider" while the
+                # cascade's ranked pool had collapsed to ONE gateway —
+                # opencode-go and direct deepseek sat healthy and untried.
+                # Name what actually failed, and only claim universality
+                # when the sweep found nothing left to try.
+                _untried = sorted(
+                    p for p in self.clients.keys()
+                    if p not in _credit_failed_providers
+                    and not self._provider_cooldown_active(p))
+                if _untried:
+                    return (
+                        "I couldn't generate a response — the providers "
+                        f"this answer tried ({_names}) are out of credits. "
+                        f"Healthy providers ({', '.join(_untried)}) were "
+                        "reached by the fallback sweep but could not serve "
+                        f"this request either. Last provider error: "
+                        f"{str(last_error or '')[:160]}")
                 return (
                     "I couldn't generate a response — every configured "
                     f"provider is out of credits ({_names}). The last "
@@ -7420,7 +7553,15 @@ class BYOKHandler:
                         cascade_attempted = True
                         cascade_options.insert(cascade_idx, (provider_id, frontier))
 
-            if not _sweep_depth:
+            logger.warning(
+                "[structured-pool] depth=%s candidates=%s attempted=%s "
+                "credit_failed=%s",
+                _sweep_depth,
+                [(p, m) for p, m in cascade_options[:6]],
+                _attempted_any,
+                [])
+            if not _sweep_depth or (
+                    last_error is None and not _attempted_any and not cascade_options):
                 # LAST-RESORT SWEEP (2026-09-21): the cost-priority planning
                 # ladder is capped and learned-order-sensitive — with two
                 # providers dead it could end on a 402 without ever reaching

@@ -1467,8 +1467,27 @@ def build_targets_from_scan(
                         vk = (col, basis, tv.get("display"))
                         if vk not in grp["seen"]:
                             grp["seen"].add(vk)
-                            grp["values"].append(
-                                {"col": col, "basis": basis, **tv})
+                            # FORMULA TRAVELS WITH THE VALUE (2026-10-03,
+                            # every-row availability): the sidecar formula
+                            # for this cell rides into the structured
+                            # target, so every downstream decision context
+                            # (editor data section, chain evidence, guards)
+                            # sees the workbook's own derivation.
+                            _fx = v.get("formula")
+                            _entry = {"col": col, "basis": basis, **tv}
+                            if _fx:
+                                _entry["formula"] = str(_fx)
+                            grp["values"].append(_entry)
+                    # THE ROW'S WHOLE FORMULA MAP (2026-10-03): cells the
+                    # request never selected still derive the row — the
+                    # candidate carries the map so any decision context
+                    # can reason about the computation.
+                    row_fx = ev.get("row_formulas") or {}
+                    if row_fx:
+                        merged = dict(grp.get("row_formulas") or {})
+                        merged.update(row_fx)
+                        grp["row_formulas"] = dict(
+                            list(merged.items())[:30])
                     alias = ev.get("matched_alias")
                     if alias and str(alias) not in aliases:
                         aliases.append(str(alias))
@@ -1539,7 +1558,10 @@ def build_targets_from_scan(
             item, [
                 {"ref": g["ref"], "values": list(g["values"]),
                  "identity": copy.deepcopy(
-                     g.get("identity") or _identity_block([]))}
+                     g.get("identity") or _identity_block([])),
+                 # THE ROW'S FORMULA MAP rides the candidate into the
+                 # structured target (every-row availability, 2026-10-03).
+                 "row_formulas": dict(g.get("row_formulas") or {})}
                 for g in row_groups.values()], requested_fields,
             requested_sheets)
         values: List[Dict[str, Any]] = []

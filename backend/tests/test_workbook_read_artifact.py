@@ -1414,3 +1414,64 @@ def test_markup_mined_criteria_are_reported_not_applied():
     )
     outcome = artifact["coverage"]["outcomes"][0]
     assert outcome["disambiguation"], "mined criteria stay in the payload"
+
+
+def test_formula_travels_from_sidecar_to_candidate_value(tmp_path):
+    """The every-row formula availability contract (2026-10-03): a
+    workbook cell's sidecar formula rides the evidence into the final
+    candidate value, so EVERY downstream decision context — editor data
+    section, chain evidence, guards — sees the workbook's own
+    derivation without a derivation-shaped ask."""
+    import json
+    import pandas as pd
+
+    from core.workbook_read_artifact import inspect_dataset_entries
+    from core.answer_presentation import build_targets_from_scan
+
+    path = tmp_path / "acme.parquet"
+    pd.DataFrame({
+        "__sheet_row": [12],
+        "Model": ["381"],
+        "List": [1845],
+    }).to_parquet(path)
+    # Sidecar (the writer's real shape): cell B12 (the List column) is
+    # computed in the original workbook.
+    from core.sheet_dataset_service import _write_formula_sidecar
+
+    _write_formula_sidecar(path, "Acme", {
+        "B12": "=ROUNDUP(A12*1.15,0)",
+        # A computed column the request never selected: proves the
+        # row_formulas map covers unselected columns.
+        "D12": "=B12*0.82",
+    })
+    entry = {
+        "entity_name": "Acme",
+        "parquet_path": str(path),
+        "row_count": 1,
+        "coverage": {"known": True, "truncated": False},
+    }
+    artifact = inspect_dataset_entries(
+        [entry], "acme.xlsx", query="find 381", targets=["381"])
+    outcome = artifact["coverage"]["outcomes"][0]
+    assert outcome["status"] in ("found", "ambiguous")
+    ev_values = (outcome["evidence"][0].get("values")
+                 or outcome["evidence"][0].get("prices") or [])
+    formula_cells = [v for v in ev_values if v.get("formula")]
+    assert any("ROUNDUP" in str(v["formula"]) for v in formula_cells), \
+        "sidecar formula must ride the value"
+
+    targets = build_targets_from_scan(
+        ["381"], {o["target"]: o for o in artifact["coverage"]["outcomes"]})
+    t = targets[0]
+    cand = (t["identity"]["candidates"] or [{}])[0]
+    assert any("ROUNDUP" in str(v.get("formula") or "")
+               for v in cand["values"]), \
+        "candidate values in the structured target carry the formula"
+    # THE ROW'S WHOLE FORMULA MAP: cells the request never selected
+    # (the value column here is List=B12 only; add another computed
+    # cell to prove the map covers unselected columns).
+    ev_item = outcome["evidence"][0]
+    assert ev_item.get("row_formulas"), \
+        "evidence carries the matched row's whole formula map"
+    assert cand.get("row_formulas") == ev_item["row_formulas"], \
+        "candidate carries the row's formula map into the target"

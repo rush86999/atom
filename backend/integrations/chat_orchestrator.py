@@ -1891,6 +1891,24 @@ def _canvas_edit_shaped(
         and not _CANVAS_EXPLICIT_EDIT_RE.search(text)
     ):
         return False
+    # NEGATED-EDIT VOCABULARY (2026-10-04, the final-job T1 decline):
+    # "Don't change the draft yet" contains the noun-verb pair the shape
+    # matcher wants, but the DETERMINER negates it — the user is asking
+    # for research/comparison while explicitly withholding edit
+    # authorization. Claiming the turn for the edit lane made the editor
+    # (correctly) decline and shipped "editor declined" instead of the
+    # requested research. Negated forms are not edit-shaped; the research
+    # path owns them.
+    if re.search(
+        r"\b(?:don'?t|do\s+not|no|without|stop)\s+"
+        r"(?:changing|change|edits?|editing|modif(?:y|ying)|"
+        r"touching|touch|altering|alter)\b",
+        text, re.IGNORECASE,
+    ) and not re.search(
+        r"\b(?:but|except|then)\s+(?:do\s+)?(?:change|edit|update)\b",
+        text, re.IGNORECASE,
+    ):
+        return False
     if _CANVAS_NON_EDIT_SHAPE_RE.search(text) and not _CANVAS_TARGET_RE.search(text):
         return False
     if not _CANVAS_EDIT_SHAPE_RE.search(text):
@@ -2057,6 +2075,22 @@ _CLARIFY_PREVIOUS_RE = re.compile(
     r"|\bwhat\s+do\s+you\s+mean\b"
     r"|\byou\s+didn'?t\s+mention\b"
     r"|\bdidn'?t\s+mention\s+in\s+the\s+previous\b",
+    re.IGNORECASE,
+)
+
+# WORK-INSTRUCTION SHAPES (2026-10-03, the taught-employee job, step 5):
+# a correction, binding choice, revision request or comparison request is
+# WORK the lanes must execute — but the generic scorer rates such turns
+# non-substantive, and the delivery lane's default-open `not
+# _new_substantive` arm swallowed them (the step-5 correction re-rendered
+# the stored read instead of replanning). Generic task vocabulary,
+# domain-free; these shapes OVERRIDE delivery classification.
+_WORK_INSTRUCTION_RE = re.compile(
+    r"\b(?:correction|corrected|correcting|revised?|revise|bind|binding|"
+    r"comparison|compare|recalculat(?:e|ed|ing)|override|instead\b|"
+    r"one\s+correction|"
+    r"(?:price|value|cost|rate|fee|lead[\s-]?time|delivery)[-\s]source|"
+    r"use\s+\S+\s+(?:as|for)\s+(?:the\s+)?(?:source|basis|reference))\b",
     re.IGNORECASE,
 )
 
@@ -5627,11 +5661,20 @@ class ChatOrchestrator:
                         _RESULT_REFERENCE_ASK_RE.search(message or "")
                         or _STATUS_TABLE_ASK_RE.search(message or "")
                         or _CLARIFY_PREVIOUS_RE.search(message or ""))
+                    # WORK INSTRUCTIONS ARE NEVER DELIVERIES (2026-10-03,
+                    # job step 5): 'One correction: bind 622 to row 268…
+                    # Revised comparison, please' rated non-substantive and
+                    # the delivery lane re-rendered the stored read instead
+                    # of executing the correction. A positive work shape
+                    # overrides both delivery entrances.
+                    _work_instruction = bool(
+                        _WORK_INSTRUCTION_RE.search(message or ""))
                     _format_request = (
                         _continuation is not None
                         and _continuation.get("retrieval") == "none"
                         and not _refresh_request
                         and not _result_reference_ask
+                        and not _work_instruction
                         and not _canvas_edit_shaped(message, context)
                         and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
                         and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
@@ -5643,19 +5686,39 @@ class ChatOrchestrator:
                     # the stored workbook result and ignored the
                     # attachment search. The resolved subset seeds the
                     # planner's mail query instead.
+                    #
+                    # JOB BASELINE (2026-10-03, the taught-employee job,
+                    # step 3): 'go through the supplier correspondence and
+                    # its attachments' escaped the verb list (go/consult/
+                    # review are not search/check/look) and the lane
+                    # re-rendered the stored workbook result INSTEAD of
+                    # consulting the vendor source — the taught procedure
+                    # never executed. The rule is source-shaped, not
+                    # verb-shaped: an outcome reference (the unresolved
+                    # set) naming a DIFFERENT source is a consult, whatever
+                    # the imperative verb.
                     try:
                         from core.target_set_resolution import (
                             outcome_referenced_items as _ori,
                         )
 
+                        _ori_items = _ori(message, session_id)
+                        # GENERIC SOURCE NOUNS (2026-10-03 independence
+                        # audit): purchasing words (vendor/supplier) sat
+                        # beside the mail vocabulary — a legal, clinic or
+                        # fabrication chain ("check the case file", "the
+                        # lab records", "the job folder") would not gate.
+                        # The list is generic document/store nouns in the
+                        # platform's NLU language, not any business's.
+                        _mentions_other_source = bool(re.search(
+                            r"\b(?:e-?mails?|attachments?|mailbox|inbox|"
+                            r"threads?|messages?|correspondence|letters?|"
+                            r"vendor|suppliers?|records?|documents?|docs?|"
+                            r"files?|folders?|archives?|databases?|"
+                            r"notes?|registers?|index|system)\b",
+                            message or "", re.IGNORECASE))
                         _outcome_seek_elsewhere = bool(
-                            _ori(message, session_id)
-                            and re.search(
-                                r"\b(?:search|check|look|scan|try|find)\b"
-                                r"[^.;!?\n]{0,40}\b(?:e-?mails?|"
-                                r"attachments?|mailbox|inbox|threads?|"
-                                r"messages?)\b",
-                                message or "", re.IGNORECASE))
+                            _ori_items and _mentions_other_source)
                     except Exception:  # noqa: BLE001
                         _outcome_seek_elsewhere = False
                     # RESULT/STATUS/CLARIFICATION ASKS ARE NOT DELIVERIES
@@ -5677,6 +5740,7 @@ class ChatOrchestrator:
                         and not _refresh_request
                         and not _outcome_seek_elsewhere
                         and not _result_reference_ask
+                        and not _work_instruction
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
@@ -9041,22 +9105,85 @@ class ChatOrchestrator:
                             "it lands. Nothing has changed yet."
                         )
                     elif _no_apply_reason == "planner_declined":
-                        # Do NOT tell the user to clarify. The planner read the
-                        # request and chose not to act; the request was not
-                        # ambiguous, and sending someone to rewrite a clear
-                        # instruction hides the real cause. The plan requires
-                        # denial, unavailable source, unavailable model and
-                        # uncertain effect to be distinguishable -- and this
-                        # branch is none of those, it is "the editor declined".
-                        _no_apply_message = (
-                            "I didn't apply that canvas change, so nothing was "
-                            "changed. The change was clear; the canvas editor "
-                            "declined it, which usually means it could not "
-                            "match your wording to a specific part of this "
-                            "canvas. Naming the exact text to change (for "
-                            "example 'change \"Quote validity: 15 days\" to "
-                            "\"30 days\"') usually gets it applied."
-                        )
+                        # RESEARCH FALL-THROUGH (2026-10-04, the final-job
+                        # T2): when the editor itself judges the turn
+                        # NOT-A-CANVAS-EDIT (wants_edit=False) and the
+                        # message carries research vocabulary, the decline
+                        # reply was a dead end — the requested workbook/
+                        # comparison work belongs to the tool path. Fall
+                        # through (no decline reply); the flags above stay
+                        # for transparency. Genuine edit-shaped wording
+                        # without research nouns keeps the coaching text.
+                        if re.search(
+                            r"\b(?:search|research|workbook|comparison|"
+                            r"compare|look\s*up|find)\b",
+                            message or "", re.IGNORECASE,
+                        ) and not re.search(
+                            r"\b(?:change|edit|update|replace)\s+(?:the\s+)?"
+                            r"(?:canvas|draft|email)\b",
+                            message or "", re.IGNORECASE,
+                        ):
+                            logger.info(
+                                "[canvas-edit] planner_declined on a "
+                                "research-shaped turn — falling through to "
+                                "the tool path instead of shipping the "
+                                "decline")
+                            _edit_response = None
+                        else:
+                            # Do NOT tell the user to clarify. The planner read the
+                            # request and chose not to act; the request was not
+                            # ambiguous, and sending someone to rewrite a clear
+                            # instruction hides the real cause. The plan requires
+                            # denial, unavailable source, unavailable model and
+                            # uncertain effect to be distinguishable -- and this
+                            # branch is none of those, it is "the editor declined".
+                            _no_apply_message = (
+                                "I didn't apply that canvas change, so nothing was "
+                                "changed. The change was clear; the canvas editor "
+                                "declined it, which usually means it could not "
+                                "match your wording to a specific part of this "
+                                "canvas. Naming the exact text to change (for "
+                                "example 'change \"Quote validity: 15 days\" to "
+                                "\"30 days\"') usually gets it applied."
+                            )
+                        # EVIDENCE-BACKED DECLINE (2026-10-03, reliability
+                        # run A): when the turn's lookups RAN and found
+                        # nothing that justifies a change (a TBC line with
+                        # no vendor source anywhere), the decline is the
+                        # CORRECT taught behavior — but the generic wording
+                        # ("match your wording to a specific part") is
+                        # false for it and leaves no partial deliverable.
+                        # When live evidence exists on the blackboard, say
+                        # what was found and what stays unchanged.
+                        _tbc_probe = (
+                            (_shared_tool or {}).get("tbc_probe") if
+                            isinstance(_shared_tool, dict) else None)
+                        if _tbc_probe:
+                            _no_apply_message = (
+                                "I didn't change the draft — this turn's "
+                                "lookup ran, and nothing in the catalog "
+                                "justifies an edit yet:\n\n"
+                                f"{_tbc_probe}\n\n"
+                                "Leaving the rows as they are is the safe, "
+                                "taught outcome: no guessed prices. The "
+                                "moment a vendor quote or list price for "
+                                "the open line turns up (paste it here, or "
+                                "point me at the email), I'll apply it "
+                                "immediately."
+                            )
+                        elif _shared_tool.get("block"):
+                            _no_apply_message = (
+                                "I didn't change the draft — this turn's "
+                                "lookups ran, and nothing they returned "
+                                "justifies an edit yet. That is the safe "
+                                "outcome when a value has no confirmed "
+                                "source: the draft stays as it is rather "
+                                "than being filled with a guess. The "
+                                "moment a vendor quote or list price for "
+                                "the open line turns up (paste it here, or "
+                                "point me at the email), I'll apply it "
+                                "immediately."
+                            )
                     elif _no_apply_reason == "planner_returned_none":
                         # DISTINCT from `planner_declined`, which asserts the
                         # editor read the request and chose not to act. Here the
@@ -15954,6 +16081,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _outcome_section = self._outcome_values_section(session, session_id)
             if _outcome_section:
                 fresh_data = f"{fresh_data}\n\n{_outcome_section}".strip()
+        # VALUE-EDIT TBC PROBE (2026-10-03, reliability run A): an edit
+        # instruction asking to fill/update prices with no live lookup ran
+        # (the planner judged "no tools needed" for an edit-shaped message),
+        # so the editor declined a value-dependent edit BLIND. When the
+        # canvas carries unpriced rows and the turn asks to update values,
+        # deterministically probe the catalog for those row names — the
+        # honest "no cataloged document carries it" is itself the evidence
+        # the editor needs to decline WITH a reason, and a hit is the value
+        # to apply. General: any row description, any value vocabulary.
+        logger.debug(
+            "[tbc-probe] gate: edit_requested=%r block=%r",
+            bool(_edit_requested),
+            bool((shared_tool_state or {}).get("block")))
+        if _edit_requested and not (shared_tool_state or {}).get("block"):
+            try:
+                # workspace_id=None: the catalog is a per-deployment
+                # derived cache; user_id scopes the probe (this leg has no
+                # request context in scope — NameError caught live).
+                _tbc_section = await self._tbc_items_catalog_probe(
+                    canvas, user_id, None, message=message)
+                if _tbc_section:
+                    fresh_data = (
+                        f"{fresh_data}\n\n{_tbc_section}".strip())
+                    # The decline message needs the probe's findings even
+                    # when the blackboard block stays empty (no tool plan
+                    # ran) — the probe IS this turn's lookup.
+                    if shared_tool_state is not None:
+                        shared_tool_state["tbc_probe"] = _tbc_section
+                        logger.info(
+                            "[tbc-probe] stashed %d chars on the turn "
+                            "blackboard", len(_tbc_section))
+                else:
+                    logger.info(
+                        "[tbc-probe] probe produced no section (no "
+                        "unpriced rows or empty body)")
+            except Exception as _tbc_err:  # noqa: BLE001 — probe is additive
+                logger.warning(
+                    "[tbc-probe] probe failed: %r", _tbc_err)
 
         # Overlap the ACTION planner with this edit plan. Both are independent
         # structured LLM calls over the same turn inputs (message, history,
@@ -18316,6 +18481,99 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     _OUTCOME_SECTION_MAX_VALUES = 6
     _OUTCOME_SECTION_MAX_CHARS = 2400
 
+    async def _tbc_items_catalog_probe(
+        self,
+        canvas: Optional[Dict[str, Any]],
+        user_id: str,
+        workspace_id: Optional[str],
+        message: str = "",
+    ) -> str:
+        """Value-edit with unpriced rows → what the catalog says about
+        them (2026-10-03, reliability run A).
+
+        'update the draft with whatever is confirmed' is value-dependent,
+        but the tool planner judged no lookup necessary for an edit-shaped
+        message — the editor then declined BLIND. This probe extracts the
+        canvas's unpriced row names (TBC/blank value cells — any
+        business's placeholder wording), asks the catalog which documents
+        carry each, and returns a compact evidence section: a hit is the
+        value to apply; the honest 'no cataloged document carries it' is
+        the ground for a reasoned decline. Domain-free: rows are table
+        rows, names are the row's own description."""
+        try:
+            content = canvas.get("content") if isinstance(canvas, dict) else None
+            body = ""
+            if isinstance(content, dict):
+                body = str(content.get("body") or "")
+            elif isinstance(content, str):
+                body = content
+            if not body.strip():
+                return ""
+            # Rows: <tr>…</tr> — the description is the second cell, the
+            # value cell the third. A row is "unpriced" when its value
+            # cell is a placeholder (TBC/tbd/—/-) or blank.
+            rows = re.findall(
+                r"<tr>(.*?)</tr>", body, re.IGNORECASE | re.DOTALL)
+            unpriced: List[str] = []
+            for row in rows:
+                cells = re.findall(
+                    r"<t[dh][^>]*>(.*?)</t[dh]>", row,
+                    re.IGNORECASE | re.DOTALL)
+                if len(cells) < 3:
+                    continue
+                name = re.sub(r"<[^>]+>", " ", cells[1])
+                name = " ".join(name.split())[:80].strip()
+                value = re.sub(r"<[^>]+>", " ", cells[2])
+                value = " ".join(value.split()).strip().lower()
+                if not name:
+                    continue
+                # FIELD-CONTEXT SEMANTICS (2026-10-04 review): a value
+                # cell's text alone does not decide missingness — "n/a"
+                # usually means NOT APPLICABLE (deliberately empty), which
+                # is a completed row, not a fill request. The instruction
+                # overrides: only when the turn explicitly asks to fill
+                # every value does n/a count as open. TBC/TBD/TBA/pending
+                # are requests by convention; blank is always open.
+                _fill_all = bool(re.search(
+                    r"\b(?:fill|complete|price|value|populate)\b"
+                    r"[^.!?\n]{0,40}\b(?:all|every|each)\b",
+                    message or "", re.IGNORECASE) or re.search(
+                    r"\ball\b[^.!?\n]{0,30}\b(?:rows?|lines?|items?)\b"
+                    r"[^.!?\n]{0,30}\b(?:need|missing|without)\b",
+                    message or "", re.IGNORECASE))
+                if (not value
+                        or value in ("tbc", "tbd", "tba", "?", "pending")
+                        or value.startswith(("tbc", "tbd", "tba"))
+                        or (value in ("n/a", "na") and _fill_all)):
+                    if name.lower() not in {u.lower() for u in unpriced}:
+                        unpriced.append(name)
+            if not unpriced:
+                return ""
+            from core.value_provenance import trace_items_across_catalog
+
+            trace = await asyncio.to_thread(
+                trace_items_across_catalog, unpriced[:4],
+                user_id=user_id, workspace_id=workspace_id)
+            lines = ["UNPRICED ROWS CHECKED AGAINST THE CATALOG:"]
+            any_hit = False
+            for name in unpriced[:4]:
+                docs = [d for d in (trace.get(name) or [])][:3]
+                if docs:
+                    any_hit = True
+                    lines.append(
+                        f"- \"{name}\" — carried by: {', '.join(docs)}")
+                else:
+                    lines.append(
+                        f"- \"{name}\" — no cataloged document carries it "
+                        "(no workbook, attachment, or list on file)")
+            if not any_hit:
+                lines.append(
+                    "No source justifies filling these rows; the honest "
+                    "edit is to leave them and say so.")
+            return "\n".join(lines)[:1500]
+        except Exception:  # noqa: BLE001 — probe is additive
+            return ""
+
     @staticmethod
     def _chain_unresolved_items(session: Dict[str, Any]) -> List[str]:
         """Items of the conversation's last completed read that still
@@ -18458,6 +18716,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "basis": str(best.get("basis") or ""),
                             "source": doc,
                             "ref": str(cand.get("ref") or ""),
+                            # The attachment's own derivation for this
+                            # cell — the chain's value is computed, not
+                            # independent data.
+                            "formula": str(best.get("formula") or ""),
+                            # The matched row's whole formula map from
+                            # the attachment sidecar.
+                            "row_formulas": dict(
+                                cand.get("row_formulas") or {}),
                         }
                         if item in step1_missed:
                             step1_missed.remove(item)
@@ -18588,8 +18854,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             for item, hit in found.items():
                 basis = f" {hit.get('basis')}" if hit.get("basis") else ""
                 ref = f" ({hit.get('ref')})" if hit.get("ref") else ""
+                formula = str(hit.get("formula") or "").strip()
+                formula_bit = f" = {formula}" if formula else ""
+                row_fx = hit.get("row_formulas") or {}
+                row_fx_bit = ""
+                if isinstance(row_fx, dict) and row_fx:
+                    row_fx_bit = (
+                        " [row: " + "; ".join(
+                            f"{cell}={f}" for cell, f in
+                            list(row_fx.items())[:6]) + "]")
                 parts.append(
-                    f"- **{item}** — {hit.get('display')}{basis} — "
+                    f"- **{item}** — {hit.get('display')}{basis}"
+                    f"{formula_bit}{row_fx_bit} — "
                     f"source: {hit.get('source')}{ref}")
         unresolved = state.get("unresolved_after") or []
         if unresolved:
@@ -18683,10 +18959,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     display = str(v.get("display") or v.get("value") or "")
                     basis = str(v.get("basis") or "")
                     col = str(v.get("col") or "")
-                    if display:
+                    if not display:
+                        continue
+                    # FORMULA RIDES THE VALUE (2026-10-03 availability):
+                    # the workbook's own derivation for this cell is
+                    # editor DATA too — the edit plan can reason about
+                    # computed columns instead of treating a formula's
+                    # result as an independent fact.
+                    formula = str(v.get("formula") or "").strip()
+                    if formula:
+                        values.append(
+                            f"{basis} {display} ({col}) = {formula}"
+                            if basis else f"{display} ({col}) = {formula}")
+                    else:
                         values.append(
                             f"{basis} {display} ({col})" if basis
                             else f"{display} ({col})")
+                # THE ROW'S WHOLE FORMULA MAP (2026-10-03): computed cells
+                # the request never selected still derive the row.
+                row_fx = cand.get("row_formulas") or {}
+                if isinstance(row_fx, dict) and row_fx:
+                    values.append(
+                        "row formulas: " + "; ".join(
+                            f"{cell}={f}" for cell, f in
+                            list(row_fx.items())
+                            [:self._OUTCOME_SECTION_MAX_VALUES]))
                 lines.append(
                     f"- {item} — found at {ref}"
                     + (": " + "; ".join(values) if values else ""))

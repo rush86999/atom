@@ -44,9 +44,17 @@ interface LoadNotice {
 export function CanvasDataSection({
     canvasId,
     hireAttached,
+    provenanceAgent,
+    onAttached,
 }: {
     canvasId: string;
     hireAttached: boolean;
+    /** The chat-provenance hire (id + name) when no FORMAL attachment
+     *  exists yet — the panel shows its badge while data loading stays
+     *  gated, which read as two contradictory states at once. Offering
+     *  one-click attachment of THAT hire closes the contradiction. */
+    provenanceAgent?: { id: string; name: string } | null;
+    onAttached?: () => void;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
@@ -62,6 +70,44 @@ export function CanvasDataSection({
     const [jobStatus, setJobStatus] = useState<string | null>(null);
 
     const gatedHint = "Attach an agent to load data.";
+    const [attaching, setAttaching] = useState(false);
+
+    // ONE-CLICK ATTACH of the chat-provenance hire (2026-10-04, the
+    // inconsistent-attachment-state fix): the panel showed the hire's
+    // badge AND an "Attach agent" gate simultaneously. Attaching the
+    // already-resolved hire is one idempotent POST — no picker needed.
+    const attachProvenanceHire = useCallback(async () => {
+        if (!provenanceAgent?.id) return;
+        setAttaching(true);
+        setNotice(null);
+        try {
+            const token = localStorage.getItem("auth_token") || "";
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/canvas/${canvasId}/agents`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        agent_id: provenanceAgent.id,
+                        role: "collaborator",
+                    }),
+                },
+            );
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.detail?.message || body?.detail || `Attach failed (${res.status})`);
+            }
+            setNotice({ kind: "ok", text: `${provenanceAgent.name} attached — data loading is open.` });
+            onAttached?.();
+        } catch (e: any) {
+            setNotice({ kind: "error", text: e?.message || "Attach failed." });
+        } finally {
+            setAttaching(false);
+        }
+    }, [canvasId, provenanceAgent, onAttached]);
 
     // ── direct upload ───────────────────────────────────────────────────
     const handleUpload = useCallback(async (file: File) => {
@@ -262,6 +308,20 @@ export function CanvasDataSection({
                     Upload file
                 </Button>
 
+                {!hireAttached && provenanceAgent?.id && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        disabled={attaching}
+                        onClick={attachProvenanceHire}
+                        data-testid="canvas-attach-provenance-hire"
+                        title={`Attach ${provenanceAgent.name} (already working this canvas in chat) to open data loading`}
+                    >
+                        {attaching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+                        Attach {provenanceAgent.name}
+                    </Button>
+                )}
                 {!hireAttached && (
                     <span className="text-[11px] text-muted-foreground" data-testid="data-gated-hint">
                         {gatedHint}

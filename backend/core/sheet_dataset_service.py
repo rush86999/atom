@@ -2504,6 +2504,13 @@ async def answer_from_datasets(
                 con.close()
             out = out.astype(object).where(out.notna(), None)
             rows = out.to_dict(orient="records")
+            # SIDECAR-PRESENCE SIGNAL (2026-10-03, the every-row formula
+            # availability contract): an EMPTY formulas dict is ambiguous —
+            # "static workbook" or "sidecar never built". Only the latter
+            # is healable (the re-download's hash-match branch backfills
+            # it), so the result carries the sidecar's presence and the
+            # parquet path for the reverify trigger to check.
+            _fx = load_formulas_for_parquet(chosen_entry["parquet_path"])
             return {
                 "dataset_name": chosen_entry["dataset_name"],
                 "entity_name": chosen_entry["entity_name"],
@@ -2521,7 +2528,10 @@ async def answer_from_datasets(
                 # Cell->formula from the original workbook (sidecar written at
                 # materialization). Rendered as a FORMULAS footer so a "how is
                 # this computed?" turn cites real cells instead of guessing.
-                "formulas": load_formulas_for_parquet(chosen_entry["parquet_path"]),
+                "formulas": _fx,
+                "sidecar_present": _formula_sidecar_path(
+                    str(chosen_entry["parquet_path"])).exists(),
+                "parquet_path": str(chosen_entry["parquet_path"]),
                 "note": getattr(plan, "note", "") or "",
             }
 

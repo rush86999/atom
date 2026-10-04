@@ -8702,6 +8702,23 @@ async def execute_tool_plan(
                 if len(t.strip('"$€£¥₹₩₽₺%,;:()')) >= 2
             ][:3] or [query]
 
+            # ITEM-CODE TOKENS (2026-10-03, the taught-employee job): the
+            # outcome-resolved codes ride the query TAIL ("... search for:
+            # GSL24-16, SLE16-8") — past the first-3 cut — and they are the
+            # SELECTIVE terms (a hyphenated model code matches one thread;
+            # the prose words match hundreds). Identifier-shaped tokens
+            # (letters AND digits, any domain's code convention) join the
+            # per-term pool so the search covers what the user is actually
+            # asking about.
+            for _t in query.split():
+                _tc = _t.strip('"$€£¥₹₩₽₺%,;:()')
+                if len(_tc) < 4 or _tc in tokens:
+                    continue
+                if re.search(r"[A-Za-z]", _tc) and re.search(r"\d", _tc):
+                    tokens.append(_tc)
+                    if len(tokens) >= 6:
+                        break
+
             async def _collect() -> Dict[str, Dict[str, Any]]:
                 """Every live-search form, merged into one ranking pool.
                 A closure so the search-miss → on-demand-ingest fallback
@@ -8981,6 +8998,62 @@ async def execute_tool_plan(
             graph_listing = "\n".join(_graph_line(e) for e in emails[:6])
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
+
+            # AUTO-READ (2026-10-04, thread-depth directive): preview-only
+            # and excerpt-truncated hits used to cost a SECOND turn ("plan
+            # outlook again with intent=read and that message_id") — and the
+            # follow-up often never happened, leaving quoted-thread pricing
+            # unretrieved. The search now chains bounded full-body reads for
+            # its own top truncation-affected hits: same machinery as the
+            # read path (per-id outcomes, honest elision markers), capped at
+            # 2 hits × the read body cap. depth of the thread stops being
+            # the agent's problem: the bodies arrive with the search.
+            try:
+                _auto_ids = [
+                    e.get("id") for e in emails[:3]
+                    if e.get("id") and (
+                        e.get("id") not in full_bodies
+                        or (full_bodies.get(e.get("id")) or {}).get(
+                            "truncated"))
+                ][:2]
+                if _auto_ids:
+                    _auto = await _outlook_read_by_ids(
+                        user_id, _auto_ids, _OUTLOOK_READ_BODY_CAP,
+                        budget_seconds=20.0, context=context,
+                    )
+                    _auto_lines: List[str] = []
+                    _auto_outcomes: List[Dict[str, Any]] = []
+                    for _aid in _auto_ids:
+                        _res = _auto.get(_aid) or {}
+                        _outcome = _res.get("outcome")
+                        if _outcome in ("full", "excerpt"):
+                            full_bodies[_aid] = {
+                                "text": _res.get("text") or "",
+                                "truncated": _outcome == "excerpt",
+                            }
+                            _mark = ("FULL BODY" if _outcome == "full"
+                                     else "FULL BODY (EXCERPT — middle elided)")
+                            _auto_lines.append(
+                                f"- AUTO-READ OK ({_mark}) | "
+                                f"message_id: {_aid}\n{_res.get('text') or ''}")
+                            _auto_outcomes.append(
+                                {"id": _aid, "outcome": _outcome})
+                        else:
+                            _auto_lines.append(
+                                f"- AUTO-READ FAILED | {_aid[:24]}… — "
+                                f"{_res.get('detail') or _outcome}")
+                    if _auto_lines:
+                        listing += (
+                            "\nAUTO-READ (full thread content pulled for the "
+                            "truncated/preview-only hits — quoted and "
+                            "forwarded messages included; use these bodies, "
+                            "not the previews above):\n"
+                            + "\n".join(_auto_lines))
+                        if _auto_outcomes:
+                            plan._result_meta.setdefault(
+                                "read_outcomes", []).extend(_auto_outcomes)
+            except Exception as _auto_err:  # noqa: BLE001 — additive depth
+                logger.debug(f"search auto-read skipped: {_auto_err}")
             # HONEST COMPLETION STATE (2026-09-22): rendered hits without a
             # full body are NOT read. Structured handles travel via plan
             # result metadata (never parsed back out of this prose — bodies

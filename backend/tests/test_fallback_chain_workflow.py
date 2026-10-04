@@ -476,3 +476,347 @@ class TestGuardRepresentationIndependence:
         assert "| X | available |" in out
         assert "did not find one in what this turn actually searched" in out
         assert "anywhere in the world" not in out
+
+
+class TestFormulaAvailability:
+    """The every-row formula contract (2026-10-03): a workbook cell's
+    sidecar formula reaches every decision context — the editor's
+    outcome-data section, the chain's found-value, the chain report —
+    without needing a derivation-shaped ask."""
+
+    def test_outcome_section_renders_formulas(self):
+        svc = _svc()
+        session = _carrier_session([_target("381", "single")])
+        session["_pending_file_result"]["structured_result"]["targets"][0][
+            "identity"]["candidates"] = [{
+                "ref": "Acme!R12",
+                "values": [
+                    {"col": "B12", "basis": "List", "display": "1,845",
+                     "formula": "=ROUNDUP(A12*1.15,0)"},
+                ],
+            }]
+        section = svc._outcome_values_section(session, "s1")
+        assert "B12) = =ROUNDUP(A12*1.15,0)" in section
+
+    def test_outcome_section_omits_missing_formulas_cleanly(self):
+        svc = _svc()
+        session = _carrier_session([_target("381", "single")])
+        session["_pending_file_result"]["structured_result"]["targets"][0][
+            "identity"]["candidates"] = [{
+                "ref": "Acme!R12",
+                "values": [{"col": "B12", "basis": "List",
+                            "display": "1,845"}],
+            }]
+        section = svc._outcome_values_section(session, "s1")
+        assert "1,845" in section and "= =" not in section
+
+    def test_chain_found_carries_formula_into_report(self):
+        state = {
+            "value_noun": "pricing",
+            "primary_file": "master.xlsx",
+            "found": {"GSL24-16": {
+                "display": "4,995", "basis": "Price",
+                "source": "vendor.xlsx", "ref": "Sheet1!R12",
+                "formula": "=E12*1.3"}},
+            "unresolved_after": [],
+            "people": [],
+            "steps": [],
+        }
+        report = ChatOrchestrator._chain_report_text(state, USER_MSG)
+        assert "=E12*1.3" in report
+
+    def test_reverify_due_on_missing_sidecar_for_sheet_files(self):
+        from datetime import datetime, timedelta, timezone as tz
+
+        from integrations.universal_integration_service import (
+            _dataset_reverify_due,
+        )
+
+        def iso(**kw):
+            return (datetime.now(tz.utc) + timedelta(**kw)).isoformat()
+
+        # Sheet file, sidecar absent → due EVEN when brand new (the
+        # sidecar rule ignores the age gate).
+        assert _dataset_reverify_due({
+            "file_name": "Vendor Price List.xlsx",
+            "sidecar_present": False,
+            "ingested_at": iso(minutes=-1),
+        }) is True
+        # Sidecar present + fresh → age rule only → not due.
+        assert _dataset_reverify_due({
+            "file_name": "Vendor Price List.xlsx",
+            "sidecar_present": True,
+            "ingested_at": iso(minutes=-1),
+        }) is False
+        # Non-sheet sources never trigger the sidecar rule (fresh +
+        # sidecar missing → not due; a workbook with no extension-ful
+        # name has no workbook bytes to re-download).
+        assert _dataset_reverify_due({
+            "file_name": "zoho books_invoices",
+            "sidecar_present": False,
+            "ingested_at": iso(minutes=-1),
+        }) is False
+
+
+def test_read_canvas_serves_draft_body_over_empty_shell():
+    """Job step 7 (2026-10-03): save_draft audits carry an EMPTY content
+    shell while the real body lives under details['draft']['body'] — the
+    agent's canvas hydration saw 'an empty email draft' for a fully
+    seeded quote. The reader must serve the draft body when the shell is
+    blank (read-shape normalization, history untouched)."""
+    import inspect
+
+    from tools import canvas_crud_tool
+
+    src = inspect.getsource(canvas_crud_tool.read_canvas)
+    assert "EMAIL DRAFT-STATE READ" in src
+    assert 'details.get("draft")' in src
+
+
+class TestCreditExhaustionRouting:
+    """The step-4 failure (2026-10-03): the ranked pool collapsed to one
+    credit-dead gateway, its 300s bench expired mid-job and re-admitted
+    it, and the exhaustion message claimed 'every configured provider'
+    while opencode-go sat healthy."""
+
+    def test_quota_cooldown_defaults_to_30_minutes(self):
+        import importlib
+        import core.llm.byok_handler as bh
+
+        importlib.reload(bh)
+        assert bh._PROVIDER_QUOTA_COOLDOWN_SECONDS == 1800.0
+
+    def test_quota_bench_fires_on_credit_errors(self):
+        import importlib
+        import core.llm.byok_handler as bh
+
+        importlib.reload(bh)
+        inst = object.__new__(bh.BYOKHandler)
+        called = {}
+
+        def fake_bench(provider_id, *, cause, detail, seconds=None):
+            called["p"] = provider_id
+            called["cause"] = cause
+
+        inst._bench_provider = fake_bench
+        fired = inst._bench_provider_on_quota_error(
+            "openrouter",
+            "Error code: 402 - This request requires more credits")
+        assert fired is True
+        assert called["p"] == "openrouter"
+        assert called["cause"] == "quota_exhausted"
+        # Non-credit errors must not bench.
+        assert inst._bench_provider_on_quota_error(
+            "openrouter", "Error code: 400 - bad temperature") is False
+
+
+class TestTbcCatalogProbe:
+    """Reliability run A (2026-10-03): a value-edit with TBC rows ran
+    BLIND — the planner judged no lookup necessary, the editor declined
+    without evidence. The deterministic probe extracts unpriced rows and
+    checks the catalog for each."""
+
+    def _svc(self):
+        import integrations.chat_orchestrator as co
+
+        class Fake(co.ChatOrchestrator):
+            def __init__(self):
+                pass
+
+        return Fake()
+
+    def test_unpriced_rows_detected_domain_free(self):
+        import asyncio
+
+        svc = self._svc()
+        canvas = {"content": {"body": (
+            "<table><tr><th>#</th><th>Item</th><th>Price</th></tr>"
+            "<tr><td>1</td><td>PE-16 Hand Seam Tool</td><td>TBC</td></tr>"
+            "<tr><td>2</td><td>MidWest 24-in Brake</td><td>$1,240.00</td></tr>"
+            "</table>")}}
+
+        def fake_trace(items, **kw):
+            assert "PE-16 Hand Seam Tool" in items
+            assert "MidWest 24-in Brake" not in items
+            return {"PE-16 Hand Seam Tool": []}
+
+        with patch(
+            "core.value_provenance.trace_items_across_catalog", fake_trace
+        ):
+            section = asyncio.run(svc._tbc_items_catalog_probe(
+                canvas, "u1", "default"))
+        assert "PE-16" in section
+        assert "no cataloged document carries it" in section
+        assert "MidWest" not in section.split("UNPRICED")[1].split("- \"")[1]
+
+    def test_no_unpriced_rows_no_section(self):
+        import asyncio
+
+        svc = self._svc()
+        canvas = {"content": {"body": (
+            "<table><tr><td>1</td><td>X</td><td>$5.00</td></tr></table>")}}
+        assert asyncio.run(svc._tbc_items_catalog_probe(
+            canvas, "u1", None)) == ""
+
+
+def test_item_code_tokens_reach_the_per_term_pool():
+    """Step-3 depth gap (2026-10-03): resolved codes ride the query TAIL
+    past the first-3 cut, so the mailbox search never searched for them.
+    Identifier-shaped tokens (letters+digits) must join the pool."""
+    import re as _re
+
+    query = ("For the ones still open go through the supplier "
+             "correspondence (the not-found items to search for: "
+             "GSL24-16, SLE16-8, U-38, 622)")
+    tokens = [t.strip('"$€£¥₹₩₽₺%,;:()') for t in query.split()
+              if len(t.strip('"$€£¥₹₩₽₺%,;:()')) >= 2][:3]
+    for _t in query.split():
+        _tc = _t.strip('"$€£¥₹₩₽₺%,;:()')
+        if len(_tc) < 4 or _tc in tokens:
+            continue
+        if _re.search(r"[A-Za-z]", _tc) and _re.search(r"\d", _tc):
+            tokens.append(_tc)
+            if len(tokens) >= 6:
+                break
+    assert "GSL24-16" in tokens and "SLE16-8" in tokens
+    # Pure words without digits stay out of the additions.
+    assert "correspondence" not in tokens
+
+
+class TestArcIndependence:
+    """Owner directive (2026-10-03): every fix domain- and business-
+    independent. These pin the gates with non-purchasing domains."""
+
+    def test_outcome_seek_gates_on_generic_sources(self):
+        # The exact gate expression the orchestrator uses.
+        import re as _re
+
+        pattern = (
+            r"\b(?:e-?mails?|attachments?|mailbox|inbox|"
+            r"threads?|messages?|correspondence|letters?|vendor|suppliers?|"
+            r"records?|documents?|docs?|files?|folders?|archives?|"
+            r"databases?|notes?|registers?|index|system)\b")
+        for msg in (
+            "for the ones not found, check the case records",
+            "the ones still open — look in the project folder",
+            "check the lab documents for the ones missing",
+            "go through the supplier correspondence for the missing ones",
+        ):
+            assert _re.search(pattern, msg, _re.IGNORECASE), msg
+
+    def test_work_instruction_is_value_family_not_price_only(self):
+        from integrations.chat_orchestrator import _WORK_INSTRUCTION_RE
+
+        for msg in (
+            "One correction: bind line 2 to the spec sheet; use the lab "
+            "report as the source. Revised comparison please.",
+            "use the registry as the basis and give me a revised table",
+            "correct the lead-time-source for row 3",
+        ):
+            assert _WORK_INSTRUCTION_RE.search(msg), msg
+        # Deliveries still exempt
+        for msg in ("yes", "ok go ahead", "that file is correct"):
+            assert not _WORK_INSTRUCTION_RE.search(msg), msg
+
+    def test_tbc_probe_placeholder_family(self):
+        import asyncio
+
+        svc = _svc()
+        canvas = {"content": {"body": (
+            "<table><tr><td>1</td><td>Item One</td><td>TBA</td></tr>"
+            "<tr><td>2</td><td>Item Two</td><td>pending</td></tr>"
+            "<tr><td>3</td><td>Item Three</td><td>?</td></tr>"
+            "</table>")}}
+
+        def fake_trace(items, **kw):
+            return {i: [] for i in items}
+
+        with patch(
+            "core.value_provenance.trace_items_across_catalog", fake_trace
+        ):
+            section = asyncio.run(svc._tbc_items_catalog_probe(
+                canvas, "u1", None))
+        assert section.count("no cataloged document carries it") == 3
+
+
+def test_search_auto_read_covers_truncated_hits():
+    """Thread-depth directive (2026-10-04): preview-only/excerpt hits are
+    auto-read in the same search turn (top-2, per-id outcomes) — the
+    agent no longer needs a second turn to see quoted-thread content."""
+    import inspect
+    import re as _re_mod
+
+    import core.chat_tool_planner as ctp
+
+    src = inspect.getsource(ctp)
+    assert "AUTO-READ (full thread content pulled" in src
+    # The auto-read reuses the read-by-ids machinery with the READ body
+    # cap (not the smaller search cap) and bounded hit count.
+    m = _re_mod.search(
+        r"_auto_ids = \[.*?\]\[:2\]", src, _re_mod.DOTALL)
+    assert m, "bounded auto-read slice missing"
+    assert "_OUTLOOK_READ_BODY_CAP" in src
+
+
+def test_inflight_claim_ttl_steals_leaked_claims(monkeypatch):
+    """Step-3 verify (2026-10-04): opencode-go/kimi-k2.7-code was skipped
+    as model_inflight across turns — claims had no TTL, so one leaked
+    claim blocked the healthy route for the process lifetime."""
+    import time as _time
+
+    import core.llm.byok_handler as bh
+
+    inst = object.__new__(bh.BYOKHandler)
+    # Fresh claim succeeds; immediate re-claim fails.
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is False
+    inst._release_model_attempt("opencode-go", "kimi-k2.7-code")
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
+    # A LEAKED claim (older than the TTL) is stolen.
+    pair = "opencode-go/kimi-k2.7-code"
+    bh._MODEL_ATTEMPT_INFLIGHT[pair] = (
+        _time.time() - bh._MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS - 1)
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
+    inst._release_model_attempt("opencode-go", "kimi-k2.7-code")
+
+
+def test_na_means_not_applicable_unless_asked_to_fill_all():
+    """Review correction (2026-10-04): 'n/a' usually means deliberately
+    not applicable — a completed row, not a fill request. Only an
+    explicit fill-everything instruction opens n/a rows."""
+    import asyncio
+
+    svc = _svc()
+    canvas = {"content": {"body": (
+        "<table><tr><td>1</td><td>Warranty Extension</td><td>n/a</td></tr>"
+        "<tr><td>2</td><td>Rush Fee</td><td>TBC</td></tr></table>")}
+    }
+    # No fill-all instruction: n/a is completed, TBC is open.
+    section = asyncio.run(svc._tbc_items_catalog_probe(
+        canvas, "u1", None, message="fill what you can"))
+    assert "Warranty Extension" not in section
+    assert "Rush Fee" in section
+    # Explicit fill-all: n/a opens too.
+    section_all = asyncio.run(svc._tbc_items_catalog_probe(
+        canvas, "u1", None,
+        message="price all the rows in this quote"))
+    assert "Warranty Extension" in section_all
+    assert "Rush Fee" in section_all
+
+
+def test_negated_edit_vocabulary_is_not_edit_shaped():
+    """Final-job T1 (2026-10-04): 'Don't change the draft yet' matched the
+    edit shape and the turn shipped 'editor declined' instead of running
+    the requested research. The negation determines the semantics."""
+    from integrations.chat_orchestrator import _canvas_edit_shaped
+
+    canvas = {"canvas_id": "c1", "canvas_type": "email"}
+    research = ("research all eight machines and give me the comparison — "
+                "Don't change the draft yet.")
+    assert not _canvas_edit_shaped(research, {"canvas": canvas})
+    assert not _canvas_edit_shaped(
+        "finish the comparison without changing the draft.",
+        {"canvas": canvas})
+    # A REAL edit keeps its lane.
+    assert _canvas_edit_shaped(
+        "update item 2 delivery to In Stock", {"canvas": canvas})

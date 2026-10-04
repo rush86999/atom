@@ -1344,6 +1344,18 @@ export default function CanvasDetailPage() {
                             <CanvasDataSection
                                 canvasId={canvasId as string}
                                 hireAttached={canvasAgents.length > 0}
+                                provenanceAgent={
+                                    trainingCtx?.agent
+                                        ? {
+                                              id: trainingCtx.agent.id,
+                                              name: trainingCtx.agent.name || "the hire",
+                                          }
+                                        : null
+                                }
+                                onAttached={() => {
+                                    void loadCanvasAgents();
+                                    setAttachNonce(n => n + 1);
+                                }}
                             />
                         )}
                         {/* Step 2 nudge: a canvas with no resolvable hire

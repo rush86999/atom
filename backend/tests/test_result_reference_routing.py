@@ -181,3 +181,29 @@ class TestOutcomeValuesSection:
         assert svc._outcome_values_section(
             {"_pending_file_result": {"structured_result": {"targets": []}}},
             "s1") == ""
+
+
+class TestWorkInstructionOverride:
+    """Job step 5 (2026-10-03): a correction/binding/revision turn rated
+    non-substantive and the delivery lane re-rendered the stored read.
+    A positive work shape must override both delivery entrances."""
+
+    def test_step5_correction_is_work(self):
+        from integrations.chat_orchestrator import _WORK_INSTRUCTION_RE
+
+        msg = ("One correction: for item 4, bind 622 to the populated "
+               "RoperWhitney row 268 (the machine row, PRICE 2,455) — that "
+               "is the one the draft quotes; ignore the fragment rows. Also "
+               "use the June 17 Chandrakant-to-Steve thread as the "
+               "proposed-price source where it carries a figure. Revised "
+               "comparison, please.")
+        assert _WORK_INSTRUCTION_RE.search(msg)
+
+    def test_deliveries_still_classify_as_deliveries(self):
+        from integrations.chat_orchestrator import _WORK_INSTRUCTION_RE
+
+        for msg in ("yes go ahead",
+                    "that filename is correct",
+                    "ok",
+                    "show me that list again"):
+            assert not _WORK_INSTRUCTION_RE.search(msg), msg
