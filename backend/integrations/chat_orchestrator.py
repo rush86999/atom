@@ -14004,12 +14004,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # retrieval receipt — or a VALID EMPTY SEARCH (bounded
                 # absence, round 35): provably executed, zero hits.
                 # Returned text alone credits nothing.
-                if _plan is not None and getattr(_plan, "use_tool", False):
+                # _plan is NOT always bound here (a turn whose plan task
+                # produced nothing reaches the recovery block with a
+                # prefetched block but no plan object — live cont5:
+                # UnboundLocalError killed the response). locals().get is
+                # this file's established defensive read for it.
+                _plan_obj = locals().get("_plan")
+                if _plan_obj is not None and getattr(
+                        _plan_obj, "use_tool", False):
                     _p_receipt = _search_execution_receipt(
-                        _plan, _tool_block)
+                        _plan_obj, _tool_block)
                     if _p_receipt["retrieved"] or \
                             _p_receipt["bounded_absence"]:
-                        _consulted.add(getattr(_plan, "service", None))
+                        _consulted.add(getattr(_plan_obj, "service", None))
                 # SINGLEFLIGHT REUSE (round 35): the ORIGINAL plan's receipt
                 # and service ride the blackboard — reused execution credits
                 # from its receipt, never from the reused text.
