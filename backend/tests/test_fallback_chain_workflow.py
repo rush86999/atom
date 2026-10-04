@@ -988,6 +988,56 @@ def test_singleflight_ledger_settle_is_not_gated_on_file_mentions():
     assert "if _plan_mentions:" not in settle.split("try:")[0]
     # The settle begins its own retrieval turn unconditionally.
     assert "begin_retrieval_turn" in settle
+
+
+def test_search_receipt_separates_dispatch_from_retrieval():
+    """Reviewer correction 2 (round 34): returned TEXT is dispatch evidence
+    only. NEGATIVE CONTROL — a deliberately irrelevant result (a search
+    that matched junk filenames and returned blank rows) must NOT read as
+    a satisfied source obligation: dispatched yes, retrieved no."""
+    import types
+
+    from integrations.chat_orchestrator import _search_execution_receipt
+
+    junk = types.SimpleNamespace(_result_meta={})
+    r = _search_execution_receipt(
+        junk, "LIVE TOOL RESULTS — two name-matched files, rows all blank")
+    assert r["dispatched"] is True, "the lookup did run"
+    assert r["retrieved"] is False, "blank/irrelevant rows are no receipt"
+    # An error explanation block must not read as retrieval either.
+    r_err = _search_execution_receipt(
+        types.SimpleNamespace(_result_meta={}),
+        "NO LIVE LOOKUP EXECUTED: the planned lookup was declined")
+    assert r_err["dispatched"] is True and r_err["retrieved"] is False
+    # A structured receipt (searched threads / storage meta) is retrieval.
+    ok = types.SimpleNamespace(_result_meta={
+        "searched_threads": [{"subject": "quote"}]})
+    assert _search_execution_receipt(
+        ok, "LIVE TOOL RESULTS (outlook.read_emails)")["retrieved"] is True
+    # Nothing at all.
+    r0 = _search_execution_receipt(
+        types.SimpleNamespace(_result_meta={}), None)
+    assert not r0["dispatched"] and not r0["retrieved"]
+
+
+def test_chain_uses_unresolved_work_and_records_its_own_operation():
+    """Reviewer corrections 1 and 3 (round 34): the chained lookup's query
+    comes from the resolved item set and canvas subject (never the raw
+    message shortcut), and the chained attempt gets its own lifecycle
+    operation settled with receipt-derived outcomes on every path."""
+    src = open("integrations/chat_orchestrator.py").read()
+    chain = src[src.index("CHAIN THE MISSING TAUGHT SOURCE"):]
+    chain = chain[:chain.index("elif not _planned and not _tool_block:")]
+    assert "message[:200]" not in chain, (
+        "the raw-message query shortcut must be gone")
+    assert "_chain_query" in chain and "_chain_items" in chain
+    assert "canvas_topic_text(canvas_context)" in chain, (
+        "the canvas rides as RESEARCH context for the lookup")
+    assert "begin_retrieval_turn" in chain and "finish_retrieval_turn" in chain
+    assert "_chain_settle(" in chain
+    assert '"search_returned_no_receipt"' in src
+    # Coverage credit is receipt-based, not text-based.
+    assert '_search_execution_receipt(\n                            _plan, _tool_block)["retrieved"]' in src
     assert "_consulted_sources = (" in src
     assert "_missing = _required_sources - _consulted" in src
     # planning_failed keys on consulted emptiness, not block emptiness

@@ -1952,6 +1952,42 @@ def _canvas_referencing_message(message: str) -> bool:
     return bool(_CANVAS_DEIXIS_RE.search(message or ""))
 
 
+def _search_execution_receipt(
+        plan: Any, block: Optional[str]) -> Dict[str, Any]:
+    """Separate DISPATCH and RETRIEVAL facts for a search-shaped execution
+    (round 34 reviewer correction 2): returned TEXT is dispatch evidence
+    only — an error explanation or an irrelevant result satisfies nothing.
+    Structured receipts (searched_threads, read_outcomes,
+    source_observations, storage_read / file_read / structured_result)
+    are the retrieval record; item RELEVANCE against the resolved set is
+    judged by the caller and recorded separately."""
+    meta = getattr(plan, "_result_meta", None) or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    threads = meta.get("searched_threads") or []
+    observations = meta.get("source_observations") or []
+    reads = meta.get("read_outcomes") or []
+    structured = {}
+    for k in ("structured_result", "workbook_read", "storage_read",
+              "file_read"):
+        v = meta.get(k)
+        if isinstance(v, dict) and v:
+            structured[k] = v
+    returned_text = bool(block is not None and str(block).strip())
+    dispatched = returned_text or bool(threads) or bool(structured)
+    retrieved = bool(threads or observations or reads or structured)
+    return {
+        "dispatched": dispatched,
+        "retrieved": retrieved,
+        "receipt": {
+            "structured_keys": sorted(structured),
+            "searched_threads": len(threads),
+            "source_observations": len(observations),
+            "read_outcomes": len(reads),
+        },
+    }
+
+
 def _is_file_objective_turn(
     message: str, session: Optional[Dict[str, Any]]
 ) -> bool:
@@ -12619,18 +12655,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "canvas_id")
                                     or (canvas_context or {}).get(
                                         "id")))
+                            # RECEIPT-BASED (round 34 reviewer correction 2):
+                            # a reused text block without storage metadata is
+                            # dispatch evidence only — not a completed read.
                             _pf_invoked = bool(
                                 _prefetch_meta or _tool_block)
+                            _pf_ok = bool(_pf_structured)
                             _tlm.finish_retrieval_turn(
                                 _pf_tl, _pf_run, _pf_op,
                                 _pf_structured or {}, execution_id,
-                                _pf_invoked,
+                                _pf_ok,
                                 execution={
                                     "invoked": _pf_invoked,
                                     "outcome": (
                                         "read_succeeded"
-                                        if _pf_invoked
-                                        else "not_dispatched"),
+                                        if _pf_ok else
+                                        "read_returned_no_receipt"
+                                        if _pf_invoked else
+                                        "not_dispatched"),
                                     "served_basis": (
                                         "saved_copy"
                                         if _pf_invoked else "none"),
@@ -13280,8 +13322,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _ms_planning = dict(
                                     _ms_meta_all.get("planning") or {})
                                 _ms_is_file = bool(_storage_read_meta)
+                                # RECEIPT-BASED OUTCOMES (round 34 reviewer
+                                # correction 2): a nonempty result block is
+                                # DISPATCH evidence only. Success requires a
+                                # structured retrieval receipt; text-only
+                                # returns record honestly as no_receipt and
+                                # leave the source obligation OPEN.
+                                _ms_receipt = _search_execution_receipt(
+                                    _plan, _live_block)
                                 _ms_invoked = bool(
-                                    _live_block is not None
+                                    _ms_receipt["dispatched"]
                                     or _storage_read_meta)
                                 if _ms_exec_error:
                                     _ms_outcome = (
@@ -13289,9 +13339,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         else "search_failed")
                                     _ms_stage = _ms_exec_error
                                 elif _ms_invoked:
+                                    _ms_ok = bool(
+                                        _ms_receipt["retrieved"]
+                                        or _storage_read_meta)
                                     _ms_outcome = (
-                                        "read_succeeded" if _ms_is_file
-                                        else "search_succeeded")
+                                        ("read_succeeded" if _ms_is_file
+                                         else "search_succeeded")
+                                        if _ms_ok
+                                        else ("read_returned_no_receipt"
+                                              if _ms_is_file else
+                                              "search_returned_no_receipt"))
                                     _ms_stage = None
                                 else:
                                     _ms_outcome = "search_failed"
@@ -13322,7 +13379,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 }
                                 _ms_complete = bool(
                                     _ms_invoked and (
-                                        _ms_structured or _live_block))
+                                        _ms_structured
+                                        or _storage_read_meta))
                                 _tlm.finish_retrieval_turn(
                                     _ms_tl, _ms_tl_begin[0], _ms_tl_begin[1],
                                     _ms_structured or {}, execution_id,
@@ -13898,16 +13956,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _consulted = set(_consulted_sources)
                 if _replanned_service:
                     _consulted.add(_replanned_service)
-                # THE EXECUTED PLAN'S OWN SERVICE (round 34 live finding,
-                # msA6): consulted_sources only tracks the canvas-edit leg's
-                # accounting, which never ran when the scope gate denied the
-                # edit — so a turn whose plan executed datasets.search
-                # chained datasets AGAIN (alphabetically first in the
-                # missing set) instead of the taught mailbox source. The
-                # plan whose block the reply leg carries has, by
-                # definition, consulted its own service.
+                # RECEIPT-BASED COVERAGE (round 34 reviewer correction 2):
+                # the plan's own service counts as consulted only on a
+                # structured retrieval receipt — a block of text (an error
+                # explanation, or a search that matched junk filenames) is
+                # dispatch evidence, not a satisfied source obligation.
                 if _plan is not None and getattr(_plan, "use_tool", False) \
-                        and _tool_block:
+                        and _search_execution_receipt(
+                            _plan, _tool_block)["retrieved"]:
                     _consulted.add(getattr(_plan, "service", None))
                 _missing = _required_sources - _consulted
                 try:
@@ -13918,28 +13974,152 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _chain_wait = min(
                     20.0, max(0.0, _turn_left - 15.0))
                 if _missing and _chain_wait >= 8.0:
-                    try:
+                    # QUERY FROM UNRESOLVED WORK (round 34 reviewer
+                    # correction 1): the chained lookup targets the resolved
+                    # item set and the canvas's subject — the research
+                    # context the ask is about — not the raw message text.
+                    # This is context for READING only; the edit lane and
+                    # its authorization are untouched.
+                    from core.plan_relevance import canvas_topic_text
+
+                    _chain_items = [
+                        str((t or {}).get("item") or "")
+                        for t in (_requested_targets or [])
+                        if (t or {}).get("item")] or list(
+                            _stored_requested_items(session) or [])
+                    _chain_topic = canvas_topic_text(canvas_context) \
+                        if canvas_context else ""
+                    _query_bits = ([_chain_topic[:160]] if _chain_topic
+                                   else []) + _chain_items[:8]
+                    _chain_query = " ".join(dict.fromkeys(
+                        " ".join(_query_bits).split()))[:240]
+                    if _chain_query:
                         _missing_svc = sorted(_missing)[0]
-                        _chain_plan = ToolPlan(
-                            use_tool=True,
-                            service=_missing_svc,
-                            intent="search",
-                            query=(message[:200]
-                                   + " (required source not yet "
-                                   "consulted)"),
-                        )
+                    else:
+                        # NO RESOLVED WORK TO TARGET (reviewer correction 1):
+                        # without a resolved item set or canvas subject there
+                        # is nothing to query from — chaining on raw message
+                        # text is the misdirection this correction removes.
+                        # The obligation stays open (the primary operation's
+                        # receipt already recorded it).
+                        logger.info(
+                            "[planner-boundary] chain skipped for %s: no "
+                            "resolved items or canvas subject to query from",
+                            sorted(_missing))
+                        _missing = set()
+                if _missing and _chain_wait >= 8.0:
+                    _chain_plan = ToolPlan(
+                        use_tool=True,
+                        service=_missing_svc,
+                        intent="search",
+                        query=_chain_query,
+                    )
+                    # CHAIN OPERATION RECORD (reviewer correction 3): the
+                    # second taught source gets its own lifecycle operation
+                    # — begun before dispatch, settled after with the
+                    # receipt-derived outcome, on every path (result,
+                    # timeout, error, no-receipt).
+                    _c_tl = _task_lifecycle_for(
+                        getattr(self, "tenant_id", None), workspace_id)
+                    _c_begin = (None, None)
+                    if _c_tl is not None:
+                        try:
+                            from core import task_lifecycle as _tlm
+
+                            _c_begin = _tlm.begin_retrieval_turn(
+                                _c_tl,
+                                session if isinstance(session, dict) else {},
+                                session_id or "",
+                                f"chained required-source lookup: "
+                                f"{_missing_svc} ({_chain_query[:120]})",
+                                execution_id,
+                                items=_chain_items,
+                                canvas_id=(
+                                    (canvas_context or {}).get("canvas_id")
+                                    or (canvas_context or {}).get("id")))
+                        except Exception as _c_begin_err:  # noqa: BLE001
+                            _c_begin = (None, None)
+                            logger.warning(
+                                "[job-work-ledger] chain begin failed "
+                                "(lookup proceeds unrecorded): %r",
+                                _c_begin_err)
+
+                    def _chain_settle(_outcome: str, _stage: Optional[str],
+                                      _receipt: Dict[str, Any]) -> None:
+                        if _c_tl is None or not _c_begin[0]:
+                            return
+                        try:
+                            from core import task_lifecycle as _tlm
+
+                            _complete = bool(
+                                _receipt["dispatched"]
+                                and _receipt["retrieved"])
+                            _tlm.finish_retrieval_turn(
+                                _c_tl, _c_begin[0], _c_begin[1], {},
+                                execution_id, _complete,
+                                execution={
+                                    "invoked": _receipt["dispatched"],
+                                    "outcome": _outcome,
+                                    "served_basis": (
+                                        "live" if _receipt["dispatched"]
+                                        else "none"),
+                                    "failure_stage": _stage,
+                                    "items": {
+                                        item: "" for item in _chain_items},
+                                })
+                            if isinstance(session, dict):
+                                session["_last_open_work"] = (
+                                    _tlm.record_read_outcome(
+                                        _c_tl, _c_begin[0], _c_begin[1],
+                                        structured_result=None,
+                                        freshness=None,
+                                        execution=None,
+                                        extra_questions=(
+                                            [] if _complete else [{
+                                                "item": "",
+                                                "kind": "verification",
+                                                "question": (
+                                                    f"the chained {_missing_svc}"
+                                                    " lookup returned no "
+                                                    "usable receipt"),
+                                                "evidence": (
+                                                    f"outcome={_outcome}; "
+                                                    f"stage={_stage}"),
+                                                "next_action": (
+                                                    f"re-run the {_missing_svc}"
+                                                    " lookup for the quote's "
+                                                    "items"),
+                                            }])))
+                        except Exception as _c_settle_err:  # noqa: BLE001
+                            logger.warning(
+                                "[job-work-ledger] chain settle failed: %r",
+                                _c_settle_err)
+
+                    try:
                         _chain_block = await asyncio.wait_for(
                             execute_tool_plan(
                                 _chain_plan, user_id,
                                 tenant_id=getattr(
                                     self, "tenant_id", "default"),
-                                context={"history": planner_history
-                                         or history},
+                                context={
+                                    # Same relevant context the fresh-exec
+                                    # seam passes: the ask, bounded history,
+                                    # the turn's agent. NO edit authorization
+                                    # is implied — execute_tool_plan is the
+                                    # read path.
+                                    "agent_id": agent_id,
+                                    "message": message,
+                                    "history": (planner_history
+                                                or history or [])[-6:],
+                                    "workspace_id": workspace_id,
+                                },
                                 llm_service=self.llm_service,
                             ),
                             timeout=_chain_wait,
                         )
-                        if _chain_block:
+                        _c_receipt = _search_execution_receipt(
+                            _chain_plan, _chain_block)
+                        if _c_receipt["retrieved"]:
                             _tool_block = (
                                 f"{_tool_block}\n\nREQUIRED-SOURCE "
                                 f"CROSS-CHECK ({_missing_svc} — the "
@@ -13947,12 +14127,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 + _chain_block)
                             logger.info(
                                 "[planner-boundary] chained missing "
-                                "source: %s (%d chars)", _missing_svc,
-                                len(_chain_block))
+                                "source: %s (%d chars, receipt=%s)",
+                                _missing_svc, len(_chain_block),
+                                _c_receipt["receipt"])
+                        else:
+                            logger.info(
+                                "[planner-boundary] chained source %s "
+                                "returned NO usable receipt — the "
+                                "obligation stays open (text=%d chars)",
+                                _missing_svc,
+                                len(_chain_block or ""))
+                        _chain_settle(
+                            "search_succeeded"
+                            if _c_receipt["retrieved"]
+                            else "search_returned_no_receipt",
+                            None, _c_receipt)
+                    except asyncio.TimeoutError as _chain_err:
+                        logger.info(
+                            "[planner-boundary] chained source %s timed "
+                            "out after %.0fs — recorded, obligation open",
+                            _missing_svc, _chain_wait)
+                        _chain_settle("search_failed",
+                                      "chained_lookup_timeout",
+                                      {"dispatched": False, "retrieved": False,
+                                       "receipt": {}})
                     except Exception as _chain_err:  # noqa: BLE001
-                        logger.debug(
-                            f"required-source chain skipped: "
-                            f"{_chain_err!r}")
+                        logger.info(
+                            "[planner-boundary] chained source %s failed: "
+                            "%r — recorded, obligation open",
+                            _missing_svc, _chain_err)
+                        _chain_settle("search_failed",
+                                      f"{type(_chain_err).__name__}",
+                                      {"dispatched": False, "retrieved": False,
+                                       "receipt": {}})
             elif not _planned and not _tool_block:
                 # The planner itself timed out/failed BEFORE choosing a
                 # service (live 2026-09-13: 31-38s canvas-edit plan ate the
