@@ -270,6 +270,49 @@ async def test_failed_lookup_stores_pending_task_and_labels_reply():
 
 
 @pytest.mark.asyncio
+async def test_replan_arm_survives_turn_deadline_with_derived_sources():
+    """Round 34 live regression (session msA-zcode-1791126940): a research
+    turn WITH derived required sources and a REAL turn deadline died on
+    ``name '_deadline' is not defined`` inside the replan arm — the whole
+    response failed and the template fallback shipped. The existing pins
+    passed no deadline, so the arm was never reached. The turn must
+    survive, attempt the bounded replan, and record the honest
+    planning-failure block."""
+    orch = _orch()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [
+        {"source": "teacher",
+         "lesson": "always check the designated workbook first, and the "
+                   "vendor correspondence for anything not in it"}]
+    session = {"id": "s-deadline", "history": []}
+    with (
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=asyncio.TimeoutError())),
+        patch("core.chat_tool_planner._provenance_menu", new=AsyncMock(
+            return_value="")),
+        patch("core.memory_context_assembler.assembly_enabled",
+              return_value=False),
+    ):
+        result = await orch._get_qwen_response(
+            ORIGINAL_ASK, [], user_id="u1", session_id="s-deadline",
+            execution_id="e1", session=session,
+            deadline=chat.TurnDeadline(95.0),
+        )
+    assert result is not None, (
+        "the turn must survive the replan arm — a deadline-carrying "
+        "research turn must never die on an undefined name")
+    system_texts = [
+        " ".join(m.get("content", "") for m in c.kwargs.get("messages", [])
+                 if isinstance(m, dict) and m.get("role") == "system")
+        for c in orch.llm_service.generate_completion.call_args_list
+    ]
+    assert any(
+        "PLANNING FAILED" in t for t in system_texts), (
+        "the honest planning-failure block must reach the reply model")
+    stored = session.get(FILE_TASK_SESSION_KEY)
+    assert stored, "the unrun file ask must still survive the turn"
+
+
+@pytest.mark.asyncio
 async def test_completed_read_serves_task_and_keeps_identity():
     """A COMPLETED storage read serves the ask: the task is marked served
     (never resurrected by a later confirmation) and the resolved identity

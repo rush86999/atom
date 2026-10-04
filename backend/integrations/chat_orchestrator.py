@@ -13648,6 +13648,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         message=message,
                     ) if _research_turn else set())
                 _replanned_service: Optional[str] = None
+                # TURN-BUDGET READ (round 34 fix): this method's clock is the
+                # ``deadline`` parameter (the block previously referenced
+                # ``_deadline`` — process_chat_message's local — a NameError
+                # that killed every research turn whose planner timed out;
+                # the template fallback shipped instead of the recovery).
+                _turn_left = float("inf")
+                try:
+                    if deadline is not None:
+                        _turn_left = deadline.remaining()
+                except Exception:  # noqa: BLE001 — deadline is optional
+                    _turn_left = float("inf")
                 # CONSULTED-SOURCE SET (2026-10-04 reviewer closeout #4):
                 # which source SERVICES actually executed this turn —
                 # read from the blackboard the canvas-edit leg filled.
@@ -13663,7 +13674,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 elif (not _planned and not _tool_block and _research_turn
                         and _required_sources):
                     _replan_wait = min(
-                        25.0, max(0.0, _deadline.remaining() - 15.0))
+                        25.0, max(0.0, _turn_left - 15.0))
                     if _replan_wait >= 8.0:
                         try:
                             from core.chat_tool_planner import plan_tool_use
@@ -13752,8 +13763,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if _replanned_service:
                         _consulted.add(_replanned_service)
                     _missing = _required_sources - _consulted
+                    try:
+                        if deadline is not None:
+                            _turn_left = deadline.remaining()
+                    except Exception:  # noqa: BLE001 — deadline is optional
+                        _turn_left = float("inf")
                     _chain_wait = min(
-                        20.0, max(0.0, _deadline.remaining() - 15.0))
+                        20.0, max(0.0, _turn_left - 15.0))
                     if _missing and _chain_wait >= 8.0:
                         try:
                             _missing_svc = sorted(_missing)[0]
