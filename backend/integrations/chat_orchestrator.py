@@ -14197,9 +14197,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "[job-work-ledger] chain settle failed: %r",
                                 _cs_err)
 
+                    # JUSTIFIED REFINEMENT (round 37): a catalog sweep that
+                    # returned irrelevant/blank matches does not close item
+                    # coverage — the TAUGHT escalation (lessons 43-45, any
+                    # business's not-found policy) is value_trace over the
+                    # RESOLVED item codes: which OTHER cataloged documents
+                    # carry each item. The intent is a general dataset
+                    # capability; the choice is driven by the prior
+                    # attempt's recorded coverage gap.
+                    _attempt_intent, _attempt_query = "search", _chain_query
+                    if _missing_svc == "datasets" and _chain_items:
+                        _attempt_intent = "value_trace"
+                        _attempt_query = ", ".join(_chain_items[:8])
                     _attempt_plan = ToolPlan(
                         use_tool=True, service=_missing_svc,
-                        intent="search", query=_chain_query)
+                        intent=_attempt_intent, query=_attempt_query)
                     try:
                         _attempt_block = await asyncio.wait_for(
                             execute_tool_plan(
