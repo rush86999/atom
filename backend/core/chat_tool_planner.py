@@ -8668,6 +8668,29 @@ async def execute_tool_plan(
             block = await _datasets_search_block(
                 user_id, query, context, plan=plan)
         if block:
+            # RECEIPT GUARANTEE (round 40 reviewer correction 2): every
+            # datasets return carries a structured receipt. The named-file
+            # paths that produce prose without storage_read meta are
+            # marked explicitly — the ledger must never mistake an
+            # unexplained text block for evidence, and partial/error
+            # reads stay visible as such.
+            try:
+                _meta = getattr(plan, "_result_meta", None)
+                if not isinstance(_meta, dict) or not any(
+                        k in _meta for k in ("storage_read", "file_read",
+                                             "structured_result",
+                                             "datasets_search")):
+                    if not isinstance(_meta, dict):
+                        _meta = {}
+                        plan._result_meta = _meta
+                    _meta["datasets_prose_only"] = {
+                        "query": str(query)[:200],
+                        "note": ("block returned without a structured "
+                                 "receipt — coverage unknown, not "
+                                 "established"),
+                    }
+            except Exception:  # noqa: BLE001 — receipt is additive
+                pass
             return block
         return _with_grounding(
             f"LIVE TOOL RESULTS (datasets.search, query='{query}'): "

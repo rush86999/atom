@@ -1982,12 +1982,13 @@ def _search_execution_receipt(
         v = meta.get(k)
         if isinstance(v, dict) and v:
             structured[k] = v
+    prose_only = isinstance(meta.get("datasets_prose_only"), dict)
     returned_text = bool(block is not None and str(block).strip())
     dispatched = returned_text or bool(threads) or bool(structured) \
         or bool(ds)
     ds_hits = int(ds.get("hits") or 0) if isinstance(ds, dict) else 0
     retrieved = bool(threads or observations or reads or structured
-                     or ds_hits or vt_covered)
+                     or ds_hits or vt_covered) and not prose_only
     # BOUNDED ABSENCE (reviewer, round 35/36): a search that provably
     # EXECUTED over its store with a receipt and zero usable hits is a
     # valid empty search — established absence, scoped to what it
@@ -5498,6 +5499,33 @@ class ChatOrchestrator:
                                 # of reconstructing a task from the word
                                 # "continue" and falling back to a generic
                                 # scan that re-asks for permission.
+                                # BOTH DIRECTIONS (round 40 reviewer
+                                # correction 5): a COMPLETE job — entities
+                                # bound and each covered by an actual
+                                # content read or an explicit per-item
+                                # status — must NOT restart. Only an
+                                # incomplete record seeds.
+                                _succeeded_items = set()
+                                for _op in (_cont_record.get("operations")
+                                            or []):
+                                    _op_exec = _op.get("execution") or {}
+                                    if _op_exec.get("outcome") == (
+                                            "read_succeeded"):
+                                        _succeeded_items.update(
+                                            str(k) for k in
+                                            (_op_exec.get("items") or {}))
+                                    _succeeded_items.update(
+                                        str(k) for k, v in
+                                        (_op_exec.get("items") or {}).items()
+                                        if str(v or "").strip())
+                                _entities_now = [
+                                    str(e.get("id")) for e in
+                                    ((_cont_record.get("task_revision")
+                                      or {}).get("entities") or [])
+                                    if e.get("id")]
+                                _job_complete = bool(_entities_now) and all(
+                                    e in _succeeded_items
+                                    for e in _entities_now)
                                 _cont_orig = None
                                 for _h in (session or {}).get("history") or []:
                                     if not isinstance(_h, dict):
@@ -5505,7 +5533,7 @@ class ChatOrchestrator:
                                     _m = str(_h.get("message") or "").strip()
                                     if len(_m) > len(_cont_orig or ""):
                                         _cont_orig = _m
-                                if _cont_orig:
+                                if _cont_orig and not _job_complete:
                                     _cont_seed = {
                                         "ask": _cont_orig,
                                         "original": _cont_text,

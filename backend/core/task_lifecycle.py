@@ -2086,18 +2086,34 @@ def finish_retrieval_turn(
     needs_entities = bool(observed) and set(observed) != set(current_ids)
     needs_fields = bool(structured_result.get("requested_fields")) and not (
         record["task_revision"].get("requested_fields"))
+    # SCOPE PROTECTION (round 40 reviewer correction 1): observation binds
+    # NEW DISTINCT items only and never shrinks or aliases the tasked set.
+    # Eight requested items became eleven because descriptive aliases of
+    # the same machines ("Roper Whitney", "Linmac Bead Roller", ...) were
+    # added as entities; a partial observation could equally DROP tasked
+    # items. An observed token whose normalized form overlaps an existing
+    # entity (substring either way) is coverage of the same item — never
+    # a scope expansion; tasked items are never removed by observation.
+    def _norm(s: Any) -> str:
+        return re.sub(r"[^a-z0-9]", "", str(s).lower())
+    _cur_norm = [_norm(i) for i in current_ids if _norm(i)]
+    _added = [o for o in observed
+              if _norm(o) and not any(
+                  _norm(o) in c or c in _norm(o) for c in _cur_norm)]
+    if _added:
+        needs_entities = True
+    needs_fields = needs_fields and not needs_entities
     if needs_entities or needs_fields:
-        # One revision binds what observation taught us (entities
-        # and/or fields); invalidation is computed against the
-        # pre-observation entities only.
-        removed = [i for i in current_ids if i not in set(observed)] \
-            if needs_entities else []
+        # One revision binds what observation taught us (new distinct
+        # entities and/or fields); the tasked set is preserved.
+        removed = []
         lifecycle.apply_transition(run_id, {
             "kind": "revise_objective",
             "requested_change": "observed items differ from tasked items",
-            "entities": _entities_from_items(observed)
+            "entities": (_entities_from_items(
+                list(current_ids) + list(_added))
             if needs_entities else list(
-                record["task_revision"].get("entities") or []),
+                record["task_revision"].get("entities") or [])),
             "removed_entity_ids": removed,
             "requested_fields": list(
                 structured_result.get("requested_fields") or [])
