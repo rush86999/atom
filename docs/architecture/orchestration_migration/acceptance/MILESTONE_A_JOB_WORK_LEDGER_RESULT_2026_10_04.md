@@ -145,3 +145,35 @@ invocations and outcomes linked by operation id across turns.
 investigation delivered for rows 3, 5–8; rows 1, 2, 4 recorded as
 unsourced with the exact missing fact (no cataloged document carries
 them) and the next actions scoped. Not sent. Original canvas untouched.
+
+## Round-38 continuation binding (closeout instruction executed)
+
+**Binding fix**: bare "continue" over a job whose settled obligations
+record no open questions now re-plans the session's ORIGINAL authorized
+ask (the job's own authorization text) instead of reconstructing a task
+from the word "continue". Live-verified across three consecutive bare
+continuations (cont8–cont10, same job/session, zero operator steering,
+zero permission questions): each turn executed the job's lookups
+(datasets.value_trace over all eight items ran; the mailbox grep ran),
+reported receipts honestly, and autonomously discovered new evidence —
+the TK Multi Wheel Gang Slitter vendor thread (Chandrakant, 21-Jul)
+confirming a 10%-off special offer on list price, CAD, FOB Woodstock —
+while explicitly REJECTING coincidental numeric matches ($1,624.51
+Victoria Shipyards invoice) as not pricing. Executed facts persist per
+operation.
+
+**Accurate status**: useful evidence gathered; independent continuation
+of the authorized job is now demonstrated (no operator reformulation, no
+permission asks across three turns); **plan-level convergence remains
+unproven** — the planner re-selects broad sweeps rather than the
+recorded next steps (open the full "Quote for Slitter" thread by message
+id; read the located Flanger cell in Consolidated Price List 2019.xlsx;
+grep the workbook for rows 1–4), so the last-mile reads did not execute
+autonomously.
+
+**Required wording corrections recorded for the comparison**: the
+September email supports "quoted on September 18" — NOT current
+availability or delivery today; the July GSL48-16 figure ($13,285,
+11–12wk) is a historical alternative whose supplier/specification/terms
+comparability must be established before it is treated as a direct
+conflict with $14,166.
