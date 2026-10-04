@@ -13948,7 +13948,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[job-work-ledger] planning-failed record "
                             "skipped: %r", _pf2_ledger_err)
             elif _research_turn and _required_sources and (
-                    _consulted_sources or _planned and _tool_block):
+                    _consulted_sources or _tool_block):
+                # GUARD (run-9 finding): _tool_block alone admits the arm —
+                # on singleflight reuse the executed plan object is absent
+                # from the reply leg (_planned False) while its block is
+                # present; receipt-based credit downstream decides whether
+                # the source obligation is satisfied.
                 # CHAIN THE MISSING TAUGHT SOURCE (order-independent):
                 # whichever required source did not execute is looked
                 # up now, bounded by the reply budget. Keyed on the
