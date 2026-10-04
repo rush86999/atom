@@ -73,3 +73,39 @@ the `attach_operation_field` swallow in `finish_retrieval_turn`); and the
 reply still ends with a steering question. First divergences were all
 deterministic; the residual gaps are enumerated above, not attributed to
 the model.
+
+## Round-36 common-cause corrections (runs msA13–msA14, serving pid 40630)
+
+Reviewer's bounded assignment executed as one writer (claimed in the
+coordination doc):
+1. **Persistence root cause** — the attach sat BELOW `finish_retrieval_turn`'s
+   incomplete early return; every failed/chained settle persisted a fact-less
+   operation row. Reproduced (begin→execute→settle→RELOAD: facts MISSING),
+   fixed (attach before the completeness branches; genuine failures now log),
+   outcome vocabulary extended so `search/read_returned_no_receipt` and
+   `search_succeeded_empty` persist verbatim. Reload pin: chained + reused
+   operations both carry facts.
+2. **Receipt production at the sweep boundary** — `_datasets_search_block`
+   attaches a `datasets_search` receipt (files searched / hits / tokens /
+   matched files / query) via optional plan kwarg; live-verified: receipt =
+   {files_searched: 94, hits: 2}.
+3. **Bounded unfinished-work loop** — every missing taught source gets its
+   own attempt + operation + per-attempt budget; msA14 log shows datasets
+   AND outlook both attempted and receipted in one turn (outlook: 6 threads,
+   3 reads); a receipt-less first attempt no longer blocks the second. A
+   live UnboundLocalError (nonlocal `_tool_block`) was found and fixed by
+   the run itself.
+4. **Input normalization consolidated** at the loop boundary
+   (shape-tolerant items, canvas-context shape, canvas-id resolution);
+   no raw-message query; missing context → explicit skip log.
+
+**Measured status (msA14)**: both taught-source attempts durably recorded
+(applied, with facts); all eight rows individually accounted in the reply
+(row 3 correctly untraceable until the flanger's make/model is identified);
+draft SHA-identical; nothing sent. Still open for Milestone A sign-off:
+irrelevant hits are recorded as retrieval with coverage_items empty (the
+obligation-vs-coverage semantic split needs its completion rule — what
+closes an obligation whose search succeeded but matched nothing relevant),
+and the per-row traces (value_trace per model) remain the next turns'
+durable work rather than same-turn execution. These are enumerated gaps,
+not model-quality attributions.
