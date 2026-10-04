@@ -109,3 +109,39 @@ closes an obligation whose search succeeded but matched nothing relevant),
 and the per-row traces (value_trace per model) remain the next turns'
 durable work rather than same-turn execution. These are enumerated gaps,
 not model-quality attributions.
+
+## Round-37 finishing the job (same session msA14-…-9077, continued from persisted work)
+
+Continuations of the SAME job (no fresh-session campaign): the bare
+"continue" turns ran generic scans and re-asked (recorded finding: the
+continuation path does not carry the job's recorded next_action into plan
+context), and two response-killers were found and fixed en route
+(unbound `_plan` on prefetched-block turns; the taught value_trace
+refinement now drives the datasets chain when sweep coverage was
+irrelevant). Executing the agent's OWN proposed searches produced the
+evidence-level comparison:
+
+**Eight-row comparison delivered (cont7, draft untouched):**
+- Rows 5–7 (SLE24-16 $8,880/11–12wk, TK 1624 $8,040/4–6wk, TK Multi
+  $12,838/In Stock): CONFIRMED against the Chandrakant "Quote for
+  Slitter" email, Sept 18 2026, to Steve (AlumaSafway) — prices,
+  delivery and CAD/FOB boilerplate cited.
+- Row 8 (GSL48-16 $14,166): discrepancy PRESERVED — July 2026 Belroc
+  thread shows $13,285/11–12wk; flagged as the one item to verify
+  before sending, not silently resolved.
+- Rows 1, 2, 4 (No. 381, U-22, No. 622): value_trace returned no other
+  cataloged document — draft figures preserved as UNSOURCED, owner
+  decision preserved; the manual $2,902 for No. 381 kept per lesson.
+- Row 3 (Manual Flanger): FOUND in Consolidated Price List 2019.xlsx —
+  the stored-data lead exists (answering the reviewer's Flanger point:
+  the app investigated before asking); the exact cell read is the
+  recorded remaining step.
+
+**Durable closure:** the job ledger holds 18 operations spanning the arc
+(4 search_succeeded, 4 search_returned_no_receipt, 2
+read_returned_no_receipt, plus the pre-fix rows) — proposals,
+invocations and outcomes linked by operation id across turns.
+**Status: multi-source execution demonstrated; evidence-level
+investigation delivered for rows 3, 5–8; rows 1, 2, 4 recorded as
+unsourced with the exact missing fact (no cataloged document carries
+them) and the next actions scoped. Not sent. Original canvas untouched.
