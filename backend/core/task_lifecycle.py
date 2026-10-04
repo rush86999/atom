@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import functools
+import logging
 import os
 import re
 import threading
@@ -27,6 +28,8 @@ import time
 import uuid
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 
@@ -2073,14 +2076,27 @@ def finish_retrieval_turn(
                 record["task_revision"].get("requested_fields") or []),
         })
         record = lifecycle.get_task(run_id) or record
-    lifecycle.transition_operation(
-        run_id, operation_id, "running", execution_id=execution_id)
+    # IDEMPOTENT SETTLE (2026-10-04 observation run): the multi-source
+    # turn now has more than one settle site (the deterministic lanes,
+    # the ledger arms, the requirement chain) and a second settle hit
+    # 'illegal operation transition running -> running', discarding
+    # that settle's execution facts and questions. Settling an already
+    # settled operation is a REPLAY, not an error — skip transitions
+    # the operation has already made.
+    current_status = next(
+        (op.get("status") for op in
+         (lifecycle.get_task(run_id) or {}).get("operations") or []
+         if op.get("operation_id") == operation_id), None)
+    if current_status == "pending":
+        lifecycle.transition_operation(
+            run_id, operation_id, "running", execution_id=execution_id)
     if not complete:
         return run_id
-    lifecycle.transition_operation(
-        run_id, operation_id, "applied",
-        evidence_revision=structured_result.get("evidence_revision"),
-        execution_id=execution_id)
+    if current_status != "applied":
+        lifecycle.transition_operation(
+            run_id, operation_id, "applied",
+            evidence_revision=structured_result.get("evidence_revision"),
+            execution_id=execution_id)
     attempt = structured_result.get("attempt_id")
     lifecycle.apply_transition(run_id, {
         "kind": "attach_evidence",
@@ -2492,7 +2508,82 @@ def record_read_outcome(
     work = next_unfinished_work(record or {})
     if errors:
         work["ledger_errors"] = errors
+    # INSPECTION SURFACE (2026-10-04 audit request): one INFO line per
+    # settle so live ledger engagement is observable from the log alone
+    # — the settle arms log failures only, and nothing else exposes the
+    # durable state. Identifiers and counts, never contents: question
+    # ids bind to GET /api/chat/task/{session_id} for detail.
+    logger.info(
+        "[job-work-ledger] settled run=%s op=%s added=%d resolved_total=%d "
+        "open(actions=%d owner=%d exhausted=%d)",
+        str(run_id)[:8], str(operation_id or "-")[:8],
+        len(derived.get("questions") or []),
+        _resolved_count(lifecycle, run_id),
+        len(work.get("actions") or []),
+        len(work.get("owner_decisions") or []),
+        len(work.get("exhausted") or []),
+    )
     return work
+
+
+def _resolved_count(lifecycle: "TaskLifecycle", run_id: str) -> int:
+    """Resolved entries on the current revision (audit counter for the
+    settle log line)."""
+    try:
+        record = lifecycle.get_task(run_id) or {}
+        entries = (record.get("task_revision") or {}).get(
+            "unresolved") or []
+        return sum(1 for e in entries
+                   if isinstance(e, dict) and e.get("status") == "resolved")
+    except Exception:  # noqa: BLE001 — counter only
+        return 0
+
+
+def task_snapshot(record: Dict[str, Any]) -> Dict[str, Any]:
+    """The read-only inspection projection of one task record
+    (2026-10-04 audit request): the durable job state a reviewer or
+    acceptance gate needs — open work, operation outcomes with their
+    execution facts, authorization scope — WITHOUT raw revision payload
+    duplication. Bounded fields only; entries were bounded at write
+    time; statuses and stages, never tokens or document contents."""
+    if not isinstance(record, dict) or not record.get("task_revision"):
+        return {"task": None}
+    revision = record.get("task_revision") or {}
+    operations = []
+    for op in (record.get("operations") or []):
+        if not isinstance(op, dict):
+            continue
+        operations.append({
+            "operation_id": op.get("operation_id"),
+            "type": op.get("operation_type"),
+            "status": op.get("status"),
+            "requested_change": op.get("requested_change"),
+            "execution": op.get("execution"),
+            "denied": op.get("denied"),
+            "needs_reconciliation": bool(op.get("needs_reconciliation")),
+            "idempotency_key": op.get("idempotency_key"),
+        })
+    provenance = revision.get("provenance") or {}
+    return {
+        "run_id": record.get("run_id"),
+        "conversation_id": record.get("conversation_id"),
+        "canvas_id": provenance.get("canvas_id"),
+        "run_status": record.get("run_status"),
+        "task_version": record.get("task_version"),
+        "revision": revision.get("revision"),
+        "goal_text": revision.get("goal_text"),
+        "entities": [e.get("id") for e in (
+            revision.get("entities") or []) if isinstance(e, dict)],
+        "requested_fields": revision.get("requested_fields"),
+        "authorized_actions": revision.get("authorized_actions"),
+        "authorization": revision.get("authorization") or "read_only",
+        "open_questions": open_unresolved_questions(record),
+        "resolved_question_count": sum(
+            1 for e in (revision.get("unresolved") or [])
+            if isinstance(e, dict) and e.get("status") == "resolved"),
+        "next_work": next_unfinished_work(record),
+        "operations": operations,
+    }
 
 
 @_guarded

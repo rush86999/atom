@@ -660,3 +660,56 @@ Shipped in the closeout arc (bea8bf4b5, 622904302, + staged):
   source-access
 - stage-attributed refresh outcomes; sweep-injection controls
   (exclusion/cooldown) re-asserted and pinned
+
+---
+
+## Addendum 11 (2026-10-04): inspection surface shipped; first live task records read; observation verdict
+
+Coordination-audit round 35. The Milestone-A gate ("task ledger never
+engages" fails completion) was unevidenceable — no surface exposed
+task records. Now it is:
+
+- **`GET /api/chat/task/{session_id}`** (read-only, authenticated;
+  optional `?canvas_id=` scoped fallback): returns the `task_snapshot`
+  projection — open questions, next work, operations with execution
+  facts, authorization scope. `{"task": null}` for task-less
+  conversations (absence is now observable).
+- **One INFO settle line** per `record_read_outcome` (identifiers +
+  counts only; question ids bind to the endpoint for detail).
+- **Idempotent `finish_retrieval_turn`**: replaying a settled
+  operation skips already-made transitions (live-proven fix for the
+  `running -> running` double-settle that discarded facts).
+
+### Observation runs (guide's exact Milestone-A ask; fork f1f20713,
+deleted after, content SHA-256 identical to source throughout; zero
+edits landed, zero sends; backend pids 28010 → 28378)
+
+| Run | Session | What the surface showed |
+|---|---|---|
+| 1 | jobwork-obs-1791130751840 | Task created (977bc543); **denied-edit recorder fired LIVE** — an edit was attempted despite "Don't change the draft yet" and recorded as a cancelled `edit` op (the guide's planning-error case, now observable); retrieve settle hit the double-settle bug (fixed same round); replan died on a fourth undefined name (`_canvas_ctx`) |
+| 2 | jobwork-obs2-1791130970112 | NameError gone (coordination fix); replan now bounded-fails on `TimeoutError` (the research turn's remaining budget cannot fit it); `[planning-failed]` names the required sources (datasets, outlook); reply honestly states no source was consulted and the draft is untouched |
+
+### Verdict against the engagement question
+
+The ledger **engages and is inspectable**: tasks are created, edit
+attempts are recorded with refusal reasons, settles are idempotent,
+and every fact above came from the new surface + one log line — not
+from reply prose. What still does NOT happen on these turns: **no
+retrieve operation and no open questions are recorded when the turn
+produces no executable plan** (initial plan no-tool; replan times
+out). The reviewer's rule — "the no-tool branch also needs a record;
+opening an operation only immediately before execution cannot explain
+why execution never began" — is the remaining gap, and it lives in
+the requirement-driven recovery block (it logs `[planning-failed]`
+but creates no operation/question). Requested of that block's owner:
+on the planning-failed path, open an operation with
+`not_dispatched`/`planning_failed` execution facts and a
+verification question whose next action is the replan — exactly the
+shape the off-request arm already uses. Then one rerun closes the
+continuation proof (question → `continue` → seeded action → updated
+entry).
+
+Also found and left for the round owner: `begin_edit_turn` does not
+bind canvas provenance (both observation tasks have `canvas_id: null`
+because the edit lane created them) — canvas-scoped resume misses
+edit-created tasks.

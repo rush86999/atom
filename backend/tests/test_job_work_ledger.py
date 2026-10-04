@@ -442,3 +442,65 @@ class TestPlannerPlanningMeta:
         meta = plan._result_meta.get("planning") or {}
         assert meta.get("source") == "structured"
         assert meta.get("recovered") is False
+
+
+class TestInspectionSurface:
+    """The 2026-10-04 audit request: the Milestone-A gate requires
+    inspecting durable task state, and until now no surface exposed it
+    (history drops response data; settle arms logged failures only)."""
+
+    def test_snapshot_projection(self, lifecycle):
+        from core.task_lifecycle import task_snapshot
+
+        session = {}
+        run_id, op_id = begin_retrieval_turn(
+            lifecycle, session, "conv-snap", "verify records", "ex-1",
+            items=["M-1", "M-2"], canvas_id="canvas-snap")
+        structured, freshness = _read_fixture()
+        finish_retrieval_turn(
+            lifecycle, run_id, op_id, structured, "ex-1", True,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "saved_copy"})
+        record_read_outcome(
+            lifecycle, run_id, op_id,
+            structured_result=structured, freshness=freshness)
+        record = lifecycle.get_task(run_id)
+        snap = task_snapshot(record)
+        assert snap["run_id"] == run_id
+        assert snap["conversation_id"] == "conv-snap"
+        assert snap["canvas_id"] == "canvas-snap"
+        # finish_retrieval_turn reconciles entities to the observed
+        # item set (the fixture reads three items).
+        assert snap["entities"] == ["M-1", "M-2", "M-3"]
+        assert snap["open_questions"], "open questions visible"
+        assert snap["next_work"]["actions"], "next work visible"
+        op = snap["operations"][0]
+        assert op["execution"]["outcome"] == "read_succeeded"
+        assert op["execution"]["served_basis"] == "saved_copy"
+
+    def test_snapshot_empty_record(self):
+        from core.task_lifecycle import task_snapshot
+
+        assert task_snapshot({}) == {"task": None}
+        assert task_snapshot(None) == {"task": None}
+
+    def test_settle_logs_one_info_line(self, lifecycle, caplog):
+        """The log is the only always-on engagement signal — one INFO
+        per settle, identifiers and counts only."""
+        import logging as _logging
+
+        session = {}
+        run_id, op_id = begin_retrieval_turn(
+            lifecycle, session, "conv-log", "verify records", "ex-1",
+            items=["M-1"])
+        with caplog.at_level(_logging.INFO, logger="core.task_lifecycle"):
+            record_read_outcome(
+                lifecycle, run_id, op_id,
+                structured_result={"targets": [
+                    {"item": "M-1", "identity": {"status": "none"}}]},
+                freshness=None)
+        line = [r for r in caplog.records
+                if "job-work-ledger] settled" in r.getMessage()]
+        assert len(line) == 1
+        assert f"run={str(run_id)[:8]}" in line[0].getMessage()
+        assert "open(actions=1" in line[0].getMessage()

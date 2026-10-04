@@ -889,6 +889,63 @@ async def get_session_agent_trace(
         raise HTTPException(status_code=500, detail="Failed to retrieve agent trace")
 
 
+@router.get("/task/{session_id}")
+async def get_session_task_record(
+    session_id: str,
+    canvas_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """The durable job-work record for a chat session (2026-10-04
+    coordination-audit request — the Milestone-A gate reads "the task
+    ledger never engages", and until now no supported surface exposed
+    task records: the history API drops response data blocks and the
+    settle arms log failures only).
+
+    Read-only. Resolves the conversation's ACTIVE task; when the
+    conversation has none, an explicit ``?canvas_id=`` resolves the
+    canvas-bound task (the same scoping continuation uses — never 'the
+    user's latest conversation'). Returns the ``task_snapshot``
+    projection: open questions, next work, operations with execution
+    facts, authorization scope. Unknown sessions and task-less
+    conversations return ``{"task": None}`` — absence of a record is
+    itself the observable fact an acceptance gate needs.
+    """
+    try:
+        known = chat_orchestrator.conversation_sessions.get(session_id)
+        if known is not None and not _ensure_session_access(known, current_user):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        from integrations.chat_orchestrator import _task_lifecycle_for
+        from core.task_lifecycle import task_snapshot
+
+        lifecycle = _task_lifecycle_for(
+            getattr(current_user, "tenant_id", None),
+            workspace_id or getattr(current_user, "workspace_id", None),
+        )
+        if lifecycle is None:
+            return {"success": True, "task": None,
+                    "note": "task lifecycle disabled "
+                            "(ATOM_TASK_LIFECYCLE_ENABLED)"}
+        record = None
+        try:
+            record = lifecycle.find_active_task(session_id)
+        except Exception:
+            record = None
+        if record is None and canvas_id:
+            try:
+                record = lifecycle.find_active_task_for_canvas(canvas_id)
+            except Exception:
+                record = None
+        return {"success": True, "session_id": session_id,
+                "task": task_snapshot(record) if record else None}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve task record for {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve task record")
+
+
 @router.get("/sessions")
 async def get_user_sessions(
     user_id: Optional[str] = "demo-user",
