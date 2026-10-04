@@ -428,3 +428,103 @@ Run twice on e2e-accept*/e2e-accept2*:
 ### Status (accurate)
 **Draft completed; current-price verification partial; independent
 execution of the trained workflow still needs that final check.**
+
+---
+
+## Addendum 8 (2026-10-04): job-work ledger — reviewer assignment executed
+
+Bounded implementation per the reviewer's four corrections and
+assignment table. Files: core/task_lifecycle.py, integrations/
+chat_orchestrator.py, tests/test_job_work_ledger.py.
+
+### What shipped (code, pinned by 18 new tests)
+
+1. **Execution facts on retrieve operations** — `invoked`, `outcome`
+   (`read_succeeded | read_failed | not_dispatched | search_*`),
+   `served_basis` (`saved_copy | refreshed | live | none`),
+   `failure_stage` (the freshness verdict's stage vocabulary), and
+   per-item match statuses ride the operation record. Two dimensions
+   by design: a successful saved-copy read AND a failed refresh are
+   both recordable on one turn; a lookup that never dispatched is not
+   a lookup that ran and missed.
+2. **Unresolved state populated on the existing schema field** —
+   `task_revision.unresolved` entries carry item, question, kind
+   (`business_decision | verification | missing_evidence`),
+   evidence, next action OR decision owner, and status. Resolved
+   entries stop resurfacing (`open_unresolved_questions` is the only
+   read path); resolution text is mandatory.
+3. **Continuation driven from that state** — `next_unfinished_work`
+   selects executable questions under a 3-attempt budget; owner
+   decisions are surfaced, never executed; a BARE continuation
+   message seeds the turn from the top open action (deadline
+   re-derived); resume scope is the conversation's own task, else the
+   task whose provenance binds THIS canvas
+   (`find_active_task_for_canvas`) — never "the user's latest
+   conversation".
+4. **Dimension discipline (corrections 2+3)** — `single/multiple/
+   none` resolves only missing-evidence questions; freshness
+   verdicts resolve only verification; owner bindings resolve only
+   decisions. An unresolved question (business clarification) and an
+   `uncertain` operation (possible lost write) remain separate
+   records with separate recoveries.
+
+### The original job, run once (fork, fresh session, no reformulation)
+
+Fork of 0e4defa5 → abfdbffa (deleted after the run). Session
+`jobwork-e2e-1791121734144`, employee 9837ec71, backend pid 9287
+(HEAD 622904302 + this arc). Three turns — one ask, then two bare
+"continue" messages, ~95 s each:
+
+- **T1**: mailbox store scan ran; one unrelated thread returned; all
+  eight rows reported not-sourced. No fabrication.
+- **T2**: workbook read RAN via the taught source (Consolidated
+  Price List 2019.xlsx, Tennsmith sheet) — item 5 verified, honest
+  not-confirmed for the rest.
+- **T3**: full 8-row comparison with per-item source results;
+  SLE24-16 mismatch surfaced ($8,880 draft vs 8,984 at R101 — the
+  known workbook-vs-vendor discrepancy); taught-preservation
+  reasoning applied to No. 381; no prices changed.
+
+**External verification (kept outside the ledger, per the
+reviewer):** fork audit = exactly 1 row (the fork) — zero updates,
+zero sends; the edit-scope gate DENIED the turn's attempted canvas
+edits (no unauthorized price changes); fork content byte-identical to
+the source canvas (SHA-256 over content+details equal; all 8 price
+digit-strings present in both). Not sent.
+
+### Honest boundaries this run exposed
+
+1. **Lane coverage is partial — the run's central finding.** The
+   ledger wires the two deterministic read lanes (file-ask and
+   pending-file-direct). This job's fresh-session compound ask routed
+   to the `multi_step_process` lane all three turns: no lifecycle
+   operation, no execution facts, no questions recorded
+   (`task_run_id` null on every response). The starvation signature
+   the vocabulary exists to capture fired LIVE during the run —
+   `[structured-pool] depth=0 candidates=[('openrouter',
+   'deepseek/deepseek-v4-pro')] attempted=False`, repeatedly, each
+   caught by sweep injection — and none of it reached a task record.
+   Next increment: open/settle the operation at the multi-step lane
+   (or the tool-planner dispatch seam).
+2. **Bare-continue fail-safe worked but could not engage**: no task
+   existed (see 1), so no seed — the turns correctly fell through to
+   normal flow instead of hijacking. Continuation-injection is
+   unit-pinned, not yet live-proven.
+3. **Edit-scope validator refused the "prepare the email draft" ask
+   shape** — conservative-correct for this run (nothing changed), but
+   the taught cc/header application of addendum 4–5 would also be
+   refused under this shape; the work-instruction override family
+   needs the same treatment on the scope-validator path.
+4. `next_steps` remains the canned generic list on the multi-step
+   lane; ledger-driven next steps ride only the two wired lanes'
+   responses (`data.open_work` + `next_steps`).
+
+### Test standing
+
+18 new pins green (tests/test_job_work_ledger.py). Four affected
+neighborhoods (lifecycle, denial, pending-file resume, result
+reference routing): 9 failures — all pre-existing, root-caused by
+stash bisect: 2 flag-off tests fail because backend/.env carries
+ATOM_TASK_LIFECYCLE_ENABLED=1 (environmental; they pass in a
+worktree without the .env), 7 refresh tests fail identically with and
+without this arc's files (HEAD-state issue, not this arc).

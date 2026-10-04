@@ -1995,7 +1995,17 @@ _PRESENTATION_COMPACT_RE = re.compile(
 )
 # Control verbs that end a line of work, never continue a delivery.
 _HALT_RE = re.compile(
-    r"\b(?:stop|cancel(?:ling)?|halt|hold\s+on|never\s*mind|forget\s+it)\b",
+    r"\b(?:stop|cancel(?:ling)?|halt|hold\s+on|never\s+mind|forget\s+it)\b",
+    re.IGNORECASE,
+)
+# JOB CONTINUATION (2026-10-04 reviewer assignment): a BARE continuation
+# message — the whole message is the continuation word, nothing else —
+# seeds the turn from the durable open-work ledger instead of asking the
+# operator to rephrase. Any message with additional content takes the
+# normal lanes; only the bare form may be redirected.
+_CONTINUATION_RE = re.compile(
+    r"^(?:please\s+)?(?:continue|keep\s+going|go\s+on|carry\s+on|next|"
+    r"resume|finish(?:\s+(?:the|your)\s+job|it)?)\s*[.!?]*$",
     re.IGNORECASE,
 )
 # Field selection needs an explicit selection verb: a bare field word in
@@ -5295,6 +5305,80 @@ class ChatOrchestrator:
                             _tl_entry, session, session_id, message)
             except Exception as _tl_err:  # noqa: BLE001 — best-effort only
                 logger.debug("task lifecycle resolve skipped: %r", _tl_err)
+            # JOB CONTINUATION (2026-10-04 reviewer assignment): a bare
+            # continuation over a job with open work EXECUTES the next
+            # unfinished action from the durable ledger instead of asking
+            # the operator to rephrase. Scope is the reviewer's
+            # correction: the conversation's own task, else the task
+            # bound to THIS canvas — never "the user's latest
+            # conversation", which can be a different job entirely.
+            # Owner decisions are surfaced, never executed; executable
+            # questions retry under the attempt budget.
+            _cont_seed = None
+            try:
+                _cont_text = " ".join(str(message or "").split())
+                if _CONTINUATION_RE.fullmatch(_cont_text or ""):
+                    _cont_lifecycle = _task_lifecycle_for(
+                        getattr(self, "tenant_id", None),
+                        (context or {}).get("workspace_id"))
+                    if _cont_lifecycle is not None:
+                        _cont_record = None
+                        try:
+                            _cont_record = _cont_lifecycle.find_active_task(
+                                session_id)
+                        except Exception:  # noqa: BLE001
+                            _cont_record = None
+                        if _cont_record is None:
+                            _cont_canvas = _canvas_id_from_context(context)
+                            if _cont_canvas:
+                                try:
+                                    _cont_record = (
+                                        _cont_lifecycle
+                                        .find_active_task_for_canvas(
+                                            _cont_canvas))
+                                except Exception:  # noqa: BLE001
+                                    _cont_record = None
+                        if _cont_record is not None:
+                            from core.task_lifecycle import (
+                                bump_question_attempts,
+                                next_unfinished_work,
+                            )
+
+                            _cont_work = next_unfinished_work(_cont_record)
+                            if _cont_work["actions"]:
+                                _cont_q = _cont_work["actions"][0]
+                                bump_question_attempts(
+                                    _cont_lifecycle,
+                                    _cont_record["run_id"],
+                                    [_cont_q["question_id"]])
+                                _cont_seed = {
+                                    "question_id": _cont_q["question_id"],
+                                    "ask": (f"{_cont_q['question']} — "
+                                            f"{_cont_q['next_action']}"),
+                                    "original": _cont_text,
+                                    "run_id": _cont_record["run_id"],
+                                }
+                                # The seeded ask is a full research ask;
+                                # the deadline was derived from the bare
+                                # continuation word and must be re-derived
+                                # from what the turn actually is.
+                                message = _cont_seed["ask"]
+                                _deadline = TurnDeadline(
+                                    _request_deadline_seconds(
+                                        derivation=_derivation_ask(
+                                            message, {"history": [],
+                                                      "canvas": context})),
+                                    label="chat-request",
+                                )
+                                logger.info(
+                                    "[job-continuation] seeded turn from "
+                                    "open question %s (attempt %s)",
+                                    _cont_q["question_id"],
+                                    int(_cont_q.get("attempts") or 0) + 1)
+                                if isinstance(session, dict):
+                                    session["_continuation_seed"] = _cont_seed
+            except Exception as _cont_err:  # noqa: BLE001 — never blocks
+                logger.debug("job continuation skipped: %r", _cont_err)
             try:
                 from core.pending_file_task import (
                     FILE_TASK_SESSION_KEY,
@@ -6568,7 +6652,8 @@ class ChatOrchestrator:
                             _tl_lifecycle, session, session_id, message,
                             _execution_id,
                             items=list(
-                                _ask_task.get("requested_targets") or []))
+                                _ask_task.get("requested_targets") or []),
+                            canvas_id=_canvas_id_from_context(context))
                     except Exception as _tl_err:  # noqa: BLE001
                         # FAIL-CLOSED: the operation could not be
                         # recorded, so the read does not run. No tool
@@ -6987,21 +7072,96 @@ class ChatOrchestrator:
                         session, _ask_result_row, source="ask_lane")
                     _tl_outcome_uncertain = False
                     _tl_operation_ref = None
+                    _tl_open_work = None
+                    _tl_next_steps: List[str] = []
                     try:
                         # TASK LIFECYCLE (milestone: controls execution):
                         # settle the begun retrieval — running→applied with
-                        # observed evidence, or running when incomplete.
+                        # observed evidence, or running when incomplete —
+                        # then record the EXECUTION FACTS (invoked, outcome,
+                        # served basis, failure stage: what the execution
+                        # path observed, never what a reply might narrate)
+                        # and derive the job's open-work ledger updates
+                        # this read justifies.
                         if _tl_lifecycle is not None and _tl_begin[0]:
                             from core import task_lifecycle as _tlm
+                            _tl_fresh_out = (
+                                _ask_freshness.get("refresh_outcome") or {})
+                            _tl_invoked = bool(_ask_result.get("ok"))
+                            _tl_outcome = (
+                                "read_succeeded" if _ask_complete
+                                else "read_failed") if _tl_invoked else (
+                                "read_failed" if (
+                                    _ask_identity.get("file_id")
+                                    or _ask_identity.get("resource_id"))
+                                else "not_dispatched")
+                            _tl_execution = {
+                                "invoked": _tl_invoked,
+                                "outcome": _tl_outcome,
+                                "served_basis": (
+                                    "refreshed" if _ask_freshness.get(
+                                        "status") == "refreshed"
+                                    else "saved_copy" if _tl_invoked
+                                    else "none"),
+                                "failure_stage": _tl_fresh_out.get("stage"),
+                                "freshness_status": _ask_freshness.get(
+                                    "status"),
+                                "items": {
+                                    str((t or {}).get("item") or ""):
+                                        str(((t or {}).get("identity")
+                                             or {}).get("status") or "")
+                                    for t in ((_ask_structured or {})
+                                              .get("targets") or [])
+                                },
+                            }
                             _tlm.finish_retrieval_turn(
                                 _tl_lifecycle, _tl_begin[0], _tl_begin[1],
                                 _ask_structured if isinstance(
                                     _ask_structured, dict) else {},
-                                _execution_id, _ask_complete)
+                                _execution_id, _ask_complete,
+                                execution=_tl_execution)
                             _tl_operation_ref = {
                                 "run_id": _tl_begin[0],
                                 "operation_id": _tl_begin[1],
                             }
+                            _tl_bindings = None
+                            try:
+                                from core import dialogue_state as _ds
+
+                                _tl_bindings = _ds.workbook_bindings(
+                                    (context or {}).get("workspace_id"),
+                                    content_hash=_ask_identity.get(
+                                        "content_hash"),
+                                    items=[k for k in _tl_execution["items"]
+                                           if k],
+                                )
+                            except Exception:  # noqa: BLE001 — bindings optional
+                                _tl_bindings = None
+                            _tl_open_work = _tlm.record_read_outcome(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                structured_result=(
+                                    _ask_structured if isinstance(
+                                        _ask_structured, dict) else None),
+                                freshness=_ask_freshness or None,
+                                execution=_tl_execution,
+                                bindings=_tl_bindings)
+                            if _tl_open_work and _tl_open_work.get(
+                                    "ledger_errors"):
+                                logger.warning(
+                                    "[job-work-ledger] bookkeeping errors: "
+                                    "%r", _tl_open_work["ledger_errors"])
+                            if isinstance(_tl_open_work, dict):
+                                _tl_next_steps = [
+                                    str(a.get("next_action"))
+                                    for a in (_tl_open_work.get("actions")
+                                              or []) if a.get("next_action")
+                                ][:3]
+                                _tl_next_steps += [
+                                    f"Your decision needed: "
+                                    f"{d.get('question')}"
+                                    for d in (_tl_open_work.get(
+                                        "owner_decisions") or [])
+                                ][:2]
                     except Exception as _tl_err:  # noqa: BLE001
                         if _tl_lifecycle is not None and _tl_begin[0]:
                             # FAIL-CLOSED on recording: the observed answer
@@ -7215,11 +7375,16 @@ class ChatOrchestrator:
                                 "task_run_id": session.get("_task_run_id"),
                                 "task_operation": _tl_operation_ref,
                                 "reconciliation_required": _tl_outcome_uncertain,
+                                # The durable open-work snapshot — next
+                                # steps the LEDGER justifies, not reply
+                                # invention; owner decisions surface here
+                                # for the owner to settle.
+                                "open_work": _tl_open_work,
                             },
                             "model": "deterministic",
                             "provider": "structured",
                             "requires_confirmation": False,
-                            "next_steps": [],
+                            "next_steps": _tl_next_steps,
                             "suggested_actions": [],
                         }
                         self._update_session(
@@ -7692,7 +7857,9 @@ class ChatOrchestrator:
                                         message, _execution_id,
                                         items=list(
                                             (_direct_task or {}).get(
-                                                "requested_targets") or []))
+                                                "requested_targets") or []),
+                                        canvas_id=_canvas_id_from_context(
+                                            context))
                                 except Exception as _tl_err:  # noqa: BLE001
                                     # FAIL-CLOSED: the operation could not
                                     # be recorded, so the read does not run.
@@ -8066,21 +8233,92 @@ class ChatOrchestrator:
                         session, _direct_result_row, source="direct_read")
                     _tl_outcome_uncertain = False
                     _tl_operation_ref = None
+                    _tl_open_work = None
+                    _tl_next_steps: List[str] = []
                     try:
                         # TASK LIFECYCLE (milestone: controls execution):
                         # settle the begun retrieval with the observed
-                        # outcome.
+                        # outcome, its EXECUTION FACTS, and the open-work
+                        # ledger updates this read justifies (as the ask
+                        # lane — one recording discipline, both lanes).
                         if _tl_lifecycle is not None and _tl_begin[0]:
                             from core import task_lifecycle as _tlm
+                            _tl_fresh_out = (
+                                _freshness.get("refresh_outcome") or {})
+                            _tl_invoked = bool(_direct_result.get("ok"))
+                            _tl_outcome = (
+                                "read_succeeded" if _direct_complete
+                                else "read_failed") if _tl_invoked else (
+                                "read_failed" if (
+                                    _direct_identity.get("file_id")
+                                    or _direct_identity.get("resource_id"))
+                                else "not_dispatched")
+                            _tl_execution = {
+                                "invoked": _tl_invoked,
+                                "outcome": _tl_outcome,
+                                "served_basis": (
+                                    "refreshed" if _freshness.get(
+                                        "status") == "refreshed"
+                                    else "saved_copy" if _tl_invoked
+                                    else "none"),
+                                "failure_stage": _tl_fresh_out.get("stage"),
+                                "freshness_status": _freshness.get("status"),
+                                "items": {
+                                    str((t or {}).get("item") or ""):
+                                        str(((t or {}).get("identity")
+                                             or {}).get("status") or "")
+                                    for t in ((_direct_structured or {})
+                                              .get("targets") or [])
+                                },
+                            }
                             _tlm.finish_retrieval_turn(
                                 _tl_lifecycle, _tl_begin[0], _tl_begin[1],
                                 _direct_structured if isinstance(
                                     _direct_structured, dict) else {},
-                                _execution_id, _direct_complete)
+                                _execution_id, _direct_complete,
+                                execution=_tl_execution)
                             _tl_operation_ref = {
                                 "run_id": _tl_begin[0],
                                 "operation_id": _tl_begin[1],
                             }
+                            _tl_bindings = None
+                            try:
+                                from core import dialogue_state as _ds
+
+                                _tl_bindings = _ds.workbook_bindings(
+                                    (context or {}).get("workspace_id"),
+                                    content_hash=_direct_identity.get(
+                                        "content_hash"),
+                                    items=[k for k in _tl_execution["items"]
+                                           if k],
+                                )
+                            except Exception:  # noqa: BLE001 — bindings optional
+                                _tl_bindings = None
+                            _tl_open_work = _tlm.record_read_outcome(
+                                _tl_lifecycle, _tl_begin[0], _tl_begin[1],
+                                structured_result=(
+                                    _direct_structured if isinstance(
+                                        _direct_structured, dict) else None),
+                                freshness=_freshness or None,
+                                execution=_tl_execution,
+                                bindings=_tl_bindings)
+                            if _tl_open_work and _tl_open_work.get(
+                                    "ledger_errors"):
+                                logger.warning(
+                                    "[job-work-ledger] bookkeeping errors: "
+                                    "%r", _tl_open_work["ledger_errors"])
+                            if isinstance(_tl_open_work, dict):
+                                _tl_next_steps = [
+                                    str(a.get("next_action"))
+                                    for a in (_tl_open_work.get("actions")
+                                              or []) if a.get("next_action")
+                                ][:3]
+                                _tl_next_steps += [
+                                    f"Your decision needed: "
+                                    f"{d.get('question')}"
+                                    for d in (_tl_open_work.get(
+                                        "owner_decisions") or [])
+                                ][:2]
                     except Exception as _tl_err:  # noqa: BLE001
                         if _tl_lifecycle is not None and _tl_begin[0]:
                             # FAIL-CLOSED on recording: keep the observed
@@ -8175,11 +8413,15 @@ class ChatOrchestrator:
                             "task_run_id": session.get("_task_run_id"),
                             "task_operation": _tl_operation_ref,
                             "reconciliation_required": _tl_outcome_uncertain,
+                            # The durable open-work snapshot (as the ask
+                            # lane): ledger-justified next steps and the
+                            # owner decisions that remain.
+                            "open_work": _tl_open_work,
                         },
                         "model": "deterministic",
                         "provider": "structured",
                         "requires_confirmation": False,
-                        "next_steps": [],
+                        "next_steps": _tl_next_steps,
                         "suggested_actions": [],
                     }
                     self._update_session(

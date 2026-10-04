@@ -21,6 +21,7 @@ from __future__ import annotations
 import copy
 import functools
 import os
+import re
 import threading
 import time
 import uuid
@@ -100,8 +101,60 @@ TRANSITION_KINDS = (
     "revise_objective",
     "authorize_execute",
     "attach_evidence",
+    "record_unresolved",
     "cancel",
 )
+
+# ---------------------------------------------------------------------------
+# Job-work ledger (2026-10-04 reviewer assignment). Two records the reply
+# leg may NOT invent, because the 2026-10-04 starvation incident showed a
+# model narrating "unverifiable" about a lookup that never dispatched:
+#
+# - EXECUTION FACTS: what the execution path observed about a planned
+#   lookup — invoked (did it run at all), outcome, served basis, failure
+#   stage. Two-dimensional by design: a successful saved-copy read is
+#   not a failed refresh, and a lookup that never dispatched is not a
+#   lookup that ran and missed.
+# - UNRESOLVED QUESTIONS: the durable open-work set. An entry names the
+#   item, the question, the evidence behind it, the next action OR the
+#   decision owner, and its status. Resolved entries stop resurfacing.
+#
+# Item MATCH status (single/multiple/none) is a different dimension from
+# every one of these and never substitutes for them: a found item can
+# still carry an open freshness question, and a saved-copy read settles
+# nothing about the live source.
+# ---------------------------------------------------------------------------
+
+#: Did the planned lookup run, and what came back. ``not_dispatched`` is
+#: distinct from ``read_failed``: starvation (empty planner pool, declined
+#: dispatch) and dispatch-then-failure are different facts with different
+#: recoveries — the incident class this vocabulary exists to separate.
+EXEC_OUTCOMES = (
+    "read_succeeded",   # file read dispatched and returned content
+    "read_failed",      # dispatched; no content came back
+    "not_dispatched",   # never ran (pool starved / planner declined)
+    "search_succeeded", # non-file lookup (mailbox, store) returned hits
+    "search_failed",    # non-file lookup ran and failed
+)
+
+#: Which basis served a SUCCESSFUL read — independent of outcome, because
+#: the reviewer's correction is exactly that these must not collapse:
+#: "read_succeeded on the saved copy" and "refresh_failed" are both true
+#: on the same turn, and only the pair tells the truth.
+EXEC_SERVED_BASES = ("saved_copy", "refreshed", "live", "none")
+
+#: Open-question kinds. ``business_decision`` is settleable only by the
+#: owner (which row is the right one; whether an offer applies) — it is
+#: SURFACED, never auto-executed. ``verification`` and
+#: ``missing_evidence`` carry agent-runnable next actions and may be
+#: selected for continuation within the attempt budget.
+UNRESOLVED_KINDS = ("business_decision", "verification", "missing_evidence")
+UNRESOLVED_STATUSES = ("open", "resolved")
+
+#: How many times continuation may act on one open question before it is
+#: reported as exhausted instead of retried (bounded attempts: an open
+#: question must not become an infinite retry loop).
+UNRESOLVED_ATTEMPT_CAP = 3
 
 OPERATION_TYPES = (
     "retrieve",
@@ -291,6 +344,50 @@ def apply_transition(
             new_task["evidence"] = list(new_task.get("evidence") or []) + [
                 copy.deepcopy(evidence)]
         new_task["new_attempt_required"] = False
+    elif kind == "record_unresolved":
+        # JOB-WORK LEDGER: questions are appended (validated, never
+        # guessed); resolutions and attempt increments settle OPEN
+        # entries in place — a resolved question keeps its text for
+        # audit but never resurfaces in the open set again.
+        existing = list(new_task.get("unresolved") or [])
+        fresh_questions = []
+        for q in (transition.get("questions") or []):
+            if isinstance(q, dict):
+                fresh_questions.append(_normalize_question(
+                    q, operation=transition.get("source_operation")))
+        if fresh_questions:
+            existing = existing + fresh_questions
+        for r in (transition.get("resolutions") or []):
+            if not isinstance(r, dict):
+                continue
+            resolution = _bounded_text(r.get("resolution"), 400)
+            if not resolution:
+                continue
+            for index, entry in enumerate(existing):
+                if (entry.get("status") == "open"
+                        and entry.get("question_id") == r.get(
+                            "question_id")):
+                    settled = dict(entry)
+                    settled.update({
+                        "status": "resolved",
+                        "resolved_at": _utc_now_iso(),
+                        "resolution": resolution,
+                    })
+                    existing[index] = settled
+        for bump in (transition.get("attempts") or []):
+            if not isinstance(bump, dict):
+                continue
+            for index, entry in enumerate(existing):
+                if (entry.get("status") == "open"
+                        and entry.get("question_id") == bump.get(
+                            "question_id")):
+                    counted = dict(entry)
+                    counted["attempts"] = int(
+                        entry.get("attempts") or 0) + max(
+                        1, int(bump.get("increment") or 1))
+                    existing[index] = counted
+        new_task["unresolved"] = existing
+        new_task["new_attempt_required"] = bool(fresh_questions)
     elif kind == "cancel":
         new_task["authorization"] = "cancelled"
         for op in ops:
@@ -435,6 +532,92 @@ def validate_task_revision(task: Dict[str, Any]) -> None:
         raise TaskLifecycleError("task_revision schema_version mismatch")
 
 
+def _question_key(question: Dict[str, Any]) -> Tuple[str, str]:
+    """Identity of a question for dedupe: (normalized item, normalized
+    text). Item-scoped and job-scoped questions about the same subject
+    stay distinct; the same question re-derived by a later read is the
+    SAME question, not a new one."""
+    item = re.sub(r"\s+", " ", str(question.get("item") or
+                                   "").strip().lower())
+    text = re.sub(r"\s+", " ", str(question.get("question") or
+                                   "").strip().lower())
+    return (item, text)
+
+
+def _normalize_question(question: Dict[str, Any],
+                        *, operation: Any = None) -> Dict[str, Any]:
+    """Validate and bound one unresolved-question entry. Never guesses:
+    an unknown kind or empty question text is rejected, an executable
+    kind without a next action is rejected (persisting a question the
+    system cannot act on or surface is noise, not state), and a business
+    decision always names the owner as its settler."""
+    kind = str(question.get("kind") or "")
+    if kind not in UNRESOLVED_KINDS:
+        raise TaskLifecycleError(f"unknown unresolved kind '{kind}'")
+    text = _bounded_text(question.get("question"), 400)
+    if not text.strip():
+        raise TaskLifecycleError("an unresolved question requires text")
+    next_action = _bounded_text(question.get("next_action"), 400)
+    if kind in ("verification", "missing_evidence") and not next_action.strip():
+        raise TaskLifecycleError(
+            f"a {kind} question requires the next action to run")
+    attempts = question.get("attempts")
+    try:
+        attempts = max(0, int(attempts)) if attempts is not None else 0
+    except (TypeError, ValueError):
+        attempts = 0
+    return {
+        "question_id": str(question.get("question_id") or uuid.uuid4()),
+        "item": _bounded_text(question.get("item"), 80),
+        "question": text,
+        "kind": kind,
+        "evidence": _bounded_text(question.get("evidence"), 500),
+        "next_action": next_action.strip() or None,
+        "decision_owner": ("owner" if kind == "business_decision" else None),
+        "status": "open",
+        "attempts": attempts,
+        "opened_at": _utc_now_iso(),
+        "resolved_at": None,
+        "resolution": None,
+        "source_operation": (
+            str(operation)[:64] if operation else None),
+    }
+
+
+def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
+    """Clamp caller-supplied execution facts to the closed vocabulary.
+
+    The record may only state what the execution path observed. An
+    unknown outcome falls back along the ONE fact that is known —
+    whether the lookup was invoked — and the caller's raw wording is
+    kept in ``raw_outcome`` so nothing is silently rewritten."""
+    raw = raw if isinstance(raw, dict) else {}
+    invoked = bool(raw.get("invoked"))
+    outcome = str(raw.get("outcome") or "")
+    raw_outcome = outcome or None
+    if outcome not in EXEC_OUTCOMES:
+        outcome = "read_succeeded" if (invoked and outcome == "") else (
+            "not_dispatched" if not invoked else "read_failed")
+    basis = str(raw.get("served_basis") or "")
+    if basis not in EXEC_SERVED_BASES:
+        basis = "none"
+    items_raw = raw.get("items")
+    items = {str(k): str(v) for k, v in (items_raw or {}).items()
+             if str(k).strip()} if isinstance(items_raw, dict) else {}
+    stage = raw.get("failure_stage")
+    freshness = raw.get("freshness_status")
+    return {
+        "invoked": invoked,
+        "outcome": outcome,
+        "served_basis": basis,
+        "failure_stage": str(stage)[:80] if stage else None,
+        "freshness_status": str(freshness)[:40] if freshness else None,
+        "items": items,
+        "raw_outcome": raw_outcome,
+        "at": _utc_now_iso(),
+    }
+
+
 def validate_operation(operation: Dict[str, Any]) -> None:
     for key in ("operation_id", "objective_id", "operation_type", "status"):
         if operation.get(key) in (None, ""):
@@ -577,6 +760,30 @@ class TaskLifecycle:
         if not candidates:
             return None
         return self.get_task(candidates[0]["id"])
+
+    def find_active_task_for_canvas(
+        self, canvas_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """The newest non-terminal task whose provenance binds this canvas.
+
+        Cross-session continuation resolves THROUGH the canvas identity
+        (2026-10-04 reviewer correction): a fresh session on the owner's
+        quotation fork resumes that job — never 'the user's latest
+        conversation', which can be an entirely different quotation. A
+        task without a canvas binding never matches here."""
+        canvas = str(canvas_id or "").strip()
+        if not canvas:
+            return None
+        runs = self.runs.list_runs(include_terminal=False, limit=200)
+        for run in runs:
+            record = self.get_task(run["id"])
+            if record is None:
+                continue
+            provenance = (record.get("task_revision") or {}).get(
+                "provenance") or {}
+            if str(provenance.get("canvas_id") or "") == canvas:
+                return record
+        return None
 
     # ------------------------------------------------- atomic mutation
     # Every state change below goes through _mutate: read the fresh
@@ -1546,13 +1753,16 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
                        message: str,
                        entities: Optional[List[Dict[str, Any]]] = None,
                        requested_fields: Optional[List[str]] = None,
+                       canvas_id: Optional[str] = None,
                        ) -> Tuple[str, Optional[Dict[str, Any]], bool]:
     """Find the active task or create one, atomically: the file lock
     serializes the find→create window across processes (the version
     counter cannot guard creation — there is no row yet), while the
     caller-held ``_MUTATION_LOCK`` covers threads. Returns
     ``(run_id, record_or_None_if_created, was_created)`` and stashes
-    the run id on the session in both cases."""
+    the run id on the session in both cases. ``canvas_id`` (when the
+    turn carries one) rides the new task's provenance so cross-session
+    continuation can resume THIS job through the canvas identity."""
     with _creation_guard():
         record = _resolve_for_turn(lifecycle, session or {},
                                    conversation_id)
@@ -1560,12 +1770,14 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
             run_id = record["run_id"]
             was_created = False
         else:
+            provenance = {"requested_change": _bounded_text(message, 500)}
+            if canvas_id:
+                provenance["canvas_id"] = str(canvas_id)
             created = lifecycle.create_task(
                 conversation_id, message,
                 entities=list(entities or []),
                 requested_fields=list(requested_fields or []),
-                provenance={"requested_change": _bounded_text(
-                    message, 500)},
+                provenance=provenance,
             )
             run_id = created["run_id"]
             record = None
@@ -1763,20 +1975,23 @@ def begin_retrieval_turn(
     execution_id: Optional[str],
     items: Optional[List[str]] = None,
     requested_fields: Optional[List[str]] = None,
+    canvas_id: Optional[str] = None,
 ) -> tuple:
     """Persist the retrieval INTENTION before execution (Step 2).
 
-    Resolves the conversation's task (creating it on first contact),
-    applies ``research_and_present`` when continuing one, and opens a
-    ``retrieve`` operation in ``pending`` — nothing has run yet. The
-    caller executes, then settles with ``finish_retrieval_turn``. A
-    failure between the two leaves a durable pending operation with
+    Resolves the conversation's task (creating it on first contact,
+    binding ``canvas_id`` into a new task's provenance when the turn
+    carries one), applies ``research_and_present`` when continuing one,
+    and opens a ``retrieve`` operation in ``pending`` — nothing has run
+    yet. The caller executes, then settles with ``finish_retrieval_turn``.
+    A failure between the two leaves a durable pending operation with
     zero tool effects. Returns ``(run_id, operation_id)``.
     """
     run_id, record, was_created = _resolve_or_create(
         lifecycle, session, conversation_id, message,
         entities=_entities_from_items(items),
-        requested_fields=list(requested_fields or []))
+        requested_fields=list(requested_fields or []),
+        canvas_id=canvas_id)
     if not was_created:
         lifecycle.apply_transition(run_id, {
             "kind": "research_and_present",
@@ -1802,6 +2017,7 @@ def finish_retrieval_turn(
     structured_result: Optional[Dict[str, Any]],
     execution_id: Optional[str],
     complete: bool,
+    execution: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Settle a begun retrieval after execution (Step 2).
 
@@ -1863,6 +2079,16 @@ def finish_retrieval_turn(
             "evidence_revision": structured_result.get("evidence_revision"),
         },
     })
+    if execution is not None:
+        try:
+            # EXECUTION FACTS ride the operation record (post-settle
+            # provenance — same class as an edit's invalidated-evidence
+            # ids: a recording failure must not unwind the settle).
+            lifecycle.attach_operation_field(
+                run_id, operation_id, "execution",
+                normalize_execution_facts(execution))
+        except Exception:  # noqa: BLE001 — facts are provenance, not status
+            pass
     return run_id
 
 
@@ -1917,6 +2143,311 @@ def uncertainty_notice(operation: Dict[str, Any]) -> Dict[str, Any]:
         "lost_worker": lost,
         "retry_is_safe": False,
     }
+
+
+# ---------------------------------------------------------------------------
+# Job-work ledger — open questions, selection, and the settle-time recorder
+# ---------------------------------------------------------------------------
+
+def open_unresolved_questions(record: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """The OPEN questions on a task record — the only set continuation
+    and completion checks may read. A resolved question is history: it
+    keeps its text on the revision for audit but never resurfaces."""
+    if not isinstance(record, dict):
+        return []
+    revision = record.get("task_revision") or {}
+    return [q for q in (revision.get("unresolved") or [])
+            if isinstance(q, dict) and q.get("status") == "open"]
+
+
+def _slim_question(question: Dict[str, Any]) -> Dict[str, Any]:
+    """The selection-facing projection of one open question."""
+    return {
+        "question_id": question.get("question_id"),
+        "item": question.get("item") or "",
+        "question": question.get("question") or "",
+        "kind": question.get("kind"),
+        "next_action": question.get("next_action"),
+        "decision_owner": question.get("decision_owner"),
+        "attempts": int(question.get("attempts") or 0),
+    }
+
+
+def next_unfinished_work(
+    record: Dict[str, Any],
+    *,
+    attempt_cap: int = UNRESOLVED_ATTEMPT_CAP,
+    max_actions: int = 3,
+) -> Dict[str, Any]:
+    """Select the next useful work from the OPEN question set.
+
+    Three classes, never conflated (2026-10-04 reviewer corrections):
+    EXECUTABLE questions (verification, missing_evidence) carry an
+    agent-runnable next action and stay selectable under the attempt
+    budget; OWNER decisions are surfaced for the owner to settle —
+    never auto-executed; EXHAUSTED questions spent their budget and are
+    reported, not retried. Item match status, freshness, and owner
+    approval are separate dimensions of completion — none of them
+    substitutes for another here."""
+    actions: List[Dict[str, Any]] = []
+    owner_decisions: List[Dict[str, Any]] = []
+    exhausted: List[Dict[str, Any]] = []
+    for question in open_unresolved_questions(record):
+        slim = _slim_question(question)
+        if question.get("kind") == "business_decision":
+            owner_decisions.append(slim)
+        elif int(question.get("attempts") or 0) >= attempt_cap:
+            exhausted.append(slim)
+        elif question.get("next_action"):
+            actions.append(slim)
+    return {
+        "actions": actions[:max_actions],
+        "owner_decisions": owner_decisions,
+        "exhausted": exhausted,
+    }
+
+
+def add_unresolved_questions(
+    lifecycle: "TaskLifecycle",
+    run_id: str,
+    questions: List[Dict[str, Any]],
+    *,
+    source_operation: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Append NEW open questions to the task (durable, idempotent).
+
+    A question already open with the same (item, text) is not re-added —
+    a later read re-deriving the same gap is the same question, tracked
+    by the attempts counter, not a growing list."""
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    already_open = {_question_key(q)
+                    for q in open_unresolved_questions(record)}
+    fresh: List[Dict[str, Any]] = []
+    for question in questions:
+        entry = _normalize_question(question, operation=source_operation)
+        if _question_key(entry) in already_open:
+            continue
+        already_open.add(_question_key(entry))
+        fresh.append(entry)
+    if not fresh:
+        return []
+    lifecycle.apply_transition(run_id, {
+        "kind": "record_unresolved",
+        "requested_change": f"{len(fresh)} open question(s) recorded",
+        "questions": fresh,
+        "source_operation": source_operation,
+    })
+    return fresh
+
+
+def resolve_unresolved_questions(
+    lifecycle: "TaskLifecycle",
+    run_id: str,
+    *,
+    question_ids: Optional[List[str]] = None,
+    items: Optional[List[str]] = None,
+    kinds: Optional[List[str]] = None,
+    resolution: str,
+) -> List[Dict[str, Any]]:
+    """Mark matching OPEN questions resolved. The resolution text is
+    required — an unexplained resolution cannot be recorded, because the
+    audit must be able to say HOW each question settled. A resolved
+    question never resurfaces in the open set."""
+    if not str(resolution or "").strip():
+        raise TaskLifecycleError(
+            "resolving a question requires how it was resolved")
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    id_set = {str(q) for q in (question_ids or [])}
+    item_set = {str(i) for i in (items or [])}
+    kind_set = {str(k) for k in (kinds or [])}
+    settled: List[Dict[str, Any]] = []
+    for question in open_unresolved_questions(record):
+        if id_set and question.get("question_id") not in id_set:
+            continue
+        if item_set and (question.get("item") or "") not in item_set:
+            continue
+        if kind_set and question.get("kind") not in kind_set:
+            continue
+        settled.append({
+            "question_id": question.get("question_id"),
+            "item": question.get("item") or "",
+        })
+    if not settled:
+        return []
+    lifecycle.apply_transition(run_id, {
+        "kind": "record_unresolved",
+        "requested_change": f"{len(settled)} question(s) resolved",
+        "resolutions": [
+            {"question_id": s["question_id"],
+             "resolution": _bounded_text(resolution, 400)}
+            for s in settled],
+    })
+    return settled
+
+
+def bump_question_attempts(
+    lifecycle: "TaskLifecycle",
+    run_id: str,
+    question_ids: List[str],
+) -> None:
+    """Count one continuation attempt against each named open question —
+    the bounded-attempt budget's ledger entry. Over-cap questions stop
+    being selected by ``next_unfinished_work`` and are reported as
+    exhausted instead."""
+    ids = [str(i) for i in (question_ids or []) if str(i).strip()]
+    if not ids:
+        return
+    lifecycle.apply_transition(run_id, {
+        "kind": "record_unresolved",
+        "requested_change": f"attempt counted on {len(ids)} question(s)",
+        "attempts": [{"question_id": i, "increment": 1} for i in ids],
+    })
+
+
+def derive_read_questions(
+    structured_result: Optional[Dict[str, Any]],
+    freshness: Optional[Dict[str, Any]],
+    *,
+    bindings: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Derive the question adds and resolutions ONE read justifies.
+
+    Dimensions stay separate (2026-10-04 reviewer correction #2): an
+    item's identity match status describes MATCHING only. A 'single'
+    match resolves a missing-evidence question for that item — it never
+    resolves a freshness question or an owner decision. A freshness
+    verdict resolves only verification questions. An owner-recorded
+    binding resolves only the decision it settles. Nothing here asserts
+    job completion; that is a separate judgment over all dimensions.
+
+    ``freshness`` is the read lane's verdict dict (``status`` plus the
+    stage-attributed ``refresh_outcome``); ``bindings`` are the
+    workspace's user-asserted item bindings (owner decisions already
+    settled by the owner's own earlier confirmation).
+    """
+    structured = structured_result if isinstance(
+        structured_result, dict) else {}
+    fresh = freshness if isinstance(freshness, dict) else {}
+    questions: List[Dict[str, Any]] = []
+    resolutions: List[Dict[str, Any]] = []
+    bound_items = {str((b or {}).get("item") or "")
+                   for b in (bindings or []) if isinstance(b, dict)}
+
+    for target in (structured.get("targets") or []):
+        if not isinstance(target, dict):
+            continue
+        item = str(target.get("item") or "").strip()
+        identity = target.get("identity") or {}
+        status = str(identity.get("status") or "")
+        if not item or status not in ("single", "multiple", "none"):
+            continue
+        if status == "multiple":
+            if item in bound_items:
+                resolutions.append({
+                    "items": [item], "kinds": ["business_decision"],
+                    "resolution": "owner binding on file settles the pick",
+                })
+                continue
+            questions.append({
+                "item": item,
+                "kind": "business_decision",
+                "question": f"which {item} row/variant is the right one "
+                            f"to use (the read matched more than one)",
+                "evidence": _bounded_text(
+                    identity.get("detail")
+                    or "multiple candidate rows matched", 300),
+            })
+        elif status == "none":
+            questions.append({
+                "item": item,
+                "kind": "missing_evidence",
+                "question": f"no source on file carries {item}",
+                "evidence": "the read ran and matched nothing for it",
+                "next_action": f"search vendor correspondence and "
+                               f"attachments for {item}",
+            })
+        elif status == "single":
+            resolutions.append({
+                "items": [item], "kinds": ["missing_evidence"],
+                "resolution": "found on file by a completed read",
+            })
+
+    freshness_status = str(fresh.get("status") or "")
+    if freshness_status:
+        if freshness_status in ("refresh_failed", "unverified"):
+            stage = str(((fresh.get("refresh_outcome") or {}).get(
+                "stage")) or "unattributed")
+            questions.append({
+                "item": "",
+                "kind": "verification",
+                "question": "current-source verification did not "
+                            "succeed",
+                "evidence": f"freshness verdict {freshness_status} "
+                            f"(stage: {stage})",
+                "next_action": "retry live source verification",
+            })
+        elif freshness_status in ("refreshed", "current"):
+            resolutions.append({
+                "items": [], "kinds": ["verification"],
+                "resolution": f"freshness verdict {freshness_status}",
+            })
+    return {"questions": questions, "resolutions": resolutions}
+
+
+def record_read_outcome(
+    lifecycle: "TaskLifecycle",
+    run_id: Optional[str],
+    operation_id: Optional[str],
+    *,
+    structured_result: Optional[Dict[str, Any]],
+    freshness: Optional[Dict[str, Any]],
+    execution: Optional[Dict[str, Any]] = None,
+    bindings: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    """The ONE settle-time call the read lanes make after
+    ``finish_retrieval_turn``: derive what this read justifies, apply it,
+    and return the open-work snapshot the reply's next steps and the
+    completion check both read. Per-step failures are collected, not
+    raised — the settle already happened; these are the ledger's
+    bookkeeping, and the lanes log the errors."""
+    if not run_id:
+        return None
+    errors: List[str] = []
+    if execution is not None and operation_id:
+        try:
+            lifecycle.attach_operation_field(
+                run_id, operation_id, "execution",
+                normalize_execution_facts(execution))
+        except Exception as exc:  # noqa: BLE001 — facts are provenance
+            errors.append(f"execution: {exc!r}")
+    derived = derive_read_questions(
+        structured_result, freshness, bindings=bindings)
+    try:
+        if derived["questions"]:
+            add_unresolved_questions(
+                lifecycle, run_id, derived["questions"],
+                source_operation=operation_id)
+    except Exception as exc:  # noqa: BLE001 — bookkeeping, not status
+        errors.append(f"questions: {exc!r}")
+    for resolution in derived["resolutions"]:
+        try:
+            resolve_unresolved_questions(
+                lifecycle, run_id,
+                items=resolution.get("items") or None,
+                kinds=resolution.get("kinds") or None,
+                resolution=resolution["resolution"])
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"resolution: {exc!r}")
+            break
+    record = lifecycle.get_task(run_id)
+    work = next_unfinished_work(record or {})
+    if errors:
+        work["ledger_errors"] = errors
+    return work
 
 
 @_guarded
