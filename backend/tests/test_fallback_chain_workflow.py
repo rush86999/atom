@@ -1036,8 +1036,11 @@ def test_chain_uses_unresolved_work_and_records_its_own_operation():
     assert "begin_retrieval_turn" in chain and "finish_retrieval_turn" in chain
     assert "_chain_settle(" in chain
     assert '"search_returned_no_receipt"' in src
-    # Coverage credit is receipt-based, not text-based.
-    assert '_search_execution_receipt(\n                            _plan, _tool_block)["retrieved"]' in src
+    # Coverage credit is receipt-based, not text-based; singleflight reuse
+    # carries the ORIGINAL receipt on the blackboard (round 35).
+    assert '_p_receipt["retrieved"] or' in src
+    assert '"primary_receipt"' in src and '"primary_service"' in src
+    assert 'search_succeeded_empty' in src
     assert "_consulted_sources = (" in src
     assert "_missing = _required_sources - _consulted" in src
     # planning_failed keys on consulted emptiness, not block emptiness
