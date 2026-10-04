@@ -3684,6 +3684,22 @@ def describe_apply_failure(
             "its links, so nothing was written. I kept the customer footer "
             "unchanged."
         )
+    if reason and reason.startswith("scope_dropped_product"):
+        # PRESERVATION VIOLATION, NAMED (2026-10-03, reliability run A):
+        # the planned patch would have dropped a product identity the
+        # canvas already carries (e.g. the PE-16 line under a
+        # fill-the-TBC instruction). The guard is the product working as
+        # designed — the reply must say WHICH identity and WHY nothing
+        # was written, not a generic field hint.
+        _dropped = reason.split(":", 1)[1] if ":" in reason else "a product"
+        return (
+            f"I didn't write the change: the proposed edit would have "
+            f"dropped {_dropped} from the quote, and product identities "
+            "only leave when you ask for it. The draft is unchanged. If "
+            "the line should be reworded, name the new wording with the "
+            "item still in it; if it should be removed outright, say "
+            f"'remove {_dropped}'."
+        )
     if not _verified_zero_effect_refusal(reason):
         # DEFAULT DIRECTION IS UNCERTAIN. Every branch above either decided
         # before the store was called, or is one of the store-facing cases whose
