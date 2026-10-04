@@ -14104,6 +14104,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     return None
 
                 async def _chain_attempt(_missing_svc: str) -> None:
+                    # nonlocal: the success path APPENDS the chained block
+                    # to the turn's evidence — without this, the assignment
+                    # made _tool_block a local of this coroutine and the
+                    # first receipt-bearing attempt died on
+                    # UnboundLocalError (live run msA13).
+                    nonlocal _tool_block
                     _attempt_wait = min(
                         20.0, max(0.0, _chain_turn_left() - 15.0))
                     if _attempt_wait < 8.0:
