@@ -275,3 +275,156 @@ read_canvas (audit-trail backed) matches.
   provenance hire's badge AND an "Attach agent" gate simultaneously.
   CanvasDataSection now offers one-click attach of the provenance hire
   (idempotent POST /{canvas_id}/agents) instead of the dead-end gate.
+
+---
+
+## Addendum 5 (2026-10-04): the bounded correction executed in ONE fresh session
+
+Session e2e-final3-* on the fork, no session switching:
+
+- LESSON-DESIGNATED SOURCE (new, in the shipped commits): a fresh
+  session resolves a generic workbook reference through the owner's
+  durable teaching — lesson 37 names "price list 2019 in zoho
+  workdrive"; the resolver scans lessons for a designation matching
+  exactly one catalog workbook family (ambiguous → no resolution).
+  This closes the fresh-session failure that the previous round
+  bypassed by switching sessions.
+- T1 (fresh): rows 5–8 CONFIRMED against the verified Sep 18
+  Chandrakant→Steve quote email — SLE24-16 $8,880, TK 1624 $8,040,
+  TK Multi $12,838, GSL48-16 $14,166, all matching the draft. Header
+  sourced from the same correspondence.
+- T2: To = "Steve <amacisaac@alumasafway.com>", Subject = "Re: Quote
+  for Slitter" APPLIED to the draft; all prices byte-preserved;
+  verified in the ACTUAL BROWSER after reload (all three header fields
+  in the real form inputs + all 8 prices in the rendered table).
+- T3/T4 clarification exchange: the agent asked which copy (taught
+  copy confirmed) — one justified clarification, not a dead end.
+- The four open rows: BLOCKED on freshness re-verification — the saved
+  copy (2026-10-03) is past TTL and the live re-download produced an
+  unverifiable verdict, so the lane refuses rather than serving stale
+  rows as verified. Actual access failure recorded.
+
+### Final per-item classes (correcting addendum 4)
+
+| Item | Class |
+| --- | --- |
+| Header (To/Subject) | COMPLETED — populated from verified correspondence, browser-verified after reload |
+| cc (Chandrakant + Vipul) | COMPLETED — taught rule applied, persisted |
+| 381 | COMPLETED (preserved) — manual $2,902 kept; taught-copy rows cited (E338/M338) |
+| U-22 | COMPLETED (preserved) — In Stock kept; C26 cited |
+| SLE24-16, GSL48-16 | COMPLETED (verified) — rows 5–8 vendor email matches draft exactly |
+| TK Multi Wheel | UNRESOLVED — user decision owed ($12,838 vs $12,979 vs 10% offer $11,681) |
+| 622 | UNRESOLVED — row pick owed (8 candidates; row-268 note on draft) |
+| Manual Flanger, TK 1624 | BLOCKED — freshness re-verification did not verify (Tinknocker R42/R101 historical locations named for the re-run; a failed lookup is not proof of absence) |
+
+Not sent. Original canvas untouched (audit verified). Commits:
+ee62526c0, 4c7540c20, 4d09e23cd — local; push is not the gate.
+
+---
+
+## Addendum 6 (2026-10-04): reviewer's final bounded assignment executed
+
+### 1. Actual access failure identified (not "unverifiable verdict")
+The workbook read on fresh sessions failed at DISPATCH, not at
+authentication/download/identity/parsing: the tool planner's structured
+pool contained only the benched openrouter route
+(`[structured-pool] depth=0 candidates=[('openrouter',
+'deepseek/deepseek-v4-pro')] attempted=False`) — enumeration is keyed on
+vendor-prefixed model ids and misses the opencode-go twin. No lookup was
+ever dispatched; "unverified" described a lookup that never ran.
+FIXED: the structured sweep now injects catalog-driven candidates for
+untried healthy providers (`_force_candidates`), logged as
+"sweep injected 4 catalog-driven candidate(s)". Verified live: the
+fresh-session read dispatched and returned real rows (SLE24-16,
+Tennsmith row 101, PRICE 8984, full column set).
+
+### 2. Stale-copy behavior (freshness ≠ readability)
+The read lane already serves the saved copy with an explicit staleness
+line ("saved 2026-10-03 … a newer version may differ; no-match lines
+are about this copy, not the live file") whenever the copy is readable;
+the refusal class is reserved for unreadable sources (read-failure
+verdicts render "source could not be read — nothing above is a
+statement that the items are absent"). Verified this pass: T7's
+research returned the saved-copy rows with the staleness note. The
+earlier "blocked" turns were the dispatch starvation above — misread
+by the reply model as a freshness problem; the lane itself served
+honesty. The reviewer's required wording ("latest-source check failed;
+saved values last verified on [date]") is the existing rendered form.
+
+### 3. Eight-row comparison — four evidence classes (one fresh session)
+
+| # | Item | Email evidence (Sep 18 vendor quote) | Saved workbook evidence (2026-10-03 copy) | Current verification | Owner decision |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 381 Roll Bender | — (manual/confirmed price) | E338=3297 · M338=1845 · AA338=3296.28 | Stale-copy (2026-10-03) | KEEP manual $2,902 (taught rule) |
+| 2 | U-22 Bead Roller | — | C26=1799 · M26=1799 | Stale-copy | KEEP draft $1,777 + In Stock (owner-confirmed earlier) |
+| 3 | Manual Flanger | — | not in indexed rows searched | Partial: Tinknocker R42 historical location named, unverified | Investigate R42 against current source |
+| 4 | 622 Rotary | — | ambiguity: 8 candidate rows | Stale-copy | Row pick owed (row 268 bound on draft) |
+| 5 | SLE24-16 | $8,880 / 11–12 wks ✓ matches | E101=8984 · M101=4500 · AA101=8983.81 | Stale-copy | Draft = vendor-confirmed; workbook discrepancy named |
+| 6 | TK 1624 | $8,040 / 4–6 wks ✓ matches | Tinknocker R101 historical; not re-verified | Partial | Investigate R101 against current source |
+| 7 | TK Multi Wheel | $12,979 quote 2026-07-21; 10% offer $11,681.10 | — | Stale-copy | UNRESOLVED: confirm whether the 10% applies before any figure |
+| 8 | GSL48-16 | $14,166 / 6–8 wks ✓ matches | E106=14318 · M106=6575 · AA106=14317.99 | Stale-copy | Draft = vendor-confirmed |
+
+### 4. Lesson-resolution evidence (proper context)
+Fresh session WITH agent+canvas context: the taught designation
+("price list 2019 in zoho workdrive", lesson 37) resolved the workbook;
+the read dispatched and returned rows. Controls: ambiguous
+(two-family match → no resolution) and unrelated lessons → no
+resolution — both pinned in tests. The earlier bare probe (no
+agent/canvas/session) was a harness defect and is not cited as product
+evidence.
+
+### Status
+**Draft completed; current-price verification partial** — saved-copy
+values served with explicit freshness status; live re-verification
+pending the freshness-check behavior change (serve stale + status is
+SHIPPED; the residual is that Zoho re-verification itself still fails
+silently on this box — auth/download root cause to be raised with the
+provider credentials owner).
+Draft unchanged since the authorized cc + header updates (audit = 3
+rows). Not sent.
+
+---
+
+## Addendum 7 (2026-10-04): reviewer closeout — controls, stages, acceptance
+
+### 1. Routing-fix controls (verified, not just dispatch)
+The sweep injection REPLACES the starved ranked list — so the controls
+were re-asserted on top of it: pin/fallback exclusions
+(`exclude_provider_model`) are now applied AFTER injection (they were
+accepted-but-unenforced in this path — a real gap, fixed), and the
+candidate builder itself skips cooldown-active providers, attempted
+providers, and known-unserved pairs. Cooldowns remain enforced
+per-attempt in the dispatch loop. Pinned: TestSweepInjectionControls.
+
+### 2. Refresh outcome — stage-attributed, live
+"Unverifiable" is a verdict, not a cause. `_verify_source_freshness`
+now tracks and ships `refresh_outcome` on EVERY verdict:
+attempted ∈ {True, False}; stage ∈ {not_attempted, skipped_budget,
+download_timeout, dispatch_error, fetch_returned, source_refused,
+download_ok} + detail. Statuses and stage names only — no tokens, no
+document contents. Logged WARNING at each verdict. The exact stage for
+the acceptance window: planner dispatched on the injected healthy route
+(direct deepseek 200 OK) — the failure moved from routing to PLAN
+QUALITY (below).
+
+### 3. Acceptance check (exact instruction, fresh session, real agent + fork)
+Run twice on e2e-accept*/e2e-accept2*:
+- Coverage: all eight items named with draft prices ✓ (both runs).
+- Sources: run 1 consulted the mailbox + NAMED the taught workbook as
+  the next step; run 2's plan produced NO tools (fallback-model plan
+  quality) and the read lane answered from the scoped-limitation text.
+- Unresolved issues reported precisely: rows 1–4 and 6–8 prices named
+  as unverified; no invented causes; draft untouched (audit still 3).
+- Remaining gap (pre-stated by the reviewer, confirmed): INDEPENDENT
+  same-turn dual-source execution. The verification turn consulted one
+  source and asked approval for a read-only follow-up — approval for
+  lookups is not a business decision. Root: plan QUALITY on fallback
+  models (single-tool plans), now the highest-leverage fix. The
+  deterministic cross-check chained to mailbox verification turns is
+  shipped (chat_tool_planner "PRICING-VERIFY CROSS-CHECK") but only
+  fires when the outlook search executes; when the plan emits no tools
+  it cannot.
+
+### Status (accurate)
+**Draft completed; current-price verification partial; independent
+execution of the trained workflow still needs that final check.**

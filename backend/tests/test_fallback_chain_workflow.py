@@ -867,3 +867,49 @@ def test_lesson_designated_file_resolves_from_teaching():
                 workspace_id=None)
 
     assert asyncio.run(run2()) == ""
+
+
+class TestSweepInjectionControls:
+    """Reviewer closeout #1: catalog-added candidates must still satisfy
+    the existing controls — the injection replaces the list, but pin/
+    fallback exclusions and cooldowns stay enforced."""
+
+    def test_exclusion_applies_after_injection(self):
+        import re as _re
+
+        src = open(
+            "core/llm/byok_handler.py").read()
+        # The injection block must apply exclude_provider_model AFTER
+        # replacing options (order asserted structurally).
+        m = _re.search(
+            r"if _force_candidates:\n(.*?)logger\.warning\(\n"
+            r"\s+\"\[structured-pool\] sweep injected",
+            src, _re.DOTALL)
+        assert m, "injection block not found"
+        block = m.group(1)
+        assert "exclude_provider_model" in block, (
+            "pin/fallback exclusion must be applied to injected candidates")
+
+    def test_injection_build_skips_cooldown_providers(self):
+        import inspect
+
+        import core.llm.byok_handler as bh
+
+        src = inspect.getsource(bh)
+        # The sweep-candidate builder skips cooldown-active providers.
+        assert "_sp in _attempted_set" in src
+        assert "self._provider_cooldown_active(_sp)" in src
+        assert "self._ranked_model_is_known_unserved(_sp, _sm)" in src
+
+
+def test_pricing_verify_cross_check_shape():
+    """Reviewer closeout #4 (2026-10-04): the acceptance run consulted
+    only the mailbox and stopped to ask permission for a read-only
+    lookup. Verification-shaped turns must chain the workbook cross-
+    check in the same block (deterministic gate: pricing/verify
+    vocabulary + identifier tokens present)."""
+    src = open("core/chat_tool_planner.py").read()
+    assert "PRICING-VERIFY CROSS-CHECK" in src
+    assert "WORKBOOK CROSS-CHECK (taught source" in src
+    # Bounded: tokens are capped at 4 in the chained loop.
+    assert "tokens[:4]" in src

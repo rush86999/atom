@@ -9059,6 +9059,45 @@ async def execute_tool_plan(
             # result metadata (never parsed back out of this prose — bodies
             # can contain "message_id:" text); the labels here let the reply
             # model offer the reads and the user act on them.
+            # PRICING-VERIFY CROSS-CHECK (2026-10-04 reviewer closeout):
+            # a verification turn ("check whether pricing needs updating")
+            # must consult BOTH taught sources in one pass — mailbox AND
+            # the taught workbook. A mailbox-only block made the agent
+            # stop and ask permission for a read-only follow-up (asking
+            # approval for lookups is not a business decision). When the
+            # message is pricing-verification-shaped, run the identifier
+            # tokens through the dataset find-all (deterministic, bounded)
+            # and append the workbook cross-check lines.
+            try:
+                if re.search(
+                    r"\b(?:verif|check|needs?\s+updating|pricing|price)\b",
+                    query or "", re.IGNORECASE,
+                ) and not store_lines:
+                    _wb_lines: List[str] = []
+                    from core.sheet_dataset_service import (
+                        find_all_occurrences_sync as _fa,
+                        render_find_all_result as _rfa,
+                    )
+                    for _tok in tokens[:4]:
+                        if not _re.search(r"\d", _tok):
+                            continue
+                        _res = await asyncio.to_thread(
+                            _fa, _tok, user_id,
+                            (context or {}).get("workspace_id"),
+                            max_matches=5, max_files=20,
+                        )
+                        if _res and (_res.get("matches") or _res.get("total")):
+                            _wb_lines.append(
+                                f"WORKBOOK CROSS-CHECK for '{_tok}':\n"
+                                + _rfa(_res)[:800])
+                    if _wb_lines:
+                        listing += (
+                            "\nWORKBOOK CROSS-CHECK (taught source — the "
+                            "designated price list; use with the mailbox "
+                            "hits above):\n" + "\n".join(_wb_lines))
+            except Exception as _wb_err:  # noqa: BLE001 — additive cross-check
+                logger.debug(f"pricing-verify workbook cross-check skipped: {_wb_err}")
+
             _unread_mail = [
                 {"id": e.get("id"), "subject": str(e.get("subject") or "")[:120],
                  "origin_query": query}

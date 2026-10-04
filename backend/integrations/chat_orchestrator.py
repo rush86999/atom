@@ -10521,7 +10521,18 @@ class ChatOrchestrator:
         ingested_at = identity.get("ingested_at") or "an unknown date"
 
         def _verdict(status: str, note: str, **extra) -> Dict[str, Any]:
-            return {"status": status, "note": note, **extra}
+            # STAGE-ATTRIBUTED OUTCOME rides every verdict (2026-10-04
+            # reviewer closeout: "unverifiable" is a verdict, not a
+            # cause — auth/download/parse/identity stages are named).
+            # Statuses and stage names only; never tokens or contents.
+            out = {"status": status, "note": note,
+                   "refresh_outcome": dict(_refresh_outcome), **extra}
+            if _refresh_outcome.get("attempted"):
+                logger.warning(
+                    "[source-freshness] refresh outcome: stage=%s detail=%s",
+                    _refresh_outcome.get("stage"),
+                    _refresh_outcome.get("detail")[:120])
+            return out
 
         # UPSTREAM RESOLUTION (live smoke 2026-09-25): a catalog-served
         # read reports service="datasets" while the REAL upstream provider
@@ -10570,6 +10581,14 @@ class ChatOrchestrator:
         # the budget skip plainly instead of a guaranteed timeout.
         fetch_ceiling = 75.0
         fetch_timeout = fetch_ceiling
+        # STAGE-ATTRIBUTED REFRESH OUTCOME (2026-10-04 reviewer closeout):
+        # "unverified" is a verdict, not a cause. Track whether the Zoho
+        # request was attempted and where it stopped — auth refusal,
+        # download timeout, source refusal, or parse/identity — so the
+        # report names the actual stage. Statuses only: no tokens, no
+        # document contents in this record.
+        _refresh_outcome = {
+            "attempted": False, "stage": "not_attempted", "detail": ""}
         try:
             if deadline is not None:
                 fetch_timeout = min(
@@ -10584,6 +10603,9 @@ class ChatOrchestrator:
                     _remaining_note = f"{deadline.remaining():.0f}s"
             except Exception:  # noqa: BLE001
                 pass
+            _refresh_outcome.update(
+                stage="skipped_budget",
+                detail=f"turn budget {_remaining_note} < 12s minimum")
             return _verdict(
                 "unverified",
                 "\n\nSOURCE FRESHNESS: the turn's remaining budget "
@@ -10592,6 +10614,7 @@ class ChatOrchestrator:
                 f"is the materialized copy ingested {ingested_at} — no "
                 "current-version claim is made.",
                 reason="turn budget too small for a live re-fetch",
+                refresh_outcome=dict(_refresh_outcome),
             )
         try:
             from integrations.universal_integration_service import (
@@ -10628,12 +10651,22 @@ class ChatOrchestrator:
             # the only success; the refusal's own message is the error.
             fetch_data = (fetch or {}).get("data") if isinstance(
                 fetch, dict) else None
+            _refresh_outcome.update(attempted=True, stage="fetch_returned")
             fetch_ok = (
                 isinstance(fetch, dict)
                 and fetch.get("status") == "success"
                 and bool(
                     (fetch_data or {}).get("found")
                     or (fetch_data or {}).get("served")))
+            if fetch_ok:
+                _refresh_outcome.update(
+                    stage="download_ok",
+                    detail="live copy downloaded; parse/identity next")
+            else:
+                _refresh_outcome.update(
+                    stage="source_refused",
+                    detail=str((fetch_data or {}).get("reason")
+                               or fetch.get("status") or "")[:120])
         except asyncio.TimeoutError:
             # TimeoutError stringifies to '' — rendered verbatim it was
             # the nameless '(read failed)' verdict (live 2026-09-30/10-01:
@@ -10652,6 +10685,9 @@ class ChatOrchestrator:
             fetch = None
             fetch_error = (str(exc)[:160]
                            or type(exc).__name__)[:160]
+            _refresh_outcome.update(
+                attempted=True, stage="dispatch_error",
+                detail=type(exc).__name__)
             logger.warning(
                 "[source-freshness] live re-fetch of %s/%s failed: %s",
                 service, str(resource_id)[:24], fetch_error)

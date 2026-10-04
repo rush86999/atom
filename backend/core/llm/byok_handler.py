@@ -6657,6 +6657,17 @@ class BYOKHandler:
             # providers so the healthy gateway actually dispatches.
             if _force_candidates:
                 options = list(_force_candidates)
+                # EXCLUSION STILL APPLIES (2026-10-04 control check): the
+                # injection replaces the starved ranked list, but a route
+                # the caller excluded (a failed pin: truncation is
+                # deterministic per route+cap) must not re-enter through
+                # the sweep. Cooldowns stay enforced per-attempt in the
+                # dispatch loop below.
+                if exclude_provider_model is not None:
+                    options = [
+                        (p, m) for p, m in options
+                        if (p, m) != tuple(exclude_provider_model)
+                    ]
                 logger.warning(
                     "[structured-pool] sweep injected %d catalog-driven "
                     "candidate(s): %s", len(options),
