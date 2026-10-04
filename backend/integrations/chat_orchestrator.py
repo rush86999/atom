@@ -5471,7 +5471,37 @@ class ChatOrchestrator:
                                             f"{_cont_q['next_action']}"),
                                     "original": _cont_text,
                                     "run_id": _cont_record["run_id"],
+                                    "attempt": int(
+                                        _cont_q.get("attempts") or 0) + 1,
                                 }
+                            else:
+                                # NO OPEN-QUESTION ACTIONS (round 38, the
+                                # continuation-to-planner binding): settled
+                                # obligations record no question, but the
+                                # JOB is not finished — its remaining work
+                                # is the objective itself. Seed the turn
+                                # from THIS session's original authorized
+                                # ask (the job's own authorization text —
+                                # never another conversation's), so a bare
+                                # "continue" plans the recorded job instead
+                                # of reconstructing a task from the word
+                                # "continue" and falling back to a generic
+                                # scan that re-asks for permission.
+                                _cont_orig = None
+                                for _h in (session or {}).get("history") or []:
+                                    if not isinstance(_h, dict):
+                                        continue
+                                    _m = str(_h.get("message") or "").strip()
+                                    if len(_m) > len(_cont_orig or ""):
+                                        _cont_orig = _m
+                                if _cont_orig:
+                                    _cont_seed = {
+                                        "ask": _cont_orig,
+                                        "original": _cont_text,
+                                        "run_id": _cont_record["run_id"],
+                                        "attempt": 1,
+                                    }
+                            if _cont_seed:
                                 # The seeded ask is a full research ask;
                                 # the deadline was derived from the bare
                                 # continuation word and must be re-derived
@@ -5485,10 +5515,13 @@ class ChatOrchestrator:
                                     label="chat-request",
                                 )
                                 logger.info(
-                                    "[job-continuation] seeded turn from "
-                                    "open question %s (attempt %s)",
-                                    _cont_q["question_id"],
-                                    int(_cont_q.get("attempts") or 0) + 1)
+                                    "[job-continuation] seeded turn from %s "
+                                    "(attempt %s)",
+                                    "open question "
+                                    f"{_cont_seed.get('question_id')}"
+                                    if _cont_seed.get("question_id")
+                                    else "the job's original authorized ask",
+                                    _cont_seed.get("attempt"))
                                 if isinstance(session, dict):
                                     session["_continuation_seed"] = _cont_seed
             except Exception as _cont_err:  # noqa: BLE001 — never blocks
