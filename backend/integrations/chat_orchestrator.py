@@ -1968,6 +1968,14 @@ def _search_execution_receipt(
     observations = meta.get("source_observations") or []
     reads = meta.get("read_outcomes") or []
     ds = meta.get("datasets_search") or {}
+    vt = meta.get("value_trace") or {}
+    if not isinstance(vt, dict):
+        vt = {}
+    # Per-item COVERAGE (round 39): which traced items are carried by
+    # identified documents (needing a read) vs carried by none (scoped
+    # body-only answer for the cross-document question).
+    vt_covered = {str(k): [str(d) for d in (v or [])]
+                  for k, v in vt.items() if (v or [])}
     structured = {}
     for k in ("structured_result", "workbook_read", "storage_read",
               "file_read"):
@@ -1979,7 +1987,7 @@ def _search_execution_receipt(
         or bool(ds)
     ds_hits = int(ds.get("hits") or 0) if isinstance(ds, dict) else 0
     retrieved = bool(threads or observations or reads or structured
-                     or ds_hits)
+                     or ds_hits or vt_covered)
     # BOUNDED ABSENCE (reviewer, round 35/36): a search that provably
     # EXECUTED over its store with a receipt and zero usable hits is a
     # valid empty search — established absence, scoped to what it
@@ -1988,7 +1996,8 @@ def _search_execution_receipt(
     # UNRECEIPTED search proves nothing.
     executed_search = ("searched_threads" in meta) or bool(observations) \
         or bool(reads) or bool(structured) or (
-            isinstance(ds, dict) and bool(ds.get("files_searched")))
+            isinstance(ds, dict) and bool(ds.get("files_searched"))) \
+        or ("value_trace" in meta)
     _sr_targets = []
     _sr = structured.get("structured_result")
     if isinstance(_sr, dict):
@@ -2006,6 +2015,8 @@ def _search_execution_receipt(
             "source_observations": len(observations),
             "read_outcomes": len(reads),
             "datasets_search": ds if isinstance(ds, dict) else {},
+            "value_trace_coverage": vt_covered,
+            "value_trace_items": len(vt),
             # COVERAGE (reviewer, round 35): items the receipt actually
             # names — the caller compares against the RESOLVED set;
             # retrieval alone does not mean the requested items were seen.
@@ -14196,7 +14207,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 and (_receipt["retrieved"]
                                      or _receipt.get("bounded_absence")))
                             _tlm.finish_retrieval_turn(
-                                _c_tl, _begin[0], _begin[1], {},
+                                _c_tl, _begin[0], _begin[1],
+                                # requested_items binds the RESOLVED item
+                                # set into the job record (round 39: the
+                                # entity reconcile reads this — without it
+                                # the job stayed a shell with no entities).
+                                {"requested_items": list(_chain_items)},
                                 execution_id, _complete,
                                 execution={
                                     "invoked": _receipt["dispatched"],
@@ -14216,7 +14232,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         freshness=None,
                                         execution=None,
                                         extra_questions=(
-                                            [] if _complete else [{
+                                            [] if _complete else (
+                                                # PER-ITEM NEXT ACTIONS
+                                                # (round 39): coverage from
+                                                # the value_trace receipt
+                                                # names the exact document
+                                                # to read per item — stable
+                                                # inputs, not a sentence.
+                                                [{
+                                                    "item": _it,
+                                                    "kind": "verification",
+                                                    "question": (
+                                                        f"{_it} is carried "
+                                                        f"by {(_docs)[0]} — "
+                                                        "the cell/figure is "
+                                                        "not yet read"),
+                                                    "evidence": (
+                                                        "value_trace "
+                                                        "coverage"),
+                                                    "next_action": (
+                                                        f"read {(_docs)[0]} "
+                                                        f"for {_it}"),
+                                                } for _it, _docs in list(
+                                                    (_receipt["receipt"]
+                                                     .get(
+                                                         "value_trace_"
+                                                         "coverage")
+                                                     or {}).items())[:3]
+                                            ] or [{
                                                 "item": "",
                                                 "kind": "verification",
                                                 "question": (
@@ -14227,11 +14270,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                 "evidence": (
                                                     f"outcome={_outcome}; "
                                                     f"stage={_stage}"),
-                                                "next_action": (
-                                                    f"re-run the "
-                                                    f"{_missing_svc} lookup "
-                                                    "for the quote's items"),
-                                            }])))
+                                                    "next_action": (
+                                                        f"re-run the "
+                                                        f"{_missing_svc} lookup "
+                                                        "for the quote's items"),
+                                            }]))))
                         except Exception as _cs_err:  # noqa: BLE001
                             logger.warning(
                                 "[job-work-ledger] chain settle failed: %r",

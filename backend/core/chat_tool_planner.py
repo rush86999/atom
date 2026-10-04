@@ -8601,6 +8601,21 @@ async def execute_tool_plan(
                         exclude_file=_vt_exclude,
                         user_id=(context or {}).get("user_id") or user_id,
                         workspace_id=(context or {}).get("workspace_id"))
+                    # STRUCTURED RECEIPT (round 39): per-item document
+                    # bindings — which cataloged documents carry each traced
+                    # item. The ledger reads this to record item coverage
+                    # and the exact next read (item -> [documents]).
+                    try:
+                        _vt_meta = getattr(plan, "_result_meta", None)
+                        if not isinstance(_vt_meta, dict):
+                            _vt_meta = {}
+                            plan._result_meta = _vt_meta
+                        _vt_meta["value_trace"] = {
+                            str(k)[:80]: [str(d)[:120] for d in (v or [])][:6]
+                            for k, v in (_vt_res or {}).items()
+                        } if isinstance(_vt_res, dict) else {}
+                    except Exception:  # noqa: BLE001 — receipt is additive
+                        pass
                     _vt_out = _vt_lines(_vt_res)
                     if _vt_out:
                         return _with_grounding(

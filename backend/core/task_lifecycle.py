@@ -2016,12 +2016,26 @@ def begin_retrieval_turn(
         requested_fields=list(requested_fields or []),
         canvas_id=canvas_id)
     if not was_created:
+        # SHELL BACKFILL (round 39 diagnosis): the objective and entities
+        # are set ONLY at creation — a task created by a denied edit lane
+        # (empty objective, no entities) stayed a shell forever, so
+        # continuation had no unresolved work to resume and the record
+        # carried none of the job. When an existing task's objective is
+        # empty, this turn's authorized ask and items define the job.
+        _rev = ((record or {}).get("task_revision") or {})
+        if not str(_rev.get("objective_text") or "").strip():
+            lifecycle.apply_transition(run_id, {
+                "kind": "revise_objective",
+                "requested_change": _bounded_text(message, 500),
+                "entities": (_entities_from_items(items)
+                             or list(_rev.get("entities") or [])),
+                "removed_entity_ids": [],
+                "requested_fields": list(requested_fields or []),
+            })
         lifecycle.apply_transition(run_id, {
             "kind": "research_and_present",
             "requested_change": _bounded_text(message, 500),
-            "output_preferences": (
-                (record or {}).get("task_revision") or {}).get(
-                    "output_preferences") or {},
+            "output_preferences": _rev.get("output_preferences") or {},
         })
     # Pre-execution gate: after the revision this turn will act on is
     # settled, before the operation exists. A denial leaves the task
