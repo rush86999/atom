@@ -1197,6 +1197,14 @@ async def plan_tool_use(
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
     )
+    # PLANNING PROVENANCE (job-work ledger, 2026-10-04): how this plan came
+    # to be — first-pass success, or RECOVERED after a planner failure
+    # (repair pass, deterministic rung, escalation). The execution seam
+    # records this on the operation so a failure the fallback machinery
+    # recovered is ATTEMPT HISTORY, never a final not_dispatched verdict.
+    plan_meta = {"source": "structured", "recovered": False}
+    if plan is None:
+        plan_meta["source"] = "unavailable"
     # EXPLICIT-RESEARCH FLOOR: a message that explicitly instructs web
     # research must END in a web tool whenever web is configured — whether
     # the first pass declined, failed, or validly routed somewhere else
@@ -1209,6 +1217,8 @@ async def plan_tool_use(
             or (plan.service or "") not in ("web_search", "web_fetch")):
         plan = await _escalate_declined_web_research(
             llm_service, plan, connected, catalog, history, message)
+        if plan is not None:
+            plan_meta.update(source="web_escalation", recovered=True)
     if plan is None:
         return None
     if plan.use_tool:
@@ -1247,6 +1257,7 @@ async def plan_tool_use(
                     f"tool planner: LLM repair -> "
                     f"{repaired.service}.{repaired.intent}")
                 plan = repaired
+                plan_meta.update(source="service_repair", recovered=True)
             elif repaired and not repaired.use_tool:
                 # The repair pass looked at the context and concluded no
                 # tool can help — honor that instead of forcing memory.
@@ -1264,6 +1275,7 @@ async def plan_tool_use(
                     "always-available memory search")
                 plan.service = "memory"
                 plan.intent = "search"
+                plan_meta.update(source="memory_rung", recovered=True)
                 if not (plan.query or "").strip():
                     plan.query = message[:120]
             else:
@@ -1322,6 +1334,7 @@ async def plan_tool_use(
                     f"tool planner: provenance repair -> "
                     f"{repaired.service}.{repaired.intent}")
                 plan = repaired
+                plan_meta.update(source="provenance_repair", recovered=True)
             else:
                 terms = (
                     _quoted_content_phrases(message)
@@ -1333,6 +1346,7 @@ async def plan_tool_use(
                 plan.service, plan.intent = "memory", "search"
                 plan.query = (terms[0] if terms else message[:120])
                 plan.reason = "provenance floor: quoted wording lives in ingested mail"
+                plan_meta.update(source="provenance_floor", recovered=True)
 
         # REQUEST-RELEVANCE FLOOR (RCA 2026-09-17 finding 2, the replan
         # arm). Runs BEFORE execution, upstream of the consumption-side
@@ -1390,6 +1404,7 @@ async def plan_tool_use(
                     f"{repaired.service}.{repaired.intent} "
                     f"query={repaired.query!r}")
                 plan = repaired
+                plan_meta.update(source="relevance_repair", recovered=True)
             elif repaired is not None and not repaired.use_tool:
                 # The corrective pass looked at the CURRENT request and
                 # concluded no tool can help — the same contract as the
@@ -1419,6 +1434,17 @@ async def plan_tool_use(
             plan.relevance_verdict, plan.relevance_basis = (
                 _plan_relevance_basis(plan.query or "", message, history,
                                       extra_topic=_canvas_topic))
+    # PLANNING PROVENANCE: the meta rides the plan object to the execution
+    # seam (never parsed from logs). setdefault: an executor may have
+    # already stamped _result_meta for its own purposes.
+    try:
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        _meta.setdefault("planning", plan_meta)
+    except Exception:  # noqa: BLE001 — provenance must not break the plan
+        pass
     return plan
 
 
@@ -9059,45 +9085,6 @@ async def execute_tool_plan(
             # result metadata (never parsed back out of this prose — bodies
             # can contain "message_id:" text); the labels here let the reply
             # model offer the reads and the user act on them.
-            # PRICING-VERIFY CROSS-CHECK (2026-10-04 reviewer closeout):
-            # a verification turn ("check whether pricing needs updating")
-            # must consult BOTH taught sources in one pass — mailbox AND
-            # the taught workbook. A mailbox-only block made the agent
-            # stop and ask permission for a read-only follow-up (asking
-            # approval for lookups is not a business decision). When the
-            # message is pricing-verification-shaped, run the identifier
-            # tokens through the dataset find-all (deterministic, bounded)
-            # and append the workbook cross-check lines.
-            try:
-                if re.search(
-                    r"\b(?:verif|check|needs?\s+updating|pricing|price)\b",
-                    query or "", re.IGNORECASE,
-                ) and not store_lines:
-                    _wb_lines: List[str] = []
-                    from core.sheet_dataset_service import (
-                        find_all_occurrences_sync as _fa,
-                        render_find_all_result as _rfa,
-                    )
-                    for _tok in tokens[:4]:
-                        if not _re.search(r"\d", _tok):
-                            continue
-                        _res = await asyncio.to_thread(
-                            _fa, _tok, user_id,
-                            (context or {}).get("workspace_id"),
-                            max_matches=5, max_files=20,
-                        )
-                        if _res and (_res.get("matches") or _res.get("total")):
-                            _wb_lines.append(
-                                f"WORKBOOK CROSS-CHECK for '{_tok}':\n"
-                                + _rfa(_res)[:800])
-                    if _wb_lines:
-                        listing += (
-                            "\nWORKBOOK CROSS-CHECK (taught source — the "
-                            "designated price list; use with the mailbox "
-                            "hits above):\n" + "\n".join(_wb_lines))
-            except Exception as _wb_err:  # noqa: BLE001 — additive cross-check
-                logger.debug(f"pricing-verify workbook cross-check skipped: {_wb_err}")
-
             _unread_mail = [
                 {"id": e.get("id"), "subject": str(e.get("subject") or "")[:120],
                  "origin_query": query}

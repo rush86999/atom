@@ -606,6 +606,17 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
              if str(k).strip()} if isinstance(items_raw, dict) else {}
     stage = raw.get("failure_stage")
     freshness = raw.get("freshness_status")
+    # PLANNING PROVENANCE passthrough (2026-10-04 reviewer correction 2):
+    # how the plan came to be — a failure the fallback machinery recovered
+    # (repair pass, deterministic rung) is ATTEMPT HISTORY on a successful
+    # outcome, never a license to record not_dispatched.
+    planning_raw = raw.get("planning")
+    planning = None
+    if isinstance(planning_raw, dict):
+        planning = {
+            "source": str(planning_raw.get("source") or "")[:60] or None,
+            "recovered": bool(planning_raw.get("recovered")),
+        }
     return {
         "invoked": invoked,
         "outcome": outcome,
@@ -613,6 +624,7 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
         "failure_stage": str(stage)[:80] if stage else None,
         "freshness_status": str(freshness)[:40] if freshness else None,
         "items": items,
+        "planning": planning,
         "raw_outcome": raw_outcome,
         "at": _utc_now_iso(),
     }
@@ -2289,6 +2301,34 @@ def resolve_unresolved_questions(
     return settled
 
 
+def record_denied_edit_attempt(
+    lifecycle: "TaskLifecycle",
+    run_id: Optional[str],
+    requested_change: str,
+    reason: str,
+) -> Optional[Dict[str, Any]]:
+    """Record an edit the authorization gate REFUSED (2026-10-04 reviewer
+    correction 4): zero writes is the correct OUTCOME, but an attempted
+    edit on a research-shaped ask is still a planning-quality failure
+    worth recording. The operation ends ``cancelled`` — the effect did
+    not happen — with the denial reason and the ask that prompted it,
+    so the audit can distinguish 'nothing was attempted' from 'an edit
+    was attempted and correctly refused'. The scope gate itself is NOT
+    weakened; this only makes its decisions visible."""
+    if not run_id:
+        return None
+    operation = lifecycle.create_operation(
+        run_id, op_type="edit",
+        requested_change=_bounded_text(requested_change, 500))
+    lifecycle.transition_operation(
+        run_id, operation["operation_id"], "cancelled")
+    lifecycle.attach_operation_field(
+        run_id, operation["operation_id"], "denied",
+        {"reason": _bounded_text(reason, 300),
+         "recorded": "attempted edit refused by the authorization gate"})
+    return operation
+
+
 def bump_question_attempts(
     lifecycle: "TaskLifecycle",
     run_id: str,
@@ -2407,6 +2447,7 @@ def record_read_outcome(
     freshness: Optional[Dict[str, Any]],
     execution: Optional[Dict[str, Any]] = None,
     bindings: Optional[List[Dict[str, Any]]] = None,
+    extra_questions: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """The ONE settle-time call the read lanes make after
     ``finish_retrieval_turn``: derive what this read justifies, apply it,
@@ -2426,6 +2467,10 @@ def record_read_outcome(
             errors.append(f"execution: {exc!r}")
     derived = derive_read_questions(
         structured_result, freshness, bindings=bindings)
+    if extra_questions:
+        derived["questions"] = list(
+            derived["questions"] or []) + [
+                q for q in extra_questions if isinstance(q, dict)]
     try:
         if derived["questions"]:
             add_unresolved_questions(

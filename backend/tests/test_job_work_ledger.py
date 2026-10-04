@@ -342,3 +342,103 @@ class TestRecordReadOutcome:
         assert open_unresolved_questions(lifecycle.get_task(run_id)) == []
         work = next_unfinished_work(lifecycle.get_task(run_id))
         assert work["actions"] == [] and work["owner_decisions"] == []
+
+
+class TestPlanningProvenanceAndDeniedEdits:
+    """Reviewer correction 2 (recovered attempts) and correction 4
+    (denied edits recorded, gate untouched)."""
+
+    def test_recovered_attempt_is_not_not_dispatched(self):
+        """A planner failure the fallback machinery recovered, followed by
+        a successful tool execution, records as a SUCCESS with its
+        planning provenance — attempt history, never a final
+        not_dispatched verdict."""
+        facts = normalize_execution_facts({
+            "invoked": True, "outcome": "search_succeeded",
+            "served_basis": "live",
+            "planning": {"source": "service_repair", "recovered": True},
+        })
+        assert facts["outcome"] == "search_succeeded"
+        assert facts["invoked"] is True
+        assert facts["planning"] == {
+            "source": "service_repair", "recovered": True}
+        assert facts["outcome"] != "not_dispatched"
+
+    def test_planning_provenance_clamped(self):
+        facts = normalize_execution_facts({
+            "invoked": True, "outcome": "read_succeeded",
+            "planning": "nonsense",
+        })
+        assert facts["planning"] is None
+
+    def test_denied_edit_records_without_weakening_the_gate(
+            self, lifecycle):
+        """An attempted edit the scope gate refused: the operation exists,
+        ends cancelled (the effect did not happen), and carries the denial
+        reason — zero writes, but 'nothing was attempted' is no longer the
+        recorded story."""
+        from core.task_lifecycle import record_denied_edit_attempt
+
+        created = lifecycle.create_task("conv-denied", "prepare the draft")
+        run_id = created["run_id"]
+        op = record_denied_edit_attempt(
+            lifecycle, run_id, "prepare the email draft",
+            "scope validator refused edit for this request")
+        assert op is not None
+        operation = next(
+            o for o in lifecycle.get_task(run_id)["operations"]
+            if o["operation_id"] == op["operation_id"])
+        assert operation["status"] == "cancelled"
+        assert operation["operation_type"] == "edit"
+        assert "refused" in operation["denied"]["reason"]
+        assert record_denied_edit_attempt(lifecycle, None, "x", "y") is None
+
+
+class TestPlannerPlanningMeta:
+    """The plan-level provenance markers plan_tool_use attaches."""
+
+    @pytest.mark.asyncio
+    async def test_service_repair_marks_recovered(self, monkeypatch):
+        from core import chat_tool_planner as ctp
+        from core.chat_tool_planner import ToolPlan, plan_tool_use
+
+        calls = {"n": 0}
+
+        async def fake_structured(llm_service, *, prompt, response_model,
+                                  system_instruction, **kw):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # First pass: invalid — a service not in the catalog.
+                return ToolPlan(use_tool=True, service="no-such-svc",
+                                intent="search", query="widget W-1 price")
+            # Repair pass: valid plan.
+            return ToolPlan(use_tool=True, service="memory",
+                            intent="search", query="widget W-1 price")
+
+        monkeypatch.setattr(
+            "core.llm.pinned_planning.pinned_structured_call",
+            fake_structured)
+        plan = await plan_tool_use(
+            "check the widget W-1 price", [], "u1", object())
+        assert plan is not None and plan.use_tool
+        meta = plan._result_meta.get("planning") or {}
+        assert meta.get("source") == "service_repair"
+        assert meta.get("recovered") is True
+
+    @pytest.mark.asyncio
+    async def test_first_pass_success_not_recovered(self, monkeypatch):
+        from core.chat_tool_planner import ToolPlan, plan_tool_use
+
+        async def fake_structured(llm_service, *, prompt, response_model,
+                                  system_instruction, **kw):
+            return ToolPlan(use_tool=True, service="memory",
+                            intent="search", query="widget W-1")
+
+        monkeypatch.setattr(
+            "core.llm.pinned_planning.pinned_structured_call",
+            fake_structured)
+        plan = await plan_tool_use(
+            "check the widget W-1 price", [], "u1", object())
+        meta = plan._result_meta.get("planning") or {}
+        assert meta.get("source") == "structured"
+        assert meta.get("recovered") is False

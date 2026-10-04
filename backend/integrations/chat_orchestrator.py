@@ -4093,6 +4093,20 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                 "operation_id": None, "reason": str(claimed)}
     except denial_error as denial:
         logger.info("task lifecycle denied canvas edit: %s", denial)
+        # DENIED-EDIT RECORDING (2026-10-04 reviewer correction 4): the
+        # gate's refusal is correct and stays untouched — but an attempted
+        # edit on a research-shaped ask is a planning-quality failure worth
+        # a durable record (zero writes ≠ nothing was attempted). The task
+        # was resolved (possibly created) before the denial, so the run id
+        # rides the session.
+        try:
+            _denied_run = (session.get("_task_run_id")
+                           if isinstance(session, dict) else None)
+            if _denied_run:
+                _tlm.record_denied_edit_attempt(
+                    lifecycle, _denied_run, message, str(denial))
+        except Exception:  # noqa: BLE001 — recording is best-effort
+            pass
         return {"status": "denied", "run_id": None, "operation_id": None,
                 "reason": str(denial)}
     except Exception as exc:  # noqa: BLE001 — denial on any failure
@@ -5275,6 +5289,11 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
+            if isinstance(session, dict):
+                # JOB-WORK LEDGER staleness guard: the open-work snapshot is
+                # turn-scoped; an early-return path that never reached the
+                # response assembly must not leak it into a later turn.
+                session.pop("_last_open_work", None)
             try:
                 # TASK LIFECYCLE (Step 1, flag-gated): resolve the
                 # conversation's active task at turn entry so every lane
@@ -10205,6 +10224,29 @@ class ChatOrchestrator:
                     budget_failure = resp
                     break
 
+            # JOB-WORK LEDGER: the turn's open-work snapshot (set at the
+            # multi-source settle seam) rides the response data, and next
+            # steps derive from the DURABLE record when one exists —
+            # falling back to the generic generator otherwise.
+            _open_work_snapshot = None
+            if isinstance(session, dict):
+                _open_work_snapshot = session.pop("_last_open_work", None)
+            _ledger_next_steps: List[str] = []
+            if isinstance(_open_work_snapshot, dict):
+                combined_data = {
+                    **combined_data,
+                    "open_work": _open_work_snapshot,
+                    "task_run_id": session.get("_task_run_id"),
+                }
+                _ledger_next_steps = [
+                    str(a.get("next_action"))
+                    for a in (_open_work_snapshot.get("actions") or [])
+                    if a.get("next_action")][:3]
+                _ledger_next_steps += [
+                    f"Your decision needed: {d.get('question')}"
+                    for d in (_open_work_snapshot.get("owner_decisions")
+                              or [])][:2]
+
             response = {
                 "success": not budget_failure,
                 "message": budget_failure["message"] if budget_failure else main_message,
@@ -10218,7 +10260,7 @@ class ChatOrchestrator:
                 "data": combined_data,
                 "suggested_actions": suggested_actions[:5],
                 "requires_confirmation": False,
-                "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
+                "next_steps": _ledger_next_steps or self._generate_next_steps(intent_analysis, feature_responses),
                 "timestamp": datetime.now().isoformat(),
                 "model": used_model,
                 "provider": used_provider,
@@ -12498,6 +12540,76 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 session[f"_objective_evidence_{execution_id}"] = (
                                     _objective_comparison
                                 )
+                        # JOB-WORK LEDGER (prefetch/blackboard arm): the
+                        # lookup executed in the canvas-edit leg — the same
+                        # operation discipline applies to the REUSED result
+                        # (2026-10-04 reviewer: the path the real job uses
+                        # must record; singleflight is that path on canvas
+                        # turns). Compact mirror of the fresh-exec seam.
+                        try:
+                            _pf_tl = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None), workspace_id)
+                            if _pf_tl is not None:
+                                from core import task_lifecycle as _tlm
+
+                                _pf_structured = (
+                                    _prefetch_result_meta.get(
+                                        "structured_result")
+                                    or _prefetch_meta.get("workbook_read"))
+                                if not isinstance(_pf_structured, dict):
+                                    _pf_structured = None
+                                _pf_run, _pf_op = _tlm.begin_retrieval_turn(
+                                    _pf_tl,
+                                    session if isinstance(
+                                        session, dict) else {},
+                                    session_id or "",
+                                    "singleflight lookup (canvas-edit leg)",
+                                    execution_id,
+                                    items=list(_requested_targets or []),
+                                    canvas_id=(
+                                        (canvas_context or {}).get(
+                                            "canvas_id")
+                                        or (canvas_context or {}).get(
+                                            "id")))
+                                _pf_invoked = bool(
+                                    _prefetch_meta or _tool_block)
+                                _tlm.finish_retrieval_turn(
+                                    _pf_tl, _pf_run, _pf_op,
+                                    _pf_structured or {}, execution_id,
+                                    _pf_invoked,
+                                    execution={
+                                        "invoked": _pf_invoked,
+                                        "outcome": (
+                                            "read_succeeded"
+                                            if _pf_invoked
+                                            else "not_dispatched"),
+                                        "served_basis": (
+                                            "saved_copy"
+                                            if _pf_invoked else "none"),
+                                        "failure_stage": None,
+                                        "planning": dict(
+                                            (_prefetch_result_meta.get(
+                                                "planning") or {})),
+                                        "items": {
+                                            str((t or {}).get("item") or ""):
+                                                str(((t or {}).get(
+                                                    "identity") or {}).get(
+                                                    "status") or "")
+                                            for t in (
+                                                (_pf_structured or {})
+                                                .get("targets") or [])
+                                        },
+                                    })
+                                session["_last_open_work"] = (
+                                    _tlm.record_read_outcome(
+                                        _pf_tl, _pf_run, _pf_op,
+                                        structured_result=_pf_structured,
+                                        freshness=None,
+                                        execution=None))
+                        except Exception as _pf_ledger_err:  # noqa: BLE001
+                            logger.debug(
+                                "[job-work-ledger] prefetch settle skipped: "
+                                "%r", _pf_ledger_err)
                     logger.info(
                         "[stage-timing] tool exec: reused canvas-edit leg "
                         "block (singleflight) — no second plan/execute")
@@ -12763,6 +12875,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "[pending-file-task] plan relevance judged "
                                 "against the confirmed original ask, not the "
                                 "bare confirmation")
+                        # JOB-WORK LEDGER (multi-source seam, 2026-10-04
+                        # reviewer assignment): the planned lookup gets its
+                        # OWN lifecycle operation — begun before dispatch,
+                        # settled after with what the execution path
+                        # observed (block, storage meta, planning
+                        # provenance, exception), never from the narration.
+                        # Unlike the two deterministic read lanes (whose
+                        # begin failure fail-closes the read), a recording
+                        # failure here LOGS and proceeds: this seam serves
+                        # every conversational turn, and the lanes' stricter
+                        # contract was established for workbook reads.
+                        _ms_tl = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None), workspace_id)
+                        _ms_tl_begin = (None, None)
+                        _ms_exec_error = ""
                         if _off_request:
                             logger.warning(
                                 "[plan-relevance] %s declined: the planned "
@@ -12774,6 +12901,79 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                  "params": {"query": _plan.query or ""}},
                                 "plan declined — query does not address the "
                                 "current request; lookup not executed")
+                            # JOB-WORK LEDGER (off-request arm): a REQUIRED
+                            # source action that never ran is recorded as
+                            # not_dispatched WITH its justification (the
+                            # relevance decline) plus the re-run as the open
+                            # next action — per the 2026-10-04 reviewer's
+                            # criterion (performed | failed-with-cause |
+                            # deliberately-unnecessary-with-justification).
+                            # This is the class where canvas-referenced
+                            # items ("this quote") fail the lexical gate.
+                            if _ms_tl is not None:
+                                try:
+                                    from core import task_lifecycle as _tlm
+
+                                    _ms_tl_begin = _tlm.begin_retrieval_turn(
+                                        _ms_tl,
+                                        session if isinstance(
+                                            session, dict) else {},
+                                        session_id or "",
+                                        f"declined lookup: {_planned}",
+                                        execution_id,
+                                        items=list(
+                                            _requested_targets or []),
+                                        canvas_id=(
+                                            (canvas_context or {}).get(
+                                                "canvas_id")
+                                            or (canvas_context or {}).get(
+                                                "id")))
+                                    _tlm.finish_retrieval_turn(
+                                        _ms_tl, _ms_tl_begin[0],
+                                        _ms_tl_begin[1], {}, execution_id,
+                                        False,
+                                        execution={
+                                            "invoked": False,
+                                            "outcome": "not_dispatched",
+                                            "served_basis": "none",
+                                            "failure_stage": (
+                                                "plan_relevance_declined"),
+                                            "planning": dict(
+                                                (getattr(
+                                                    _plan, "_result_meta",
+                                                    None) or {}).get(
+                                                    "planning") or {}),
+                                        })
+                                    if isinstance(session, dict):
+                                        session["_last_open_work"] = (
+                                            _tlm.record_read_outcome(
+                                                _ms_tl, _ms_tl_begin[0],
+                                                _ms_tl_begin[1],
+                                                structured_result=None,
+                                                freshness=None,
+                                                execution=None,
+                                                extra_questions=[{
+                                                    "item": "",
+                                                    "kind": "verification",
+                                                    "question": (
+                                                        "the taught source "
+                                                        "lookup did not run "
+                                                        "(planner relevance "
+                                                        "decline)"),
+                                                    "evidence": (
+                                                        f"planned {_planned}; "
+                                                        "declined as not "
+                                                        "addressing the "
+                                                        "current request"),
+                                                    "next_action": (
+                                                        "re-run the workbook "
+                                                        "verification for "
+                                                        "the quote's items"),
+                                                }]))
+                                except Exception as _ms_or_err:  # noqa: BLE001
+                                    logger.warning(
+                                        "[job-work-ledger] off-request "
+                                        "settle failed: %r", _ms_or_err)
                         # DETERMINISTIC MAIL EVIDENCE, INDEPENDENT OF THE PLAN.
                         # A distinctive figure/model code in the user's message
                         # that exists verbatim in the ingested mailbox IS the
@@ -12822,6 +13022,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                         else:
                             _exec_t0 = time.monotonic()
+                            if _ms_tl is not None:
+                                try:
+                                    from core import task_lifecycle as _tlm
+
+                                    _ms_tl_begin = _tlm.begin_retrieval_turn(
+                                        _ms_tl,
+                                        session if isinstance(
+                                            session, dict) else {},
+                                        session_id or "",
+                                        f"planned lookup: {_planned}",
+                                        execution_id,
+                                        items=list(_requested_targets or []),
+                                        canvas_id=(
+                                            (canvas_context or {}).get(
+                                                "canvas_id")
+                                            or (canvas_context or {}).get(
+                                                "id")))
+                                except Exception as _ms_begin_err:  # noqa: BLE001
+                                    _ms_tl_begin = (None, None)
+                                    logger.warning(
+                                        "[job-work-ledger] multi-source "
+                                        "begin failed (lookup proceeds "
+                                        "unrecorded): %r", _ms_begin_err)
                             try:
                                 _live_block = await asyncio.wait_for(
                                     execute_tool_plan(
@@ -12898,6 +13121,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 logger.warning(
                                     f"planned live lookup failed ({_planned}): {_live_err!r}"
                                 )
+                                _ms_exec_error = (
+                                    f"{type(_live_err).__name__}: "
+                                    f"{str(_live_err)[:120]}")
                                 _live_block = None
                         # CONFIRMED-READ GUARANTEE (2026-09-24 review,
                         # qualification 3/4): on a pending-file-task resume
@@ -12974,6 +13200,98 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _turn_structured_record = _storage_read_meta.get(
                                 "workbook_read"
                             ) or None
+                        # JOB-WORK LEDGER (multi-source seam): settle the
+                        # operation begun before dispatch. The outcome comes
+                        # from the executed block, the storage meta and the
+                        # observed exception — a planner failure the
+                        # fallback machinery RECOVERED stays a success with
+                        # its planning provenance (attempt history), never a
+                        # final not_dispatched verdict; not_dispatched is
+                        # reserved for a lookup that never ran.
+                        if _ms_tl is not None and _ms_tl_begin[0]:
+                            try:
+                                from core import task_lifecycle as _tlm
+
+                                _ms_meta_all = (
+                                    getattr(_plan, "_result_meta", None)
+                                    or {})
+                                _ms_planning = dict(
+                                    _ms_meta_all.get("planning") or {})
+                                _ms_is_file = bool(_storage_read_meta)
+                                _ms_invoked = bool(
+                                    _live_block is not None
+                                    or _storage_read_meta)
+                                if _ms_exec_error:
+                                    _ms_outcome = (
+                                        "read_failed" if _ms_is_file
+                                        else "search_failed")
+                                    _ms_stage = _ms_exec_error
+                                elif _ms_invoked:
+                                    _ms_outcome = (
+                                        "read_succeeded" if _ms_is_file
+                                        else "search_succeeded")
+                                    _ms_stage = None
+                                else:
+                                    _ms_outcome = "search_failed"
+                                    _ms_stage = "no usable result returned"
+                                _ms_structured = (
+                                    _ms_meta_all.get("structured_result")
+                                    or _ms_meta_all.get("workbook_read"))
+                                if not isinstance(_ms_structured, dict):
+                                    _ms_structured = None
+                                _ms_execution = {
+                                    "invoked": _ms_invoked,
+                                    "outcome": _ms_outcome,
+                                    "served_basis": (
+                                        "saved_copy" if (
+                                            _ms_is_file and _ms_invoked)
+                                        else "live" if _ms_invoked
+                                        else "none"),
+                                    "failure_stage": _ms_stage,
+                                    "planning": _ms_planning,
+                                    "items": {
+                                        str((t or {}).get("item") or ""):
+                                            str(((t or {}).get("identity")
+                                                 or {}).get("status") or "")
+                                        for t in (
+                                            (_ms_structured or {})
+                                            .get("targets") or [])
+                                    },
+                                }
+                                _ms_complete = bool(
+                                    _ms_invoked and (
+                                        _ms_structured or _live_block))
+                                _tlm.finish_retrieval_turn(
+                                    _ms_tl, _ms_tl_begin[0], _ms_tl_begin[1],
+                                    _ms_structured or {}, execution_id,
+                                    _ms_complete,
+                                    execution=_ms_execution)
+                                _ms_bindings = None
+                                try:
+                                    from core import dialogue_state as _ds
+
+                                    _ms_bindings = _ds.workbook_bindings(
+                                        workspace_id,
+                                        content_hash=(
+                                            _storage_read_meta.get(
+                                                "content_hash")),
+                                        items=[k for k in
+                                               _ms_execution["items"] if k],
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    _ms_bindings = None
+                                _ms_open = _tlm.record_read_outcome(
+                                    _ms_tl, _ms_tl_begin[0], _ms_tl_begin[1],
+                                    structured_result=_ms_structured,
+                                    freshness=None,
+                                    execution=_ms_execution,
+                                    bindings=_ms_bindings)
+                                if isinstance(session, dict):
+                                    session["_last_open_work"] = _ms_open
+                            except Exception as _ms_settle_err:  # noqa: BLE001
+                                logger.warning(
+                                    "[job-work-ledger] multi-source settle "
+                                    "failed: %r", _ms_settle_err)
                         if not _off_request and _storage_read_meta:
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
@@ -16348,6 +16666,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 shared_tool_state["objective_evidence"] = (
                     fresh.evidence_contract
                 )
+            # CONSULTED-SOURCE ACCOUNTING (2026-10-04 reviewer closeout):
+            # record WHICH source service the fresh-data leg actually
+            # consulted. The reply leg's required-source chaining reads
+            # this — block non-emptiness proved nothing (a junk mailbox
+            # scan filled the block while the taught workbook source was
+            # never consulted).
+            if plan is not None and getattr(plan, "use_tool", False):
+                shared_tool_state.setdefault(
+                    "consulted_sources", set()).add(
+                    getattr(plan, "service", None))
             # Blackboard hand-back: whatever this leg executed belongs to
             # the whole turn. When the edit declines below, the chat leg
             # reuses this block instead of re-planning and re-executing.

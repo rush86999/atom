@@ -528,3 +528,97 @@ stash bisect: 2 flag-off tests fail because backend/.env carries
 ATOM_TASK_LIFECYCLE_ENABLED=1 (environmental; they pass in a
 worktree without the .env), 7 refresh tests fail identically with and
 without this arc's files (HEAD-state issue, not this arc).
+
+---
+
+## Addendum 9 (2026-10-04): multi-source wiring finished; live proof blocked by routing — honest status
+
+Per the reviewer's re-assignment. Language held to the reviewer's bar:
+"implemented and unit-tested" ≠ "verified in the real job".
+
+### Wired this arc (all four reviewer steps, code + 23 unit pins)
+
+1. **The narration fresh-exec seam** (`_get_qwen_response` →
+   `execute_tool_plan`): per-lookup lifecycle operation begun before
+   dispatch, settled after with facts from the block, storage meta,
+   planning provenance and the observed exception.
+2. **The singleflight/prefetch arm**: canvas-edit-leg-reused lookups
+   get the same begin/settle discipline (the path canvas turns
+   actually use).
+3. **The off-request arm**: a required source action the relevance
+   gate declined is recorded `not_dispatched` WITH justification
+   (stage `plan_relevance_declined`) plus the re-run as the open next
+   action — the reviewer's "deliberately unnecessary / failed with
+   observed cause" criterion.
+4. **Planning provenance** (`plan_tool_use` → `plan._result_meta
+   ["planning"]`): source ∈ structured / web_escalation /
+   service_repair / memory_rung / provenance_repair /
+   provenance_floor / relevance_repair; `recovered` marks a failure
+   the fallback machinery survived. A recovered attempt with a
+   successful tool outcome records as SUCCESS with history — never a
+   final `not_dispatched` (pinned).
+5. **Denied-edit recording** (`record_denied_edit_attempt`): the
+   scope gate stays untouched; a refused attempted edit lands as a
+   cancelled `edit` operation with the denial reason — zero writes ≠
+   "nothing was attempted" (pinned).
+6. Response assembly ships `data.open_work` + ledger-derived
+   `next_steps` for every arm; turn-scoped staleness guard added.
+
+### Live attempts (9, all recorded; fork b97d9141, deleted after —
+content SHA-256 identical to source throughout; zero edits, zero
+sends)
+
+| # | Session | Ask | Intent | Outcome |
+|---|---|---|---|---|
+| 1-3 | jobwork2 | compound ask (×3: retry after canned reply + socket drop) | data_analysis / data_analysis | legacy analytics stub canned reply; ledger never reached |
+| 4 | jobwork3 | compound ask | multi_step_process | read the WRONG file (concurrent operator's temp workbook "chat-Draft-I-searched-Workdrive-live-for-Trum-…xlsx" — catalog pollution) |
+| 5 | jobwork4 | taught-workbook ask | search_request | legacy SEARCH stub; asked which quote |
+| 5b | jobwork4 | eight items listed (clarify answer) | search_request | "I found 0 results" (stub) |
+| 6 | jobwork6 | compound ask (canvas id FIXED — my earlier fork-id parse bug, found mid-run) | search_request | narration ran; planner produced the RIGHT lookup (`datasets.value_trace` naming the items) and the RELEVANCE GATE declined it ("does not address the current request") — the known canvas-target class: items referenced via "this quote" live on the canvas, canvas topic only allowed on edit-shaped turns |
+| 7 | jobwork7 | compound ask | data_analysis | analytics stub claimed the turn |
+| 8 | jobwork8 | named-file ask | search (clarify) | target-set clarify offered 5 of 8 items |
+| 9 | jobwork8 | "Yes, check those" | search_request | stub again — confirmation did not route to the confirmed-read lane |
+
+### The two live blockers, precisely
+
+1. **NLU/intent routing instability on this build**: the same ask
+   resolves to data_analysis (analytics stub claims the turn),
+   search_request (stub + narration), or multi_step_process across
+   consecutive attempts. The covered lanes are reachable but not
+   reliably so. Compounded by the concurrent operator's in-flight
+   REQUIREMENT-DRIVEN RECOVERY work (their block contained a NameError
+   — `context` in `_get_qwen_response` — which I fixed in place and
+   logged in the coordination doc round 33; their block also changes
+   the no-lookup framing a pinned test asserts).
+2. **Catalog pollution + the relevance gate's canvas-target rule**:
+   the concurrent operator's temp workbooks hijack file resolution
+   (attempt 4), and item-bearing queries get declined when the ask
+   references the canvas's items indirectly (attempt 6) — the
+   exact class their in-flight block targets.
+
+### Honest status vs the reviewer's completion criteria
+
+- Source actions recorded performed/failed/unnecessary: **mechanism
+  shipped + unit-pinned on four arms; live-observed only as the
+  relevance-decline class (attempt 6, pre-recording restart)**.
+- Unfinished work survives and drives the next turn: **NOT
+  live-proven** — no attempt reached a settled operation on a live
+  turn post-restart. The continuation loop remains unit-pinned only.
+- Eight items with separate evidence/freshness/decision status:
+  dimension separation pinned; no live record exists to inspect.
+- Reply agrees with execution records: untested live (no records).
+- Authorized changes persist; unauthorized zero: **zero
+  unauthorized changes and zero sends verified across all 9 attempts
+  (fork hash + audit)**; the authorized draft-preparation test was
+  never reached (the run never got past source verification).
+
+### What the next operator needs (in order)
+
+1. A quiet window (no concurrent operator on the backend/files) and
+   the REQUIREMENT-DRIVEN block finished — it targets exactly the
+   relevance-gate class that blocked attempt 6.
+2. The NLU wobble diagnosed (fallback-model intent quality is the
+   documented suspect; addendum 7 already named plan quality as the
+   highest-leverage fix).
+3. Then ONE rerun of this protocol; the ledger arms are in place and
+   unit-pinned.
