@@ -207,3 +207,34 @@ datasets_search/value_trace meta on those attempts); plan-level
 convergence on the recorded targeted reads (Flanger cell, full-thread by
 id) is still not demonstrated. Draft untouched; nothing sent; original
 canvas untouched.
+
+## Round-40 coherent correction (cont13, pid 61445)
+
+**Scope protection**: the reconcile bound observation aliases as new
+entities (8→11) and could drop tasked items on partial observations.
+Observation now binds NEW DISTINCT items only (normalized-overlap check);
+tasked items are never removed by observation. The 11 existing identities
+remain in the old record — the canonical eight live in the comparison;
+aliases are coverage, not scope.
+
+**Receipt guarantee**: every datasets return carries a receipt;
+prose-only returns are marked `datasets_prose_only` and read as
+dispatched-but-NOT-retrieved. **Completion rule**: an item resolves only
+by an actual content read (`read_succeeded`) or an explicit per-item
+status — search success, document hits, and missing receipts resolve
+nothing. **Gate loss found and fixed**: the round-39 completion gate was
+silently lost (its script wrote the file but a SyntaxError aborted the
+chain before commit captured it — the commit message claimed a gate the
+code did not contain); reapplied and pinned.
+
+**Live (cont13)**: the run AUTONOMOUSLY surfaced a training-based
+discrepancy — the taught workbook note records No. 381 at **$3,254.00**
+vs the draft's $2,902.00 — correctly flagged as "needs a source read,
+not an assumption." Rows 5–8 re-confirmed with the corrected
+quoted-September-18 wording. **Still not demonstrated**: the targeted
+reads execute only "on your word" — the per-item questions do not
+persist because the value_trace receipt requires `intent=value_trace`,
+which the chain plans only when session-held items exist (they do not on
+these turns), and the seed still selects the original ask (actions
+empty). The binding executes the job; action-level selection of recorded
+targeted reads is the remaining acceptance item.
