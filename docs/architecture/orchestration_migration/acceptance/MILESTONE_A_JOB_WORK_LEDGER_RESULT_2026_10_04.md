@@ -45,3 +45,31 @@ Preserved draft (SHA-identical fork and original across 8 runs); recorded operat
 ## Remaining before Milestone A sign-off
 
 Re-run the original fresh-session job after this correction arc: require all-eight evidence-backed dispositions, both taught sources performed-or-blocked WITH separate operation records, and no avoidable steering question. Attribution of any residual failure to model quality is premature until this run is on record.
+
+## Round-35 live verdict (runs msA10–msA12, serving pid 35154, HEAD 6a0…guard+shape commits)
+
+Two more deterministic defects found by the rerun — NOT model quality:
+- msA10: chain query called `canvas_topic_text(canvas_context)` on a bare
+  canvas-id string → whole response died to template. Guarded (isinstance).
+- msA11: `_requested_targets` holds plain strings on some paths →
+  `(t or {}).get("item")` killed the response. Shape-tolerant extraction.
+
+**Negative control confirmed IN VIVO (msA12)**: the chained datasets
+attempt returned 2641 chars of text with NO structured receipt and the
+code refused to credit it — logged "returned NO usable receipt — the
+obligation stays open". Ledger for run `17f669b4`: edit cancelled +
+primary retrieve (read_failed, incomplete) + chained retrieve (own
+operation, begun and settled incomplete).
+
+**Measured status: Milestone A remains incomplete.** Both taught-source
+attempts now leave durable operation records including reused/chained
+execution; the reply is honest and draft-identical (SHA f028613c…
+unchanged on fork and original; no sends). Not yet met: all-eight
+evidence-backed dispositions in one run; the outlook source was not
+reached inside the bounded turn (the re-attempted datasets chain consumed
+the budget — only one chain attempt per turn); the chained operation's
+execution-facts attach silently failed (op shows running, facts absent —
+the `attach_operation_field` swallow in `finish_retrieval_turn`); and the
+reply still ends with a steering question. First divergences were all
+deterministic; the residual gaps are enumerated above, not attributed to
+the model.
