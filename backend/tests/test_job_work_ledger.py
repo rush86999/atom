@@ -504,3 +504,50 @@ class TestInspectionSurface:
         assert len(line) == 1
         assert f"run={str(run_id)[:8]}" in line[0].getMessage()
         assert "open(actions=1" in line[0].getMessage()
+
+
+class TestExecutionFactsSurviveReload:
+    """Round 36 reviewer correction 2: the execution-facts attach lived
+    below finish_retrieval_turn's `if not complete: return` early return —
+    every failed / chained / incomplete settle persisted an operation row
+    with NO execution facts. Provenance is completeness-neutral."""
+
+    def test_incomplete_settle_persists_execution_facts(self, lifecycle):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, finish_retrieval_turn, record_read_outcome)
+
+        run_id, op1 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-facts", "primary lookup", "e1")
+        finish_retrieval_turn(
+            lifecycle, run_id, op1, {}, "e1", False,
+            execution={"invoked": True,
+                       "outcome": "search_returned_no_receipt",
+                       "served_basis": "live", "failure_stage": None,
+                       "planning": {"source": "structured",
+                                    "recovered": False},
+                       "items": {"SLE24-16": ""}})
+        record_read_outcome(lifecycle, run_id, op1, structured_result=None,
+                            freshness=None, execution=None)
+
+        # A chained operation on the SAME run, also incomplete.
+        _, op2 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-facts",
+            "chained lookup: datasets", "e1")
+        finish_retrieval_turn(
+            lifecycle, run_id, op2, {}, "e1", False,
+            execution={"invoked": True, "outcome": "search_succeeded",
+                       "served_basis": "live", "failure_stage": None,
+                       "planning": {}, "items": {"U-22": ""}})
+
+        # RELOAD from durable storage — the operation rows must carry
+        # their facts, not just in-memory state.
+        rec = lifecycle.get_task(run_id)
+        by_id = {op["operation_id"]: op for op in rec["operations"]}
+        for op_id in (op1, op2):
+            facts = by_id[op_id].get("execution")
+            assert facts and facts.get("outcome"), (
+                "an operation row without its execution facts does not "
+                "satisfy the ledger requirement")
+        assert by_id[op1]["execution"]["outcome"] == \
+            "search_returned_no_receipt"
+        assert by_id[op2]["execution"]["outcome"] == "search_succeeded"

@@ -1034,7 +1034,8 @@ def test_chain_uses_unresolved_work_and_records_its_own_operation():
     assert "canvas_topic_text(canvas_context)" in chain, (
         "the canvas rides as RESEARCH context for the lookup")
     assert "begin_retrieval_turn" in chain and "finish_retrieval_turn" in chain
-    assert "_chain_settle(" in chain
+    assert "async def _chain_attempt" in chain and "_settle(" in chain
+    assert "for _missing_svc in sorted(_missing):" in chain
     assert '"search_returned_no_receipt"' in src
     # Coverage credit is receipt-based, not text-based; singleflight reuse
     # carries the ORIGINAL receipt on the blackboard (round 35).

@@ -7174,7 +7174,8 @@ async def _datasets_named_file_block(
 
 
 async def _datasets_search_block(
-    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
+    plan: Optional["ToolPlan"] = None,
 ) -> Optional[str]:
     """Cross-file content probe over the dataset catalog, formatted as a LIVE
     TOOL RESULTS block. The `datasets` service leg of execute_tool_plan: lets
@@ -7213,6 +7214,30 @@ async def _datasets_search_block(
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []
+    # STRUCTURED RECEIPT (round 36 reviewer correction 4): this branch
+    # previously returned ONLY prose — the ledger read 2,641 chars of text
+    # with no execution receipt and could not distinguish a real empty
+    # search from junk name-matches. The receipt records what the sweep
+    # actually did: scope (files searched), hits, matched files, tokens.
+    if plan is not None:
+        try:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["datasets_search"] = {
+                "files_searched": int(files_searched or 0),
+                "hits": len(hits),
+                "tokens_tried": [
+                    str(t)[:60]
+                    for t in ((result or {}).get("tokens_tried") or [])][:8],
+                "matched_files": sorted({
+                    str((h or {}).get("file") or (h or {}).get("source")
+                        or "")[:120] for h in hits if h})[:12],
+                "query": str(query)[:200],
+            }
+        except Exception:  # noqa: BLE001 — receipt is additive
+            pass
     if hits:
         lines = [
             f"LIVE TOOL RESULTS (datasets.search, query='{query}') — every "
@@ -8625,7 +8650,8 @@ async def execute_tool_plan(
         block = await _datasets_named_file_block(
             user_id, query, context, plan=plan)
         if block is None:
-            block = await _datasets_search_block(user_id, query, context)
+            block = await _datasets_search_block(
+                user_id, query, context, plan=plan)
         if block:
             return block
         return _with_grounding(

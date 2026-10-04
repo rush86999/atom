@@ -1967,6 +1967,7 @@ def _search_execution_receipt(
     threads = meta.get("searched_threads") or []
     observations = meta.get("source_observations") or []
     reads = meta.get("read_outcomes") or []
+    ds = meta.get("datasets_search") or {}
     structured = {}
     for k in ("structured_result", "workbook_read", "storage_read",
               "file_read"):
@@ -1974,15 +1975,20 @@ def _search_execution_receipt(
         if isinstance(v, dict) and v:
             structured[k] = v
     returned_text = bool(block is not None and str(block).strip())
-    dispatched = returned_text or bool(threads) or bool(structured)
-    retrieved = bool(threads or observations or reads or structured)
-    # BOUNDED ABSENCE (reviewer, round 35): a search that provably EXECUTED
-    # over its store and returned zero usable hits is a valid empty search —
-    # it establishes absence without endless retries. The meta key being
-    # PRESENT (even empty) is the execution record; its absence means no
-    # receipt at all.
+    dispatched = returned_text or bool(threads) or bool(structured) \
+        or bool(ds)
+    ds_hits = int(ds.get("hits") or 0) if isinstance(ds, dict) else 0
+    retrieved = bool(threads or observations or reads or structured
+                     or ds_hits)
+    # BOUNDED ABSENCE (reviewer, round 35/36): a search that provably
+    # EXECUTED over its store with a receipt and zero usable hits is a
+    # valid empty search — established absence, scoped to what it
+    # searched. The meta key being PRESENT (even empty) is the execution
+    # record; its absence means no receipt at all. Zero hits from an
+    # UNRECEIPTED search proves nothing.
     executed_search = ("searched_threads" in meta) or bool(observations) \
-        or bool(reads) or bool(structured)
+        or bool(reads) or bool(structured) or (
+            isinstance(ds, dict) and bool(ds.get("files_searched")))
     _sr_targets = []
     _sr = structured.get("structured_result")
     if isinstance(_sr, dict):
@@ -1999,6 +2005,7 @@ def _search_execution_receipt(
             "searched_threads": len(threads),
             "source_observations": len(observations),
             "read_outcomes": len(reads),
+            "datasets_search": ds if isinstance(ds, dict) else {},
             # COVERAGE (reviewer, round 35): items the receipt actually
             # names — the caller compares against the RESOLVED set;
             # retrieval alone does not mean the requested items were seen.
@@ -14070,26 +14077,49 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "resolved items or canvas subject to query from",
                             sorted(_missing))
                         _missing = set()
-                if _missing and _chain_wait >= 8.0:
-                    _chain_plan = ToolPlan(
-                        use_tool=True,
-                        service=_missing_svc,
-                        intent="search",
-                        query=_chain_query,
-                    )
-                    # CHAIN OPERATION RECORD (reviewer correction 3): the
-                    # second taught source gets its own lifecycle operation
-                    # — begun before dispatch, settled after with the
-                    # receipt-derived outcome, on every path (result,
-                    # timeout, error, no-receipt).
+                # BOUNDED UNFINISHED-WORK LOOP (round 36 reviewer
+                # correction 3): EVERY missing taught source gets its own
+                # attempt with its own lifecycle operation — a failed or
+                # receipt-less datasets attempt does NOT block the mailbox
+                # attempt. One attempt per source per turn (a retry is a
+                # LATER turn's justified decision, informed by the recorded
+                # outcomes); the loop stops when the turn budget can no
+                # longer fit an attempt, and every settle leaves the
+                # remaining work durably recorded.
+                def _chain_turn_left() -> float:
+                    try:
+                        if deadline is not None:
+                            return deadline.remaining()
+                    except Exception:  # noqa: BLE001 — deadline optional
+                        pass
+                    return float("inf")
+
+                def _chain_canvas_id():
+                    if isinstance(canvas_context, dict):
+                        return (canvas_context.get("canvas_id")
+                                or canvas_context.get("id"))
+                    if isinstance(canvas_context, str) \
+                            and canvas_context.strip():
+                        return canvas_context.strip()
+                    return None
+
+                async def _chain_attempt(_missing_svc: str) -> None:
+                    _attempt_wait = min(
+                        20.0, max(0.0, _chain_turn_left() - 15.0))
+                    if _attempt_wait < 8.0:
+                        logger.info(
+                            "[planner-boundary] chain attempt for %s "
+                            "skipped: turn budget has %.0fs left",
+                            _missing_svc, _attempt_wait)
+                        return
                     _c_tl = _task_lifecycle_for(
                         getattr(self, "tenant_id", None), workspace_id)
-                    _c_begin = (None, None)
+                    _begin = (None, None)
                     if _c_tl is not None:
                         try:
                             from core import task_lifecycle as _tlm
 
-                            _c_begin = _tlm.begin_retrieval_turn(
+                            _begin = _tlm.begin_retrieval_turn(
                                 _c_tl,
                                 session if isinstance(session, dict) else {},
                                 session_id or "",
@@ -14097,32 +14127,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{_missing_svc} ({_chain_query[:120]})",
                                 execution_id,
                                 items=_chain_items,
-                                canvas_id=(
-                                    (canvas_context or {}).get("canvas_id")
-                                    or (canvas_context or {}).get("id")))
-                        except Exception as _c_begin_err:  # noqa: BLE001
-                            _c_begin = (None, None)
+                                canvas_id=_chain_canvas_id())
+                        except Exception as _cb_err:  # noqa: BLE001
+                            _begin = (None, None)
                             logger.warning(
                                 "[job-work-ledger] chain begin failed "
-                                "(lookup proceeds unrecorded): %r",
-                                _c_begin_err)
+                                "(lookup proceeds unrecorded): %r", _cb_err)
 
-                    def _chain_settle(_outcome: str, _stage: Optional[str],
-                                      _receipt: Dict[str, Any]) -> None:
-                        if _c_tl is None or not _c_begin[0]:
+                    def _settle(_outcome: str, _stage: Optional[str],
+                                _receipt: Dict[str, Any]) -> None:
+                        if _c_tl is None or not _begin[0]:
                             return
                         try:
                             from core import task_lifecycle as _tlm
 
                             # A valid empty search (bounded absence) also
                             # completes the obligation — honestly, as an
-                            # established absence (round 35).
+                            # established absence scoped to the searched
+                            # source (round 35/36).
                             _complete = bool(
                                 _receipt["dispatched"]
                                 and (_receipt["retrieved"]
                                      or _receipt.get("bounded_absence")))
                             _tlm.finish_retrieval_turn(
-                                _c_tl, _c_begin[0], _c_begin[1], {},
+                                _c_tl, _begin[0], _begin[1], {},
                                 execution_id, _complete,
                                 execution={
                                     "invoked": _receipt["dispatched"],
@@ -14137,7 +14165,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if isinstance(session, dict):
                                 session["_last_open_work"] = (
                                     _tlm.record_read_outcome(
-                                        _c_tl, _c_begin[0], _c_begin[1],
+                                        _c_tl, _begin[0], _begin[1],
                                         structured_result=None,
                                         freshness=None,
                                         execution=None,
@@ -14146,26 +14174,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                 "item": "",
                                                 "kind": "verification",
                                                 "question": (
-                                                    f"the chained {_missing_svc}"
-                                                    " lookup returned no "
-                                                    "usable receipt"),
+                                                    f"the chained "
+                                                    f"{_missing_svc} lookup "
+                                                    "returned no usable "
+                                                    "receipt"),
                                                 "evidence": (
                                                     f"outcome={_outcome}; "
                                                     f"stage={_stage}"),
                                                 "next_action": (
-                                                    f"re-run the {_missing_svc}"
-                                                    " lookup for the quote's "
-                                                    "items"),
+                                                    f"re-run the "
+                                                    f"{_missing_svc} lookup "
+                                                    "for the quote's items"),
                                             }])))
-                        except Exception as _c_settle_err:  # noqa: BLE001
+                        except Exception as _cs_err:  # noqa: BLE001
                             logger.warning(
                                 "[job-work-ledger] chain settle failed: %r",
-                                _c_settle_err)
+                                _cs_err)
 
+                    _attempt_plan = ToolPlan(
+                        use_tool=True, service=_missing_svc,
+                        intent="search", query=_chain_query)
                     try:
-                        _chain_block = await asyncio.wait_for(
+                        _attempt_block = await asyncio.wait_for(
                             execute_tool_plan(
-                                _chain_plan, user_id,
+                                _attempt_plan, user_id,
                                 tenant_id=getattr(
                                     self, "tenant_id", "default"),
                                 context={
@@ -14182,53 +14214,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 },
                                 llm_service=self.llm_service,
                             ),
-                            timeout=_chain_wait,
+                            timeout=_attempt_wait,
                         )
-                        _c_receipt = _search_execution_receipt(
-                            _chain_plan, _chain_block)
-                        if _c_receipt["retrieved"]:
+                        _receipt = _search_execution_receipt(
+                            _attempt_plan, _attempt_block)
+                        if _receipt["retrieved"]:
                             _tool_block = (
                                 f"{_tool_block}\n\nREQUIRED-SOURCE "
-                                f"CROSS-CHECK ({_missing_svc} — the "
-                                "other taught source for this task):\n"
-                                + _chain_block)
-                            logger.info(
-                                "[planner-boundary] chained missing "
-                                "source: %s (%d chars, receipt=%s)",
-                                _missing_svc, len(_chain_block),
-                                _c_receipt["receipt"])
-                        else:
-                            logger.info(
-                                "[planner-boundary] chained source %s "
-                                "returned NO usable receipt — the "
-                                "obligation stays open (text=%d chars)",
-                                _missing_svc,
-                                len(_chain_block or ""))
-                        _chain_settle(
+                                f"CROSS-CHECK ({_missing_svc}):\n"
+                                + _attempt_block)
+                        logger.info(
+                            "[planner-boundary] chained source %s: %s "
+                            "(receipt=%s)", _missing_svc,
+                            "receipt" if _receipt["retrieved"]
+                            else "bounded absence"
+                            if _receipt["bounded_absence"]
+                            else "NO usable receipt — obligation open",
+                            _receipt["receipt"])
+                        _settle(
                             "search_succeeded"
-                            if _c_receipt["retrieved"]
+                            if _receipt["retrieved"]
                             else "search_succeeded_empty"
-                            if _c_receipt["bounded_absence"]
+                            if _receipt["bounded_absence"]
                             else "search_returned_no_receipt",
-                            None, _c_receipt)
-                    except asyncio.TimeoutError as _chain_err:
+                            None, _receipt)
+                    except asyncio.TimeoutError:
                         logger.info(
                             "[planner-boundary] chained source %s timed "
                             "out after %.0fs — recorded, obligation open",
-                            _missing_svc, _chain_wait)
-                        _chain_settle("search_failed",
-                                      "chained_lookup_timeout",
-                                      {"dispatched": False, "retrieved": False,
-                                       "receipt": {}})
-                    except Exception as _chain_err:  # noqa: BLE001
+                            _missing_svc, _attempt_wait)
+                        _settle("search_failed", "chained_lookup_timeout",
+                                {"dispatched": False, "retrieved": False,
+                                 "bounded_absence": False, "receipt": {}})
+                    except Exception as _ca_err:  # noqa: BLE001
                         logger.info(
                             "[planner-boundary] chained source %s failed: "
                             "%r — recorded, obligation open",
-                            _missing_svc, _chain_err)
-                        _chain_settle("search_failed",
-                                      f"{type(_chain_err).__name__}",
-                                      {"dispatched": False, "retrieved": False,
-                                       "receipt": {}})
+                            _missing_svc, _ca_err)
+                        _settle("search_failed",
+                                f"{type(_ca_err).__name__}",
+                                {"dispatched": False, "retrieved": False,
+                                 "bounded_absence": False, "receipt": {}})
+
+                if _chain_query:
+                    for _missing_svc in sorted(_missing):
+                        await _chain_attempt(_missing_svc)
+                else:
+                    # NO RESOLVED WORK TO TARGET (reviewer correction 1):
+                    # without a resolved item set or canvas subject there is
+                    # nothing to query from — chaining on raw message text
+                    # is the misdirection this correction removes. The
+                    # obligation stays open (the primary operation's
+                    # receipt already recorded it).
+                    logger.info(
+                        "[planner-boundary] chain skipped for %s: no "
+                        "resolved items or canvas subject to query from",
+                        sorted(_missing))
             elif not _planned and not _tool_block:
                 # The planner itself timed out/failed BEFORE choosing a
                 # service (live 2026-09-13: 31-38s canvas-edit plan ate the

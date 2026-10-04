@@ -138,6 +138,14 @@ EXEC_OUTCOMES = (
     "not_dispatched",   # never ran (pool starved / planner declined)
     "search_succeeded", # non-file lookup (mailbox, store) returned hits
     "search_failed",    # non-file lookup ran and failed
+    # Round 36 reviewer corrections — these must persist verbatim, not be
+    # rewritten to read_failed: a text-only return is not "no content" (the
+    # executor DID return; it returned no structured receipt), and a valid
+    # empty search is a bounded absence, not a failure. Both leave item
+    # COVERAGE as the separate open question.
+    "search_returned_no_receipt",  # dispatched; prose came back, no receipt
+    "read_returned_no_receipt",    # dispatched; prose came back, no receipt
+    "search_succeeded_empty",      # valid empty search: bounded absence
 )
 
 #: Which basis served a SUCCESSFUL read — independent of outcome, because
@@ -2090,6 +2098,24 @@ def finish_retrieval_turn(
     if current_status == "pending":
         lifecycle.transition_operation(
             run_id, operation_id, "running", execution_id=execution_id)
+    # EXECUTION FACTS attach for EVERY settle outcome (round 36 reviewer
+    # correction 2): the attach previously lived below the `if not
+    # complete: return` early return, so every failed / chained /
+    # incomplete settle persisted an operation row with NO execution
+    # facts — the ledger's core requirement (proposals, invocations and
+    # outcomes linked by operation identity) silently unmet exactly
+    # where the outcomes were worst. Provenance is completeness-neutral:
+    # attach now, before the completeness branches. A genuine attach
+    # failure is LOGGED, never swallowed silently.
+    if execution is not None:
+        try:
+            lifecycle.attach_operation_field(
+                run_id, operation_id, "execution",
+                normalize_execution_facts(execution))
+        except Exception as _attach_err:  # noqa: BLE001 — provenance, not status
+            logger.warning(
+                "[job-work-ledger] execution-facts attach failed for op %s: "
+                "%r", operation_id, _attach_err)
     if not complete:
         return run_id
     if current_status != "applied":
@@ -2107,16 +2133,7 @@ def finish_retrieval_turn(
             "evidence_revision": structured_result.get("evidence_revision"),
         },
     })
-    if execution is not None:
-        try:
-            # EXECUTION FACTS ride the operation record (post-settle
-            # provenance — same class as an edit's invalidated-evidence
-            # ids: a recording failure must not unwind the settle).
-            lifecycle.attach_operation_field(
-                run_id, operation_id, "execution",
-                normalize_execution_facts(execution))
-        except Exception:  # noqa: BLE001 — facts are provenance, not status
-            pass
+    return run_id
     return run_id
 
 
