@@ -943,6 +943,51 @@ def test_consulted_sources_accounting_keys_chain_not_block_emptiness():
     chain must key on the CONSULTED-SOURCE set vs required sources."""
     src = open("integrations/chat_orchestrator.py").read()
     assert 'shared_tool_state.setdefault(\n                    "consulted_sources", set())' in src
+
+
+def test_canvas_deixis_allows_canvas_anchored_research_lookups():
+    """Round 34 live finding (msA3): a research turn that references the
+    open canvas ("Don't change the draft yet", "the other machinery") had
+    its correctly canvas-derived lookup query declined as off-request —
+    the canvas topic was only allowed on EDIT-shaped turns. Deixis (the
+    draft / this quote / the other machines) must admit the canvas
+    subject; a query matching neither message nor canvas still declines.
+    Domain-general: no purchasing vocabulary in the predicate."""
+    from integrations.chat_orchestrator import (
+        _canvas_referencing_message,
+        _CANVAS_DEIXIS_RE,
+    )
+    # The acceptance prompt itself.
+    assert _canvas_referencing_message(
+        "Check the other machinery and verify whether pricing needs "
+        "updating, following your training. Don't change the draft yet.")
+    assert _canvas_referencing_message("verify the pricing on this quote")
+    assert _canvas_referencing_message("what does the draft say about lead times")
+    # Non-canvas talk stays non-canvas.
+    assert not _canvas_referencing_message("what is the weather in Tokyo")
+    assert not _canvas_referencing_message("")
+    assert not _canvas_referencing_message("my name is Rishi")
+    # The gate sites consult the predicate, not edit-shape alone.
+    src = open("integrations/chat_orchestrator.py").read()
+    assert "or _canvas_referencing_message(message)" in src
+    # Double-settle guard: the shared multi-source settle runs only on the
+    # fresh-dispatch arm, never after the off-request arm already settled
+    # its operation (running -> running was illegal).
+    assert "_ms_dispatched = False" in src
+    assert "and _ms_dispatched)" in src
+
+
+def test_singleflight_ledger_settle_is_not_gated_on_file_mentions():
+    """Round 34 live finding (msA2): the singleflight ledger settle sat
+    inside the named-file gate, so a canvas research turn whose lookup
+    EXECUTED (catalog sweep + mailbox scan, no file named) left no
+    retrieve operation. The settle must follow the execution."""
+    src = open("integrations/chat_orchestrator.py").read()
+    settle = src[src.index("JOB-WORK LEDGER (prefetch/blackboard arm)"):]
+    settle = settle[:settle.index("logger.info(")]
+    assert "if _plan_mentions:" not in settle.split("try:")[0]
+    # The settle begins its own retrieval turn unconditionally.
+    assert "begin_retrieval_turn" in settle
     assert "_consulted_sources = (" in src
     assert "_missing = _required_sources - _consulted" in src
     # planning_failed keys on consulted emptiness, not block emptiness

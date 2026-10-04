@@ -1919,6 +1919,39 @@ def _canvas_edit_shaped(
     )
 
 
+# CANVAS DEIXIS (round 34, Milestone A live finding): a research message
+# may reference the open canvas without any edit verb — "Don't change the
+# draft yet", "check the other machinery", "verify the pricing on this
+# quote". The plan-relevance gate allowed the canvas subject as a
+# relevance basis ONLY on edit-shaped turns, so a canvas-anchored research
+# ask had its correctly canvas-derived lookup query declined as
+# off-request (live msA3: "datasets.search:Roper Whitney …" — the query
+# named the canvas's own machines — was refused with "does not address
+# the current request"). The predicate is deliberately conservative and
+# domain-general: determiner + document/set noun, or explicit "on the
+# canvas/draft/quote". Allowing the canvas topic never VALIDATES a stale
+# plan by itself — the query still has to match the topic; it only joins
+# the message as a legitimate subject pool while a canvas is open.
+_CANVAS_DEIXIS_RE = re.compile(
+    r"\b(?:the|this|that|these|those|my|your|our)\s+"
+    r"(?:draft|quote|quotation|canvas|document|doc|email|table|sheet|"
+    r"spreadsheet|workbook|list|comparison|machines?|machinery|items?|"
+    r"rows?|prices?|pricing)\b"
+    r"|\bthe\s+other\s+[a-z]+s\b"
+    r"|\b(?:on|from|in|across)\s+the\s+(?:canvas|draft|quote|document)\b"
+    r"|\bthe\s+above\b",
+    re.IGNORECASE,
+)
+
+
+def _canvas_referencing_message(message: str) -> bool:
+    """True when the message refers to the open canvas through ordinary
+    deixis (``the draft``, ``this quote``, ``the other machinery``) rather
+    than an edit verb. Only meaningful when a canvas is actually attached —
+    callers gate on that themselves."""
+    return bool(_CANVAS_DEIXIS_RE.search(message or ""))
+
+
 def _is_file_objective_turn(
     message: str, session: Optional[Dict[str, Any]]
 ) -> bool:
@@ -8768,8 +8801,10 @@ class ChatOrchestrator:
                         return await plan_tool_use(
                             _plan_msg, _plan_hist, user_id, self.llm_service,
                             canvas=_canvas_ctx, provenance=prov,
-                            allow_canvas_target=_canvas_edit_shaped(
-                                message, {"canvas": _canvas_ctx}),
+                            allow_canvas_target=(
+                                _canvas_edit_shaped(
+                                    message, {"canvas": _canvas_ctx})
+                                or _canvas_referencing_message(message)),
                         )
                     finally:
                         if _wait_token is not None:
@@ -12478,25 +12513,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # identical results — reuse the block as-is.
                     _tool_block = prefetched_tool_block
                     _prefetch_result_meta: Dict[str, Any] = {}
+                    _prefetch_meta: Dict[str, Any] = {}
+                    if (
+                        tool_plan_task is not None
+                        and tool_plan_task.done()
+                        and not tool_plan_task.cancelled()
+                    ):
+                        try:
+                            _prefetch_plan = tool_plan_task.result()
+                            _prefetch_result_meta = (
+                                getattr(_prefetch_plan, "_result_meta", {})
+                                or {}
+                            )
+                            _prefetch_meta = (
+                                _prefetch_result_meta.get("storage_read")
+                                or {}
+                            )
+                        except Exception:
+                            _prefetch_meta = {}
                     if _plan_mentions:
-                        _prefetch_meta = {}
-                        if (
-                            tool_plan_task is not None
-                            and tool_plan_task.done()
-                            and not tool_plan_task.cancelled()
-                        ):
-                            try:
-                                _prefetch_plan = tool_plan_task.result()
-                                _prefetch_result_meta = (
-                                    getattr(_prefetch_plan, "_result_meta", {})
-                                    or {}
-                                )
-                                _prefetch_meta = (
-                                    _prefetch_result_meta.get("storage_read")
-                                    or {}
-                                )
-                            except Exception:
-                                _prefetch_meta = {}
                         if _prefetch_meta:
                             _deterministic_answer = _prefetch_meta.get(
                                 "rendered_answer"
@@ -12547,76 +12582,82 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 session[f"_objective_evidence_{execution_id}"] = (
                                     _objective_comparison
                                 )
-                        # JOB-WORK LEDGER (prefetch/blackboard arm): the
-                        # lookup executed in the canvas-edit leg — the same
-                        # operation discipline applies to the REUSED result
-                        # (2026-10-04 reviewer: the path the real job uses
-                        # must record; singleflight is that path on canvas
-                        # turns). Compact mirror of the fresh-exec seam.
-                        try:
-                            _pf_tl = _task_lifecycle_for(
-                                getattr(self, "tenant_id", None), workspace_id)
-                            if _pf_tl is not None:
-                                from core import task_lifecycle as _tlm
+                    # JOB-WORK LEDGER (prefetch/blackboard arm): the lookup
+                    # executed in the canvas-edit leg — the same operation
+                    # discipline applies to the REUSED result (2026-10-04
+                    # reviewer: the path the real job uses must record;
+                    # singleflight is that path on canvas turns). UNGATED
+                    # (round 34 live finding): the settle previously sat
+                    # inside the named-file/plan-mentions gate, so a canvas
+                    # research turn whose lookup executed (catalog sweep +
+                    # mailbox scan, no file named) left NO retrieve
+                    # operation — the exact bypass the ledger exists to
+                    # close. File-mention bookkeeping above only ENRICHES
+                    # the record; the record itself follows the execution.
+                    try:
+                        _pf_tl = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None), workspace_id)
+                        if _pf_tl is not None:
+                            from core import task_lifecycle as _tlm
 
-                                _pf_structured = (
-                                    _prefetch_result_meta.get(
-                                        "structured_result")
-                                    or _prefetch_meta.get("workbook_read"))
-                                if not isinstance(_pf_structured, dict):
-                                    _pf_structured = None
-                                _pf_run, _pf_op = _tlm.begin_retrieval_turn(
-                                    _pf_tl,
-                                    session if isinstance(
-                                        session, dict) else {},
-                                    session_id or "",
-                                    "singleflight lookup (canvas-edit leg)",
-                                    execution_id,
-                                    items=list(_requested_targets or []),
-                                    canvas_id=(
-                                        (canvas_context or {}).get(
-                                            "canvas_id")
-                                        or (canvas_context or {}).get(
-                                            "id")))
-                                _pf_invoked = bool(
-                                    _prefetch_meta or _tool_block)
-                                _tlm.finish_retrieval_turn(
+                            _pf_structured = (
+                                _prefetch_result_meta.get(
+                                    "structured_result")
+                                or _prefetch_meta.get("workbook_read"))
+                            if not isinstance(_pf_structured, dict):
+                                _pf_structured = None
+                            _pf_run, _pf_op = _tlm.begin_retrieval_turn(
+                                _pf_tl,
+                                session if isinstance(
+                                    session, dict) else {},
+                                session_id or "",
+                                "singleflight lookup (canvas-edit leg)",
+                                execution_id,
+                                items=list(_requested_targets or []),
+                                canvas_id=(
+                                    (canvas_context or {}).get(
+                                        "canvas_id")
+                                    or (canvas_context or {}).get(
+                                        "id")))
+                            _pf_invoked = bool(
+                                _prefetch_meta or _tool_block)
+                            _tlm.finish_retrieval_turn(
+                                _pf_tl, _pf_run, _pf_op,
+                                _pf_structured or {}, execution_id,
+                                _pf_invoked,
+                                execution={
+                                    "invoked": _pf_invoked,
+                                    "outcome": (
+                                        "read_succeeded"
+                                        if _pf_invoked
+                                        else "not_dispatched"),
+                                    "served_basis": (
+                                        "saved_copy"
+                                        if _pf_invoked else "none"),
+                                    "failure_stage": None,
+                                    "planning": dict(
+                                        (_prefetch_result_meta.get(
+                                            "planning") or {})),
+                                    "items": {
+                                        str((t or {}).get("item") or ""):
+                                            str(((t or {}).get(
+                                                "identity") or {}).get(
+                                                "status") or "")
+                                        for t in (
+                                            (_pf_structured or {})
+                                            .get("targets") or [])
+                                    },
+                                })
+                            session["_last_open_work"] = (
+                                _tlm.record_read_outcome(
                                     _pf_tl, _pf_run, _pf_op,
-                                    _pf_structured or {}, execution_id,
-                                    _pf_invoked,
-                                    execution={
-                                        "invoked": _pf_invoked,
-                                        "outcome": (
-                                            "read_succeeded"
-                                            if _pf_invoked
-                                            else "not_dispatched"),
-                                        "served_basis": (
-                                            "saved_copy"
-                                            if _pf_invoked else "none"),
-                                        "failure_stage": None,
-                                        "planning": dict(
-                                            (_prefetch_result_meta.get(
-                                                "planning") or {})),
-                                        "items": {
-                                            str((t or {}).get("item") or ""):
-                                                str(((t or {}).get(
-                                                    "identity") or {}).get(
-                                                    "status") or "")
-                                            for t in (
-                                                (_pf_structured or {})
-                                                .get("targets") or [])
-                                        },
-                                    })
-                                session["_last_open_work"] = (
-                                    _tlm.record_read_outcome(
-                                        _pf_tl, _pf_run, _pf_op,
-                                        structured_result=_pf_structured,
-                                        freshness=None,
-                                        execution=None))
-                        except Exception as _pf_ledger_err:  # noqa: BLE001
-                            logger.debug(
-                                "[job-work-ledger] prefetch settle skipped: "
-                                "%r", _pf_ledger_err)
+                                    structured_result=_pf_structured,
+                                    freshness=None,
+                                    execution=None))
+                    except Exception as _pf_ledger_err:  # noqa: BLE001
+                        logger.warning(
+                            "[job-work-ledger] prefetch settle skipped: "
+                            "%r", _pf_ledger_err)
                     logger.info(
                         "[stage-timing] tool exec: reused canvas-edit leg "
                         "block (singleflight) — no second plan/execute")
@@ -12870,12 +12911,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             history=planner_history or history,
                             extra_topic=(
                                 canvas_topic_text(canvas_context)
-                                if _canvas_edit_shaped(
+                                if (_canvas_edit_shaped(
                                     message, {"canvas": canvas_context})
+                                or _canvas_referencing_message(message))
                                 else ""
                             ),
-                            allow_canvas_target=_canvas_edit_shaped(
-                                message, {"canvas": canvas_context}),
+                            allow_canvas_target=(
+                                _canvas_edit_shaped(
+                                    message, {"canvas": canvas_context})
+                                or _canvas_referencing_message(message)),
                         )[0] == "irrelevant"
                         if _resume_original and not _off_request:
                             logger.info(
@@ -12897,6 +12941,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             getattr(self, "tenant_id", None), workspace_id)
                         _ms_tl_begin = (None, None)
                         _ms_exec_error = ""
+                        # ROUND 34 FIX: the off-request arm settles its own
+                        # operation (begin + finish, incomplete). The shared
+                        # settle below previously keyed only on
+                        # ``_ms_tl_begin[0]`` — which the decline arm also
+                        # populates — so every declined lookup got settled
+                        # TWICE and died on 'illegal operation transition
+                        # running -> running'. Only the fresh-dispatch arm
+                        # may run the shared settle.
+                        _ms_dispatched = False
                         if _off_request:
                             logger.warning(
                                 "[plan-relevance] %s declined: the planned "
@@ -13029,6 +13082,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                         else:
                             _exec_t0 = time.monotonic()
+                            _ms_dispatched = True
                             if _ms_tl is not None:
                                 try:
                                     from core import task_lifecycle as _tlm
@@ -13215,7 +13269,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # its planning provenance (attempt history), never a
                         # final not_dispatched verdict; not_dispatched is
                         # reserved for a lookup that never ran.
-                        if _ms_tl is not None and _ms_tl_begin[0]:
+                        if (_ms_tl is not None and _ms_tl_begin[0]
+                                and _ms_dispatched):
                             try:
                                 from core import task_lifecycle as _tlm
 
