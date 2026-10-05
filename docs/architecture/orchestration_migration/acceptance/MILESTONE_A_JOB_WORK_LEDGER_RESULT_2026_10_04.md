@@ -238,3 +238,32 @@ which the chain plans only when session-held items exist (they do not on
 these turns), and the seed still selects the original ask (actions
 empty). The binding executes the job; action-level selection of recorded
 targeted reads is the remaining acceptance item.
+
+## Round-41 durable-entity continuation (cont14–15, pid 76236)
+
+**Delivered**: (1) role-annotated scope correction — one traceable
+revise_objective per job marks entities carrying the open canvas's own
+items as REQUESTED; the rest are discovered aliases/candidates, kept but
+excluded from completion; (2) durable job entities feed planning — the
+chain reads the persisted entities whenever session carriers are absent
+(defeating-session-dependence fixed); (3) the bare-continue seed names
+the unfinished REQUESTED items explicitly; the completion gate counts
+only role=requested entities.
+
+**Live (cont14–15)**: bare "continue" drove value_trace from DURABLE
+entities — **Manual Flanger, TK 1624, GSL48-16 → Consolidated Price List
+2019.xlsx** (the Flanger's located workbook, reproduced from persisted
+state); the mailbox grep re-grounded rows 5–8; evidence scoping is
+honest ("scoped to that search only — I'm not making a universal
+claim"). The permission ask that remains is about DRAFT EDITING —
+correctly withheld ("Don't change the draft yet").
+
+**Still open — the last link**: value_trace coverage does not persist as
+selectable per-item actions (open_work actions remain empty), so the
+targeted cell read dispatches only when the sweep refires, not as a
+selected recorded action. The defect is localized to the
+settle→question-recording→seed-selection link. Status: **evidence-level
+investigation reproducible from durable state; autonomous action-level
+continuation (pending read → invocation → persisted → disposition →
+not re-selected) remains the unmet acceptance requirement.** Draft
+untouched; nothing sent; original canvas untouched across ALL runs.
