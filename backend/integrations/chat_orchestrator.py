@@ -9798,6 +9798,15 @@ class ChatOrchestrator:
                     _no_apply_reason = _shared_tool.get(
                         "canvas_edit_no_apply_reason"
                     ) or "planner_unavailable"
+                    # ROUND 62 (live DRAFT3): the planner_declined
+                    # research fall-through sets _edit_response=None and
+                    # skips every _no_apply_message assignment below —
+                    # the response assembly then hit an unbound name and
+                    # killed the whole turn. A safe default keeps the
+                    # fall-through honest (the tool path answers).
+                    _no_apply_message = (
+                        "I couldn't apply an edit this turn — the "
+                        "requested work continues on the research path.")
                     if _background_started:
                         # INTERIM STATUS (2026-09-30, research-grounded —
                         # long-running chat work states WHAT is running
