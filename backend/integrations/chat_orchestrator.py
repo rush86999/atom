@@ -18259,10 +18259,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # this — block non-emptiness proved nothing (a junk mailbox
             # scan filled the block while the taught workbook source was
             # never consulted).
-            if plan is not None and getattr(plan, "use_tool", False):
+            _fd_plan = locals().get("plan")
+            if _fd_plan is not None and getattr(
+                    _fd_plan, "use_tool", False):
                 shared_tool_state.setdefault(
                     "consulted_sources", set()).add(
-                    getattr(plan, "service", None))
+                    getattr(_fd_plan, "service", None))
             # Blackboard hand-back: whatever this leg executed belongs to
             # the whole turn. When the edit declines below, the chat leg
             # reuses this block instead of re-planning and re-executing.
