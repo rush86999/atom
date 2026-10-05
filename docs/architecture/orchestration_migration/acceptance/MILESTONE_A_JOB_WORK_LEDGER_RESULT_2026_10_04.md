@@ -1159,3 +1159,33 @@ verifies its own landed writes; automated completion reporting reliable
 for the authorized-proposal class. Remaining open: readback of
 non-directive (hint-class) background edits still reports
 pending_review by design (the approval flow).
+
+## AUTHORIZED-DRAFTING MILESTONE — CLOSED (owner-accepted, 2026-10-05)
+
+**Implementation baseline: 7d5cea607. Output evidence: DRAFT7** (the
+taught draft on disposable fork d7e9ea06 — To from verified
+correspondence, Cc from the taught rule, Subject populated, all eight
+prices byte-preserved, one agent-attributed update, reconciled to
+accepted without a reapply, browser-reload verified). Latency
+breakdown as corrected: 83s dispatched + ~74s churn + 63s deliberate
+backoffs + 78s attempt-2.
+
+**Governance distinction (explicit, binding)**: reconciliation
+RECOGNIZES authorization already granted by the owner's own directive
+— it does not CREATE approval because an instruction is imperative.
+Any separate governance requirement, revoked authorization, or pending
+owner decision continues to apply: the reconciliation requires the
+landed row to carry the continuation's identity AND be the canvas head
+AND match the authoritative read, and hint-class background edits (no
+owner directive) remain pending_review by design.
+
+**Supported capability**:
+
+> The trained employee can prepare an authorized email draft using
+> applicable research and teaching, preserve protected values,
+> complete the edit in the background, and confirm the persisted
+> result in the app. Sending remains separately authorized.
+
+**Milestone CLOSED.** Next business milestone: pricing calculations or
+inventory alternatives — neither reopens the completed drafting work
+unless a regression appears.
