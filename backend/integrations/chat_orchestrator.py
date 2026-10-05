@@ -14828,59 +14828,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 {"dispatched": False, "retrieved": False,
                                  "bounded_absence": False, "receipt": {}})
 
-                if _chain_query:
-                    # SCOPE CORRECTION (round 41 reviewer correction 1):
-                    # entities carrying the OPEN CANVAS's own items are the
-                    # REQUESTED scope; the rest are discovered aliases or
-                    # candidates — kept, but excluded from completion. One
-                    # traceable revise_objective per job, applied only when
-                    # entities are still un-annotated.
-                    try:
-                        _sc_tl = _task_lifecycle_for(
-                            getattr(self, "tenant_id", None), workspace_id)
-                        _sc_run = (session or {}).get("_task_run_id") \
-                            if isinstance(session, dict) else None
-                        if _sc_tl is not None and _sc_run:
-                            from core import task_lifecycle as _tlm
-
-                            _sc_rec = _sc_tl.get_task(_sc_run)
-                            _sc_ents = ((_sc_rec or {}).get("task_revision")
-                                        or {}).get("entities") or []
-                            if _sc_ents and not any(
-                                    e.get("role") for e in _sc_ents):
-                                _canvas_text = ""
-                                if isinstance(canvas_context, dict) and \
-                                        canvas_context.get("content"):
-                                    import json as _sc_json
-
-                                    _canvas_text = str(_sc_json.dumps(
-                                        canvas_context["content"],
-                                        default=str)).lower()
-                                _scoped = []
-                                for _e in _sc_ents:
-                                    _eid = str(_e.get("id") or "")
-                                    _role = (
-                                        "requested"
-                                        if _eid and _eid.lower()
-                                        in _canvas_text else "candidate")
-                                    _scoped.append(
-                                        {**dict(_e), "role": _role})
-                                _tlm.apply_transition(_sc_run, {
-                                    "kind": "revise_objective",
-                                    "requested_change": (
-                                        "scope correction: entities present "
-                                        "on the open canvas are REQUESTED; "
-                                        "others are discovered aliases or "
-                                        "candidates (kept, excluded from "
-                                        "completion)"),
-                                    "entities": _scoped,
-                                    "removed_entity_ids": [],
-                                })
-                    except Exception as _sc_err:  # noqa: BLE001
-                        logger.debug("scope correction skipped: %r", _sc_err)
-                    for _missing_svc in sorted(_missing):
-                        await _chain_attempt(_missing_svc)
-                # IN-TURN PENDING-ACTION LOOP (round 49, autonomous
                 # completion): targeted-read actions created THIS turn
                 # (or persisted earlier) execute within the remaining
                 # budget — bounded (at most 2 per turn, each needing
@@ -14998,32 +14945,91 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             except Exception:  # noqa: BLE001
                                 pass
 
-                # Execute pending targeted reads created by this turn's
-                # settles (the chain's value_trace coverage) — reading
-                # the fresh open-work snapshot the settles produced.
-                try:
-                    _ipw = (session or {}).get("_last_open_work") or {}
-                    _ip_groups = {}
-                    for _ip_a in [
-                            a for a in (_ipw.get("actions") or [])
-                            if str(a.get("next_action") or "").lower()
-                            .startswith("read ")]:
-                        _ip_f = str(_ip_a.get("next_action") or "")[5:] \
-                            .rsplit(" for ", 1)[0].strip()
-                        if _ip_f:
-                            _ip_groups.setdefault(_ip_f, []).append(_ip_a)
-                    # OUTER BOUND (round 51): at most 4 DOCUMENT executions
-                    # per turn (PER-TURN limit), each requiring >=18s of
-                    # remaining budget; the per-question attempt cap (3)
-                    # bounds cycles across turns. Grouping means ONE
-                    # execution serves every co-targeted item.
-                    for _ip_file_key, _ip_group in list(
-                            _ip_groups.items())[:4]:
-                        if _chain_turn_left() < 18.0:
-                            break
-                        await _pending_read_attempt(_ip_group)
-                except Exception as _ip_err:  # noqa: BLE001
-                    logger.debug("in-turn pending reads skipped: %r", _ip_err)
+                async def _run_pending_reads() -> None:
+                    try:
+                        _ipw = (session or {}).get("_last_open_work") or {}
+                        _ip_groups = {}
+                        for _ip_a in [
+                                a for a in (_ipw.get("actions") or [])
+                                if str(a.get("next_action") or "").lower()
+                                .startswith("read ")]:
+                            _ip_f = str(_ip_a.get("next_action") or "")[5:] \
+                                .rsplit(" for ", 1)[0].strip()
+                            if _ip_f:
+                                _ip_groups.setdefault(_ip_f, []).append(_ip_a)
+                        # OUTER BOUND (round 51): at most 4 DOCUMENT executions
+                        # per turn (PER-TURN limit), each requiring >=18s of
+                        # remaining budget; the per-question attempt cap (3)
+                        # bounds cycles across turns. Grouping means ONE
+                        # execution serves every co-targeted item.
+                        for _ip_file_key, _ip_group in list(
+                                _ip_groups.items())[:4]:
+                            if _chain_turn_left() < 18.0:
+                                break
+                            await _pending_read_attempt(_ip_group)
+                    except Exception as _ip_err:  # noqa: BLE001
+                        logger.debug("in-turn pending reads skipped: %r", _ip_err)
+                if _chain_query:
+                    # SCOPE CORRECTION (round 41 reviewer correction 1):
+                    # entities carrying the OPEN CANVAS's own items are the
+                    # REQUESTED scope; the rest are discovered aliases or
+                    # candidates — kept, but excluded from completion. One
+                    # traceable revise_objective per job, applied only when
+                    # entities are still un-annotated.
+                    try:
+                        _sc_tl = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None), workspace_id)
+                        _sc_run = (session or {}).get("_task_run_id") \
+                            if isinstance(session, dict) else None
+                        if _sc_tl is not None and _sc_run:
+                            from core import task_lifecycle as _tlm
+
+                            _sc_rec = _sc_tl.get_task(_sc_run)
+                            _sc_ents = ((_sc_rec or {}).get("task_revision")
+                                        or {}).get("entities") or []
+                            if _sc_ents and not any(
+                                    e.get("role") for e in _sc_ents):
+                                _canvas_text = ""
+                                if isinstance(canvas_context, dict) and \
+                                        canvas_context.get("content"):
+                                    import json as _sc_json
+
+                                    _canvas_text = str(_sc_json.dumps(
+                                        canvas_context["content"],
+                                        default=str)).lower()
+                                _scoped = []
+                                for _e in _sc_ents:
+                                    _eid = str(_e.get("id") or "")
+                                    _role = (
+                                        "requested"
+                                        if _eid and _eid.lower()
+                                        in _canvas_text else "candidate")
+                                    _scoped.append(
+                                        {**dict(_e), "role": _role})
+                                _tlm.apply_transition(_sc_run, {
+                                    "kind": "revise_objective",
+                                    "requested_change": (
+                                        "scope correction: entities present "
+                                        "on the open canvas are REQUESTED; "
+                                        "others are discovered aliases or "
+                                        "candidates (kept, excluded from "
+                                        "completion)"),
+                                    "entities": _scoped,
+                                    "removed_entity_ids": [],
+                                })
+                    except Exception as _sc_err:  # noqa: BLE001
+                        logger.debug("scope correction skipped: %r", _sc_err)
+                    for _missing_svc in sorted(_missing):
+                        await _chain_attempt(_missing_svc)
+                        # READS BEFORE THE NEXT SOURCE (round 51): the
+                        # datasets settle creates the pending reads; run
+                        # them while budget remains, BEFORE the mailbox
+                        # chain consumes it — the interactive deadline
+                        # otherwise starves the reads every turn.
+                        if _missing_svc == "datasets":
+                            await _run_pending_reads()
+                # IN-TURN PENDING-ACTION LOOP (round 49, autonomous
+
                 else:
                     # NO RESOLVED WORK TO TARGET (reviewer correction 1):
                     # without a resolved item set or canvas subject there is
