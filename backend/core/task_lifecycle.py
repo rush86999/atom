@@ -3149,6 +3149,7 @@ def begin_edit_turn(
     idempotency_key: Optional[str] = None,
     *,
     scope_grant: Optional[Dict[str, str]] = None,
+    agent_id: Optional[str] = None,
 ) -> tuple:
     """Reserve a canvas ``edit`` before the mutation happens (Step 2).
 
@@ -3168,7 +3169,8 @@ def begin_edit_turn(
     Returns ``(run_id, operation_id)``.
     """
     run_id, _, _ = _resolve_or_create(
-        lifecycle, session, conversation_id, message)
+        lifecycle, session, conversation_id, message,
+        agent_id=agent_id)
     try:
         check_turn_authorization(lifecycle, run_id, "edit")
     except TaskAuthorizationError:

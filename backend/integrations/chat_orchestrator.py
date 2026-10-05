@@ -4317,6 +4317,7 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                      session_id: Optional[str], message: str,
                      execution_id: Optional[str],
                      canvas_ctx: Optional[Dict[str, Any]] = None,
+                     agent_id: Optional[str] = None,
                      ) -> dict:
     """Flag-gated pre-execution reservation for a canvas edit.
 
@@ -4361,7 +4362,8 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                 "granted_by_message": message,
                 "validator": "chat_orchestrator.canvas_edit_lane",
                 "context": {"canvas": canvas_ctx},
-            })
+            },
+            agent_id=agent_id)
         return {"status": "reserved", "run_id": run_id,
                 "operation_id": operation_id, "reason": None}
     except claimed_error as claimed:
@@ -9281,7 +9283,8 @@ class ChatOrchestrator:
                         getattr(self, "tenant_id", None),
                         (context or {}).get("workspace_id"),
                         session, session_id, _edit_message, _execution_id,
-                        canvas_ctx=_canvas_ctx)
+                        canvas_ctx=_canvas_ctx,
+                        agent_id=getattr(self, "_turn_agent_id", None))
                     # Only a RESERVED decision may mutate. "denied" and
                     # "unavailable" both block the leg, for different
                     # reasons, and neither may be downgraded to a
