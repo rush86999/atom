@@ -700,3 +700,39 @@ reopens); claims are CAS-atomic with TTL leases (two-worker + expiry +
 stale-settle tests); retirement resolves read-shaped questions only.
 One decision-logged migration repaired jobs exhausted by the pre-
 successor burn rule. 114 tests green.
+
+## Round-56: interpretation claims withdrawn; strict identity/binding live (RC2)
+
+**WITHDRAWN**: the round-55 claims that D67/A22 conclusively identified
+the requested machines or supplied valid competing prices. The round-55
+"U-22: List Price=1431 vs US NET=625" decision included basis columns
+indiscriminately, and "No. 381: PRICE=794" came from an
+identity-unsupported row.
+
+**Corrections live** (15 worker tests green incl. the real-row and
+fencing regressions):
+1. STRICT IDENTITY: code-token EQUALITY (containment gone); bare
+   numerics need corroborating context; ALL candidates evaluated, none
+   first-picked; multiple supporting rows stay unresolved. The resolved
+   binding + source identity ride the successor.
+2. FIELD BINDING: monetary-shaped values only; identifier columns
+   (code/no./part/model/…) never monetary — DEALER CODE can never be a
+   price candidate; 'dealer' removed from synonyms; basis/currency from
+   the column name; taught policy applied before any owner ask.
+3. REQUESTED FIELDS from the job revision (no hardcode).
+4. FENCED SETTLEMENT: ownership validated INSIDE the CAS mutation; the
+   exact check→takeover→write interleaving fails the write (pinned).
+
+**RC2 (fresh 8-item job, interactive + worker, ZERO user continues) —
+the corrected verdicts**:
+- **U-22**: located in TWO sheets (LINMAC/A22 and LINMAC (2)/A29) —
+  multiple supporting rows → UNRESOLVED pending distinguishing context
+  (or owner identification of the applicable sheet). The row's monetary
+  columns (List Price 1431 / List Price_2 1393 / US NET 625) are
+  recorded as candidates-with-basis, NOT chosen.
+- **No. 381**: the RoperWhitney D67 hit's identity column is
+  DESCRIPTION (a text token, not a Part Number) → identity UNSUPPORTED;
+  the question stays open with the Tennsmith row-338 teaching lead as
+  the recorded next step. The false "PRICE=794" is not in the record.
+- Draft SHA-identical; nothing sent; both questions carry their exact
+  blocking reasons durably.
