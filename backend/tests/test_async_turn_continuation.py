@@ -1764,3 +1764,70 @@ class TestBackgroundExecutionContext:
         finally:
             reset_interactive_chat(token)
         assert seen["interactive"] is False  # the boundary fix
+
+
+class TestFirstRequestForkAuthorizationRecheck:
+    """Round 63 (reviewer): the NEW first-request background fork (a
+    starved user-grounded edit directive) must recheck the SAME
+    authorization and canvas revision as the interactive path — a
+    cancellation or supersession before mutation must prevent the
+    write, never overwrite it."""
+
+    def _directive_cont(self):
+        cont = _cont()
+        cont.reason = "first_request_user_grounded_directive"
+        cont.instruction = ("The research is done. Prepare the email "
+                            "draft now. Don't send it.")
+        return cont
+
+    async def test_cancelled_first_request_fork_never_applies(self):
+        cont = self._directive_cont()
+        applied = []
+
+        async def _slow():
+            await asyncio.sleep(30)
+            applied.append(1)
+            return "applied", "never"
+
+        with patch.object(atc, "_create_durable_record"), \
+             patch.object(atc, "_finish_durable_record"), \
+             patch.object(atc, "_apply_effects", new=AsyncMock()):
+            atc.start_continuation(cont, _slow)
+            await asyncio.sleep(0.02)
+            assert atc.cancel_continuation(cont.session_id) is True
+            assert await _wait_terminal(cont) == "cancelled"
+            assert applied == [], "a cancelled first-request fork writes nothing"
+
+    async def test_superseded_canvas_conflicts_not_overwrites(self):
+        """The preapply gate: an audit advance attributed to ANOTHER
+        source between fork and apply reads as a conflict — the fork
+        reports it instead of overwriting."""
+        cont = self._directive_cont()
+        cont.expected_prior_audit_id = "audit-before"
+        # Another writer advanced the canvas after the fork snapshot.
+        import datetime as _dt
+        _later = _dt.datetime.now(_dt.timezone.utc)
+        _earlier = _later - _dt.timedelta(minutes=5)
+        with patch.object(atc, "_operation_landed", return_value=False), \
+             patch.object(atc, "_operation_status", return_value=None), \
+             patch.object(atc, "_latest_audit",
+                          return_value={"id": "audit-after",
+                                        "session_id": "someone-else",
+                                        "action_type": "update",
+                                        "created_at": _later}), \
+             patch.object(atc, "_apply_effects", new=AsyncMock()) as _fx:
+            cont.snapshot_audit_ts = _earlier
+            verdict = atc._classify_preapply(cont)
+        assert verdict == atc.OUTCOME_CONFLICT
+        assert not _fx.called, "a superseded canvas is never overwritten"
+
+    def test_directive_predicate_feeds_only_user_grounded_forks(self):
+        from integrations.chat_orchestrator import (
+            _user_grounded_edit_directive)
+        assert _user_grounded_edit_directive(
+            "Prepare the email draft now: apply the findings. "
+            "Don't send it.")
+        assert not _user_grounded_edit_directive(
+            "maybe you could include the prices")
+        assert not _user_grounded_edit_directive(
+            "Don't change the draft yet")

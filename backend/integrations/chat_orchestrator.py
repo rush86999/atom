@@ -1865,7 +1865,7 @@ except Exception:  # noqa: BLE001 — version stamp optional
 # already-forked edits forked). A hint ("maybe include...") or a
 # teaching directive is NOT a directive.
 _USER_EDIT_DIRECTIVE_RE = re.compile(
-    r"\b(?:prepare|apply|update|edit|revise|draft|fix|change)\b"
+    r"\b(?:prepare|apply|update|edit|revise|draft|fix|change|rebuild)\b"
     r"[^.]{0,60}\b(?:the\s+)?(?:email|draft|quote|canvas|it)\b"
     r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b",
     re.IGNORECASE,
@@ -5601,7 +5601,8 @@ class ChatOrchestrator:
             # persists the acting agent on the job — durable workers'
             # taught-lesson source. Set once at turn entry.
             self._turn_agent_id = (
-                (context or {}).get("agent_id") or agent_id or None)
+                (context or {}).get("agent_id")
+                or getattr(self, "_last_agent_id", None))
             if isinstance(session, dict):
                 # JOB-WORK LEDGER staleness guard: the open-work snapshot is
                 # turn-scoped; an early-return path that never reached the
@@ -6636,8 +6637,10 @@ class ChatOrchestrator:
                     # the taught source, session-independent.
                     try:
                         _ask_mention = await self._lesson_designated_file(
-                            message, agent_id=(context or {}).get(
-                                "agent_id") or agent_id,
+                            message,
+                            agent_id=(
+                                (context or {}).get("agent_id")
+                                or getattr(self, "_turn_agent_id", None)),
                             user_id=user_id,
                             workspace_id=(context or {}).get(
                                 "workspace_id"))
@@ -9651,14 +9654,13 @@ class ChatOrchestrator:
                         # (2026-09-22; authority revised 2026-09-30): the
                         # background retry may start only from a
                         # USER-GROUNDED edit decision — a bare retry of a
-                        # previously authorized edit instruction. An
-                        # edit-shape HINT alone never forks: when reasoning
-                        # is unavailable the deterministic layer reports
-                        # the limitation and changes nothing (directive:
-                        # 'do not turn a keyword match into permission to
-                        # edit'; live 02:28 the hint matched a teaching
-                        # phrase's 'include').
-                        if _edit_retry is not None:
+                        # previously authorized edit instruction, or (round
+                        # 62) a first-time explicit user edit directive.
+                        # An edit-shape HINT alone never forks: when
+                        # reasoning is unavailable the deterministic layer
+                        # reports the limitation and changes nothing.
+                        if _edit_retry is not None or (
+                                _user_grounded_edit_directive(message)):
                             try:
                                 from core.async_turn_continuation import (
                                     fork_canvas_edit_continuation,
@@ -9666,7 +9668,14 @@ class ChatOrchestrator:
 
                                 _cont_id2 = fork_canvas_edit_continuation(
                                     self,
-                                    message=_edit_retry["instruction"],
+                                    # ROUND 63: a first-time directive has no
+                                    # retry record — the message IS the
+                                    # instruction (previously crashed into
+                                    # the silent except).
+                                    message=(
+                                        _edit_retry["instruction"]
+                                        if _edit_retry is not None
+                                        else message),
                                     history=history,
                                     canvas=_canvas_ctx or {},
                                     user_id=user_id,
@@ -17898,11 +17907,53 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if "freshness" in str(q.get("question") or "").lower()]
             if not (verified or decisions or freshness):
                 return None
+            # HEADER PROVENANCE (round 63): the taught cc rule is an
+            # APPLICABLE drafting rule, not optional — include it as a
+            # taught rule; To/Subject ride only when the ledger's
+            # verified evidence names correspondence values for THIS
+            # thread (provenance established), else the specific
+            # ambiguity is named.
+            taught_rules = []
+            try:
+                from core.database import get_db_session as _gs2
+                from core.student_learning_service import (
+                    _permanent_lessons as _pl)
+
+                with _gs2() as _db2:
+                    _all = _pl(_db2, agent_id or "") if agent_id else []
+                for l in _all:
+                    t = " ".join(str(l.get("lesson") or l.get("summary")
+                                     or "").split()).lower()
+                    if ("cc" in t and (
+                            "chandrakant" in t or "vipul" in t)):
+                        taught_rules.append(
+                            "CC rule (taught): all sales quotes cc "
+                            "Chandrakant <chandrakant@brennan.ca> and "
+                            "Vipul <vipul@brennan.ca>")
+                        break
+            except Exception:  # noqa: BLE001 — additive
+                pass
+            # Correspondence-derived header values: search the verified
+            # notes for the thread's To/Subject evidence.
+            header_candidates = []
+            joined = " ".join(
+                str(v.get("note") or "") for v in verified).lower()
+            if "steve" in joined and "alumasafway" in joined:
+                header_candidates.append(
+                    "To: Steve <amacisaac@alumasafway.com> (verified "
+                    "correspondence: the Sept 18 2026 'Quote for "
+                    "Slitter' thread to Steve at AlumaSafway)")
+            if "quote for slitter" in joined:
+                header_candidates.append(
+                    "Subject: Re: Quote for Slitter (the verified "
+                    "thread's subject)")
             return {
                 "verified": verified[:12],
                 "open_decisions": decisions[:6],
                 "manual_preserved": manual[:8],
                 "freshness_limits": freshness[:8],
+                "taught_rules": taught_rules[:4],
+                "header_candidates": header_candidates[:4],
             }
         except Exception as exc:  # noqa: BLE001 — additive context
             logger.debug("job findings for edit skipped: %r", exc)

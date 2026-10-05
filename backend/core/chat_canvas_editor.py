@@ -1566,16 +1566,33 @@ def _job_findings_section(
             "- FRESHNESS LIMITS (do not present these as current "
             "verification in customer-facing text): "
             + "; ".join(str(fl) for fl in freshness))
+    for rule in findings.get("taught_rules") or []:
+        if str(rule).strip():
+            lines.append(f"- {rule} (APPLY unless the user's current "
+                         "instruction contradicts it)")
+    for hc in findings.get("header_candidates") or []:
+        if str(hc).strip():
+            lines.append(f"- HEADER (provenance-established): {hc}")
     if not lines:
         return ""
     return (
         "JOB FINDINGS — verified research results for THIS canvas's "
         "job (durable record; source-annotated):\n"
         + "\n".join(lines)
-        + "\nDrafting rules: apply verified findings; preserve "
-        "approved manual values byte-for-byte; annotate unresolved "
-        "choices without choosing; keep internal sourcing detail OUT "
-        "of customer-facing text.\n\n"
+        + "\nDrafting rules: apply verified findings AND the taught "
+        "formatting/cc rules; populate header fields ONLY from the "
+        "provenance-established HEADER lines above — otherwise leave "
+        "them and name the specific ambiguity; preserve approved "
+        "manual values byte-for-byte; annotate unresolved choices "
+        "without choosing, and keep such internal decision notes "
+        "VISIBLY SEPARATE from customer-facing content (e.g. a clearly "
+        "marked 'Still yours to decide' block, never woven into the "
+        "customer text); internal sourcing detail stays OUT of "
+        "customer-facing text, BUT freshness limits on customer-"
+        "relevant claims (availability, delivery estimates, quote "
+        "validity) must NOT become unconditional commitments — where "
+        "evidence is insufficient, OMIT the commitment or qualify it "
+        "to what the evidence supports.\n\n"
     )
 
 
