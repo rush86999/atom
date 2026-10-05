@@ -2981,6 +2981,19 @@ def read_sheet_row_sync(
         # observations even at matching cell addresses.
         import os as _os
         _st = _os.stat(parquet_path)
+        # CONTENT HASH (round 60): the entry's own content_hash column
+        # (sha1 of source bytes — the version key); the parquet version
+        # dir is the fallback. Size/mtime are operational hints only.
+        _content_hash = str(getattr(entry, "content_hash", "") or "")
+        if not _content_hash:
+            try:
+                _parts = str(parquet_path).rstrip("/").split("/")
+                for _p in reversed(_parts):
+                    if len(_p) >= 8 and re.fullmatch(r"[0-9a-f]{8,}", _p):
+                        _content_hash = _p
+                        break
+            except Exception:  # noqa: BLE001
+                pass
         return {
             "headers": headers, "row": row,
             "source": {
@@ -2988,6 +3001,7 @@ def read_sheet_row_sync(
                 "sheet_raw": str(entry.entity_name or ""),
                 "sheet_requested": sheet_name,
                 "entry_id": str(entry.id),
+                "content_hash": _content_hash,
                 "parquet_path": str(parquet_path),
                 "parquet_size": _st.st_size,
                 "parquet_mtime": int(_st.st_mtime),
