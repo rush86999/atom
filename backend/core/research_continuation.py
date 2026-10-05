@@ -819,7 +819,9 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             # teaching that names sheet+row locations for open items.
             try:
                 _lessons: List[Dict[str, Any]] = []
-                _agent_id = str(sess.get("agent_id") or "") or None
+                _agent_id = str(
+                    run.get("agent_id")
+                    or sess.get("agent_id") or "") or None
                 if _agent_id:
                     from core.database import get_db_session as _gs
                     from core.student_learning_service import (
