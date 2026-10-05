@@ -261,6 +261,18 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                 res = await _execute_document_read(
                     lifecycle, run_id, user_id, workspace_id, fname,
                     [g["item"] for g in group])
+                # IDENTICAL-REDISCOVERY BOUND (round 53): items this
+                # execution did NOT match consume an attempt — the cap
+                # eventually exhausts a located-only loop instead of
+                # re-reading the same document forever.
+                from core.task_lifecycle import bump_question_attempts
+
+                bump_question_attempts(
+                    lifecycle, run_id,
+                    [g["question_id"] for g, it in zip(
+                        group, [g["item"] for g in group])
+                        if res["statuses"].get(it) != "matched"
+                        and g.get("question_id")])
                 out["items_matched"] += sum(
                     1 for s in res["statuses"].values() if s == "matched")
                 out["items_located"] += sum(
