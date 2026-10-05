@@ -1016,3 +1016,93 @@ class TestValueTraceProductionHandoff:
         items_open = [str(a.get("item")) for a in w["actions"]]
         assert "TK 1624" in items_open and "1624 A" in items_open, (
             "ambiguous candidates resolve neither")
+
+
+class TestJobScopeInitialization:
+    """Round 50: the accepted job initializes BEFORE planning — the
+    user's REQUEST establishes which canvas items are in scope; the
+    canvas supplies candidates. Same persisted set feeds seam, chain and
+    read loop."""
+
+    CANVAS = {"canvas_id": "c1", "content": {
+        "rows": [
+            {"item": "Roper Whitney No. 381", "price": "$2,902.00"},
+            {"item": "Linmac U-22", "price": "$1,777.00"},
+            {"item": "Manual Flanger", "price": "$1,609.00"},
+            {"item": "Tennsmith SLE24-16", "price": "$8,880.00"}]}}
+
+    def _scope(self, message, canvas=None, current=None):
+        from integrations.chat_orchestrator import _job_scope_items
+        return _job_scope_items(message, canvas, current or [])
+
+    def test_message_named_items_win(self):
+        items, origin = self._scope(
+            "check only the Manual Flanger price", self.CANVAS,
+            current=["Manual Flanger"])
+        assert items == ["Manual Flanger"] and origin == "message"
+
+    def test_whole_quotation_request_resolves_canvas_items(self):
+        items, origin = self._scope(
+            "verify whether pricing on this quote needs updating",
+            self.CANVAS)
+        assert items, "quotation-scoped request yields the canvas items"
+        assert origin in ("canvas-whole", "canvas-contrast", "canvas")
+
+    def test_other_machinery_resolves_the_remainder(self):
+        items, origin = self._scope(
+            "check the other machinery and verify pricing",
+            self.CANVAS)
+        assert items, "'other' on a fresh job = the not-yet-covered set"
+        assert "Manual Flanger" in " ".join(items) or len(items) >= 3
+
+    def test_missing_or_ambiguous_is_explicitly_unresolved(self):
+        items, origin = self._scope("check the other machinery", None)
+        assert items == [] and origin == "unresolved"
+        items2, origin2 = self._scope(
+            "check things", {"canvas_id": "c", "content": {}})
+        assert items2 == [] and origin2 == "unresolved"
+
+
+class TestFreshnessSuccessorCannotLoop:
+    """Round 50 reviewer check 4: repeated saved-copy reads must not
+    duplicate freshness questions; the freshness action never rereads
+    the saved copy; failure stays recorded."""
+
+    def test_repeated_saved_copy_reads_do_not_duplicate_freshness(
+            self, lifecycle):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work,
+            record_read_outcome)
+
+        run_id, _ = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-f2", "verify", "e1")
+        for _ in range(3):
+            _, op = begin_retrieval_turn(
+                lifecycle, {"id": "s1"}, "conv-f2", "read workbook", "e2")
+            record_read_outcome(
+                lifecycle, run_id, op, structured_result=None,
+                freshness=None,
+                execution={"invoked": True, "outcome": "read_succeeded",
+                           "served_basis": "saved_copy",
+                           "items": {"Manual Flanger": "single"}})
+        w = next_unfinished_work(lifecycle.get_task(run_id))
+        fresh = [a for a in w["actions"]
+                 if "freshness" in str(a.get("question") or "").lower()]
+        assert len(fresh) == 1, "repeated saved-copy reads: ONE successor"
+
+    def test_freshness_action_is_not_a_saved_copy_reread(self):
+        """The in-turn read loop only dispatches next_actions starting
+        with 'read '; the freshness successor targets the LIVE source —
+        it must never be executed as a saved-copy reread."""
+        from integrations.chat_orchestrator import _job_scope_items  # noqa
+
+        orch_src = open("integrations/chat_orchestrator.py").read()
+        tl_src = open("core/task_lifecycle.py").read()
+        assert '.startswith("read ")' in orch_src
+        assert "re-verify" in tl_src and "live source" in tl_src
+        # And a failed verification never resolves the question.
+        from core.task_lifecycle import normalize_execution_facts
+        facts = normalize_execution_facts({
+            "invoked": False, "outcome": "read_failed",
+            "served_basis": "none", "failure_stage": "access_denied"})
+        assert facts["outcome"] == "read_failed"

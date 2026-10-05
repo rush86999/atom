@@ -1952,6 +1952,56 @@ def _canvas_referencing_message(message: str) -> bool:
     return bool(_CANVAS_DEIXIS_RE.search(message or ""))
 
 
+def _job_scope_items(
+        message: str,
+        canvas_context: Any,
+        current_targets: List[Any]) -> Tuple[List[str], str]:
+    """The ACCEPTED JOB's requested items, resolved BEFORE planning or
+    execution (round 50): the USER'S REQUEST establishes which canvas
+    items are in scope — the canvas supplies the candidates. Uses the
+    existing target-set mechanism (extract_items_from_text +
+    resolve_target_set, the same pair the read lanes use). Returns
+    (items, origin) where origin ∈ message | canvas | canvas-contrast |
+    canvas-whole | unresolved. 'unresolved' means the caller must record
+    an explicit scope question — never a generic sweep presented as
+    progress."""
+    current = [str(t).strip() for t in (current_targets or [])
+               if str(t).strip()]
+    if current:
+        return current, "message"
+    if not isinstance(canvas_context, dict):
+        return [], "unresolved"
+    content = canvas_context.get("content")
+    if content is None:
+        return [], "unresolved"
+    try:
+        import json as _js
+
+        from core.target_set_resolution import (
+            extract_items_from_text as _ext,
+            resolve_target_set as _rts,
+        )
+
+        canvas_text = content if isinstance(content, str) else _js.dumps(
+            content, default=str)
+        canvas_items = [str(i).strip() for i in _ext(canvas_text)
+                        if str(i).strip()]
+        if not canvas_items:
+            return [], "unresolved"
+        resolved = _rts(message, canvas_items=canvas_items,
+                        prior_items=[], last_served_items=[])
+        if resolved.get("kind") == "resolved":
+            return ([str(i) for i in (resolved.get("items") or [])],
+                    str(resolved.get("origin") or "canvas-contrast"))
+        # Non-contrastive but the request references the open canvas —
+        # the whole quotation is the scope.
+        if _canvas_referencing_message(message):
+            return canvas_items, "canvas-whole"
+        return [], "unresolved"
+    except Exception:  # noqa: BLE001 — scope init degrades to unresolved
+        return [], "unresolved"
+
+
 def _search_execution_receipt(
         plan: Any, block: Optional[str]) -> Dict[str, Any]:
     """Separate DISPATCH and RETRIEVAL facts for a search-shaped execution
@@ -12406,6 +12456,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _requested_targets = extract_targets(
                     _gate_msg, [_canvas_identity],
                 )
+                # JOB SCOPE INITIALIZATION (round 50, BEFORE the first
+                # lookup): when the message itself names no items, the
+                # request is resolved against the attached canvas via the
+                # existing target-set mechanism — the persisted scope the
+                # seam, the source chain and the targeted-read loop all
+                # consume. Unresolved scope is EXPLICIT (a recorded
+                # question), never a generic sweep.
+                _scope_items, _scope_origin = _job_scope_items(
+                    message, canvas_context, _requested_targets)
+                if _scope_items and _scope_origin != "message":
+                    _requested_targets = _scope_items
+                    logger.info(
+                        "[job-scope] initialized %d item(s), origin=%s "
+                        "(canvas-bound job)", len(_scope_items),
+                        _scope_origin)
+                if isinstance(shared_tool_state, dict):
+                    shared_tool_state["job_scope_items"] = list(
+                        _scope_items or _requested_targets or [])
+                    shared_tool_state["job_scope_origin"] = _scope_origin
                 # IDENTITY-SHAPE POST-FILTER (2026-10-01 live, '36'): this
                 # mining feeds requested_targets, a lane downstream code
                 # trusts outright — the raw extractor's numeric lane still
@@ -14784,6 +14853,47 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[planner-boundary] chain skipped for %s: no "
                         "resolved items or canvas subject to query from",
                         sorted(_missing))
+                    # EXPLICIT UNRESOLVED SCOPE (round 50): ambiguous or
+                    # missing context records a scope question — never a
+                    # generic sweep presented as progress.
+                    if _research_turn:
+                        try:
+                            _us_tl = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None),
+                                workspace_id)
+                            _us_run = (session or {}).get("_task_run_id") \
+                                if isinstance(session, dict) else None
+                            if _us_tl is not None and _us_run:
+                                from core import task_lifecycle as _tlm
+
+                                _us_rec = _us_tl.get_task(_us_run)
+                                if not any(
+                                        "scope unresolved" in str(
+                                            (q.get("question") or ""))
+                                        for q in (
+                                            (_us_rec or {}).get(
+                                                "task_revision")
+                                            or {}).get("unresolved") or []):
+                                    _tlm.add_unresolved_questions(
+                                        _us_tl, _us_run, [{
+                                            "item": "",
+                                            "kind": "verification",
+                                            "question": (
+                                                "request scope unresolved: "
+                                                "no canvas items or "
+                                                "ambiguous request — which "
+                                                "items are in scope?"),
+                                            "evidence": (
+                                                "job-scope init origin="
+                                                "unresolved"),
+                                            "next_action": (
+                                                "clarify the requested "
+                                                "item scope with the "
+                                                "owner"),
+                                        }], source_operation=None)
+                        except Exception as _us_err:  # noqa: BLE001
+                            logger.debug("scope question skipped: %r",
+                                         _us_err)
             elif not _planned and not _tool_block:
                 # The planner itself timed out/failed BEFORE choosing a
                 # service (live 2026-09-13: 31-38s canvas-edit plan ate the
