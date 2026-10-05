@@ -591,3 +591,46 @@ job scope, ledger, chain, teaching, canvas-repair, zero-effect,
 action-program; the 7 pending-file refresh failures reproduce
 identically at clean HEAD (controlled worktree baseline) — out of
 release scope, exact scope recorded.
+
+## Round-52 RELEASE 2: durable research continuation shipped and verified
+
+**Worker** (core/research_continuation.py, lifespan-started recurring
+task — the terminal-recovery substrate applied to research): selects
+eligible pending reads from the durable ledger, groups per document,
+claims via the attempt counter, executes the read-only datasets path,
+settles ON THE JOB'S RUN (retirement + freshness successors automatic),
+bounded ≤4 reads/cycle, identity-required, restart-surviving, truthful
+terminal note to the session history. Worker regression: cycle executes
++ retires; second cycle duplicates nothing; missing identity executes
+nothing; idempotent start.
+
+**LIVE VERIFICATION (zero user continues)**: first worker cycle =
+{jobs: 5, reads: 6, completed_items: 7, failed: 0}. EVERY queued read
+across every prior job retired (rel5's No. 381 + U-22 by ONE grouped
+execution of "Copy of Consolidated Price List 2019 - Linmac
+Update.xlsx"; Flanger separately), each replaced by its open FRESHNESS
+obligation. The full chain now exists: interactive turn (scope → trace
+→ queue) → worker (execute → retire → freshness).
+
+**EVIDENCE RUN SEPARATION (reviewer correction)**: the eight-item
+comparison of the round-47 closeout belongs to the TWELVE-CONTINUATION
+msA14 job (resumable-execution evidence). rel5/auto6 are separate
+zero-continue runs: rel5 = 8/8 scope + trace + queued reads (worker
+completed them after); auto6 = planner-sweep variance (singleflight leg
+bypasses the seam's intent upgrade — recorded as run-to-run variance,
+not completion evidence).
+
+**DISPOSITIONS REOPENED (reviewer correction)**: rel5's trace located
+NEW workbooks; the worker read the Linmac update copy. U-22: LOCATED at
+LINMAC sheet A22 ("Copy of Consolidated Price List 2019 - Linmac
+Update.xlsx") — the "taught sources exhausted" classification is
+withdrawn; the adjacent price-cell read is the recorded next step;
+manual $1,777 preserved. No. 381: the update-workbook hits are
+parts-number noise (003810/012381), not the roll bender — the Tennsmith
+row-338 teaching lead stands; manual $2,902 preserved.
+
+**Status**: automatic completion of longer research jobs SHIPPED and
+live-verified (worker). Remaining run-to-run variance: the primary plan
+sometimes takes the sweep path via the canvas-edit leg (bypasses the
+seam upgrade) — the trace-then-queue chain then needs the planner's
+cooperation; the worker completes whatever is queued either way.
