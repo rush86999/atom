@@ -2026,6 +2026,39 @@ def _search_execution_receipt(
     }
 
 
+def _value_trace_pending_reads(
+        receipt: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Per-item PENDING READ actions from a value_trace receipt (round 42).
+
+    Discovery is not completion: each item the trace located in a
+    cataloged document yields ONE executable question — 'read <document>
+    for <item>' — with stable inputs (the identified document), so the
+    continuation can dispatch the targeted read without rediscovery.
+    Irrelevant discoveries (no coverage) create nothing; dedupe by
+    (item, document) — repeated receipts must not multiply actions, and
+    add_unresolved_questions re-dedupes durably by (item, text)."""
+    coverage = ((receipt or {}).get("receipt") or {}).get(
+        "value_trace_coverage") or {}
+    questions: List[Dict[str, Any]] = []
+    seen: set = set()
+    for item, docs in (coverage or {}).items():
+        for doc in (docs or [])[:1]:
+            key = (str(item), str(doc))
+            if key in seen:
+                continue
+            seen.add(key)
+            questions.append({
+                "item": str(item),
+                "kind": "verification",
+                "question": (
+                    f"{item} is carried by {doc} — the cell/figure is "
+                    "not yet read"),
+                "evidence": "value_trace coverage",
+                "next_action": f"read {doc} for {item}",
+            })
+    return questions
+
+
 def _is_file_objective_turn(
     message: str, session: Optional[Dict[str, Any]]
 ) -> bool:
@@ -13542,7 +13575,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     structured_result=_ms_structured,
                                     freshness=None,
                                     execution=_ms_execution,
-                                    bindings=_ms_bindings)
+                                    bindings=_ms_bindings,
+                                    # PENDING READS at the PRIMARY settle
+                                    # too (round 42): the seam serves the
+                                    # planner-chosen value_trace runs — its
+                                    # coverage must create the per-item
+                                    # read actions, not just the chain's.
+                                    extra_questions=(
+                                        _value_trace_pending_reads(
+                                            _ms_receipt)))
                                 if isinstance(session, dict):
                                     session["_last_open_work"] = _ms_open
                             except Exception as _ms_settle_err:  # noqa: BLE001
@@ -14372,8 +14413,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         structured_result=None,
                                         freshness=None,
                                         execution=None,
+                                        # PENDING READS (round 42): the
+                                        # value_trace coverage creates the
+                                        # per-item read actions on EVERY
+                                        # settle — discovery is not
+                                        # completion, so coverage questions
+                                        # are NOT gated behind _complete
+                                        # (that gate was the deterministic
+                                        # point where the located workbook
+                                        # silently produced no pending
+                                        # action). Generic re-run question
+                                        # only when incomplete AND no
+                                        # coverage.
                                         extra_questions=(
-                                            [] if _complete else (
+                                            _value_trace_pending_reads(
+                                                _receipt)
+                                            or ([] if _complete else (
                                                 # PER-ITEM NEXT ACTIONS
                                                 # (round 39): coverage from
                                                 # the value_trace receipt
@@ -14415,7 +14470,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                         f"re-run the "
                                                         f"{_missing_svc} lookup "
                                                         "for the quote's items"),
-                                            }]))))
+                                            }])))))
                         except Exception as _cs_err:  # noqa: BLE001
                             logger.warning(
                                 "[job-work-ledger] chain settle failed: %r",

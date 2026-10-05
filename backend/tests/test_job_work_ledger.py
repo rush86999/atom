@@ -551,3 +551,100 @@ class TestExecutionFactsSurviveReload:
         assert by_id[op1]["execution"]["outcome"] == \
             "search_returned_no_receipt"
         assert by_id[op2]["execution"]["outcome"] == "search_succeeded"
+
+
+class TestValueTraceCoverageCreatesPendingReads:
+    """Round 42: the deterministic receipt-to-action failure. A value_trace
+    receipt locating a workbook produced NO pending action — the per-item
+    questions were gated behind settle completeness, so discovery was
+    treated as completion. Fixture: the live cont14 receipt shape."""
+
+    RECEIPT = {
+        "dispatched": True, "retrieved": True, "bounded_absence": False,
+        "receipt": {
+            "structured_keys": [], "searched_threads": 6,
+            "source_observations": 0, "read_outcomes": 3,
+            "datasets_search": {},
+            "value_trace_coverage": {
+                "Manual Flanger": ["Consolidated Price List 2019.xlsx"],
+                "TK 1624": ["Consolidated Price List 2019.xlsx"],
+                "GSL48-16": ["Consolidated Price List 2019.xlsx"]},
+            "coverage_items": []}}
+
+    def test_coverage_creates_pending_reads_selected_then_resolved(
+            self, lifecycle):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, finish_retrieval_turn,
+            next_unfinished_work, record_read_outcome,
+            resolve_unresolved_questions)
+        from integrations.chat_orchestrator import _value_trace_pending_reads
+
+        questions = _value_trace_pending_reads(self.RECEIPT)
+        assert len(questions) == 3, "one pending read per covered item"
+        assert all(
+            "read Consolidated Price List 2019.xlsx" in q["next_action"]
+            for q in questions), "the located workbook is the read input"
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-vt", "verify pricing", "e1")
+        finish_retrieval_turn(
+            lifecycle, run_id, op,
+            {"requested_items": ["Manual Flanger"]}, "e1", False,
+            execution={"invoked": True, "outcome": "search_succeeded",
+                       "served_basis": "live",
+                       "items": {"Manual Flanger": ""}})
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=questions)
+
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any(
+            "Consolidated Price List 2019.xlsx" in (a.get("next_action") or "")
+            for a in work["actions"]), (
+            "the discovered workbook must produce a pending read action")
+
+        # Repeated receipt: no duplicate actions.
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=questions)
+        work2 = next_unfinished_work(lifecycle.get_task(run_id))
+        flanger_actions = [
+            a for a in work2["actions"] if "Flanger" in str(a)]
+        assert len(flanger_actions) == 1
+
+        # The targeted read executes: evidence covers the item, the action
+        # must stop being selected.
+        _, op2 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-vt",
+            "read Consolidated Price List 2019.xlsx for Manual Flanger",
+            "e2")
+        finish_retrieval_turn(
+            lifecycle, run_id, op2,
+            {"requested_items": ["Manual Flanger"]}, "e2", True,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "live",
+                       "items": {"Manual Flanger": "confirmed"}})
+        record_read_outcome(
+            lifecycle, run_id, op2,
+            structured_result={"requested_items": ["Manual Flanger"],
+                               "targets": [{"item": "Manual Flanger",
+                                            "identity": {
+                                                "status": "confirmed"}}]},
+            freshness=None, execution=None)
+        resolve_unresolved_questions(
+            lifecycle, run_id, items=["Manual Flanger"],
+            resolution={"how": "workbook cell read",
+                        "detail": "Consolidated Price List 2019.xlsx"})
+        work3 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any(
+            "Flanger" in str(a) for a in work3["actions"]), (
+            "a completed action must not be selected again")
+
+    def test_irrelevant_discovery_creates_no_false_obligation(self):
+        from integrations.chat_orchestrator import _value_trace_pending_reads
+
+        assert _value_trace_pending_reads({
+            "dispatched": True, "retrieved": False,
+            "bounded_absence": False,
+            "receipt": {"value_trace_coverage": {}}}) == []
+        assert _value_trace_pending_reads(None) == []
