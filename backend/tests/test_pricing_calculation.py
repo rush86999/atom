@@ -306,3 +306,77 @@ class TestMissingBindingUnresolved:
         assert res.status == "unresolved"
         assert "years" in res.unresolved_reason
         assert res.proposed is None
+
+
+class TestJobLinkedCalculation:
+    """§4: a calculation is an operation on the existing job —
+    persisted result + policy version; unresolved inputs become durable
+    next-work; a differing computed price becomes an owner decision."""
+
+    def _lifecycle(self, tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import (GoalObjective, GoalRun,
+                                  TaskOperationRecord)
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        engine = create_engine(f"sqlite:///{tmp_path}/pc.db")
+        for t in (GoalObjective.__table__, GoalRun.__table__,
+                  TaskOperationRecord.__table__):
+            t.create(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        return TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=factory))
+
+    def test_succeeded_calculation_persists_with_policy_version(
+            self, tmp_path):
+        from core.pricing_calculation import record_calculation
+        from core.task_lifecycle import begin_retrieval_turn
+        lc = self._lifecycle(tmp_path)
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-pc", "verify", "e1")
+        res = run_policy(
+            _policy([PolicyStep("apply_margin", {"percent": 45})],
+                    pid="fallback-margin", version="9"),
+            PricingInputs(base=Money(Decimal("100"), "CAD"),
+                          source=_src()))
+        op = record_calculation(
+            lc, run_id, "SLE24-16", res,
+            draft_price=Money(Decimal("8880"), "CAD"))
+        assert op is not None
+        rec = lc.get_task(run_id)
+        calc_op = next(o for o in rec["operations"]
+                       if o["operation_id"] == op["operation_id"])
+        assert calc_op["status"] == "applied"
+        assert calc_op["calculation"]["policy_version"] == "9"
+        assert calc_op["calculation"]["status"] == "succeeded"
+        assert calc_op["draft_price"]["amount"] == "8880"
+        # The differing computed price became an OWNER DECISION.
+        decisions = [q for q in rec["task_revision"]["unresolved"]
+                     if q["kind"] == "business_decision"]
+        assert decisions and "8880" in decisions[0]["question"]
+
+    def test_unresolved_calculation_creates_next_work(self, tmp_path):
+        from core.pricing_calculation import record_calculation
+        from core.task_lifecycle import (begin_retrieval_turn,
+                                          next_unfinished_work)
+        lc = self._lifecycle(tmp_path)
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-pc2", "verify", "e1")
+        res = run_policy(
+            _policy([PolicyStep("convert_currency", {"to": "CAD"})]),
+            PricingInputs(base=Money(Decimal("100"), "USD"),
+                          source=_src()))
+        assert res.status == "unresolved"
+        record_calculation(lc, run_id, "U-22", res)
+        rec = lc.get_task(run_id)
+        calc_op = next(o for o in rec["operations"]
+                       if o["operation_type"] == "calculate")
+        assert calc_op["status"] == "waiting"
+        work = next_unfinished_work(rec)
+        assert any("cannot complete" in str(a.get("question"))
+                   for a in work["actions"])

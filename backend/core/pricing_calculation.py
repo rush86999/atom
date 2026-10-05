@@ -621,3 +621,101 @@ def parse_taught_policies(lessons: List[Dict[str, Any]],
                 conditions=["backup when the primary method's inputs are "
                             "unavailable"]))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Job integration: a calculation is an OPERATION on the existing job
+# ---------------------------------------------------------------------------
+
+def record_calculation(
+        lifecycle: Any,
+        run_id: str,
+        item_label: str,
+        result: CalculationResult,
+        draft_price: Optional[Money] = None,
+        *,
+        execution_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Persist a calculation as a job operation with its full typed
+    record (round 66 §4). The operation's `extra` carries the result
+    record (inputs snapshot, steps, policy id + version, freshness) so
+    retries and restarts can replay it; the STATUS encodes the
+    milestone's distinction — succeeded→applied only means the
+    arithmetic ran; unresolved/missing inputs keep the operation
+    open and add the specific next action or owner question."""
+    if lifecycle is None or not run_id:
+        return None
+    try:
+        op = lifecycle.create_operation(
+            run_id, op_type="calculate",
+            requested_change=(
+                f"calculate proposed price for {item_label or 'item'} "
+                f"under policy {result.policy_id} "
+                f"(v{result.policy_version})"))
+        status_map = {
+            "succeeded": "applied",
+            "unresolved": "waiting",
+            "rejected": "failed",
+        }
+        lifecycle.transition_operation(
+            run_id, op["operation_id"], "running",
+            execution_id=execution_id)
+        lifecycle.transition_operation(
+            run_id, op["operation_id"],
+            status_map.get(result.status, "failed"),
+            execution_id=execution_id)
+        lifecycle.attach_operation_field(
+            run_id, op["operation_id"], "calculation",
+            result.to_record())
+        if draft_price is not None:
+            lifecycle.attach_operation_field(
+                run_id, op["operation_id"], "draft_price",
+                {"amount": str(draft_price.amount),
+                 "currency": draft_price.currency,
+                 "unit": draft_price.unit})
+        # Unresolved inputs become durable next-work: a research action
+        # or a precise owner question — never a silent choice.
+        if result.status == "unresolved":
+            from core.task_lifecycle import add_unresolved_questions
+
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item_label,
+                "kind": "verification",
+                "question": (
+                    f"the price calculation for {item_label} cannot "
+                    f"complete: {result.unresolved_reason}"),
+                "evidence": (
+                    f"policy {result.policy_id} v{result.policy_version}; "
+                    "no value invented"),
+                "next_action": (
+                    f"provide or research the missing input "
+                    f"({result.unresolved_reason})"),
+            }], source_operation=op["operation_id"])
+        # A computed price differing from the draft is a business
+        # decision, created only when the arithmetic succeeded.
+        if (result.status == "succeeded" and draft_price is not None
+                and result.proposed is not None
+                and result.proposed.amount != draft_price.amount):
+            from core.task_lifecycle import add_unresolved_questions
+
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item_label,
+                "kind": "business_decision",
+                "question": (
+                    f"computed price {result.proposed.currency} "
+                    f"{result.proposed.amount} differs from the draft's "
+                    f"{draft_price.currency} {draft_price.amount} for "
+                    f"{item_label}"),
+                "evidence": (
+                    f"policy {result.policy_id} v{result.policy_version}; "
+                    f"source {result.inputs_snapshot.get('source', {})
+                               .get('reference')}"),
+                "next_action": (
+                    "owner chooses: keep the draft price or adopt the "
+                    "computed one"),
+            }], source_operation=op["operation_id"])
+        return op
+    except Exception as exc:  # noqa: BLE001 — recording is best-effort
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "calculation recording skipped: %r", exc)
+        return None

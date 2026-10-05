@@ -173,6 +173,10 @@ OPERATION_TYPES = (
     "outbound",
     "present",
     "stop",
+    # Round 66 (taught pricing): a deterministic calculation over
+    # evidence-backed inputs — read-class (it mutates no external
+    # system; its result rides the operation record).
+    "calculate",
 )
 
 OPERATION_STATUSES = (
@@ -1863,7 +1867,7 @@ class OperationExecutionClaimed(TaskLifecycleError):
     loses this claim must wait or replay, never mutate as well."""
 
 
-READ_ONLY_ACTIONS = ("retrieve", "present")
+READ_ONLY_ACTIONS = ("retrieve", "present", "calculate")
 MUTATING_ACTIONS = ("edit", "outbound")
 _TERMINAL_AUTHORIZATION = ("cancelled", "revoked")
 # A delivery the SERVER wrote, versus a delivery the CLIENT acknowledged.
