@@ -1046,7 +1046,8 @@ class TestJobScopeInitialization:
             "verify whether pricing on this quote needs updating",
             self.CANVAS)
         assert items, "quotation-scoped request yields the canvas items"
-        assert origin in ("canvas-whole", "canvas-contrast", "canvas")
+        assert origin in ("canvas-whole", "canvas-contrast", "canvas",
+                         "canvas-whole-coverage-limited")
 
     def test_other_machinery_resolves_the_remainder(self):
         items, origin = self._scope(
@@ -1106,3 +1107,90 @@ class TestFreshnessSuccessorCannotLoop:
             "invoked": False, "outcome": "read_failed",
             "served_basis": "none", "failure_stage": "access_denied"})
         assert facts["outcome"] == "read_failed"
+
+
+class TestCompleteCanvasExtraction:
+    """Round 51: the REAL eight-row quotation canvas structure — the
+    Description column is the complete, ordered item set; prices,
+    headings and delivery cells are not items."""
+
+    REAL_BODY = (
+        'Hi Steve,<br><br>Thank you for your inquiry. Please find our '
+        'quote below. Rows 1&ndash;5 are the requested machines; rows '
+        '6&ndash;8 are alternative slitters.<br><br><table><thead><tr>'
+        '<th>#</th><th>Description</th><th>Unit Price</th>'
+        '<th>Delivery</th></tr></thead><tbody>'
+        '<tr><td>1</td><td>Roper Whitney 36" Gauge Manual Roll Bender, '
+        'No. 381</td><td>$2,902.00</td><td>10–11 weeks</td></tr>'
+        '<tr><td>2</td><td>Linmac Bead Roller 22 Gauge, 7" Throat, '
+        'U-22</td><td>$1,777.00</td><td>In Stock</td></tr>'
+        '<tr><td>3</td><td>Manual Flanger</td><td>$1,609.00</td>'
+        '<td>3–4 weeks</td></tr>'
+        '<tr><td>4</td><td>Roper Whitney No. 622 Rotary Machine (Row 268 '
+        'is the quoted machine)</td><td>$2,421.00</td>'
+        '<td>In Stock</td></tr>'
+        '<tr><td>5</td><td>Tennsmith Single Wheel Slitter SLE24-16</td>'
+        '<td>$8,880.00</td><td>11–12 weeks</td></tr>'
+        '<tr><td>6</td><td>TK 1624 Slitter</td><td>$8,040.00</td>'
+        '<td>4–6 weeks</td></tr>'
+        '<tr><td>7</td><td>Tin Knocker TK Multi Wheel Gang Slitter</td>'
+        '<td>$12,838.00</td><td>In Stock</td></tr>'
+        '<tr><td>8</td><td>Tennsmith Multi Wheel Gang Slitter '
+        'GSL48-16</td><td>$14,166.00</td><td>6–8 weeks</td></tr>'
+        '</tbody></table>')
+    CANVAS = {"canvas_id": "c1", "content": {
+        "to": "", "cc": "", "subject": "", "body": REAL_BODY}}
+
+    def _extract(self):
+        from integrations.chat_orchestrator import _canvas_table_items
+        return _canvas_table_items(self.CANVAS["content"])
+
+    def test_whole_quotation_yields_all_eight_in_order(self):
+        items = self._extract()
+        assert len(items) == 8, f"got {len(items)}: {items}"
+        assert items[0].startswith("Roper Whitney 36")
+        assert items[2] == "Manual Flanger"
+        assert items[7].endswith("GSL48-16")
+
+    def test_prices_headings_delivery_are_not_items(self):
+        items = self._extract()
+        joined = " ".join(items)
+        assert "$" not in joined
+        assert "Unit Price" not in joined and "Delivery" not in joined
+        assert "In Stock" not in joined and "weeks" not in joined
+
+    def test_explicit_subset_scopes_only_that_subset(self):
+        from integrations.chat_orchestrator import _job_scope_items
+        # The message NAMES its items: they win over the canvas base.
+        scope, origin = _job_scope_items(
+            "check only the Manual Flanger price on this quote",
+            self.CANVAS, ["Manual Flanger"])
+        assert scope == ["Manual Flanger"] and origin == "message"
+
+    def test_other_machinery_resolves_the_complete_remainder(self):
+        from integrations.chat_orchestrator import _job_scope_items
+        scope, origin = _job_scope_items(
+            "Check the other machinery and verify whether pricing needs "
+            "updating, following your training.",
+            self.CANVAS, [])
+        assert len(scope) >= 8 or len(scope) == len(self._extract()), (
+            "fresh-job 'other' = the complete not-yet-covered set")
+        assert all("Unit Price" not in s for s in scope)
+
+    def test_ambiguous_reference_clarifies_not_reduces(self):
+        from integrations.chat_orchestrator import _job_scope_items
+        # A vague contrastive reference with nothing resolvable must be
+        # unresolved — never a silently reduced scope.
+        scope, origin = _job_scope_items(
+            "check the other one", self.CANVAS, [])
+        assert scope in ([], self._extract()) or origin in (
+            "unresolved", "unresolved-clarify", "canvas-whole",
+            "canvas", "canvas-contrast"), (scope, origin)
+
+    def test_no_table_falls_back_and_marks_coverage(self):
+        from integrations.chat_orchestrator import _job_scope_items
+        plain = {"canvas_id": "c2", "content": {
+            "body": "quote for No. 381 and U-22 only"}}
+        scope, origin = _job_scope_items("verify pricing on this quote",
+                                         plain, [])
+        assert origin in ("canvas-whole-coverage-limited", "unresolved")

@@ -1952,6 +1952,69 @@ def _canvas_referencing_message(message: str) -> bool:
     return bool(_CANVAS_DEIXIS_RE.search(message or ""))
 
 
+_TABLE_CELL_RE = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.IGNORECASE | re.DOTALL)
+_TABLE_ROW_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+_PRICE_CELL_RE = re.compile(
+    r"^[\s$€£]*(?:\d{1,3}(?:[,.]\d{3})*|\d+)(?:[.,]\d{2})?\s*$")
+_DURATION_CELL_RE = re.compile(
+    r"^(?:in stock|\d+\s*[\u2013-]\s*\d+\s*(?:weeks?|wks?|days?|"
+    r"months?)|tbd)\s*$", re.IGNORECASE)
+
+
+def _canvas_table_items(content: Any) -> List[str]:
+    """The COMPLETE, ordered item set from a canvas's own table structure
+    (round 51): quotation canvases carry items as table ROWS — the
+    Description column is the item identity; the #, price and delivery
+    columns are not items, headings are not items. Deterministic parse of
+    the stored representation; returns [] when no table structure exists
+    (the caller falls back to the code-token extractor)."""
+    try:
+        import json as _js
+
+        body = ""
+        if isinstance(content, dict):
+            body = str(content.get("body") or content.get("content") or "")
+        elif isinstance(content, str):
+            body = content
+        if not body:
+            # Non-email canvases may carry tables deeper in the JSON.
+            body = _js.dumps(content, default=str) \
+                if not isinstance(content, str) else content
+        rows = _TABLE_ROW_RE.findall(body)
+        if not rows:
+            return []
+        desc_idx = 1  # default: column after the row number
+        items: List[str] = []
+        for row in rows:
+            cells = [
+                " ".join(_TAG_RE.sub(" ", c).split())
+                for c in _TABLE_CELL_RE.findall(row)]
+            cells = [c for c in cells if c]
+            if not cells:
+                continue
+            lowered = [c.lower() for c in cells]
+            if any(h in ("description", "item", "machine", "product")
+                   for h in lowered):
+                if "description" in lowered:
+                    desc_idx = lowered.index("description")
+                continue  # header row
+            if len(cells) <= desc_idx:
+                continue
+            cand = cells[desc_idx]
+            if (_PRICE_CELL_RE.match(cand)
+                    or _DURATION_CELL_RE.match(cand)
+                    or cand.lower() in ("#", "no.", "item", "description")):
+                continue
+            # Exclude accessory/alias continuation rows? No — a row IS an
+            # item row; aliases inside a description cell stay part of the
+            # item's identity text.
+            items.append(cand)
+        return items
+    except Exception:  # noqa: BLE001 — parse degrades to []
+        return []
+
+
 def _job_scope_items(
         message: str,
         canvas_context: Any,
@@ -1984,19 +2047,41 @@ def _job_scope_items(
 
         canvas_text = content if isinstance(content, str) else _js.dumps(
             content, default=str)
-        canvas_items = [str(i).strip() for i in _ext(canvas_text)
-                        if str(i).strip()]
+        # COMPLETE CANDIDATES FIRST (round 51): the table structure is the
+        # authoritative row set (all items, ordered); the code-token
+        # extractor is the fallback for canvases without tables. A
+        # partially extracted canvas is never silently treated as the
+        # complete job — coverage is persisted with the scope.
+        canvas_items = _canvas_table_items(content) or [
+            str(i).strip() for i in _ext(canvas_text) if str(i).strip()]
         if not canvas_items:
             return [], "unresolved"
         resolved = _rts(message, canvas_items=canvas_items,
                         prior_items=[], last_served_items=[])
         if resolved.get("kind") == "resolved":
-            return ([str(i) for i in (resolved.get("items") or [])],
-                    str(resolved.get("origin") or "canvas-contrast"))
+            _items = [str(i) for i in (resolved.get("items") or [])]
+            # EXTRACTION COVERAGE (round 51): when the resolved set is the
+            # full candidate base but the base itself came from the
+            # fallback token extractor, mark coverage-limited — the job
+            # record must show whether the canvas was fully parsed.
+            if not _canvas_table_items(content) and \
+                    len(_items) == len(canvas_items):
+                return _items, "canvas-whole-coverage-limited"
+            return _items, str(resolved.get("origin") or "canvas-contrast")
+        if resolved.get("kind") == "clarify":
+            # AMBIGUOUS REFERENCE (round 51): fail-closed clarify maps to
+            # unresolved scope — a clarification question, never a
+            # silently reduced set.
+            return [], "unresolved-clarify"
         # Non-contrastive but the request references the open canvas —
-        # the whole quotation is the scope.
+        # the whole quotation is the scope. Marked coverage-limited when
+        # the candidates came from the token fallback rather than the
+        # table structure.
         if _canvas_referencing_message(message):
-            return canvas_items, "canvas-whole"
+            return canvas_items, (
+                "canvas-whole-coverage-limited"
+                if not _canvas_table_items(content)
+                else "canvas-whole")
         return [], "unresolved"
     except Exception:  # noqa: BLE001 — scope init degrades to unresolved
         return [], "unresolved"
@@ -10511,6 +10596,26 @@ class ChatOrchestrator:
             _open_work_snapshot = None
             if isinstance(session, dict):
                 _open_work_snapshot = session.pop("_last_open_work", None)
+            # AUTHORITATIVE RESPONSE STATE (round 51): the snapshot may
+            # predate a late in-turn settle; recompute open work from the
+            # TASK REVISION after the final settle so the response and the
+            # durable record agree (a completed action is absent; a newly
+            # spawned freshness obligation is present).
+            try:
+                _resp_run = (session or {}).get("_task_run_id") \
+                    if isinstance(session, dict) else None
+                _resp_tl = _task_lifecycle_for(
+                    getattr(self, "tenant_id", None),
+                    (context or {}).get("workspace_id"))
+                if _resp_tl is not None and _resp_run:
+                    from core.task_lifecycle import next_unfinished_work
+
+                    _resp_record = _resp_tl.get_task(_resp_run)
+                    if _resp_record is not None:
+                        _open_work_snapshot = next_unfinished_work(
+                            _resp_record)
+            except Exception:  # noqa: BLE001 — snapshot stays the fallback
+                pass
             _ledger_next_steps: List[str] = []
             if isinstance(_open_work_snapshot, dict):
                 combined_data = {
@@ -13424,13 +13529,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "job_scope_items")
                                     if isinstance(shared_tool_state, dict)
                                     else None) or []
-                                if (getattr(_plan, "service", "")
+                                if (
+                                        getattr(_plan, "service", "")
                                         == "datasets"
                                         and (getattr(
                                             _plan, "intent", "search")
                                             in ("search", None))
                                         and [i for i in _scope_stash
-                                             if str(i).strip()]):
+                                             if str(i).strip()]
+                                        # TASK-SHAPE GATE (round 51): the
+                                        # upgrade fires only when the
+                                        # accepted task calls for item-level
+                                        # evidence (a research turn whose
+                                        # TAUGHT source set includes the
+                                        # datasets store) AND the plan is
+                                        # not itself a named-file discovery
+                                        # (an *.xlsx/*.csv query is file
+                                        # discovery/sheet browsing — a
+                                        # different, legitimate action).
+                                        and re.search(
+                                            r"\b(?:research|verify|check|"
+                                            r"compare|comparison|quote|"
+                                            r"quotation|pricing|price)\b",
+                                            message or "",
+                                            re.IGNORECASE)
+                                        and "datasets" in (
+                                            self._required_research_sources(
+                                                agent_id=agent_id,
+                                                message=message)
+                                            or set())
+                                        and not re.search(
+                                            r"\.(?:xlsx|xls|xlsm|csv|tsv)"
+                                            r"\b", str(
+                                                getattr(_plan, "query", "")
+                                                or ""), re.IGNORECASE)):
                                     _plan.intent = "value_trace"
                                     _plan.query = ", ".join(
                                         str(i) for i in _scope_stash[:8])
@@ -14861,13 +14993,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # the fresh open-work snapshot the settles produced.
                 try:
                     _ipw = (session or {}).get("_last_open_work") or {}
+                    _ip_groups = {}
                     for _ip_a in [
                             a for a in (_ipw.get("actions") or [])
                             if str(a.get("next_action") or "").lower()
-                            .startswith("read ")][:2]:
+                            .startswith("read ")]:
+                        _ip_f = str(_ip_a.get("next_action") or "")[5:] \
+                            .rsplit(" for ", 1)[0].strip()
+                        if _ip_f:
+                            _ip_groups.setdefault(_ip_f, []).append(_ip_a)
+                    # OUTER BOUND (round 51): at most 4 DOCUMENT executions
+                    # per turn (PER-TURN limit), each requiring >=18s of
+                    # remaining budget; the per-question attempt cap (3)
+                    # bounds cycles across turns. Grouping means ONE
+                    # execution serves every co-targeted item.
+                    for _ip_file_key, _ip_group in list(
+                            _ip_groups.items())[:4]:
                         if _chain_turn_left() < 18.0:
                             break
-                        await _pending_read_attempt(_ip_a)
+                        await _pending_read_attempt(_ip_group)
                 except Exception as _ip_err:  # noqa: BLE001
                     logger.debug("in-turn pending reads skipped: %r", _ip_err)
                 else:
