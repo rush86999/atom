@@ -416,6 +416,37 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             record = lifecycle.get_task(run_id)
             if record is None:
                 continue
+            # ROW-SUCCESSOR MIGRATION (round 55, one-time per job): jobs
+            # whose located read questions were EXHAUSTED by the pre-
+            # successor burn rule get their budgets reset once so the
+            # located->successor conversion can run; the marker lives in
+            # the task revision (durably one-time).
+            try:
+                _rev = record.get("task_revision") or {}
+                if not _rev.get("row_successor_migrated"):
+                    _exh_read = [
+                        q for q in (_rev.get("unresolved") or [])
+                        if q.get("status") == "open"
+                        and str(q.get("next_action") or "").lower()
+                        .startswith("read ")
+                        and int(q.get("attempts") or 0) >= 3]
+                    if _exh_read:
+                        lifecycle.apply_transition(run_id, {
+                            "kind": "record_unresolved",
+                            "requested_change": (
+                                "row-successor migration: read questions "
+                                "exhausted by the pre-successor burn rule; "
+                                "budgets reset once for the located->"
+                                "successor conversion"),
+                            "attempts": [
+                                {"question_id": q.get("question_id"),
+                                 "set": 0} for q in _exh_read],
+                            "row_successor_migration": True,
+                            "source_operation": None,
+                        })
+            except Exception as _mig_err:  # noqa: BLE001
+                logger.debug("row-successor migration skipped: %r",
+                             _mig_err)
             work = next_unfinished_work(record)
             acts = _read_actions(work.get("actions") or [])
             if not acts:
@@ -472,17 +503,31 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                 res = await _execute_document_read(
                     lifecycle, run_id, user_id, workspace_id, fname,
                     [g["item"] for g in group])
-                # IDENTICAL-REDISCOVERY BOUND (round 53): items this
-                # execution did NOT match consume an attempt — the cap
-                # eventually exhausts a located-only loop instead of
-                # re-reading the same document forever.
-                from core.task_lifecycle import bump_question_attempts
+                # LOCATED RESOLVES ITS READ QUESTION (round 55): the
+                # location WAS the read's deliverable; the successor
+                # row-read carries the remaining work. Only NO-MATCH
+                # items consume an attempt (identical-rediscovery bound
+                # for fruitless reads).
+                from core.task_lifecycle import (
+                    bump_question_attempts, resolve_unresolved_questions)
 
+                _located_qids = [
+                    g["question_id"] for g, it in zip(
+                        group, [g["item"] for g in group])
+                    if res["statuses"].get(it) == "located"
+                    and g.get("question_id")]
+                if _located_qids:
+                    resolve_unresolved_questions(
+                        lifecycle, run_id, items=None, kinds=None,
+                        question_ids=_located_qids,
+                        resolution={
+                            "how": "located; row-read successor opened",
+                            "detail": "; ".join(res["evidence"])[:350]})
                 bump_question_attempts(
                     lifecycle, run_id,
                     [g["question_id"] for g, it in zip(
                         group, [g["item"] for g in group])
-                        if res["statuses"].get(it) != "matched"
+                        if res["statuses"].get(it) == ""
                         and g.get("question_id")])
                 out["items_matched"] += sum(
                     1 for s in res["statuses"].values() if s == "matched")

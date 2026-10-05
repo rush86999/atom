@@ -209,11 +209,21 @@ class TestPerItemEvidenceNegativeControls:
         out = await rc.research_continuation_cycle()
         assert out["reads"] == 1 and out["items_located"] == 1
         assert out["items_matched"] == 0
+        # ROUND-55 CONTRACT: located resolves the DOCUMENT-read question
+        # (the location was its deliverable) and opens the ROW-READ
+        # successor — the obligation continues in the right shape, with
+        # structured inputs, instead of repeating the document search.
         work = next_unfinished_work(lifecycle.get_task(run_id))
-        assert any(
-            "read WB.xlsx" in str(a.get("next_action") or "")
-            for a in work["actions"]), (
-            "located-without-price keeps its READ action open")
+        succ = [a for a in work["actions"]
+                if (a.get("inputs") or {}).get("intent") == "row_read"]
+        assert len(succ) == 1, "successor row-read carries the obligation"
+        assert succ[0]["inputs"]["row"] == 22
+        rec = lifecycle.get_task(run_id)
+        orig = [q for q in rec["task_revision"]["unresolved"]
+                if str(q.get("next_action") or "").startswith(
+                    "read WB.xlsx")]
+        assert orig and orig[0]["status"] == "resolved", (
+            "the document-read question resolves on location")
 
     @pytest.mark.asyncio
     async def test_no_match_at_all_stays_open(self, lifecycle, monkeypatch):

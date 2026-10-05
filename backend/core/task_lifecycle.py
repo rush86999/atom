@@ -410,6 +410,8 @@ def apply_transition(
             # a marker read from it never landed, and the migration would
             # have re-applied on every settle).
             new_task["attempt_budget_migrated"] = _utc_now_iso()
+        if transition.get("row_successor_migration"):
+            new_task["row_successor_migrated"] = _utc_now_iso()
         for bump in (transition.get("attempts") or []):
             if not isinstance(bump, dict):
                 continue
