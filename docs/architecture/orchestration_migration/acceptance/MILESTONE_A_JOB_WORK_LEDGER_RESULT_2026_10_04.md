@@ -1120,3 +1120,42 @@ background outcome delivered as failed/pending_review because the
 audit-readback could not confirm the write (the update IS on the audit
 trail, agent-attributed — the readback gate's strictness preserved the
 honest no-confirmation message rather than claiming success).
+
+## Round-65: background verification reconciled (DRAFT7's mutation closed)
+
+**Readback defect root-caused with exact ids**: the fork fd9631bc's
+write landed (audit 0c1f7b25, agent-attributed, canvas d7e9ea06) but
+the write path stores review_status=pending_review for background
+edits while the landed gate demands ==accepted — a persisted write was
+reported "could not be confirmed."
+
+**Reconciliation (no reapply)**: _reconcile_authorized_proposal —
+landed row carries the continuation's operation_id, IS the canvas head,
+the authoritative read still serves that revision, and the originating
+instruction is the owner's own directive → review-state transition to
+accepted, audit-metadata only. Pinned: accepted-without-write;
+superseded→conflict; hints/negations never reconcile. A JSONB
+mutation-tracking bug (verdict accepted, row unchanged) was caught live
+and fixed (flag_modified).
+
+**DRAFT7 reconciled**: review_status now accepted; exactly 2 audit rows
+(fork + 1 update); no new write; the corrected terminal confirmation
+delivered through the panel's own ChatMessage path; **browser reload
+verified**: To (Steve Macisaac), Cc (Vipul + Chandrakant), Subject
+populate the header; all eight prices and the 15-days footer render in
+the body.
+
+**Latency accounting corrected**: attempt 1 = 157s = 83s dispatched
+provider time + ~74s cascade/rank/refresh churn; the 298s total adds
+the deliberate 45s + 18s retry backoffs and attempt 2's 78s. Churn is
+ONE component (~74s), not the whole delay.
+
+**Fork-lineage checks pinned**: source-canvas identity required (no
+self-inheritance); inheritance feeds findings only — mutation authority
+unchanged (a read-only ask over a lineage-rich fork still cannot edit).
+
+**Status**: taught drafting demonstrated AND the background path now
+verifies its own landed writes; automated completion reporting reliable
+for the authorized-proposal class. Remaining open: readback of
+non-directive (hint-class) background edits still reports
+pending_review by design (the approval flow).
