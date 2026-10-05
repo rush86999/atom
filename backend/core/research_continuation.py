@@ -584,8 +584,7 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             for a in acts:
                 # Row-read successors group SEPARATELY from document
                 # reads of the same file (they dispatch differently).
-                key = (f"row:{a['file']}:{a.get('sheet')}:"
-                       f"{a.get('row')}"
+                key = (f"row:{a['file']}:{a.get('item')}"
                        if a.get("intent") == "row_read" else a["file"])
                 groups.setdefault(key, []).append(a)
             out["jobs"] += 1
