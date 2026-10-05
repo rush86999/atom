@@ -1189,3 +1189,56 @@ owner directive) remain pending_review by design.
 **Milestone CLOSED.** Next business milestone: pricing calculations or
 inventory alternatives — neither reopens the completed drafting work
 unless a regression appears.
+
+## Round-66: TAUGHT PRICING CALCULATIONS — delivered and exercised
+
+**Core mechanism** (business-neutral): core/pricing_calculation.py —
+typed inputs (Money with currency+unit basis; SourceRef with reference,
+observed date, content hash; TaughtPolicy with provenance+version),
+pure-Decimal step executors (markup 100→120; margin 100→125; explicit
+sourced currency conversion ONLY — a missing rate is UNRESOLVED, never
+invented; freight; depreciation; multiply; ROUNDUP/half_up rounding),
+replayable step records, protected manual overrides, independent
+freshness judgment, and a structural teaching→policy parser (lesson-id
+provenance, text-derived versions). A 'calculate' operation type
+(read-class) records the full result on the job; unresolved inputs
+create specific next-work; a differing computed price creates an owner
+business_decision. 21 unit pins with HAND-COMPUTED expectations,
+including the second-business fixture (150/hr × 17.5h = 2625.00).
+
+**The actual taught policy (extracted from the live lessons)**: the
+2019 price list workbook is the designated formula source (lesson
+1b1734d5); used-machinery PRIMARY = depreciate the new-model retail
+price to current age (4b6a11cc + idx-24/26), fallback = the workbook
+ladder (discount ×0.9 → +freight → ×1.02 handling → ÷0.87 → ÷0.86 →
+ROUNDUP); CAD context rule (reselling from Canada = CAD, no exchange
+conversion); margins 40–50% with ≥30% minimum; freight/CSA from Vipul
+or Mill Creek. NO taught rule distinguishes markup from gross margin
+for NEW list pricing — the parser derives margin from the ladder's
+division factors.
+
+**Real workflow (price1, disposable fork d311c491)**: turn 1 — the
+agent searched, CORRECTLY rejected a parts-row false match
+("4816" substring) and refused to treat unlabeled 0.95/0.75/0.74 as
+established rates ("its business meaning isn't established here"), and
+honestly reported no computed price — the exact no-fabrication
+boundary. Turn 2 (taught-workbook-scoped) hit the documented planner
+variance (replan timeout). The calculation then ran through the REAL
+mechanism over the REAL row (Consolidated Price List 2019.xlsx!
+Tennsmith row 106, content-hash provenance):
+- **Applicable policy** (the price list IS the source): CAD 14,318.00
+  vs the draft's 14,166 → **owner decision created** ("computed price
+  CAD 14318.00 differs..."), nothing changed.
+- **Backup ladder demo** (mechanism proof; applicability limited —
+  taught for USED machinery, this row is a new-machine list row):
+  7627 → ×0.9 → +800 freight → ×1.02 → ÷0.87 → ÷0.86 → ROUNDUP =
+  **CAD 10,313**, every step recorded.
+Both recorded as 'calculate' operations on the job (policy id +
+version + inputs + steps durable). Draft untouched; nothing sent; the
+original canvas untouched throughout.
+
+**Honest limits**: the interactive-agent calculation turn is
+planner-variance-limited (the documented class; the deterministic
+path completed the calculation); freshness of the 2019 workbook is
+'unknown' (no observed date on the row) — honestly labeled, not
+claimed current.
