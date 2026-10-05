@@ -780,3 +780,44 @@ fencing + real-row controls). Draft SHA-identical; nothing sent.
 - Rows 3, 6, 8: unchanged (workbook reads complete, freshness open).
 - Rows 5–8 vendor-verified as of Sept 18, 2026 (quoted-then wording).
 - Rows 4 (No. 622): unchanged (identity owner decision).
+
+## Round-58: the four corrections verified live (RC4 — fresh job, live worker, no manual assists)
+
+1. **MANUAL vs AUTONOMOUS SEPARATED**: RC4 is a fresh job whose every
+   recovery step ran in the LIVE worker across restarts and normal
+   cycles — teaching-driven successor seeding (via workspace lessons
+   after the agent-persistence gap was found), row execution, policy
+   consultation, settlement. RC2's earlier assist is labeled as such.
+2. **ABSENCE DISPROVEN — PRESERVED UNDER SOURCE IDENTITY**: the
+   "scoped absence" was a LOOKUP DEFECT, not data: (a) the 2019
+   workbook's sheet is cataloged as 'Tennsmith ' (trailing space) —
+   exact-match resolution missed it; (b) the freshest copy's Tennsmith
+   sheet ends at row 245 — its None read masqueraded as
+   identity-unsupported; (c) the 2019 original (the only copy carrying
+   row 338) is the FOURTH catalog hit. All three fixed (whitespace-
+   insensitive resolution; every-copy trial; all-hits loop). The row
+   EXISTS and corroborates No. 381 (MODEL NO. 381, Roll Bending
+   Machine, 22t, 36" throat): **PRICE=3297, U.S. LIST=1845, U.S.
+   COST=1476, FULL COST CDN=2320.504** — the historical E338/M338
+   finding, preserved under its original source identity.
+3. **POLICY APPLIED BEFORE THE ASK (No. 381, live)**:
+   apply_taught_policy consulted the workspace teaching; no lesson
+   names a selective basis among PRICE/U.S. LIST/U.S. COST/FULL COST
+   CDN — recorded as the reason — so the post-policy owner question
+   carries exactly those survivors, basis/currency as the columns name
+   them. The $2,902 manual instruction is NOT reconfirmed anywhere.
+   (U-22's decision question predates this wiring and retains the
+   duplicate-merge shape without the policy pass — the one item where
+   the policy did not re-run; noted, not claimed.)
+4. **RESOLUTION WORDING**: the taught resolution now carries the
+   current read's values ("price AMBIGUOUS after policy — PRICE=3297;
+   U.S. LIST=1845; …") — disposition, evidence and question agree.
+
+**Corrected comparison (rows 1-2 delta)**: Row 1 (No. 381) — workbook
+evidence NOW VERIFIED at the taught location (2019 workbook, Tennsmith
+R338, saved copy): four monetary bases recorded with policy attempted;
+owner picks the applicable basis for the verification comparison; the
+manual $2,902 stands as the quoted price, untouched. Row 2 (U-22) —
+duplicate listings merged; monetary bases as named; the policy pass on
+this row remains to re-run (mechanism proven on row 1). Draft
+SHA-identical; nothing sent. 118 tests green.
