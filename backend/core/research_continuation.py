@@ -937,13 +937,32 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     or ((record.get("task_revision") or {})
                         .get("provenance") or {}).get("agent_id")
                     or sess.get("agent_id") or "") or None
-                if _agent_id:
-                    from core.database import get_db_session as _gs
-                    from core.student_learning_service import (
-                        get_agent_lessons as _gal)
+                from core.database import get_db_session as _gs
+                from core.student_learning_service import (
+                    get_agent_lessons as _gal)
 
+                if _agent_id:
                     with _gs() as _db:
                         _lessons = _gal(_db, _agent_id, limit=10)
+                else:
+                    # WORKSPACE TEACHING FALLBACK (round 58): the task's
+                    # creation lane predates agent persistence; teaching
+                    # is workspace-shared by design (the sibling-lessons
+                    # mechanism) — enumerate the workspace's agents and
+                    # union their lessons, each tagged with its agent.
+                    try:
+                        from core.models import AgentRegistry as _AR
+
+                        with _gs() as _db:
+                            _ids = [
+                                str(r.id) for r in _db.query(_AR.id)
+                                .filter(_AR.status != "retired")
+                                .limit(10)]
+                            for _aid in _ids:
+                                _lessons.extend(
+                                    _gal(_db, _aid, limit=10))
+                    except Exception:  # noqa: BLE001 — fallback only
+                        pass
                 _taught = _taught_location_successors(
                     lifecycle, run_id, lifecycle.get_task(run_id) or {},
                     _lessons)
