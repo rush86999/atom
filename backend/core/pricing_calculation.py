@@ -697,9 +697,17 @@ def _taught_steps_from_text(
 
 def _derived_policy_id(steps: List[PolicyStep], text: str) -> str:
     """A stable id from what the recipe IS (its ops), not the business
-    it serves."""
-    ops = "-".join(s.op for s in steps)
-    return f"taught-{ops}"
+    it serves. Includes each op's TAUGHT PARAMETER so two recipes with
+    the same op names but different factors (live round 67: a
+    margin-preamble variant and the bare ladder collided under one id)
+    cannot share an identity."""
+    parts = []
+    for s in steps:
+        sig = s.op
+        for k in sorted(s.params):
+            sig += f".{k}{s.params[k]}"
+        parts.append(sig)
+    return "taught-" + "-".join(parts)
 
 
 
