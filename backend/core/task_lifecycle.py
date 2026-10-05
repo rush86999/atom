@@ -399,9 +399,14 @@ def apply_transition(
                         and entry.get("question_id") == bump.get(
                             "question_id")):
                     counted = dict(entry)
-                    counted["attempts"] = int(
-                        entry.get("attempts") or 0) + max(
-                        1, int(bump.get("increment") or 1))
+                    # "set" supports the recorded attempt-budget migration
+                    # and the material-change reset (round 43): a one-time
+                    # reset to a known value via a decision-logged
+                    # transition. Absent "set", the default is an increment.
+                    counted["attempts"] = (
+                        int(bump["set"]) if "set" in bump
+                        else int(entry.get("attempts") or 0) + max(
+                            1, int(bump.get("increment") or 1)))
                     existing[index] = counted
         new_task["unresolved"] = existing
         new_task["new_attempt_required"] = bool(fresh_questions)
