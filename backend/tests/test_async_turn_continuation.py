@@ -1766,6 +1766,25 @@ class TestBackgroundExecutionContext:
         assert seen["interactive"] is False  # the boundary fix
 
 
+@pytest.fixture(autouse=True)
+def _stub_edit_reservation(request, monkeypatch):
+    """The fork tests exercise the FORK path, not the lifecycle: the real
+    _begin_task_edit needs a migrated test DB (cross-suite coupling made
+    these flaky — empty DB = 'unavailable', stale DB = 'already_claimed').
+    Stub the reservation so the edit leg proceeds to the planner mock."""
+    _fork_tests = {
+        "test_orchestrator_forks_once_reply_honest_action_skipped",
+        "test_orchestrator_fork_failure_returns_honest_no_apply",
+        "test_planner_unavailable_forks_for_edit_shaped_turns",
+    }
+    if request.node.name in _fork_tests or request.node.get_closest_marker(
+            "stub_edit_reservation"):
+        monkeypatch.setattr(
+            "integrations.chat_orchestrator._begin_task_edit",
+            lambda *a, **k: {"status": "reserved", "run_id": "r1",
+                             "operation_id": "op1"})
+
+
 class TestFirstRequestForkAuthorizationRecheck:
     """Round 63 (reviewer): the NEW first-request background fork (a
     starved user-grounded edit directive) must recheck the SAME
