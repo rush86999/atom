@@ -13015,6 +13015,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "singleflight lookup (canvas-edit leg)",
                                 execution_id,
                                 items=list(_requested_targets or []),
+                                agent_id=agent_id,
                                 canvas_id=(
                                     (canvas_context or {}).get(
                                         "canvas_id")
@@ -14373,6 +14374,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 execution_id,
                                 items=[str(i) for i in _pf2_scope
                                        if str(i).strip()],
+                                agent_id=agent_id,
                                 canvas_id=(
                                     (canvas_context or {}).get("canvas_id")
                                     or (canvas_context or {}).get("id")))
