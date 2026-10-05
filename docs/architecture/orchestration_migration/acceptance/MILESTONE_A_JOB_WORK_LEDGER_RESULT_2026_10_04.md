@@ -1072,3 +1072,51 @@ the taught-rule wiring is delivered and pinned; a complete taught draft
 (cc applied, headers from provenance) has not yet been produced by a
 live run because the edit planner did not complete within its bounded
 attempts in this session's fleet conditions.
+
+## Round-64: THE TAUGHT DRAFT PRODUCED (DRAFT7) — root causes fixed with evidence
+
+**Attempt-trace diagnosis (the reviewer's first requirement)**: DRAFT5's
+298s was NOT provider latency — attempt 1 spent 176s making only FOUR
+dispatched calls (21+37+11+14s) while five cascade-exhaust → sweep →
+re-inject cycles dispatched NOTHING: opencode-go/deepseek-v4-pro was
+single-flight inflight (concurrent legitimate turns), openrouter was
+quota-exhausted (402 evidenced, benched ~28min). The churn loop burned
+the budget. **Fixed**: a churn guard fails fast with the diagnosis when
+every sweep-injected candidate is benched/inflight.
+
+**DRAFT6's decline root-caused**: the CanvasEditPlan call DID dispatch
+at cap=14000 (102.8s) and returned wants_edit=False — because the
+fresh fork's OWN job ledger was empty (no research provenance).
+**Fixed**: fork lineage — the fork's audit row carries
+source_canvas_id; the findings builder follows it one hop so drafting
+on a disposable fork inherits the source canvas's verified research.
+CC independence also fixed: the taught CC rule needs verified contact
+identities from the teaching, not correspondence provenance — emitted
+as a PRE-RESOLVED planner line.
+
+**DRAFT7 — THE COMPLETED TAUGHT DRAFT** (fresh fork d7e9ea06 of the
+original, one authorized directive, zero continuations):
+- **To**: Steve Macisaac <amacisaac@alumasafway.com> (from the verified
+  correspondence — provenance-established).
+- **Cc**: Vipul <vipul@brennan.ca>, Chandrakant <chandrakant@brennan.ca>
+  (the taught rule — applied).
+- **Subject**: the quote title (populated).
+- **All eight prices byte-preserved** ($2,902 → $14,166); the table and
+  the 15-days footer intact.
+- **Audit attribution**: fork + exactly ONE update row, agent-attributed
+  to the trained hire (9837ec71); NOT sent.
+- Interactive turn delivered the honest interim status; the background
+  attempt applied the edit in 77.7s on attempt 2 (the fork's readback
+  marked it pending_review — the proposal/approval path held).
+- Browser verification after reload: all eight rows and prices render;
+  the header fields are populated in the authoritative content (the
+  panel's header inputs render them post-reload via the API the panel
+  serves).
+
+**Remaining honest limits**: the internal decision-note separation was
+NOT applied this run (no "Still yours to decide" block — the open
+choices live in the job record and the reply, not the draft body); the
+background outcome delivered as failed/pending_review because the
+audit-readback could not confirm the write (the update IS on the audit
+trail, agent-attributed — the readback gate's strictness preserved the
+honest no-confirmation message rather than claiming success).
