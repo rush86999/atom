@@ -1290,6 +1290,9 @@ async def plan_tool_use(
             # uses for the not-found escalation policy (the POLICY is a
             # taught lesson; this is only the tool)
             allowed_intents.add("value_trace")
+            # taught-pricing calculator: deterministic arithmetic
+            # over evidence-backed inputs (round 67)
+            allowed_intents.add("calculate")
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -8627,6 +8630,43 @@ async def execute_tool_plan(
                               "figure is the only source found).")
             except Exception as _vt_err:  # noqa: BLE001 — tool optional
                 logger.warning("datasets.value_trace failed: %r", _vt_err)
+        if (plan.intent or "search") == "calculate":
+            # TAUGHT-PRICING CALCULATOR (round 67): the AGENT'S path to
+            # the deterministic engine. The model selects the applicable
+            # taught policy and gathers inputs (both from the query and
+            # the evidence); THIS code validates and executes — an LLM
+            # number is never the result. Query shape (the planner
+            # prompt documents it):
+            #   calculate POLICY_ID from AMOUNT CURRENCY
+            #   [param=VALUE ...] [source=REF] [override=AMOUNT]
+            try:
+                import re as _calc_re
+                from decimal import Decimal as _CalcD
+
+                from core.pricing_calculation import (
+                    Money as _CalcMoney,
+                    PricingInputError as _CalcInputError,
+                    PricingInputs as _CalcInputs,
+                    SourceRef as _CalcSrc,
+                    calculate_from_query as _calc_query,
+                )
+
+                _calc_q = (query or "").strip()
+                if _calc_q:
+                    block = await _calc_query(
+                        _calc_q, user_id,
+                        (context or {}).get("workspace_id"))
+                    if block:
+                        return _with_grounding(block)
+            except _CalcInputError as _calc_err:
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.calculate) — REJECTED: "
+                    f"the typed inputs failed validation ({_calc_err}). "
+                    "Do not compute a price by hand; name the missing or "
+                    "invalid input instead.")
+            except Exception as _calc_err:  # noqa: BLE001 — additive
+                logger.warning("datasets.calculate failed: %r", _calc_err)
+
         if (plan.intent or "search") == "find_all":
             # Excel-style Find All: every cell containing the value, across
             # the whole catalog or one named workbook. Query shape is the

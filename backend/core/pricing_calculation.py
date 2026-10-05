@@ -320,6 +320,17 @@ def _op_multiply(current: Money, params: Dict[str, Any],
     return Money(current.amount * factor, current.currency, current.unit)
 
 
+def _op_divide(current: Money, params: Dict[str, Any],
+                ctx: Dict[str, Any]) -> Money:
+    """An explicitly taught division (e.g. the ladder's '/0.87'):
+    exact Decimal division by the taught factor — no margin semantics
+    derived, no percent conversion."""
+    divisor = _d(params.get("divisor"), "divisor")
+    if divisor == 0:
+        raise PricingInputError("taught division by zero")
+    return Money(current.amount / divisor, current.currency, current.unit)
+
+
 def _op_round(current: Money, params: Dict[str, Any],
               ctx: Dict[str, Any]) -> Money:
     """Deterministic rounding. mode 'up' = ROUNDUP (the taught ladder),
@@ -342,6 +353,7 @@ _STEP_EXECUTORS = {
     "add_freight": _op_add_freight,
     "depreciate": _op_depreciate,
     "multiply": _op_multiply,
+    "divide": _op_divide,
     "round": _op_round,
 }
 
@@ -526,106 +538,170 @@ import re as _re
 
 def parse_taught_policies(lessons: List[Dict[str, Any]],
                           ) -> List[TaughtPolicy]:
-    """Derive typed policies from natural-language teaching (round 66).
+    """Derive typed policies from natural-language teaching.
 
-    The grammar is STRUCTURAL: it looks for the shapes every business
-    uses — a percent-per-year depreciation sentence, an ordered ladder
-    of arithmetic cues (discount, freight, handling, margin, ROUNDUP) —
-    not for any business's nouns. A lesson that names none of the
-    shapes yields no policy (teaching may be style, contacts, etc.).
-    Provenance is the lesson id; version is derived from the lesson
-    text so an edited teaching parses to a new version.
+    INTEGRITY RULES (round 67, reviewer corrections 2 and 3):
+    - EXPLICIT TAUGHT RULES ONLY. A recipe step exists because the
+      lesson states it — a number with its operation and, where the
+      operation needs one, its rounding. Mentions do not become
+      recipes: a lesson that says "depreciate the new price" without a
+      percent, method or rounding yields an UNRESOLVED applicability
+      note (conditions with no steps), never an invented ladder.
+    - DECIMAL LITERALS throughout: taught numbers become Decimal by
+      string, never float; a taught division stays a division factor
+      (multiply by its exact Decimal), with no margin-percent
+      conversion and no rounding of derived values.
+    - STRUCTURAL grammar only: percent-with-operation sentences and
+      ordered ladder cues — no business nouns, no per-business
+      policies baked in.
     """
     out: List[TaughtPolicy] = []
-    for lesson in lessons or []:
+    for idx, lesson in enumerate(lessons or []):
         text = " ".join(str(lesson.get("lesson")
                              or lesson.get("summary") or "").split())
         if not text:
             continue
         lid = str(lesson.get("id") or lesson.get("lesson_id") or
-                  f"idx-{lessons.index(lesson)}")
-        version = str(abs(hash(text)) % 100000)
+                  f"idx-{idx}")
+        import hashlib as _hl
 
-        # PRIMARY: "take the RETAIL LIST PRICE ... NEW and depreciate it
-        # ... until the machine's current age" (shape: priced-from-new +
-        # percent-per-year depreciation)
-        if _re.search(
-                r"depreciat", text, _re.IGNORECASE) and _re.search(
-                r"new\b|retail", text, _re.IGNORECASE):
-            out.append(TaughtPolicy(
-                policy_id="used-machinery-depreciation",
-                name="Depreciate the new-model retail price to current age",
-                steps=[
-                    PolicyStep("depreciate",
-                               {"annual_percent": "{annual_percent}",
-                                "years": "{years}"},
-                               note="percent and years bound per item"),
-                    PolicyStep("round", {"mode": "up", "places": 0},
-                               note="whole-dollar list prices"),
-                ],
-                provenance=f"lesson:{lid}", version=version,
-                conditions=["requires the current new-model price"]))
-
-        # FALLBACK LADDER (shape: an ordered arithmetic recipe with
-        # discount → freight → handling → margins → ROUNDUP cues)
-        cues = [("discount", _re.search(
-                    r"discount\s*\(\s*[A-Z]\d+\s*\*\s*([0-9.]+)",
-                    text, _re.IGNORECASE)),
-                ("freight", _re.search(
-                    r"freight\s*\(\s*[A-Z]\d+\s*\+\s*([0-9.]+)",
-                    text, _re.IGNORECASE)),
-                ("handling", _re.search(
-                    r"handling\s*\(\s*[A-Z]\d+\s*\*\s*([0-9.]+)",
-                    text, _re.IGNORECASE)),
-                ("margin1", _re.search(
-                    r"margin steps?\s*\(\s*[A-Z]\d+\s*/\s*([0-9.]+)",
-                    text, _re.IGNORECASE)),
-                ("margin2", _re.search(
-                    r"(?:and|,)\s*[A-Z]\d+\s*/\s*([0-9.]+)\s*\)",
-                    text, _re.IGNORECASE)),
-                ("round", _re.search(r"ROUNDUP", text, _re.IGNORECASE))]
-        have = [c for c, m in cues if m]
-        if {"discount", "margin1", "round"} <= set(have):
-            steps = [PolicyStep(
-                "multiply",
-                {"factor": float(cues[0][1].group(1))},
-                note="dealer discount")]
-            if cues[1][1]:
-                steps.append(PolicyStep(
-                    "add_freight", {"amount": float(
-                        cues[1][1].group(1))}, note="taught freight"))
-            if cues[2][1]:
-                steps.append(PolicyStep(
-                    "multiply", {"factor": float(
-                        cues[2][1].group(1))}, note="warehouse handling"))
-            steps.append(PolicyStep(
-                "apply_margin",
-                {"percent": round((1 - float(cues[3][1].group(1)))
-                                  * 100, 6)},
-                note="margin step 1 (taught as division by the factor)"))
-            if cues[4][1]:
-                steps.append(PolicyStep(
-                    "apply_margin",
-                    {"percent": round((1 - float(cues[4][1].group(1)))
-                                      * 100, 6)},
-                    note="margin step 2"))
-            steps.append(PolicyStep(
-                "round", {"mode": "up", "places": 0},
-                note="taught ROUNDUP"))
-            out.append(TaughtPolicy(
-                policy_id="workbook-ladder",
-                name="Workbook ladder (discount → freight → handling → "
-                     "margins → ROUNDUP)",
-                steps=steps,
-                provenance=f"lesson:{lid}", version=version,
-                conditions=["backup when the primary method's inputs are "
-                            "unavailable"]))
+        _canon = f"{lid}\x1f{text}"
+        version = _hl.sha256(_canon.encode("utf-8")).hexdigest()[:12]
+        steps, conditions = _taught_steps_from_text(text)
+        if not steps:
+            continue
+        # A recipe with an explicit ROUNDUP/rounding cue in the SAME
+        # lesson gets the rounding step; without it, none is added.
+        out.append(TaughtPolicy(
+            policy_id=_derived_policy_id(steps, text),
+            name=f"Taught recipe ({len(steps)} step(s))",
+            steps=steps,
+            provenance=f"lesson:{lid}",
+            version=version,
+            conditions=conditions))
     return out
 
 
-# ---------------------------------------------------------------------------
-# Job integration: a calculation is an OPERATION on the existing job
-# ---------------------------------------------------------------------------
+# A taught number: digits with optional decimal part (never parsed via
+# float — captured as a string and handed to Decimal directly).
+_NUM = r"([0-9]+(?:\.[0-9]+)?)"
+
+
+def _dec(s: str) -> Decimal:
+    return Decimal(s)
+
+
+def _taught_steps_from_text(
+        text: str) -> "tuple[List[PolicyStep], List[str]]":
+    """Explicit steps + unresolved conditions from ONE lesson's text."""
+    steps: List[PolicyStep] = []
+    conditions: List[str] = []
+    low = text
+
+    # "markup of 20%" / "20 percent markup" — explicit markup.
+    for m in _re.finditer(
+            rf"markup[^.{{}}]{{0,30}}?{_NUM}\s*(?:%|percent)",
+            low, _re.IGNORECASE):
+        steps.append(PolicyStep(
+            "apply_markup", {"percent": m.group(1)},
+            note="taught markup"))
+    if not steps:
+        for m in _re.finditer(
+                rf"{_NUM}\s*(?:%|percent)\s+markup",
+                low, _re.IGNORECASE):
+            steps.append(PolicyStep(
+                "apply_markup", {"percent": m.group(1)},
+                note="taught markup"))
+
+    # "gross margin of 20%" / "20% gross margin" — explicit margin.
+    for m in _re.finditer(
+            rf"(?:gross\s+)?margin[^.{{}}]{{0,30}}?{_NUM}\s*(?:%|percent)",
+            low, _re.IGNORECASE):
+        steps.append(PolicyStep(
+            "apply_margin", {"percent": m.group(1)},
+            note="taught gross margin"))
+    if not any(s.op == "apply_margin" for s in steps):
+        for m in _re.finditer(
+                rf"{_NUM}\s*(?:%|percent)\s+(?:gross\s+)?margin",
+                low, _re.IGNORECASE):
+            steps.append(PolicyStep(
+                "apply_margin", {"percent": m.group(1)},
+                note="taught gross margin"))
+
+    # Ordered ladder cues: "(F235*0.9)" multiply, "(H235+700)" add,
+    # "(K235/0.87)" divide — EXACT operations with EXACT numbers, in
+    # text order. A division stays a division (multiply by the exact
+    # Decimal reciprocal is avoided; we keep the literal factor as a
+    # multiply-by-Decimal only when the cue is a multiplication —
+    # divisions become a dedicated step kind below).
+    # The cue shapes are 'CELL*NUM', 'CELL+NUM' (usually parenthesized)
+    # and 'CELL/NUM' (often NOT parenthesized — '(K235/0.87 and
+    # L235/0.86)' closes only after the second). Match the bare
+    # CELL-op-NUM core; the surrounding prose is not the contract.
+    for m in _re.finditer(
+            rf"[A-Z]\d{{1,4}}\s*([*/+])\s*{_NUM}\b",
+            low):
+        op_ch, num = m.group(1), m.group(2)
+        if op_ch == "*":
+            steps.append(PolicyStep(
+                "multiply", {"factor": num},
+                note=f"taught multiply ({m.group(0)})"))
+        elif op_ch == "+":
+            steps.append(PolicyStep(
+                "add_freight", {"amount": num},
+                note=f"taught add ({m.group(0)})"))
+        elif op_ch == "/":
+            steps.append(PolicyStep(
+                "divide", {"divisor": num},
+                note=f"taught divide ({m.group(0)})"))
+
+    # Rounding: ONLY an explicit ROUNDUP / "round ... to N places" in
+    # the lesson — and it executes LAST (rounding terminates the
+    # recipe regardless of where the word sits in the sentence).
+    if _re.search(r"\bROUNDUP\b", text):
+        round_step = PolicyStep(
+            "round", {"mode": "up", "places": 0},
+            note="taught ROUNDUP")
+    else:
+        m = _re.search(
+            rf"round[^.{{}}]{{0,30}}?to\s+({ _NUM })\s+decimal\s+places",
+            text, _re.IGNORECASE)
+        if m:
+            steps.append(PolicyStep(
+                "round", {"mode": "half_up", "places": int(m.group(1))},
+                note="taught rounding"))
+
+    # Depreciation WITHOUT taught numbers: an unresolved applicability
+    # condition, never an invented recipe.
+    if _re.search(r"depreciat", low, _re.IGNORECASE) and not any(
+            s.op == "depreciate" for s in steps):
+        pct = _re.search(
+            rf"depreciat[^.{{}}]{{0,60}}?{_NUM}\s*(?:%|percent)",
+            low, _re.IGNORECASE)
+        if pct:
+            steps.append(PolicyStep(
+                "depreciate", {"annual_percent": pct.group(1),
+                               "years": "{years}"},
+                note="taught percent per year (years bound per item)"))
+        else:
+            conditions.append(
+                "depreciation is taught as the method but no annual "
+                "percent is stated — the rate is an unresolved input")
+    # Rounding terminates the recipe (appended after all value steps).
+    try:
+        steps.append(round_step)
+    except NameError:
+        pass
+    return steps, conditions
+
+
+def _derived_policy_id(steps: List[PolicyStep], text: str) -> str:
+    """A stable id from what the recipe IS (its ops), not the business
+    it serves."""
+    ops = "-".join(s.op for s in steps)
+    return f"taught-{ops}"
+
+
 
 def record_calculation(
         lifecycle: Any,
@@ -719,3 +795,100 @@ def record_calculation(
         _logging.getLogger(__name__).warning(
             "calculation recording skipped: %r", exc)
         return None
+
+
+# ---------------------------------------------------------------------------
+# The agent-facing entry: a typed query string -> grounded result block
+# ---------------------------------------------------------------------------
+
+_QUERY_PATTERNS = [
+    # calculate <policy> from <amount> <currency> [k=v ...]
+    _re.compile(
+        r"calculate\s+(?P<policy>[a-z0-9_-]+)\s+from\s+"
+        r"(?P<amount>[0-9]+(?:\.[0-9]+)?)\s+(?P<currency>[A-Za-z]{3})"
+        r"(?P<rest>.*)$", _re.IGNORECASE),
+]
+
+
+async def calculate_from_query(
+        query: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str]) -> Optional[str]:
+    """The planner lane's entry (round 67): parse the typed query,
+    load the taught policies for the workspace's agents, select the
+    named one, run it, and return a grounded LIVE TOOL RESULTS block
+    with the full comparison. Unknown policy / missing bindings are
+    honest outcomes, never fabricated values."""
+    q = " ".join(str(query or "").split())
+    if not q:
+        return None
+    m = None
+    for pat in _QUERY_PATTERNS:
+        m = pat.match(q)
+        if m:
+            break
+    if m is None:
+        return None
+    from core.database import get_db_session
+    from core.student_learning_service import _permanent_lessons
+    from core.models import AgentRegistry
+
+    # Load every workspace agent's taught policies (sibling-sharing is
+    # the established design), then select by the queried id.
+    policies = []
+    with get_db_session() as db:
+        ids = [str(r.id) for r in db.query(AgentRegistry.id)
+               .filter(AgentRegistry.status != "retired").limit(10)]
+        for aid in ids:
+            for lesson in _permanent_lessons(db, aid):
+                lesson.setdefault("id", aid)
+                policies.extend(parse_taught_policies([lesson]))
+    wanted = m.group("policy").strip().lower()
+    selected = next(
+        (p for p in policies
+         if p.policy_id.lower() == wanted), None)
+    if selected is None:
+        return (
+            "LIVE TOOL RESULTS (datasets.calculate) — UNKNOWN POLICY "
+            f"'{m.group('policy')}': no taught recipe with that id "
+            f"(available: {', '.join(sorted({p.policy_id for p in policies})) or 'none'}). "
+            "Do not compute a price by hand; state which policy should "
+            "apply and ask for the teaching if it is missing.")
+
+    # params from the rest: k=v tokens; source=/override= named.
+    params: Dict[str, str] = {}
+    source_ref = None
+    override = None
+    for tok in (m.group("rest") or "").split():
+        if "=" not in tok:
+            continue
+        k, v = tok.split("=", 1)
+        k = k.strip().lower()
+        if k == "source":
+            source_ref = SourceRef(kind="named", reference=v)
+        elif k == "override":
+            override = Money(Decimal(v), m.group("currency").upper())
+        else:
+            params[k] = v
+    inputs = PricingInputs(
+        base=Money(Decimal(m.group("amount")),
+                   m.group("currency").upper()),
+        source=source_ref or SourceRef(
+            kind="query", reference="agent-provided"),
+        manual_override=override,
+        params=params)
+    result = run_policy(selected, inputs)
+    body = render_comparison("Requested calculation", None, result)
+    return _grounded(body)
+
+
+def _grounded(body: str) -> str:
+    try:
+        from core.chat_tool_planner import _with_grounding
+
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.calculate — deterministic "
+            "Decimal arithmetic; the model did not compute this):\n"
+            + body)
+    except Exception:  # noqa: BLE001 — grounding is additive
+        return ("LIVE TOOL RESULTS (datasets.calculate):\n" + body)

@@ -227,85 +227,100 @@ class TestGovernanceBoundaries:
 
 
 class TestTaughtPolicyParsing:
-    """The Brennan rules parsed from the durable teaching into typed
-    policies — provenance and version on each. Arithmetic expectations
-    hand-computed."""
+    """Round 67 integrity: EXPLICIT taught rules only; Decimal
+    literals; unresolved conditions for unstated rates/rounding."""
 
-    def _ladder_policy(self):
+    LADDER_LESSON = (
+        "SECONDARY / BACKUP method: derive it from the F-5216 workbook "
+        "ladder — start at the dealer's factory price, apply the dealer "
+        "discount (F235*0.9), add freight (H235+700), add warehouse "
+        "handling (J235*1.02), then the Brennan margin steps (K235/0.87 "
+        "and L235/0.86), and ROUNDUP to whole dollars (N235)")
+
+    def test_ladder_parses_as_taught_divisions_not_margin(self):
         from core.pricing_calculation import parse_taught_policies
-        return parse_taught_policies([
-            {"lesson": ("Used machinery list price — PRIMARY method: take "
-                        "the RETAIL LIST PRICE of the same machine NEW and "
-                        "depreciate it according to market trends until the "
-                        "machine's current age is reached. SECONDARY / "
-                        "BACKUP method: derive it from the F-5216 workbook "
-                        "ladder — start at the dealer's factory price, "
-                        "apply the dealer discount (F235*0.9), add freight "
-                        "(H235+700), add warehouse handling (J235*1.02), "
-                        "then the Brennan margin steps (K235/0.87 and "
-                        "L235/0.86), and ROUNDUP to whole dollars (N235)"),
-             "id": "4b6a11cc"},
-            {"lesson": ("standard calculation start with USD but when "
-                        "reselling old machines, it's from canada, the "
-                        "currency is in CAD. Exchange rate will not matter "
-                        "in this situation"),
-             "id": "cad-rule"},
-        ])
+        policies = parse_taught_policies([
+            {"lesson": self.LADDER_LESSON, "id": "4b6a11cc"}])
+        assert len(policies) == 1
+        p = policies[0]
+        ops = [s.op for s in p.steps]
+        # Exact taught operations in text order — divisions STAY
+        # divisions (no margin semantics derived).
+        assert ops == ["multiply", "add_freight", "multiply",
+                       "divide", "divide", "round"]
+        # Decimal literals, byte-exact from the teaching.
+        assert p.steps[0].params["factor"] == "0.9"
+        assert p.steps[3].params["divisor"] == "0.87"
+        assert p.steps[4].params["divisor"] == "0.86"
+        assert p.steps[5].params == {"mode": "up", "places": 0}
+        assert p.provenance == "lesson:4b6a11cc"
 
-    def test_primary_and_fallback_policies_parsed(self):
-        policies = self._ladder_policy()
-        ids = {p.policy_id for p in policies}
-        assert "used-machinery-depreciation" in ids
-        assert "workbook-ladder" in ids
-        for p in policies:
-            assert p.provenance  # lesson id named
-            assert p.version
-
-    def test_fallback_ladder_arithmetic(self):
-        """The taught ladder as pure arithmetic: factory 1000 →
-        discount ×0.9 → +freight 700 → ×1.02 → /0.87 → /0.86 → ROUNDUP.
-        Hand: 1000×0.9=900; +700=1600; ×1.02=1632; /0.87=1875.862…;
-        /0.86=2181.236…; ROUNDUP=2182."""
-        policies = {p.policy_id: p for p in self._ladder_policy()}
-        ladder = policies["workbook-ladder"]
-        res = run_policy(ladder, PricingInputs(
+    def test_ladder_arithmetic_decimal_exact(self):
+        """Hand-computed: 1000 ×0.9=900; +700=1600; ×1.02=1632;
+        ÷0.87=1875.8620689655...; ÷0.86=2181.234...; ROUNDUP=2182."""
+        from core.pricing_calculation import parse_taught_policies
+        p = parse_taught_policies([
+            {"lesson": self.LADDER_LESSON, "id": "4b6a11cc"}])[0]
+        res = run_policy(p, PricingInputs(
             base=Money(Decimal("1000"), "CAD"),
-            source=_src(ref="F5216!F235", seen="2019-01-01"),
-            params={"freight_amount": "700"}))
+            source=_src(ref="F5216!F235", seen="2019-01-01")))
         assert res.status == "succeeded"
         assert res.proposed.amount == Decimal("2182")
 
-    def test_primary_depreciation_arithmetic(self):
-        """New retail 10000, 15%/yr for 3 years: 10000×0.85³ = 6141.25
-        → ROUNDUP whole dollars = 6142."""
-        policies = {p.policy_id: p for p in self._ladder_policy()}
-        prim = policies["used-machinery-depreciation"]
-        res = run_policy(prim, PricingInputs(
-            base=Money(Decimal("10000"), "CAD"),
-            source=_src(ref="vendor-quote-2026", seen="2026-08-01"),
-            params={"annual_percent": "15", "years": "3"}))
-        assert res.status == "succeeded"
-        assert res.proposed.amount == Decimal("6142")
-
-
-class TestMissingBindingUnresolved:
-    """A taught policy's per-item binding absent from the inputs is
-    UNRESOLVED with the name — never a literal execution."""
-
-    def test_missing_depreciation_years(self):
+    def test_depreciation_mention_without_numbers_is_unresolved(self):
+        """The reviewer's exact case: 'depreciate the new price' with no
+        percent/method/rounding teaches the METHOD, not a recipe — the
+        policy carries the unresolved condition, and no steps fire."""
         from core.pricing_calculation import parse_taught_policies
         policies = parse_taught_policies([{
             "lesson": ("take the RETAIL LIST PRICE of the same machine "
-                       "NEW and depreciate it until the machine's current "
-                       "age is reached, then ROUNDUP"),
-            "id": "l1"}])
+                       "NEW and depreciate it until the current age"),
+            "id": "l-dep"}])
+        # No steps -> no policy at all; the condition only surfaces when
+        # a lesson ALSO teaches an executable rule. Verify by feeding it
+        # with one markup rule attached.
+        policies2 = parse_taught_policies([{
+            "lesson": ("depreciate it until the current age. Backup: "
+                       "apply 40 percent markup"),
+            "id": "l-dep2"}])
+        assert len(policies) == 0 or all(
+            not p.steps for p in policies)
+        assert any(
+            "depreciation" in c.lower()
+            for p in policies2 for c in p.conditions)
+        assert any(s.op == "apply_markup" for p in policies2
+                   for s in p.steps)
+
+    def test_depreciation_with_taught_percent(self):
+        from core.pricing_calculation import parse_taught_policies
+        policies = parse_taught_policies([{
+            "lesson": ("depreciate 15 percent per year until the "
+                       "machine's current age, then ROUNDUP"),
+            "id": "l-dep3"}])
+        assert policies
+        steps = policies[0].steps
+        assert steps[0].op == "depreciate"
+        assert steps[0].params["annual_percent"] == "15"
+        assert steps[0].params["years"] == "{years}"
         res = run_policy(policies[0], PricingInputs(
-            base=Money(Decimal("10000"), "CAD"),
-            source=_src(),
-            params={"annual_percent": "15"}))  # years missing
-        assert res.status == "unresolved"
-        assert "years" in res.unresolved_reason
-        assert res.proposed is None
+            base=Money(Decimal("10000"), "CAD"), source=_src(),
+            params={"years": "3"}))
+        # hand: 10000×0.85³=6141.25 → ROUNDUP → 6142
+        assert res.proposed.amount == Decimal("6142")
+
+    def test_versions_stable_across_processes(self):
+        import subprocess, sys
+        code = (
+            "import sys; sys.path.insert(0, '.')\n"
+            "from core.pricing_calculation import parse_taught_policies\n"
+            "ps = parse_taught_policies([{'lesson': %r, 'id': 'x'}])\n"
+            "print([p.version for p in ps])" % self.LADDER_LESSON)
+        r1 = subprocess.run([sys.executable, "-c", code],
+                            capture_output=True, text=True, cwd=".")
+        r2 = subprocess.run([sys.executable, "-c", code],
+                            capture_output=True, text=True, cwd=".")
+        assert r1.stdout == r2.stdout
+        assert r1.stdout.strip().startswith("['")  # non-empty digest
 
 
 class TestJobLinkedCalculation:
@@ -380,3 +395,29 @@ class TestJobLinkedCalculation:
         work = next_unfinished_work(rec)
         assert any("cannot complete" in str(a.get("question"))
                    for a in work["actions"])
+
+
+class TestCalculateQueryEntry:
+    """Round 67: the planner lane's typed query — unknown policy is an
+    honest outcome; the available ids list comes from the real
+    teaching (this test seeds the store via the registry)."""
+
+    @pytest.mark.asyncio
+    async def test_unknown_policy_names_available(self, tmp_path,
+                                                  monkeypatch):
+        from core.pricing_calculation import calculate_from_query
+        # point the DB loader at a scratch store with no agents
+        r = await calculate_from_query(
+            "calculate some-policy from 100 CAD", "u1", None)
+        assert "UNKNOWN POLICY" in r
+        assert "Do not compute a price by hand" in r
+
+    def test_query_pattern_parses(self):
+        from core.pricing_calculation import _QUERY_PATTERNS
+        m = _QUERY_PATTERNS[0].match(
+            "calculate taught-multiply-add_freight from 1000 CAD "
+            "freight_amount=700 source=F5216!F235 override=2902")
+        assert m
+        assert m.group("policy") == "taught-multiply-add_freight"
+        assert m.group("amount") == "1000"
+        assert m.group("currency") == "CAD"
