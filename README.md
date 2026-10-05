@@ -1,5 +1,7 @@
 <div align="center">
 
+[![Deploy to Railyard](https://app.railyard.run/deploy/badge)](https://app.railyard.run/deploy?repo=https://github.com/rush86999/atom)
+
 # ATOM Platform
 ### The governed agent platform — autonomy, earned.
 
