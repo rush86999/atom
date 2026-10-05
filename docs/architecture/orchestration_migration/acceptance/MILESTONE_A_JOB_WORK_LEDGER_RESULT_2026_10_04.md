@@ -1242,3 +1242,46 @@ planner-variance-limited (the documented class; the deterministic
 path completed the calculation); freshness of the 2019 workbook is
 'unknown' (no observed date on the row) — honestly labeled, not
 claimed current.
+
+## Round-67 addendum (doc commit): integrity + the agent's calculator path — LIVE WORKFLOW SEPARATELY REPORTED
+
+**The three reviewer corrections, fixed and pinned**: (1) stable
+versions — sha256 of canonical content+provenance, cross-process
+stability proven by a two-subprocess pin; (2) parser integrity —
+explicit taught rules ONLY (a depreciation mention without a taught
+percent is an unresolved condition; ROUNDUP only when taught; the
+hardcoded used-machinery ids GONE; ids derive from ops+params); (3)
+Decimal throughout — string-captured literals, first-class divide, no
+float, no derived-margin rounding.
+
+**The calculator was an ISLAND — verified** (zero production
+references) and is now registered: a `calculate` intent on the
+datasets planner lane over the workspace agents' REAL taught policies.
+
+**THE LIVE WORKFLOW (price3–price8; separately from the earlier
+direct-engine demo; no operator called the calculation function)**:
+- price3: the agent invoked datasets.calculate itself; a guessed id
+  landed the honest UNKNOWN POLICY listing; it asked which policy
+  governs rather than assuming.
+- price5 (after the owner's legitimate policy answer): the agent
+  invoked the calculator and presented the deterministic result AS-IS —
+  policy id + stable version, the full step chain, CAD 19,671, the
+  freshness limitation — AND flagged that the run's base was the
+  post-margin intermediate of its own binding and the freight was the
+  taught 700 (not the instructed 800). Draft untouched.
+- price8: honest input provenance ("from your instruction, not values
+  I read from the file") and the 700-vs-800 freight conflict surfaced
+  as an owner decision; nothing applied.
+- The deterministic record: 7,627 → margin 50 → ×0.9 → +700 → ×1.02 →
+  ÷0.87 → ÷0.86 → ROUNDUP = CAD 19,671, recorded on the job (policy
+  id + version + steps); the earlier double-margin mis-reconstruction
+  (38,386) is marked superseded by the faithful replay.
+
+**Milestone: PARTIAL, kept so honestly.** The trained employee used
+the calculator successfully and verifiably. Named gaps: policy
+selection needed one owner answer (two margin-shaped teachings
+genuinely overlap); the price-cell read did not surface in the same
+turn as the run (the agent correctly refused to claim it had); one
+reply hand-computed the chain in narration when the tool path stalled;
+the draft-change step stays unexercised because the freight decision
+is still open — the correct boundary, not a completion.
