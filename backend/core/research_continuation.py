@@ -50,6 +50,15 @@ _CLAIM_TTL_SECONDS = float(
 _RECOVERY_TASK: "asyncio.Task | None" = None
 _WORKER_ID = f"research-worker-{os.getpid()}"
 
+# FIELD SYNONYMS (round 54): requested fields bind to columns by NAME
+# meaning — business-neutral. "price" is THIS job's requested field;
+# another business passes its own ("lead_time", "labor_rate", ...) and
+# adds its synonyms through the same map.
+FIELD_SYNONYMS: Dict[str, List[str]] = {
+    "price": ["price", "cost", "list", "dealer", "net", "cad", "us$",
+              "us "],
+}
+
 _PRICE_COLUMN_RE = re.compile(
     r"price|cost|list|dealer|net\b|cad\b|us\b", re.IGNORECASE)
 _PRICE_VALUE_RE = re.compile(
@@ -89,6 +98,22 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 continue
             doc = na[5:].rsplit(" for ", 1)[0].strip()
             item = item or na[5:].rsplit(" for ", 1)[-1].strip()
+        # ROW-READ FIRST (round 54): row successors also carry "file" —
+        # the intent must be checked before the document branch consumes
+        # them.
+        if str(inputs.get("intent") or "") == "row_read" and \
+                inputs.get("file") and inputs.get("row"):
+            out.append({
+                "item": item, "file": str(inputs["file"]),
+                "sheet": str(inputs.get("sheet") or ""),
+                "row": int(inputs.get("row") or 0),
+                "identity_column": str(
+                    inputs.get("identity_column") or ""),
+                "requested_fields": list(
+                    inputs.get("requested_fields") or []),
+                "intent": "row_read",
+                "question_id": a.get("question_id")})
+            continue
         if doc and item:
             out.append({"item": item, "file": doc,
                         "question_id": a.get("question_id")})
@@ -152,6 +177,37 @@ async def _execute_document_read(
             statuses[item] = ""
             evidence.append(
                 f"{item}: no match in this document — question stays open")
+        # SUCCESSOR (round 54): a located identity cell spawns the
+        # row-context read with complete structured inputs — the next
+        # cycle turns the location into evidence instead of repeating
+        # the same discovery. Deterministic text dedupes re-location.
+        if statuses.get(item) == "located":
+            first = classified[0][0]
+            from core.task_lifecycle import add_unresolved_questions
+
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item,
+                "kind": "verification",
+                "question": (
+                    f"{item}: located at {first.get('sheet')}/"
+                    f"{first.get('cell')} — read the row's "
+                    "requested fields"),
+                "evidence": "identity cell located; price unread",
+                "next_action": (
+                    f"read row {first.get('sheet')}!{first.get('cell')}"
+                    f" of {file_name} for the requested fields"),
+                "inputs": {
+                    "service": "datasets", "intent": "row_read",
+                    "file": file_name,
+                    "sheet": str(first.get("sheet") or ""),
+                    "row": int(re.sub(r"\D", "", str(
+                        first.get("cell") or "")) or 0),
+                    "identity_column": str(first.get("column") or ""),
+                    "identity_cell": str(first.get("cell") or ""),
+                    "item": item,
+                    "requested_fields": ["price"],
+                },
+            }], source_operation=None)
 
     op = lifecycle.create_operation(
         run_id, op_type="retrieve",
@@ -176,6 +232,144 @@ async def _execute_document_read(
         freshness=None, execution=_exec_facts)
     return {"file": file_name, "statuses": statuses,
             "evidence": evidence}
+
+
+def _bind_row_fields(
+        row_result: Dict[str, Any],
+        identity_column: str, item: str,
+        requested_fields: List[str]) -> Dict[str, Any]:
+    """Bind the row's values to the requested fields by COLUMN MEANING.
+    Returns {"identity_ok": bool, "bindings": {field: [(col, val)]}} —
+    every candidate column is preserved; AMBIGUITY is the caller's to
+    surface (an owner decision), never resolved by proximity."""
+    row = row_result.get("row") or {}
+    headers = row_result.get("headers") or []
+    id_val = str(row.get(identity_column, ""))
+    id_ok = bool(id_val and (
+        id_val.strip().lower() == str(item).strip().lower()
+        or str(item).strip().lower() in id_val.strip().lower()
+        or id_val.strip().lower() in str(item).strip().lower()))
+    bindings: Dict[str, List[Any]] = {}
+    for field in requested_fields or []:
+        syns = FIELD_SYNONYMS.get(str(field).lower(), [str(field)])
+        cands = []
+        for h in headers:
+            hl = str(h).lower()
+            if any(s in hl for s in syns) and str(row.get(h, "") or "") \
+                    not in ("", None):
+                cands.append((str(h), row.get(h)))
+        bindings[str(field)] = cands
+    return {"identity_ok": id_ok, "bindings": bindings}
+
+
+async def _execute_row_read(
+        lifecycle: Any, run_id: str,
+        user_id: str, workspace_id: str,
+        act: Dict[str, Any],
+        qids: List[str]) -> Dict[str, Any]:
+    """One row-context read: identity verification + field binding +
+    settle with evidence-bound disposition. Ambiguity and scoped
+    absences are terminal-but-honest outcomes."""
+    from core.sheet_dataset_service import read_sheet_row_sync
+    from core.task_lifecycle import (
+        add_unresolved_questions, finish_retrieval_turn,
+        record_read_outcome)
+
+    item = str(act.get("item") or "")
+    fields = list(act.get("requested_fields") or [])
+    row_result = await asyncio.to_thread(
+        read_sheet_row_sync, act["file"], act.get("sheet") or "",
+        act.get("row") or 0, user_id, workspace_id)
+    statuses: Dict[str, str] = {}
+    evidence: List[str] = []
+    decision_questions: List[Dict[str, Any]] = []
+    if row_result is None:
+        statuses[item] = ""
+        evidence.append(
+            f"{item}: row {act.get('row')} of {act.get('sheet')} not "
+            "readable — question stays open")
+    else:
+        bound = _bind_row_fields(
+            row_result, act.get("identity_column") or "", item, fields)
+        if not bound["identity_ok"]:
+            statuses[item] = ""
+            evidence.append(
+                f"{item}: row {act.get('row')} identity mismatch "
+                f"({act.get('identity_column')}="
+                f"{(row_result.get('row') or {}).get(act.get('identity_column'))!r}) "
+                "— not this item's row; question stays open")
+        else:
+            for field, cands in bound["bindings"].items():
+                if len(cands) == 1:
+                    col, val = cands[0]
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: {field} = {val} "
+                        f"({col}, {act.get('sheet')} row "
+                        f"{act.get('row')}, basis column as named)")
+                elif len(cands) > 1:
+                    # AMBIGUOUS: preserve every candidate; the CHOICE is
+                    # a business decision, never proximity.
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: {field} AMBIGUOUS — candidates: "
+                        + "; ".join(f"{c}={v}" for c, v in cands))
+                    decision_questions.append({
+                        "item": item,
+                        "kind": "business_decision",
+                        "question": (
+                            f"which {field} basis applies to {item}: "
+                            + " vs ".join(f"{c}={v}" for c, v in cands)),
+                        "evidence": (
+                            f"row {act.get('row')} of "
+                            f"{act.get('sheet')} in {act.get('file')}"),
+                        "next_action": (
+                            f"owner picks the {field} basis for {item}"),
+                    })
+                else:
+                    # SCOPED FINDING: the row genuinely lacks the field.
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: row {act.get('row')} of "
+                        f"{act.get('sheet')} has NO {field} column with "
+                        "a value — scoped absence in this source")
+
+    op = lifecycle.create_operation(
+        run_id, op_type="retrieve",
+        requested_change=(
+            f"row-context read: {act.get('file')}/{act.get('sheet')}"
+            f" row {act.get('row')} for {item}"))
+    _exec_facts = {
+        "invoked": row_result is not None,
+        "outcome": ("read_succeeded" if statuses.get(item) == "matched"
+                    else "read_returned_no_receipt"
+                    if row_result is not None else "read_failed"),
+        "served_basis": ("saved_copy" if row_result is not None
+                         else "none"),
+        "failure_stage": None,
+        "items": statuses,
+    }
+    # SETTLE OWNERSHIP (round 54): if another worker re-claimed while
+    # this read ran (lease expiry), this stale holder must not settle.
+    from core.task_lifecycle import verify_question_claims
+
+    if qids and not verify_question_claims(
+            lifecycle, run_id, qids, by=_WORKER_ID,
+            ttl_seconds=_CLAIM_TTL_SECONDS):
+        return {"statuses": {}, "evidence": [
+            "ownership lost to another worker — settle skipped"],
+            "lost_ownership": True}
+    finish_retrieval_turn(
+        lifecycle, run_id, op["operation_id"], {}, None,
+        bool(_exec_facts["outcome"] == "read_succeeded"),
+        execution=_exec_facts)
+    record_read_outcome(
+        lifecycle, run_id, op["operation_id"], structured_result=None,
+        freshness=None, execution=_exec_facts)
+    if decision_questions:
+        add_unresolved_questions(
+            lifecycle, run_id, decision_questions, source_operation=None)
+    return {"statuses": statuses, "evidence": evidence}
 
 
 def _session_owned_by_interactive(sess: Dict[str, Any]) -> bool:
@@ -236,7 +430,12 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             workspace_id = str(sess.get("workspace_id") or "default")
             groups: Dict[str, List[Dict[str, Any]]] = {}
             for a in acts:
-                groups.setdefault(a["file"], []).append(a)
+                # Row-read successors group SEPARATELY from document
+                # reads of the same file (they dispatch differently).
+                key = (f"row:{a['file']}:{a.get('sheet')}:"
+                       f"{a.get('row')}"
+                       if a.get("intent") == "row_read" else a["file"])
+                groups.setdefault(key, []).append(a)
             out["jobs"] += 1
             notes: List[str] = []
             for fname, group in list(groups.items()):
@@ -258,6 +457,18 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     continue  # another worker holds a fresh claim
                 budget -= 1
                 out["reads"] += 1
+                if group[0].get("intent") == "row_read":
+                    res = await _execute_row_read(
+                        lifecycle, run_id, user_id, workspace_id,
+                        group[0], qids)
+                    out["items_matched"] += sum(
+                        1 for s in res["statuses"].values()
+                        if s == "matched")
+                    notes.append(
+                        f"row read ({group[0].get('sheet')} row "
+                        f"{group[0].get('row')}): "
+                        + "; ".join(res["evidence"]))
+                    continue
                 res = await _execute_document_read(
                     lifecycle, run_id, user_id, workspace_id, fname,
                     [g["item"] for g in group])

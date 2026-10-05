@@ -2904,3 +2904,61 @@ async def datasets_for_file(source: str, external_id: str) -> List[Dict[str, Any
     except Exception as err:  # noqa: BLE001
         logger.debug(f"sheet datasets: lookup failed for {external_id}: {err}")
         return []
+
+
+def read_sheet_row_sync(
+    file_name: str,
+    sheet_name: str,
+    row_number: int,
+    user_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """ROW-CONTEXT READ (round 54): one row of one sheet of one cataloged
+    workbook, with its HEADER NAMES — the caller binds values to fields by
+    column meaning, never by proximity. Excel row numbers (as carried in
+    find_all cell addresses, header = row 1) map to the materialized frame
+    by subtracting the header. Returns {"headers": [...], "row": {col:
+    value}} or None when the file/sheet is not cataloged. Business-
+    neutral: no field-specific rules live here."""
+    try:
+        from core.models import DatasetEntry
+
+        with _catalog_session() as db:
+            q = db.query(DatasetEntry).filter(
+                DatasetEntry.file_name == file_name,
+                DatasetEntry.entity_name == sheet_name,
+                DatasetEntry.status == "active")
+            if workspace_id:
+                q = q.filter(
+                    DatasetEntry.workspace_id == workspace_id)
+            entry = q.first()
+            if entry is None or not entry.parquet_path:
+                return None
+            parquet_path = entry.parquet_path
+        import pandas as _pd
+
+        df = _pd.read_parquet(parquet_path)
+        # Row mapping: the frames carry __sheet_row (the TRUE Excel row —
+        # materialization skips blank rows, so position alone lies). Fall
+        # back to position only when the marker is absent.
+        if "__sheet_row" in df.columns:
+            hits = df.index[df["__sheet_row"] == int(row_number)]
+            idx = int(hits[0]) if len(hits) else -1
+        else:
+            idx = int(row_number) - 2  # header occupies Excel row 1
+        if idx < 0 or idx >= len(df):
+            return None
+        headers = [str(c) for c in df.columns]
+        row = {}
+        for col in df.columns:
+            val = df.iloc[idx][col]
+            row[str(col)] = (
+                None if val is None or (hasattr(val, "item")
+                                        and _pd.isna(val))
+                else (val.item() if hasattr(val, "item") else val))
+            if isinstance(row[str(col)], float) and \
+                    row[str(col)] == int(row[str(col)]):
+                row[str(col)] = int(row[str(col)])
+        return {"headers": headers, "row": row}
+    except Exception:  # noqa: BLE001 — a row read degrades to None
+        return None

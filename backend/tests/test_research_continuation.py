@@ -296,3 +296,244 @@ class TestPerItemEvidenceNegativeControls:
         again = claim_questions_for_execution(
             lifecycle, run_id, [qid], by="worker-A", ttl_seconds=120)
         assert again == [qid]
+
+
+class TestRowContextSuccessor:
+    """Round 54: located cell → persisted row-read action → actual read
+    → evidence-bound disposition → completed action not re-selected."""
+
+    def _row_result(self, row):
+        return {"headers": list(row.keys()), "row": row}
+
+    @pytest.mark.asyncio
+    async def test_located_spawns_row_read_successor_and_it_resolves(
+            self, lifecycle, monkeypatch):
+        from core.task_lifecycle import (
+            UNRESOLVED_ATTEMPT_CAP, begin_retrieval_turn,
+            next_unfinished_work, record_read_outcome)
+        from core import research_continuation as rc
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-rr", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[{
+                "item": "U-22", "kind": "verification",
+                "question": "U-22 is carried by WB.xlsx — not yet read",
+                "evidence": "vt", "next_action": "read WB.xlsx for U-22",
+                "inputs": {"item": "U-22", "file": "WB.xlsx"}}])
+
+        # Document read: identity-only match -> located + successor.
+        def fake_find_all(value, user_id, workspace_id, file_name=None,
+                          max_matches=8, **kw):
+            return {"matches": [
+                {"file": "WB.xlsx", "sheet": "LINMAC", "cell": "A22",
+                 "column": "Part Number", "value": "U-22"}]}
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.find_all_occurrences_sync",
+            fake_find_all)
+        # Row read: single price column.
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync",
+            lambda *a, **kw: self._row_result({
+                "Part Number": "U-22", "Description": "bead roller",
+                "List Price": 1777}))
+
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "u1", "workspace_id": "ws",
+                        "agent_id": "a1",
+                        "history": [{"message": "hi", "response": "ok"}]}
+
+            def update_session_activity(self, sid, history=None,
+                                        last_message=None):
+                pass
+
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+        out1 = await rc.research_continuation_cycle()
+        assert out1["items_located"] == 1
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        row_actions = [a for a in work["actions"]
+                       if (a.get("inputs") or {}).get("intent")
+                       == "row_read"]
+        assert len(row_actions) == 1, "successor created"
+        # The successor's inputs are complete and stable.
+        assert row_actions[0]["inputs"]["row"] == 22
+        assert row_actions[0]["inputs"]["sheet"] == "LINMAC"
+        assert row_actions[0]["inputs"]["requested_fields"] == ["price"]
+
+        # Cycle 2 completes the row read (grouping keeps doc and row
+        # reads distinct): the located state turns into evidence.
+        out2 = await rc.research_continuation_cycle()
+        assert out2["items_matched"] >= 1
+        work2 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any(
+            (a.get("inputs") or {}).get("intent") == "row_read"
+            for a in work2["actions"]), "completed row-read retired"
+        # And a THIRD cycle re-locates without duplicating successors:
+        # no open row-read reappears, and exactly ONE resolved twin
+        # exists in the record.
+        out3 = await rc.research_continuation_cycle()
+        work3 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any(
+            (a.get("inputs") or {}).get("intent") == "row_read"
+            for a in work3["actions"]), "resolved successor stays retired"
+        rec3 = lifecycle.get_task(run_id)
+        twins = [q for q in rec3["task_revision"]["unresolved"]
+                 if (q.get("inputs") or {}).get("intent") == "row_read"]
+        assert len(twins) == 1 and twins[0]["status"] == "resolved", (
+            "re-location does not duplicate the resolved successor")
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_price_columns_preserved_as_decision(
+            self, lifecycle, monkeypatch):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work,
+            record_read_outcome)
+        from core import research_continuation as rc
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-am", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[{
+                "item": "U-22", "kind": "verification",
+                "question": "U-22 row read",
+                "evidence": "located",
+                "next_action": "read row LINMAC!A22 of WB.xlsx",
+                "inputs": {
+                    "service": "datasets", "intent": "row_read",
+                    "file": "WB.xlsx", "sheet": "LINMAC", "row": 22,
+                    "identity_column": "Part Number",
+                    "identity_cell": "A22", "item": "U-22",
+                    "requested_fields": ["price"]}}])
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync",
+            lambda *a, **kw: self._row_result({
+                "Part Number": "U-22",
+                "List Price": 1431, "List Price_2": 1393,
+                "Dealer": 1392.89}))
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "u1", "workspace_id": "ws",
+                        "history": [{"message": "hi", "response": "ok"}]}
+
+            def update_session_activity(self, sid, history=None,
+                                        last_message=None):
+                pass
+
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+        out = await rc.research_continuation_cycle()
+        assert out["items_matched"] == 1
+        rec = lifecycle.get_task(run_id)
+        decisions = [q for q in rec["task_revision"]["unresolved"]
+                     if q.get("kind") == "business_decision"]
+        assert decisions, "ambiguity opens an owner decision"
+        assert "List Price=1431" in decisions[0]["question"] and (
+            "List Price_2=1393" in decisions[0]["question"]), (
+            "every candidate is preserved in the decision")
+
+    @pytest.mark.asyncio
+    async def test_row_lacking_field_is_a_scoped_finding(
+            self, lifecycle, monkeypatch):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work,
+            record_read_outcome)
+        from core import research_continuation as rc
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-nf", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[{
+                "item": "X1", "kind": "verification",
+                "question": "X1 row read", "evidence": "located",
+                "next_action": "read row S!A5 of WB.xlsx",
+                "inputs": {
+                    "service": "datasets", "intent": "row_read",
+                    "file": "WB.xlsx", "sheet": "S", "row": 5,
+                    "identity_column": "Part Number",
+                    "identity_cell": "A5", "item": "X1",
+                    "requested_fields": ["price"]}}])
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync",
+            lambda *a, **kw: self._row_result({
+                "Part Number": "X1", "Description": "thing"}))
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "u1", "workspace_id": "ws",
+                        "history": [{"message": "hi", "response": "ok"}]}
+
+            def update_session_activity(self, sid, history=None,
+                                        last_message=None):
+                pass
+
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+        out = await rc.research_continuation_cycle()
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any(
+            (a.get("inputs") or {}).get("intent") == "row_read"
+            for a in work["actions"]), (
+            "a scoped absence retires the row-read (finding recorded)")
+
+
+class TestClaimSafety:
+    """Round 54: claims are atomic conditional writes (CAS retry re-runs
+    compute on fresh state); lease expiry transfers ownership; a stale
+    holder must not settle."""
+
+    def test_two_workers_over_one_store(self, lifecycle):
+        from core.task_lifecycle import (
+            TaskLifecycle, begin_retrieval_turn,
+            claim_questions_for_execution, next_unfinished_work,
+            record_read_outcome, verify_question_claims)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-2w", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None,
+            freshness=None, execution=None, extra_questions=[{
+                "item": "X", "kind": "verification",
+                "question": "X not read", "evidence": "vt",
+                "next_action": "read WB.xlsx for X"}])
+        qid = next_unfinished_work(lifecycle.get_task(run_id))[
+            "actions"][0]["question_id"]
+
+        worker_a = lifecycle
+        worker_b = TaskLifecycle(lifecycle.runs, lifecycle.goals)
+        a = claim_questions_for_execution(
+            worker_a, run_id, [qid], by="A", ttl_seconds=120)
+        b = claim_questions_for_execution(
+            worker_b, run_id, [qid], by="B", ttl_seconds=120)
+        assert a == [qid] and b == [], "atomic: B refuses A's fresh claim"
+
+        # Lease expiry: B re-claims after A's TTL lapses.
+        import time as _t
+        worker_a.apply_transition(run_id, {
+            "kind": "record_unresolved",
+            "requested_change": "age A's claim past TTL",
+            "claims": [{"question_id": qid, "by": "A",
+                        "at": _t.time() - 999}],
+            "source_operation": None,
+        })
+        b2 = claim_questions_for_execution(
+            worker_b, run_id, [qid], by="B", ttl_seconds=120)
+        assert b2 == [qid], "expired lease transfers to B"
+
+        # Stale holder A must not settle B's question.
+        assert verify_question_claims(
+            worker_a, run_id, [qid], by="A", ttl_seconds=120) == []
+        assert verify_question_claims(
+            worker_b, run_id, [qid], by="B", ttl_seconds=120) == [qid]

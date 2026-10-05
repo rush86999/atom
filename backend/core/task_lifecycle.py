@@ -615,6 +615,11 @@ def _normalize_question(question: Dict[str, Any],
         "evidence": _bounded_text(question.get("evidence"), 500),
         "next_action": next_action.strip() or None,
         "decision_owner": ("owner" if kind == "business_decision" else None),
+        # STRUCTURED INPUTS (round 54): stable action inputs ride the
+        # question — workers dispatch from them, never from prose.
+        "inputs": (
+            dict(question["inputs"])
+            if isinstance(question.get("inputs"), dict) else None),
         "status": "open",
         "attempts": attempts,
         "opened_at": _utc_now_iso(),
@@ -2275,6 +2280,7 @@ def _slim_question(question: Dict[str, Any]) -> Dict[str, Any]:
         "kind": question.get("kind"),
         "next_action": question.get("next_action"),
         "decision_owner": question.get("decision_owner"),
+        "inputs": question.get("inputs"),
         "attempts": int(question.get("attempts") or 0),
     }
 
@@ -2360,6 +2366,39 @@ def claim_questions_for_execution(
     return [c["question_id"] for c in claimable]
 
 
+def verify_question_claims(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        question_ids: List[str],
+        *,
+        by: str,
+        ttl_seconds: float = 120.0,
+) -> List[str]:
+    """SETTLE OWNERSHIP (round 54): the ids this worker STILL owns — a
+    stale holder whose lease expired (another worker re-claimed) must
+    not settle. Attempt-counter bounds and CAS writes make the CLAIM
+    atomic; this check closes the settle side."""
+    import time as _time
+
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    now = _time.time()
+    owned = []
+    for q in open_unresolved_questions(record):
+        qid = str(q.get("question_id") or "")
+        if qid not in set(map(str, question_ids or [])):
+            continue
+        claim = q.get("exec_claim") or {}
+        try:
+            fresh = (now - float(claim.get("at"))) < ttl_seconds
+        except (TypeError, ValueError):
+            fresh = False
+        if claim and str(claim.get("by")) == by and fresh:
+            owned.append(qid)
+    return owned
+
+
 def migrate_attempt_budgets(
         lifecycle: "TaskLifecycle",
         run_id: str,
@@ -2424,11 +2463,24 @@ def add_unresolved_questions(
         return []
     already_open = {_question_key(q)
                     for q in open_unresolved_questions(record)}
+    # RESOLVED NON-RECURRENCE (round 54): a question whose identical
+    # (item, text) twin was already RESOLVED is identical rediscovery —
+    # it must not reopen (the completed action stays completed). A
+    # materially different successor has different text by construction.
+    _resolved_twins = {}
+    for q in (record.get("task_revision") or {}).get("unresolved") or []:
+        if q.get("status") == "resolved":
+            _resolved_twins[_question_key(q)] = q
     fresh: List[Dict[str, Any]] = []
     for question in questions:
         entry = _normalize_question(question, operation=source_operation)
         if _question_key(entry) in already_open:
             continue
+        _twin = _resolved_twins.get(_question_key(entry))
+        if _twin is not None and (
+                (dict(_twin.get("inputs") or {})) ==
+                (dict(entry.get("inputs") or {}))):
+            continue  # identical rediscovery of a resolved question
         already_open.add(_question_key(entry))
         fresh.append(entry)
     if not fresh:
@@ -2751,15 +2803,28 @@ def record_read_outcome(
             if _basis == "saved_copy":
                 _detail += ("; served from the SAVED COPY — freshness "
                             "against the live source is NOT established")
-            derived["resolutions"].append({
-                "items": sorted(_read_items),
-                "kinds": ["verification"],
-                "resolution": {
-                    "how": "targeted read executed",
-                    "basis": _basis or None,
-                    "detail": _detail,
-                },
-            })
+            # READ-SHAPED ONLY (round 54): the retirement resolves
+            # targeted-READ questions; the freshness successor's action
+            # ("re-verify ... live source") closes only on live-source
+            # verification, never on another saved-copy read.
+            _read_shaped_ids = set()
+            if operation_id:
+                for q in open_unresolved_questions(
+                        lifecycle.get_task(run_id) or {}):
+                    if str(q.get("next_action") or "").lower().startswith(
+                            "read "):
+                        _read_shaped_ids.add(str(q.get("question_id")))
+            if _read_shaped_ids:
+                derived["resolutions"].append({
+                    "items": sorted(_read_items),
+                    "kinds": ["verification"],
+                    "question_ids": sorted(_read_shaped_ids),
+                    "resolution": {
+                        "how": "targeted read executed",
+                        "basis": _basis or None,
+                        "detail": _detail,
+                    },
+                })
             if _basis == "saved_copy":
                 # FRESHNESS IS AN OBLIGATION, NOT WORDING (round 48): the
                 # saved-copy read resolves the READ question and OPENLY
@@ -2787,7 +2852,8 @@ def record_read_outcome(
                 lifecycle, run_id,
                 items=resolution.get("items") or None,
                 kinds=resolution.get("kinds") or None,
-                resolution=resolution["resolution"])
+                resolution=resolution["resolution"],
+                question_ids=resolution.get("question_ids") or None)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"resolution: {exc!r}")
             break
