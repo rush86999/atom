@@ -635,8 +635,17 @@ async def _execute_row_read(
 
 
 _TAUGHT_LOCATION_RE = re.compile(
-    r"\\b([A-Za-z][A-Za-z0-9 &'.-]{2,30}?)\\s+sheet\\b[^.]{0,80}?"
-    r"\\brow\\s+(\\d{1,4})\\b", re.IGNORECASE)
+    r"\b([A-Za-z][A-Za-z0-9 &'-]{2,30}?)\s+sheet\b[^.]{0,80}?"
+    r"\brow\s+(\d{1,4})\b", re.IGNORECASE)
+_SHEET_FILLER = {
+    "is", "on", "the", "a", "an", "of", "in", "and", "no", "nos",
+    "under", "at", "workbook", "file", "sheet"}
+
+
+def _clean_sheet_name(raw: str) -> str:
+    toks = [t for t in str(raw or "").split()
+            if t and not t.isdigit() and t.lower() not in _SHEET_FILLER]
+    return " ".join(toks)[-40:]
 
 
 def _taught_location_successors(
@@ -682,7 +691,10 @@ def _taught_location_successors(
             if not any(c.lower() in tl for c in codes):
                 continue
             for m in _TAUGHT_LOCATION_RE.finditer(text):
-                sheet, row = m.group(1).strip(), int(m.group(2))
+                sheet, row = _clean_sheet_name(
+                    m.group(1)), int(m.group(2))
+                if not sheet:
+                    continue
                 out.append({
                     "item": item,
                     "kind": "verification",
