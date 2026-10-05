@@ -492,7 +492,7 @@ async def _execute_row_read(
                 find_entries_sync, str(cand.get("sheet") or ""),
                 user_id, workspace_id, 6)
             row_result = None
-            for _h in _hits[:3]:
+            for _h in _hits:  # every cataloged copy (find limit bounds)
                 _file = str(_h.get("file_name") or "")
                 if not _file:
                     continue
@@ -510,7 +510,7 @@ async def _execute_row_read(
                     f"'{cand.get('sheet')}' is ABSENT from every "
                     "cataloged copy carrying that sheet ("
                     + "; ".join(str(h.get("file_name"))[:44]
-                                for h in _hits[:3]) + ")")
+                                for h in _hits) + ")")
                 continue
         else:
             row_result = await asyncio.to_thread(
