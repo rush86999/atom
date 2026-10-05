@@ -457,6 +457,21 @@ async def _execute_row_read(
     item = str(act.get("item") or "")
     fields = list(act.get("requested_fields") or [])
     context = str(act.get("identity_context") or item)
+    # CONTEXT ENRICHMENT AT EXECUTION (round 58): successors created
+    # before the full-identity fix carry the bare code; corroboration
+    # needs the canvas description — resolve it from the job's entities
+    # when the stored context is too thin.
+    if context == item or not re.findall(r"[A-Za-z]{4,}", context):
+        _ents = [
+            str(e.get("id") or "") for e in
+            ((lifecycle.get_task(run_id) or {}).get("task_revision")
+             or {}).get("entities") or []]
+        _codes = {_norm_token(t) for t in _item_code_tokens(item)}
+        for _e in _ents:
+            _en = _norm_token(_e)
+            if any(c and c in _en for c in _codes):
+                context = _e
+                break
     statuses: Dict[str, str] = {}
     evidence: List[str] = []
     decision_questions: List[Dict[str, Any]] = []
