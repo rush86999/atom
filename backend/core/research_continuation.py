@@ -215,7 +215,8 @@ async def _execute_document_read(
             # ALL candidate locations (round 56, capped at 3): the row
             # read evaluates EVERY candidate under strict identity —
             # the first match is never auto-selected.
-            cands = [m for m, c in classified if c == "located"][:3]
+            _all_located = [m for m, c in classified if c == "located"]
+            cands = _all_located[:3]
             # REQUESTED FIELDS FROM THE JOB (round 56): carried from the
             # task revision — never hardcoded here.
             _job_fields = list(
@@ -249,6 +250,9 @@ async def _execute_document_read(
                     "item": item,
                     "identity_context": str(
                         item_identity_context or item),
+                    "candidates_total": len(_all_located),
+                    "candidates_omitted": max(
+                        0, len(_all_located) - len(cands)),
                     "requested_fields": _job_fields,
                 },
             }], source_operation=None)
@@ -383,9 +387,29 @@ async def _execute_row_read(
     evidence: List[str] = []
     decision_questions: List[Dict[str, Any]] = []
     supporting: List[Dict[str, Any]] = []
+    from core.sheet_dataset_service import find_entries_sync
+
+    _act_file = str(act.get("file") or "")
     for cand in act.get("candidates") or []:
+        _file = _act_file
+        if not _file:
+            # TAUGHT LEAD without a file: resolve the sheet against the
+            # catalog (freshest copy carrying that sheet name).
+            _hits = await asyncio.to_thread(
+                find_entries_sync, str(cand.get("sheet") or ""),
+                user_id, workspace_id, 6)
+            _file = str(
+                (_hits[0] or {}).get("file_name") or ""
+            ) if _hits else ""
+            if not _file:
+                evidence.append(
+                    f"{item}: taught sheet "
+                    f"'{cand.get('sheet')}' not in the catalog — lead "
+                    "unresolvable against current copies")
+                continue
+            cand = {**cand, "_resolved_file": _file}
         row_result = await asyncio.to_thread(
-            read_sheet_row_sync, act["file"], cand.get("sheet") or "",
+            read_sheet_row_sync, _file, cand.get("sheet") or "",
             cand.get("row") or 0, user_id, workspace_id)
         if row_result is None:
             continue
@@ -398,7 +422,8 @@ async def _execute_row_read(
                 f"{cand.get('sheet')} rejected — identity unsupported "
                 f"({cand.get('identity_cell')})")
             continue
-        supporting.append({"cand": cand, "bound": bound})
+        supporting.append(
+            {"cand": cand, "bound": bound, "_row_result": row_result})
     if len(supporting) == 1:
         bound = supporting[0]["bound"]
         cand = supporting[0]["cand"]
@@ -435,11 +460,88 @@ async def _execute_row_read(
                     f"{item}: corroborated row has NO monetary {field} "
                     f"column — scoped absence in this source")
     elif len(supporting) > 1:
-        statuses[item] = ""
-        evidence.append(
-            f"{item}: {len(supporting)} candidate rows pass identity — "
-            "UNRESOLVED until identifying context distinguishes them; "
-            "question stays open")
+        # DUPLICATE-LISTING COMPARISON (round 57): two supporting rows
+        # may be duplicate listings (same machine, same description in
+        # two sheets) rather than different machines. Compare workbook
+        # version (same file), sheet, description and values; duplicates
+        # merge into ONE candidate with per-column differences recorded
+        # — a genuine choice survives only where a real difference does.
+        def _desc(bound_result):
+            row = bound_result.get("row") or {}
+            for k in ("Description", "description", "DESC"):
+                if str(row.get(k) or "").strip():
+                    return " ".join(str(row[k]).lower().split())
+            return ""
+        descs = [_desc(s["_row_result"]) for s in supporting]
+        if descs and all(d == descs[0] and d for d in descs):
+            merged = supporting[0]
+            cand = merged["cand"]
+            col_diffs = []
+            for other in supporting[1:]:
+                for h, v in (other["_row_result"].get("row")
+                             or {}).items():
+                    mv = (merged["_row_result"].get("row")
+                          or {}).get(h)
+                    if str(v) != str(mv) and h != "__sheet_row":
+                        col_diffs.append(
+                            f"{h}: {cand.get('sheet')}/"
+                            f"{cand.get('row')}={mv} vs "
+                            f"{other['cand'].get('sheet')}/"
+                            f"{other['cand'].get('row')}={v}")
+            evidence.append(
+                f"{item}: DUPLICATE LISTING — "
+                + ", ".join(
+                    f"{s['cand'].get('sheet')}/"
+                    f"{s['cand'].get('row')}" for s in supporting)
+                + " share the same description; merged as one machine"
+                + (f"; column differences: {'; '.join(col_diffs)}"
+                   if col_diffs else ""))
+            bound = merged["bound"]
+            for field, cands2 in bound["bindings"].items():
+                if len(cands2) == 1:
+                    col, val = cands2[0]
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: {field} = {val} ({col} — basis as the "
+                        "column names it)")
+                elif len(cands2) > 1:
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: {field} AMBIGUOUS (monetary candidates "
+                        "on the merged duplicate) — "
+                        + "; ".join(f"{c}={v}" for c, v in cands2))
+                    decision_questions.append({
+                        "item": item,
+                        "kind": "business_decision",
+                        "question": (
+                            f"which {field} basis applies to {item}: "
+                            + " vs ".join(
+                                f"{c}={v}" for c, v in cands2)),
+                        "evidence": (
+                            f"duplicate listings merged (same "
+                            "description); bases differ only as named; "
+                            + (f"column differences {col_diffs}"
+                               if col_diffs else "no column differences")),
+                        "next_action": (
+                            f"apply taught {field} policy, else owner "
+                            f"picks the basis for {item}"),
+                    })
+                else:
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: merged duplicate has NO monetary "
+                        f"{field} column — scoped absence")
+        else:
+            statuses[item] = ""
+            evidence.append(
+                f"{item}: {len(supporting)} candidate rows pass "
+                "identity with DIFFERENT descriptions — UNRESOLVED; "
+                "comparison: "
+                + " | ".join(
+                    f"{s['cand'].get('sheet')}/"
+                    f"{s['cand'].get('row')}: {d[:60]}"
+                    for s, d in zip(supporting, descs))
+                + "; question stays open")
     else:
         statuses[item] = ""
         evidence.append(
@@ -491,6 +593,78 @@ async def _execute_row_read(
         add_unresolved_questions(
             lifecycle, run_id, decision_questions, source_operation=None)
     return {"statuses": statuses, "evidence": evidence}
+
+
+_TAUGHT_LOCATION_RE = re.compile(
+    r"\\b([A-Za-z][A-Za-z0-9 &'.-]{2,30}?)\\s+sheet\\b[^.]{0,80}?"
+    r"\\brow\\s+(\\d{1,4})\\b", re.IGNORECASE)
+
+
+def _taught_location_successors(
+        lifecycle: Any, run_id: str, record: Dict[str, Any],
+        agent_lessons: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Row-read successors from TAUGHT LOCATIONS (round 57): teaching
+    that names a sheet and a row for an item ('no. 381 is on Tennsmith
+    sheet ... row 338') is an executable lead with provenance — the
+    failed match in another sheet never blocks it. Business-neutral:
+    any lesson text, any sheet/row. Returns the successor questions."""
+    from core.task_lifecycle import open_unresolved_questions
+
+    out: List[Dict[str, Any]] = []
+    open_qs = {str(q.get("item") or ""): q
+               for q in open_unresolved_questions(record)
+               if str(q.get("item") or "")}
+    if not open_qs or not agent_lessons:
+        return out
+    lesson_texts = [
+        (str(l.get("id") or l.get("lesson_id") or idx),
+         " ".join(str(l.get("lesson") or l.get("summary")
+                      or "").split()))
+        for idx, l in enumerate(agent_lessons)]
+    for item, q in open_qs.items():
+        if any((q.get("inputs") or {}).get("intent") == "row_read"
+               for q in [q]):
+            continue  # already has a row successor
+        codes = _item_code_tokens(item)
+        if not codes:
+            continue
+        for lid, text in lesson_texts:
+            tl = text.lower()
+            if not any(c.lower() in tl for c in codes):
+                continue
+            for m in _TAUGHT_LOCATION_RE.finditer(text):
+                sheet, row = m.group(1).strip(), int(m.group(2))
+                out.append({
+                    "item": item,
+                    "kind": "verification",
+                    "question": (
+                        f"{item}: taught location {sheet} sheet row "
+                        f"{row} — read the row's requested fields"),
+                    "evidence": f"taught lead (lesson {lid})",
+                    "next_action": (
+                        f"read row {row} of {sheet} per the taught "
+                        "location"),
+                    "inputs": {
+                        "service": "datasets", "intent": "row_read",
+                        "file": "",  # resolved against every cataloged
+                        "candidates": [{
+                            "sheet": sheet, "row": row,
+                            "identity_column": "",
+                            "identity_cell":
+                                f"taught:lesson-{lid}:row-{row}"}],
+                        "item": item,
+                        "identity_context": str(item),
+                        "candidates_total": 1,
+                        "candidates_omitted": 0,
+                        "requested_fields": list(
+                            (record.get("task_revision") or {})
+                            .get("requested_fields") or []) or ["price"],
+                        "provenance": {"source": "lesson", "id": lid,
+                                       "text": text[:200]},
+                    },
+                })
+                break
+    return out[:4]
 
 
 def _session_owned_by_interactive(sess: Dict[str, Any]) -> bool:
@@ -580,6 +754,32 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                 continue  # the interactive lane owns this job right now
             user_id = str(sess["user_id"])
             workspace_id = str(sess.get("workspace_id") or "default")
+            # TAUGHT LEADS (round 57): seed row-read successors from
+            # teaching that names sheet+row locations for open items.
+            try:
+                _lessons: List[Dict[str, Any]] = []
+                _agent_id = str(sess.get("agent_id") or "") or None
+                if _agent_id:
+                    from core.database import get_db_session as _gs
+                    from core.student_learning_service import (
+                        get_agent_lessons as _gal)
+
+                    with _gs() as _db:
+                        _lessons = _gal(_db, _agent_id, limit=10)
+                _taught = _taught_location_successors(
+                    lifecycle, run_id, lifecycle.get_task(run_id) or {},
+                    _lessons)
+                if _taught:
+                    from core.task_lifecycle import (
+                        add_unresolved_questions)
+
+                    add_unresolved_questions(
+                        lifecycle, run_id, _taught, source_operation=None)
+                    work = next_unfinished_work(
+                        lifecycle.get_task(run_id) or {})
+                    acts = _read_actions(work.get("actions") or [])
+            except Exception as _taught_err:  # noqa: BLE001 — additive
+                logger.debug("taught-lead seeding skipped: %r", _taught_err)
             groups: Dict[str, List[Dict[str, Any]]] = {}
             for a in acts:
                 # Row-read successors group SEPARATELY from document
