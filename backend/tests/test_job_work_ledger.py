@@ -790,3 +790,117 @@ class TestValueTraceProductionHandoff:
             "questions are derived")
         assert any("Consolidated Price List 2019.xlsx" in
                    (a.get("next_action") or "") for a in work2["actions"])
+
+    def test_reuse_settle_derives_pending_reads_from_blackboard(self,
+                                                                 lifecycle):
+        """Round 45 traced disappearance point: cont19/20's value_trace ran
+        in the canvas-edit leg and settled ONLY via the singleflight arm —
+        which never derived questions. The reuse settle now derives the
+        pending reads from the blackboard's ORIGINAL receipt."""
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work, record_read_outcome)
+        from integrations.chat_orchestrator import (
+            _search_execution_receipt, _value_trace_pending_reads)
+
+        # The blackboard exactly as the singleflight arm records it.
+        original_plan = types.SimpleNamespace(_result_meta={
+            "value_trace": {"Manual Flanger": [
+                "Consolidated Price List 2019.xlsx"]}})
+        shared_tool_state = {
+            "primary_service": "datasets",
+            "primary_receipt": _search_execution_receipt(
+                original_plan, "prose block"),
+            "primary_result_meta": {"value_trace": {
+                "Manual Flanger": ["Consolidated Price List 2019.xlsx"]}},
+        }
+        # The reuse settle's derivation, as wired in production.
+        questions = _value_trace_pending_reads(
+            shared_tool_state.get("primary_receipt"))
+        assert len(questions) == 1
+        assert "read Consolidated Price List 2019.xlsx" in \
+            questions[0]["next_action"]
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-reuse", "verify pricing", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=questions)
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any("read Consolidated Price List 2019.xlsx" in
+                   (a.get("next_action") or "") for a in work["actions"])
+
+        # SOURCE-SHAPE: the reuse settle reads the blackboard receipt.
+        orch_src = open("integrations/chat_orchestrator.py").read()
+        assert 'shared_tool_state.get(\n                                                "primary_receipt")' \
+            in orch_src
+
+    def test_migration_is_one_time_and_retry_cap_holds(self, lifecycle):
+        """Round 45: the migration must not defeat the retry cap.
+        get_task does not surface decision_log — the original done-marker
+        read an always-empty list, so the migration would have re-applied
+        on EVERY settle once a question hit the cap. The marker now lives
+        in the task revision: repeated settles, a restart (fresh
+        TaskLifecycle on the same store), and identical rediscovery all
+        leave a normally exhausted question EXHAUSTED."""
+        from core.task_lifecycle import (
+            UNRESOLVED_ATTEMPT_CAP, TaskLifecycle, begin_retrieval_turn,
+            migrate_attempt_budgets, next_unfinished_work,
+            record_read_outcome)
+        from integrations.chat_orchestrator import (
+            _value_trace_pending_reads)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-cap", "verify pricing", "e1")
+        qs = _value_trace_pending_reads({
+            "receipt": {"value_trace_coverage": {
+                "Manual Flanger": [
+                    "Consolidated Price List 2019.xlsx"]}}})
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=qs)
+        rec = lifecycle.get_task(run_id)
+        qid = (rec["task_revision"]["unresolved"])[0]["question_id"]
+        lifecycle.apply_transition(run_id, {
+            "kind": "record_unresolved", "requested_change": "age",
+            "attempts": [{"question_id": qid,
+                          "set": UNRESOLVED_ATTEMPT_CAP}]})
+
+        # First repair settle: migration resets once and MARKS.
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=None)
+        w1 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not w1["exhausted"], "one-time repair fires"
+        assert (lifecycle.get_task(run_id)["task_revision"]
+                .get("attempt_budget_migrated")), "marker is durable"
+
+        # Age to cap again — a NORMALLY exhausted question.
+        lifecycle.apply_transition(run_id, {
+            "kind": "record_unresolved", "requested_change": "age",
+            "attempts": [{"question_id": qid,
+                          "set": UNRESOLVED_ATTEMPT_CAP}]})
+
+        # Repeated settles: no second reset.
+        for _ in range(3):
+            record_read_outcome(
+                lifecycle, run_id, op, structured_result=None,
+                freshness=None, execution=None, extra_questions=None)
+        w2 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert w2["exhausted"], (
+            "a normally exhausted question stays exhausted — the "
+            "migration must not run twice")
+
+        # Identical rediscovery (same next_action) replenishes nothing.
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=qs)
+        w3 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert w3["exhausted"], (
+            "identical evidence does not replenish the budget")
+
+        # Restart: a fresh lifecycle over the same store sees the marker.
+        restarted = TaskLifecycle(lifecycle.runs, lifecycle.goals)
+        assert migrate_attempt_budgets(
+            restarted, run_id,
+            record=restarted.get_task(run_id)) == 0, (
+            "the marker survives restart; no third reset")

@@ -12873,7 +12873,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     _pf_tl, _pf_run, _pf_op,
                                     structured_result=_pf_structured,
                                     freshness=None,
-                                    execution=None))
+                                    execution=None,
+                                    # PENDING READS ON THE REUSE PATH (round
+                                    # 45, the traced disappearance point):
+                                    # cont19/20's value_trace executed in the
+                                    # canvas-edit leg and reached settlement
+                                    # ONLY through this singleflight arm —
+                                    # which never derived questions, so the
+                                    # located workbook produced no targeted
+                                    # read. The ORIGINAL receipt rides the
+                                    # blackboard (primary_receipt); derive
+                                    # the pending reads from it here.
+                                    extra_questions=(
+                                        _value_trace_pending_reads(
+                                            shared_tool_state.get(
+                                                "primary_receipt")
+                                            if isinstance(
+                                                shared_tool_state, dict)
+                                            else None))))
                     except Exception as _pf_ledger_err:  # noqa: BLE001
                         logger.warning(
                             "[job-work-ledger] prefetch settle skipped: "

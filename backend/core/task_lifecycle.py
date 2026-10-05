@@ -391,6 +391,12 @@ def apply_transition(
                         "resolution": resolution,
                     })
                     existing[index] = settled
+        if transition.get("budget_migration"):
+            # Durable one-time marker IN THE TASK REVISION (get_task
+            # surfaces task_revision; decision_log is NOT surfaced there —
+            # a marker read from it never landed, and the migration would
+            # have re-applied on every settle).
+            new_task["attempt_budget_migrated"] = _utc_now_iso()
         for bump in (transition.get("attempts") or []):
             if not isinstance(bump, dict):
                 continue
@@ -2314,10 +2320,13 @@ def migrate_attempt_budgets(
                   if int(q.get("attempts") or 0) >= UNRESOLVED_ATTEMPT_CAP}
     if not _exhausted:
         return 0
-    _migration_done = any(
-        (e.get("kind") or "") == "record_unresolved"
-        and "attempt-budget migration" in str(e.get("requested_change") or "")
-        for e in (record.get("decision_log") or []))
+    # ONE-TIME, DURABLE: the marker lives in the task revision (written
+    # by the migration transition itself), so repeated settles and
+    # restarts never reset the same budget twice. get_task surfaces the
+    # revision; it does NOT surface decision_log — the original check
+    # read an always-empty list and never marked done.
+    _migration_done = bool(
+        (record.get("task_revision") or {}).get("attempt_budget_migrated"))
     if _migration_done:
         return 0
     try:
@@ -2331,6 +2340,7 @@ def migrate_attempt_budgets(
                 {"question_id": _qid, "set": 0}
                 for _qid in _exhausted],
             "source_operation": None,
+            "budget_migration": True,
         })
         return len(_exhausted)
     except Exception:
