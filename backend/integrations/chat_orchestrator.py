@@ -14641,6 +14641,138 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.debug("scope correction skipped: %r", _sc_err)
                     for _missing_svc in sorted(_missing):
                         await _chain_attempt(_missing_svc)
+                # IN-TURN PENDING-ACTION LOOP (round 49, autonomous
+                # completion): targeted-read actions created THIS turn
+                # (or persisted earlier) execute within the remaining
+                # budget — bounded (at most 2 per turn, each needing
+                # >=18s left) — so the employee proceeds without an
+                # operator 'continue'. Settles through the same receipt /
+                # retirement / freshness pipeline.
+                async def _pending_read_attempt(_pa):
+                    nonlocal _tool_block
+                    _pa_next = str(_pa.get("next_action") or "")
+                    _pa_item = str(_pa.get("item") or "")
+                    if not _pa_next.lower().startswith("read "):
+                        return
+                    _pa_file = _pa_next[5:].rsplit(" for ", 1)[0].strip()
+                    if not _pa_file:
+                        return
+                    _pa_wait = min(
+                        20.0, max(0.0, _chain_turn_left() - 15.0))
+                    if _pa_wait < 8.0:
+                        return
+                    _pa_tl = _task_lifecycle_for(
+                        getattr(self, "tenant_id", None), workspace_id)
+                    _pa_begin = (None, None)
+                    if _pa_tl is not None:
+                        try:
+                            from core import task_lifecycle as _tlm
+
+                            _pa_begin = _tlm.begin_retrieval_turn(
+                                _pa_tl,
+                                session if isinstance(session, dict)
+                                else {},
+                                session_id or "",
+                                f"targeted read: {_pa_next[:120]}",
+                                execution_id,
+                                items=[_pa_item] if _pa_item else [],
+                                canvas_id=_chain_canvas_id())
+                        except Exception:  # noqa: BLE001
+                            _pa_begin = (None, None)
+                    _pa_plan = ToolPlan(
+                        use_tool=True, service="datasets",
+                        intent="read", query=_pa_file)
+                    try:
+                        _pa_block = await asyncio.wait_for(
+                            execute_tool_plan(
+                                _pa_plan, user_id,
+                                tenant_id=getattr(
+                                    self, "tenant_id", "default"),
+                                context={
+                                    "agent_id": agent_id,
+                                    "message": message,
+                                    "history": (planner_history
+                                                or history or [])[-6:],
+                                    "workspace_id": workspace_id,
+                                },
+                                llm_service=self.llm_service,
+                            ),
+                            timeout=_pa_wait,
+                        )
+                        _pa_receipt = _search_execution_receipt(
+                            _pa_plan, _pa_block)
+                        _pa_read_ok = bool(
+                            _pa_receipt["receipt"]
+                            .get("structured_keys"))
+                        if _pa_block:
+                            _tool_block = (
+                                f"{_tool_block}\n\nTARGETED READ "
+                                f"({_pa_next[:120]}):\n" + _pa_block)
+                        logger.info(
+                            "[planner-boundary] in-turn targeted read: "
+                            "%s -> %s", _pa_next[:80],
+                            "evidence" if _pa_read_ok else "no receipt")
+                        if _pa_tl is not None and _pa_begin[0]:
+                            from core import task_lifecycle as _tlm
+
+                            _tlm.finish_retrieval_turn(
+                                _pa_tl, _pa_begin[0], _pa_begin[1], {},
+                                execution_id, _pa_read_ok,
+                                execution={
+                                    "invoked": True,
+                                    "outcome": (
+                                        "read_succeeded" if _pa_read_ok
+                                        else "read_returned_no_receipt"),
+                                    "served_basis": (
+                                        "saved_copy" if _pa_read_ok
+                                        else "live"),
+                                    "failure_stage": None,
+                                    "items": (
+                                        {_pa_item: "single"}
+                                        if (_pa_read_ok and _pa_item)
+                                        else {}),
+                                })
+                            if isinstance(session, dict):
+                                session["_last_open_work"] = (
+                                    _tlm.record_read_outcome(
+                                        _pa_tl, _pa_begin[0], _pa_begin[1],
+                                        structured_result=None,
+                                        freshness=None, execution=None))
+                    except Exception as _pa_err:  # noqa: BLE001
+                        logger.info(
+                            "[planner-boundary] in-turn targeted read "
+                            "failed: %r", _pa_err)
+                        if _pa_tl is not None and _pa_begin[0]:
+                            try:
+                                from core import task_lifecycle as _tlm
+
+                                _tlm.finish_retrieval_turn(
+                                    _pa_tl, _pa_begin[0], _pa_begin[1],
+                                    {}, execution_id, False,
+                                    execution={
+                                        "invoked": False,
+                                        "outcome": "read_failed",
+                                        "served_basis": "none",
+                                        "failure_stage":
+                                            f"{type(_pa_err).__name__}",
+                                    })
+                            except Exception:  # noqa: BLE001
+                                pass
+
+                # Execute pending targeted reads created by this turn's
+                # settles (the chain's value_trace coverage) — reading
+                # the fresh open-work snapshot the settles produced.
+                try:
+                    _ipw = (session or {}).get("_last_open_work") or {}
+                    for _ip_a in [
+                            a for a in (_ipw.get("actions") or [])
+                            if str(a.get("next_action") or "").lower()
+                            .startswith("read ")][:2]:
+                        if _chain_turn_left() < 18.0:
+                            break
+                        await _pending_read_attempt(_ip_a)
+                except Exception as _ip_err:  # noqa: BLE001
+                    logger.debug("in-turn pending reads skipped: %r", _ip_err)
                 else:
                     # NO RESOLVED WORK TO TARGET (reviewer correction 1):
                     # without a resolved item set or canvas subject there is
