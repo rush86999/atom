@@ -1814,6 +1814,7 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
                        entities: Optional[List[Dict[str, Any]]] = None,
                        requested_fields: Optional[List[str]] = None,
                        canvas_id: Optional[str] = None,
+                       agent_id: Optional[str] = None,
                        ) -> Tuple[str, Optional[Dict[str, Any]], bool]:
     """Find the active task or create one, atomically: the file lock
     serializes the find→create window across processes (the version
@@ -1833,6 +1834,11 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
             provenance = {"requested_change": _bounded_text(message, 500)}
             if canvas_id:
                 provenance["canvas_id"] = str(canvas_id)
+            if agent_id:
+                # AGENT IDENTITY ON THE JOB (round 57): durable workers
+                # need the taught-lesson source; sessions do not persist
+                # it and run rows may not carry it.
+                provenance["agent_id"] = str(agent_id)
             created = lifecycle.create_task(
                 conversation_id, message,
                 entities=list(entities or []),
@@ -2036,6 +2042,7 @@ def begin_retrieval_turn(
     items: Optional[List[str]] = None,
     requested_fields: Optional[List[str]] = None,
     canvas_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
 ) -> tuple:
     """Persist the retrieval INTENTION before execution (Step 2).
 
@@ -2051,7 +2058,8 @@ def begin_retrieval_turn(
         lifecycle, session, conversation_id, message,
         entities=_entities_from_items(items),
         requested_fields=list(requested_fields or []),
-        canvas_id=canvas_id)
+        canvas_id=canvas_id,
+        agent_id=agent_id)
     if not was_created:
         # SHELL BACKFILL (round 39 diagnosis): the objective and entities
         # are set ONLY at creation — a task created by a denied edit lane

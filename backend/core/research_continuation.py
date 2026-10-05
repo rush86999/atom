@@ -821,6 +821,8 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                 _lessons: List[Dict[str, Any]] = []
                 _agent_id = str(
                     run.get("agent_id")
+                    or ((record.get("task_revision") or {})
+                        .get("provenance") or {}).get("agent_id")
                     or sess.get("agent_id") or "") or None
                 if _agent_id:
                     from core.database import get_db_session as _gs

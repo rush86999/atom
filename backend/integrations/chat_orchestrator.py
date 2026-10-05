@@ -13519,6 +13519,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         f"planned lookup: {_planned}",
                                         execution_id,
                                         items=list(_requested_targets or []),
+                                        agent_id=agent_id,
                                         canvas_id=(
                                             (canvas_context or {}).get(
                                                 "canvas_id")
