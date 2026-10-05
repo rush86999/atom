@@ -803,9 +803,13 @@ def record_calculation(
 
 _QUERY_PATTERNS = [
     # calculate <policy> from <amount> <currency> [k=v ...]
+    # The amount accepts thousands separators ("7,627") — stripped
+    # before Decimal (live price4: the model's comma-formatted number
+    # failed the pattern and the honest "no returned result" followed).
     _re.compile(
         r"calculate\s+(?P<policy>[a-z0-9_-]+)\s+from\s+"
-        r"(?P<amount>[0-9]+(?:\.[0-9]+)?)\s+(?P<currency>[A-Za-z]{3})"
+        r"(?P<amount>[0-9][0-9,]*(?:\.[0-9]+)?)\s+"
+        r"(?P<currency>[A-Za-z]{3})"
         r"(?P<rest>.*)$", _re.IGNORECASE),
 ]
 
@@ -871,7 +875,7 @@ async def calculate_from_query(
         else:
             params[k] = v
     inputs = PricingInputs(
-        base=Money(Decimal(m.group("amount")),
+        base=Money(Decimal(m.group("amount").replace(",", "")),
                    m.group("currency").upper()),
         source=source_ref or SourceRef(
             kind="query", reference="agent-provided"),
