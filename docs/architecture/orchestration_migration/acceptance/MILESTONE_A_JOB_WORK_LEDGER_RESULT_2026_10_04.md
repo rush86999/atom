@@ -492,3 +492,31 @@ execute within the remaining turn budget (bounded: at most 2 per turn,
 each ≥18s of budget), settling through the same receipt/retirement/
 freshness pipeline. The fresh-job fixture: new session, the ORIGINAL
 eight-item prompt, no pre-seeded answers, no continues.
+
+## Round-49: autonomous-milestone mechanism + first fresh-run measurement
+
+**Mechanism delivered**: in-turn pending-action loop (bounded: ≤2
+targeted reads per turn, ≥18s budget each) executing through the same
+receipt/retirement/freshness pipeline. 91 tests green.
+
+**First fresh-job run (auto1, new session, original prompt, ZERO
+continues, 67.5s)**: both taught sources attempted in-turn (datasets
+sweep + outlook with receipt: 6 threads, 3 reads); the reply honestly
+reported no usable price evidence (junk workbook matches; mailbox
+figures for different equipment) and preserved the draft. Canvas
+SHA-identical. No edits, no sends, no permission asks.
+
+**First divergence identified (turn-1 chicken-and-egg)**: on a FRESH
+job, the durable entities do not exist yet when the chain runs — they
+bind at the settle AFTER the chain — so `_chain_items` is empty, the
+chain sweeps instead of running value_trace, no coverage receipts are
+produced, and the in-turn loop has no pending reads to execute. The
+fix direction (next session): derive the chain's item set from the
+canvas content itself on first contact (the canvas IS the authorized
+item source for a quotation job), falling back to durable entities on
+later turns.
+
+**Milestone status: NOT MET on first attempt; measured honestly.**
+Required work completed without steering: partial (both sources
+attempted; no targeted reads). The divergence is deterministic, not
+model quality.
