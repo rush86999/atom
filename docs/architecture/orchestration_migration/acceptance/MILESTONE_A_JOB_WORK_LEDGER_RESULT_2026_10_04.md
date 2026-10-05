@@ -993,3 +993,39 @@ job/event id.
 **Milestone CLOSED.** Next product work: a chosen business capability
 (pricing calculations, alternatives, or authorized drafting) — not
 further extension of this investigation.
+
+## Round-62: AUTHORIZED DRAFTING — first milestone run (DRAFT4, live)
+
+**Capability delivered**: the job's durable research record now reaches
+the edit planner — a new job-findings section (priority beside
+evidence, above lessons) carrying verified findings with sources, the
+owner's approved manual values (preserve-exactly), open business
+decisions (annotate-never-resolve), and freshness limits (kept out of
+customer-facing text).
+
+**Live run (DRAFT4, fresh session, disposable fork)**: authorized
+directive → interactive turn starved on the edit plan → the NEW
+first-time-directive fork continued it in the background (mutation
+authority unchanged: user's own imperative words; hints/negations fork
+nothing, pinned) → the edit applied ONE bounded change: a "Still yours
+to decide:" note naming payment terms and the alternative-slitters
+choice. **All eight prices byte-preserved** ($2,902 → $14,166), table
+intact, To/CC untouched, audit = fork + 1 update, **not sent**.
+Browser-after-reload (signed in): the decision note renders, all eight
+rows and prices present, background updates visible, proposal state
+surfaced.
+
+**Bugs found by the live runs and fixed en route**: (1) an unbound
+`plan` in the fresh-data consulted-sources accounting (DRAFT1 turn
+killed); (2) a first-time authorized draft request could never
+complete — only retries of already-forked edits continued in the
+background (DRAFT2 starved twice); (3) an unbound `_no_apply_message`
+in the planner_declined fall-through (DRAFT3 killed).
+
+**Honest limits**: the interactive budget does not fit a heavy edit
+plan + reply — the background continuation is the completion path
+(interim status delivered, terminal proposal message delivered through
+the ChatMessage store). Recipient/subject remain the owner's choice
+(named in the reply), matching the findings-driven rules. The taught
+cc rule was NOT applied this run (To/CC left blank for the owner) —
+noted as drafting-depth follow-up.
