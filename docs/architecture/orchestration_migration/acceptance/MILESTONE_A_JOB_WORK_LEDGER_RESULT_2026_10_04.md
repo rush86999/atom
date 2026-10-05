@@ -446,3 +446,49 @@ finishing within one autonomous run.
 **Regression evidence preserved**: the one-time migration tests and the
 demonstrated Flanger transition remain in test_job_work_ledger.py
 (35 green).
+
+## Round-48: evidence package tightened and CLOSED
+
+1. **Freshness is a distinct obligation**: a saved-copy read now resolves
+   the READ question and spawns its successor — "freshness against the
+   live source unverified" — as a selectable open question (deferred past
+   the resolution loop so it cannot be consumed by the item-scoped
+   resolution). Pinned. An empty action queue after saved-copy reads now
+   means only that the freshness obligations are ALSO exhausted or
+   blocked — the queue itself is not the proof.
+2. **Rows 1/2/4 precision**:
+   - **No. 381**: the $2,902 manual vendor-quote price is an OWNER
+     INSTRUCTION already on file — no new decision is owed; the workbook
+     leads (Tennsmith sheet row 338; the $3,254 training note) are
+     investigation leads, not competing claims requiring action.
+   - **No. 622**: the identity choice (8 historical workbook candidates)
+     is a genuine owner decision — the workbook carries multiple rows
+     and no authorized source distinguishes which machine the customer
+     means.
+   - **U-22**: the decision required is **accept the manual $1,777 as
+     the quoted price, or authorize a supplier inquiry**. Further
+     authorized research cannot answer it because both taught sources
+     are exhausted for this item — value_trace found no cataloged
+     document carrying it and the mailbox grep surfaced no vendor quote
+     for a U-22 bead roller (the Menzies thread's $5,742 figure is a
+     different machine, L-24) — and the remaining route (asking Linmac)
+     requires OUTREACH, which is a send-class action outside the
+     read-only boundary of this job.
+3. **Containment requires verified context**: normalized containment now
+   resolves only on a UNIQUE (question, read-key) pairing — ambiguous
+   candidates resolve neither (pinned). It remains a plausibility
+   heuristic valid inside a verified read context, never authoritative
+   identity.
+
+**Evidence package closed.** The twelve-continuation run is not extended
+further. Product status: **durable, resumable investigation demonstrated;
+autonomous completion still to be proven.**
+
+## Round-49 setup: the autonomous-completion milestone
+
+Mechanism added for the next milestone: an IN-TURN PENDING-ACTION LOOP —
+targeted-read actions created during the turn (or left from before)
+execute within the remaining turn budget (bounded: at most 2 per turn,
+each ≥18s of budget), settling through the same receipt/retirement/
+freshness pipeline. The fresh-job fixture: new session, the ORIGINAL
+eight-item prompt, no pre-seeded answers, no continues.
