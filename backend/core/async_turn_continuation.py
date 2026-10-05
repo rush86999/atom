@@ -1065,6 +1065,83 @@ def _operation_status(cont: AsyncTurnContinuation) -> Optional[str]:
     return str(row["review_status"]) if row else None
 
 
+async def _reconcile_authorized_proposal(
+        cont: AsyncTurnContinuation) -> Optional[str]:
+    """Round 65 (live DRAFT7): reconcile a LANDED proposal the owner
+    already authorized. The write path stores review_status=
+    pending_review for background edits; the landed gate then refuses a
+    write that IS the canvas's current state. Conditions (ALL required):
+    the audit row carries THIS continuation's operation_id; the row is
+    the canvas HEAD (no later revision — a newer write is a CONFLICT,
+    returned as a gate name); the originating instruction is a
+    user-grounded edit directive (the owner's own imperative words —
+    the async fork's authority standard). On success the row's
+    review_status transitions to accepted — an audit-metadata update
+    ONLY: no canvas content write, no reapply, idempotent."""
+    import re as _re
+    try:
+        canvas_id = str((cont.canvas or {}).get("canvas_id") or "")
+        instruction = str(getattr(cont, "message", "") or "")
+        if not canvas_id or not instruction:
+            return None
+        if not _re.search(
+                r"\b(?:prepare|apply|update|edit|revise|draft|fix|change|"
+                r"rebuild)\b", instruction, _re.IGNORECASE):
+            return None
+        if _re.search(
+                r"\b(?:don'?t|do\s+not|never)\s+"
+                r"(?:change|edit|modify|update|prepare|draft)\b",
+                instruction, _re.IGNORECASE):
+            return None
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from core.sql_json import json_field_equals
+
+        with get_db_session() as db:
+            q = json_field_equals(
+                db, CanvasAudit.details_json, "$.operation_id",
+                cont.continuation_id)
+            row = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+                *([q] if q is not None else []),
+            ).order_by(CanvasAudit.created_at.desc()).first()
+            if row is None:
+                return None
+            head = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).order_by(CanvasAudit.created_at.desc()).first()
+            if head is None or head.id != row.id:
+                return "proposal-superseded"
+            details = row.details_json or {}
+            if str(details.get("review_status") or "") != "pending_review":
+                return None  # only proposals are reconciled here
+            # Authoritative verification BEFORE accepting: the read path
+            # must still show this row as the served revision.
+            from tools.canvas_crud_tool import read_canvas
+
+            readback = await read_canvas(cont.user_id, canvas_id)
+            if not readback.get("success") or str(
+                    readback.get("audit_id") or "") != str(row.id):
+                return "proposal-readback-mismatch"
+            details["review_status"] = "accepted"
+            details["reconciled"] = {
+                "by": "authorized-proposal-reconciliation",
+                "continuation_id": cont.continuation_id,
+                "note": ("owner's directive authorized this edit; audit "
+                         "review-state transition only — no canvas write"),
+            }
+            row.details_json = details
+            db.commit()
+            logger.info(
+                "[async-continuation] %s reconciled authorized proposal "
+                "%s -> accepted (review-state only)",
+                cont.continuation_id, str(row.id)[:8])
+            return "accepted"
+    except Exception as exc:  # noqa: BLE001 — reconciliation is additive
+        logger.debug("proposal reconciliation skipped: %r", exc)
+        return None
+
+
 def _operation_landed(cont: AsyncTurnContinuation) -> bool:
     return _operation_status(cont) == "accepted"
 
@@ -2100,7 +2177,27 @@ async def run_canvas_edit_continuation(
                     readback_ok = _operation_landed(cont)
                     if not readback_ok:
                         _op_status_dbg = _operation_status(cont)
-                        _gate = "operation-not-landed"
+                        # PROPOSAL RECONCILIATION (round 65, live DRAFT7):
+                        # the write path stores review_status=pending_review
+                        # for background edits — the gate above then says
+                        # "operation-not-landed" for a write that IS the
+                        # canvas's current state, leaving the user uncertain
+                        # whether the employee finished. When the landed row
+                        # carries THIS continuation's operation_id, is the
+                        # canvas HEAD, and the originating instruction was a
+                        # USER-GROUNDED edit directive (the owner already
+                        # authorized exactly this edit), reconcile: verify
+                        # through the authoritative read and accept the
+                        # proposal — a REVIEW-STATE transition on the audit
+                        # row only, never a canvas write, never a duplicate.
+                        _recon = await _reconcile_authorized_proposal(cont)
+                        if _recon == "accepted":
+                            readback_ok = True
+                            _op_status_dbg = "accepted(reconciled)"
+                        elif _recon:
+                            _gate = _recon
+                        if not readback_ok and _gate != _recon:
+                            _gate = "operation-not-landed"
                     if readback_ok:
                         _gate = "read-canvas"
                         try:

@@ -1850,3 +1850,109 @@ class TestFirstRequestForkAuthorizationRecheck:
             "maybe you could include the prices")
         assert not _user_grounded_edit_directive(
             "Don't change the draft yet")
+
+
+class TestAuthorizedProposalReconciliation:
+    """Round 65 (live DRAFT7): a LANDED proposal the owner's directive
+    already authorized reconciles to accepted — review-state only, never
+    a canvas write; a superseded proposal conflicts; readback mismatch
+    refuses."""
+
+    def _cont(self, msg="Prepare the email draft now. Don't send it."):
+        c = _cont()
+        c.message = msg
+        c.canvas = {"canvas_id": "cv-recon"}
+        c.continuation_id = c.continuation_id or "cont-recon-x"
+        return c
+
+    async def test_landed_authorized_proposal_accepts_without_write(self):
+        import datetime as _dt
+        cont = self._cont()
+        cont.continuation_id = "cont-recon-1"
+        class _Row:
+            id = "audit-1"
+            details_json = {
+                "operation_id": "cont-recon-1",
+                "review_status": "pending_review"}
+        _row = _Row()
+        async def _read(uid, cid):
+            return {"success": True, "audit_id": "audit-1"}
+
+        class _Q:
+            def __init__(self):
+                self.commits = 0
+            def query(self, *a, **k):
+                return self
+            def filter(self, *a, **k):
+                return self
+            def order_by(self, *a, **k):
+                return self
+            def first(self):
+                return _row
+            def commit(self):
+                self.commits += 1
+        q = _Q()
+        import core.async_turn_continuation as atc_mod
+        with patch("core.database.get_db_session",
+                   return_value=_ctx(q)), \
+             patch("tools.canvas_crud_tool.read_canvas", new=_read), \
+             patch("core.sql_json.json_field_equals",
+                          return_value=None):
+            verdict = await atc_mod._reconcile_authorized_proposal(cont)
+        assert verdict == "accepted"
+        assert _row.details_json["review_status"] == "accepted"
+        assert _row.details_json["reconciled"]["by"] == (
+            "authorized-proposal-reconciliation")
+
+    async def test_superseded_proposal_conflicts(self):
+        import datetime as _dt
+        cont = self._cont()
+        cont.continuation_id = "cont-recon-2"
+        class _RowOld:
+            id = "audit-old"
+            details_json = {
+                "operation_id": "cont-recon-2",
+                "review_status": "pending_review"}
+        class _RowNew:
+            id = "audit-new"
+            details_json = {}
+        _rows = [_RowOld(), _RowNew()]
+
+        class _Q:
+            def query(self, *a, **k):
+                return self
+            def filter(self, *a, **k):
+                return self
+            def order_by(self, *a, **k):
+                return self
+            def first(self):
+                return _rows[0]
+        # head query returns audit-new (different id)
+        calls = {"n": 0}
+        class _Q2(_Q):
+            def first(self):
+                calls["n"] += 1
+                return _rows[1] if calls["n"] > 1 else _rows[0]
+        import core.async_turn_continuation as atc_mod
+        with patch("core.database.get_db_session",
+                   return_value=_ctx(_Q2())), \
+             patch("core.sql_json.json_field_equals",
+                          return_value=None):
+            verdict = await atc_mod._reconcile_authorized_proposal(cont)
+        assert verdict == "proposal-superseded"
+
+    async def test_hint_or_negation_never_reconciles(self):
+        import core.async_turn_continuation as atc_mod
+        cont = self._cont(msg="Don't change the draft yet")
+        assert await atc_mod._reconcile_authorized_proposal(cont) is None
+        cont2 = self._cont(msg="what does the draft say")
+        assert await atc_mod._reconcile_authorized_proposal(cont2) is None
+
+
+class _ctx:
+    def __init__(self, q):
+        self._q = q
+    def __enter__(self):
+        return self._q
+    def __exit__(self, *a):
+        return False

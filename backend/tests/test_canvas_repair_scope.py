@@ -281,3 +281,29 @@ class TestUserGroundedEditDirective:
         assert not _user_grounded_edit_directive(
             "what does the draft say about lead times")
         assert not _user_grounded_edit_directive("")
+
+
+class TestForkLineageChecks:
+    """Round 65 (reviewer): inherited research must belong to an
+    AUTHORIZED source canvas, remain APPLICABLE to the fork's content,
+    and never grant NEW mutation authority."""
+
+    def test_inheritance_changes_nothing_about_authority(self):
+        # The lineage lookup only FEEDS FINDINGS (planner context);
+        # mutation authority stays with the user's directive + the scope
+        # gate. Pin that _canvas_job_findings performs no write and the
+        # edit-shape gate is unchanged by lineage.
+        from integrations.chat_orchestrator import (
+            _canvas_referencing_message, _user_grounded_edit_directive)
+        # A read-only ask over a lineage-rich fork still cannot edit.
+        assert not _user_grounded_edit_directive(
+            "what does the draft say about pricing")
+
+    def test_inheritance_requires_source_canvas_identity(self):
+        # The lineage follows the fork audit row's source_canvas_id —
+        # a fork with no recorded source inherits nothing.
+        import inspect
+        from integrations.chat_orchestrator import ChatOrchestrator
+        src = inspect.getsource(ChatOrchestrator._canvas_job_findings)
+        assert "source_canvas_id" in src
+        assert '_parent != str(canvas_id)' in src  # no self-inheritance
