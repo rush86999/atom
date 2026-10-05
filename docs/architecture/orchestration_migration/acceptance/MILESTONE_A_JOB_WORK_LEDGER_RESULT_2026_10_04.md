@@ -397,3 +397,52 @@ search success retires nothing).
 
 Draft SHA-identical throughout (f028613c…); nothing sent; original
 canvas untouched. 35 ledger tests green.
+
+## Round-47 final: queued reads finished; the complete eight-item comparison (cont28–30)
+
+Three user-triggered continuations executed the two queued targeted
+reads and retired them (TK 1624 needed one identity-match fix: the
+workbook key "1624" vs the question's "TK 1624" — normalized-containment
+retirement, unrelated strings never resolve; GSL48-16 then retired on
+its first read). Resolution scope now records what a read ESTABLISHED
+(saved-copy reads say "freshness against the live source is NOT
+established" — verification-kind no longer absorbs current-price
+verification). Retry machinery and the ledger design untouched
+otherwise, per instruction.
+
+### FINAL EIGHT-ITEM COMPARISON (draft preserved throughout)
+
+| # | Item | Draft | Workbook (SAVED COPY 2026-10-03, 46 sheets) | Vendor email | Remaining action |
+|---|------|-------|---------------------------------------------|--------------|------------------|
+| 1 | Roper Whitney No. 381 | $2,902 (manual vendor-quote, owner-confirmed) | not carried by other cataloged docs (value_trace, token-scoped); teaching lead: Tennsmith sheet row 338 | — | **Owner decision** (manual price preserved per lesson) |
+| 2 | Linmac U-22 | $1,777, In Stock | not carried | — | **Owner decision** (manual price) |
+| 3 | Manual Flanger | $1,609 | **D42 = 1,631 Price; H42 = 950 Factory Price** (Tinknocker sheet) | — | Read COMPLETE, freshness-limited; **$1,609 vs $1,631 discrepancy → owner decision** |
+| 4 | Roper Whitney No. 622 | $2,421 | not carried; identity historically ambiguous (8 candidates) | — | **Owner decision** (identity + price) |
+| 5 | SLE24-16 | $8,880 / 11–12wk | row 101: **$8,984** (see note below) | **Sept 18 2026: $8,880 ✓** (quoted-then, not current availability) | **Owner decision** ($8,880 vs $8,984) |
+| 6 | TK 1624 | $8,040 / 4–6wk | **D101 = 8,143 Price; H101 = 3,950 Factory** (Tinknocker sheet) | Sept 18 2026: $8,040 ✓ | Read COMPLETE, freshness-limited; **$8,040 vs $8,143 → owner decision** |
+| 7 | TK Multi Wheel Gang | $12,838, In Stock | not carried | Sept 18 2026: $12,838 ✓; **July 21: 10%-off-list special offer** condition | Verified vs quote-then; offer condition recorded for the owner |
+| 8 | GSL48-16 | $14,166 / 6–8wk | **E106 = 14,318 PRICE / AA106 = 14,317.99 CDN LIST** (+ US list/cost, full-cost CDN columns) | Sept 18 2026: $14,166 ✓; July Belroc $13,285 (HISTORICAL alternative, comparability unestablished) | Read COMPLETE, freshness-limited; **$14,166 vs $14,318 → owner decision** |
+
+**cont25's SLE24-16 result, explained separately**: it came from the
+named-file workbook read during the targeted phase — NOT a completion of
+another item's action (SLE24-16 had no targeted question: value_trace
+reported it not carried, a token-scoped miss the sheet read then
+corrected at row 101). It is recorded here as row 5's workbook column.
+
+**Categories**: workbook reads COMPLETED for rows 3, 6, 8 (saved-copy,
+freshness-limited, discrepancies surfaced — none auto-applied); row 5
+workbook value from the sheet read; rows 5–8 vendor-quote-verified as of
+**Sept 18, 2026** (quoted-then wording preserved — not current
+availability); rows 1, 2, 4 remain genuine **owner decisions** (manual
+prices preserved per training; No. 622 identity unresolved). Every
+remaining action is completed, concretely scoped, or an explicit owner
+decision. Draft SHA-identical (f028613c…); **nothing sent**.
+
+**Continuation count**: 3 for this finishing instruction (cont28–30);
+12 across the whole resumable arc (cont19–30). This proves resumable
+execution from durable state — it does NOT yet demonstrate an employee
+finishing within one autonomous run.
+
+**Regression evidence preserved**: the one-time migration tests and the
+demonstrated Flanger transition remain in test_job_work_ledger.py
+(35 green).
