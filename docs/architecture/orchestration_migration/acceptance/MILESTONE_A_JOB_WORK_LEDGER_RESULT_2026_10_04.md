@@ -327,3 +327,29 @@ Status: the receipt→pending-action→selection→retirement transition is
 proven by regression through the real executor and production handoff;
 the live demonstration awaits the migration fix plus one fresh
 value_trace invocation. Draft untouched; nothing sent; canvas untouched.
+
+## Round-44 migration-on-every-settle + transition loop live (cont19–20, pid 82486)
+
+**Fixed**: (1) the attempt-budget migration moved into
+`migrate_attempt_budgets()`, invoked by `record_read_outcome` on EVERY
+settle — the previous placement inside `add_unresolved_questions` meant a
+settle with no derived questions never repaired broken-era exhaustion;
+(2) set-based attempt transitions REAPPLIED (lost with an earlier
+failed-script edit — the migration's `set: 0` wrote nothing until now).
+Pinned: a settle with NO new questions repairs the budget and the pending
+read becomes selectable. 32 ledger + 54 chain green.
+
+**Live transition (cont19–20)**: bare "continue" now SELECTS the
+persisted action (open_work actions carries the question with its id),
+EXECUTES the recorded next action (the agent re-ran the datasets
+value_trace per the recorded text), and the attempt is durably tracked
+(0→1 across the turns). The reply correctly refuses to substitute
+adjacent-but-unmatched values (Menzies $5,742 Linmac L-24 ≠ U-22 bead
+roller) and preserves the draft per training.
+
+**Remaining**: the per-item coverage questions (Flanger→workbook cell
+read) still require the primary-plan `value_trace` meta to reach the
+seam settle — the execution meta attachment at the primary path is the
+single recorded boundary between the current generic-question loop and
+the per-item targeted reads. Draft untouched; nothing sent; canvas
+untouched.
