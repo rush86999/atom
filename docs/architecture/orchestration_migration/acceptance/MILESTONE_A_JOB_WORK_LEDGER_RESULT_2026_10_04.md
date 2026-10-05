@@ -295,3 +295,35 @@ exact execution path (the chain path is proven by the regression). This
 is the single remaining boundary; everything upstream (durable entities,
 role-annotated scope, both-directions gate) is live. Draft untouched;
 nothing sent; canvas untouched.
+
+## Round-43 boundary corrections (cont18, pid 81056)
+
+**Delivered**: (1) retry semantics corrected — identical rediscovery
+neither duplicates nor replenishes; a ONE-TIME recorded attempt-budget
+migration repairs pre-fix exhaustion; a standing MATERIAL-CHANGE rule
+resets only when a re-derived read targets a different source/action
+(`record_unresolved` now supports set-based attempt transitions);
+(2) receipt bound to the EXECUTION — the singleflight arm records the
+full result meta on the turn blackboard (`primary_result_meta`) and the
+seam settle falls back to it when no plan object survives; (3) the
+regression runs UPSTREAM — the real `execute_tool_plan` value_trace
+branch produces the receipt (fixture-backed trace) carried through the
+production question derivation into settlement and selection, covering
+both the normal and plan-absent paths. 31 ledger + 54 chain green.
+
+**Live findings (cont18) — two precise boundaries remain, recorded for
+the next diagnosis**:
+1. The attempt-budget migration is gated behind non-empty
+   extra_questions (`if extra_questions:` guards
+   `add_unresolved_questions`) — a settle with no derived questions
+   never runs the migration. The migration must run on every settle.
+2. `tool plan executed: None` while the reply narrates a value_trace —
+   narration vs invocation again: the reply described cached/prior
+   results, not a fresh execution. The pending-read creation is
+   receipt-driven and correct; the missing piece is a FRESH value_trace
+   invocation reaching a settle.
+
+Status: the receipt→pending-action→selection→retirement transition is
+proven by regression through the real executor and production handoff;
+the live demonstration awaits the migration fix plus one fresh
+value_trace invocation. Draft untouched; nothing sent; canvas untouched.
