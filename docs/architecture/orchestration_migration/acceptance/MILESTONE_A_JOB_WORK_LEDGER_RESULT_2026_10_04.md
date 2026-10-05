@@ -1029,3 +1029,46 @@ the ChatMessage store). Recipient/subject remain the owner's choice
 (named in the reply), matching the findings-driven rules. The taught
 cc rule was NOT applied this run (To/CC left blank for the owner) —
 noted as drafting-depth follow-up.
+
+## Round-63: taught-drafting completion — wiring delivered; DRAFT5 blocked by planner variance
+
+**Wiring delivered (unit-pinned, 242 tests green combined)**:
+- Job findings now carry the TAUGHT CC RULE as an applicable drafting
+  rule ("all sales quotes cc Chandrakant+Vipul" — applied unless the
+  user's instruction contradicts it) and PROVENANCE-ESTABLISHED HEADER
+  CANDIDATES (To/Subject derived only when the ledger's verified
+  evidence names the correspondence — the Sept 18 thread; the Menzies
+  thread is correctly NOT used: different enquiry).
+- The planner section now encodes the reviewer's three corrections:
+  headers populated ONLY from provenance-established lines (else name
+  the ambiguity); freshness limits on customer-relevant claims
+  (availability/delivery/validity) must not become unconditional
+  commitments — omit or qualify; internal decision notes VISIBLY
+  SEPARATE from customer text.
+- First-request-fork regressions: a cancelled fork writes nothing
+  (pinned); a superseded canvas conflicts at the preapply gate rather
+  than overwriting (pinned); directive predicate positive/negative
+  shapes (pinned). Three latent bugs fixed en route: the fork crashed
+  for first-time directives (_edit_retry["instruction"] on None), the
+  planner-unavailable fork passed the retry message, and an agent_id
+  NameError in the lesson-designated call.
+- Test isolation: the legacy fork tests stub the edit reservation
+  (their real lifecycle needs a migrated test DB; empty DB =
+  unavailable, stale DB = already_claimed — cross-suite flakiness
+  root-caused and documented).
+
+**DRAFT5 (fresh disposable fork of the original; full drafting
+instruction incl. cc + headers)**: the turn correctly DECLINED to fill
+To/Cc from the Menzies thread (different enquiry — provenance rule
+working) and the background fork ran 3 bounded attempts; ALL starved at
+the edit-planner (attempt-2 timed out at 298s; outcome=failed, honestly
+delivered). The draft remains byte-preserved (all 8 prices), nothing
+sent. **This is the SAME planner-variance limitation as accept2, now on
+the drafting path — not an authorization or wiring failure.**
+
+**Milestone status**: authorized drafting remains PARTIAL — background
+authorized-edit applied (DRAFT4: bounded note, prices preserved) and
+the taught-rule wiring is delivered and pinned; a complete taught draft
+(cc applied, headers from provenance) has not yet been produced by a
+live run because the edit planner did not complete within its bounded
+attempts in this session's fleet conditions.
