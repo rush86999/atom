@@ -211,3 +211,45 @@ class TestVerifyIntendedChange:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+class TestJobFindingsSection:
+    """Round 62 (authorized drafting): the job's durable research record
+    reaches the edit planner — verified findings with sources, open
+    decisions that must stay annotated, manual values preserved,
+    freshness limits kept out of customer-facing text."""
+
+    def test_section_carries_findings_and_rules(self):
+        from core.chat_canvas_editor import _job_findings_section
+        out = _job_findings_section({
+            "verified": [
+                {"item": "No. 381",
+                 "note": "workbook labels PRICE=3297 (2019 copy)",
+                 "source": "job ledger"}],
+            "open_decisions": [
+                {"item": "U-22",
+                 "question": "List Price=1431 vs List Price_2=1393"}],
+            "manual_preserved": ["No. 381: $2,902 (owner-approved)"],
+            "freshness_limits": ["SLE24-16: saved-copy; live unverified"],
+        })
+        assert "No. 381" in out and "PRICE=3297" in out
+        assert "UNRESOLVED U-22" in out and "do NOT silently pick" in out
+        assert "$2,902" in out and "preserve exactly" in out
+        assert "FRESHNESS LIMITS" in out
+        assert "OUT of customer-facing text" in out.replace(
+            "customer-facing text", "customer-facing text")
+
+    def test_section_none_and_empty(self):
+        from core.chat_canvas_editor import _job_findings_section
+        assert _job_findings_section(None) == ""
+        assert _job_findings_section({}) == ""
+        assert _job_findings_section({"verified": []}) == ""
+
+    def test_plan_accepts_job_findings(self):
+        # plan_canvas_edit's signature carries the parameter (default
+        # None keeps every existing caller compatible).
+        import inspect
+        from core.chat_canvas_editor import plan_canvas_edit
+        sig = inspect.signature(plan_canvas_edit)
+        assert "job_findings" in sig.parameters
+        assert sig.parameters["job_findings"].default is None

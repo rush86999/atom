@@ -17778,6 +17778,86 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas corrections lookup skipped: {e}")
             return []
 
+    def _canvas_job_findings(
+        self,
+        user_id: str,
+        canvas: Optional[Dict[str, Any]],
+        session: Optional[Dict[str, Any]],
+        message: str,
+    ) -> Optional[Dict[str, Any]]:
+        """The job-work ledger for THIS canvas's conversation, shaped for
+        the edit planner (round 62): verified findings (resolved
+        questions whose evidence names workbook cells/emails), open
+        business decisions with candidates, the owner's approved manual
+        values, and freshness limits. Best-effort — an unavailable
+        ledger degrades to no section, never blocks the edit."""
+        try:
+            from core.task_lifecycle import (
+                find_active_task_for_canvas, open_unresolved_questions)
+
+            tl = _task_lifecycle_for(
+                getattr(self, "tenant_id", None), None)
+            if tl is None:
+                return None
+            canvas_id = (canvas or {}).get("canvas_id") or (
+                canvas or {}).get("id")
+            record = None
+            if canvas_id:
+                try:
+                    record = find_active_task_for_canvas(tl, canvas_id)
+                except Exception:  # noqa: BLE001
+                    record = None
+            if record is None and isinstance(session, dict):
+                conv = session.get("id")
+                if conv:
+                    try:
+                        record = tl.find_active_task(conv)
+                    except Exception:  # noqa: BLE001
+                        record = None
+            if record is None:
+                return None
+            verified = []
+            manual = []
+            for q in (record.get("task_revision") or {}).get(
+                    "unresolved") or []:
+                res = str(q.get("resolution") or "")
+                item = str(q.get("item") or "")
+                if q.get("status") == "resolved" and res:
+                    note = ""
+                    try:
+                        note = str(res.get("detail") or res) if isinstance(
+                            res, dict) else res
+                    except Exception:  # noqa: BLE001
+                        note = str(res)
+                    verified.append({
+                        "item": item or "(job)",
+                        "note": note[:300],
+                        "source": "job ledger (see operation evidence)",
+                    })
+                    if "manual" in note.lower() or "approved" in note.lower():
+                        manual.append(item)
+            decisions = [
+                {"item": str(q.get("item") or ""),
+                 "question": str(q.get("question") or "")[:200]}
+                for q in open_unresolved_questions(record)
+                if q.get("kind") == "business_decision"]
+            freshness = [
+                str(q.get("item") or "") + ": saved-copy; live source "
+                "unverified"
+                for q in open_unresolved_questions(record)
+                if "freshness" in str(q.get("question") or "").lower()]
+            if not (verified or decisions or freshness):
+                return None
+            return {
+                "verified": verified[:12],
+                "open_decisions": decisions[:6],
+                "manual_preserved": manual[:8],
+                "freshness_limits": freshness[:8],
+            }
+        except Exception as exc:  # noqa: BLE001 — additive context
+            logger.debug("job findings for edit skipped: %r", exc)
+            return None
+
     def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
@@ -18109,6 +18189,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
         versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
         lessons = self._agent_lessons(agent_id, message)
+        # JOB FINDINGS (round 62, authorized drafting): the durable
+        # research record for THIS canvas's job — verified findings with
+        # sources, approved manual values, open business decisions and
+        # freshness limits — so the edit applies what was verified,
+        # preserves what the owner set, and annotates (never resolves)
+        # the open choices.
+        job_findings = self._canvas_job_findings(
+            user_id, canvas, session, message)
         similar_corrections, correction_patterns = await self._cross_canvas_learnings(
             user_id, canvas, agent_id
         )
@@ -18286,6 +18374,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     user_identity=user_identity,
                     playbooks=playbooks,
                     fresh_data=fresh_data,
+                    job_findings=job_findings,
                 ),
                 timeout=edit_plan_timeout,
             )

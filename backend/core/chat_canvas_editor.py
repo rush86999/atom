@@ -1524,6 +1524,61 @@ def _similar_lessons_section(
     )
 
 
+def _job_findings_section(
+        findings: Optional[Dict[str, Any]]) -> str:
+    """The JOB'S DURABLE RESEARCH STATE as planner-visible ground truth
+    (round 62, authorized drafting): verified findings (with sources and
+    freshness limits), the owner's approved/manual values, and the OPEN
+    business decisions with their candidates. The edit this section
+    shapes must: APPLY verified findings, PRESERVE approved/manual
+    prices exactly, KEEP unresolved choices visible as notes (never
+    silently resolve them), and NEVER expose internal sourcing detail in
+    customer-facing text (the taught rule)."""
+    if not isinstance(findings, dict) or not findings:
+        return ""
+    lines: List[str] = []
+    for f in findings.get("verified") or []:
+        item = str(f.get("item") or "").strip()
+        note = str(f.get("note") or "").strip()
+        source = str(f.get("source") or "").strip()
+        if item:
+            lines.append(
+                f"- {item}: {note}"
+                + (f" (source: {source})" if source else ""))
+    decisions = findings.get("open_decisions") or []
+    for d in decisions:
+        item = str(d.get("item") or "").strip()
+        question = str(d.get("question") or "").strip()
+        if item or question:
+            lines.append(
+                f"- UNRESOLVED {item or '(job)'}: {question} — keep "
+                "visible in the draft as a note naming the choice; do "
+                "NOT silently pick")
+    manual = findings.get("manual_preserved") or []
+    if manual:
+        lines.append(
+            "- APPROVED MANUAL VALUES (owner-set; preserve exactly, "
+            "never overwrite with workbook values): "
+            + "; ".join(str(m) for m in manual))
+    freshness = findings.get("freshness_limits") or []
+    if freshness:
+        lines.append(
+            "- FRESHNESS LIMITS (do not present these as current "
+            "verification in customer-facing text): "
+            + "; ".join(str(fl) for fl in freshness))
+    if not lines:
+        return ""
+    return (
+        "JOB FINDINGS — verified research results for THIS canvas's "
+        "job (durable record; source-annotated):\n"
+        + "\n".join(lines)
+        + "\nDrafting rules: apply verified findings; preserve "
+        "approved manual values byte-for-byte; annotate unresolved "
+        "choices without choosing; keep internal sourcing detail OUT "
+        "of customer-facing text.\n\n"
+    )
+
+
 def _lessons_section(lessons: Optional[List[Dict[str, Any]]]) -> str:
     """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
     mentor lessons, observed human corrections), as planner-visible standing
@@ -2201,6 +2256,7 @@ async def plan_canvas_edit(
     user_identity: Optional[Dict[str, Any]] = None,
     playbooks: Optional[List[Dict[str, Any]]] = None,
     fresh_data: Optional[str] = None,
+    job_findings: Optional[Dict[str, Any]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -2257,6 +2313,10 @@ async def plan_canvas_edit(
         # Evidence outranks the learning channels: it is the data THIS edit
         # is about; lessons/corrections are advisory style guidance.
         "fresh": fresh_data or "",
+        # Job findings outrank lessons (they are the verified record of
+        # THIS canvas's investigation) but sit beside evidence: applied
+        # findings must respect fresh_data when both speak.
+        "findings": _job_findings_section(job_findings),
         "lessons": _lessons_section(lessons),
         "cross": _similar_lessons_section(similar_corrections, correction_patterns),
         # Origin context ranks LAST — useful for grounding questions, never
