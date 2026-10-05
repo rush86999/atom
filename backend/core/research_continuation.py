@@ -775,6 +775,20 @@ def _taught_location_successors(
     open_qs = {str(q.get("item") or ""): q
                for q in open_unresolved_questions(record)
                if str(q.get("item") or "")}
+    # FULLER IDENTITIES (round 58): corroboration needs the item's
+    # canvas description, not the bare code — the job's entities carry
+    # them; match each item to its entity by code-token containment.
+    _entities = [
+        str(e.get("id") or "") for e in
+        (record.get("task_revision") or {}).get("entities") or []]
+
+    def _full_identity(item: str) -> str:
+        codes = {_norm_token(t) for t in _item_code_tokens(item)}
+        for ent in _entities:
+            ent_norm = _norm_token(ent)
+            if any(c and c in ent_norm for c in codes):
+                return ent
+        return item
     if not open_qs or not agent_lessons:
         return out
     lesson_texts = [
@@ -827,7 +841,7 @@ def _taught_location_successors(
                             "identity_cell":
                                 f"taught:lesson-{lid}:row-{row}"}],
                         "item": item,
-                        "identity_context": str(item),
+                        "identity_context": _full_identity(item),
                         "candidates_total": 1,
                         "candidates_omitted": 0,
                         "requested_fields": list(
