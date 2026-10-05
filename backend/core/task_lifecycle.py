@@ -2306,6 +2306,31 @@ def add_unresolved_questions(
         return []
     already_open = {_question_key(q)
                     for q in open_unresolved_questions(record)}
+    # FRESH-EVIDENCE RESET (round 42): an EXHAUSTED question re-derived by
+    # a NEW receipt is not a retry of a failed attempt — it is new
+    # justification. Without this reset, questions exhausted during the
+    # broken-loop era stayed unselectable forever, even with fresh
+    # coverage naming the exact read.
+    _reset_exhausted = []
+    for q in open_unresolved_questions(record):
+        if int(q.get("attempts") or 0) >= UNRESOLVED_ATTEMPT_CAP:
+            _reset_exhausted.append(q)
+    if _reset_exhausted:
+        try:
+            lifecycle.apply_transition(run_id, {
+                "kind": "record_unresolved",
+                "requested_change": (
+                    "fresh receipt re-derived exhausted question(s); "
+                    "attempt budget resets"),
+                "questions": [
+                    {**q, "attempts": 0} for q in _reset_exhausted],
+                "source_operation": None,
+            })
+            already_open = {_question_key(q)
+                            for q in open_unresolved_questions(
+                                lifecycle.get_task(run_id))}
+        except Exception:
+            pass
     fresh: List[Dict[str, Any]] = []
     for question in questions:
         entry = _normalize_question(question, operation=source_operation)
